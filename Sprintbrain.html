@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprintbrain – LeibTour</title>
+<title>Sprint Brain</title>
 <!-- SEO / OG -->
-<meta name="description" content="Sprintbrain — LeibTour internal snippet tool for fast guest communications in Ibiza.">
-<meta property="og:title" content="Sprintbrain by LeibTour">
-<meta property="og:description" content="Team snippet manager for Ibiza vacation rentals.">
+<meta name="description" content="Sprint Brain — Team snippet manager. Type ;;shortcut anywhere to insert perfect messages instantly.">
+<meta property="og:title" content="Sprint Brain">
+<meta property="og:description" content="Sprint Brain — The smart snippet tool for hospitality teams.">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -31,7 +31,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* TOPBAR */
 .topbar{height:44px;background:var(--sur);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
-.brand{font-size:15px;font-weight:700;letter-spacing:-.4px}.brand em{color:var(--ac);font-style:normal}
+.brand{font-size:15px;font-weight:700;letter-spacing:-.4px;color:var(--ac)}.brand em{color:var(--ac);font-style:normal}
 .brand-tag{font-size:10px;color:var(--tx3);margin-left:3px}
 .topbar-right{margin-left:auto;display:flex;gap:6px;align-items:center}
 .tab-btn{padding:4px 10px;border-radius:var(--rs);font-size:12px;border:1px solid transparent;cursor:pointer;color:var(--tx2);background:transparent;font-family:inherit}
@@ -256,6 +256,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .toast.show{opacity:1}
 @media(max-width:640px){.rp{display:none}}
 @media(max-width:500px){.fsb{display:none}}
+
+/* CHANGELOG MODAL */
+.cl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9995;display:none;align-items:center;justify-content:center}
+.cl-overlay.on{display:flex}
+.cl-panel{background:var(--sur);border-radius:14px;width:540px;max-width:94vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.22);overflow:hidden;animation:clIn .25s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes clIn{0%{opacity:0;transform:scale(.92) translateY(12px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.cl-hdr{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cl-title{font-size:15px;font-weight:700;color:var(--tx);flex:1}
+.cl-close{background:transparent;border:none;cursor:pointer;font-size:18px;color:var(--tx3);padding:0;line-height:1}
+.cl-close:hover{color:var(--tx)}
+.cl-body{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:20px}
+.cl-release{border-left:3px solid var(--bdr2);padding-left:14px}
+.cl-release:first-child{border-left-color:var(--ac)}
+.cl-rel-hdr{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.cl-ver{font-size:14px;font-weight:700;color:var(--ac);font-family:monospace}
+.cl-release:not(:first-child) .cl-ver{color:var(--tx2)}
+.cl-rel-label{font-size:12px;font-weight:600;color:var(--tx2)}
+.cl-rel-date{font-size:10px;color:var(--tx3);margin-left:auto}
+.cl-changes{display:flex;flex-direction:column;gap:5px}
+.cl-change{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--tx2);line-height:1.5}
+.cl-badge{flex-shrink:0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-top:1px;text-transform:uppercase;letter-spacing:.05em}
+.cl-badge.new{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
+.cl-badge.fix{background:var(--date-bg);color:var(--date-tx);border:1px solid var(--date-bdr)}
+.cl-badge.imp{background:var(--formula-bg);color:var(--formula);border:1px solid var(--formula-bdr)}
+/* Clickable version in footer */
+.ver-link{cursor:pointer;font-family:monospace;font-size:9px;color:var(--tx3);text-decoration:none;border-bottom:1px dotted var(--tx3);transition:color .15s}
+.ver-link:hover{color:var(--ac);border-bottom-color:var(--ac)}
+
 </style>
 </head>
 <body>
@@ -332,9 +360,82 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+
+<!-- CHANGELOG MODAL -->
+<div class="cl-overlay" id="cl-overlay">
+  <div class="cl-panel">
+    <div class="cl-hdr">
+      <span class="cl-title">⚡ Sprint Brain — Changelog</span>
+      <button class="cl-close" onclick="closeChangelog()">✕</button>
+    </div>
+    <div class="cl-body" id="cl-body"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ── CHANGELOG ─────────────────────────────────────────────────────
+var CHANGELOG = [
+  {
+    version: 'v2.3',
+    date: '2026-03-18',
+    label: 'Cloud Sync + Context Menu',
+    changes: [
+      { type: 'new',  text: 'Supabase cloud sync — all team members share the same snippet library in real time' },
+      { type: 'new',  text: 'Right-click on any webpage to insert a snippet directly (TextBlaze style)' },
+      { type: 'new',  text: 'Context menu auto-groups snippets by folder with submenus' },
+      { type: 'new',  text: 'Sprint Brain rebrand — clean logo, no LeibTour tag' },
+      { type: 'new',  text: 'Clickable version footer with this changelog' },
+      { type: 'fix',  text: 'CSP header removed from netlify.toml — was causing blank page on deploy' },
+      { type: 'fix',  text: 'popup.js wiped during patch session — full clean rewrite' }
+    ]
+  },
+  {
+    version: 'v2.2',
+    date: '2026-03-17',
+    label: 'Folders + Stats + Right-click Popup',
+    changes: [
+      { type: 'new',  text: 'Folder sidebar — organise snippets by category (Presupuestos, AI Prompts)' },
+      { type: 'new',  text: 'Right-click context menu inside popup — duplicate, move, rename, delete' },
+      { type: 'new',  text: 'Usage statistics — per-snippet use count, fill rate, last used' },
+      { type: 'new',  text: '📊 Stats tab with full ranking table and 🥇🥈🥉 medals' },
+      { type: 'new',  text: 'Celebration card shows usage milestone (1st use, 10th, 25th...)' },
+      { type: 'new',  text: 'Sort snippets by most used or recently used' }
+    ]
+  },
+  {
+    version: 'v2.1',
+    date: '2026-03-16',
+    label: 'Chrome Extension + Trigger Selector',
+    changes: [
+      { type: 'new',  text: 'Chrome Extension v1 — auto-expand shortcuts on Gmail, WhatsApp, Airbnb, Claude' },
+      { type: 'new',  text: 'Configurable trigger character (;;, ::, !!, /, or custom)' },
+      { type: 'new',  text: 'Conflict warning when choosing / (clashes with WhatsApp, Claude, Notion)' },
+      { type: 'fix',  text: 'MV3 Content Security Policy — moved all JS to external popup.js' },
+      { type: 'fix',  text: 'Service worker sleep bug — popup now reads directly from storage' }
+    ]
+  },
+  {
+    version: 'v2.0',
+    date: '2026-03-15',
+    label: 'Web App Launch',
+    changes: [
+      { type: 'new',  text: 'Full snippet manager — create, edit, delete snippets' },
+      { type: 'new',  text: 'Formula engine: {=A-B}, round(), floor(), ceil()' },
+      { type: 'new',  text: 'Conditional logic: {if:A > 0}...{endif}' },
+      { type: 'new',  text: 'Field types: text, number, dropdown, date picker, paragraph' },
+      { type: 'new',  text: 'Confetti + Human vs Machine celebration on copy' },
+      { type: 'new',  text: 'Autosave with 2s debounce' },
+      { type: 'new',  text: '5 default LeibTour snippets (EN/ES/IT)' }
+    ]
+  }
+];
+
+var APP_VERSION = 'v2.3';
+var APP_DATE    = '2026-03-18';
+
 // ── FORMULA ENGINE ────────────────────────────────────────────────
 var FUNS={round:1,floor:1,ceil:1,abs:1,min:1,max:1};
 function evalF(expr,vals){
@@ -747,7 +848,11 @@ function render(){
   h+='</div>'; // cols
 
   // FOOTER
-  h+='<div class="footer">';
+  h+='<div style="padding:3px 14px;background:var(--sur2);border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+  +'<a class="ver-link" onclick="openChangelog()" title="View changelog">'+APP_VERSION+'</a>'
+  +'<span style="font-size:9px;color:var(--tx3)">'+APP_DATE+'</span>'
+  +'</div>';
+h+='<div class="footer">';
   if(S.view==='editor'){
     if(S.mode==='edit'){
       h+='<button class="btn btn-p" onclick="saveSnippet()">\ud83d\udcbe Save</button>'
