@@ -6,18 +6,13 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    # Security headers
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # Allow Supabase API calls from the browser
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://eyowustlbqujaimaxggt.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
 
 [[headers]]
   for = "/Sprintbrain.html"
   [headers.values]
-    # No caching for the app — always serve latest version
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[redirects]]
