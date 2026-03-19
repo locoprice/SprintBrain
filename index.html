@@ -1196,9 +1196,6 @@ function render() {
         S.selId = main.dataset.id; S.fills = {}; S.copied = false; S.mode = 'try'; S.view = 'editor';
         render();
       });
-      main.addEventListener('contextmenu', function(e) {
-        e.preventDefault(); S.ctxId = main.dataset.id; showCtx(e.clientX, e.clientY);
-      });
     });
     document.querySelectorAll('[data-switch]').forEach(function(el) {
       el.addEventListener('click', function(e) {
@@ -1530,6 +1527,34 @@ document.addEventListener('click', function(e) {
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') { closeCtx(); closeRenamePortal(); }
+});
+
+// DOCUMENT-LEVEL CONTEXTMENU HANDLER
+// Catches right-clicks anywhere in the app — even on child elements inside cards
+// This is the reliable approach: walk up the DOM tree to find the snippet card
+document.addEventListener('contextmenu', function(e) {
+  // Walk up from click target to find a card-group element
+  var el = e.target;
+  var cardMain = null;
+  while (el && el !== document.body) {
+    if (el.classList && el.classList.contains('card-group-main') && el.dataset.id) {
+      cardMain = el;
+      break;
+    }
+    // Also check parent card-group
+    if (el.classList && el.classList.contains('card-group')) {
+      var m = el.querySelector('.card-group-main[data-id]');
+      if (m) { cardMain = m; break; }
+    }
+    el = el.parentElement;
+  }
+  if (cardMain) {
+    e.preventDefault();
+    e.stopPropagation();
+    S.ctxId = cardMain.dataset.id;
+    showCtx(e.clientX, e.clientY);
+  }
+  // If not on a card — let browser native menu show normally
 });
 
 function startInlineRename(id) {
