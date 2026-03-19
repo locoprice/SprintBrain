@@ -231,20 +231,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .lp-ok:hover{background:var(--ac2)}
 .lp-cancel{padding:9px 14px;background:transparent;border:1px solid var(--bdr);border-radius:8px;font-size:13px;color:var(--tx2);cursor:pointer;font-family:inherit}
 
-/* CONTEXT MENU */
-.ctx{position:fixed;z-index:9999;background:var(--sur);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.14);min-width:200px;display:none;overflow:visible}
-.ctx.on{display:block}
-.ctx-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:12px;color:var(--tx);position:relative}
-.ctx-item:hover{background:var(--sur2);border-radius:4px}
-.ctx-item.danger{color:var(--danger)}.ctx-item.danger:hover{background:var(--danger-bg)}
-.ctx-ico{font-size:14px;width:18px;text-align:center;flex-shrink:0}
-.ctx-arr{margin-left:auto;font-size:11px;color:var(--tx3)}
-.ctx-sep{height:1px;background:var(--bdr);margin:3px 6px}
-.ctx-sub{position:absolute;left:100%;top:-4px;background:var(--sur);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.14);min-width:180px;display:none;z-index:10000}
+/* CONTEXT MENU - TextBlaze style */
+.ctx{position:fixed;z-index:9999;background:#1e2024;border:1px solid rgba(255,255,255,.08);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.35),0 2px 8px rgba(0,0,0,.2);min-width:210px;display:none;overflow:visible;padding:4px}
+.ctx.on{display:block;animation:ctxIn .12s cubic-bezier(.2,0,.3,1)}
+@keyframes ctxIn{0%{opacity:0;transform:scale(.94) translateY(-4px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;font-size:12px;color:rgba(255,255,255,.85);border-radius:7px;position:relative;font-weight:400;letter-spacing:.01em}
+.ctx-item:hover{background:rgba(255,255,255,.08)}
+.ctx-item.danger{color:#ff7b72}
+.ctx-item.danger:hover{background:rgba(255,80,70,.12)}
+.ctx-ico-wrap{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:.65}
+.ctx-item:hover .ctx-ico-wrap{opacity:.9}
+.ctx-item.danger .ctx-ico-wrap{opacity:.8}
+.ctx-arr{margin-left:auto;color:rgba(255,255,255,.35);display:flex;align-items:center}
+.ctx-sep{height:1px;background:rgba(255,255,255,.08);margin:3px 0}
+.ctx-sub{position:absolute;left:calc(100% + 4px);top:-4px;background:#1e2024;border:1px solid rgba(255,255,255,.08);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.35);min-width:190px;display:none;z-index:10000;padding:4px}
 .ctx-item:hover .ctx-sub{display:block}
-.ctx-sub-item{display:flex;align-items:center;gap:8px;padding:7px 13px;cursor:pointer;font-size:12px;color:var(--tx)}
-.ctx-sub-item:hover{background:var(--sur2)}
-.ctx-sub-item.add{color:var(--ac);font-weight:600;border-top:1px solid var(--bdr);margin-top:3px}
+.ctx-sub-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;font-size:12px;color:rgba(255,255,255,.85);border-radius:7px}
+.ctx-sub-item:hover{background:rgba(255,255,255,.08)}
+.ctx-sub-item.add{color:#58a6ff;font-weight:500;border-top:1px solid rgba(255,255,255,.08);margin-top:3px}
+/* Popconfirm */
+.popcfm{position:fixed;z-index:10001;background:#1e2024;border:1px solid rgba(255,255,255,.1);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);padding:12px 14px;min-width:200px;display:none}
+.popcfm.on{display:block;animation:ctxIn .12s cubic-bezier(.2,0,.3,1)}
+.popcfm-msg{font-size:12px;color:rgba(255,255,255,.8);margin-bottom:10px;font-weight:500}
+.popcfm-acts{display:flex;gap:7px;justify-content:flex-end}
+.popcfm-no{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.7);font-family:inherit}
+.popcfm-no:hover{background:rgba(255,255,255,.08)}
+.popcfm-yes{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:#c0392b;color:#fff;font-family:inherit}
+.popcfm-yes:hover{background:#e74c3c}
+/* Inline rename portal */
+.rename-portal{position:fixed;z-index:10001;background:#1e2024;border:1px solid rgba(255,255,255,.1);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);padding:10px 12px;min-width:240px}
+.rename-inp{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:7px 10px;font-size:13px;color:#fff;font-family:inherit;outline:none;margin-bottom:6px}
+.rename-inp:focus{border-color:var(--ac);background:rgba(186,117,23,.1)}
+.rename-hint{font-size:10px;color:rgba(255,255,255,.3);text-align:center}
 .iname-inp{font-size:13px;font-weight:600;color:var(--tx);border:1px solid var(--ac-bdr);border-radius:4px;padding:1px 6px;outline:none;background:var(--ac-bg);font-family:inherit;width:180px}
 
 /* CHANGELOG */
@@ -305,6 +323,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .toast.show{opacity:1}
 @media(max-width:640px){.rp{display:none}}
 @media(max-width:500px){.fsb{display:none}}
+
+/* AV FEEDBACK SETTINGS */
+.av-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bdr)}
+.av-toggle-lbl{font-size:12px;font-weight:500;color:var(--tx)}
+.av-toggle-sub{font-size:10px;color:var(--tx3);margin-top:1px}
+.av-switch{position:relative;width:34px;height:20px;flex-shrink:0}
+.av-switch input{opacity:0;width:0;height:0;position:absolute}
+.av-slider{position:absolute;inset:0;background:var(--bdr2);border-radius:20px;cursor:pointer;transition:background .2s}
+.av-slider:before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.av-switch input:checked + .av-slider{background:var(--ac)}
+.av-switch input:checked + .av-slider:before{transform:translateX(14px)}
+/* Cursor burst canvas */
+#burst-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9992}
+
 </style>
 </head>
 <body>
@@ -335,17 +367,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-<!-- CONTEXT MENU -->
+<!-- CONTEXT MENU - TextBlaze style -->
 <div class="ctx" id="ctx">
-  <div class="ctx-item" id="ctx-dup"><span class="ctx-ico">&#x29C9;</span>Duplicate snippet</div>
+  <div class="ctx-item" id="ctx-dup">
+    <span class="ctx-ico-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+    Duplicate snippet
+  </div>
   <div class="ctx-item" id="ctx-move">
-    <span class="ctx-ico">&#x1F4C2;</span>Move to folder<span class="ctx-arr">&#x203A;</span>
+    <span class="ctx-ico-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+    Move to folder
+    <span class="ctx-arr"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9,18 15,12 9,6"/></svg></span>
     <div class="ctx-sub" id="ctx-sub"></div>
   </div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-ren"><span class="ctx-ico">&#x270F;&#xFE0F;</span>Rename...</div>
+  <div class="ctx-item" id="ctx-ren">
+    <span class="ctx-ico-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+    Rename...
+  </div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item danger" id="ctx-del"><span class="ctx-ico">&#x1F5D1;</span>Delete snippet...</div>
+  <div class="ctx-item danger" id="ctx-del">
+    <span class="ctx-ico-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span>
+    Delete snippet...
+  </div>
+</div>
+
+<!-- POPCONFIRM for delete -->
+<div class="popcfm" id="popcfm">
+  <div class="popcfm-arrow"></div>
+  <div class="popcfm-body">
+    <div class="popcfm-msg">Delete this snippet?</div>
+    <div class="popcfm-acts">
+      <button class="popcfm-no" id="popcfm-no">Cancel</button>
+      <button class="popcfm-yes" id="popcfm-yes">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- INLINE RENAME INPUT (portal — sits outside sidebar) -->
+<div class="rename-portal" id="rename-portal" style="display:none">
+  <input class="rename-inp" id="rename-inp" placeholder="Snippet name...">
+  <div class="rename-hint">Enter to save &nbsp; Esc to cancel</div>
 </div>
 
 <!-- LANGUAGE PICKER MODAL -->
@@ -363,6 +424,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- CELEBRATION -->
 <canvas id="sb-confetti" style="display:none"></canvas>
+<canvas id="burst-canvas" style="display:none"></canvas>
 <div class="cel-overlay" id="cel-overlay">
   <div class="cel-card">
     <span class="cel-emoji" id="cel-e">&#x1F389;</span>
@@ -619,6 +681,15 @@ var CEL_MSGS = [
 ];
 
 var CHANGELOG = [
+  { version: 'v2.5', date: '2026-03-19', label: 'Audiovisual Feedback on Copy',
+    changes: [
+      { type: 'new', text: 'Bell sound plays instantly when a snippet is copied (Web Audio API, no external files)' },
+      { type: 'new', text: 'Cursor-position confetti burst on copy - appears right at the copy button' },
+      { type: 'new', text: 'Sound and confetti can be toggled independently in Settings (Stats tab)' },
+      { type: 'new', text: 'Singleton audio manager with 300ms debounce - no sound overlaps' },
+      { type: 'new', text: 'Burst canvas uses pointer-events:none - never blocks editing' }
+    ]
+  },
   { version: 'v2.4', date: '2026-03-19', label: 'Language Variants + Grouped List',
     changes: [
       { type: 'new', text: 'Add EN/ES/IT/FR language versions to any snippet - you write all content' },
@@ -646,7 +717,7 @@ var CHANGELOG = [
   }
 ];
 
-var APP_VERSION = 'v2.4';
+var APP_VERSION = 'v2.5';
 var APP_DATE    = '2026-03-19';
 
 // STATE
@@ -962,7 +1033,20 @@ function render() {
     var totalUses = S.snippets.reduce(function(a, s) { return a + (s.stats.uses || 0); }, 0);
     var totalFills = S.snippets.reduce(function(a, s) { return a + (s.stats.fills || 0); }, 0);
     var maxUses = sorted.length ? sorted[0].stats.uses || 0 : 0;
-    h += '<div class="stats-wrap"><div class="stats-hdr"><span class="stats-title">Usage Statistics</span>'
+    h += '<div class="stats-wrap">';
+    // AV Feedback settings section
+    h += '<div style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:14px;overflow:hidden">';
+    h += '<div style="padding:8px 14px;font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.12em;background:var(--sur2);border-bottom:1px solid var(--bdr)">Feedback Settings</div>';
+    h += '<div class="av-toggle-row">'
+      + '<div><div class="av-toggle-lbl">Sound feedback</div><div class="av-toggle-sub">Bell sound on snippet copy</div></div>'
+      + '<label class="av-switch"><input type="checkbox" id="av-sound" '+(AV.soundEnabled?'checked':'')+' onchange="AV.soundEnabled=this.checked;avSaveSettings()"><span class="av-slider"></span></label>'
+      + '</div>';
+    h += '<div class="av-toggle-row">'
+      + '<div><div class="av-toggle-lbl">Confetti burst</div><div class="av-toggle-sub">Cursor-position particle animation</div></div>'
+      + '<label class="av-switch"><input type="checkbox" id="av-conf" '+(AV.confettiEnabled?'checked':'')+' onchange="AV.confettiEnabled=this.checked;avSaveSettings()"><span class="av-slider"></span></label>'
+      + '</div>';
+    h += '</div>';
+    h += '<div class="stats-hdr"><span class="stats-title">Usage Statistics</span>'
       + '<button class="stats-reset" onclick="resetStats()">Reset all stats</button></div>'
       + '<div class="stats-summary">'
       + '<div class="sum-box"><div class="sum-n">' + totalUses + '</div><div class="sum-lbl">Total copies</div></div>'
@@ -1231,6 +1315,15 @@ function doCopy() {
       var b2 = document.getElementById('copy-btn');
       if (b2) { b2.textContent = 'Copy message'; b2.classList.remove('cp'); }
     }, 2500);
+    // AV FEEDBACK — fire immediately after paste confirmed
+    AudioMgr.playBell();
+    var copyBtn = document.getElementById('copy-btn');
+    if (copyBtn) {
+      var r = copyBtn.getBoundingClientRect();
+      launchBurst(r.left + r.width / 2, r.top + r.height / 2);
+    } else {
+      launchBurst();
+    }
     showCelebration(txt, humanW, machineW, sel.stats.uses);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(function() { fbCopy(txt, done); });
@@ -1242,53 +1335,206 @@ function fbCopy(txt, cb) {
   try { document.execCommand('copy'); cb(); } catch(e) {} document.body.removeChild(ta);
 }
 
-// CONTEXT MENU
-function showCtx(x, y) {
+// CONTEXT MENU - TextBlaze style with popconfirm + inline rename
+var pendingDeleteId = null;
+
+function showCtx(x, y, snippetId) {
   closeCtx();
+  S.ctxId = snippetId || S.ctxId;
+  // Build move-to-folder submenu
   var sub = document.getElementById('ctx-sub'); var sh = '';
   S.folders.forEach(function(f) {
-    sh += '<div class="ctx-sub-item" data-moveto="' + f.id + '"><span style="font-size:12px;width:16px;text-align:center">' + esc(f.ico || '&#x1F4C1;') + '</span>' + esc(f.name) + '</div>';
+    sh += '<div class="ctx-sub-item" data-moveto="' + f.id + '">'
+      + '<span style="font-size:13px;width:18px;text-align:center;flex-shrink:0">' + esc(f.ico || '') + '</span>'
+      + '<span>' + esc(f.name) + '</span></div>';
   });
-  sh += '<div class="ctx-sub-item add" id="ctx-sub-nf"><span style="font-size:12px;width:16px;text-align:center">&#xFF0B;</span>New folder...</div>';
+  sh += '<div class="ctx-sub-item add" id="ctx-sub-nf">'
+    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+    + '<span>New folder...</span></div>';
   sub.innerHTML = sh;
   sub.querySelectorAll('[data-moveto]').forEach(function(item) {
     item.addEventListener('click', function(e) {
-      e.stopPropagation(); var s = findSnip(S.ctxId);
-      if (s) { s.folder = item.dataset.moveto; save(); DB.upsertSnippet(s); render(); } closeCtx();
+      e.stopPropagation();
+      var s = findSnip(S.ctxId);
+      if (s) {
+        s.folder = item.dataset.moveto;
+        save(); DB.upsertSnippet(s); render();
+        toast('Moved to folder');
+      }
+      closeCtx();
     });
   });
   var snf = document.getElementById('ctx-sub-nf');
   if (snf) snf.addEventListener('click', function(e) {
     e.stopPropagation(); closeCtx();
-    openFolderModal(function(fid) { var s = findSnip(S.ctxId); if (s) { s.folder = fid; save(); DB.upsertSnippet(s); render(); } });
+    openFolderModal(function(fid) {
+      var s = findSnip(S.ctxId);
+      if (s) { s.folder = fid; save(); DB.upsertSnippet(s); render(); toast('Moved to new folder'); }
+    });
   });
-  var m = document.getElementById('ctx'); m.style.left = x + 'px'; m.style.top = y + 'px'; m.className = 'ctx on';
-  setTimeout(function() { var r = m.getBoundingClientRect(); if (r.right > window.innerWidth) m.style.left = (x - r.width) + 'px'; if (r.bottom > window.innerHeight) m.style.top = (y - r.height) + 'px'; }, 0);
+  // Position menu with viewport boundary detection
+  var m = document.getElementById('ctx');
+  m.style.left = x + 'px';
+  m.style.top  = y + 'px';
+  m.className  = 'ctx on';
+  setTimeout(function() {
+    var r = m.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    if (r.right  > vw - 8) m.style.left = Math.max(8, x - r.width)  + 'px';
+    if (r.bottom > vh - 8) m.style.top  = Math.max(8, y - r.height) + 'px';
+  }, 0);
 }
-function closeCtx() { var m = document.getElementById('ctx'); if (m) m.className = 'ctx'; }
-document.getElementById('ctx-dup').addEventListener('click', function() {
+
+function closeCtx() {
+  var m = document.getElementById('ctx');
+  if (m) m.className = 'ctx';
+  closePopcfm();
+}
+
+// POPCONFIRM for safe delete
+function showPopcfm(anchorX, anchorY, snippetId) {
+  pendingDeleteId = snippetId;
+  var p = document.getElementById('popcfm');
+  p.style.left = anchorX + 'px';
+  p.style.top  = anchorY + 'px';
+  p.className  = 'popcfm on';
+  setTimeout(function() {
+    var r = p.getBoundingClientRect();
+    if (r.right  > window.innerWidth  - 8) p.style.left = Math.max(8, anchorX - r.width)  + 'px';
+    if (r.bottom > window.innerHeight - 8) p.style.top  = Math.max(8, anchorY - r.height) + 'px';
+    document.getElementById('popcfm-yes').focus();
+  }, 0);
+}
+
+function closePopcfm() {
+  var p = document.getElementById('popcfm');
+  if (p) p.className = 'popcfm';
+  pendingDeleteId = null;
+}
+
+document.getElementById('popcfm-no').addEventListener('click', function(e) {
+  e.stopPropagation(); closePopcfm();
+});
+
+document.getElementById('popcfm-yes').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!pendingDeleteId) return;
+  var id = pendingDeleteId;
+  closePopcfm(); closeCtx();
+  // Optimistic remove
+  S.snippets = S.snippets.filter(function(s) { return s.id !== id; });
+  if (S.selId === id) S.selId = S.snippets.length ? S.snippets[0].id : null;
+  save(); DB.deleteSnippet(id); render(); toast('Snippet deleted');
+});
+
+document.getElementById('popcfm').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { e.stopPropagation(); closePopcfm(); }
+});
+
+// INLINE RENAME PORTAL
+var renameTargetId = null;
+
+function showRenamePortal(snippetId) {
+  var s = findSnip(snippetId); if (!s) return;
+  renameTargetId = snippetId;
+  // Position near the card
+  var cardEl = document.querySelector('[data-id="' + snippetId + '"]');
+  var px = 200, py = 200;
+  if (cardEl) {
+    var r = cardEl.getBoundingClientRect();
+    px = r.left; py = r.top + r.height / 2 - 20;
+  }
+  var portal = document.getElementById('rename-portal');
+  var inp    = document.getElementById('rename-inp');
+  inp.value  = s.title;
+  portal.style.left    = px + 'px';
+  portal.style.top     = py + 'px';
+  portal.style.display = 'block';
+  setTimeout(function() {
+    var r2 = portal.getBoundingClientRect();
+    if (r2.right  > window.innerWidth  - 8) portal.style.left = Math.max(8, px - r2.width  + (cardEl ? cardEl.getBoundingClientRect().width : 0)) + 'px';
+    if (r2.bottom > window.innerHeight - 8) portal.style.top  = Math.max(8, py - r2.height) + 'px';
+    inp.select(); inp.focus();
+  }, 10);
+}
+
+function closeRenamePortal() {
+  document.getElementById('rename-portal').style.display = 'none';
+  renameTargetId = null;
+}
+
+function commitRename() {
+  if (!renameTargetId) return;
+  var newTitle = (document.getElementById('rename-inp').value || '').trim();
+  if (newTitle) {
+    var s = findSnip(renameTargetId);
+    if (s && newTitle !== s.title) {
+      s.title = newTitle;
+      save(); DB.upsertSnippet(s); render(); toast('Renamed');
+    }
+  }
+  closeRenamePortal();
+}
+
+document.getElementById('rename-inp').addEventListener('keydown', function(e) {
+  e.stopPropagation();
+  if (e.key === 'Enter')  { e.preventDefault(); commitRename(); }
+  if (e.key === 'Escape') { closeRenamePortal(); }
+});
+document.getElementById('rename-inp').addEventListener('blur', function() {
+  // Small delay so clicking Save doesn't double-fire
+  setTimeout(commitRename, 150);
+});
+
+// CTX ACTION HANDLERS
+document.getElementById('ctx-dup').addEventListener('click', function(e) {
+  e.stopPropagation();
   var s = findSnip(S.ctxId); if (!s) return;
-  var copy = JSON.parse(JSON.stringify(s)); copy.id = uid(); copy.title = 'Copy of ' + copy.title; copy.shortcut = copy.shortcut + '2';
-  copy.stats = mkStats(); copy.lang_group_id = copy.id;
-  var idx = S.snippets.indexOf(s); S.snippets.splice(idx + 1, 0, copy);
-  save(); DB.upsertSnippet(copy); DB.updateStats(copy.id, 0, 0, null); render(); closeCtx(); toast('Duplicated');
+  // Optimistic UI — insert copy immediately
+  var copy = JSON.parse(JSON.stringify(s));
+  copy.id           = uid();
+  copy.title        = s.title + ' (Copy)';
+  copy.shortcut     = s.shortcut + '2';
+  copy.stats        = mkStats();
+  copy.lang_group_id = copy.id;
+  var idx = S.snippets.findIndex(function(x) { return x.id === s.id; });
+  S.snippets.splice(idx + 1, 0, copy);
+  save(); render(); closeCtx();
+  // Sync to backend after optimistic update
+  DB.upsertSnippet(copy); DB.updateStats(copy.id, 0, 0, null);
+  toast('Snippet duplicated');
 });
-document.getElementById('ctx-ren').addEventListener('click', function() { closeCtx(); startInlineRename(S.ctxId); });
-document.getElementById('ctx-del').addEventListener('click', function() {
-  if (!S.ctxId || !confirm('Delete?')) return;
-  DB.deleteSnippet(S.ctxId); S.snippets = S.snippets.filter(function(s) { return s.id !== S.ctxId; });
-  save(); render(); closeCtx(); toast('Deleted');
+
+document.getElementById('ctx-ren').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var id = S.ctxId; closeCtx();
+  showRenamePortal(id);
 });
-document.addEventListener('click', function(e) { var m = document.getElementById('ctx'); if (m && !m.contains(e.target)) closeCtx(); });
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeCtx(); });
+
+document.getElementById('ctx-del').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var m = document.getElementById('ctx');
+  var r = m.getBoundingClientRect();
+  // Show popconfirm anchored below the delete item
+  showPopcfm(r.left, r.bottom + 4, S.ctxId);
+});
+
+// Global close handlers
+document.addEventListener('click', function(e) {
+  var ctx = document.getElementById('ctx');
+  var pfm = document.getElementById('popcfm');
+  var rp  = document.getElementById('rename-portal');
+  if (ctx && ctx.className.includes('on') && !ctx.contains(e.target) && !pfm.contains(e.target)) closeCtx();
+  if (rp  && rp.style.display !== 'none' && !rp.contains(e.target)) commitRename();
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeCtx(); closeRenamePortal(); }
+});
 
 function startInlineRename(id) {
-  var s = findSnip(id); if (!s) return; var el = document.getElementById('ctitle-' + id); if (!el) return;
-  var orig = s.title; var inp = document.createElement('input'); inp.className = 'iname-inp'; inp.value = orig;
-  el.parentNode.replaceChild(inp, el); inp.focus(); inp.select();
-  function commit() { var v = (inp.value || '').trim(); if (v && v !== orig) { s.title = v; save(); DB.upsertSnippet(s); } render(); }
-  inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } if (e.key === 'Escape') { inp.value = orig; inp.blur(); } });
+  // Use the rename portal instead of inline DOM replacement
+  showRenamePortal(id);
 }
 
 // FOLDER MODAL
@@ -1315,8 +1561,123 @@ document.getElementById('folder-cancel').addEventListener('click', closeFolderMo
 document.getElementById('modal-folder').addEventListener('click', function(e) { if (e.target === document.getElementById('modal-folder')) closeFolderModal(); });
 document.getElementById('folder-name').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('folder-save').click(); if (e.key === 'Escape') closeFolderModal(); });
 
-// CONFETTI
-var CC = ['#BA7517','#e8a650','#4a9eca','#d4736a','#3B6D11','#7c3aed','#0891b2','#f59e0b','#ec4899','#10b981'];
+// AV FEEDBACK SYSTEM
+// Settings stored in localStorage
+var AV = {
+  soundEnabled: localStorage.getItem('sb-sound') !== 'false',
+  confettiEnabled: localStorage.getItem('sb-confetti-on') !== 'false'
+};
+
+function avSaveSettings() {
+  localStorage.setItem('sb-sound',        AV.soundEnabled    ? 'true' : 'false');
+  localStorage.setItem('sb-confetti-on',  AV.confettiEnabled ? 'true' : 'false');
+}
+
+// SINGLETON AUDIO MANAGER — Web Audio API synthesized bell, no external files
+var AudioMgr = (function() {
+  var ctx = null;
+  var lastPlay = 0;
+  var DEBOUNCE = 300; // ms between plays to avoid overlap
+  function getCtx() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    return ctx;
+  }
+  return {
+    playBell: function() {
+      if (!AV.soundEnabled) return;
+      var now = Date.now();
+      if (now - lastPlay < DEBOUNCE) return;
+      lastPlay = now;
+      var ac = getCtx(); if (!ac) return;
+      try {
+        // Synthesize a warm bell/ping: sine wave with exponential decay
+        var osc  = ac.createOscillator();
+        var gain = ac.createGain();
+        var osc2  = ac.createOscillator();
+        var gain2 = ac.createGain();
+
+        osc.type  = 'sine';
+        osc.frequency.setValueAtTime(880, ac.currentTime);         // A5 - bright ping
+        osc.frequency.exponentialRampToValueAtTime(660, ac.currentTime + 0.3); // slight drop
+
+        gain.gain.setValueAtTime(0.28, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
+
+        // Harmonic overtone for richness
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1320, ac.currentTime);
+        gain2.gain.setValueAtTime(0.10, ac.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+
+        osc.connect(gain);   gain.connect(ac.destination);
+        osc2.connect(gain2); gain2.connect(ac.destination);
+
+        osc.start(ac.currentTime);  osc.stop(ac.currentTime + 0.7);
+        osc2.start(ac.currentTime); osc2.stop(ac.currentTime + 0.4);
+      } catch(e) {}
+    }
+  };
+})();
+
+// CURSOR BURST — contextual confetti at copy button position
+var CC = ['#BA7517','#e8a650','#4a9eca','#d4736a','#3B6D11','#7c3aed','#0891b2','#f59e0b'];
+var burstRaf = null;
+
+function launchBurst(originX, originY) {
+  if (!AV.confettiEnabled) return;
+  var cv = document.getElementById('burst-canvas');
+  cv.style.display = 'block';
+  cv.width  = window.innerWidth;
+  cv.height = window.innerHeight;
+  var ctx2 = cv.getContext('2d');
+  // Use copy button position as origin, fallback to center-right
+  var ox = originX || window.innerWidth  * 0.75;
+  var oy = originY || window.innerHeight * 0.5;
+  var pp = [];
+  for (var i = 0; i < 60; i++) {
+    var a = (Math.random() * Math.PI * 1.4) - Math.PI * 0.2; // spread upward/sideways
+    var sp = 3 + Math.random() * 7;
+    pp.push({
+      x: ox, y: oy,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 4,
+      w: 5 + Math.random() * 6,
+      h: 3 + Math.random() * 5,
+      color: CC[Math.floor(Math.random() * CC.length)],
+      rot: Math.random() * 360,
+      rv: (Math.random() - 0.5) * 10,
+      alpha: 1,
+      circle: Math.random() > 0.55
+    });
+  }
+  if (burstRaf) cancelAnimationFrame(burstRaf);
+  function draw() {
+    ctx2.clearRect(0, 0, cv.width, cv.height);
+    var alive = false;
+    for (var j = 0; j < pp.length; j++) {
+      var p = pp[j];
+      p.vy += 0.22; p.vx *= 0.98;
+      p.x += p.vx; p.y += p.vy;
+      p.rot += p.rv; p.alpha -= 0.018;
+      if (p.alpha > 0 && p.y < cv.height + 20) alive = true;
+      ctx2.save();
+      ctx2.globalAlpha = Math.max(0, p.alpha);
+      ctx2.fillStyle = p.color;
+      ctx2.translate(p.x, p.y);
+      ctx2.rotate(p.rot * Math.PI / 180);
+      if (p.circle) { ctx2.beginPath(); ctx2.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx2.fill(); }
+      else ctx2.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx2.restore();
+    }
+    if (alive) burstRaf = requestAnimationFrame(draw);
+    else { ctx2.clearRect(0, 0, cv.width, cv.height); cv.style.display = 'none'; burstRaf = null; }
+  }
+  draw();
+}
+
+// Legacy full-screen confetti (kept for celebration modal)
 function launchConfetti() {
   var cv = document.getElementById('sb-confetti'); cv.style.display = 'block'; cv.width = window.innerWidth; cv.height = window.innerHeight;
   var ctx = cv.getContext('2d'), pp = [];
@@ -1325,7 +1686,7 @@ function launchConfetti() {
     pp.push({ x: cv.width / 2 + (Math.random() - 0.5) * 300, y: cv.height * 0.35, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 5, w: 6 + Math.random() * 8, h: 4 + Math.random() * 5, color: CC[Math.floor(Math.random() * CC.length)], rot: Math.random() * 360, rv: (Math.random() - 0.5) * 8, alpha: 1, circle: Math.random() > 0.5 });
   }
   var raf;
-  function draw() {
+  function draw2() {
     ctx.clearRect(0, 0, cv.width, cv.height); var alive = false;
     for (var j = 0; j < pp.length; j++) {
       var p = pp[j]; p.vy += 0.18; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.rv; p.alpha -= 0.009;
@@ -1334,9 +1695,9 @@ function launchConfetti() {
       if (p.circle) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); } else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
       ctx.restore();
     }
-    if (alive) raf = requestAnimationFrame(draw); else { ctx.clearRect(0, 0, cv.width, cv.height); cv.style.display = 'none'; }
+    if (alive) raf = requestAnimationFrame(draw2); else { ctx.clearRect(0, 0, cv.width, cv.height); cv.style.display = 'none'; }
   }
-  draw(); setTimeout(function() { if (cv.style.display !== 'none') { cancelAnimationFrame(raf); cv.style.display = 'none'; } }, 5000);
+  draw2(); setTimeout(function() { if (cv.style.display !== 'none') { cancelAnimationFrame(raf); cv.style.display = 'none'; } }, 5000);
 }
 
 function showCelebration(text, humanW, machineW, useCount) {
