@@ -110,5 +110,3 @@ Tables: `folders` · `snippets` · `snippet_stats`
 - Chrome Extension Manifest V3
 
 ---
-
-*Built for LeibTour — Ibiza, Spain 🌴*
