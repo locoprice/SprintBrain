@@ -337,10 +337,88 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* Cursor burst canvas */
 #burst-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9992}
 
+
+/* RICH TEXT EDITOR TOOLBAR */
+.rte-bar{display:flex;align-items:center;gap:2px;padding:4px 10px;border-bottom:1px solid var(--bdr);background:var(--sur);flex-shrink:0;flex-wrap:wrap}
+.rte-sep{width:1px;height:16px;background:var(--bdr2);margin:0 4px;flex-shrink:0}
+.rte-btn{width:26px;height:26px;border-radius:5px;border:1px solid transparent;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--tx2);font-family:inherit;transition:all .1s;flex-shrink:0;line-height:1}
+.rte-btn:hover{background:var(--sur2);border-color:var(--bdr);color:var(--tx)}
+.rte-color-wrap{position:relative;display:inline-flex;flex-shrink:0}
+.rte-color-btn{height:26px;border-radius:5px;border:1px solid var(--bdr);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--tx2);font-family:inherit;padding:0 6px;gap:3px;font-size:11px;font-weight:600}
+.rte-color-btn:hover{background:var(--sur2);color:var(--tx)}
+.rte-color-bar{width:18px;height:3px;border-radius:2px;background:linear-gradient(to right,#3a8fc4,#c0392b,#e8a650)}
+.rte-color-dd{position:absolute;top:calc(100% + 5px);left:0;background:var(--sur);border:1px solid var(--bdr);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;display:none;z-index:2000;min-width:150px}
+.rte-color-dd.on{display:block;animation:ctxIn .1s cubic-bezier(.2,0,.3,1)}
+.rte-color-section{margin-bottom:7px}
+.rte-color-section:last-child{margin-bottom:0}
+.rte-color-lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.rte-swatches{display:flex;gap:5px}
+.rte-swatch{width:20px;height:20px;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.rte-swatch:hover{transform:scale(1.2);border-color:var(--bdr2)}
+.rte-clear{font-size:10px;color:var(--tx3);cursor:pointer;padding-top:6px;border-top:1px solid var(--bdr);margin-top:6px;display:block;text-align:center}
+.rte-clear:hover{color:var(--danger)}
+
+/* IMPORT MODAL */
+.import-stats{display:flex;gap:8px;margin-bottom:12px}
+.import-stat-box{flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:var(--r);padding:8px 10px;text-align:center}
+.import-stat-box.ok{background:var(--ok-bg);border-color:var(--ok-bdr)}
+.import-stat-box.skip{background:var(--sur3);border-color:var(--bdr2)}
+.import-stat-n{font-size:22px;font-weight:800;color:var(--tx)}
+.import-stat-box.ok .import-stat-n{color:var(--ok)}
+.import-stat-box.skip .import-stat-n{color:var(--tx3)}
+.import-stat-l{font-size:10px;color:var(--tx3);margin-top:1px}
+.import-sample{margin-top:8px;background:var(--sur2);border-radius:var(--rs);padding:8px 10px}
+.import-sample-lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.import-sample-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bdr);font-size:11px}
+.import-sample-row:last-child{border-bottom:none}
+.import-sample-title{flex:1;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.import-dupe-tag{font-size:9px;font-weight:600;color:var(--tx3);background:var(--sur3);border:1px solid var(--bdr);border-radius:10px;padding:1px 6px;flex-shrink:0}
+.import-new-tag{font-size:9px;font-weight:600;color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-bdr);border-radius:10px;padding:1px 6px;flex-shrink:0}
+.import-prog-wrap{background:var(--sur2);border-radius:20px;height:6px;overflow:hidden;margin-bottom:6px}
+.import-prog-bar{height:100%;background:var(--ok);border-radius:20px;transition:width .2s}
+.import-src-btns{display:flex;gap:8px;margin-bottom:14px}
+.import-src-btn{flex:1;padding:9px 10px;border-radius:var(--r);border:1.5px solid var(--bdr);background:transparent;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--tx2);transition:all .15s;text-align:center}
+.import-src-btn:hover{border-color:var(--ac);color:var(--ac);background:var(--ac-bg)}
+.import-src-btn.selected{border-color:var(--ac);color:var(--ac);background:var(--ac-bg)}
+.import-file-lbl{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;border:2px dashed var(--bdr);border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx3);transition:border-color .15s}
+.import-file-lbl:hover{border-color:var(--ac);color:var(--ac)}
 </style>
 </head>
 <body>
 <div class="app" id="app"></div>
+
+
+<!-- IMPORT MODAL -->
+<div class="modal-bg" id="import-modal">
+  <div class="modal" style="width:380px;max-width:95vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="modal-title" id="import-modal-title" style="margin-bottom:0">Import snippets</div>
+      <button onclick="closeImportModal()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--tx3);padding:0;line-height:1">&#x2715;</button>
+    </div>
+    <div class="import-src-btns">
+      <div class="import-src-btn selected" id="src-tb" onclick="selectImportSrc('textblaze')">
+        <div style="font-size:16px;margin-bottom:3px">&#x26A1;</div>TextBlaze
+      </div>
+      <div class="import-src-btn" id="src-mg" onclick="selectImportSrc('magical')">
+        <div style="font-size:16px;margin-bottom:3px">&#x2728;</div>Magical
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tx3);background:var(--sur2);border-radius:var(--rs);padding:8px 10px;margin-bottom:12px;line-height:1.6" id="import-file-hint">
+      Export from TextBlaze: Dashboard > More (...) > Export > Download .json
+    </div>
+    <label class="import-file-lbl" for="import-file-inp">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Click to select your export file (.json)
+    </label>
+    <input type="file" id="import-file-inp" accept=".json,application/json" style="display:none">
+    <div id="import-preview" style="display:none;margin-top:12px"></div>
+    <div id="import-progress" style="display:none;margin-top:12px">
+      <div class="import-prog-wrap"><div class="import-prog-bar" id="import-prog-bar" style="width:0%"></div></div>
+      <div style="font-size:11px;color:var(--tx3);text-align:center" id="import-prog-text">0 / 0</div>
+    </div>
+    <button class="mbtn p" id="import-btn" style="display:none;width:100%;margin-top:12px;padding:9px" onclick="executeImport()">Import</button>
+  </div>
+</div>
 
 <!-- FOLDER MODAL -->
 <div class="modal-bg" id="modal-folder">
@@ -475,6 +553,311 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="toast" id="toast"></div>
 
 <script>
+
+function selectImportSrc(src) {
+  importState.source = src;
+  document.getElementById('src-tb').className = 'import-src-btn' + (src==='textblaze'?' selected':'');
+  document.getElementById('src-mg').className = 'import-src-btn' + (src==='magical'?' selected':'');
+  document.getElementById('import-modal-title').textContent = src==='magical'?'Import from Magical':'Import from TextBlaze';
+  document.getElementById('import-file-hint').textContent = src==='magical'
+    ? 'Export from Magical: Settings > Export Data > Download JSON'
+    : 'Export from TextBlaze: Dashboard > More (...) > Export > Download .json';
+  document.getElementById('import-file-inp').value='';
+  document.getElementById('import-preview').style.display='none';
+  document.getElementById('import-btn').style.display='none';
+}
+
+// TEXTBLAZE / MAGICAL JSON IMPORT ENGINE v2.5
+
+// State
+var importState = {
+  active: false,
+  source: null,
+  parsed: [],
+  dupes: 0,
+  imported: 0
+};
+
+function openImportModal(source) {
+  importState.source = source || 'textblaze';
+  importState.parsed = [];
+  importState.dupes = 0;
+  importState.imported = 0;
+  var modal = document.getElementById('import-modal');
+  var title = document.getElementById('import-modal-title');
+  var hint  = document.getElementById('import-file-hint');
+  title.textContent = source === 'magical' ? 'Import from Magical' : 'Import from TextBlaze';
+  hint.textContent  = source === 'magical'
+    ? 'Export from Magical: Settings > Export > Download JSON'
+    : 'Export from TextBlaze: Dashboard > More (...) > Export > Download .json';
+  document.getElementById('import-file-inp').value = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-btn').style.display = 'none';
+  document.getElementById('import-progress').style.display = 'none';
+  modal.className = 'modal-bg on';
+}
+
+function closeImportModal() {
+  document.getElementById('import-modal').className = 'modal-bg';
+}
+
+// Parse TextBlaze JSON export
+// TextBlaze format: array of groups, each with snippets array
+// or flat array of snippet objects
+function parseTextBlazeJson(data) {
+  var results = [];
+  try {
+    var parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    function processSnippet(s, folderName) {
+      // TextBlaze fields: name/label, shortcut, content/body, group/folder
+      var title    = s.name || s.label || s.title || 'Untitled';
+      var shortcut = s.shortcut || s.trigger || s.abbreviation || '';
+      var body     = s.content || s.body || s.text || s.snippet || '';
+      var folder   = folderName || s.group || s.folder || s.category || '';
+      results.push({ title: title, shortcut: shortcut, body: body, folderName: folder, lang: 'EN' });
+    }
+
+    // Handle array of groups (TextBlaze default export format)
+    if (Array.isArray(parsed)) {
+      parsed.forEach(function(item) {
+        // Group object with nested snippets
+        if (item.snippets && Array.isArray(item.snippets)) {
+          var groupName = item.name || item.group || item.title || '';
+          item.snippets.forEach(function(s) { processSnippet(s, groupName); });
+        }
+        // Flat snippet object
+        else if (item.shortcut || item.trigger || item.name) {
+          processSnippet(item, '');
+        }
+      });
+    }
+    // Handle object with groups key
+    else if (parsed.groups && Array.isArray(parsed.groups)) {
+      parsed.groups.forEach(function(g) {
+        var groupName = g.name || '';
+        (g.snippets || []).forEach(function(s) { processSnippet(s, groupName); });
+      });
+    }
+    // Handle object with snippets key
+    else if (parsed.snippets && Array.isArray(parsed.snippets)) {
+      parsed.snippets.forEach(function(s) { processSnippet(s, ''); });
+    }
+  } catch(e) {
+    console.warn('Import parse error:', e);
+  }
+  return results;
+}
+
+// Parse Magical JSON export
+// Magical format: { shortcuts: [ { label, shortcut, text, category } ] }
+function parseMagicalJson(data) {
+  var results = [];
+  try {
+    var parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    var items = parsed.shortcuts || parsed.snippets || parsed;
+    if (!Array.isArray(items)) items = [];
+    items.forEach(function(s) {
+      results.push({
+        title:      s.label || s.name || s.title || 'Untitled',
+        shortcut:   s.shortcut || s.trigger || s.abbreviation || '',
+        body:       s.text || s.content || s.body || '',
+        folderName: s.category || s.group || s.folder || '',
+        lang:       'EN'
+      });
+    });
+  } catch(e) {
+    console.warn('Magical parse error:', e);
+  }
+  return results;
+}
+
+// Duplicate detection: check by shortcut AND title
+function isDuplicate(snip) {
+  return S.snippets.some(function(s) {
+    var sameShortcut = snip.shortcut && s.shortcut && s.shortcut.toLowerCase() === snip.shortcut.toLowerCase();
+    var sameTitle    = s.title.toLowerCase() === snip.title.toLowerCase();
+    return sameShortcut || sameTitle;
+  });
+}
+
+// Handle file selection
+document.addEventListener('change', function(e) {
+  if (e.target.id !== 'import-file-inp') return;
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var raw = ev.target.result;
+    var parsed = importState.source === 'magical'
+      ? parseMagicalJson(raw)
+      : parseTextBlazeJson(raw);
+
+    importState.parsed = parsed;
+    var dupeCount = parsed.filter(isDuplicate).length;
+    importState.dupes = dupeCount;
+    var newCount = parsed.length - dupeCount;
+
+    // Show preview
+    var prev = document.getElementById('import-preview');
+    prev.style.display = 'block';
+    prev.innerHTML = '<div class="import-stats">'
+      + '<div class="import-stat-box"><div class="import-stat-n">' + parsed.length + '</div><div class="import-stat-l">Found</div></div>'
+      + '<div class="import-stat-box ok"><div class="import-stat-n">' + newCount + '</div><div class="import-stat-l">New</div></div>'
+      + '<div class="import-stat-box skip"><div class="import-stat-n">' + dupeCount + '</div><div class="import-stat-l">Duplicates (skip)</div></div>'
+      + '</div>'
+      + (parsed.length > 0
+        ? '<div class="import-sample"><div class="import-sample-lbl">Preview (first 3)</div>'
+          + parsed.slice(0, 3).map(function(s) {
+              return '<div class="import-sample-row">'
+                + '<span class="card-sc">' + (s.shortcut || '-') + '</span>'
+                + '<span class="import-sample-title">' + esc(s.title) + '</span>'
+                + (isDuplicate(s) ? '<span class="import-dupe-tag">duplicate</span>' : '<span class="import-new-tag">new</span>')
+                + '</div>';
+            }).join('')
+          + '</div>'
+        : '<div style="padding:12px;text-align:center;font-size:12px;color:var(--tx3)">No snippets found in this file.<br>Make sure you exported the correct format.</div>');
+
+    var btn = document.getElementById('import-btn');
+    btn.style.display = newCount > 0 ? 'block' : 'none';
+    btn.textContent = 'Import ' + newCount + ' snippet' + (newCount !== 1 ? 's' : '');
+  };
+  reader.readAsText(file);
+});
+
+// Execute import
+function executeImport() {
+  var toImport = importState.parsed.filter(function(s) { return !isDuplicate(s); });
+  if (!toImport.length) return;
+
+  // Map folder names to existing folder IDs or create new ones
+  var folderMap = {};
+  S.folders.forEach(function(f) { folderMap[f.name.toLowerCase()] = f.id; });
+
+  var progress = document.getElementById('import-progress');
+  progress.style.display = 'block';
+
+  var total = toImport.length;
+  var done  = 0;
+
+  function updateProgress() {
+    document.getElementById('import-prog-bar').style.width = Math.round(done / total * 100) + '%';
+    document.getElementById('import-prog-text').textContent = done + ' / ' + total;
+  }
+  updateProgress();
+
+  // Process in batches of 5 to avoid blocking UI
+  function processBatch(idx) {
+    var batch = toImport.slice(idx, idx + 5);
+    if (!batch.length) {
+      // Done
+      importState.imported = done;
+      save();
+      setTimeout(function() {
+        closeImportModal();
+        render();
+        toast(done + ' snippets imported successfully');
+      }, 400);
+      return;
+    }
+    batch.forEach(function(snip) {
+      // Resolve or create folder
+      var folderId = '';
+      if (snip.folderName) {
+        var fKey = snip.folderName.toLowerCase();
+        if (folderMap[fKey]) {
+          folderId = folderMap[fKey];
+        } else {
+          var nf = { id: fuid(), name: snip.folderName, ico: '&#x1F4C1;', sort_order: S.folders.length + 1 };
+          S.folders.push(nf);
+          DB.upsertFolder(nf);
+          folderMap[fKey] = nf.id;
+          folderId = nf.id;
+        }
+      }
+      var ns = {
+        id: uid(), title: snip.title, shortcut: snip.shortcut,
+        body: snip.body, lang: snip.lang || 'EN', folder: folderId,
+        fieldCfg: {}, lang_group_id: '', sort_order: S.snippets.length + 1,
+        stats: mkStats()
+      };
+      ns.lang_group_id = ns.id;
+      S.snippets.push(ns);
+      DB.upsertSnippet(ns);
+      DB.updateStats(ns.id, 0, 0, null);
+      done++;
+    });
+    updateProgress();
+    setTimeout(function() { processBatch(idx + 5); }, 30);
+  }
+
+  document.getElementById('import-btn').style.display = 'none';
+  processBatch(0);
+}
+
+
+// RICH TEXT EDITOR HELPERS v2.5
+function wrapSelection(before, after) {
+  var ta = document.getElementById('e-body');
+  if (!ta) return;
+  var start = ta.selectionStart;
+  var end   = ta.selectionEnd;
+  var sel   = ta.value.substring(start, end);
+  var edit  = S.edit || getSel();
+  if (!edit) return;
+  if (!S.edit) S.edit = JSON.parse(JSON.stringify(edit));
+  var bLen = before.length, aLen = after.length;
+  if (sel.startsWith(before) && sel.endsWith(after) && sel.length > bLen + aLen) {
+    var inner = sel.slice(bLen, sel.length - aLen);
+    S.edit.body = ta.value.substring(0, start) + inner + ta.value.substring(end);
+    ta.value = S.edit.body;
+    ta.selectionStart = start;
+    ta.selectionEnd   = start + inner.length;
+  } else {
+    var wrapped = before + sel + after;
+    S.edit.body = ta.value.substring(0, start) + wrapped + ta.value.substring(end);
+    ta.value = S.edit.body;
+    ta.selectionStart = start;
+    ta.selectionEnd   = start + wrapped.length;
+  }
+  ta.focus();
+  scheduleAS();
+}
+
+function toggleColorDd(id) {
+  var dd = document.getElementById(id);
+  if (!dd) return;
+  var isOn = dd.classList.contains('on');
+  document.querySelectorAll('.rte-color-dd.on').forEach(function(el) { el.classList.remove('on'); });
+  if (!isOn) dd.classList.add('on');
+}
+
+function clearFormatting() {
+  var ta = document.getElementById('e-body');
+  if (!ta) return;
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  var sel = ta.value.substring(start, end);
+  var clean = sel
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/\[blue\]([\s\S]*?)\[\/blue\]/g, '$1')
+    .replace(/\[yellow\]([\s\S]*?)\[\/yellow\]/g, '$1')
+    .replace(/\[red\]([\s\S]*?)\[\/red\]/g, '$1')
+    .replace(/\[green\]([\s\S]*?)\[\/green\]/g, '$1')
+    .replace(/\[orange\]([\s\S]*?)\[\/orange\]/g, '$1');
+  var edit = S.edit || getSel();
+  if (!edit) return;
+  if (!S.edit) S.edit = JSON.parse(JSON.stringify(edit));
+  S.edit.body = ta.value.substring(0, start) + clean + ta.value.substring(end);
+  ta.value = S.edit.body;
+  ta.selectionStart = start;
+  ta.selectionEnd   = start + clean.length;
+  ta.focus();
+  scheduleAS();
+}
+
+
 // SUPABASE
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -594,10 +977,18 @@ function parseTpl(body, vals, cfgs, pm) {
   }
   if (pm) {
     out = out.replace(/\*\*([^*]+)\*\*/g, '<span class="rt-bold">$1</span>');
+    out = out.replace(/_([^_]+)_/g, '<em style="font-style:italic">$1</em>');
+    out = out.replace(/~~([^~]+)~~/g, '<span style="text-decoration:line-through">$1</span>');
     out = out.replace(/\[blue\]([\s\S]*?)\[\/blue\]/g, '<span class="rt-blue">$1</span>');
+    out = out.replace(/\[red\]([\s\S]*?)\[\/red\]/g, '<span style="color:#c0392b;font-weight:600">$1</span>');
+    out = out.replace(/\[green\]([\s\S]*?)\[\/green\]/g, '<span style="color:var(--ok);font-weight:600">$1</span>');
+    out = out.replace(/\[orange\]([\s\S]*?)\[\/orange\]/g, '<span style="color:var(--es);font-weight:600">$1</span>');
+    out = out.replace(/\[yellow\]([\s\S]*?)\[\/yellow\]/g, '<span style="background:#fef08a;padding:0 2px;border-radius:2px">$1</span>');
   } else {
     out = out.replace(/\*\*([^*]+)\*\*/g, '$1');
-    out = out.replace(/\[(blue|yellow|red)\]([\s\S]*?)\[\/(?:blue|yellow|red)\]/g, '$2');
+    out = out.replace(/_([^_]+)_/g, '$1');
+    out = out.replace(/~~([^~]+)~~/g, '$1');
+    out = out.replace(/\[(blue|yellow|red|green|orange)\]([\s\S]*?)\[\/(?:blue|yellow|red|green|orange)\]/g, '$2');
   }
   return out;
 }
@@ -681,13 +1072,26 @@ var CEL_MSGS = [
 ];
 
 var CHANGELOG = [
+  { version: 'v2.5', date: '2026-03-20', label: 'TextBlaze & Magical JSON Import',
+    changes: [
+      { type: 'new', text: 'Import snippets from TextBlaze JSON export in one click' },
+      { type: 'new', text: 'Import snippets from Magical JSON export' },
+      { type: 'new', text: 'Auto-creates folders from source group names' },
+      { type: 'new', text: 'Duplicate detection by shortcut and title - no double imports' },
+      { type: 'new', text: 'Batched background import - UI stays responsive during large imports' }
+    ]
+  },
   { version: 'v2.5', date: '2026-03-19', label: 'Audiovisual Feedback on Copy',
     changes: [
       { type: 'new', text: 'Bell sound plays instantly when a snippet is copied (Web Audio API, no external files)' },
       { type: 'new', text: 'Cursor-position confetti burst on copy - appears right at the copy button' },
       { type: 'new', text: 'Sound and confetti can be toggled independently in Settings (Stats tab)' },
       { type: 'new', text: 'Singleton audio manager with 300ms debounce - no sound overlaps' },
-      { type: 'new', text: 'Burst canvas uses pointer-events:none - never blocks editing' }
+      { type: 'new', text: 'Burst canvas uses pointer-events:none - never blocks editing' },
+      { type: 'new', text: 'RTE Toolbar: Bold, Italic, Strikethrough, 6-color picker + highlight mode' },
+      { type: 'new', text: 'Ctrl+B / Ctrl+I keyboard shortcuts in snippet editor' },
+      { type: 'new', text: 'Wrap toggle: click Bold on **bold** text to remove the mark' },
+      { type: 'new', text: 'Clear formatting strips all marks from selected text' }
     ]
   },
   { version: 'v2.4', date: '2026-03-19', label: 'Language Variants + Grouped List',
@@ -1014,6 +1418,7 @@ function render() {
     + '<button class="tab-btn ' + (S.view === 'list' ? 'on' : '') + '" onclick="setView(\'list\')">Browse</button>'
     + '<button class="tab-btn ' + (S.view === 'stats' ? 'on' : '') + '" onclick="setView(\'stats\')">Stats</button>'
     + '<button class="tab-btn ' + (S.view === 'editor' && S.isNew ? 'on' : '') + '" onclick="startNew()">+ New</button>'
+    + '<button class="tab-btn" onclick="openImportModal(\'textblaze\')">&#x2197; Import</button>'
     + '<div class="lang-f">' + ['ALL', 'EN', 'ES', 'IT'].map(function(l) { return '<span class="lc ' + (S.lang === l ? 'on-' + l : '') + '" onclick="setLang(\'' + l + '\')">' + l + '</span>'; }).join('') + '</div>'
     + '</div></div>';
 
@@ -1095,17 +1500,37 @@ function render() {
       + '<div class="mode-tabs"><button class="mtab ' + (S.mode === 'edit' ? 'on' : '') + '" onclick="setMode(\'edit\')">Edit</button><button class="mtab ' + (S.mode !== 'edit' ? 'on' : '') + '" onclick="setMode(\'preview\')">Preview</button></div>'
       + '</div>';
     if (S.mode === 'edit') {
-      h += '<div class="toolbar">'
-        + '<select class="t-sel" id="e-lang">' + ['EN', 'ES', 'IT', 'FR'].map(function(l) { return '<option' + (es && es.lang === l ? ' selected' : '') + '>' + l + '</option>'; }).join('') + '</select>'
-        + '<select class="t-sel" id="e-folder" style="max-width:130px"><option value="">- No folder -</option>' + S.folders.map(function(f) { return '<option value="' + f.id + '"' + (es && es.folder === f.id ? ' selected' : '') + '>' + esc(f.ico + ' ' + f.name) + '</option>'; }).join('') + '</select>'
-        + '<span class="t-div"></span>'
-        + '<span class="ins-chip chip-field" onclick="insertAt(\'{field_name}\')">{field}</span>'
-        + '<span class="ins-chip chip-date" onclick="insertAt(\'{CHECKIN}\')">date</span>'
-        + '<span class="ins-chip chip-para" onclick="insertAt(\'{notes}\')">para</span>'
-        + '<span class="ins-chip chip-formula" onclick="insertAt(\'{=A - B}\')">{=}</span>'
-        + '<span class="ins-chip chip-cond" onclick="insertAt(\'{if:A > 0}text{endif}\')">{if}</span>'
-        + '<span class="ins-chip chip-bold" onclick="insertAt(\'**bold**\')">**B**</span>'
-        + '</div>';
+            h += '<div class="rte-bar">';
+      h += '<button class="rte-btn" title="Bold Ctrl+B" data-wrap-b="**" data-wrap-a="**"><strong>B</strong></button>';
+      h += '<button class="rte-btn" title="Italic Ctrl+I" data-wrap-b="_" data-wrap-a="_"><em style="font-style:italic">I</em></button>';
+      h += '<button class="rte-btn" title="Strikethrough" data-wrap-b="~~" data-wrap-a="~~"><span style="text-decoration:line-through">S</span></button>';
+      h += '<span class="rte-sep"></span>';
+      h += '<div class="rte-color-wrap"><button class="rte-color-btn" data-toggle-dd="rte-dd">A <span class="rte-color-bar"></span></button>';
+      h += '<div class="rte-color-dd" id="rte-dd">';
+      h += '<div class="rte-color-section"><div class="rte-color-lbl">Color</div><div class="rte-swatches">';
+      h += '<span class="rte-swatch" style="background:#3a8fc4" data-color-b="[blue]" data-color-a="[/blue]" title="Blue"></span>';
+      h += '<span class="rte-swatch" style="background:#c0392b" data-color-b="[red]" data-color-a="[/red]" title="Red"></span>';
+      h += '<span class="rte-swatch" style="background:#e8a650" data-color-b="[orange]" data-color-a="[/orange]" title="Orange"></span>';
+      h += '<span class="rte-swatch" style="background:#3B6D11" data-color-b="[green]" data-color-a="[/green]" title="Green"></span>';
+      h += '</div></div>';
+      h += '<div class="rte-color-section"><div class="rte-color-lbl">Highlight</div><div class="rte-swatches">';
+      h += '<span class="rte-swatch" style="background:#fef08a" data-color-b="[yellow]" data-color-a="[/yellow]" title="Yellow"></span>';
+      h += '<span class="rte-swatch" style="background:#bbf7d0" data-color-b="[green]" data-color-a="[/green]" title="Green hi"></span>';
+      h += '</div></div>';
+      h += '<span class="rte-clear" data-clear-fmt>Clear formatting</span>';
+      h += '</div></div>';
+      h += '<span class="rte-sep"></span>';
+      var eLangOpts = ['EN','ES','IT','FR'].map(function(l){return '<option'+(es&&es.lang===l?' selected':'')+'>'+l+'</option>';}).join('');
+      h += '<select class="t-sel" id="e-lang">' + eLangOpts + '</select>';
+      var eFolderOpts = S.folders.map(function(f){return '<option value="'+f.id+'"'+(es&&es.folder===f.id?' selected':'')+'>'+esc(f.ico+' '+f.name)+'</option>';}).join('');
+      h += '<select class="t-sel" id="e-folder" style="max-width:120px"><option value="">- No folder -</option>' + eFolderOpts + '</select>';
+      h += '<span class="rte-sep"></span>';
+      h += '<span class="ins-chip chip-field" data-ins="{field_name}">{field}</span>';
+      h += '<span class="ins-chip chip-date" data-ins="{CHECKIN}">date</span>';
+      h += '<span class="ins-chip chip-para" data-ins="{notes}">para</span>';
+      h += '<span class="ins-chip chip-formula" data-ins="{=A - B}">{=}</span>';
+      h += '<span class="ins-chip chip-cond" data-ins="{if:A > 0}text{endif}">{if}</span>';
+      h += '</div>';
     }
     h += '<div class="editor-area">';
     if (S.mode === 'edit') h += '<textarea class="editor-ta" id="e-body">' + esc(es ? es.body || '' : '') + '</textarea>';
@@ -1213,6 +1638,22 @@ function render() {
 function attachListeners() {
   var si = document.getElementById('search-inp');
   if (si) { var t; si.addEventListener('input', function(e) { S.search = e.target.value; clearTimeout(t); t = setTimeout(render, 280); }); }
+  // RTE toolbar event delegation
+  var rteBar = document.querySelector('.rte-bar');
+  if (rteBar) {
+    rteBar.addEventListener('click', function(e) {
+      var el = e.target.closest('[data-wrap-b]');
+      if (el) { wrapSelection(el.dataset.wrapB, el.dataset.wrapA); return; }
+      var dd = e.target.closest('[data-toggle-dd]');
+      if (dd) { toggleColorDd(dd.dataset.toggleDd); return; }
+      var sw = e.target.closest('[data-color-b]');
+      if (sw) { wrapSelection(sw.dataset.colorB, sw.dataset.colorA); toggleColorDd('rte-dd'); return; }
+      var cf = e.target.closest('[data-clear-fmt]');
+      if (cf) { clearFormatting(); toggleColorDd('rte-dd'); return; }
+      var ic = e.target.closest('[data-ins]');
+      if (ic) { insertAt(ic.dataset.ins); return; }
+    });
+  }
   var et = document.getElementById('e-title'), es2 = document.getElementById('e-sc'),
       el = document.getElementById('e-lang'), ec = document.getElementById('e-folder'),
       eb = document.getElementById('e-body');
@@ -1222,6 +1663,10 @@ function attachListeners() {
   if (el) el.addEventListener('change', function(e) { if (edit) edit.lang = e.target.value; scheduleAS(); });
   if (ec) ec.addEventListener('change', function(e) { if (edit) edit.folder = e.target.value; scheduleAS(); });
   if (eb) eb.addEventListener('input', function(e) { if (edit) edit.body = e.target.value; scheduleAS(); });
+  if (eb) eb.addEventListener('keydown', function(e) {
+    if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='b') { e.preventDefault(); wrapSelection('**','**'); }
+    if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='i') { e.preventDefault(); wrapSelection('_','_'); }
+  });
 }
 
 // ACTIONS
@@ -1773,6 +2218,8 @@ load();
 if (S.snippets.length) S.selId = S.snippets[0].id;
 S.selFolder = 'ALL'; S.view = 'list'; S.mode = 'try';
 render();
+
+
 </script>
 </body>
 </html>
