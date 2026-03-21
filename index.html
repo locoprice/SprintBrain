@@ -324,6 +324,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @media(max-width:640px){.rp{display:none}}
 @media(max-width:500px){.fsb{display:none}}
 
+/* URGENCY TIMER + SCARCITY */
+.urgency-bar{background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #d93900;border-radius:12px;padding:14px 16px;margin:10px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;animation:urgPulse 2s ease-in-out infinite}
+@keyframes urgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 16px 4px rgba(217,57,0,.15)}}
+.urgency-bar.expired{opacity:.6;border-color:var(--bdr2);background:var(--sur2);animation:none}
+.urg-timer{display:flex;gap:4px;align-items:center}
+.urg-digit-box{background:rgba(217,57,0,.15);border:1px solid rgba(217,57,0,.4);border-radius:6px;padding:4px 7px;min-width:34px;text-align:center}
+.urg-digit{font-size:20px;font-weight:800;color:#ff6b35;font-family:'SF Mono',monospace;letter-spacing:-.5px;line-height:1}
+.urg-digit-lbl{font-size:7px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.urg-sep{font-size:18px;font-weight:800;color:#ff6b35;opacity:.5;line-height:1;padding:0 1px}
+.urg-scarcity{display:flex;align-items:center;gap:6px;background:rgba(217,57,0,.12);border:1px solid rgba(217,57,0,.35);border-radius:20px;padding:5px 12px}
+.urg-scarcity-dot{width:7px;height:7px;border-radius:50%;background:#d93900;animation:scarcBlink 1s ease-in-out infinite}
+@keyframes scarcBlink{0%,100%{opacity:1}50%{opacity:.3}}
+.urg-scarcity-txt{font-size:12px;font-weight:700;color:#ff6b35;white-space:nowrap}
+.urg-expired-msg{font-size:13px;font-weight:700;color:var(--danger);text-align:center;width:100%}
+.urg-icon{font-size:18px;line-height:1}
+/* Urgency editor controls */
+.urg-cfg{background:var(--sur2);border:1px solid var(--bdr);border-radius:var(--r);margin:8px 0;padding:10px 12px}
+.urg-cfg-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.urg-cfg-lbl{font-size:11px;font-weight:600;color:var(--tx)}
+.urg-cfg-sub{font-size:10px;color:var(--tx3);margin-top:2px}
+.urg-cfg-fields{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:flex-end}
+.urg-cfg-field{display:flex;flex-direction:column;gap:2px}
+.urg-cfg-field label{font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.urg-cfg-field input{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rs);padding:4px 8px;font-size:12px;color:var(--tx);font-family:inherit;outline:none;width:90px}
+.urg-cfg-field input:focus{border-color:var(--ac-bdr)}
+
 /* AV FEEDBACK SETTINGS */
 .av-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bdr)}
 .av-toggle-lbl{font-size:12px;font-weight:500;color:var(--tx)}
@@ -886,6 +912,9 @@ var DB = {
             folder: s.folder_id || '', fieldCfg: s.field_cfg || {},
             lang_group_id: s.lang_group_id || s.id,
             sort_order: s.sort_order || 0,
+            enable_urgency_timer: s.enable_urgency_timer || false,
+            timer_duration_ms: s.timer_duration_ms || 0,
+            scarcity_count: s.scarcity_count || 0,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -899,7 +928,10 @@ var DB = {
         body: s.body || '', lang: s.lang || 'EN',
         folder_id: s.folder || null, field_cfg: s.fieldCfg || {},
         lang_group_id: s.lang_group_id || s.id,
-        sort_order: s.sort_order || 0
+        sort_order: s.sort_order || 0,
+        enable_urgency_timer: s.enable_urgency_timer || false,
+        timer_duration_ms: s.timer_duration_ms || 0,
+        scarcity_count: s.scarcity_count || 0
       });
     } catch(e) { console.warn('upsertSnippet:', e); }
   },
@@ -1073,6 +1105,17 @@ var CEL_MSGS = [
 ];
 
 var CHANGELOG = [
+  { version: 'v2.6', date: '2026-03-21', label: 'Urgency Timer & Scarcity Indicator',
+    changes: [
+      { type: 'new', text: 'Optional countdown timer for quote snippets - Combo Deals style with high-contrast dark UI' },
+      { type: 'new', text: 'Inventory scarcity label: "Only N unit(s) left" with pulsing red dot indicator' },
+      { type: 'new', text: 'Timer persists across page refreshes via sessionStorage - no reset on reload' },
+      { type: 'new', text: 'Timer expiration triggers "Quote Expired" state and blocks copy action' },
+      { type: 'new', text: 'Toggle enable_urgency_timer in snippet editor with duration and units controls' },
+      { type: 'new', text: 'Urgency bar renders in Try mode (right panel) and Preview mode' },
+      { type: 'new', text: 'requestAnimationFrame-powered countdown for smooth, efficient updates' }
+    ]
+  },
   { version: 'v2.5', date: '2026-03-20', label: 'TextBlaze & Magical JSON Import',
     changes: [
       { type: 'new', text: 'Import snippets from TextBlaze JSON export in one click' },
@@ -1122,8 +1165,8 @@ var CHANGELOG = [
   }
 ];
 
-var APP_VERSION = 'v2.5';
-var APP_DATE    = '2026-03-20';
+var APP_VERSION = 'v2.6';
+var APP_DATE    = '2026-03-21';
 
 // STATE
 var S = {
@@ -1139,7 +1182,7 @@ function loadFallback() {
     var v = localStorage.getItem('sb-v4');
     if (v) {
       var d = JSON.parse(v);
-      S.snippets = (d.snippets || []).map(function(s) { s.stats = s.stats || mkStats(); s.lang_group_id = s.lang_group_id || s.id; return s; });
+      S.snippets = (d.snippets || []).map(function(s) { s.stats = s.stats || mkStats(); s.lang_group_id = s.lang_group_id || s.id; s.enable_urgency_timer = s.enable_urgency_timer || false; s.timer_duration_ms = s.timer_duration_ms || 0; s.scarcity_count = s.scarcity_count || 0; return s; });
       S.folders = d.folders || [];
       return true;
     }
@@ -1234,6 +1277,9 @@ function addLangVariant(targetLang) {
     body: src.body, lang: targetLang, folder: src.folder,
     fieldCfg: JSON.parse(JSON.stringify(src.fieldCfg || {})),
     lang_group_id: gid, sort_order: S.snippets.length + 1,
+    enable_urgency_timer: src.enable_urgency_timer || false,
+    timer_duration_ms: src.timer_duration_ms || 0,
+    scarcity_count: src.scarcity_count || 0,
     stats: mkStats()
   };
   S.snippets.push(ns);
@@ -1342,6 +1388,10 @@ function scheduleAS() {
     if (el && S.edit) S.edit.lang = el.value;
     if (ec && S.edit) S.edit.folder = ec.value;
     if (eb && S.edit) S.edit.body = eb.value;
+    var urgT2 = document.getElementById('urg-toggle'), urgD2 = document.getElementById('urg-dur'), urgS2 = document.getElementById('urg-sc');
+    if (urgT2 && S.edit) S.edit.enable_urgency_timer = urgT2.checked;
+    if (urgD2 && S.edit) S.edit.timer_duration_ms = Math.max(1, parseInt(urgD2.value) || 30) * 60000;
+    if (urgS2 && S.edit) S.edit.scarcity_count = Math.max(0, parseInt(urgS2.value) || 0);
     if (!S.edit || !S.edit.title.trim()) { S.asStatus = 'idle'; updateAS(); return; }
     var i = S.snippets.findIndex(function(s) { return s.id === S.edit.id; });
     if (i > -1) { S.snippets[i] = JSON.parse(JSON.stringify(S.edit)); DB.upsertSnippet(S.snippets[i]); save(); }
@@ -1501,6 +1551,20 @@ function render() {
       + '<div class="mode-tabs"><button class="mtab ' + (S.mode === 'edit' ? 'on' : '') + '" onclick="setMode(\'edit\')">Edit</button><button class="mtab ' + (S.mode !== 'edit' ? 'on' : '') + '" onclick="setMode(\'preview\')">Preview</button></div>'
       + '</div>';
     if (S.mode === 'edit') {
+      var urgOn = es ? !!es.enable_urgency_timer : false;
+      var urgDur = es && es.timer_duration_ms ? Math.round(es.timer_duration_ms / 60000) : 30;
+      var urgSc  = es && es.scarcity_count ? es.scarcity_count : 0;
+      h += '<div class="urg-cfg" style="margin:0;border-radius:0;border-left:none;border-right:none;border-top:none">';
+      h += '<div class="urg-cfg-hdr">';
+      h += '<div><div class="urg-cfg-lbl">&#x23F1; Urgency Timer &amp; Scarcity</div><div class="urg-cfg-sub">Optional countdown + inventory label for quote pressure</div></div>';
+      h += '<label class="av-switch"><input type="checkbox" id="urg-toggle" ' + (urgOn ? 'checked' : '') + '><span class="av-slider"></span></label>';
+      h += '</div>';
+      h += '<div class="urg-cfg-fields" id="urg-fields" style="' + (urgOn ? '' : 'display:none') + '">';
+      h += '<div class="urg-cfg-field"><label>Duration (min)</label><input type="number" id="urg-dur" min="1" max="10080" value="' + urgDur + '"></div>';
+      h += '<div class="urg-cfg-field"><label>Units left</label><input type="number" id="urg-sc" min="0" max="999" value="' + urgSc + '"></div>';
+      h += '</div></div>';
+    }
+    if (S.mode === 'edit') {
             h += '<div class="rte-bar">';
       h += '<button class="rte-btn" title="Bold Ctrl+B" data-wrap-b="**" data-wrap-a="**"><strong>B</strong></button>';
       h += '<button class="rte-btn" title="Italic Ctrl+I" data-wrap-b="_" data-wrap-a="_"><em style="font-style:italic">I</em></button>';
@@ -1535,7 +1599,7 @@ function render() {
     }
     h += '<div class="editor-area">';
     if (S.mode === 'edit') h += '<textarea class="editor-ta" id="e-body">' + esc(es ? es.body || '' : '') + '</textarea>';
-    else h += '<div class="editor-prev" id="prev-body">' + parseTpl(es ? es.body || '' : '', S.fills, cfgs, true) + '</div>';
+    else h += '<div class="editor-prev" id="prev-body">' + buildUrgencyBar(es) + parseTpl(es ? es.body || '' : '', S.fills, cfgs, true) + '</div>';
     h += '</div>';
     h += '<div class="statusbar"><span class="stat-tx"><span class="chip chip-var" style="font-size:9px;padding:1px 6px">text</span><span class="chip chip-dd" style="font-size:9px;padding:1px 6px">dropdown</span><span class="chip chip-dt" style="font-size:9px;padding:1px 6px">date</span><span class="chip chip-fml" style="font-size:9px;padding:1px 6px">calc</span></span><span style="font-size:10px;color:var(--tx3)">' + fa.vars.length + ' fields</span></div>';
   }
@@ -1568,6 +1632,7 @@ function render() {
       });
     }
     h += '</div>';
+    h += '<div style="padding:0 13px">' + buildUrgencyBar(es) + '</div>';
     h += '<button class="fill-copy ' + (S.copied ? 'cp' : '') + '" id="copy-btn" onclick="doCopy()">' + (S.copied ? 'Copied!' : 'Copy message') + '</button>';
     h += buildLangBar(es);
   } else {
@@ -1613,6 +1678,7 @@ function render() {
   attachFills();
   if (S.mode === 'edit') updateAS();
   updatePreview();
+  if (document.getElementById('urg-bar')) startUrgencyTick();
 
   // Card click handlers
   if (S.view === 'list') {
@@ -1668,6 +1734,24 @@ function attachListeners() {
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='b') { e.preventDefault(); wrapSelection('**','**'); }
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='i') { e.preventDefault(); wrapSelection('_','_'); }
   });
+  // Urgency controls
+  var urgTog = document.getElementById('urg-toggle');
+  var urgDurInp = document.getElementById('urg-dur');
+  var urgScInp = document.getElementById('urg-sc');
+  if (urgTog) urgTog.addEventListener('change', function() {
+    var fields = document.getElementById('urg-fields');
+    if (fields) fields.style.display = urgTog.checked ? '' : 'none';
+    if (edit) edit.enable_urgency_timer = urgTog.checked;
+    scheduleAS();
+  });
+  if (urgDurInp) urgDurInp.addEventListener('input', function() {
+    if (edit) edit.timer_duration_ms = Math.max(1, parseInt(urgDurInp.value) || 30) * 60000;
+    scheduleAS();
+  });
+  if (urgScInp) urgScInp.addEventListener('input', function() {
+    if (edit) edit.scarcity_count = Math.max(0, parseInt(urgScInp.value) || 0);
+    scheduleAS();
+  });
 }
 
 // ACTIONS
@@ -1681,7 +1765,7 @@ function setMode(m) {
 }
 function goToSnippet(id) { S.selId = id; S.fills = {}; S.view = 'list'; S.selFolder = 'ALL'; S.sortBy = 'alpha'; render(); }
 function startNew() {
-  S.edit = { id: '', title: '', shortcut: '', lang: 'EN', folder: S.selFolder !== 'ALL' ? S.selFolder : '', body: '', fieldCfg: {}, lang_group_id: '', stats: mkStats() };
+  S.edit = { id: '', title: '', shortcut: '', lang: 'EN', folder: S.selFolder !== 'ALL' ? S.selFolder : '', body: '', fieldCfg: {}, lang_group_id: '', stats: mkStats(), enable_urgency_timer: false, timer_duration_ms: 0, scarcity_count: 0 };
   S.isNew = true; S.mode = 'edit'; S.view = 'editor'; S.fills = {}; render();
 }
 function startEdit() { var sel = getSel(); if (!sel) return; S.edit = JSON.parse(JSON.stringify(sel)); S.isNew = false; S.mode = 'edit'; S.view = 'editor'; S.fills = {}; render(); }
@@ -1703,6 +1787,10 @@ function saveSnippet() {
       eb = document.getElementById('e-body');
   if (et) S.edit.title = et.value; if (es2) S.edit.shortcut = es2.value;
   if (el) S.edit.lang = el.value; if (ec) S.edit.folder = ec.value; if (eb) S.edit.body = eb.value;
+  var urgT = document.getElementById('urg-toggle'), urgD = document.getElementById('urg-dur'), urgS = document.getElementById('urg-sc');
+  if (urgT) S.edit.enable_urgency_timer = urgT.checked;
+  if (urgD) S.edit.timer_duration_ms = Math.max(1, parseInt(urgD.value) || 30) * 60000;
+  if (urgS) S.edit.scarcity_count = Math.max(0, parseInt(urgS.value) || 0);
   if (!S.edit.title.trim()) { toast('Add a title'); return; }
   if (!S.edit.stats) S.edit.stats = mkStats();
   if (!S.edit.lang_group_id) S.edit.lang_group_id = S.edit.id || uid();
@@ -1733,9 +1821,92 @@ function resetStats() {
   S.snippets.forEach(function(s) { s.stats = mkStats(); }); save(); DB.resetAllStats(); render(); toast('Stats reset');
 }
 
+// URGENCY TIMER ENGINE
+var urgRAF = null;
+function getUrgExpiry(snippetId, durationMs) {
+  var key = 'sb-urg-' + snippetId;
+  var stored = sessionStorage.getItem(key);
+  if (stored) {
+    var exp = parseInt(stored);
+    if (!isNaN(exp)) return exp;
+  }
+  var exp = Date.now() + durationMs;
+  sessionStorage.setItem(key, String(exp));
+  return exp;
+}
+function clearUrgExpiry(snippetId) { sessionStorage.removeItem('sb-urg-' + snippetId); }
+
+function buildUrgencyBar(snip) {
+  if (!snip || !snip.enable_urgency_timer) return '';
+  var dur = snip.timer_duration_ms || 1800000;
+  var sc = snip.scarcity_count || 0;
+  var exp = getUrgExpiry(snip.id, dur);
+  var remain = Math.max(0, exp - Date.now());
+  var isExpired = remain <= 0;
+  var h = '<div class="urgency-bar' + (isExpired ? ' expired' : '') + '" id="urg-bar" data-exp="' + exp + '" data-sid="' + snip.id + '">';
+  if (isExpired) {
+    h += '<span class="urg-icon">&#x23F0;</span>';
+    h += '<span class="urg-expired-msg">Quote Expired</span>';
+  } else {
+    h += '<span class="urg-icon">&#x1F525;</span>';
+    h += '<div class="urg-timer" id="urg-timer">' + renderTimerDigits(remain) + '</div>';
+    if (sc > 0) {
+      h += '<div class="urg-scarcity"><span class="urg-scarcity-dot"></span><span class="urg-scarcity-txt">Only ' + sc + ' unit' + (sc !== 1 ? 's' : '') + ' left</span></div>';
+    }
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderTimerDigits(ms) {
+  var totalSec = Math.ceil(ms / 1000);
+  var h = Math.floor(totalSec / 3600);
+  var m = Math.floor((totalSec % 3600) / 60);
+  var s = totalSec % 60;
+  var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  var html = '';
+  if (h > 0) {
+    html += '<div class="urg-digit-box"><div class="urg-digit">' + pad(h) + '</div><div class="urg-digit-lbl">hrs</div></div>';
+    html += '<span class="urg-sep">:</span>';
+  }
+  html += '<div class="urg-digit-box"><div class="urg-digit">' + pad(m) + '</div><div class="urg-digit-lbl">min</div></div>';
+  html += '<span class="urg-sep">:</span>';
+  html += '<div class="urg-digit-box"><div class="urg-digit">' + pad(s) + '</div><div class="urg-digit-lbl">sec</div></div>';
+  return html;
+}
+
+function startUrgencyTick() {
+  if (urgRAF) cancelAnimationFrame(urgRAF);
+  urgRAF = null;
+  function tick() {
+    var bar = document.getElementById('urg-bar');
+    if (!bar) { urgRAF = null; return; }
+    var exp = parseInt(bar.dataset.exp);
+    var sid = bar.dataset.sid;
+    var remain = Math.max(0, exp - Date.now());
+    if (remain <= 0) {
+      bar.className = 'urgency-bar expired';
+      bar.innerHTML = '<span class="urg-icon">&#x23F0;</span><span class="urg-expired-msg">Quote Expired</span>';
+      var copyBtn = document.getElementById('copy-btn');
+      if (copyBtn) { copyBtn.disabled = true; copyBtn.textContent = 'Quote Expired'; copyBtn.style.opacity = '0.5'; }
+      urgRAF = null;
+      return;
+    }
+    var td = document.getElementById('urg-timer');
+    if (td) td.innerHTML = renderTimerDigits(remain);
+    urgRAF = requestAnimationFrame(tick);
+  }
+  urgRAF = requestAnimationFrame(tick);
+}
+
 // COPY
 function doCopy() {
   var sel = getSel(); if (!sel) return;
+  // Block copy if urgency timer has expired
+  if (sel.enable_urgency_timer && sel.timer_duration_ms) {
+    var exp = getUrgExpiry(sel.id, sel.timer_duration_ms);
+    if (Date.now() >= exp) { toast('Quote has expired'); return; }
+  }
   var variants = findVariants(sel);
   var txt = parseTpl(sel.body, S.fills, sel.fieldCfg || {}, false);
   var words = txt.trim().split(/\s+/).length;
