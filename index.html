@@ -420,6 +420,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .trigger-badge{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;letter-spacing:.05em;flex-shrink:0}
 .trigger-badge.snippet{background:var(--ac-bg);color:var(--ac);border:1px solid var(--ac-bdr)}
 .trigger-badge.prompt{background:var(--formula-bg);color:var(--formula);border:1px solid var(--formula-bdr)}
+
+/* TRIGGER SETTINGS */
+.trig-cfg{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
+.trig-cfg-hdr{padding:8px 14px;font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.12em;background:var(--sur2);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.trig-cfg-row{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px}
+.trig-cfg-row:last-child{border-bottom:none}
+.trig-cfg-label{flex:1}
+.trig-cfg-lbl{font-size:12px;font-weight:600;color:var(--tx)}
+.trig-cfg-sub{font-size:10px;color:var(--tx3);margin-top:1px}
+.trig-cfg-inp{width:80px;padding:5px 8px;border:1px solid var(--bdr);border-radius:var(--rs);font-size:12px;font-family:monospace;text-align:center;background:var(--sur2);color:var(--tx);outline:none}
+.trig-cfg-inp:focus{border-color:var(--ac-bdr)}
+.trig-cfg-status{font-size:9px;padding:2px 6px;border-radius:8px;font-weight:600}
+.trig-cfg-status.ok{background:var(--ok-bg);color:var(--ok)}
+.trig-cfg-status.err{background:var(--danger-bg);color:var(--danger)}
+.trig-cfg-status.sync{background:#eef4fb;color:var(--en)}
+.notion-log{padding:6px 14px;font-size:9px;color:var(--tx3);border-top:1px solid var(--bdr);background:var(--sur2);display:flex;align-items:center;gap:5px}
+.notion-log .dot-sync{display:inline-block;width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.notion-log .dot-sync.green{background:var(--ok)}
+.notion-log .dot-sync.yellow{background:#d4952a}
+.notion-log .dot-sync.red{background:var(--danger)}
 </style>
 </head>
 <body>
@@ -1531,6 +1551,55 @@ function render() {
       + '<label class="av-switch"><input type="checkbox" id="av-conf" '+(AV.confettiEnabled?'checked':'')+' onchange="AV.confettiEnabled=this.checked;avSaveSettings()"><span class="av-slider"></span></label>'
       + '</div>';
     h += '</div>';
+
+    // TRIGGER SETTINGS section
+    h += '<div class="trig-cfg">';
+    h += '<div class="trig-cfg-hdr"><span>Trigger Settings</span></div>';
+    // Snippet trigger
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl"><span class="trigger-badge snippet">SNIPPET</span> Trigger sequence</div><div class="trig-cfg-sub">Type this in any text field to open snippet picker</div></div>';
+    h += '<div style="display:flex;align-items:center;gap:6px"><input class="trig-cfg-inp" id="tcfg-snip" value="' + esc(TriggerCfg.get('snippetTrigger')) + '" maxlength="5" onchange="updateTriggerCfg(\'snippetTrigger\',this)" onblur="updateTriggerCfg(\'snippetTrigger\',this)"><span class="trig-cfg-status" id="tcfg-snip-st"></span></div>';
+    h += '</div>';
+    // Prompt trigger
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl"><span class="trigger-badge prompt">PROMPT</span> Trigger sequence</div><div class="trig-cfg-sub">Type this to open prompt template picker</div></div>';
+    h += '<div style="display:flex;align-items:center;gap:6px"><input class="trig-cfg-inp" id="tcfg-prompt" value="' + esc(TriggerCfg.get('promptTrigger')) + '" maxlength="5" onchange="updateTriggerCfg(\'promptTrigger\',this)" onblur="updateTriggerCfg(\'promptTrigger\',this)"><span class="trig-cfg-status" id="tcfg-prompt-st"></span></div>';
+    h += '</div>';
+    // Snippet activation key
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl">Snippet activation key</div><div class="trig-cfg-sub">Key to confirm snippet selection</div></div>';
+    h += '<select class="trig-cfg-inp" style="width:90px" onchange="TriggerCfg.set(\'snippetActivationKey\',this.value)">';
+    h += '<option' + (TriggerCfg.get('snippetActivationKey') === 'Tab' ? ' selected' : '') + '>Tab</option>';
+    h += '<option' + (TriggerCfg.get('snippetActivationKey') === 'Enter' ? ' selected' : '') + '>Enter</option>';
+    h += '</select>';
+    h += '</div>';
+    // Prompt activation key
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl">Prompt activation key</div><div class="trig-cfg-sub">Key to confirm prompt selection</div></div>';
+    h += '<select class="trig-cfg-inp" style="width:90px" onchange="TriggerCfg.set(\'promptActivationKey\',this.value)">';
+    h += '<option' + (TriggerCfg.get('promptActivationKey') === 'Tab' ? ' selected' : '') + '>Tab</option>';
+    h += '<option' + (TriggerCfg.get('promptActivationKey') === 'Enter' ? ' selected' : '') + '>Enter</option>';
+    h += '</select>';
+    h += '</div>';
+    // Notion integration
+    h += '<div class="trig-cfg-hdr" style="margin-top:0"><span>Notion Sync</span><span class="trig-cfg-status ' + (NotionSync.isConfigured() ? 'ok' : '') + '" id="notion-status">' + (NotionSync.isConfigured() ? 'Connected' : '') + '</span></div>';
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl">API Key</div><div class="trig-cfg-sub">Notion integration token</div></div>';
+    h += '<input class="trig-cfg-inp" style="width:140px;font-size:10px" type="password" placeholder="secret_..." value="' + esc(NotionSync.getApiKey()) + '" onchange="updateNotionCfg(\'apiKey\',this)">';
+    h += '</div>';
+    h += '<div class="trig-cfg-row">';
+    h += '<div class="trig-cfg-label"><div class="trig-cfg-lbl">Database ID</div><div class="trig-cfg-sub">Target database for config logs</div></div>';
+    h += '<input class="trig-cfg-inp" style="width:140px;font-size:10px" placeholder="abc123..." value="' + esc(NotionSync.getDbId()) + '" onchange="updateNotionCfg(\'dbId\',this)">';
+    h += '</div>';
+    // Sync log
+    var nlog = NotionSync.getLog();
+    if (nlog.length) {
+      var latest = nlog[nlog.length - 1];
+      var dotClass = latest.status === 'synced' ? 'green' : latest.status.indexOf('fail') > -1 ? 'red' : 'yellow';
+      h += '<div class="notion-log"><span class="dot-sync ' + dotClass + '"></span> Last: ' + esc(latest.entry.field + ' → ' + latest.entry.newValue) + ' — ' + esc(latest.status) + '</div>';
+    }
+    h += '</div>';
+
     h += '<div class="stats-hdr"><span class="stats-title">Usage Statistics</span>'
       + '<button class="stats-reset" onclick="resetStats()">Reset all stats</button></div>'
       + '<div class="stats-summary">'
@@ -2434,7 +2503,222 @@ function closeChangelog() { document.getElementById('cl-overlay').className = 'c
 document.getElementById('cl-close').addEventListener('click', closeChangelog);
 document.getElementById('cl-overlay').addEventListener('click', function(e) { if (e.target === document.getElementById('cl-overlay')) closeChangelog(); });
 
-// DUAL TRIGGER SYSTEM — :: for snippets, """ for prompts
+// TRIGGER CONFIGURATION — persisted in localStorage, synced to Notion
+var TriggerCfg = (function() {
+  var STORAGE_KEY = 'sb-trigger-cfg';
+  var defaults = {
+    snippetTrigger: '::',
+    promptTrigger: '"""',
+    snippetActivationKey: 'Tab',   // key to confirm selection (Tab, Enter)
+    promptActivationKey: 'Tab'
+  };
+
+  var cfg = {};
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      cfg = raw ? JSON.parse(raw) : {};
+    } catch(e) { cfg = {}; }
+    // Merge defaults for any missing keys
+    Object.keys(defaults).forEach(function(k) {
+      if (cfg[k] === undefined || cfg[k] === null || cfg[k] === '') cfg[k] = defaults[k];
+    });
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); } catch(e) {}
+  }
+
+  function get(key) { return cfg[key] !== undefined ? cfg[key] : defaults[key]; }
+
+  function set(key, value) {
+    var oldVal = cfg[key];
+    if (oldVal === value) return; // idempotent — no change, no sync
+    cfg[key] = value;
+    save();
+    // Determine trigger type from key name
+    var triggerType = key.indexOf('snippet') > -1 ? 'Snippet' : 'Prompt';
+    NotionSync.logConfigChange({
+      triggerType: triggerType,
+      field: key,
+      oldValue: oldVal,
+      newValue: value,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  function validate(seq) {
+    // Must be 1-5 chars, no whitespace, no alphanumeric-only strings
+    if (!seq || typeof seq !== 'string') return false;
+    seq = seq.trim();
+    if (seq.length < 1 || seq.length > 5) return false;
+    if (/\s/.test(seq)) return false;
+    // Prevent ambiguous single alpha/digit triggers
+    if (/^[a-zA-Z0-9]$/.test(seq)) return false;
+    return true;
+  }
+
+  function wouldCollide(key, value) {
+    // Check if new value collides with the other trigger
+    var otherKey = key === 'snippetTrigger' ? 'promptTrigger' : 'snippetTrigger';
+    var otherVal = get(otherKey);
+    return value === otherVal || otherVal.indexOf(value) === 0 || value.indexOf(otherVal) === 0;
+  }
+
+  load();
+
+  return {
+    get: get,
+    set: set,
+    validate: validate,
+    wouldCollide: wouldCollide,
+    getAll: function() { return JSON.parse(JSON.stringify(cfg)); },
+    defaults: defaults
+  };
+})();
+
+// NOTION SYNC — logs trigger config changes to a Notion database
+var NotionSync = (function() {
+  var NOTION_KEY_STORAGE = 'sb-notion-key';
+  var NOTION_DB_STORAGE  = 'sb-notion-db';
+  var MAX_RETRIES = 3;
+  var RETRY_DELAYS = [1000, 2000, 4000]; // exponential backoff
+  var logHistory = [];   // in-memory log for UI display
+  var lastStatus = null; // 'ok' | 'err' | 'pending' | null
+
+  function getApiKey()  { return localStorage.getItem(NOTION_KEY_STORAGE) || ''; }
+  function getDbId()    { return localStorage.getItem(NOTION_DB_STORAGE) || ''; }
+  function setApiKey(k) { localStorage.setItem(NOTION_KEY_STORAGE, k || ''); }
+  function setDbId(d)   { localStorage.setItem(NOTION_DB_STORAGE, d || ''); }
+
+  function isConfigured() { return !!(getApiKey() && getDbId()); }
+
+  // Idempotency key to prevent duplicate entries
+  function idempotencyKey(entry) {
+    return entry.triggerType + '|' + entry.field + '|' + entry.newValue + '|' + entry.timestamp;
+  }
+
+  var sentKeys = {}; // tracks already-sent entries
+  function alreadySent(entry) {
+    var key = idempotencyKey(entry);
+    return !!sentKeys[key];
+  }
+  function markSent(entry) {
+    sentKeys[idempotencyKey(entry)] = true;
+  }
+
+  function logConfigChange(entry) {
+    // Always log locally
+    logHistory.push({ entry: entry, status: 'pending', time: new Date().toISOString() });
+    if (logHistory.length > 20) logHistory.shift();
+
+    // Skip if already sent (idempotent)
+    if (alreadySent(entry)) {
+      logHistory[logHistory.length - 1].status = 'skipped (duplicate)';
+      return;
+    }
+
+    if (!isConfigured()) {
+      logHistory[logHistory.length - 1].status = 'skipped (no Notion config)';
+      lastStatus = null;
+      return;
+    }
+
+    lastStatus = 'pending';
+    sendToNotion(entry, 0);
+  }
+
+  function sendToNotion(entry, attempt) {
+    var apiKey = getApiKey();
+    var dbId   = getDbId();
+    var logIdx = logHistory.length - 1;
+
+    var body = {
+      parent: { database_id: dbId },
+      properties: {
+        'Trigger Type':    { title: [{ text: { content: entry.triggerType } }] },
+        'Field':           { rich_text: [{ text: { content: entry.field } }] },
+        'New Value':       { rich_text: [{ text: { content: String(entry.newValue) } }] },
+        'Old Value':       { rich_text: [{ text: { content: String(entry.oldValue || '') } }] },
+        'Timestamp':       { rich_text: [{ text: { content: entry.timestamp } }] }
+      }
+    };
+
+    fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify(body)
+    }).then(function(res) {
+      if (res.ok) {
+        markSent(entry);
+        lastStatus = 'ok';
+        if (logHistory[logIdx]) logHistory[logIdx].status = 'synced';
+        console.log('[NotionSync] Config change synced:', entry);
+      } else {
+        throw new Error('HTTP ' + res.status);
+      }
+    }).catch(function(err) {
+      console.warn('[NotionSync] Attempt ' + (attempt + 1) + ' failed:', err.message);
+      if (attempt < MAX_RETRIES - 1) {
+        setTimeout(function() { sendToNotion(entry, attempt + 1); }, RETRY_DELAYS[attempt]);
+      } else {
+        lastStatus = 'err';
+        if (logHistory[logIdx]) logHistory[logIdx].status = 'failed after ' + MAX_RETRIES + ' retries';
+        console.error('[NotionSync] Gave up syncing:', entry);
+      }
+    });
+  }
+
+  return {
+    logConfigChange: logConfigChange,
+    isConfigured: isConfigured,
+    getApiKey: getApiKey,
+    getDbId: getDbId,
+    setApiKey: setApiKey,
+    setDbId: setDbId,
+    getLog: function() { return logHistory.slice(); },
+    getStatus: function() { return lastStatus; }
+  };
+})();
+
+// UI helpers for trigger settings (called from inline handlers in render)
+function updateTriggerCfg(key, inputEl) {
+  var val = inputEl.value.trim();
+  if (!TriggerCfg.validate(val)) {
+    inputEl.style.borderColor = 'var(--danger)';
+    var st = inputEl.parentNode.querySelector('.trig-cfg-status');
+    if (st) { st.className = 'trig-cfg-status err'; st.textContent = 'Invalid'; }
+    return;
+  }
+  if ((key === 'snippetTrigger' || key === 'promptTrigger') && TriggerCfg.wouldCollide(key, val)) {
+    inputEl.style.borderColor = 'var(--danger)';
+    var st2 = inputEl.parentNode.querySelector('.trig-cfg-status');
+    if (st2) { st2.className = 'trig-cfg-status err'; st2.textContent = 'Collides'; }
+    return;
+  }
+  inputEl.style.borderColor = '';
+  TriggerCfg.set(key, val);
+  var st3 = inputEl.parentNode.querySelector('.trig-cfg-status');
+  if (st3) { st3.className = 'trig-cfg-status ok'; st3.textContent = 'Saved'; setTimeout(function() { st3.textContent = ''; }, 2000); }
+}
+
+function updateNotionCfg(key, inputEl) {
+  var val = inputEl.value.trim();
+  if (key === 'apiKey') NotionSync.setApiKey(val);
+  else if (key === 'dbId') NotionSync.setDbId(val);
+  var st = document.getElementById('notion-status');
+  if (st) {
+    st.className = 'trig-cfg-status ' + (NotionSync.isConfigured() ? 'ok' : 'err');
+    st.textContent = NotionSync.isConfigured() ? 'Connected' : 'Not configured';
+  }
+}
+
+// DUAL TRIGGER SYSTEM — configurable triggers for snippets and prompts
 var Trigger = (function() {
   var dd = document.getElementById('trigger-dd');
   var activeEl = null;   // the textarea/input being watched
@@ -2566,38 +2850,41 @@ var Trigger = (function() {
     hide();
   }
 
-  // Scan the text behind the caret for trigger sequences
+  // Scan the text behind the caret for trigger sequences (uses TriggerCfg)
   function scan(el) {
     var val = el.value;
     var pos = el.selectionStart;
-    if (pos < 2) { if (mode) hide(); return; }
+    var snippetSeq = TriggerCfg.get('snippetTrigger');
+    var promptSeq  = TriggerCfg.get('promptTrigger');
+    var minLen = Math.min(snippetSeq.length, promptSeq.length);
+    if (pos < minLen) { if (mode) hide(); return; }
     var behind = val.substring(0, pos);
 
     // If already in a trigger mode, update filter text
     if (mode && triggerPos >= 0) {
-      var seqLen = mode === 'snippet' ? 2 : 3; // :: or """
+      var seqLen = mode === 'snippet' ? snippetSeq.length : promptSeq.length;
       filterText = behind.substring(triggerPos + seqLen);
       // Check if user backspaced past the trigger
       if (pos <= triggerPos) { hide(); return; }
-      // Check if filter contains whitespace at beginning — allow spaces for multi-word search
       renderDD();
       return;
     }
 
-    // Detect :: (snippet trigger)
-    if (behind.length >= 2 && behind.slice(-2) === '::') {
-      // Make sure it's not ::: (triple colon edge case)
-      if (behind.length >= 3 && behind[behind.length - 3] === ':') return;
-      triggerPos = pos - 2;
+    // Detect snippet trigger (configurable, e.g. ::)
+    if (behind.length >= snippetSeq.length && behind.slice(-snippetSeq.length) === snippetSeq) {
+      // Edge case: prevent extra leading char of same type (e.g. ::: when trigger is ::)
+      var firstChar = snippetSeq[0];
+      if (behind.length > snippetSeq.length && behind[behind.length - snippetSeq.length - 1] === firstChar) return;
+      triggerPos = pos - snippetSeq.length;
       show(el, 'snippet');
       return;
     }
 
-    // Detect """ (prompt trigger)
-    if (behind.length >= 3 && behind.slice(-3) === '"""') {
-      // Make sure it's not """" (quad quote edge case)
-      if (behind.length >= 4 && behind[behind.length - 4] === '"') return;
-      triggerPos = pos - 3;
+    // Detect prompt trigger (configurable, e.g. """)
+    if (behind.length >= promptSeq.length && behind.slice(-promptSeq.length) === promptSeq) {
+      var firstCharP = promptSeq[0];
+      if (behind.length > promptSeq.length && behind[behind.length - promptSeq.length - 1] === firstCharP) return;
+      triggerPos = pos - promptSeq.length;
       show(el, 'prompt');
       return;
     }
@@ -2605,6 +2892,9 @@ var Trigger = (function() {
 
   function handleKeydown(e) {
     if (!mode) return;
+    var activationKey = mode === 'snippet'
+      ? TriggerCfg.get('snippetActivationKey')
+      : TriggerCfg.get('promptActivationKey');
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       var items = mode === 'snippet' ? getSnippetItems() : getPromptItems();
@@ -2614,7 +2904,7 @@ var Trigger = (function() {
       e.preventDefault();
       activeIdx = Math.max(activeIdx - 1, 0);
       renderDD();
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
+    } else if (e.key === activationKey || e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       selectItem(activeIdx);
     } else if (e.key === 'Escape') {
