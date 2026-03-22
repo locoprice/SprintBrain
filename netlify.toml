@@ -1,0 +1,23 @@
+# netlify.toml — Sprint Brain v2.4
+# index.html is served automatically by Netlify — NO redirect needed
+
+[build]
+  publish = "."
+
+# Security headers for all pages
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+
+# No caching for index.html — team always gets latest version
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# NOTE: No [[redirects]] block.
+# Netlify automatically serves index.html at the root.
+# Adding a redirect to index.html causes a redirect loop — DO NOT add one.
