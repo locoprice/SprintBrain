@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v5.0 - Supabase cloud sync
+// SPRINTBRAIN POPUP v2.6 — Supabase cloud sync
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';

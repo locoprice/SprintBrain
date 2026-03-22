@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v3.0 ───────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.6 ───────────────────────────────
 // Clean rewrite — keystroke buffer + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -124,7 +124,7 @@ try {
       } else {
         chrome.storage.sync.set({snippets: DEFAULT_SNIPPETS, trigger: trigger});
       }
-      console.log('[Sprintbrain v3.0] \u26a1 trigger:"' + trigger + '" snippets:' + snippets.length);
+      console.log('[Sprintbrain v2.6] \u26a1 trigger:"' + trigger + '" snippets:' + snippets.length);
     } catch(e) {}
   });
   chrome.storage.onChanged.addListener(function(changes) {
@@ -650,7 +650,7 @@ document.addEventListener('keydown', function(e) {
   document.head.appendChild(s);
 })();
 
-console.log('[Sprintbrain v3.0] Content script loaded \u26a1');
+console.log('[Sprintbrain v2.6] Content script loaded \u26a1');
 
 
 // ── CONTEXT MENU MESSAGE HANDLER ──────────────────────────────────
