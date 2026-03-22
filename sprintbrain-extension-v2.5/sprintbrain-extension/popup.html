@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ac:#BA7517;--ac2:#d4880f;--ac-bg:#fdf6e8;--ac-bdr:#e8c97a;
+  --bdr:#e8e5e0;--bdr2:#d4d0ca;--sur2:#f5f4f0;--sur3:#eeecea;
+  --tx:#1c1c1a;--tx2:#6e6c67;--tx3:#a8a59f;
+  --ok:#3B6D11;--ok-bg:#f0f7e8;--ok-bdr:#9dc870;
+  --danger:#c0392b;--danger-bg:#fdf0ef;
+}
+html,body{width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;color:var(--tx);background:#fff;overflow-x:hidden;user-select:none}
+
+/* ── HEADER ── */
+.hdr{padding:10px 13px;background:var(--ac-bg);border-bottom:1px solid var(--ac-bdr);display:flex;align-items:center;gap:7px}
+.logo{font-size:15px;font-weight:700;letter-spacing:-.4px;color:var(--ac)}
+.hdr-r{margin-left:auto;display:flex;gap:5px;align-items:center}
+.hdr-btn{padding:4px 9px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--ac-bdr);background:transparent;color:var(--ac);font-family:inherit}
+.hdr-btn:hover{background:var(--ac);color:#fff}
+.hdr-btn.g{border-color:var(--bdr);color:var(--tx3)}
+.hdr-btn.g:hover{background:var(--sur2);color:var(--tx)}
+.hdr-btn.b{border-color:var(--bdr);color:var(--tx2)}
+.hdr-btn.b:hover{background:var(--sur2);color:var(--tx)}
+
+/* ── SEARCH ROW ── */
+.srow{padding:8px 12px;border-bottom:1px solid var(--bdr);display:flex;gap:7px;align-items:center;background:#fff}
+.sinp{flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:6px 10px;font-size:12px;color:var(--tx);font-family:inherit;outline:none}
+.sinp:focus{border-color:var(--ac-bdr)}.sinp::placeholder{color:var(--tx3)}
+.tpill{font-size:9px;font-family:monospace;font-weight:700;color:var(--ac);background:var(--ac-bg);border:1px solid var(--ac-bdr);border-radius:10px;padding:2px 8px;white-space:nowrap;flex-shrink:0}
+
+/* ── BODY: SIDEBAR + LIST ── */
+.body{display:flex;height:360px}
+
+/* ── SIDEBAR ── */
+.sb{width:148px;min-width:148px;border-right:1px solid var(--bdr);display:flex;flex-direction:column;background:#fafaf8;flex-shrink:0}
+.sb-lbl{padding:8px 10px 4px;font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em}
+.sb-list{flex:1;overflow-y:auto}
+.folder-item{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;border-left:2px solid transparent;font-size:12px;color:var(--tx2)}
+.folder-item:hover{background:var(--sur2)}
+.folder-item.on{background:var(--ac-bg);border-left-color:var(--ac);color:var(--ac);font-weight:600}
+.folder-ico{font-size:13px;flex-shrink:0}
+.folder-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-count{font-size:9px;color:var(--tx3);background:var(--sur3);border-radius:10px;padding:1px 5px;flex-shrink:0}
+.folder-item.on .folder-count{background:var(--ac-bg);color:var(--ac)}
+.sb-add{padding:8px 10px;font-size:11px;font-weight:600;color:var(--ac);cursor:pointer;border-top:1px solid var(--bdr);display:flex;align-items:center;gap:5px;margin-top:auto}
+.sb-add:hover{background:var(--ac-bg)}
+
+/* ── SNIPPET LIST ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.hint{padding:4px 12px;font-size:10px;color:var(--tx3);background:var(--sur2);border-bottom:1px solid var(--bdr);flex-shrink:0}
+.hint strong{color:var(--ac)}
+.list{flex:1;overflow-y:auto}
+.item{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--bdr);cursor:pointer;position:relative}
+.item:hover{background:var(--sur2)}
+.item.ctx-open{background:var(--sur2)}
+.iname{font-size:12px;font-weight:500;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iname-edit{font-size:12px;font-weight:500;color:var(--tx);flex:1;border:1px solid var(--ac-bdr);border-radius:4px;padding:1px 6px;outline:none;background:var(--ac-bg);font-family:inherit}
+.isc{font-size:9px;font-weight:600;color:var(--ac);font-family:monospace;background:var(--ac-bg);border:1px solid var(--ac-bdr);border-radius:10px;padding:1px 6px;flex-shrink:0;max-width:88px;overflow:hidden;text-overflow:ellipsis}
+.lb{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;flex-shrink:0}
+.EN{background:#3a8fc414;color:#3a8fc4;border:1px solid #3a8fc444}
+.ES{background:#d4952a14;color:#d4952a;border:1px solid #d4952a44}
+.IT{background:#c4605514;color:#c46055;border:1px solid #c4605544}
+.iedit{padding:3px 7px;border-radius:4px;font-size:10px;border:1px solid var(--bdr);background:transparent;color:var(--tx3);cursor:pointer;flex-shrink:0;font-family:inherit}
+.iedit:hover{border-color:var(--ac-bdr);color:var(--ac);background:var(--ac-bg)}
+.stat-b{display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:1px 6px;border-radius:10px;font-weight:600;border:1px solid}
+.stat-b.uses{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bdr)}
+.stat-b.hot{background:#fef9c3;color:#854d0e;border-color:#fde047}
+.stat-b.never{background:var(--sur3);color:var(--tx3);border-color:var(--bdr)}
+.stat-b.fills{background:#eef4fb;color:var(--en);border-color:#9bc4e444}
+.iname-edit{font-size:12px;font-weight:500;color:var(--tx);border:1px solid var(--ac-bdr);border-radius:4px;padding:1px 6px;outline:none;background:var(--ac-bg);font-family:inherit;width:160px}
+.empty{padding:24px 16px;text-align:center;color:var(--tx3);font-size:12px;line-height:1.6}
+
+/* ── FOOTER ── */
+.lfoot{padding:8px 12px;border-top:1px solid var(--bdr);display:flex;gap:6px;background:#fff}
+.btn{padding:7px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--bdr);background:transparent;color:var(--tx2);flex:1;text-align:center}
+.btn:hover{background:var(--sur2)}
+.btn.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.btn.p:hover{background:var(--ac2)}
+
+/* ── PANES ── */
+.pane{display:none}.pane.on{display:flex;flex-direction:column}
+
+/* ── EDITOR ── */
+.escroll{padding:12px;display:flex;flex-direction:column;gap:9px;height:360px;overflow-y:auto}
+.lbl{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.einp{width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:6px 9px;font-size:12px;color:var(--tx);font-family:inherit;outline:none}
+.einp:focus{border-color:var(--ac-bdr)}.einp::placeholder{color:var(--tx3)}
+.esel{background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:6px 9px;font-size:12px;color:var(--tx);font-family:inherit;outline:none;cursor:pointer;flex:1}
+.eta{width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:7px 9px;font-size:11px;color:var(--tx);font-family:monospace;outline:none;resize:vertical;min-height:100px;line-height:1.7}
+.eta:focus{border-color:var(--ac-bdr)}
+.scrow{display:flex;align-items:stretch;border:1px solid var(--bdr);border-radius:5px;overflow:hidden;background:var(--sur2)}
+.scrow:focus-within{border-color:var(--ac-bdr)}
+.scpfx{padding:6px 9px;font-size:12px;font-family:monospace;font-weight:700;color:var(--ac);background:var(--ac-bg);border-right:1px solid var(--ac-bdr);flex-shrink:0;display:flex;align-items:center}
+.scrow input{background:transparent;border:none;outline:none;font-family:monospace;font-size:12px;color:var(--ac);font-weight:600;flex:1;padding:6px 9px;min-width:0}
+.schint{font-size:10px;color:var(--tx3);margin-top:3px}
+.schint strong{font-family:monospace;color:var(--ac)}
+.row2{display:flex;gap:7px}
+.cmds{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.cmd{padding:2px 7px;border-radius:4px;font-size:10px;font-family:monospace;cursor:pointer;border:1px solid var(--bdr);background:var(--sur3);color:var(--tx2)}
+.cmd:hover{border-color:var(--ac-bdr);color:var(--ac);background:var(--ac-bg)}
+.efoot{padding:10px 12px;border-top:1px solid var(--bdr);display:flex;gap:6px;align-items:center;background:#fff}
+.bsave{padding:7px 16px;background:var(--ac);border:none;border-radius:5px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit}
+.bsave:hover{background:var(--ac2)}
+.bsec{padding:7px 12px;background:transparent;border:1px solid var(--bdr);border-radius:5px;font-size:12px;color:var(--tx2);cursor:pointer;font-family:inherit}
+.bsec:hover{background:var(--sur2)}
+.bdel{padding:7px 12px;background:transparent;border:1px solid #e8b4b0;border-radius:5px;font-size:12px;color:var(--danger);cursor:pointer;font-family:inherit;margin-left:auto}
+.bdel:hover{background:var(--danger-bg)}
+.saveok{font-size:10px;color:var(--ok);font-weight:600;opacity:0;transition:opacity .2s}
+.saveok.on{opacity:1}
+
+/* ── SETTINGS ── */
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.topt{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 8px;border-radius:7px;border:1.5px solid var(--bdr);cursor:pointer;transition:border-color .15s,background .15s}
+.topt:hover{border-color:var(--bdr2);background:var(--sur2)}
+.topt.on{border-color:var(--ac);background:var(--ac-bg)}
+.tk{font-size:18px;font-weight:700;font-family:monospace;color:var(--tx)}
+.topt.on .tk{color:var(--ac)}
+.td{font-size:10px;color:var(--tx3);text-align:center;line-height:1.3}
+.topt.on .td{color:var(--ac2)}
+.warn{padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:11px;color:#c2410c;line-height:1.5;display:none;margin-top:8px}
+.warn.on{display:block}
+.ibox{padding:8px 10px;background:var(--ok-bg);border:1px solid var(--ok-bdr);border-radius:6px;font-size:11px;color:var(--ok);line-height:1.6;margin-top:10px}
+.ibox strong{font-family:monospace}
+
+/* ── NEW FOLDER MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9000;display:none;align-items:center;justify-content:center}
+.modal-overlay.on{display:flex}
+.modal{background:#fff;border-radius:10px;padding:20px;width:280px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:12px}
+.modal-row{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.modal-ico{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.ico-opt{font-size:18px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;border:1.5px solid transparent}
+.ico-opt:hover{background:var(--sur2)}
+.ico-opt.on{border-color:var(--ac);background:var(--ac-bg)}
+.modal-foot{display:flex;gap:6px;justify-content:flex-end}
+.mbtn{padding:6px 14px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--bdr);background:transparent;color:var(--tx2)}
+.mbtn:hover{background:var(--sur2)}
+.mbtn.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.mbtn.p:hover{background:var(--ac2)}
+
+/* ── RIGHT-CLICK CONTEXT MENU ── */
+.ctx-menu{position:fixed;z-index:9999;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.15);min-width:200px;overflow:visible;display:none}
+.ctx-menu.on{display:block}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:12px;color:var(--tx);position:relative}
+.ctx-item:hover{background:var(--sur2)}
+.ctx-item.danger{color:var(--danger)}
+.ctx-item.danger:hover{background:var(--danger-bg)}
+.ctx-ico{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.ctx-arr{margin-left:auto;font-size:10px;color:var(--tx3)}
+.ctx-sep{height:1px;background:var(--bdr);margin:3px 0}
+/* Submenu */
+.ctx-sub{position:absolute;left:100%;top:-4px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.15);min-width:180px;display:none;z-index:10000}
+.ctx-item:hover .ctx-sub{display:block}
+.ctx-sub-item{display:flex;align-items:center;gap:8px;padding:7px 13px;cursor:pointer;font-size:12px;color:var(--tx)}
+.ctx-sub-item:hover{background:var(--sur2)}
+.ctx-sub-item.add-folder{color:var(--ac);font-weight:600;border-top:1px solid var(--bdr);margin-top:3px}
+.ctx-sub-item .sub-ico{font-size:12px;width:16px;text-align:center}
+
+/* CHANGELOG */
+.cl-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9995;display:none;align-items:center;justify-content:center}
+.cl-bg.on{display:flex}
+.cl-box{background:#fff;border-radius:12px;width:380px;max-width:96vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 60px rgba(0,0,0,.22);overflow:hidden;animation:clIn .22s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes clIn{0%{opacity:0;transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
+.cl-hdr2{padding:12px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--ac-bg)}
+.cl-ttl{font-size:13px;font-weight:700;color:var(--ac);flex:1}
+.cl-x{background:transparent;border:none;cursor:pointer;font-size:16px;color:var(--tx3);padding:0;line-height:1}
+.cl-x:hover{color:var(--tx)}
+.cl-scroll{overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:16px}
+.cl-rel{border-left:3px solid var(--bdr2);padding-left:12px}
+.cl-rel:first-child{border-left-color:var(--ac)}
+.cl-rh{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.cl-rv{font-size:13px;font-weight:700;color:var(--ac);font-family:monospace}
+.cl-rel:not(:first-child) .cl-rv{color:var(--tx2)}
+.cl-rl{font-size:11px;font-weight:600;color:var(--tx2)}
+.cl-rd{font-size:9px;color:var(--tx3);margin-left:auto}
+.cl-cs{display:flex;flex-direction:column;gap:4px}
+.cl-c{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--tx2);line-height:1.5}
+.cl-b{flex-shrink:0;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-top:1px;text-transform:uppercase}
+.cl-b.new{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bdr)}
+.cl-b.fix{background:var(--date-bg);color:var(--date-tx);border:1px solid var(--date-bdr)}
+.ver-btn{cursor:pointer;font-family:monospace;font-size:9px;color:var(--tx3);background:none;border:none;border-bottom:1px dotted var(--tx3);padding:0;font-family:monospace}
+.ver-btn:hover{color:var(--ac);border-bottom-color:var(--ac)}
+
+
+/* URGENCY TIMER v2.6 */
+.urg-cfg{background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;margin-top:4px}
+.urg-cfg-hdr{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.urg-cfg-lbl{font-size:11px;font-weight:600;color:var(--tx)}
+.urg-cfg-sub{font-size:9px;color:var(--tx3);margin-top:1px}
+.urg-cfg-fields{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:flex-end}
+.urg-cfg-field{display:flex;flex-direction:column;gap:2px}
+.urg-cfg-field label{font-size:8px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.urg-cfg-field input{background:#fff;border:1px solid var(--bdr);border-radius:4px;padding:4px 6px;font-size:11px;color:var(--tx);font-family:inherit;outline:none;width:80px}
+.urg-cfg-field input:focus{border-color:var(--ac-bdr)}
+.urg-switch{position:relative;width:30px;height:17px;flex-shrink:0}
+.urg-switch input{opacity:0;width:0;height:0;position:absolute}
+.urg-slider{position:absolute;inset:0;background:var(--bdr2);border-radius:17px;cursor:pointer;transition:background .2s}
+.urg-slider:before{content:'';position:absolute;height:11px;width:11px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.urg-switch input:checked + .urg-slider{background:var(--ac)}
+.urg-switch input:checked + .urg-slider:before{transform:translateX(13px)}
+
+/* LANGUAGE VARIANTS v2.4 */
+.lang-bar{display:flex;gap:4px;padding:4px 10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--bdr)}
+.lang-pill{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid}
+.lang-pill.cur{box-shadow:0 1px 4px rgba(0,0,0,.12);transform:scale(1.05)}
+.lang-pill.EN{background:#3a8fc414;color:var(--en);border-color:#3a8fc444}
+.lang-pill.ES{background:#d4952a14;color:var(--es);border-color:#d4952a44}
+.lang-pill.IT{background:#c4605514;color:var(--it);border-color:#c4605544}
+.lang-pill.FR{background:#7c3aed14;color:#7c3aed;border-color:#c4b5fd}
+.add-chip{padding:2px 7px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;border:1px dashed;background:transparent;font-family:inherit}
+.add-chip.EN{color:var(--en);border-color:#3a8fc466}
+.add-chip.ES{color:var(--es);border-color:#d4952a66}
+.add-chip.IT{color:var(--it);border-color:#c4605566}
+.add-chip.FR{color:#7c3aed;border-color:#c4b5fd}
+.add-chip:disabled{opacity:.3;cursor:default;text-decoration:line-through}
+/* Lang Picker */
+.lp-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;display:none;align-items:center;justify-content:center}
+.lp-bg.on{display:flex}
+.lp-box{background:#fff;border-radius:12px;padding:18px 16px;width:280px;max-width:96vw;box-shadow:0 16px 50px rgba(0,0,0,.22);animation:lpIn .2s cubic-bezier(.34,1.56,.64,1)}
+@keyframes lpIn{0%{opacity:0;transform:scale(.88)}100%{opacity:1;transform:scale(1)}}
+.lp-ttl{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:3px}
+.lp-sub{font-size:10px;color:var(--tx2);margin-bottom:12px}
+.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px}
+.lp-opt{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid var(--bdr);border-radius:8px;cursor:pointer;transition:all .12s}
+.lp-opt.lp-has{border-color:var(--ok-bdr);background:var(--ok-bg)}
+.lp-opt.lp-sel{border-color:var(--ac);background:var(--ac-bg)}
+.lp-opt.lp-dis{opacity:.35;cursor:default}
+.lp-dot{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:var(--sur2);flex-shrink:0}
+.lp-nm{font-size:10px;font-weight:600;color:var(--tx)}
+.lp-opt.lp-has .lp-nm{color:var(--ok)}
+.lp-acts{display:flex;gap:6px}
+.lp-ok{flex:1;padding:7px;background:var(--ac);border:none;border-radius:6px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit}
+.lp-cancel{padding:7px 11px;background:transparent;border:1px solid var(--bdr);border-radius:6px;font-size:11px;color:var(--tx2);cursor:pointer;font-family:inherit}
+
+</style>
+</head>
+<body>
+
+<!-- ═══ LIST ═══ -->
+<div id="pane-list" class="pane on">
+  <div class="hdr">
+    <div class="logo"><span style="color:var(--ac)">Sprint</span><span style="color:var(--ac)">Brain</span></div>
+    <span id="st" style="font-size:10px;color:var(--ac);font-weight:600">● 0 snippets</span>
+    <div class="hdr-r">
+      <button class="hdr-btn g" id="bcfg" title="Trigger settings">⚙️</button>
+      <button class="hdr-btn" id="bnew">+ New</button>
+    </div>
+  </div>
+  <div class="srow">
+    <input class="sinp" id="sq" placeholder="Search snippets or /shortcut…">
+    <div class="tpill" id="tp">;;</div>
+  </div>
+  <div class="body">
+    <!-- SIDEBAR -->
+    <div class="sb">
+      <div class="sb-lbl">Folders</div>
+      <div class="sb-list" id="folder-list"></div>
+      <div class="sb-add" id="btn-new-folder">＋ New folder</div>
+    </div>
+    <!-- SNIPPET LIST -->
+    <div class="main">
+      <div class="hint">Type <strong id="hint-ex">;;quoteEN</strong> · right-click for options</div>
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+  <div class="lfoot">
+    <button class="btn" id="brel">↺ Reload</button>
+    <button class="btn p" id="bnew2">+ New Snippet</button>
+  </div>
+</div>
+
+<!-- ═══ EDITOR ═══ -->
+<div id="pane-ed" class="pane">
+  <div class="hdr">
+    <button class="hdr-btn b" id="bbed">← Back</button>
+    <span style="flex:1;font-size:13px;font-weight:700;color:var(--ac)" id="edhdr">New Snippet</span>
+    <span class="saveok" id="sok">✓ Saved!</span>
+  </div>
+  <div class="escroll">
+    <div><div class="lbl">Title</div><input class="einp" id="etit" placeholder="e.g. ESTIMATE B2C"></div>
+    <div>
+      <div class="lbl">Shortcut</div>
+      <div class="scrow"><div class="scpfx" id="spfx">;;</div><input id="ewrd" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
+      <div class="schint">Full shortcut: <strong id="sprev">;;quoteEN</strong></div>
+    </div>
+    <div class="row2">
+      <div style="flex:1"><div class="lbl">Language</div>
+        <select class="esel" id="elng"><option>EN</option><option>ES</option><option>IT</option></select></div>
+      <div style="flex:2"><div class="lbl">Folder</div>
+        <select class="esel" id="efolder"></select></div>
+    </div>
+    <div><div class="lbl">Body — use {variable} for dynamic fields</div>
+      <textarea class="eta" id="ebdy" placeholder="Dear {guest_name},&#10;&#10;Your message here…&#10;{variable} · {=formula} · {if:A>0}text{endif}"></textarea></div>
+    <div><div class="lbl">Quick insert</div>
+      <div class="cmds">
+        <span class="cmd" data-c="{guest_name}">guest_name</span>
+        <span class="cmd" data-c="{property_name}">property_name</span>
+        <span class="cmd" data-c="{checkin_date}">checkin_date</span>
+        <span class="cmd" data-c="{checkout_date}">checkout_date</span>
+        <span class="cmd" data-c="{total_price}">total_price</span>
+        <span class="cmd" data-c="{nights}">nights</span>
+        <span class="cmd" data-c="{phone_number}">phone</span>
+        <span class="cmd" data-c="{review_link}">review_link</span>
+        <span class="cmd" data-c="{=A - B}" style="color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">{=formula}</span>
+        <span class="cmd" data-c="{if:A > 0}text{endif}" style="color:#0891b2;border-color:#a5f3fc;background:#ecfeff">{if:cond}</span>
+      </div>
+    </div>
+    <div class="urg-cfg">
+      <div class="urg-cfg-hdr">
+        <div><div class="urg-cfg-lbl">⏱ Urgency Timer</div><div class="urg-cfg-sub">Countdown + scarcity for quotes</div></div>
+        <label class="urg-switch"><input type="checkbox" id="eurg"><span class="urg-slider"></span></label>
+      </div>
+      <div class="urg-cfg-fields" id="urg-fields" style="display:none">
+        <div class="urg-cfg-field"><label>Duration (min)</label><input type="number" id="eurg-dur" min="1" max="10080" value="30"></div>
+        <div class="urg-cfg-field"><label>Units left</label><input type="number" id="eurg-sc" min="0" max="999" value="0"></div>
+      </div>
+    </div>
+  </div>
+  <div class="efoot">
+    <button class="bsave" id="bsav">💾 Save</button>
+    <button class="bsec" id="bcan">Cancel</button>
+    <button class="bdel" id="bdel" style="display:none">Delete</button>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div id="pane-cfg" class="pane">
+  <div class="hdr">
+    <button class="hdr-btn b" id="bbcfg">← Back</button>
+    <span style="flex:1;font-size:13px;font-weight:700;color:var(--ac)">Trigger Settings</span>
+  </div>
+  <div style="padding:14px 13px">
+    <div class="lbl" style="margin-bottom:8px">Choose trigger character</div>
+    <div class="tgrid">
+      <div class="topt on" data-t=";;"><span class="tk">;;</span><span class="td">Recommended<br>Zero conflicts</span></div>
+      <div class="topt" data-t="::"><span class="tk">::</span><span class="td">Professional</span></div>
+      <div class="topt" data-t="!!"><span class="tk">!!</span><span class="td">Easy to type</span></div>
+      <div class="topt" data-t="/"><span class="tk">/</span><span class="td">TextBlaze style<br>⚠️ Conflicts</span></div>
+    </div>
+    <div><div class="lbl" style="margin-bottom:5px">Custom trigger</div>
+      <input class="einp" id="ctrig" placeholder=";;" maxlength="4" spellcheck="false" autocomplete="off"
+        style="font-family:monospace;font-weight:700;font-size:14px;text-align:center;letter-spacing:2px"></div>
+    <div class="warn" id="wbox">⚠️ <strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>;;</strong> instead.</div>
+    <div class="ibox">Active: <strong id="itrig">;;</strong> · Example: <strong id="iex">;;quoteEN</strong></div>
+  </div>
+  <div class="lfoot">
+    <button class="btn p" id="bappt">✓ Apply</button>
+    <button class="btn" id="bcct">Cancel</button>
+  </div>
+</div>
+
+<!-- ═══ NEW FOLDER MODAL ═══ -->
+<div class="modal-overlay" id="folder-modal">
+  <div class="modal">
+    <div class="modal-title">New Folder</div>
+    <div class="modal-row">
+      <input class="einp" id="folder-name-inp" placeholder="Folder name…" style="flex:1">
+    </div>
+    <div class="lbl" style="margin-bottom:6px">Icon</div>
+    <div class="modal-ico" id="ico-picker">
+      <span class="ico-opt on" data-ico="📁">📁</span>
+      <span class="ico-opt" data-ico="📋">📋</span>
+      <span class="ico-opt" data-ico="🏠">🏠</span>
+      <span class="ico-opt" data-ico="💬">💬</span>
+      <span class="ico-opt" data-ico="🤖">🤖</span>
+      <span class="ico-opt" data-ico="⭐">⭐</span>
+      <span class="ico-opt" data-ico="🔑">🔑</span>
+      <span class="ico-opt" data-ico="💰">💰</span>
+      <span class="ico-opt" data-ico="📝">📝</span>
+      <span class="ico-opt" data-ico="🌴">🌴</span>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="folder-cancel">Cancel</button>
+      <button class="mbtn p" id="folder-save">Create folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONTEXT MENU ═══ -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" id="ctx-duplicate"><span class="ctx-ico">⧉</span>Duplicate snippet</div>
+  <div class="ctx-item" id="ctx-move">
+    <span class="ctx-ico">📂</span>Move to folder<span class="ctx-arr">›</span>
+    <div class="ctx-sub" id="ctx-sub-folders"></div>
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-rename"><span class="ctx-ico">✏️</span>Rename…</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-delete"><span class="ctx-ico">🗑</span>Delete snippet…</div>
+</div>
+
+<script src="popup.js"></script>
+<div style="padding:3px 12px;background:var(--sur2);border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
+  <button class="ver-btn" id="ver-btn">v2.6</button>
+  <span style="font-size:9px;color:var(--tx3)">2026-03-21</span>
+</div>
+
+<div class="cl-bg" id="cl-bg">
+  <div class="cl-box">
+    <div class="cl-hdr2">
+      <span class="cl-ttl">⚡ Sprint Brain — Changelog</span>
+      <button class="cl-x" id="cl-x">✕</button>
+    </div>
+    <div class="cl-scroll" id="cl-scroll"></div>
+  </div>
+</div>
+
+
+<div class="lp-bg" id="lp-bg">
+  <div class="lp-box">
+    <div class="lp-ttl" id="lp-ttl">Choose language</div>
+    <div class="lp-sub" id="lp-sub">Select which version to copy</div>
+    <div class="lp-grid" id="lp-grid"></div>
+    <div class="lp-acts">
+      <button class="lp-cancel" id="lp-cancel">Cancel</button>
+      <button class="lp-ok" id="lp-ok">Copy</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
