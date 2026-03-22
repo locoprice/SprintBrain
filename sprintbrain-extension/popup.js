@@ -205,7 +205,7 @@ function boot(){
   loadTrigger(function(){
     var tp=gi('tp'); if(tp) tp.textContent=trig;
     var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';
-    var sp=gi('sc-pfx'); if(sp) sp.textContent=trig;
+    var sp=gi('spfx'); if(sp) sp.textContent=trig;
   });
   var st=gi('st'); if(st) st.textContent='\u25CF Syncing\u2026';
   DB.loadAll().then(function(data){
@@ -334,7 +334,7 @@ function openEd(id){
   gi('etit').value=s?(s.title||''):'';
   var full=s?(s.shortcut||''):'';
   gi('ewrd').value=full.indexOf(trig)===0?full.slice(trig.length):full;
-  gi('sc-pfx').textContent=trig;
+  gi('spfx').textContent=trig;
   gi('elng').value=s?(s.lang||'EN'):'EN';
   gi('efolder').innerHTML=buildFolderOpts(s?(s.folder||''):(selFolder!=='ALL'?selFolder:''));
   gi('ebdy').value=s?(s.body||''):'';
