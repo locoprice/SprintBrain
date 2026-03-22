@@ -408,6 +408,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .import-src-btn.selected{border-color:var(--ac);color:var(--ac);background:var(--ac-bg)}
 .import-file-lbl{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;border:2px dashed var(--bdr);border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx3);transition:border-color .15s}
 .import-file-lbl:hover{border-color:var(--ac);color:var(--ac)}
+
+/* TRIGGER OVERLAY */
+.trigger-dd{position:fixed;z-index:9999;background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:200px;max-width:280px;max-height:220px;overflow-y:auto;display:none;padding:4px 0}
+.trigger-dd.on{display:block}
+.trigger-dd-hdr{padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);border-bottom:1px solid var(--bdr)}
+.trigger-dd-item{padding:7px 10px;cursor:pointer;font-size:12px;color:var(--tx);display:flex;align-items:center;gap:8px}
+.trigger-dd-item:hover,.trigger-dd-item.active{background:var(--ac-bg);color:var(--ac)}
+.trigger-dd-item .t-sc{font-size:10px;color:var(--tx3);margin-left:auto;font-family:monospace}
+.trigger-dd-empty{padding:10px;font-size:11px;color:var(--tx3);text-align:center}
+.trigger-badge{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;letter-spacing:.05em;flex-shrink:0}
+.trigger-badge.snippet{background:var(--ac-bg);color:var(--ac);border:1px solid var(--ac-bdr)}
+.trigger-badge.prompt{background:var(--formula-bg);color:var(--formula);border:1px solid var(--formula-bdr)}
 </style>
 </head>
 <body>
@@ -577,6 +589,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- TRIGGER DROPDOWN -->
+<div class="trigger-dd" id="trigger-dd"></div>
 
 <script>
 
@@ -1420,11 +1435,22 @@ function updateCalcs() {
 function attachFills() {
   document.querySelectorAll('.fill-inp,.fill-sel,.fill-ta').forEach(function(el) {
     ['input', 'change'].forEach(function(ev) {
-      el.addEventListener(ev, function(e) { S.fills[e.target.dataset.key] = e.target.value; updatePreview(); updateCalcs(); });
+      el.addEventListener(ev, function(e) {
+        S.fills[e.target.dataset.key] = e.target.value; updatePreview(); updateCalcs();
+        if (el.tagName === 'TEXTAREA' || el.type === 'text') Trigger.scan(el);
+      });
     });
     el.addEventListener('paste', function(e) {
-      var t = e.target; setTimeout(function() { S.fills[t.dataset.key] = t.value; updatePreview(); updateCalcs(); }, 0);
+      var t = e.target; setTimeout(function() {
+        S.fills[t.dataset.key] = t.value; updatePreview(); updateCalcs();
+        if (t.tagName === 'TEXTAREA' || t.type === 'text') Trigger.scan(t);
+      }, 0);
     });
+    if (el.tagName === 'TEXTAREA' || el.type === 'text') {
+      el.addEventListener('keydown', function(e) {
+        if (Trigger.isActive()) { Trigger.handleKeydown(e); }
+      });
+    }
   });
 }
 
@@ -1737,9 +1763,11 @@ function attachListeners() {
     es2.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.shortcut = es2.value; scheduleAS(); }, 0); }); }
   if (el) el.addEventListener('change', function(e) { if (edit) edit.lang = e.target.value; scheduleAS(); });
   if (ec) ec.addEventListener('change', function(e) { if (edit) edit.folder = e.target.value; scheduleAS(); });
-  if (eb) { eb.addEventListener('input', function(e) { if (edit) edit.body = e.target.value; scheduleAS(); });
-    eb.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.body = eb.value; scheduleAS(); }, 0); }); }
+  if (eb) { eb.addEventListener('input', function(e) { if (edit) edit.body = e.target.value; scheduleAS(); Trigger.scan(eb); });
+    eb.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.body = eb.value; scheduleAS(); Trigger.scan(eb); }, 0); }); }
   if (eb) eb.addEventListener('keydown', function(e) {
+    // Let trigger system handle navigation keys when active
+    if (Trigger.isActive()) { Trigger.handleKeydown(e); if (e.defaultPrevented) return; }
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='b') { e.preventDefault(); wrapSelection('**','**'); }
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='i') { e.preventDefault(); wrapSelection('_','_'); }
   });
@@ -2405,6 +2433,210 @@ function openChangelog() {
 function closeChangelog() { document.getElementById('cl-overlay').className = 'cl-overlay'; }
 document.getElementById('cl-close').addEventListener('click', closeChangelog);
 document.getElementById('cl-overlay').addEventListener('click', function(e) { if (e.target === document.getElementById('cl-overlay')) closeChangelog(); });
+
+// DUAL TRIGGER SYSTEM — :: for snippets, """ for prompts
+var Trigger = (function() {
+  var dd = document.getElementById('trigger-dd');
+  var activeEl = null;   // the textarea/input being watched
+  var mode = null;       // 'snippet' | 'prompt' | null
+  var triggerPos = -1;   // caret position where trigger started
+  var activeIdx = 0;     // keyboard-navigated item index
+  var filterText = '';   // text typed after trigger sequence
+
+  function getCaretCoords(el) {
+    // Build a mirror div to compute caret pixel position
+    var mirror = document.createElement('div');
+    var cs = getComputedStyle(el);
+    ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','wordSpacing',
+     'textIndent','whiteSpace','wordWrap','overflowWrap','padding','border','boxSizing','width'].forEach(function(p) {
+      mirror.style[p] = cs[p];
+    });
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.height = 'auto';
+    mirror.style.overflow = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    document.body.appendChild(mirror);
+    var text = el.value.substring(0, el.selectionStart);
+    mirror.textContent = text;
+    var span = document.createElement('span');
+    span.textContent = '|';
+    mirror.appendChild(span);
+    var rect = el.getBoundingClientRect();
+    var spanRect = span.getBoundingClientRect();
+    var mirrorRect = mirror.getBoundingClientRect();
+    var x = rect.left + (spanRect.left - mirrorRect.left) - el.scrollLeft;
+    var y = rect.top + (spanRect.top - mirrorRect.top) - el.scrollTop + parseInt(cs.lineHeight || cs.fontSize);
+    document.body.removeChild(mirror);
+    return { x: Math.min(x, rect.right - 210), y: Math.min(y, window.innerHeight - 230) };
+  }
+
+  function show(el, triggerMode) {
+    mode = triggerMode;
+    activeEl = el;
+    activeIdx = 0;
+    filterText = '';
+    renderDD();
+    var coords = getCaretCoords(el);
+    dd.style.left = Math.max(4, coords.x) + 'px';
+    dd.style.top = coords.y + 'px';
+    dd.classList.add('on');
+  }
+
+  function hide() {
+    dd.classList.remove('on');
+    dd.innerHTML = '';
+    mode = null;
+    activeEl = null;
+    triggerPos = -1;
+    activeIdx = 0;
+    filterText = '';
+  }
+
+  function getSnippetItems() {
+    var q = filterText.toLowerCase();
+    return S.snippets.filter(function(s) {
+      return !q || (s.title || '').toLowerCase().indexOf(q) > -1 || (s.shortcut || '').toLowerCase().indexOf(q) > -1;
+    }).slice(0, 8);
+  }
+
+  function getPromptItems() {
+    // Built-in prompt templates — extend as needed
+    var templates = [
+      { id: 'formal', title: 'Formal tone', body: 'Please rewrite in a formal, professional tone:\n' },
+      { id: 'casual', title: 'Casual tone', body: 'Rewrite this in a friendly, casual tone:\n' },
+      { id: 'translate', title: 'Translate', body: 'Translate the following text to {language}:\n' },
+      { id: 'summarize', title: 'Summarize', body: 'Summarize the following in 2-3 sentences:\n' },
+      { id: 'expand', title: 'Expand / elaborate', body: 'Expand on the following with more detail:\n' },
+      { id: 'bullet', title: 'Convert to bullets', body: '• ' },
+      { id: 'custom', title: 'Custom prompt...', body: '' }
+    ];
+    var q = filterText.toLowerCase();
+    return templates.filter(function(t) {
+      return !q || t.title.toLowerCase().indexOf(q) > -1;
+    });
+  }
+
+  function renderDD() {
+    if (!mode) { hide(); return; }
+    var items = mode === 'snippet' ? getSnippetItems() : getPromptItems();
+    var badge = mode === 'snippet' ? '<span class="trigger-badge snippet">SNIPPET</span>' : '<span class="trigger-badge prompt">PROMPT</span>';
+    var h = '<div class="trigger-dd-hdr">' + badge + ' ' + (mode === 'snippet' ? 'Insert snippet' : 'Prompt mode') + '</div>';
+    if (!items.length) {
+      h += '<div class="trigger-dd-empty">No matches</div>';
+    } else {
+      items.forEach(function(item, i) {
+        var sc = mode === 'snippet' && item.shortcut ? '<span class="t-sc">' + esc(item.shortcut) + '</span>' : '';
+        h += '<div class="trigger-dd-item' + (i === activeIdx ? ' active' : '') + '" data-idx="' + i + '">'
+          + esc(item.title) + sc + '</div>';
+      });
+    }
+    dd.innerHTML = h;
+    // Click handler on items
+    dd.querySelectorAll('.trigger-dd-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault(); // keep focus on textarea
+        var idx = parseInt(el.dataset.idx);
+        selectItem(idx);
+      });
+    });
+  }
+
+  function selectItem(idx) {
+    var items = mode === 'snippet' ? getSnippetItems() : getPromptItems();
+    if (idx < 0 || idx >= items.length) return;
+    var item = items[idx];
+    if (!activeEl) { hide(); return; }
+    // Calculate the range to replace: from trigger start to current caret
+    var before = activeEl.value.substring(0, triggerPos);
+    var after = activeEl.value.substring(activeEl.selectionStart);
+    var insertText = '';
+    if (mode === 'snippet') {
+      // Insert the snippet body (with fields as placeholders)
+      insertText = item.body || item.title || '';
+    } else {
+      insertText = item.body || '';
+    }
+    activeEl.value = before + insertText + after;
+    // Place caret after inserted text
+    var newPos = before.length + insertText.length;
+    activeEl.selectionStart = activeEl.selectionEnd = newPos;
+    // Fire input event so other handlers pick up the change
+    activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+    hide();
+  }
+
+  // Scan the text behind the caret for trigger sequences
+  function scan(el) {
+    var val = el.value;
+    var pos = el.selectionStart;
+    if (pos < 2) { if (mode) hide(); return; }
+    var behind = val.substring(0, pos);
+
+    // If already in a trigger mode, update filter text
+    if (mode && triggerPos >= 0) {
+      var seqLen = mode === 'snippet' ? 2 : 3; // :: or """
+      filterText = behind.substring(triggerPos + seqLen);
+      // Check if user backspaced past the trigger
+      if (pos <= triggerPos) { hide(); return; }
+      // Check if filter contains whitespace at beginning — allow spaces for multi-word search
+      renderDD();
+      return;
+    }
+
+    // Detect :: (snippet trigger)
+    if (behind.length >= 2 && behind.slice(-2) === '::') {
+      // Make sure it's not ::: (triple colon edge case)
+      if (behind.length >= 3 && behind[behind.length - 3] === ':') return;
+      triggerPos = pos - 2;
+      show(el, 'snippet');
+      return;
+    }
+
+    // Detect """ (prompt trigger)
+    if (behind.length >= 3 && behind.slice(-3) === '"""') {
+      // Make sure it's not """" (quad quote edge case)
+      if (behind.length >= 4 && behind[behind.length - 4] === '"') return;
+      triggerPos = pos - 3;
+      show(el, 'prompt');
+      return;
+    }
+  }
+
+  function handleKeydown(e) {
+    if (!mode) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      var items = mode === 'snippet' ? getSnippetItems() : getPromptItems();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      renderDD();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      renderDD();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      selectItem(activeIdx);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hide();
+    }
+  }
+
+  // Close on outside click/scroll
+  document.addEventListener('click', function(e) {
+    if (mode && !dd.contains(e.target) && e.target !== activeEl) hide();
+  });
+  document.addEventListener('scroll', function() { if (mode) hide(); }, true);
+
+  return {
+    scan: scan,
+    handleKeydown: handleKeydown,
+    hide: hide,
+    isActive: function() { return !!mode; },
+    getMode: function() { return mode; }
+  };
+})();
 
 // INIT
 load();
