@@ -1422,6 +1422,9 @@ function attachFills() {
     ['input', 'change'].forEach(function(ev) {
       el.addEventListener(ev, function(e) { S.fills[e.target.dataset.key] = e.target.value; updatePreview(); updateCalcs(); });
     });
+    el.addEventListener('paste', function(e) {
+      var t = e.target; setTimeout(function() { S.fills[t.dataset.key] = t.value; updatePreview(); updateCalcs(); }, 0);
+    });
   });
 }
 
@@ -1704,7 +1707,10 @@ function render() {
 
 function attachListeners() {
   var si = document.getElementById('search-inp');
-  if (si) { var t; si.addEventListener('input', function(e) { S.search = e.target.value; clearTimeout(t); t = setTimeout(render, 280); }); }
+  if (si) {
+    var t; si.addEventListener('input', function(e) { S.search = e.target.value; clearTimeout(t); t = setTimeout(render, 280); });
+    si.addEventListener('paste', function() { setTimeout(function() { S.search = si.value; clearTimeout(t); t = setTimeout(render, 280); }, 0); });
+  }
   // RTE toolbar event delegation
   var rteBar = document.querySelector('.rte-bar');
   if (rteBar) {
@@ -1725,11 +1731,14 @@ function attachListeners() {
       el = document.getElementById('e-lang'), ec = document.getElementById('e-folder'),
       eb = document.getElementById('e-body');
   var edit = S.edit || getSel();
-  if (et) et.addEventListener('input', function(e) { if (edit) edit.title = e.target.value; scheduleAS(); });
-  if (es2) es2.addEventListener('input', function(e) { if (edit) edit.shortcut = e.target.value; scheduleAS(); });
+  if (et) { et.addEventListener('input', function(e) { if (edit) edit.title = e.target.value; scheduleAS(); });
+    et.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.title = et.value; scheduleAS(); }, 0); }); }
+  if (es2) { es2.addEventListener('input', function(e) { if (edit) edit.shortcut = e.target.value; scheduleAS(); });
+    es2.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.shortcut = es2.value; scheduleAS(); }, 0); }); }
   if (el) el.addEventListener('change', function(e) { if (edit) edit.lang = e.target.value; scheduleAS(); });
   if (ec) ec.addEventListener('change', function(e) { if (edit) edit.folder = e.target.value; scheduleAS(); });
-  if (eb) eb.addEventListener('input', function(e) { if (edit) edit.body = e.target.value; scheduleAS(); });
+  if (eb) { eb.addEventListener('input', function(e) { if (edit) edit.body = e.target.value; scheduleAS(); });
+    eb.addEventListener('paste', function() { setTimeout(function() { if (edit) edit.body = eb.value; scheduleAS(); }, 0); }); }
   if (eb) eb.addEventListener('keydown', function(e) {
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='b') { e.preventDefault(); wrapSelection('**','**'); }
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key==='i') { e.preventDefault(); wrapSelection('_','_'); }
@@ -1744,14 +1753,26 @@ function attachListeners() {
     if (edit) edit.enable_urgency_timer = urgTog.checked;
     scheduleAS();
   });
-  if (urgDurInp) urgDurInp.addEventListener('input', function() {
-    if (edit) edit.timer_duration_ms = Math.max(1, parseInt(urgDurInp.value) || 30) * 60000;
-    scheduleAS();
-  });
-  if (urgScInp) urgScInp.addEventListener('input', function() {
-    if (edit) edit.scarcity_count = Math.max(0, parseInt(urgScInp.value) || 0);
-    scheduleAS();
-  });
+  if (urgDurInp) {
+    urgDurInp.addEventListener('input', function() {
+      if (edit) edit.timer_duration_ms = Math.max(1, parseInt(urgDurInp.value) || 30) * 60000;
+      scheduleAS();
+    });
+    urgDurInp.addEventListener('paste', function() { setTimeout(function() {
+      if (edit) edit.timer_duration_ms = Math.max(1, parseInt(urgDurInp.value) || 30) * 60000;
+      scheduleAS();
+    }, 0); });
+  }
+  if (urgScInp) {
+    urgScInp.addEventListener('input', function() {
+      if (edit) edit.scarcity_count = Math.max(0, parseInt(urgScInp.value) || 0);
+      scheduleAS();
+    });
+    urgScInp.addEventListener('paste', function() { setTimeout(function() {
+      if (edit) edit.scarcity_count = Math.max(0, parseInt(urgScInp.value) || 0);
+      scheduleAS();
+    }, 0); });
+  }
 }
 
 // ACTIONS
