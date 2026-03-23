@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cp -f sprintbrain-extension/* .)",
       "Bash(rm -rf sprintbrain-extension/)",
-      "Bash(rm \"../sprintbrain-extension-v2.7.zip\")"
+      "Bash(rm \"../sprintbrain-extension-v2.7.zip\")",
+      "Bash(where gh:*)"
     ]
   }
 }
