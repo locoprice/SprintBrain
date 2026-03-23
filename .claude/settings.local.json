@@ -4,7 +4,9 @@
       "Bash(cp -f sprintbrain-extension/* .)",
       "Bash(rm -rf sprintbrain-extension/)",
       "Bash(rm \"../sprintbrain-extension-v2.7.zip\")",
-      "Bash(where gh:*)"
+      "Bash(where gh:*)",
+      "Bash(node -e \"console.log\\(''node works''\\)\")",
+      "Bash(python3 \"C:/Users/averd/OneDrive/Desktop/sprintbrain-extension/replace_snippets.py\")"
     ]
   }
 }
