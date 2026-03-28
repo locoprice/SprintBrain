@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sprintbrain",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Type ::quoteEN in any text field — configurable dual triggers for snippets and prompts.",
   "permissions": [
     "storage",
@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "https://eyowustlbqujaimaxggt.supabase.co/*"
+    "https://eyowustlbqujaimaxggt.supabase.co/*",
+    "https://api.notion.com/*"
   ],
   "background": {
     "service_worker": "background.js"
