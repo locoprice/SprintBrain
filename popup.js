@@ -301,33 +301,96 @@ function openChangelog() {
 
 function closeChangelog() { gi('cl-bg').className = 'cl-bg'; }
 
-// BOOT
-function boot(){
-  refreshUI();
-  loadTrigger(function(){
-    var tp=gi('tp'); if(tp) tp.textContent=trig;
-    var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';
-    var sp=gi('spfx'); if(sp) sp.textContent=trig;
-  });
-  loadTriggerCfg(function(){
-    var s=gi('tcfg-snip'); if(s) s.value=triggerCfg.snippetTrigger;
-    var p=gi('tcfg-prompt'); if(p) p.value=triggerCfg.promptTrigger;
-    var sa=gi('tcfg-snip-key'); if(sa) sa.value=triggerCfg.snippetActivationKey;
-    var pa=gi('tcfg-prompt-key'); if(pa) pa.value=triggerCfg.promptActivationKey;
-  });
-  loadNotionCfg();
-  var st=gi('st'); if(st) st.textContent='\u25CF Syncing\u2026';
-  DB.loadAll().then(function(data){
-    if(data && data.snippets && data.snippets.length>0){
-      snips=data.snippets;
-      folders=data.folders&&data.folders.length>0?data.folders:DEFAULT_FOLDERS;
-    } else {
-      // Seed Supabase on first run
-      DEFAULT_FOLDERS.forEach(function(f){ DB.upsertFolder(f); });
-      DEFAULT_SNIPPETS.forEach(function(s){ DB.upsertSnippet(s); DB.updateStats(s.id,0,0,null); });
-    }
+// BOOT — called once on popup open
+function boot() {
     refreshUI();
-  });
+
+    loadTrigger(function () {
+          var tp = gi('tp');
+        if (tp) tp.textContent = trig;
+          var he = gi('hint-ex'); if (he) he.textContent = trig + 'quoteEN';
+          var sp = gi('spfx'); if (sp) sp.textContent = trig;
+    });
+
+    loadTriggerCfg(function () {
+          var s  = gi('tcfg-snip');        if (s)  s.value  = triggerCfg.snippetTrigger;
+          var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
+          var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
+          var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+    });
+
+    loadNotionCfg();
+
+    var st = gi('st');   if (st) st.textContent = '● Syncing…';
+
+    DB.loadAll().then(function (data) {
+          if (data && data.snippets && data.snippets.length > 0) {
+                  snips   = data.snippets;
+                  folders = (data.folders && data.folders.length > 0) ? data.folders : DEFAULT_FOLDERS;
+          } else {
+                  DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
+                  DEFAULT_SNIPPETS.forEach(function (s) { DB.upsertSnippet(s); DB.updateStats(s.id, 0, 0, null); });
+          }
+          refreshUI();
+          _runNotionSync();
+    });
+}
+
+function _runNotionSync() {
+    var st = gi('st');
+    var nsEl = gi('notion-st');
+
+    NotionSync.run(notionCfg, {
+
+          onProgress: function (state) {
+                  if (state === 'syncing') {
+                            if (st)   st.textContent = '● Syncing Notion…';
+                            if (nsEl) { nsEl.textContent = 'Syncing…'; nsEl.style.color = '#BA7517'; }
+                  } else {
+                            if (st)   st.textContent = '● ' + snips.length + ' snippet' + (snips.length !== 1 ? 's' : '');
+                            if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
+                                        nsEl.textContent = 'Connected'; nsEl.style.color = '#3B6D11';
+                            }
+                  }
+          },
+
+          onComplete: function (notionSnippets, success) {
+                  if (!success || !notionSnippets.length) return;
+                  var changed = false;
+                  notionSnippets.forEach(function (ns) {
+                            var existingIdx = -1;
+                            for (var i = 0; i < snips.length; i++) {
+                                        if (snips[i].notion_page_id && snips[i].notion_page_id === ns.notion_page_id) { existingIdx = i; break; }
+                                        if (snips[i].id === ns.id) { existingIdx = i; break; }
+                            }
+                            if (existingIdx > -1) {
+                                        var existing = snips[existingIdx];
+                                        if (existing.title !== ns.title || existing.body !== ns.body || existing.shortcut !== ns.shortcut) {
+                                                      snips[existingIdx] = Object.assign({}, existing, ns);
+                                                      DB.upsertSnippet(snips[existingIdx]);
+                                                      changed = true;
+                                        }
+                            } else {
+                                        snips.push(ns);
+                                        DB.upsertSnippet(ns);
+                                        DB.updateStats(ns.id, 0, 0, null);
+                                        changed = true;
+                            }
+                  });
+                  if (changed) {
+                            refreshUI();
+                            showToast('✓ Notion synced — ' + notionSnippets.length + ' snippet(s) updated');
+                  }
+          },
+
+          onError: function (err) {
+                  console.warn('[SprintBrain] Notion sync failed — falling back to cache.', err.message);
+                  if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
+                            nsEl.textContent = 'Sync failed'; nsEl.style.color = '#c0392b';
+                  }
+          }
+
+    });
 }
 
 // UI REFRESH
