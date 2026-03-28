@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────
-// SPRINTBRAIN — notion-sync.js  v1.0
+// SPRINTBRAIN — notion-sync.js  v2.0
 // On-app-open Notion database sync engine
 // Reads snippet data from Notion → merges into local + Supabase cache
+// Features: pagination, exponential backoff, debounce, offline cache
 // ─────────────────────────────────────────────────────────────────
 
 var NotionSync = (function () {
@@ -13,6 +14,11 @@ var NotionSync = (function () {
   var SYNC_TS_KEY   = 'sb_notion_last_sync_ts';   // chrome.storage.local
   var LOCK_KEY      = 'sb_notion_sync_lock';       // chrome.storage.local
   var LOCK_TTL_MS   = 30000;                       // 30 s stale-lock protection
+  var CACHE_KEY     = 'sb_notion_snippet_cache';   // offline cache
+  var DEBOUNCE_MS   = 60000;                        // 60 s debounce guard
+  var MAX_RETRIES   = 3;
+  var RETRY_DELAYS  = [1000, 2000, 4000];
+  var MAX_PAGES     = 10;                           // hard cap: 10 pages × 100 = 1000 snippets
 
   /* ── Session guard (prevents duplicate calls within popup session) ─ */
   var _sessionDone = false;
@@ -62,21 +68,58 @@ var NotionSync = (function () {
 
   function _releaseLock() { _setLocal(LOCK_KEY, null); }
 
-  /* ── Notion API call ─────────────────────────────────────────── */
-  function _queryDatabase(apiKey, dbId, lastSync) {
-    var body = { page_size: 100 };
+  /* ── Single API request with exponential backoff ─────────────── */
+  function _fetchWithRetry(url, opts, attempt) {
+    attempt = attempt || 0;
+    return _fetchTimeout(url, opts).then(function (r) {
+      // Fail immediately on client errors (no retry)
+      if (r.status === 400) throw new Error('Notion DB not found or not shared with integration (HTTP 400)');
+      if (r.status === 401) throw new Error('Notion API key invalid or expired (HTTP 401)');
+      // Retry on 429 / 5xx
+      if ((r.status === 429 || r.status >= 500) && attempt < MAX_RETRIES - 1) {
+        console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — HTTP ' + r.status);
+        return new Promise(function (resolve) {
+          setTimeout(resolve, RETRY_DELAYS[attempt]);
+        }).then(function () {
+          return _fetchWithRetry(url, opts, attempt + 1);
+        });
+      }
+      if (!r.ok) throw new Error('Notion API HTTP ' + r.status);
+      return r.json();
+    }).catch(function (err) {
+      // Retry network errors (timeout, offline) but not 400/401
+      if (err.message.indexOf('HTTP 400') > -1 || err.message.indexOf('HTTP 401') > -1) throw err;
+      if (attempt < MAX_RETRIES - 1) {
+        console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — ' + err.message);
+        return new Promise(function (resolve) {
+          setTimeout(resolve, RETRY_DELAYS[attempt]);
+        }).then(function () {
+          return _fetchWithRetry(url, opts, attempt + 1);
+        });
+      }
+      throw err;
+    });
+  }
 
-    // Incremental sync: only fetch pages edited after last run
+  /* ── Paginated Notion API query ────────────────────────────────── */
+  function _queryDatabase(apiKey, dbId, lastSync) {
+    var allPages = [];
+    var baseFilter = null;
+
     if (lastSync) {
-      body.filter = {
+      baseFilter = {
         timestamp: 'last_edited_time',
         last_edited_time: { after: lastSync }
       };
     }
 
-    return _fetchTimeout(
-      API_BASE + '/databases/' + dbId + '/query',
-      {
+    function _fetchPage(cursor) {
+      var body = { page_size: 100 };
+      if (baseFilter) body.filter = baseFilter;
+      if (cursor) body.start_cursor = cursor;
+
+      var url = API_BASE + '/databases/' + dbId + '/query';
+      var opts = {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + apiKey,
@@ -84,13 +127,21 @@ var NotionSync = (function () {
           'Notion-Version': API_VERSION
         },
         body: JSON.stringify(body)
-      }
-    ).then(function (r) {
-      if (r.status === 400) throw new Error('Notion DB not found or not shared with integration (HTTP 400)');
-      if (r.status === 401) throw new Error('Notion API key invalid or expired (HTTP 401)');
-      if (!r.ok) throw new Error('Notion API HTTP ' + r.status);
-      return r.json();
-    });
+      };
+
+      return _fetchWithRetry(url, opts).then(function (data) {
+        var results = (data && Array.isArray(data.results)) ? data.results : [];
+        allPages = allPages.concat(results);
+
+        // Continue if more pages and under hard cap
+        if (data.has_more && data.next_cursor && allPages.length < MAX_PAGES * 100) {
+          return _fetchPage(data.next_cursor);
+        }
+        return allPages;
+      });
+    }
+
+    return _fetchPage(null);
   }
 
   /* ── Map a Notion page → SprintBrain snippet object ────────── */
@@ -168,23 +219,32 @@ var NotionSync = (function () {
       return;
     }
 
-    // Guard 3: process lock (race condition prevention)
-    _acquireLock(function (acquired) {
-      if (!acquired) {
-        if (cb.onComplete) cb.onComplete([], false);
-        return;
+    // Guard 3: debounce — skip if last sync was < 60s ago
+    _getLocal(SYNC_TS_KEY, function (lastSyncTs) {
+      if (lastSyncTs) {
+        var elapsed = Date.now() - new Date(lastSyncTs).getTime();
+        if (elapsed < DEBOUNCE_MS) {
+          console.log('[NotionSync] Skipped — last sync was ' + Math.round(elapsed / 1000) + ' seconds ago');
+          if (cb.onComplete) cb.onComplete([], false);
+          return;
+        }
       }
 
-      _sessionDone = true;
-      if (cb.onProgress) cb.onProgress('syncing');
+      // Guard 4: process lock (race condition prevention)
+      _acquireLock(function (acquired) {
+        if (!acquired) {
+          if (cb.onComplete) cb.onComplete([], false);
+          return;
+        }
 
-      _getLocal(SYNC_TS_KEY, function (lastSync) {
+        _sessionDone = true;
+        if (cb.onProgress) cb.onProgress('syncing');
+
         var syncStart = new Date().toISOString();
 
-        _queryDatabase(cfg.apiKey, cfg.dbId, lastSync)
-          .then(function (data) {
+        _queryDatabase(cfg.apiKey, cfg.dbId, lastSyncTs)
+          .then(function (pages) {
             _releaseLock();
-            var pages = (data && Array.isArray(data.results)) ? data.results : [];
             var snippets = [];
 
             pages.forEach(function (page) {
@@ -192,8 +252,11 @@ var NotionSync = (function () {
               if (s) snippets.push(s);
             });
 
-            // Persist timestamp only on success
+            // Persist timestamp on success
             _setLocal(SYNC_TS_KEY, syncStart);
+
+            // Save offline cache
+            _setLocal(CACHE_KEY, snippets);
 
             console.log('[SprintBrain NotionSync] Sync complete —', snippets.length, 'snippet(s) fetched');
             if (cb.onProgress) cb.onProgress('idle');
@@ -207,7 +270,16 @@ var NotionSync = (function () {
             });
             if (cb.onProgress) cb.onProgress('idle');
             if (cb.onError) cb.onError(err);
-            if (cb.onComplete) cb.onComplete([], false);  // non-blocking fallback
+
+            // Offline cache fallback
+            _getLocal(CACHE_KEY, function (cached) {
+              if (cached && Array.isArray(cached) && cached.length > 0) {
+                console.log('[NotionSync] Offline — using cached snippets (' + cached.length + ' items)');
+                if (cb.onComplete) cb.onComplete(cached, false);
+              } else {
+                if (cb.onComplete) cb.onComplete([], false);
+              }
+            });
           });
       });
     });
