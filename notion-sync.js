@@ -23,6 +23,7 @@ var NotionSync = (function () {
       var tid = setTimeout(function () {
         reject(new Error('[NotionSync] Timeout after ' + TIMEOUT_MS + 'ms — ' + url));
       }, TIMEOUT_MS);
+
       fetch(url, opts)
         .then(function (r) { clearTimeout(tid); resolve(r); })
         .catch(function (e) { clearTimeout(tid); reject(e); });
@@ -185,6 +186,7 @@ var NotionSync = (function () {
             _releaseLock();
             var pages = (data && Array.isArray(data.results)) ? data.results : [];
             var snippets = [];
+
             pages.forEach(function (page) {
               var s = _mapPage(page);
               if (s) snippets.push(s);
@@ -194,7 +196,6 @@ var NotionSync = (function () {
             _setLocal(SYNC_TS_KEY, syncStart);
 
             console.log('[SprintBrain NotionSync] Sync complete —', snippets.length, 'snippet(s) fetched');
-
             if (cb.onProgress) cb.onProgress('idle');
             if (cb.onComplete) cb.onComplete(snippets, true);
           })
@@ -219,4 +220,5 @@ var NotionSync = (function () {
   function getLastSync(cb) { _getLocal(SYNC_TS_KEY, cb); }
 
   return { run: run, reset: reset, getLastSync: getLastSync };
+
 })();
