@@ -385,7 +385,7 @@ function _runNotionSync() {
           },
 
           onComplete: function (notionSnippets, success) {
-                  if (!success || !notionSnippets.length) return;
+                  if (!notionSnippets || !notionSnippets.length) return;
                   var changed = false;
                   notionSnippets.forEach(function (ns) {
                             var existingIdx = -1;
