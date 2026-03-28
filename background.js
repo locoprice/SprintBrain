@@ -1,4 +1,5 @@
-// ── SPRINTBRAIN BACKGROUND v2.8 — Context Menus ───────────────────
+// ── SPRINTBRAIN BACKGROUND v2.9 — Context Menus + Notion Sync ─────
+importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -171,58 +172,24 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 });
 
 
-// ── NOTION SYNC CONFIG READER ─────────────────────────────────────
-function loadNotionCfgBg(cb) {
+// ── BACKGROUND NOTION SYNC (delegates to NotionSync module) ───────
+function bgNotionSync() {
   try {
     chrome.storage.sync.get('notionCfg', function (d) {
-      cb(d && d.notionCfg ? d.notionCfg : null);
-    });
-  } catch (e) { cb(null); }
-}
+      var cfg = d && d.notionCfg ? d.notionCfg : null;
+      if (!cfg || !cfg.apiKey || !cfg.dbId) return;
 
-// ── BACKGROUND NOTION SYNC ────────────────────────────────────────
-var BG_SYNC_TS_KEY = 'sb_notion_last_sync_ts';
-var BG_LOCK_KEY    = 'sb_notion_sync_lock';
-var BG_LOCK_TTL_MS = 30000;
-
-function bgNotionSync() {
-  loadNotionCfgBg(function (cfg) {
-    if (!cfg || !cfg.apiKey || !cfg.dbId) return;
-    chrome.storage.local.get(BG_LOCK_KEY, function (d) {
-      var lock = d && d[BG_LOCK_KEY];
-      if (lock && (Date.now() - lock) < BG_LOCK_TTL_MS) return;
-      var lockObj = {}; lockObj[BG_LOCK_KEY] = Date.now();
-      chrome.storage.local.set(lockObj, function () {
-        chrome.storage.local.get(BG_SYNC_TS_KEY, function (sd) {
-          var lastSync = (sd && sd[BG_SYNC_TS_KEY]) ? sd[BG_SYNC_TS_KEY] : null;
-          var syncStart = new Date().toISOString();
-          var body = { page_size: 100 };
-          if (lastSync) {
-            body.filter = { timestamp: 'last_edited_time', last_edited_time: { after: lastSync } };
-          }
-          var controller = new AbortController();
-          var timer = setTimeout(function () { controller.abort(); }, 8000);
-          fetch('https://api.notion.com/v1/databases/' + cfg.dbId + '/query', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + cfg.apiKey,
-              'Content-Type': 'application/json',
-              'Notion-Version': '2022-06-28'
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal
-          })
-          .then(function (r) { clearTimeout(timer); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(function (data) {
-            var pages = (data && Array.isArray(data.results)) ? data.results : [];
-            console.log('[SprintBrain BG] Notion bg-sync:', pages.length, 'page(s)');
-            var tsObj = {}; tsObj[BG_SYNC_TS_KEY] = syncStart;
-            chrome.storage.local.set(tsObj);
-          })
-          .catch(function (err) { console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message); })
-          .finally(function () { var rel = {}; rel[BG_LOCK_KEY] = null; chrome.storage.local.set(rel); });
-        });
+      NotionSync.reset(); // clear session guard for background context
+      NotionSync.run(cfg, {
+        onComplete: function (snippets, ok) {
+          console.log('[SprintBrain BG] Notion bg-sync:', ok ? snippets.length + ' snippet(s)' : 'used cache or skipped');
+        },
+        onError: function (err) {
+          console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message);
+        }
       });
     });
-  });
+  } catch (e) {
+    console.warn('[SprintBrain BG] Notion cfg read failed:', e.message);
+  }
 }
