@@ -650,10 +650,10 @@ function showTriggerPicker(el, mode, seqLen) {
 
   // Delete the trigger chars from the field
   deleteChars(el, seqLen, function() {
-    var items = mode === 'snippet' ? snippets.slice(0, 8) : PROMPT_TEMPLATES;
+    var items = mode === 'snippet' ? snippets : PROMPT_TEMPLATES;
     var div = document.createElement('div');
     div.id = 'sb-trigger-picker';
-    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:200px;max-width:280px;max-height:220px;overflow-y:auto;padding:4px 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:200px;max-width:280px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding:4px 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
     var h = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
     h += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
@@ -686,7 +686,7 @@ function showTriggerPicker(el, mode, seqLen) {
 }
 
 function selectTriggerItem(idx) {
-  var items = triggerPickerMode === 'snippet' ? snippets.slice(0, 8) : PROMPT_TEMPLATES;
+  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
   if (idx < 0 || idx >= items.length) return;
   var item = items[idx];
   var el = triggerPickerTarget;
@@ -723,7 +723,7 @@ function closeTriggerPicker() {
 
 function handleTriggerPickerKey(e) {
   if (!triggerPickerEl) return false;
-  var items = triggerPickerMode === 'snippet' ? snippets.slice(0, 8) : PROMPT_TEMPLATES;
+  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     triggerPickerIdx = Math.min(triggerPickerIdx + 1, items.length - 1);
@@ -756,10 +756,15 @@ function updateTriggerPickerHighlight() {
 }
 
 // Close trigger picker on outside click/scroll
-document.addEventListener('click', function(e) {
-  if (triggerPickerEl && !triggerPickerEl.contains(e.target)) closeTriggerPicker();
-});
-document.addEventListener('scroll', function() { closeTriggerPicker(); }, true);
+document.addEventListener('mousedown', function(e) {
+    if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
+      setTimeout(function() { closeTriggerPicker(); }, 100);
+    }
+  });
+document.addEventListener('scroll', function(e) {
+    if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
+    closeTriggerPicker();
+  }, true);
 
 // ── PASTE EVENT HANDLER ───────────────────────────────────────────
 document.addEventListener('paste', function(e) {

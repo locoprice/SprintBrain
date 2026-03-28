@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.7 — Configurable dual triggers + Notion sync
+// SPRINTBRAIN POPUP v2.8 — Configurable dual triggers + Notion sync
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -228,6 +228,14 @@ function saveTrigger(){ try{ chrome.storage.sync.set({trigger:trig}); }catch(e){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.8', date:'2026-03-28', label:'Version Alignment + Trigger Picker Fix',
+    changes:[
+      {type:'fix', text:'Trigger picker scroll — no longer closes when scrolling inside the list'},
+      {type:'fix', text:'Trigger picker click — mousedown handler prevents premature close'},
+      {type:'fix', text:'Removed 8-snippet cap — all snippets now show in picker'},
+      {type:'new', text:'Taller picker (320px) with overscroll-behavior:contain'},
+      {type:'fix', text:'Version alignment — all files now report v2.8'}
+    ]},
   { version:'v2.7', date:'2026-03-22', label:'Configurable Dual Triggers + Paste Fix',
     changes:[
       {type:'new', text:'Configurable dual trigger system — :: for snippets, """ for prompts'},
