@@ -75,7 +75,9 @@ var NotionSync = (function () {
       // Fail immediately on client errors (no retry)
       if (r.status === 400) throw new Error('Notion DB not found or not shared with integration (HTTP 400)');
       if (r.status === 401) throw new Error('Notion API key invalid or expired (HTTP 401)');
-      // Retry on 429 / 5xx
+      if (r.status === 403) throw new Error('Notion integration lacks access to this database (HTTP 403)');
+      if (r.status === 404) throw new Error('Notion database not found — check DB ID (HTTP 404)');
+      // Retry on 429 / 5xx only
       if ((r.status === 429 || r.status >= 500) && attempt < MAX_RETRIES - 1) {
         console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — HTTP ' + r.status);
         return new Promise(function (resolve) {
@@ -87,8 +89,8 @@ var NotionSync = (function () {
       if (!r.ok) throw new Error('Notion API HTTP ' + r.status);
       return r.json();
     }).catch(function (err) {
-      // Retry network errors (timeout, offline) but not 400/401
-      if (err.message.indexOf('HTTP 400') > -1 || err.message.indexOf('HTTP 401') > -1) throw err;
+      // Retry network errors (timeout, offline) but not 4xx client errors
+      if (/HTTP [4]\d\d/.test(err.message)) throw err;
       if (attempt < MAX_RETRIES - 1) {
         console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — ' + err.message);
         return new Promise(function (resolve) {
@@ -153,29 +155,32 @@ var NotionSync = (function () {
   function _mapPage(page) {
     var p = page.properties || {};
 
-    // Support both "Title" and "Name" as the title property
+    // Title: database uses "Nome Snippet" as the title property
     var title = '';
-    if (p['Title'] && p['Title'].title) title = _extractText(p['Title'].title);
+    if (p['Nome Snippet'] && p['Nome Snippet'].title) title = _extractText(p['Nome Snippet'].title);
+    else if (p['Title'] && p['Title'].title) title = _extractText(p['Title'].title);
     else if (p['Name'] && p['Name'].title) title = _extractText(p['Name'].title);
 
     var shortcut = p['Shortcut'] && p['Shortcut'].rich_text
       ? _extractText(p['Shortcut'].rich_text) : '';
 
-    // "Body" can be rich_text or a dedicated text property
-    var body = p['Body'] && p['Body'].rich_text
-      ? _extractText(p['Body'].rich_text) : '';
+    // Body: not a DB property — page content must be fetched separately.
+    // For now, use empty string; body will be populated in a future iteration.
+    var body = '';
 
-    var lang = (p['Lang'] && p['Lang'].select && p['Lang'].select.name)
-      ? p['Lang'].select.name : 'EN';
+    // Lang: does not exist in this DB — default to 'EN'
+    var lang = 'EN';
 
-    var folder = p['Folder'] && p['Folder'].rich_text
-      ? _extractText(p['Folder'].rich_text) : '';
+    // Folder: map from "Categoria" (select) instead of "Folder" (rich_text)
+    var folder = '';
+    if (p['Categoria'] && p['Categoria'].select && p['Categoria'].select.name) {
+      folder = p['Categoria'].select.name;
+    }
 
     // Guard: skip pages missing required fields
     if (!title || !shortcut) return null;
 
     return {
-      // Use notion_page_id as stable external key → idempotent upserts
       id:               'notion_' + page.id.replace(/-/g, ''),
       notion_page_id:   page.id,
       title:            title,
