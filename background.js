@@ -149,18 +149,41 @@ function initMenus() {
   loadData().then(buildContextMenus);
 }
 
-// Build on install
-chrome.runtime.onInstalled.addListener(initMenus);
+// Build on install + create sync alarm
+chrome.runtime.onInstalled.addListener(function(details) {
+  chrome.alarms.create('sb_sync_alarm', {
+    delayInMinutes: 1,
+    periodInMinutes: 5
+  });
+  console.log('[SprintBrain] Sync alarm created');
+  initMenus();
+});
 
 // Rebuild when popup saves changes (snippets updated)
 chrome.storage.onChanged.addListener(function(changes) {
   if (changes.sb_menu_refresh) initMenus();
 });
 
-// Rebuild on browser start
+// Rebuild on browser start + recreate alarm if missing
 chrome.runtime.onStartup.addListener(function() {
+  chrome.alarms.get('sb_sync_alarm', function(alarm) {
+    if (!alarm) {
+      chrome.alarms.create('sb_sync_alarm', {
+        delayInMinutes: 1,
+        periodInMinutes: 5
+      });
+      console.log('[SprintBrain] Sync alarm recreated on startup');
+    }
+  });
   initMenus();
   bgNotionSync();
+});
+
+// ── ALARM LISTENER — fires every 5 minutes ──────────────────────
+chrome.alarms.onAlarm.addListener(function(alarm) {
+  if (alarm.name !== 'sb_sync_alarm') return;
+  console.log('[SprintBrain] Alarm fired — running background sync');
+  _alarmSync();
 });
 // Message handler from popup
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
@@ -205,5 +228,53 @@ function _bgRunSync(cfg) {
     onError: function (err) {
       console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message);
     }
+  });
+}
+
+// ── ALARM SYNC — silent background sync every 5 minutes ─────────
+function _alarmSync() {
+  chrome.storage.local.get('sb_notion_cfg', function(d) {
+    var cfg = (d && d.sb_notion_cfg) ? d.sb_notion_cfg : null;
+    if (!cfg || !cfg.apiKey || !cfg.dbId) {
+      console.log('[SprintBrain Alarm] Notion not configured — skipping');
+      return;
+    }
+
+    // Check debounce — skip if synced in last 3 minutes
+    chrome.storage.local.get('sb_notion_last_sync_ts', function(sd) {
+      var lastSync = sd && sd['sb_notion_last_sync_ts'];
+      if (lastSync) {
+        var elapsed = Date.now() - new Date(lastSync).getTime();
+        if (elapsed < 180000) {
+          console.log('[SprintBrain Alarm] Skipped — synced ' +
+            Math.round(elapsed / 1000) + 's ago');
+          return;
+        }
+      }
+
+      NotionSync.reset();
+      NotionSync.run(cfg, {
+        onProgress: function(state) {
+          console.log('[SprintBrain Alarm] Sync state:', state);
+        },
+        onComplete: function(snippets, success) {
+          if (!success) return;
+          console.log('[SprintBrain Alarm] Sync complete —',
+            snippets.length, 'snippet(s)');
+
+          if (snippets.length > 0) {
+            chrome.storage.local.set({
+              sb_alarm_sync_result: {
+                snippets: snippets,
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+        },
+        onError: function(err) {
+          console.warn('[SprintBrain Alarm] Sync failed:', err.message);
+        }
+      });
+    });
   });
 }
