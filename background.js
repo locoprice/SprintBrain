@@ -175,21 +175,35 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 // ── BACKGROUND NOTION SYNC (delegates to NotionSync module) ───────
 function bgNotionSync() {
   try {
-    chrome.storage.sync.get('notionCfg', function (d) {
+    chrome.storage.local.get('notionCfg', function (d) {
       var cfg = d && d.notionCfg ? d.notionCfg : null;
-      if (!cfg || !cfg.apiKey || !cfg.dbId) return;
 
-      NotionSync.reset(); // clear session guard for background context
-      NotionSync.run(cfg, {
-        onComplete: function (snippets, ok) {
-          console.log('[SprintBrain BG] Notion bg-sync:', ok ? snippets.length + ' snippet(s)' : 'used cache or skipped');
-        },
-        onError: function (err) {
-          console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message);
-        }
-      });
+      // Fallback: migrate from sync → local if needed
+      if (!cfg || !cfg.apiKey || !cfg.dbId) {
+        chrome.storage.sync.get('notionCfg', function (sd) {
+          var sCfg = sd && sd.notionCfg ? sd.notionCfg : null;
+          if (!sCfg || !sCfg.apiKey || !sCfg.dbId) return;
+          chrome.storage.local.set({notionCfg: sCfg});
+          _bgRunSync(sCfg);
+        });
+        return;
+      }
+
+      _bgRunSync(cfg);
     });
   } catch (e) {
     console.warn('[SprintBrain BG] Notion cfg read failed:', e.message);
   }
+}
+
+function _bgRunSync(cfg) {
+  NotionSync.reset();
+  NotionSync.run(cfg, {
+    onComplete: function (snippets, ok) {
+      console.log('[SprintBrain BG] Notion bg-sync:', ok ? snippets.length + ' snippet(s)' : 'used cache or skipped');
+    },
+    onError: function (err) {
+      console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message);
+    }
+  });
 }
