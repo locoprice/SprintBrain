@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Sprintbrain",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "Type ::quoteEN in any text field — configurable dual triggers for snippets and prompts.",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
     "clipboardWrite",
-    "contextMenus"
+    "contextMenus",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>",
