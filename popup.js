@@ -176,11 +176,27 @@ var notionCfg = { apiKey: '', dbId: '' };
 var notionLog = [];
 var notionSentKeys = {};
 
-function loadNotionCfg() {
-  try { chrome.storage.sync.get('notionCfg', function(d) { if (d && d.notionCfg) notionCfg = d.notionCfg; }); } catch(e) {}
+function loadNotionCfg(cb) {
+  try {
+    chrome.storage.local.get('notionCfg', function(d) {
+      if (d && d.notionCfg) {
+        notionCfg = d.notionCfg;
+        if (cb) cb();
+      } else {
+        // One-time migration from sync → local
+        chrome.storage.sync.get('notionCfg', function(sd) {
+          if (sd && sd.notionCfg) {
+            notionCfg = sd.notionCfg;
+            chrome.storage.local.set({notionCfg: notionCfg});
+          }
+          if (cb) cb();
+        });
+      }
+    });
+  } catch(e) { if (cb) cb(); }
 }
 function saveNotionCfg() {
-  try { chrome.storage.sync.set({notionCfg: notionCfg}); } catch(e) {}
+  try { chrome.storage.local.set({notionCfg: notionCfg}); } catch(e) {}
 }
 
 function notionSync(entry) {
@@ -349,20 +365,24 @@ function boot() {
           var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
     });
 
-    loadNotionCfg();
+    loadNotionCfg(function () {
+          var nk = gi('notion-key'); if (nk) nk.value = notionCfg.apiKey || '';
+          var nd = gi('notion-db');  if (nd) nd.value = notionCfg.dbId || '';
+          updateNotionStatus();
 
-    var st = gi('st');   if (st) st.textContent = '● Syncing…';
+          var st = gi('st');   if (st) st.textContent = '● Syncing…';
 
-    DB.loadAll().then(function (data) {
-          if (data && data.snippets && data.snippets.length > 0) {
-                  snips   = data.snippets;
-                  folders = (data.folders && data.folders.length > 0) ? data.folders : DEFAULT_FOLDERS;
-          } else {
-                  DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
-                  DEFAULT_SNIPPETS.forEach(function (s) { DB.upsertSnippet(s); DB.updateStats(s.id, 0, 0, null); });
-          }
-          refreshUI();
-          _runNotionSync();
+          DB.loadAll().then(function (data) {
+                if (data && data.snippets && data.snippets.length > 0) {
+                        snips   = data.snippets;
+                        folders = (data.folders && data.folders.length > 0) ? data.folders : DEFAULT_FOLDERS;
+                } else {
+                        DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
+                        DEFAULT_SNIPPETS.forEach(function (s) { DB.upsertSnippet(s); DB.updateStats(s.id, 0, 0, null); });
+                }
+                refreshUI();
+                _runNotionSync();
+          });
     });
 }
 
