@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// SPRINTBRAIN — notion-sync.js  v2.0
+// SPRINTBRAIN — notion-sync.js  v2.1
 // On-app-open Notion database sync engine
 // Reads snippet data from Notion → merges into local + Supabase cache
 // Features: pagination, exponential backoff, debounce, offline cache
