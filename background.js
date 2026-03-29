@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.9 — Context Menus + Notion Sync ─────
+// ── SPRINTBRAIN BACKGROUND v2.9.1 — Context Menus + Notion Sync ───
 importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
@@ -175,15 +175,15 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 // ── BACKGROUND NOTION SYNC (delegates to NotionSync module) ───────
 function bgNotionSync() {
   try {
-    chrome.storage.local.get('notionCfg', function (d) {
-      var cfg = d && d.notionCfg ? d.notionCfg : null;
+    chrome.storage.local.get('sb_notion_cfg', function (d) {
+      var cfg = d && d.sb_notion_cfg ? d.sb_notion_cfg : null;
 
       // Fallback: migrate from sync → local if needed
       if (!cfg || !cfg.apiKey || !cfg.dbId) {
         chrome.storage.sync.get('notionCfg', function (sd) {
           var sCfg = sd && sd.notionCfg ? sd.notionCfg : null;
           if (!sCfg || !sCfg.apiKey || !sCfg.dbId) return;
-          chrome.storage.local.set({notionCfg: sCfg});
+          chrome.storage.local.set({sb_notion_cfg: sCfg});
           _bgRunSync(sCfg);
         });
         return;
