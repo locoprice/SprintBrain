@@ -243,6 +243,39 @@ html,body{width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 </head>
 <body>
 
+<div id="sb-sync-bar" style="
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:4px 10px;
+  background:#f5f4f0;
+  border-bottom:1px solid #e8e5e0;
+  min-height:26px;
+  gap:8px;
+">
+  <span id="sb-sync-icon" style="font-size:11px">🔄</span>
+  <span id="sb-sync-text" style="
+    font-size:10px;
+    color:#6e6c67;
+    flex:1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  ">Checking sync…</span>
+  <button id="sb-sync-now" style="
+    font-size:9px;
+    font-weight:700;
+    padding:2px 8px;
+    background:#BA7517;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    white-space:nowrap;
+    font-family:inherit;
+  ">Sync Now</button>
+</div>
+
 <!-- ═══ LIST ═══ -->
 <div id="pane-list" class="pane on">
   <div class="hdr">
@@ -342,12 +375,11 @@ html,body{width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
       <div class="topt on" data-t=";;"><span class="tk">;;</span><span class="td">Recommended<br>Zero conflicts</span></div>
       <div class="topt" data-t="::"><span class="tk">::</span><span class="td">Professional</span></div>
       <div class="topt" data-t="!!"><span class="tk">!!</span><span class="td">Easy to type</span></div>
-      <div class="topt" data-t="/"><span class="tk">/</span><span class="td">TextBlaze style<br>⚠️ Conflicts</span></div>
     </div>
     <div><div class="lbl" style="margin-bottom:5px">Custom trigger</div>
       <input class="einp" id="ctrig" placeholder=";;" maxlength="4" spellcheck="false" autocomplete="off"
         style="font-family:monospace;font-weight:700;font-size:14px;text-align:center;letter-spacing:2px"></div>
-    <div class="warn" id="wbox">⚠️ <strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>;;</strong> instead.</div>
+    <div class="warn" id="wbox"></div>
     <div class="ibox">Active: <strong id="itrig">;;</strong> · Example: <strong id="iex">;;quoteEN</strong></div>
 
     <!-- DUAL TRIGGER CONFIG -->
@@ -471,7 +503,7 @@ html,body{width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 <script src="notion-sync.js"></script>
 <script src="popup.js"></script>
 <div style="padding:3px 12px;background:var(--sur2);border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
-  <button class="ver-btn" id="ver-btn">v2.9</button>
+  <button class="ver-btn" id="ver-btn">v2.9.1</button>
   <span style="font-size:9px;color:var(--tx3)">2026-03-29</span>
 </div>
 
