@@ -500,7 +500,7 @@ function boot() {
     setInterval(updateSyncStatus, 60000);
 }
 
-function _runNotionSync(cb) {
+function _runNotionSync(cb, force) {
     var nsEl = document.getElementById('notion-st');
 
     NotionSync.run(notionCfg, {
@@ -554,6 +554,12 @@ function _runNotionSync(cb) {
                             showToast('✓ Notion synced — ' + notionSnippets.length + ' snippet(s) updated');
                   }
 
+                  console.log('[SprintBrain] Sync result:',
+                    notionSnippets.length, 'from Notion |',
+                    snips.length, 'total in app |',
+                    'changed:', changed
+                  );
+
                   updateSyncStatus();
                   if (cb) cb();
           },
@@ -576,7 +582,7 @@ function _runNotionSync(cb) {
                   if (cb) cb();
           }
 
-    });
+    }, force || false);
 }
 
 // UI REFRESH
@@ -1155,14 +1161,14 @@ if (syncNowBtn) {
     syncNowBtn.textContent = '…';
     _setSyncBar('🔄', 'Syncing now…', '#BA7517');
 
-    NotionSync.reset();
     chrome.storage.local.remove('sb_notion_sync_error');
+    NotionSync.reset();
 
     _runNotionSync(function() {
       syncNowBtn.disabled = false;
       syncNowBtn.textContent = 'Sync Now';
       updateSyncStatus();
-    });
+    }, true);
   });
 }
 
