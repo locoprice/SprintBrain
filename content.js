@@ -29,6 +29,30 @@ function resolveBody(body, vals) {
       var cl = body.indexOf('}', i);
       if (cl === -1) { out += body[i++]; continue; }
       var tok = body.slice(i+1, cl).replace(/^\s+|\s+$/g, '');
+      if (tok.slice(0, 4) === 'var:') {
+        var vdecl = tok.slice(4).replace(/^\s+|\s+$/g, '');
+        var veq = vdecl.indexOf('=');
+        if (veq > -1) {
+          var vname = vdecl.slice(0, veq).replace(/^\s+|\s+$/g, '');
+          var vexpr = vdecl.slice(veq + 1).replace(/^\s+|\s+$/g, '');
+          var vsub = vexpr.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(m) {
+            if (FUNS[m]) return m;
+            return (vals[m] !== undefined) ? String(vals[m]) : '0';
+          });
+          vsub = vsub.replace(/round\(/g,'Math.round(').replace(/floor\(/g,'Math.floor(')
+                     .replace(/ceil\(/g,'Math.ceil(').replace(/abs\(/g,'Math.abs(')
+                     .replace(/min\(/g,'Math.min(').replace(/max\(/g,'Math.max(');
+          try {
+            var vres = Function('"use strict";return(' + vsub + ')')();
+            vals[vname] = (typeof vres === 'number' && !isNaN(vres))
+              ? Math.round(vres * 100) / 100 : 0;
+          } catch(e) {
+            vals[vname] = 0;
+            console.warn('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
+          }
+        }
+        i = cl + 1; continue;
+      }
       if (tok.charAt(0) === '=') {
         var fv = evalFormula(tok.slice(1), vals);
         out += fv !== null ? String(fv) : '';
@@ -65,7 +89,7 @@ function extractFields(body) {
   var vars = [], re = /\{([^}]+)\}/g, m;
   while ((m = re.exec(body)) !== null) {
     var t = m[1].replace(/^\s+|\s+$/g, '');
-    if (t.charAt(0) !== '=' && t !== 'endif' && t.slice(0,3) !== 'if:') {
+    if (t.charAt(0) !== '=' && t !== 'endif' && t.slice(0,3) !== 'if:' && t.slice(0,4) !== 'var:') {
       var dup = false;
       for (var i = 0; i < vars.length; i++) { if (vars[i] === t) { dup = true; break; } }
       if (!dup) vars.push(t);
