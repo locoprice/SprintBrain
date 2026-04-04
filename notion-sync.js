@@ -209,16 +209,17 @@ var NotionSync = (function () {
   /* ── Public API ─────────────────────────────────────────────── */
 
   /**
-   * run(cfg, callbacks)
+   * run(cfg, callbacks, force)
    *
    * cfg = { apiKey: '...', dbId: '...' }
+   * force = true → bypass 60s debounce (used by Sync Now button)
    *
    * callbacks:
    *   onProgress(state)          → 'syncing' | 'idle'
    *   onComplete(snippets, ok)   → array of mapped snippets, success flag
    *   onError(err)               → called if API fails (non-blocking)
    */
-  function run(cfg, callbacks) {
+  function run(cfg, callbacks, force) {
     var cb = callbacks || {};
 
     // Guard 1: session-level dedup
@@ -233,9 +234,9 @@ var NotionSync = (function () {
       return;
     }
 
-    // Guard 3: debounce — skip if last sync was < 60s ago
+    // Guard 3: debounce — skip if last sync was < 60s ago (bypassed when force=true)
     _getLocal(SYNC_TS_KEY, function (lastSyncTs) {
-      if (lastSyncTs) {
+      if (!force && lastSyncTs) {
         var elapsed = Date.now() - new Date(lastSyncTs).getTime();
         if (elapsed < DEBOUNCE_MS) {
           console.log('[NotionSync] Skipped — last sync was ' + Math.round(elapsed / 1000) + ' seconds ago');
