@@ -1,8 +1,7 @@
 // ─────────────────────────────────────────────────────────────────
 // SPRINTBRAIN — notion-sync.js  v2.1
-// On-app-open Notion database sync engine
-// Reads snippet data from Notion → merges into local + Supabase cache
-// Features: pagination, exponential backoff, debounce, offline cache
+// Fix: Body now read from direct property (no blocks API call)
+// Fix: correct property mapping for SNIPPETS database
 // ─────────────────────────────────────────────────────────────────
 
 var NotionSync = (function () {
@@ -155,42 +154,52 @@ var NotionSync = (function () {
   function _mapPage(page) {
     var p = page.properties || {};
 
-    // Title: database uses "Nome Snippet" as the title property
+    // Title → "Nome Snippet" (title type)
     var title = '';
-    if (p['Nome Snippet'] && p['Nome Snippet'].title) title = _extractText(p['Nome Snippet'].title);
-    else if (p['Title'] && p['Title'].title) title = _extractText(p['Title'].title);
-    else if (p['Name'] && p['Name'].title) title = _extractText(p['Name'].title);
+    if (p['Nome Snippet'] && p['Nome Snippet'].title) {
+      title = _extractText(p['Nome Snippet'].title);
+    }
 
-    var shortcut = p['Shortcut'] && p['Shortcut'].rich_text
-      ? _extractText(p['Shortcut'].rich_text) : '';
+    // Shortcut → "Shortcut" (text/rich_text type)
+    var shortcut = '';
+    if (p['Shortcut'] && p['Shortcut'].rich_text) {
+      shortcut = _extractText(p['Shortcut'].rich_text);
+    }
 
-    // Body: not a DB property — page content must be fetched separately.
-    // For now, use empty string; body will be populated in a future iteration.
+    // Body → "Body" (text/rich_text type) ← direct property now
     var body = '';
+    if (p['Body'] && p['Body'].rich_text) {
+      body = _extractText(p['Body'].rich_text);
+    }
 
-    // Lang: does not exist in this DB — default to 'EN'
-    var lang = 'EN';
-
-    // Folder: map from "Categoria" (select) instead of "Folder" (rich_text)
+    // Folder → "Categoria" (select type)
     var folder = '';
-    if (p['Categoria'] && p['Categoria'].select && p['Categoria'].select.name) {
+    if (p['Categoria'] && p['Categoria'].select &&
+        p['Categoria'].select.name) {
       folder = p['Categoria'].select.name;
+    }
+
+    // Versione → "Versione" (text/rich_text type)
+    var versione = '';
+    if (p['Versione'] && p['Versione'].rich_text) {
+      versione = _extractText(p['Versione'].rich_text);
     }
 
     // Guard: skip pages missing required fields
     if (!title || !shortcut) return null;
 
     return {
-      id:               'notion_' + page.id.replace(/-/g, ''),
-      notion_page_id:   page.id,
-      title:            title,
-      shortcut:         shortcut,
-      body:             body,
-      lang:             lang,
-      folder:           folder,
-      sort_order:       0,
-      fieldCfg:         {},
-      lang_group_id:    'notion_' + page.id.replace(/-/g, ''),
+      id:                   'notion_' + page.id.replace(/-/g, ''),
+      notion_page_id:       page.id,
+      title:                title,
+      shortcut:             shortcut,
+      body:                 body,
+      lang:                 'EN',
+      folder:               folder,
+      versione:             versione,
+      sort_order:           0,
+      fieldCfg:             {},
+      lang_group_id:        'notion_' + page.id.replace(/-/g, ''),
       enable_urgency_timer: false,
       timer_duration_ms:    0,
       scarcity_count:       0
