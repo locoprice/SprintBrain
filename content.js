@@ -151,6 +151,7 @@ var DEFAULT_SNIPPETS = [
 var snippets = DEFAULT_SNIPPETS.slice();
 var trigger  = ';;';
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
+var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 
 // ── PROMPT TEMPLATES ──────────────────────────────────────────────
 var PROMPT_TEMPLATES = [
@@ -454,13 +455,31 @@ function showOverlay(targetEl, snip, fields, done) {
     })(inps[j]);
   }
 
-  el.querySelector('.sb-close').addEventListener('click', function(e) {
-    e.stopPropagation(); closeOverlay();
-  });
-  el.querySelector('.sb-insert').addEventListener('click', function(e) {
-    e.stopPropagation(); doInsert(targetEl, snip);
-  });
-  bd.addEventListener('click', closeOverlay);
+  var closeBtn   = el.querySelector('.sb-close');
+  var insertBtn  = el.querySelector('.sb-insert');
+
+  function onCloseClick(e) { e.stopPropagation(); closeOverlay(); }
+  function onInsertClick(e) {
+    e.stopPropagation();
+    // Guard against double-fire (touchstart + click) on mobile
+    var now = Date.now();
+    if (onInsertClick._last && now - onInsertClick._last < 400) return;
+    onInsertClick._last = now;
+    doInsert(targetEl, snip);
+  }
+  function onBdClose(e) {
+    var now = Date.now();
+    if (onBdClose._last && now - onBdClose._last < 400) return;
+    onBdClose._last = now;
+    closeOverlay();
+  }
+
+  closeBtn.addEventListener('click',      onCloseClick);
+  closeBtn.addEventListener('touchstart', onCloseClick, {passive: false});
+  insertBtn.addEventListener('click',      onInsertClick);
+  insertBtn.addEventListener('touchstart', onInsertClick, {passive: false});
+  bd.addEventListener('click',      onBdClose);
+  bd.addEventListener('touchstart', onBdClose, {passive: false});
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeOverlay(); }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -722,10 +741,16 @@ function _renderPickerItems(query) {
   triggerPickerIdx = 0;
 
   itemsEl.querySelectorAll('.sb-tp-item').forEach(function(itemEl) {
-    itemEl.addEventListener('mousedown', function(e) {
+    function onPickerSelect(e) {
       e.preventDefault();
+      // Guard against double-fire (touchstart + click) on mobile
+      var now = Date.now();
+      if (onPickerSelect._last && now - onPickerSelect._last < 400) return;
+      onPickerSelect._last = now;
       selectTriggerItem(parseInt(itemEl.dataset.idx));
-    });
+    }
+    itemEl.addEventListener('mousedown', onPickerSelect);
+    itemEl.addEventListener('touchstart', onPickerSelect, {passive: false});
   });
 }
 
@@ -869,12 +894,17 @@ function updateTriggerPickerHighlight() {
   }
 }
 
-// Close picker on outside click or page scroll
+// Close picker on outside click/tap or page scroll
 document.addEventListener('mousedown', function(e) {
   if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
     setTimeout(function() { closeTriggerPicker(); }, 100);
   }
 });
+document.addEventListener('touchstart', function(e) {
+  if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
+    setTimeout(function() { closeTriggerPicker(); }, 100);
+  }
+}, {passive: true});
 document.addEventListener('scroll', function(e) {
   if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
   closeTriggerPicker();
@@ -956,7 +986,48 @@ document.addEventListener('keydown', function(e) {
   if (!editable) return;
 
   activeEl = t;
+  lastInputTime = Date.now(); // mark: keydown handled this char, input event should skip it
   addKey(e.key);
+  setTimeout(checkBuf, 10);
+}, true);
+
+// ── MOBILE INPUT LISTENER ─────────────────────────────────────────
+// Soft keyboards (Android) fire `input` events instead of keydown with real keys.
+// This listener is the primary trigger path on mobile; on desktop it is suppressed
+// by the debounce guard (keydown already set lastInputTime within 50ms).
+document.addEventListener('input', function(e) {
+  if (overlayEl || triggerPickerEl) return;
+  var t = e.target;
+  if (!t) return;
+  if (t.closest && (t.closest('#sb-overlay') || t.closest('#sb-celebrate'))) return;
+
+  // Only handle text insertions, not deletions or composition commits
+  var iType = e.inputType || '';
+  if (iType && iType.indexOf('insert') === -1) return;
+
+  var data = e.data;
+  if (!data || !data.length) return;
+
+  // Debounce: if keydown fired within the last 50ms it already processed this char
+  var now = Date.now();
+  if (now - lastInputTime < 50) return;
+
+  // Only editable targets
+  var editable = false;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') editable = true;
+  else if (t.isContentEditable || t.getAttribute('contenteditable') === 'true' || t.getAttribute('contenteditable') === '') editable = true;
+  else {
+    var p = t;
+    for (var i = 0; i < 6; i++) {
+      p = p.parentElement; if (!p) break;
+      if (p.isContentEditable || p.getAttribute('contenteditable') === 'true') { editable = true; break; }
+    }
+  }
+  if (!editable) return;
+
+  activeEl = t;
+  lastInputTime = now;
+  for (var i = 0; i < data.length; i++) addKey(data[i]);
   setTimeout(checkBuf, 10);
 }, true);
 
@@ -970,20 +1041,21 @@ document.addEventListener('keydown', function(e) {
     '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fdf6e8;border-bottom:1px solid #e8c97a;}' +
     '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#BA7517;}' +
     '#sb-overlay .sb-title{font-size:11px;color:#6e6c67;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#a8a59f;padding:0;line-height:1;}' +
+    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#a8a59f;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
     '#sb-overlay .sb-close:hover{color:#1c1c1a;}' +
     '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
-    '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:13px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;}' +
+    '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:16px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;}' +
     '#sb-overlay .sb-inp:focus{border-color:#e8c97a;background:#fffbf0;}' +
     '#sb-overlay .sb-inp[type=date]{color:#c2410c;border-color:#fed7aa;background:#fff7ed;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23BA7517"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
     '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#f5f4f0;border:1px solid #e8e5e0;border-radius:6px;font-size:11px;color:#6e6c67;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #e8e5e0;display:flex;align-items:center;gap:8px;background:#fafaf8;}' +
-    '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;}' +
+    '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
     '#sb-overlay .sb-insert:hover{background:#d4880f;}' +
     '#sb-overlay .sb-tip{font-size:10px;color:#a8a59f;}' +
+    '#sb-trigger-picker .sb-tp-item{touch-action:manipulation;}' +
     '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}' +
     '@keyframes sbUrgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 14px 3px rgba(217,57,0,.15)}}' +
     '@keyframes sbScBlink{0%,100%{opacity:1}50%{opacity:.3}}';
