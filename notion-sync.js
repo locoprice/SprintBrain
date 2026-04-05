@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────
-// SPRINTBRAIN — notion-sync.js  v2.1
-// Fix: Body now read from direct property (no blocks API call)
-// Fix: correct property mapping for SNIPPETS database
+// SPRINTBRAIN — notion-sync.js  v2.2
+// Fix: hybrid body fetch — property first, blocks fallback
+// Pagination, backoff, debounce, offline cache all intact
 // ─────────────────────────────────────────────────────────────────
 
 var NotionSync = (function () {
@@ -151,6 +151,58 @@ var NotionSync = (function () {
     return arr.map(function (b) { return b.plain_text || ''; }).join('');
   }
 
+  /* ── Fetch body text from page content blocks ───────────────── */
+  function _fetchPageBody(apiKey, pageId) {
+    var url = API_BASE + '/blocks/' + pageId + '/children?page_size=100';
+    var opts = {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Notion-Version': API_VERSION
+      }
+    };
+
+    return _fetchWithRetry(url, opts).then(function (data) {
+      var blocks = (data && Array.isArray(data.results)) ? data.results : [];
+      var lines = [];
+
+      blocks.forEach(function (block) {
+        var type = block.type;
+        var content = block[type];
+
+        // Skip metadata header blocks (callout/quote with
+        // shortcut info) and dividers
+        if (type === 'callout' || type === 'quote' ||
+            type === 'divider') return;
+
+        // Extract text from supported block types
+        if (content && Array.isArray(content.rich_text)) {
+          var line = content.rich_text
+            .map(function (t) { return t.plain_text || ''; })
+            .join('');
+          if (line.trim()) lines.push(line);
+        }
+
+        // Handle heading blocks
+        if (type === 'heading_1' || type === 'heading_2' ||
+            type === 'heading_3') {
+          if (content && Array.isArray(content.rich_text)) {
+            var heading = content.rich_text
+              .map(function (t) { return t.plain_text || ''; })
+              .join('');
+            if (heading.trim()) lines.push(heading);
+          }
+        }
+      });
+
+      return lines.join('\n');
+    }).catch(function (err) {
+      console.warn('[NotionSync] Failed to fetch blocks for',
+        pageId, ':', err.message);
+      return ''; // non-blocking fallback
+    });
+  }
+
   function _mapPage(page) {
     var p = page.properties || {};
 
@@ -260,22 +312,79 @@ var NotionSync = (function () {
         _queryDatabase(cfg.apiKey, cfg.dbId, lastSyncTs)
           .then(function (pages) {
             _releaseLock();
-            var snippets = [];
 
+            // Map pages — body may be empty if property is blank
+            var snippets = [];
             pages.forEach(function (page) {
               var s = _mapPage(page);
               if (s) snippets.push(s);
             });
 
-            // Persist timestamp on success
-            _setLocal(SYNC_TS_KEY, syncStart);
+            if (snippets.length === 0) {
+              _setLocal(SYNC_TS_KEY, syncStart);
+              _setLocal(CACHE_KEY, snippets);
+              console.log('[SprintBrain NotionSync] 0 snippets found');
+              if (cb.onProgress) cb.onProgress('idle');
+              if (cb.onComplete) cb.onComplete(snippets, true);
+              return;
+            }
 
-            // Save offline cache
-            _setLocal(CACHE_KEY, snippets);
+            // Separate snippets that need block fetch
+            // from those that already have body text
+            var needsBlocks = [];
+            var hasBody = [];
+            snippets.forEach(function (s) {
+              if (!s.body || s.body.trim() === '') {
+                needsBlocks.push(s);
+              } else {
+                hasBody.push(s);
+              }
+            });
 
-            console.log('[SprintBrain NotionSync] Sync complete —', snippets.length, 'snippet(s) fetched');
-            if (cb.onProgress) cb.onProgress('idle');
-            if (cb.onComplete) cb.onComplete(snippets, true);
+            console.log('[NotionSync] Body from property:',
+              hasBody.length, '| Need block fetch:', needsBlocks.length);
+
+            // If all snippets have body → complete immediately
+            if (needsBlocks.length === 0) {
+              _setLocal(SYNC_TS_KEY, syncStart);
+              _setLocal(CACHE_KEY, snippets);
+              console.log('[SprintBrain NotionSync] Sync complete —',
+                snippets.length, 'snippet(s)');
+              if (cb.onProgress) cb.onProgress('idle');
+              if (cb.onComplete) cb.onComplete(snippets, true);
+              return;
+            }
+
+            // Fetch blocks sequentially with 350ms delay
+            // to respect Notion rate limits (3 req/sec)
+            var idx = 0;
+            function fetchNextBlock() {
+              if (idx >= needsBlocks.length) {
+                // All done — combine and complete
+                var allSnippets = hasBody.concat(needsBlocks);
+                _setLocal(SYNC_TS_KEY, syncStart);
+                _setLocal(CACHE_KEY, allSnippets);
+                console.log('[SprintBrain NotionSync] Sync complete —',
+                  allSnippets.length,
+                  'snippet(s) (' + needsBlocks.length +
+                  ' fetched from blocks)');
+                if (cb.onProgress) cb.onProgress('idle');
+                if (cb.onComplete) cb.onComplete(allSnippets, true);
+                return;
+              }
+
+              var snippet = needsBlocks[idx];
+              idx++;
+
+              _fetchPageBody(cfg.apiKey, snippet.notion_page_id)
+                .then(function (body) {
+                  snippet.body = body;
+                  // Delay before next request to respect rate limits
+                  setTimeout(fetchNextBlock, 350);
+                });
+            }
+
+            fetchNextBlock();
           })
           .catch(function (err) {
             _releaseLock();
