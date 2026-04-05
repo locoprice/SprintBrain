@@ -660,112 +660,199 @@ function showCelebration(text) {
 }
 
 // ── INLINE TRIGGER PICKER ──────────────────────────────────────────
-var triggerPickerEl = null;
-var triggerPickerMode = null; // 'snippet' | 'prompt'
-var triggerPickerTarget = null;
-var triggerPickerIdx = 0;
+var triggerPickerEl       = null;
+var triggerPickerMode     = null; // 'snippet' | 'prompt'
+var triggerPickerTarget   = null;
+var triggerPickerIdx      = 0;
+var triggerPickerQuery    = '';   // chars typed after trigger opens picker
+var triggerPickerFiltered = [];   // currently visible (filtered) items
+
+// Get pixel coords of the text cursor — used to position the picker
+function _getCaretCoords(el) {
+  // Method 1: Selection API — works reliably for contenteditable (Gmail)
+  try {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var range = sel.getRangeAt(0).cloneRange();
+      range.collapse(true);
+      var span = document.createElement('span');
+      span.textContent = '\u200b'; // zero-width space
+      range.insertNode(span);
+      var rect = span.getBoundingClientRect();
+      if (span.parentNode) span.parentNode.removeChild(span);
+      if (rect && (rect.width > 0 || rect.height > 0)) {
+        return { x: rect.left, y: rect.bottom };
+      }
+    }
+  } catch(e) {}
+  // Method 2: Fallback — bottom-left of the element
+  var elRect = el.getBoundingClientRect();
+  return { x: elRect.left, y: elRect.bottom };
+}
+
+// Re-render picker items filtered by query string
+function _renderPickerItems(query) {
+  if (!triggerPickerEl) return;
+  var allItems = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
+  var q = (query || '').toLowerCase();
+  triggerPickerFiltered = q
+    ? allItems.filter(function(s) {
+        return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
+               (s.shortcut || '').toLowerCase().indexOf(q) > -1;
+      })
+    : allItems.slice();
+
+  var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
+  if (!itemsEl) return;
+
+  var h = '';
+  for (var i = 0; i < triggerPickerFiltered.length; i++) {
+    var item = triggerPickerFiltered[i];
+    var sc = triggerPickerMode === 'snippet' && item.shortcut
+      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      : '';
+    h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
+      + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
+      + xesc(item.title) + sc + '</div>';
+  }
+  if (!triggerPickerFiltered.length) {
+    h = '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No matches</div>';
+  }
+  itemsEl.innerHTML = h;
+  triggerPickerIdx = 0;
+
+  itemsEl.querySelectorAll('.sb-tp-item').forEach(function(itemEl) {
+    itemEl.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      selectTriggerItem(parseInt(itemEl.dataset.idx));
+    });
+  });
+}
 
 function showTriggerPicker(el, mode, seqLen) {
   if (processing) return;
   closeTriggerPicker();
   triggerPickerTarget = el;
-  triggerPickerMode = mode;
-  triggerPickerIdx = 0;
+  triggerPickerMode   = mode;
+  triggerPickerIdx    = 0;
+  triggerPickerQuery  = '';
 
-  // Delete the trigger chars from the field
   deleteChars(el, seqLen, function() {
-    var items = mode === 'snippet' ? snippets : PROMPT_TEMPLATES;
     var div = document.createElement('div');
     div.id = 'sb-trigger-picker';
-    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:200px;max-width:280px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding:4px 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
-    var h = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
-    h += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
-    h += '</div>';
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i];
-      var sc = mode === 'snippet' && item.shortcut ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>' : '';
-      h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;' + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-        + xesc(item.title) + sc + '</div>';
+    var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
+    header += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
+    header += '</div>';
+    header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+    div.innerHTML = header;
+
+    // Position at caret, keep inside viewport
+    var coords = _getCaretCoords(el);
+    var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+    var top  = coords.y + 4;
+    var spaceBelow = window.innerHeight - top - 20;
+    if (spaceBelow < 120) {
+      // Flip above cursor
+      top = Math.max(4, coords.y - 4 - 300);
+      spaceBelow = 300;
     }
-    if (!items.length) h += '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No items</div>';
-    div.innerHTML = h;
-
-    // Position near the element
-    var rect = el.getBoundingClientRect();
-    div.style.left = Math.max(4, rect.left) + 'px';
-    div.style.top = Math.min(rect.bottom + 4, window.innerHeight - 230) + 'px';
+    div.style.left      = left + 'px';
+    div.style.top       = top  + 'px';
+    div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
 
     document.body.appendChild(div);
     triggerPickerEl = div;
-
-    // Click handlers
-    div.querySelectorAll('.sb-tp-item').forEach(function(item) {
-      item.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        selectTriggerItem(parseInt(item.dataset.idx));
-      });
-    });
+    _renderPickerItems('');
   });
 }
 
 function selectTriggerItem(idx) {
-  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
-  if (idx < 0 || idx >= items.length) return;
-  var item = items[idx];
-  var el = triggerPickerTarget;
+  if (idx < 0 || idx >= triggerPickerFiltered.length) return;
+  var item  = triggerPickerFiltered[idx];
+  var el    = triggerPickerTarget;
+  var mode  = triggerPickerMode;
+  var qLen  = triggerPickerQuery.length;
   closeTriggerPicker();
-
   if (!el) return;
 
-  if (triggerPickerMode === 'snippet') {
-    // For snippets, use the full handleMatch flow (fields, overlay, celebration)
-    var fields = extractFields(item.body);
-    processing = true;
-    if (!fields.length) {
-      if (isUrgExpired(item)) { processing = false; return; }
-      var text = resolveBody(item.body, {});
-      insertText(el, text);
-      showCelebration(text);
-      processing = false;
+  function doInsert() {
+    if (mode === 'snippet') {
+      var fields = extractFields(item.body);
+      processing = true;
+      if (!fields.length) {
+        if (isUrgExpired(item)) { processing = false; return; }
+        var text = resolveBody(item.body, {});
+        insertText(el, text);
+        showCelebration(text);
+        processing = false;
+      } else {
+        showOverlay(el, item, fields, function() { processing = false; });
+      }
     } else {
-      showOverlay(el, item, fields, function() { processing = false; });
+      insertText(el, item.body || '');
     }
-  } else {
-    // For prompts, insert the template text directly
-    insertText(el, item.body || '');
   }
-  triggerPickerMode = null;
+
+  // Delete any chars the user typed as a filter query before inserting
+  if (qLen > 0) {
+    deleteChars(el, qLen, function() { doInsert(); });
+  } else {
+    doInsert();
+  }
 }
 
 function closeTriggerPicker() {
   if (triggerPickerEl) { triggerPickerEl.remove(); triggerPickerEl = null; }
-  triggerPickerMode = null;
-  triggerPickerTarget = null;
-  triggerPickerIdx = 0;
+  triggerPickerMode     = null;
+  triggerPickerTarget   = null;
+  triggerPickerIdx      = 0;
+  triggerPickerQuery    = '';
+  triggerPickerFiltered = [];
 }
 
 function handleTriggerPickerKey(e) {
   if (!triggerPickerEl) return false;
-  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
+  var count = triggerPickerFiltered.length;
+
   if (e.key === 'ArrowDown') {
     e.preventDefault();
-    triggerPickerIdx = Math.min(triggerPickerIdx + 1, items.length - 1);
+    triggerPickerIdx = Math.min(triggerPickerIdx + 1, count - 1);
     updateTriggerPickerHighlight();
     return true;
-  } else if (e.key === 'ArrowUp') {
+  }
+  if (e.key === 'ArrowUp') {
     e.preventDefault();
     triggerPickerIdx = Math.max(triggerPickerIdx - 1, 0);
     updateTriggerPickerHighlight();
     return true;
-  } else if (e.key === 'Tab' || e.key === 'Enter') {
+  }
+  if (e.key === 'Tab' || e.key === 'Enter') {
     e.preventDefault();
     selectTriggerItem(triggerPickerIdx);
     return true;
-  } else if (e.key === 'Escape') {
+  }
+  if (e.key === 'Escape') {
     e.preventDefault();
     closeTriggerPicker();
     return true;
+  }
+  // Printable char — append to query, re-filter, let char go into field
+  if (e.key.length === 1) {
+    triggerPickerQuery += e.key;
+    _renderPickerItems(triggerPickerQuery);
+    return false;
+  }
+  // Backspace — shrink query, re-filter, let backspace go into field
+  if (e.key === 'Backspace') {
+    if (triggerPickerQuery.length > 0) {
+      triggerPickerQuery = triggerPickerQuery.slice(0, -1);
+      _renderPickerItems(triggerPickerQuery);
+    } else {
+      closeTriggerPicker();
+    }
+    return false;
   }
   return false;
 }
@@ -775,20 +862,23 @@ function updateTriggerPickerHighlight() {
   var items = triggerPickerEl.querySelectorAll('.sb-tp-item');
   for (var i = 0; i < items.length; i++) {
     items[i].style.background = i === triggerPickerIdx ? '#fdf6e8' : '';
-    items[i].style.color = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.color      = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+  }
+  if (items[triggerPickerIdx]) {
+    items[triggerPickerIdx].scrollIntoView({ block: 'nearest' });
   }
 }
 
-// Close trigger picker on outside click/scroll
+// Close picker on outside click or page scroll
 document.addEventListener('mousedown', function(e) {
-    if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
-      setTimeout(function() { closeTriggerPicker(); }, 100);
-    }
-  });
+  if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
+    setTimeout(function() { closeTriggerPicker(); }, 100);
+  }
+});
 document.addEventListener('scroll', function(e) {
-    if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
-    closeTriggerPicker();
-  }, true);
+  if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
+  closeTriggerPicker();
+}, true);
 
 // ── PASTE EVENT HANDLER ───────────────────────────────────────────
 document.addEventListener('paste', function(e) {
