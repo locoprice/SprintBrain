@@ -151,6 +151,7 @@ var DEFAULT_SNIPPETS = [
 var snippets = DEFAULT_SNIPPETS.slice();
 var trigger  = ';;';
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
+var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 
 // ── PROMPT TEMPLATES ──────────────────────────────────────────────
 var PROMPT_TEMPLATES = [
@@ -454,13 +455,31 @@ function showOverlay(targetEl, snip, fields, done) {
     })(inps[j]);
   }
 
-  el.querySelector('.sb-close').addEventListener('click', function(e) {
-    e.stopPropagation(); closeOverlay();
-  });
-  el.querySelector('.sb-insert').addEventListener('click', function(e) {
-    e.stopPropagation(); doInsert(targetEl, snip);
-  });
-  bd.addEventListener('click', closeOverlay);
+  var closeBtn   = el.querySelector('.sb-close');
+  var insertBtn  = el.querySelector('.sb-insert');
+
+  function onCloseClick(e) { e.stopPropagation(); closeOverlay(); }
+  function onInsertClick(e) {
+    e.stopPropagation();
+    // Guard against double-fire (touchstart + click) on mobile
+    var now = Date.now();
+    if (onInsertClick._last && now - onInsertClick._last < 400) return;
+    onInsertClick._last = now;
+    doInsert(targetEl, snip);
+  }
+  function onBdClose(e) {
+    var now = Date.now();
+    if (onBdClose._last && now - onBdClose._last < 400) return;
+    onBdClose._last = now;
+    closeOverlay();
+  }
+
+  closeBtn.addEventListener('click',      onCloseClick);
+  closeBtn.addEventListener('touchstart', onCloseClick, {passive: false});
+  insertBtn.addEventListener('click',      onInsertClick);
+  insertBtn.addEventListener('touchstart', onInsertClick, {passive: false});
+  bd.addEventListener('click',      onBdClose);
+  bd.addEventListener('touchstart', onBdClose, {passive: false});
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeOverlay(); }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -660,112 +679,205 @@ function showCelebration(text) {
 }
 
 // ── INLINE TRIGGER PICKER ──────────────────────────────────────────
-var triggerPickerEl = null;
-var triggerPickerMode = null; // 'snippet' | 'prompt'
-var triggerPickerTarget = null;
-var triggerPickerIdx = 0;
+var triggerPickerEl       = null;
+var triggerPickerMode     = null; // 'snippet' | 'prompt'
+var triggerPickerTarget   = null;
+var triggerPickerIdx      = 0;
+var triggerPickerQuery    = '';   // chars typed after trigger opens picker
+var triggerPickerFiltered = [];   // currently visible (filtered) items
+
+// Get pixel coords of the text cursor — used to position the picker
+function _getCaretCoords(el) {
+  // Method 1: Selection API — works reliably for contenteditable (Gmail)
+  try {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var range = sel.getRangeAt(0).cloneRange();
+      range.collapse(true);
+      var span = document.createElement('span');
+      span.textContent = '\u200b'; // zero-width space
+      range.insertNode(span);
+      var rect = span.getBoundingClientRect();
+      if (span.parentNode) span.parentNode.removeChild(span);
+      if (rect && (rect.width > 0 || rect.height > 0)) {
+        return { x: rect.left, y: rect.bottom };
+      }
+    }
+  } catch(e) {}
+  // Method 2: Fallback — bottom-left of the element
+  var elRect = el.getBoundingClientRect();
+  return { x: elRect.left, y: elRect.bottom };
+}
+
+// Re-render picker items filtered by query string
+function _renderPickerItems(query) {
+  if (!triggerPickerEl) return;
+  var allItems = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
+  var q = (query || '').toLowerCase();
+  triggerPickerFiltered = q
+    ? allItems.filter(function(s) {
+        return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
+               (s.shortcut || '').toLowerCase().indexOf(q) > -1;
+      })
+    : allItems.slice();
+
+  var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
+  if (!itemsEl) return;
+
+  var h = '';
+  for (var i = 0; i < triggerPickerFiltered.length; i++) {
+    var item = triggerPickerFiltered[i];
+    var sc = triggerPickerMode === 'snippet' && item.shortcut
+      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      : '';
+    h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
+      + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
+      + xesc(item.title) + sc + '</div>';
+  }
+  if (!triggerPickerFiltered.length) {
+    h = '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No matches</div>';
+  }
+  itemsEl.innerHTML = h;
+  triggerPickerIdx = 0;
+
+  itemsEl.querySelectorAll('.sb-tp-item').forEach(function(itemEl) {
+    function onPickerSelect(e) {
+      e.preventDefault();
+      // Guard against double-fire (touchstart + click) on mobile
+      var now = Date.now();
+      if (onPickerSelect._last && now - onPickerSelect._last < 400) return;
+      onPickerSelect._last = now;
+      selectTriggerItem(parseInt(itemEl.dataset.idx));
+    }
+    itemEl.addEventListener('mousedown', onPickerSelect);
+    itemEl.addEventListener('touchstart', onPickerSelect, {passive: false});
+  });
+}
 
 function showTriggerPicker(el, mode, seqLen) {
   if (processing) return;
   closeTriggerPicker();
   triggerPickerTarget = el;
-  triggerPickerMode = mode;
-  triggerPickerIdx = 0;
+  triggerPickerMode   = mode;
+  triggerPickerIdx    = 0;
+  triggerPickerQuery  = '';
 
-  // Delete the trigger chars from the field
   deleteChars(el, seqLen, function() {
-    var items = mode === 'snippet' ? snippets : PROMPT_TEMPLATES;
     var div = document.createElement('div');
     div.id = 'sb-trigger-picker';
-    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:200px;max-width:280px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding:4px 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
-    var h = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
-    h += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
-    h += '</div>';
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i];
-      var sc = mode === 'snippet' && item.shortcut ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>' : '';
-      h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;' + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-        + xesc(item.title) + sc + '</div>';
+    var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
+    header += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
+    header += '</div>';
+    header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+    div.innerHTML = header;
+
+    // Position at caret, keep inside viewport
+    var coords = _getCaretCoords(el);
+    var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+    var top  = coords.y + 4;
+    var spaceBelow = window.innerHeight - top - 20;
+    if (spaceBelow < 120) {
+      // Flip above cursor
+      top = Math.max(4, coords.y - 4 - 300);
+      spaceBelow = 300;
     }
-    if (!items.length) h += '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No items</div>';
-    div.innerHTML = h;
-
-    // Position near the element
-    var rect = el.getBoundingClientRect();
-    div.style.left = Math.max(4, rect.left) + 'px';
-    div.style.top = Math.min(rect.bottom + 4, window.innerHeight - 230) + 'px';
+    div.style.left      = left + 'px';
+    div.style.top       = top  + 'px';
+    div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
 
     document.body.appendChild(div);
     triggerPickerEl = div;
-
-    // Click handlers
-    div.querySelectorAll('.sb-tp-item').forEach(function(item) {
-      item.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        selectTriggerItem(parseInt(item.dataset.idx));
-      });
-    });
+    _renderPickerItems('');
   });
 }
 
 function selectTriggerItem(idx) {
-  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
-  if (idx < 0 || idx >= items.length) return;
-  var item = items[idx];
-  var el = triggerPickerTarget;
+  if (idx < 0 || idx >= triggerPickerFiltered.length) return;
+  var item  = triggerPickerFiltered[idx];
+  var el    = triggerPickerTarget;
+  var mode  = triggerPickerMode;
+  var qLen  = triggerPickerQuery.length;
   closeTriggerPicker();
-
   if (!el) return;
 
-  if (triggerPickerMode === 'snippet') {
-    // For snippets, use the full handleMatch flow (fields, overlay, celebration)
-    var fields = extractFields(item.body);
-    processing = true;
-    if (!fields.length) {
-      if (isUrgExpired(item)) { processing = false; return; }
-      var text = resolveBody(item.body, {});
-      insertText(el, text);
-      showCelebration(text);
-      processing = false;
+  function doInsert() {
+    if (mode === 'snippet') {
+      var fields = extractFields(item.body);
+      processing = true;
+      if (!fields.length) {
+        if (isUrgExpired(item)) { processing = false; return; }
+        var text = resolveBody(item.body, {});
+        insertText(el, text);
+        showCelebration(text);
+        processing = false;
+      } else {
+        showOverlay(el, item, fields, function() { processing = false; });
+      }
     } else {
-      showOverlay(el, item, fields, function() { processing = false; });
+      insertText(el, item.body || '');
     }
-  } else {
-    // For prompts, insert the template text directly
-    insertText(el, item.body || '');
   }
-  triggerPickerMode = null;
+
+  // Delete any chars the user typed as a filter query before inserting
+  if (qLen > 0) {
+    deleteChars(el, qLen, function() { doInsert(); });
+  } else {
+    doInsert();
+  }
 }
 
 function closeTriggerPicker() {
   if (triggerPickerEl) { triggerPickerEl.remove(); triggerPickerEl = null; }
-  triggerPickerMode = null;
-  triggerPickerTarget = null;
-  triggerPickerIdx = 0;
+  triggerPickerMode     = null;
+  triggerPickerTarget   = null;
+  triggerPickerIdx      = 0;
+  triggerPickerQuery    = '';
+  triggerPickerFiltered = [];
 }
 
 function handleTriggerPickerKey(e) {
   if (!triggerPickerEl) return false;
-  var items = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
+  var count = triggerPickerFiltered.length;
+
   if (e.key === 'ArrowDown') {
     e.preventDefault();
-    triggerPickerIdx = Math.min(triggerPickerIdx + 1, items.length - 1);
+    triggerPickerIdx = Math.min(triggerPickerIdx + 1, count - 1);
     updateTriggerPickerHighlight();
     return true;
-  } else if (e.key === 'ArrowUp') {
+  }
+  if (e.key === 'ArrowUp') {
     e.preventDefault();
     triggerPickerIdx = Math.max(triggerPickerIdx - 1, 0);
     updateTriggerPickerHighlight();
     return true;
-  } else if (e.key === 'Tab' || e.key === 'Enter') {
+  }
+  if (e.key === 'Tab' || e.key === 'Enter') {
     e.preventDefault();
     selectTriggerItem(triggerPickerIdx);
     return true;
-  } else if (e.key === 'Escape') {
+  }
+  if (e.key === 'Escape') {
     e.preventDefault();
     closeTriggerPicker();
     return true;
+  }
+  // Printable char — append to query, re-filter, let char go into field
+  if (e.key.length === 1) {
+    triggerPickerQuery += e.key;
+    _renderPickerItems(triggerPickerQuery);
+    return false;
+  }
+  // Backspace — shrink query, re-filter, let backspace go into field
+  if (e.key === 'Backspace') {
+    if (triggerPickerQuery.length > 0) {
+      triggerPickerQuery = triggerPickerQuery.slice(0, -1);
+      _renderPickerItems(triggerPickerQuery);
+    } else {
+      closeTriggerPicker();
+    }
+    return false;
   }
   return false;
 }
@@ -775,20 +887,28 @@ function updateTriggerPickerHighlight() {
   var items = triggerPickerEl.querySelectorAll('.sb-tp-item');
   for (var i = 0; i < items.length; i++) {
     items[i].style.background = i === triggerPickerIdx ? '#fdf6e8' : '';
-    items[i].style.color = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.color      = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+  }
+  if (items[triggerPickerIdx]) {
+    items[triggerPickerIdx].scrollIntoView({ block: 'nearest' });
   }
 }
 
-// Close trigger picker on outside click/scroll
+// Close picker on outside click/tap or page scroll
 document.addEventListener('mousedown', function(e) {
-    if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
-      setTimeout(function() { closeTriggerPicker(); }, 100);
-    }
-  });
+  if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
+    setTimeout(function() { closeTriggerPicker(); }, 100);
+  }
+});
+document.addEventListener('touchstart', function(e) {
+  if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
+    setTimeout(function() { closeTriggerPicker(); }, 100);
+  }
+}, {passive: true});
 document.addEventListener('scroll', function(e) {
-    if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
-    closeTriggerPicker();
-  }, true);
+  if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
+  closeTriggerPicker();
+}, true);
 
 // ── PASTE EVENT HANDLER ───────────────────────────────────────────
 document.addEventListener('paste', function(e) {
@@ -808,12 +928,15 @@ document.addEventListener('paste', function(e) {
   }
   if (!editable) return;
 
-  // After paste completes, check the full field value for shortcut matches
+  // Capture pasted text now — clipboardData is only available synchronously during the event
+  var pastedText = (e.clipboardData && e.clipboardData.getData('text')) || '';
+  if (!pastedText) return;
+
+  // Only trigger a snippet if the pasted text itself contains a shortcut
   setTimeout(function() {
-    var val = t.value || t.textContent || '';
     for (var i = 0; i < snippets.length; i++) {
       var sc = snippets[i].shortcut || '';
-      if (sc && val.indexOf(sc) > -1) {
+      if (sc && pastedText.indexOf(sc) > -1) {
         activeEl = t;
         buf = sc; // Prime the buffer with the matched shortcut
         checkBuf();
@@ -863,7 +986,48 @@ document.addEventListener('keydown', function(e) {
   if (!editable) return;
 
   activeEl = t;
+  lastInputTime = Date.now(); // mark: keydown handled this char, input event should skip it
   addKey(e.key);
+  setTimeout(checkBuf, 10);
+}, true);
+
+// ── MOBILE INPUT LISTENER ─────────────────────────────────────────
+// Soft keyboards (Android) fire `input` events instead of keydown with real keys.
+// This listener is the primary trigger path on mobile; on desktop it is suppressed
+// by the debounce guard (keydown already set lastInputTime within 50ms).
+document.addEventListener('input', function(e) {
+  if (overlayEl || triggerPickerEl) return;
+  var t = e.target;
+  if (!t) return;
+  if (t.closest && (t.closest('#sb-overlay') || t.closest('#sb-celebrate'))) return;
+
+  // Only handle text insertions, not deletions or composition commits
+  var iType = e.inputType || '';
+  if (iType && iType.indexOf('insert') === -1) return;
+
+  var data = e.data;
+  if (!data || !data.length) return;
+
+  // Debounce: if keydown fired within the last 50ms it already processed this char
+  var now = Date.now();
+  if (now - lastInputTime < 50) return;
+
+  // Only editable targets
+  var editable = false;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') editable = true;
+  else if (t.isContentEditable || t.getAttribute('contenteditable') === 'true' || t.getAttribute('contenteditable') === '') editable = true;
+  else {
+    var p = t;
+    for (var i = 0; i < 6; i++) {
+      p = p.parentElement; if (!p) break;
+      if (p.isContentEditable || p.getAttribute('contenteditable') === 'true') { editable = true; break; }
+    }
+  }
+  if (!editable) return;
+
+  activeEl = t;
+  lastInputTime = now;
+  for (var i = 0; i < data.length; i++) addKey(data[i]);
   setTimeout(checkBuf, 10);
 }, true);
 
@@ -877,20 +1041,21 @@ document.addEventListener('keydown', function(e) {
     '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fdf6e8;border-bottom:1px solid #e8c97a;}' +
     '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#BA7517;}' +
     '#sb-overlay .sb-title{font-size:11px;color:#6e6c67;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#a8a59f;padding:0;line-height:1;}' +
+    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#a8a59f;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
     '#sb-overlay .sb-close:hover{color:#1c1c1a;}' +
     '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
-    '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:13px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;}' +
+    '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:16px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;}' +
     '#sb-overlay .sb-inp:focus{border-color:#e8c97a;background:#fffbf0;}' +
     '#sb-overlay .sb-inp[type=date]{color:#c2410c;border-color:#fed7aa;background:#fff7ed;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23BA7517"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
     '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#f5f4f0;border:1px solid #e8e5e0;border-radius:6px;font-size:11px;color:#6e6c67;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #e8e5e0;display:flex;align-items:center;gap:8px;background:#fafaf8;}' +
-    '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;}' +
+    '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
     '#sb-overlay .sb-insert:hover{background:#d4880f;}' +
     '#sb-overlay .sb-tip{font-size:10px;color:#a8a59f;}' +
+    '#sb-trigger-picker .sb-tp-item{touch-action:manipulation;}' +
     '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}' +
     '@keyframes sbUrgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 14px 3px rgba(217,57,0,.15)}}' +
     '@keyframes sbScBlink{0%,100%{opacity:1}50%{opacity:.3}}';
