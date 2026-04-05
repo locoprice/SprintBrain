@@ -42,6 +42,7 @@ var DB = {
             enable_urgency_timer: s.enable_urgency_timer || false,
             timer_duration_ms: s.timer_duration_ms || 0,
             scarcity_count: s.scarcity_count || 0,
+            notion_page_id: s.notion_page_id || null,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -56,7 +57,8 @@ var DB = {
       sort_order: s.sort_order || 0,
       enable_urgency_timer: s.enable_urgency_timer || false,
       timer_duration_ms: s.timer_duration_ms || 0,
-      scarcity_count: s.scarcity_count || 0
+      scarcity_count: s.scarcity_count || 0,
+      notion_page_id: s.notion_page_id || null
     }).catch(function(e) { console.warn('upsertSnippet:', e); });
   },
   deleteSnippet: function(id) {
@@ -410,6 +412,125 @@ function updateSyncStatus() {
     }
   );
 }
+
+// ── NOTION PUSH — App → Notion (bidirectional sync) ───────────────
+var NotionPush = {
+
+  _buildProps: function(snippet) {
+    var props = {};
+
+    props['Nome Snippet'] = {
+      title: [{ text: { content: snippet.title || '' } }]
+    };
+
+    props['Shortcut'] = {
+      rich_text: [{ text: { content: snippet.shortcut || '' } }]
+    };
+
+    var bodyText = (snippet.body || '').slice(0, 2000);
+    if (snippet.body && snippet.body.length > 2000) {
+      console.warn('[SprintBrain] Body truncated to 2000 chars for Notion:', snippet.title);
+    }
+    props['Body'] = {
+      rich_text: [{ text: { content: bodyText } }]
+    };
+
+    if (snippet.folder) {
+      // Resolve folder ID → folder name for Notion select
+      var folderName = snippet.folder;
+      for (var i = 0; i < folders.length; i++) {
+        if (folders[i].id === snippet.folder) { folderName = folders[i].name; break; }
+      }
+      props['Categoria'] = { select: { name: folderName } };
+    }
+
+    if (snippet.versione) {
+      props['Versione'] = {
+        rich_text: [{ text: { content: snippet.versione || '' } }]
+      };
+    }
+
+    return props;
+  },
+
+  create: function(snippet) {
+    if (!notionCfg || !notionCfg.apiKey || !notionCfg.dbId) return;
+
+    fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + notionCfg.apiKey,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({
+        parent: { database_id: notionCfg.dbId },
+        properties: this._buildProps(snippet)
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.id) {
+        snippet.notion_page_id = data.id;
+        DB.upsertSnippet(snippet);
+        console.log('[SprintBrain] Pushed to Notion:', snippet.title, '→', data.id);
+      } else {
+        console.warn('[SprintBrain] Notion create returned no id:', data);
+      }
+    })
+    .catch(function(err) {
+      console.warn('[SprintBrain] Notion push failed:', err.message);
+    });
+  },
+
+  update: function(snippet) {
+    if (!notionCfg || !notionCfg.apiKey) return;
+    if (!snippet.notion_page_id) {
+      this.create(snippet);
+      return;
+    }
+
+    fetch('https://api.notion.com/v1/pages/' + snippet.notion_page_id, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + notionCfg.apiKey,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({ properties: this._buildProps(snippet) })
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      console.log('[SprintBrain] Updated in Notion:', snippet.title);
+    })
+    .catch(function(err) {
+      console.warn('[SprintBrain] Notion update failed:', err.message);
+    });
+  },
+
+  archive: function(notionPageId) {
+    if (!notionCfg || !notionCfg.apiKey) return;
+    if (!notionPageId) return;
+
+    fetch('https://api.notion.com/v1/pages/' + notionPageId, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + notionCfg.apiKey,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({ archived: true })
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      console.log('[SprintBrain] Archived in Notion:', notionPageId);
+    })
+    .catch(function(err) {
+      console.warn('[SprintBrain] Notion archive failed:', err.message);
+    });
+  }
+
+};
 
 // BOOT — called once on popup open
 function boot() {
@@ -766,7 +887,12 @@ function doSave(){
   }
   if(!toSave) return;
   DB.upsertSnippet(toSave);
-  if(isNew) DB.updateStats(toSave.id,0,0,null);
+  if(isNew) {
+    DB.updateStats(toSave.id,0,0,null);
+    NotionPush.create(toSave);
+  } else {
+    NotionPush.update(toSave);
+  }
   // Refresh context menus in background
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
   gi('sok').className='saveok on';
@@ -775,6 +901,8 @@ function doSave(){
 
 function doDel(){
   if(!editId||!confirm('Delete this snippet?')) return;
+  var _delSnip = findSnip(editId);
+  if(_delSnip && _delSnip.notion_page_id) NotionPush.archive(_delSnip.notion_page_id);
   DB.deleteSnippet(editId);
   snips=snips.filter(function(s){ return s.id!==editId; });
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
