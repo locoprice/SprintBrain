@@ -435,25 +435,9 @@ function boot() {
           if (data && data.snippets && data.snippets.length > 0) {
                   snips   = data.snippets;
                   folders = (data.folders && data.folders.length > 0) ? data.folders : DEFAULT_FOLDERS;
-                  // Migrate: rewrite /-prefixed shortcuts to use current trigger prefix
-                  if (trig !== '/') {
-                    var _migrated = false;
-                    for (var mi = 0; mi < snips.length; mi++) {
-                      var _sc = snips[mi].shortcut || '';
-                      if (_sc.length > 1 && _sc[0] === '/') {
-                        snips[mi].shortcut = trig + _sc.slice(1);
-                        DB.upsertSnippet(snips[mi]);
-                        _migrated = true;
-                      }
-                    }
-                    if (_migrated) {
-                      try { chrome.storage.sync.set({snippets: snips}); } catch(e) {}
-                      console.log('[Sprintbrain] Migrated /-prefixed shortcuts to "' + trig + '"');
-                    }
-                  }
           } else {
                   DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
-                  DEFAULT_SNIPPETS.forEach(function (s) { DB.upsertSnippet(s); DB.updateStats(s.id, 0, 0, null); });
+                  console.log('[SprintBrain] Empty DB — seeding folders, waiting for Notion sync');
           }
           refreshUI();
     });
@@ -549,6 +533,10 @@ function _runNotionSync(cb, force) {
                                         changed = true;
                             }
                   });
+                  // Always persist all Notion snippets to Supabase so they
+                  // survive popup reload even when debounce blocks re-sync
+                  notionSnippets.forEach(function(ns) { DB.upsertSnippet(ns); });
+
                   if (changed) {
                             refreshUI();
                             showToast('✓ Notion synced — ' + notionSnippets.length + ' snippet(s) updated');
