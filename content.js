@@ -898,12 +898,15 @@ document.addEventListener('paste', function(e) {
   }
   if (!editable) return;
 
-  // After paste completes, check the full field value for shortcut matches
+  // Capture pasted text now — clipboardData is only available synchronously during the event
+  var pastedText = (e.clipboardData && e.clipboardData.getData('text')) || '';
+  if (!pastedText) return;
+
+  // Only trigger a snippet if the pasted text itself contains a shortcut
   setTimeout(function() {
-    var val = t.value || t.textContent || '';
     for (var i = 0; i < snippets.length; i++) {
       var sc = snippets[i].shortcut || '';
-      if (sc && val.indexOf(sc) > -1) {
+      if (sc && pastedText.indexOf(sc) > -1) {
         activeEl = t;
         buf = sc; // Prime the buffer with the matched shortcut
         checkBuf();
