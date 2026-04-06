@@ -98,6 +98,41 @@ function extractFields(body) {
   return vars;
 }
 
+// ── DOUBLE-BRACE PLACEHOLDER ENGINE ──────────────────────────────
+/**
+ * Extracts unique {{variable}} placeholders from a snippet body.
+ * @param {string} body
+ * @returns {string[]} array of unique variable names, empty if none found
+ */
+function parsePlaceholders(body) {
+  var regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+  var found = {};
+  var result = [];
+  var match;
+  while ((match = regex.exec(body)) !== null) {
+    if (!found[match[1]]) {
+      found[match[1]] = true;
+      result.push(match[1]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Replaces {{var}} tokens in body using values from varMap.
+ * Unresolved placeholders are preserved as-is.
+ * @param {string} body
+ * @param {Object} varMap  e.g. { name: "Giulia", time_of_day: "morning" }
+ * @returns {string}
+ */
+function interpolateSnippet(body, varMap) {
+  return body.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, function(match, key) {
+    return Object.prototype.hasOwnProperty.call(varMap, key)
+      ? varMap[key]
+      : match;
+  });
+}
+
 // ── DEFAULT SNIPPETS ───────────────────────────────────────────────
 // Sprintbrain Snippets — imported from Text Blaze
 // Groups: PRESUPUESTOS (5) + RESERVATION MGMT (15)
@@ -242,22 +277,155 @@ function checkBuf() {
   }
 }
 
+// ── DYNAMIC SNIPPET MODAL (Shadow DOM) ───────────────────────────
+/**
+ * Renders a centered modal inside a Shadow DOM to collect
+ * user input for each {{placeholder}} variable.
+ * @param {string[]} variables
+ * @param {Function} onConfirm  receives varMap Object
+ * @param {Function} onCancel   no arguments
+ */
+function injectDynamicModal(variables, onConfirm, onCancel) {
+  var host = document.createElement('div');
+  host.id = 'sb-modal-host';
+  host.style.cssText =
+    'position:fixed;inset:0;z-index:2147483647;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'background:rgba(0,0,0,0.45);font-family:sans-serif;';
+  var shadow = host.attachShadow({ mode: 'closed' });
+
+  var style = document.createElement('style');
+  style.textContent =
+    '.sb-modal{background:#fff;border-radius:12px;padding:28px 32px;width:420px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:16px;}' +
+    '.sb-modal h2{margin:0;font-size:16px;font-weight:600;color:#1a1a1a;letter-spacing:-0.2px;}' +
+    '.sb-modal p.sb-sub{margin:-8px 0 0;font-size:13px;color:#666;}' +
+    '.sb-field{display:flex;flex-direction:column;gap:6px;}' +
+    '.sb-field label{font-size:12px;font-weight:500;color:#444;text-transform:uppercase;letter-spacing:0.4px;}' +
+    '.sb-field input{border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;outline:none;transition:border-color 0.15s;}' +
+    '.sb-field input:focus{border-color:#5c6bc0;}' +
+    '.sb-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}' +
+    '.sb-btn{padding:9px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity 0.15s;}' +
+    '.sb-btn:hover{opacity:0.85;}' +
+    '.sb-btn-cancel{background:#f0f0f0;color:#333;}' +
+    '.sb-btn-insert{background:#5c6bc0;color:#fff;}';
+
+  var modal = document.createElement('div');
+  modal.className = 'sb-modal';
+
+  var h2 = document.createElement('h2');
+  h2.textContent = '\u26A1 Fill in your snippet';
+  modal.appendChild(h2);
+
+  var sub = document.createElement('p');
+  sub.className = 'sb-sub';
+  sub.textContent = variables.length + ' variable' + (variables.length > 1 ? 's' : '') + ' detected';
+  modal.appendChild(sub);
+
+  var fieldsContainer = document.createElement('div');
+  var inputs = {};
+  for (var i = 0; i < variables.length; i++) {
+    var varName = variables[i];
+    var field = document.createElement('div');
+    field.className = 'sb-field';
+    var label = document.createElement('label');
+    label.textContent = varName.replace(/_/g, ' ');
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Enter ' + varName.replace(/_/g, ' ') + '\u2026';
+    input.dataset.var = varName;
+    inputs[varName] = input;
+    field.appendChild(label);
+    field.appendChild(input);
+    fieldsContainer.appendChild(field);
+  }
+  modal.appendChild(fieldsContainer);
+
+  var actions = document.createElement('div');
+  actions.className = 'sb-actions';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'sb-btn sb-btn-cancel';
+  cancelBtn.textContent = 'Cancel';
+  var insertBtn = document.createElement('button');
+  insertBtn.className = 'sb-btn sb-btn-insert';
+  insertBtn.textContent = 'Insert \u21B5';
+  actions.appendChild(cancelBtn);
+  actions.appendChild(insertBtn);
+  modal.appendChild(actions);
+
+  shadow.appendChild(style);
+  shadow.appendChild(modal);
+  document.body.appendChild(host);
+
+  setTimeout(function() {
+    var keys = Object.keys(inputs);
+    if (keys.length) inputs[keys[0]].focus();
+  }, 50);
+
+  var cancelFn = function() {
+    host.remove();
+    document.removeEventListener('keydown', escHandler);
+    onCancel();
+  };
+
+  cancelBtn.addEventListener('click', cancelFn);
+  host.addEventListener('click', function(e) { if (e.target === host) cancelFn(); });
+
+  var escHandler = function(e) {
+    if (e.key === 'Escape') cancelFn();
+  };
+  document.addEventListener('keydown', escHandler);
+
+  insertBtn.addEventListener('click', function() {
+    var varMap = {};
+    for (var j = 0; j < variables.length; j++) {
+      varMap[variables[j]] = inputs[variables[j]].value.trim();
+    }
+    document.removeEventListener('keydown', escHandler);
+    host.remove();
+    onConfirm(varMap);
+  });
+
+  modal.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      insertBtn.click();
+    }
+  });
+}
+
 // ── MATCH HANDLER ──────────────────────────────────────────────────
 function handleMatch(el, snip, scLen) {
   if (processing) return;
   processing = true;
-  var fields = extractFields(snip.body);
   deleteChars(el, scLen, function() {
-    if (!fields.length) {
-      if (isUrgExpired(snip)) { processing = false; return; }
-      var text = resolveBody(snip.body, {});
-      insertText(el, text);
-      showCelebration(text);
-      processing = false;
+    var vars = parsePlaceholders(snip.body);
+    if (vars.length > 0) {
+      injectDynamicModal(vars, function(varMap) {
+        var newBody = interpolateSnippet(snip.body, varMap);
+        var modSnip = {};
+        for (var k in snip) modSnip[k] = snip[k];
+        modSnip.body = newBody;
+        _proceedInsert(el, modSnip);
+      }, function() {
+        processing = false;
+      });
     } else {
-      showOverlay(el, snip, fields, function() { processing = false; });
+      _proceedInsert(el, snip);
     }
   });
+}
+
+function _proceedInsert(el, snip) {
+  var fields = extractFields(snip.body);
+  if (!fields.length) {
+    if (isUrgExpired(snip)) { processing = false; return; }
+    var text = resolveBody(snip.body, {});
+    insertText(el, text);
+    showCelebration(text);
+    processing = false;
+  } else {
+    showOverlay(el, snip, fields, function() { processing = false; });
+  }
 }
 
 // ── DELETE N CHARS ─────────────────────────────────────────────────
@@ -1084,16 +1252,34 @@ chrome.runtime.onMessage.addListener(function(msg) {
 
   activeEl = el;
 
+  var vars = parsePlaceholders(snip.body);
+  if (vars.length > 0) {
+    processing = true;
+    injectDynamicModal(vars, function(varMap) {
+      var newBody = interpolateSnippet(snip.body, varMap);
+      var modSnip = {};
+      for (var k in snip) modSnip[k] = snip[k];
+      modSnip.body = newBody;
+      _proceedContextInsert(el, modSnip);
+    }, function() {
+      processing = false;
+    });
+  } else {
+    _proceedContextInsert(el, snip);
+  }
+});
+
+function _proceedContextInsert(el, snip) {
+  var fields = extractFields(snip.body);
   if (fields.length === 0) {
-    // No fill-in fields — insert directly
-    if (isUrgExpired(snip)) return;
+    if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {});
     if (el) insertText(el, text);
     showCelebration(text);
+    processing = false;
   } else {
-    // Show fill-in overlay
     processing = true;
     showOverlay(el, snip, fields, function() { processing = false; });
   }
-});
+}
 
