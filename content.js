@@ -6,19 +6,96 @@ var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1};
 
 function evalFormula(expr, vals) {
   try {
+    // Substitute variable names with their numeric values
     var s = expr.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
       if (FUNS[n]) return n;
       var v = parseFloat(vals[n]);
       return isNaN(v) ? '0' : String(v);
     });
-    var stripped = s.replace(/round|floor|ceil|abs|min|max/g, '');
-    if (!/^[0-9+\-*/().\s,]+$/.test(stripped)) return null;
-    s = s.replace(/round\(/g,'Math.round(').replace(/floor\(/g,'Math.floor(')
-         .replace(/ceil\(/g,'Math.ceil(').replace(/abs\(/g,'Math.abs(')
-         .replace(/min\(/g,'Math.min(').replace(/max\(/g,'Math.max(');
-    var r = Function('"use strict";return(' + s + ')')();
-    return isNaN(r) ? null : Math.round(r * 100) / 100;
+    var r = safeEval(s);
+    return (r === null || isNaN(r)) ? null : Math.round(r * 100) / 100;
   } catch(e) { return null; }
+}
+
+/**
+ * CSP-safe recursive descent parser for math expressions.
+ * Supports: +, -, *, /, parentheses, decimals, negation,
+ * and whitelisted functions: round, floor, ceil, abs, min, max.
+ * No eval() or Function() — works under strict CSP policies.
+ */
+function safeEval(expr) {
+  var pos = 0;
+  var str = expr.replace(/\s+/g, '');
+
+  function parseExpr() {
+    var left = parseTerm();
+    while (pos < str.length && (str[pos] === '+' || str[pos] === '-')) {
+      var op = str[pos++];
+      var right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm() {
+    var left = parseFactor();
+    while (pos < str.length && (str[pos] === '*' || str[pos] === '/')) {
+      var op = str[pos++];
+      var right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    return left;
+  }
+
+  function parseFactor() {
+    // Unary minus
+    if (str[pos] === '-') { pos++; return -parseFactor(); }
+    // Unary plus
+    if (str[pos] === '+') { pos++; return parseFactor(); }
+
+    // Check for function names
+    var fnMatch = str.slice(pos).match(/^(round|floor|ceil|abs|min|max)\(/);
+    if (fnMatch) {
+      var fn = fnMatch[1];
+      pos += fn.length + 1; // skip "fn("
+      var args = parseArgs();
+      if (str[pos] === ')') pos++;
+      if (fn === 'round') return Math.round(args[0]);
+      if (fn === 'floor') return Math.floor(args[0]);
+      if (fn === 'ceil')  return Math.ceil(args[0]);
+      if (fn === 'abs')   return Math.abs(args[0]);
+      if (fn === 'min')   return Math.min.apply(null, args);
+      if (fn === 'max')   return Math.max.apply(null, args);
+    }
+
+    // Parenthesized expression
+    if (str[pos] === '(') {
+      pos++;
+      var val = parseExpr();
+      if (str[pos] === ')') pos++;
+      return val;
+    }
+
+    // Number literal
+    var numStr = '';
+    while (pos < str.length && (str[pos] >= '0' && str[pos] <= '9' || str[pos] === '.')) {
+      numStr += str[pos++];
+    }
+    if (numStr === '') return NaN;
+    return parseFloat(numStr);
+  }
+
+  function parseArgs() {
+    var args = [parseExpr()];
+    while (str[pos] === ',') {
+      pos++;
+      args.push(parseExpr());
+    }
+    return args;
+  }
+
+  var result = parseExpr();
+  return pos === str.length ? result : NaN;
 }
 
 function resolveBody(body, vals) {
@@ -35,17 +112,10 @@ function resolveBody(body, vals) {
         if (veq > -1) {
           var vname = vdecl.slice(0, veq).replace(/^\s+|\s+$/g, '');
           var vexpr = vdecl.slice(veq + 1).replace(/^\s+|\s+$/g, '');
-          var vsub = vexpr.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(m) {
-            if (FUNS[m]) return m;
-            return (vals[m] !== undefined) ? String(vals[m]) : '0';
-          });
-          vsub = vsub.replace(/round\(/g,'Math.round(').replace(/floor\(/g,'Math.floor(')
-                     .replace(/ceil\(/g,'Math.ceil(').replace(/abs\(/g,'Math.abs(')
-                     .replace(/min\(/g,'Math.min(').replace(/max\(/g,'Math.max(');
           try {
-            var vres = Function('"use strict";return(' + vsub + ')')();
-            vals[vname] = (typeof vres === 'number' && !isNaN(vres))
-              ? Math.round(vres * 100) / 100 : 0;
+            var vres = evalFormula(vexpr, vals);
+            vals[vname] = (vres !== null && typeof vres === 'number' && !isNaN(vres))
+              ? vres : 0;
           } catch(e) {
             vals[vname] = 0;
             console.warn('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
@@ -64,11 +134,8 @@ function resolveBody(body, vals) {
         var inner = eidx !== -1 ? body.slice(cl+1, eidx) : '';
         var cr = false;
         try {
-          var sc2 = cond.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
-            if (FUNS[n]) return n;
-            var v2 = parseFloat(vals[n]); return isNaN(v2) ? '0' : String(v2);
-          });
-          cr = !!Function('"use strict";return(' + sc2 + ')')();
+          var condResult = evalFormula(cond, vals);
+          cr = condResult !== null && condResult !== 0;
         } catch(e) {}
         if (cr) out += resolveBody(inner, vals);
         i = eidx !== -1 ? eidx + ei.length : cl+1; continue;
