@@ -34,7 +34,7 @@ function buildContextMenus(data) {
     // Root item — only shows in editable fields
     chrome.contextMenus.create({
       id: 'sb-root',
-      title: '\u26A1 Insert Sprintbrain snippet',
+      title: 'Insert SprintBrain snippet',
       contexts: ['editable']
     });
 
@@ -74,7 +74,7 @@ function buildContextMenus(data) {
       chrome.contextMenus.create({
         id: 'sb-folder-' + f.id,
         parentId: 'sb-root',
-        title: (f.ico || '\uD83D\uDCC1') + ' ' + f.name,
+        title: f.name,
         contexts: ['editable']
       });
 
