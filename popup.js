@@ -1126,7 +1126,7 @@ on('sq','input',    function(e){ renderList(e.target.value); });
 on('ewrd','input',  updateSprev);
 on('ebdy','keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();doSave();} });
 on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
-var cmdGrid=document.querySelector('.cmd-grid'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
+var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
 document.querySelectorAll('.topt').forEach(function(opt){
   opt.addEventListener('click',function(){ pendT=opt.dataset.t; gi('ctrig').value=pendT; syncTG(pendT); updateWarn(pendT); updateInfo(pendT); });
 });
