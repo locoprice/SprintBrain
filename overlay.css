@@ -1,87 +1,95 @@
-/* ── SPRINTBRAIN OVERLAY ─────────────────────────────────────────── */
+/* ── SPRINTBRAIN OVERLAY v2.11.0 ─────────────────────────────────── */
+/* Matches popup.html premium design tokens                          */
 #sprintbrain-overlay {
-  background:#ffffff !important;
-  border:1.5px solid #e8e5e0 !important;
+  background:#FFFFFF !important;
+  border:1.5px solid #E4E4E7 !important;
   border-radius:12px !important;
-  box-shadow:0 8px 40px rgba(0,0,0,.2),0 2px 8px rgba(0,0,0,.08) !important;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;
-  font-size:13px !important;
-  color:#1c1c1a !important;
+  box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06) !important;
+  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif !important;
+  font-size:15px !important;
+  color:#18181B !important;
   overflow:hidden !important;
   max-height:90vh !important;
   overflow-y:auto !important;
 }
 #sprintbrain-overlay .sb-hdr {
   display:flex !important;align-items:center !important;gap:8px !important;
-  padding:10px 14px !important;background:#fdf6e8 !important;
-  border-bottom:1px solid #e8c97a !important;
+  padding:12px 16px !important;background:#FFFFFF !important;
+  border-bottom:1px solid #E4E4E7 !important;
 }
 #sprintbrain-overlay .sb-logo {
-  font-weight:700 !important;font-size:13px !important;color:#BA7517 !important;
+  font-weight:700 !important;font-size:14px !important;color:#6C5CE7 !important;
+  display:flex !important;align-items:center !important;gap:6px !important;
 }
 #sprintbrain-overlay .sb-sname {
-  font-size:11px !important;color:#6e6c67 !important;flex:1 !important;
+  font-size:12px !important;color:#52525B !important;flex:1 !important;
   overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;
 }
 #sprintbrain-overlay .sb-x {
   background:transparent !important;border:none !important;cursor:pointer !important;
-  font-size:15px !important;color:#a8a59f !important;padding:0 !important;line-height:1 !important;
+  font-size:15px !important;color:#A1A1AA !important;padding:0 !important;line-height:1 !important;
+  width:24px !important;height:24px !important;
+  display:flex !important;align-items:center !important;justify-content:center !important;
+  border-radius:6px !important;transition:all .12s !important;
 }
-#sprintbrain-overlay .sb-x:hover { color:#1c1c1a !important; }
+#sprintbrain-overlay .sb-x:hover { color:#18181B !important;background:#F4F4F5 !important; }
 #sprintbrain-overlay .sb-fields {
-  padding:12px 14px !important;display:flex !important;flex-direction:column !important;
-  gap:8px !important;max-height:240px !important;overflow-y:auto !important;
+  padding:14px 16px !important;display:flex !important;flex-direction:column !important;
+  gap:10px !important;max-height:240px !important;overflow-y:auto !important;
 }
 #sprintbrain-overlay .sb-field {
-  display:flex !important;flex-direction:column !important;gap:3px !important;
+  display:flex !important;flex-direction:column !important;gap:4px !important;
 }
 #sprintbrain-overlay .sb-lbl {
-  font-size:9px !important;font-weight:700 !important;color:#BA7517 !important;
-  text-transform:uppercase !important;letter-spacing:.08em !important;font-family:monospace !important;
+  font-size:10px !important;font-weight:600 !important;color:#6C5CE7 !important;
+  text-transform:uppercase !important;letter-spacing:.06em !important;
+  font-family:'SF Mono','Cascadia Code','JetBrains Mono','Fira Code',monospace !important;
 }
 #sprintbrain-overlay .sb-inp {
-  background:#f5f4f0 !important;border:1px solid #e8e5e0 !important;
-  border-radius:5px !important;padding:7px 10px !important;font-size:13px !important;
-  color:#1c1c1a !important;font-family:inherit !important;outline:none !important;
+  background:#F4F4F5 !important;border:1px solid #E4E4E7 !important;
+  border-radius:8px !important;padding:8px 12px !important;font-size:13px !important;
+  color:#18181B !important;font-family:inherit !important;outline:none !important;
   width:100% !important;box-sizing:border-box !important;
+  transition:border-color .15s,box-shadow .15s !important;
 }
 #sprintbrain-overlay .sb-inp:focus {
-  border-color:#e8c97a !important;background:#fffbf0 !important;
+  border-color:#6C5CE7 !important;
+  box-shadow:0 0 0 3px rgba(108,92,231,.12) !important;
+  background:#FFFFFF !important;
 }
 #sprintbrain-overlay .sb-inp[type="date"] {
-  color:#c2410c !important;border-color:#fed7aa !important;background:#fff7ed !important;
+  color:#6C5CE7 !important;border-color:#C9C0FF !important;background:#F0EDFF !important;
 }
 #sprintbrain-overlay select.sb-inp {
   appearance:none !important;-webkit-appearance:none !important;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23BA7517'/%3E%3C/svg%3E") !important;
-  background-repeat:no-repeat !important;background-position:right 8px center !important;
-  padding-right:26px !important;cursor:pointer !important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236C5CE7'/%3E%3C/svg%3E") !important;
+  background-repeat:no-repeat !important;background-position:right 10px center !important;
+  padding-right:28px !important;cursor:pointer !important;
 }
 #sprintbrain-overlay .sb-prev {
-  margin:0 14px !important;padding:8px 10px !important;
-  background:#f5f4f0 !important;border:1px solid #e8e5e0 !important;
-  border-radius:6px !important;font-size:11px !important;color:#6e6c67 !important;
+  margin:0 16px !important;padding:10px 12px !important;
+  background:#F4F4F5 !important;border:1px solid #E4E4E7 !important;
+  border-radius:8px !important;font-size:12px !important;color:#52525B !important;
   line-height:1.6 !important;white-space:pre-wrap !important;
   max-height:80px !important;overflow:hidden !important;
   font-family:-apple-system,sans-serif !important;
 }
 #sprintbrain-overlay .sb-foot {
-  padding:10px 14px !important;border-top:1px solid #e8e5e0 !important;
+  padding:12px 16px !important;border-top:1px solid #E4E4E7 !important;
   display:flex !important;align-items:center !important;gap:8px !important;
-  background:#fafaf8 !important;
+  background:#FAFAFA !important;
 }
 #sprintbrain-overlay .sb-go {
-  padding:8px 18px !important;background:#BA7517 !important;border:none !important;
-  border-radius:6px !important;font-size:13px !important;font-weight:600 !important;
+  padding:8px 20px !important;background:#6C5CE7 !important;border:none !important;
+  border-radius:8px !important;font-size:13px !important;font-weight:600 !important;
   color:#fff !important;cursor:pointer !important;font-family:inherit !important;
-  white-space:nowrap !important;
+  white-space:nowrap !important;transition:background .15s !important;
 }
-#sprintbrain-overlay .sb-go:hover { background:#d4880f !important; }
+#sprintbrain-overlay .sb-go:hover { background:#5A4BD1 !important; }
 #sprintbrain-overlay .sb-tip {
-  font-size:10px !important;color:#a8a59f !important;
+  font-size:10px !important;color:#A1A1AA !important;
 }
 @keyframes sbIn {
-  0%{opacity:0;transform:translateY(10px) scale(.95)}
-  70%{transform:translateY(-2px) scale(1.01)}
-  100%{opacity:1;transform:translateY(0) scale(1)}
+  0%{opacity:0;transform:translateY(6px)}
+  100%{opacity:1;transform:translateY(0)}
 }

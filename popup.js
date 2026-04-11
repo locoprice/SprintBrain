@@ -66,7 +66,7 @@ var DB = {
   },
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
-      id: f.id, name: f.name, ico: f.ico || '\uD83D\uDCC1', sort_order: f.sort_order || 0
+      id: f.id, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0
     }).catch(function(e) { console.warn('upsertFolder:', e); });
   },
   deleteFolder: function(id) {
@@ -81,19 +81,19 @@ var DB = {
 
 // DEFAULT DATA
 var DEFAULT_FOLDERS = [
-  { id: 'f1', name: 'Presupuestos', ico: '\uD83D\uDCB0', sort_order: 1 },
-  { id: 'f2', name: 'AI Prompts',   ico: '\uD83E\uDD16', sort_order: 2 }
+  { id: 'f1', name: 'Presupuestos', ico: 'dollar', sort_order: 1 },
+  { id: 'f2', name: 'AI Prompts',   ico: 'cpu', sort_order: 2 }
 ];
 
 var DEFAULT_SNIPPETS = [
   // ── PRESUPUESTOS ──────────────────────────────────────────────────
-  {id:'quoteEN', shortcut:';;quoteEN', title:'\uD83D\uDCB0 ESTIMATE B2C ver. 3.6', lang:'EN', cat:'PRESUPUESTOS',
+  {id:'quoteEN', shortcut:';;quoteEN', title:'ESTIMATE B2C ver. 3.6', lang:'EN', cat:'PRESUPUESTOS',
    body:'\uD83D\uDCCB QUOTATION SENT h.[TIME_HH:MM] \u00B7 [DATE_DD/MM/YYYY]\nValid for 3 hours.\n\nYour request: [ENQUIRE_FORM]\n\uD83D\uDD17Property: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN DD/MM/YYYY]\nCheck-out: [CHECKOUT DD/MM/YYYY]\n\nRoom: Studio (no terrace)\nCala Llonga area\nRate Plan: NOT Refundable - always cheaper\nPayment methods: Credit / Debit card +3%\n\n\u2605 Your Price: [YOUR_PRICE]\u20AC (extra savings when you choose how to pay)\n\n- Bank Transfer: [YOUR_PRICE - 25]\u20AC \u2764\uFE0F Loved by our guests\n- Card: [YOUR_PRICE \u00D7 1.03]\u20AC\n\nOriginal Accommodation Price: [OTA_PRICE]\u20AC\n\u2713 You save: [OTA_PRICE - YOUR_PRICE]\u20AC\n\u2713 You also save: OTA service fees (typically 12-18%)\n\u2713 Discount codes: Not valid\n\u2713 Payment terms: Full payment upon confirmation\n\nCANCELLATION POLICY\n\u26A0\uFE0F NON-REFUNDABLE \u2014 Generally offer a lower price compared to refundable fares, but they come with stricter cancellation policies.\n\n\uD83D\uDCCE Full cancellation terms \u2192 leibtour.com/policy\n\u2753 FAQ & booking process \u2192 leibtour.com/faqs/booking-process\n\nNote:\n1. Only 1 unit(s) left at this rate. The price will increase.\n2. COMBO DEALS: book the accommodation and save on Car Hire: zero excess, zero deposit, full insurance.'},
-  {id:'quoteES', shortcut:';;quoteES', title:'\uD83D\uDCB0 PRESUPUESTO B2C', lang:'ES', cat:'PRESUPUESTOS',
+  {id:'quoteES', shortcut:';;quoteES', title:'PRESUPUESTO B2C', lang:'ES', cat:'PRESUPUESTOS',
    body:'\uD83D\uDCCB PRESUPUESTO ENVIADO h.[HH:mm] \u00B7 [DD/MM/YYYY]\nV\u00E1lido por 3 horas.\n\nTu solicitud: [ENQUIRE_FORM]\n\uD83D\uDD17Alojamiento: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN]\nCheck-out: [CHECKOUT]\n\nHabitaci\u00F3n: Estudio (sin terraza) zona Cala Llonga\nTarifa: NO Reembolsable - siempre m\u00E1s barata\nM\u00E9todos de pago: Tarjeta de cr\u00E9dito / d\u00E9bito +3%\n\nPrecio original del alojamiento: [OTA_PRICE]\u20AC\n\u2605 Tu precio: [YOUR_PRICE]\u20AC\n\u2713 Ahorras: [OTA_PRICE - YOUR_PRICE]\u20AC\n\u2713 Tambi\u00E9n ahorras: comisiones de servicio OTA (normalmente 12-18%)\n\u2713 C\u00F3digos de descuento: No v\u00E1lidos\n\u2713 Condiciones de pago: Pago completo a la confirmaci\u00F3n\n\nOPCIONES DE PAGO\n- Transferencia bancaria: [YOUR_PRICE - 25]\u20AC \u2764\uFE0F La preferida por nuestros hu\u00E9spedes\n- Tarjeta: [YOUR_PRICE \u00D7 1.03]\u20AC\n\nPOL\u00CDTICA DE CANCELACI\u00D3N\n\u26A0\uFE0F NO REEMBOLSABLE \u2014 Precio m\u00E1s bajo. Pago inmediato. Sin cancelaci\u00F3n.\n\n\uD83D\uDCCE Condiciones completas de cancelaci\u00F3n \u2192 leibtour.com/policy\n\u2753 Preguntas frecuentes \u2192 leibtour.com/faqs/booking-process\n\nNota:\n1. Solo queda 1 unidad a esta tarifa. Tarifas din\u00E1micas, el precio subir\u00E1.\n2. COMBO DEALS: reserva el alojamiento y ahorra en tambi\u00E9n en alquiler de Coche: sin franquicia, sin dep\u00F3sito, seguro a todo riesgo incluido.'},
-  {id:'quoteIT', shortcut:';;quoteIT', title:'\uD83D\uDCB0 PREVENTIVO B2C', lang:'IT', cat:'PRESUPUESTOS',
+  {id:'quoteIT', shortcut:';;quoteIT', title:'PREVENTIVO B2C', lang:'IT', cat:'PRESUPUESTOS',
    body:'\uD83D\uDCCB PREVENTIVO INVIATO \uD83D\uDD51 [HH:mm] \u00B7 [DD/MM/YYYY]\nValido per 3 ore.\n\nLa tua richiesta: [ENQUIRE_FORM]\n\uD83D\uDD17Alloggio: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN]\nCheck-out: [CHECKOUT]\n\nCamera: Monolocale (senza terrazza) zona Cala Llonga\nTariffa: NON Rimborsabile - sempre pi\u00F9 conveniente\nMetodi di pagamento: Carta di credito / debito +3%\n\nPrezzo originale: [OTA_PRICE]\u20AC\n\u2605 La tua tariffa: [YOUR_PRICE]\u20AC\n\u2713 Risparmi: [OTA_PRICE - YOUR_PRICE]\u20AC\n\u2713 Risparmi anche: commissioni di servizio OTA (solitamente 12-18%)\n\u2713 Codici sconto: Non validi\n\u2713 Condizioni di pagamento: Pagamento completo alla conferma\n\nOPZIONI DI PAGAMENTO\n- Bonifico: [YOUR_PRICE - 25]\u20AC \u2764\uFE0F Preferito dai nostri ospiti\n- Carta: [YOUR_PRICE \u00D7 1.03]\u20AC\n\nPOLITICA DI CANCELLAZIONE\n\u26A0\uFE0F NON RIMBORSABILE \u2014 Prezzo pi\u00F9 basso, cancellazione non consentita.\n\n\uD83D\uDCCE Condizioni complete di cancellazione \u2192 leibtour.com/policy\n\u2753 FAQ \u2192 leibtour.com/faqs/booking-process\n\nNote:\n- Ultima unit\u00E0 disponibile. Tariffa dinamica, il prezzo salir\u00E0.\n- COMBO DEALS prenota l\'alloggio e risparmia anche su noleggio auto: nessuna franchigia, zero deposito, assicurazione casco inclusa.'},
-  {id:'neob', shortcut:';;neob', title:'\uD83D\uDCBB NEO BOOKING', lang:'ES', cat:'PRESUPUESTOS',
+  {id:'neob', shortcut:';;neob', title:'NEO BOOKING', lang:'ES', cat:'PRESUPUESTOS',
    body:'Buenos d\u00EDas [NOMBRE_PROVEEDOR]:\n\nSoy Valentina y paso otra reserva LeibTour \uD83C\uDF89\n\nSi necesitais cualquier cosa estoy a completa disposici\u00F3n :)\n\nSi el cliente rellena el formulario Real Decreto os envio su DNI/Pasaporte para hacer un pre-checkin.\n\nNecesitar\u00EDamos factura por favor.\n\nEl cliente debe ecotasa y sabe que tiene que abonarla a su llegada.\n\nPosiblemente darles a los huespedes una buena habitacion en la planta mas alta disponible :)\n\nEn cuanto a la configuraci\u00F3n de las camas, son amigos, por lo tanto necesitan camas individuales \uD83D\uDECF\uFE0F\uD83D\uDECF\uFE0F\n\nHasta la pr\u00F3xima reserva \u2661'},
   {id:'locoprice', shortcut:';;locoprice', title:'CLIENTE CERCA ACCOMMODATION', lang:'MULTI', cat:'PRESUPUESTOS',
    body:'I suggest you find something online and share the link with us. We can offer you a B2B quotation on any accommodation worldwide: https://www.locoprice.com/better-price/.\n\nShare any offer you might find online, and we will provide you with a better B2B quotation for any accommodation worldwide.\n\n---\n\nTi suggerisco di cercare qualcosa online e di mandarmi il link. Possiamo offrirti un preventivo B2B per qualsiasi tipo di alloggio in tutto il mondo: https://www.locoprice.com/better-price/.\n\n---\n\nTe aconsejo que busque algo por internet y nos comparta el enlace. Podemos ofrecerte una cotizaci\u00F3n B2B en cualquier alojamiento a nivel mundial: https://www.locoprice.com/better-price/'},
@@ -140,7 +140,7 @@ var selFolder    = 'ALL';
 var ctxId        = null;
 var selId        = null;
 var pendFolderCb = null;
-var selIco       = '\uD83D\uDCC1';
+var selIco       = 'folder';
 var ctxFolderId  = null;
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
@@ -366,13 +366,24 @@ function _timeAgo(isoString) {
   return Math.floor(diff / 86400) + ' days ago';
 }
 
+/* SVG icon map for sync bar — Lucide-style stroke icons */
+var _SYNC_SVGS = {
+  settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  refresh: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  warn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+};
+
 function _setSyncBar(icon, text, color) {
   var iconEl = document.getElementById('sb-sync-icon');
   var textEl = document.getElementById('sb-sync-text');
-  if (iconEl) iconEl.textContent = icon;
+  if (iconEl) {
+    iconEl.innerHTML = _SYNC_SVGS[icon] || _SYNC_SVGS.refresh;
+    iconEl.style.color = color || '#A1A1AA';
+  }
   if (textEl) {
     textEl.textContent = text;
-    textEl.style.color = color || '#6e6c67';
+    textEl.style.color = color || '#A1A1AA';
   }
 }
 
@@ -385,17 +396,17 @@ function updateSyncStatus() {
       var hasNotion = notionCfg && notionCfg.apiKey && notionCfg.dbId;
 
       if (!hasNotion) {
-        _setSyncBar('⚙️', 'Notion not configured', '#6e6c67');
+        _setSyncBar('settings', 'Notion not configured', '#A1A1AA');
         return;
       }
 
       if (hasError) {
-        _setSyncBar('⚠️', 'Sync failed — ' + _timeAgo(lastSync), '#c0392b');
+        _setSyncBar('warn', 'Sync failed \u2014 ' + _timeAgo(lastSync), '#DC2626');
         return;
       }
 
       if (!lastSync) {
-        _setSyncBar('🔄', 'Never synced', '#BA7517');
+        _setSyncBar('refresh', 'Never synced', '#6C5CE7');
         return;
       }
 
@@ -403,11 +414,11 @@ function updateSyncStatus() {
       var ageMin = Math.floor(ageMs / 60000);
 
       if (ageMin < 15) {
-        _setSyncBar('✅', 'Synced with Notion ' + _timeAgo(lastSync), '#3B6D11');
+        _setSyncBar('check', 'Synced with Notion ' + _timeAgo(lastSync), '#16A34A');
       } else if (ageMin < 30) {
-        _setSyncBar('🔄', 'Synced ' + _timeAgo(lastSync), '#BA7517');
+        _setSyncBar('refresh', 'Synced ' + _timeAgo(lastSync), '#6C5CE7');
       } else {
-        _setSyncBar('⚠️', 'Not synced for ' + _timeAgo(lastSync) + ' — click Sync Now', '#c0392b');
+        _setSyncBar('warn', 'Not synced for ' + _timeAgo(lastSync) + ' \u2014 click Sync Now', '#DC2626');
       }
     }
   );
@@ -612,8 +623,8 @@ function _runNotionSync(cb, force) {
 
           onProgress: function(state) {
                   if (state === 'syncing') {
-                            _setSyncBar('🔄', 'Syncing with Notion…', '#BA7517');
-                            if (nsEl) { nsEl.textContent = 'Syncing…'; nsEl.style.color = '#BA7517'; }
+                            _setSyncBar('refresh', 'Syncing with Notion\u2026', '#6C5CE7');
+                            if (nsEl) { nsEl.textContent = 'Syncing\u2026'; nsEl.style.color = '#6C5CE7'; }
                   } else {
                             updateSyncStatus();
                             if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
@@ -660,7 +671,7 @@ function _runNotionSync(cb, force) {
 
                   if (changed) {
                             refreshUI();
-                            showToast('✓ Notion synced — ' + notionSnippets.length + ' snippet(s) updated');
+                            showToast('Notion synced \u2014 ' + notionSnippets.length + ' snippet(s) updated');
                   }
 
                   console.log('[SprintBrain] Sync result:',
@@ -708,13 +719,29 @@ function folderCount(fid){ var n=0; for(var i=0;i<snips.length;i++){ if((snips[i
 
 function findFolder(id){ for(var i=0;i<folders.length;i++){ if(folders[i].id===id) return folders[i]; } return null; }
 
+/* SVG icon map for folder icons — keyed by data-ico values */
+var _FOLDER_SVGS = {
+  folder: '<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  clipboard: '<svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  message: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  cpu: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  key: '<svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  dollar: '<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  'file-text': '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+};
+function _folderSvg(ico){ return _FOLDER_SVGS[ico] || _FOLDER_SVGS.folder; }
+
 function renderFolders(){
   var el=gi('folder-list'); if(!el) return;
-  var h='<div class="folder-item'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" tabindex="0" role="treeitem"><span class="folder-ico">\u25C8</span><span class="folder-name">All snippets</span><span class="folder-count">'+snips.length+'</span></div>';
+  var allIco='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
+  var h='<div class="folder-item'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" tabindex="0" role="treeitem"><span class="folder-ico">'+allIco+'</span><span class="folder-name">All snippets</span><span class="folder-count">'+snips.length+'</span></div>';
   for(var i=0;i<folders.length;i++){
     var f=folders[i];
     h+='<div class="folder-item'+(selFolder===f.id?' on':'')+'" data-fid="'+f.id+'" tabindex="0" role="treeitem">'
-      +'<span class="folder-ico">'+esc(f.ico||'\uD83D\uDCC1')+'</span>'
+      +'<span class="folder-ico">'+_folderSvg(f.ico||'folder')+'</span>'
       +'<span class="folder-name">'+esc(f.name)+'</span>'
       +'<span class="folder-count">'+folderCount(f.id)+'</span>'
       +'<span class="folder-dots" data-fdots="'+f.id+'" title="Folder options">\u22EF</span>'
@@ -764,14 +791,14 @@ function renderList(q){
     var vLangs=Object.keys(variants);
     var s=variants[selId]||master;
     var st=s.stats||{uses:0,fills:0,lastUsed:null};
-    var usesBadge=st.uses===0?'<span class="stat-b never">Never used</span>':st.uses>=10?'<span class="stat-b hot">🔥 ×'+st.uses+'</span>':'<span class="stat-b uses">×'+st.uses+'</span>';
-    var fillsBadge=st.uses>0?'<span class="stat-b fills">✏️ '+st.fills+' filled</span>':'';
+    var usesBadge=st.uses===0?'<span class="stat-b never">Never used</span>':st.uses>=10?'<span class="stat-b hot">\u00D7'+st.uses+'</span>':'<span class="stat-b uses">\u00D7'+st.uses+'</span>';
+    var fillsBadge=st.uses>0?'<span class="stat-b fills">'+st.fills+' filled</span>':'';
     var pillsHtml='';
     if(vLangs.length>1){
       ['EN','ES','IT','FR'].forEach(function(l){
         if(variants[l]){
           var isAct=variants[l].id===selId;
-          pillsHtml+='<span class="stat-b '+(isAct?'uses':'never')+'" style="cursor:pointer;font-weight:700" data-switch="'+variants[l].id+'">'+l+(isAct?' ✓':'')+'</span>';
+          pillsHtml+='<span class="stat-b '+(isAct?'uses':'never')+'" style="cursor:pointer;font-weight:700" data-switch="'+variants[l].id+'">'+l+(isAct?' \u2713':'')+'</span>';
         }
       });
     }
@@ -817,7 +844,7 @@ function buildFolderOpts(current){
   var h='<option value="">— No folder —</option>';
   for(var i=0;i<folders.length;i++){
     var f=folders[i];
-    h+='<option value="'+f.id+'"'+(f.id===current?' selected':'')+'>'+esc(f.ico+' '+f.name)+'</option>';
+    h+='<option value="'+f.id+'"'+(f.id===current?' selected':'')+'>'+esc(f.name)+'</option>';
   }
   return h;
 }
@@ -926,7 +953,7 @@ function showCtxMenu(x,y){
   closeCtxMenu();
   var sub=gi('ctx-sub-folders'); var h='';
   for(var i=0;i<folders.length;i++){
-    h+='<div class="ctx-sub-item" data-move-to="'+folders[i].id+'"><span style="font-size:12px;width:16px;text-align:center">'+esc(folders[i].ico||'\uD83D\uDCC1')+'</span>'+esc(folders[i].name)+'</div>';
+    h+='<div class="ctx-sub-item" data-move-to="'+folders[i].id+'"><span class="sub-ico">'+_folderSvg(folders[i].ico||'folder')+'</span>'+esc(folders[i].name)+'</div>';
   }
   h+='<div class="ctx-sub-item add" id="ctx-sub-new"><span style="font-size:12px;width:16px;text-align:center">\uFF0B</span>New folder\u2026</div>';
   sub.innerHTML=h;
@@ -977,7 +1004,7 @@ var fctxRen=gi('fctx-rename'); if(fctxRen) fctxRen.addEventListener('click',func
 var fctxIco=gi('fctx-icon'); if(fctxIco) fctxIco.addEventListener('click',function(){
   closeFolderCtxMenu();
   var f=findFolder(ctxFolderId); if(!f) return;
-  editFolderId=f.id; selIco=f.ico||'\uD83D\uDCC1';
+  editFolderId=f.id; selIco=f.ico||'folder';
   var inp=gi('folder-name-inp'); if(inp) inp.value=f.name;
   document.querySelectorAll('.ico-opt').forEach(function(el){ el.className='ico-opt'+(el.dataset.ico===selIco?' on':''); });
   var modal=gi('folder-modal'); if(modal) modal.className='modal-overlay on';
@@ -1026,7 +1053,7 @@ function startInlineRename(id){
 
 // FOLDER MODAL
 function openFolderModal(cb){
-  pendFolderCb=cb||null; editFolderId=null; selIco='\uD83D\uDCC1';
+  pendFolderCb=cb||null; editFolderId=null; selIco='folder';
   var inp=gi('folder-name-inp'); if(inp) inp.value='';
   document.querySelectorAll('.ico-opt').forEach(function(el){ el.className='ico-opt'+(el.dataset.ico===selIco?' on':''); });
   var modal=gi('folder-modal'); if(modal) modal.className='modal-overlay on';
@@ -1062,7 +1089,7 @@ var icoPicker=document.getElementById('ico-picker'); if(icoPicker) icoPicker.add
 // SETTINGS
 function openCfg(){ pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); show('pane-cfg'); }
 function syncTG(t){ document.querySelectorAll('.topt').forEach(function(el){ el.className='topt'+(el.dataset.t===t?' on':''); }); }
-function updateWarn(t){ var w=gi('wbox'); if(t==='/'){ w.innerHTML='\u26A0\uFE0F <strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>;;</strong> instead.'; w.className='warn on'; }else if(/^[a-zA-Z0-9]$/.test(t)){ w.innerHTML='\u26A0\uFE0F Single alphanumeric triggers may cause false positives.'; w.className='warn on'; }else{ w.className='warn'; } }
+function updateWarn(t){ var w=gi('wbox'); if(t==='/'){ w.innerHTML='<strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>;;</strong> instead.'; w.className='warn on'; }else if(/^[a-zA-Z0-9]$/.test(t)){ w.innerHTML='Single alphanumeric triggers may cause false positives.'; w.className='warn on'; }else{ w.className='warn'; } }
 function updateInfo(t){ gi('itrig').textContent=t; gi('iex').textContent=t+'quoteEN'; }
 function applyTrig(){
   var custom=(gi('ctrig').value||'').trim(); var chosen=custom||pendT; if(!chosen) return;
@@ -1186,12 +1213,12 @@ function showLangPicker(snip){
   gi('lp-ttl').textContent = vc > 1 ? 'Which language?' : 'No variants yet';
   gi('lp-sub').textContent = vc > 1 ? snip.title + ' — ' + vc + ' versions' : 'Add from Edit view';
   var grid = gi('lp-grid'); var h = ''; var sel = snip.lang;
-  var colors = {EN:'var(--en)',ES:'var(--es)',IT:'var(--it)',FR:'#7c3aed'};
+  var colors = {EN:'var(--en)',ES:'var(--es)',IT:'var(--it)',FR:'var(--fr)'};
   LANGS.forEach(function(l){
     var vs = v[l]; var isCur = snip.lang === l;
     h += '<div class="lp-opt'+(vs?' lp-has':'')+(isCur?' lp-sel':'')+(vs?'':' lp-dis')+'" data-lang="'+l+'" data-id="'+(vs?vs.id:'')+'">'
       +'<div class="lp-dot" style="color:'+(colors[l]||'var(--tx2)')+'">'+l+'</div>'
-      +'<span class="lp-nm">'+LNAMES[l]+(vs?' ✓':'')+'</span></div>';
+      +'<span class="lp-nm">'+LNAMES[l]+(vs?' \u2713':'')+'</span></div>';
   });
   grid.innerHTML = h;
   grid.querySelectorAll('.lp-opt.lp-has').forEach(function(opt){
@@ -1213,7 +1240,7 @@ function showLangPicker(snip){
       DB.updateStats(target.id, target.stats.uses, target.stats.fills, target.stats.lastUsed);
       var nm = gi('iname-'+target.id);
       var orig = nm ? nm.textContent : target.title;
-      if(nm){ nm.textContent = '✓ ' + sc + ' copied!'; setTimeout(function(){if(nm)nm.textContent=orig;},1600); }
+      if(nm){ nm.textContent = sc + ' copied'; setTimeout(function(){if(nm)nm.textContent=orig;},1600); }
     }
   };
   gi('lp-bg').className = 'lp-bg on';
@@ -1221,7 +1248,7 @@ function showLangPicker(snip){
 
 function showToast(msg){
   var t=gi('toast');
-  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:6px 14px;border-radius:8px;font-size:11px;z-index:9999;opacity:0;transition:opacity .3s'; document.body.appendChild(t); }
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#18181B;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 4px 12px rgba(0,0,0,.15)'; document.body.appendChild(t); }
   t.textContent=msg; t.style.opacity='1';
   setTimeout(function(){ t.style.opacity='0'; },2000);
 }
@@ -1275,7 +1302,7 @@ if (syncNowBtn) {
   syncNowBtn.addEventListener('click', function() {
     syncNowBtn.disabled = true;
     syncNowBtn.textContent = '…';
-    _setSyncBar('🔄', 'Syncing now…', '#BA7517');
+    _setSyncBar('refresh', 'Syncing now\u2026', '#6C5CE7');
 
     chrome.storage.local.remove('sb_notion_sync_error');
     NotionSync.reset();
