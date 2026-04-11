@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.9.1 — Context Menus + Notion Sync ───
+// ── SPRINTBRAIN BACKGROUND v2.11.2 — Context Menus + Notion Sync ──
 importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';

@@ -1,5 +1,5 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.8 ───────────────────────────────
-// Configurable dual triggers + paste support + confetti celebration
+// ── SPRINTBRAIN CONTENT SCRIPT v2.11.2 ────────────────────────────
+// Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
 var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1};
@@ -1145,42 +1145,6 @@ document.addEventListener('scroll', function(e) {
   closeTriggerPicker();
 }, true);
 
-// ── PASTE EVENT HANDLER ───────────────────────────────────────────
-document.addEventListener('paste', function(e) {
-  if (overlayEl || triggerPickerEl) return;
-  var t = e.target;
-  var editable = false;
-  if (t) {
-    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') editable = true;
-    else if (t.isContentEditable || t.getAttribute('contenteditable') === 'true') editable = true;
-    else {
-      var p = t;
-      for (var i = 0; i < 6; i++) {
-        p = p.parentElement; if (!p) break;
-        if (p.isContentEditable || p.getAttribute('contenteditable') === 'true') { editable = true; break; }
-      }
-    }
-  }
-  if (!editable) return;
-
-  // Capture pasted text now — clipboardData is only available synchronously during the event
-  var pastedText = (e.clipboardData && e.clipboardData.getData('text')) || '';
-  if (!pastedText) return;
-
-  // Only trigger a snippet if the pasted text itself contains a shortcut
-  setTimeout(function() {
-    for (var i = 0; i < snippets.length; i++) {
-      var sc = snippets[i].shortcut || '';
-      if (sc && pastedText.indexOf(sc) > -1) {
-        activeEl = t;
-        buf = sc; // Prime the buffer with the matched shortcut
-        checkBuf();
-        return;
-      }
-    }
-  }, 10);
-}, true);
-
 // ── KEYBOARD LISTENER ──────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
   // Handle trigger picker keys first
@@ -1239,6 +1203,12 @@ document.addEventListener('input', function(e) {
   // Only handle text insertions, not deletions or composition commits
   var iType = e.inputType || '';
   if (iType && iType.indexOf('insert') === -1) return;
+
+  // Clear buffer on paste/drop to prevent partial trigger matches
+  if (iType === 'insertFromPaste' || iType === 'insertFromDrop') {
+    buf = '';
+    return;
+  }
 
   var data = e.data;
   if (!data || !data.length) return;

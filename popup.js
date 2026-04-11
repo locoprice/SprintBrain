@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.8 — Configurable dual triggers + Notion sync
+// SPRINTBRAIN POPUP v2.11.2 — Configurable dual triggers + Notion sync
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
