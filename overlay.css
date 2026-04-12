@@ -1,4 +1,4 @@
-/* ── SPRINTBRAIN OVERLAY v2.12.1 ─────────────────────────────────── */
+/* ── SPRINTBRAIN OVERLAY v2.12.3 ─────────────────────────────────── */
 /* Matches popup.html premium design tokens                          */
 #sprintbrain-overlay {
   background:#FFFFFF !important;
@@ -89,6 +89,8 @@
 #sprintbrain-overlay .sb-tip {
   font-size:10px !important;color:#A1A1AA !important;
 }
+#sb-trigger-picker .sb-tp-item:hover .sb-tp-dots{opacity:1 !important}
+#sb-trigger-picker .sb-tp-dots:hover{color:#6C5CE7 !important;background:rgba(108,92,231,.08) !important}
 @keyframes sbIn {
   0%{opacity:0;transform:translateY(6px)}
   100%{opacity:1;transform:translateY(0)}
