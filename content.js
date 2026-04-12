@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.12.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.12.1 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -306,6 +306,12 @@ var buf     = '';
 var MAX_BUF = 40;
 var activeEl = null;
 var processing = false;
+var triggerPending = false;
+var triggerPendingMode = null;   // 'snippet' | 'prompt'
+var triggerAffix = '';
+var triggerDebounceTimer = null;
+var TRIGGER_MIN_CHARS = 2;
+var TRIGGER_DEBOUNCE_MS = 400;
 
 function addKey(k) {
   if (k.length !== 1) return;
@@ -325,21 +331,56 @@ function checkBuf() {
       return;
     }
   }
-  // Check configurable snippet trigger (e.g. ::) — opens inline picker
+  // Check configurable snippet trigger (e.g. ::) — debounced pending state
   var snippetSeq = triggerCfg.snippetTrigger || '::';
-  if (buf.length >= snippetSeq.length && buf.slice(-snippetSeq.length) === snippetSeq) {
-    // Edge case: prevent :::
-    if (buf.length > snippetSeq.length && buf[buf.length - snippetSeq.length - 1] === snippetSeq[0]) return;
-    buf = '';
-    showTriggerPicker(activeEl, 'snippet', snippetSeq.length);
-    return;
-  }
-  // Check configurable prompt trigger (e.g. """)
-  var promptSeq = triggerCfg.promptTrigger || '"""';
-  if (buf.length >= promptSeq.length && buf.slice(-promptSeq.length) === promptSeq) {
-    if (buf.length > promptSeq.length && buf[buf.length - promptSeq.length - 1] === promptSeq[0]) return;
-    buf = '';
-    showTriggerPicker(activeEl, 'prompt', promptSeq.length);
+  if (!triggerPending) {
+    // Detect trigger sequence — enter pending state instead of showing picker
+    if (buf.length >= snippetSeq.length && buf.slice(-snippetSeq.length) === snippetSeq) {
+      if (buf.length > snippetSeq.length && buf[buf.length - snippetSeq.length - 1] === snippetSeq[0]) return;
+      triggerPending = true;
+      triggerPendingMode = 'snippet';
+      triggerAffix = '';
+      if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
+      return;
+    }
+    // Check configurable prompt trigger (e.g. """) — same debounced pattern
+    var promptSeq = triggerCfg.promptTrigger || '"""';
+    if (buf.length >= promptSeq.length && buf.slice(-promptSeq.length) === promptSeq) {
+      if (buf.length > promptSeq.length && buf[buf.length - promptSeq.length - 1] === promptSeq[0]) return;
+      triggerPending = true;
+      triggerPendingMode = 'prompt';
+      triggerAffix = '';
+      if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
+      return;
+    }
+  } else {
+    // We are in pending state — accumulate chars after the trigger
+    var lastChar = buf.slice(-1);
+    // If user types space or newline, cancel pending trigger
+    if (lastChar === ' ' || lastChar === '\n') {
+      triggerPending = false;
+      triggerPendingMode = null;
+      triggerAffix = '';
+      if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
+      return;
+    }
+    triggerAffix += lastChar;
+    if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
+    // Only show picker after minimum chars AND a pause in typing
+    if (triggerAffix.length >= TRIGGER_MIN_CHARS) {
+      var _pendingMode = triggerPendingMode;
+      var _pendingSeq = _pendingMode === 'snippet' ? snippetSeq : (triggerCfg.promptTrigger || '"""');
+      triggerDebounceTimer = setTimeout(function() {
+        if (!triggerPending) return;
+        var totalLen = _pendingSeq.length + triggerAffix.length;
+        var filterStr = triggerAffix;
+        triggerPending = false;
+        triggerPendingMode = null;
+        triggerAffix = '';
+        buf = '';
+        showTriggerPicker(activeEl, _pendingMode, totalLen, filterStr);
+      }, TRIGGER_DEBOUNCE_MS);
+    }
     return;
   }
 }
@@ -615,6 +656,10 @@ var overlayEl  = null;
 var overlayDone = null;
 
 function showOverlay(targetEl, snip, fields, done) {
+  triggerPending = false;
+  triggerPendingMode = null;
+  triggerAffix = '';
+  if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
   removeOverlay();
   overlayDone = done;
   var cfgs  = snip.fieldCfg || {};
@@ -989,13 +1034,13 @@ function _renderPickerItems(query) {
   });
 }
 
-function showTriggerPicker(el, mode, seqLen) {
+function showTriggerPicker(el, mode, seqLen, filterStr) {
   if (processing) return;
   closeTriggerPicker();
   triggerPickerTarget = el;
   triggerPickerMode   = mode;
   triggerPickerIdx    = 0;
-  triggerPickerQuery  = '';
+  triggerPickerQuery  = filterStr || '';
 
   deleteChars(el, seqLen, function() {
     var div = document.createElement('div');
@@ -1024,7 +1069,7 @@ function showTriggerPicker(el, mode, seqLen) {
 
     document.body.appendChild(div);
     triggerPickerEl = div;
-    _renderPickerItems('');
+    _renderPickerItems(triggerPickerQuery);
   });
 }
 
@@ -1070,6 +1115,10 @@ function closeTriggerPicker() {
   triggerPickerIdx      = 0;
   triggerPickerQuery    = '';
   triggerPickerFiltered = [];
+  triggerPending = false;
+  triggerPendingMode = null;
+  triggerAffix = '';
+  if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
 }
 
 function handleTriggerPickerKey(e) {
@@ -1158,6 +1207,15 @@ document.addEventListener('keydown', function(e) {
   // Skip our own elements
   if (t && t.closest && t.closest('#sb-overlay')) return;
   if (t && t.closest && t.closest('#sb-celebrate')) return;
+
+  // Cancel pending trigger on Escape
+  if (triggerPending && e.key === 'Escape') {
+    triggerPending = false;
+    triggerPendingMode = null;
+    triggerAffix = '';
+    if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+    return;
+  }
 
   // Handle special keys
   if (e.key === 'Backspace') { buf = buf.slice(0,-1); return; }
