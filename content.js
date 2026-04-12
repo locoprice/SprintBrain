@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.11.2 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.12.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
