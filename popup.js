@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.8 — Configurable dual triggers + Notion sync
+// SPRINTBRAIN POPUP v2.12.0 — Fix snippet persistence to chrome.storage.sync
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -15,7 +15,15 @@ function supaFetch(table, method, body, qs) {
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  return fetch(url, opts);
+  return fetch(url, opts).then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(t) {
+        console.error('[SprintBrain] supaFetch ' + method + ' ' + table + ' HTTP ' + r.status + ':', t);
+        return r;
+      });
+    }
+    return r;
+  });
 }
 
 var DB = {
@@ -261,6 +269,7 @@ function loadTrigger(cb){
   catch(e){ if(cb) cb(); }
 }
 function saveTrigger(){ try{ chrome.storage.sync.set({trigger:trig}); }catch(e){} }
+function syncSnippets(){ try{ chrome.storage.sync.set({snippets:snips}); }catch(e){ console.warn('syncSnippets:',e); } }
 
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
@@ -571,6 +580,7 @@ function boot() {
                   DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
                   console.log('[SprintBrain] Empty DB — seeding folders, waiting for Notion sync');
           }
+          syncSnippets();
           refreshUI();
     });
 
@@ -597,6 +607,7 @@ function boot() {
             }
             if (!exists) snips.push(ns);
           });
+          syncSnippets();
           refreshUI();
         }
       }
@@ -670,6 +681,7 @@ function _runNotionSync(cb, force) {
                   notionSnippets.forEach(function(ns) { DB.upsertSnippet(ns); });
 
                   if (changed) {
+                            syncSnippets();
                             refreshUI();
                             showToast('Notion synced \u2014 ' + notionSnippets.length + ' snippet(s) updated');
                   }
@@ -871,6 +883,7 @@ function openEd(id){
   _s('eurg-sc','value',urgSc);
   var uf=gi('urg-fields'); if(uf) uf.style.display = urgOn ? '' : 'none';
   var sk=gi('sok'); if(sk) sk.className='saveok';
+  initEditorLangTabs(s);
   updateSprev();
   show('pane-ed');
   setTimeout(function(){ var et=gi('etit'); if(et) et.focus(); },50);
@@ -885,7 +898,6 @@ function doSave(){
   var title=(gi('etit').value||'').trim();
   var word=(gi('ewrd').value||'').trim().replace(/^[^a-zA-Z0-9]+/,'');
   var body=gi('ebdy').value||'';
-  var lang=gi('elng').value||'EN';
   var folder=gi('efolder').value||'';
   var sc=trig+word;
   if(!title){ shake('etit'); return; }
@@ -893,6 +905,11 @@ function doSave(){
   var urgEnabled = gi('eurg').checked;
   var urgDurMs = Math.max(1, parseInt(gi('eurg-dur').value) || 30) * 60000;
   var urgSc = Math.max(0, parseInt(gi('eurg-sc').value) || 0);
+
+  // Capture current textarea into the active language buffer
+  edLangBuf[edLangActive] = body;
+  var lang = edLangActive;
+
   var isNew=!editId, toSave;
   if(isNew){
     toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
@@ -914,12 +931,47 @@ function doSave(){
   }
   if(!toSave) return;
   DB.upsertSnippet(toSave);
+  syncSnippets();
   if(isNew) {
     DB.updateStats(toSave.id,0,0,null);
     NotionPush.create(toSave);
   } else {
     NotionPush.update(toSave);
   }
+
+  // Save all other language variant buffers
+  var gid = toSave.lang_group_id || toSave.id;
+  LANGS.forEach(function(l) {
+    if (l === lang) return; // already saved above
+    if (edLangBuf[l] === undefined) return; // never touched
+    var existing = edLangVariants[l];
+    if (existing) {
+      // Update existing variant body
+      existing.body = edLangBuf[l];
+      existing.folder = folder;
+      existing.enable_urgency_timer = urgEnabled;
+      existing.timer_duration_ms = urgDurMs;
+      existing.scarcity_count = urgSc;
+      DB.upsertSnippet(existing);
+    } else {
+      // Create new variant
+      var baseTitle = title.replace(/\s*(EN|ES|IT|FR)$/, '');
+      var baseWord = word.replace(/(EN|ES|IT|FR)$/, '');
+      var ns = {
+        id: uid(), title: baseTitle + ' ' + l,
+        shortcut: trig + baseWord + l,
+        body: edLangBuf[l], lang: l, folder: folder,
+        fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
+        lang_group_id: gid, sort_order: snips.length + 1,
+        enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
+        scarcity_count: urgSc,
+        stats: { uses: 0, fills: 0, lastUsed: null }
+      };
+      snips.push(ns);
+      DB.upsertSnippet(ns);
+      DB.updateStats(ns.id, 0, 0, null);
+    }
+  });
   // Refresh context menus in background
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
   gi('sok').className='saveok on';
@@ -932,6 +984,7 @@ function doDel(){
   if(_delSnip && _delSnip.notion_page_id) NotionPush.archive(_delSnip.notion_page_id);
   DB.deleteSnippet(editId);
   snips=snips.filter(function(s){ return s.id!==editId; });
+  syncSnippets();
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
   show('pane-list'); refreshUI();
 }
@@ -1033,13 +1086,13 @@ var ctxDup=gi('ctx-duplicate'); if(ctxDup) ctxDup.addEventListener('click',funct
   var s=findSnip(ctxId); if(!s) return;
   var copy=JSON.parse(JSON.stringify(s)); copy.id=uid(); copy.title='Copy of '+copy.title; copy.shortcut+='2'; copy.stats={uses:0,fills:0,lastUsed:null};
   snips.splice(snips.indexOf(s)+1,0,copy); DB.upsertSnippet(copy); DB.updateStats(copy.id,0,0,null);
-  refreshUI(); closeCtxMenu();
+  syncSnippets(); refreshUI(); closeCtxMenu();
 });
 var ctxRen=gi('ctx-rename'); if(ctxRen) ctxRen.addEventListener('click',function(){ closeCtxMenu(); startInlineRename(ctxId); });
 var ctxDel=gi('ctx-delete'); if(ctxDel) ctxDel.addEventListener('click',function(){
   if(!ctxId||!confirm('Delete this snippet?')) return;
   DB.deleteSnippet(ctxId); snips=snips.filter(function(s){ return s.id!==ctxId; });
-  refreshUI(); closeCtxMenu();
+  syncSnippets(); refreshUI(); closeCtxMenu();
 });
 
 function startInlineRename(id){
@@ -1119,6 +1172,7 @@ on('brel','click',   function(){
   var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   DB.loadAll().then(function(data){
     if(data&&data.snippets&&data.snippets.length>0){ snips=data.snippets; if(data.folders&&data.folders.length>0) folders=data.folders; }
+    syncSnippets();
     refreshUI();
   });
 });
@@ -1126,7 +1180,7 @@ on('sq','input',    function(e){ renderList(e.target.value); });
 on('ewrd','input',  updateSprev);
 on('ebdy','keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();doSave();} });
 on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
-var cmdGrid=document.querySelector('.cmd-grid'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
+var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
 document.querySelectorAll('.topt').forEach(function(opt){
   opt.addEventListener('click',function(){ pendT=opt.dataset.t; gi('ctrig').value=pendT; syncTG(pendT); updateWarn(pendT); updateInfo(pendT); });
 });
@@ -1201,6 +1255,7 @@ function addLangVariant(targetLang){
   snips.push(ns);
   DB.upsertSnippet(ns);
   DB.updateStats(ns.id, 0, 0, null);
+  syncSnippets();
   selId = ns.id;
   openEd(ns.id);
   showToast(LNAMES[targetLang] + ' version created — edit it now!');
@@ -1245,6 +1300,91 @@ function showLangPicker(snip){
   };
   gi('lp-bg').className = 'lp-bg on';
 }
+
+// ── EDITOR LANGUAGE TABS ──────────────────────────────────────────
+var edLangBuf = {};      // {EN:'...', ES:'...', IT:'...', FR:'...'}
+var edLangActive = 'EN'; // currently active tab in editor
+var edLangVariants = {};  // {EN: snippetObj, ES: snippetObj, ...}
+
+function initEditorLangTabs(snip) {
+  edLangBuf = {};
+  edLangVariants = {};
+  edLangActive = snip ? (snip.lang || 'EN') : 'EN';
+  if (snip) {
+    edLangVariants = findVariants(snip);
+    LANGS.forEach(function(l) {
+      if (edLangVariants[l]) edLangBuf[l] = edLangVariants[l].body || '';
+    });
+  }
+  // Set current snippet body into its lang buffer
+  if (snip) edLangBuf[edLangActive] = snip.body || '';
+  refreshLangTabs();
+}
+
+function refreshLangTabs() {
+  var tabs = document.querySelectorAll('#lang-sidebar .lang-tab');
+  tabs.forEach(function(tab) {
+    var l = tab.dataset.lang;
+    tab.classList.toggle('on', l === edLangActive);
+    tab.classList.toggle('has-content', !!(edLangBuf[l] && edLangBuf[l].trim()));
+  });
+  // Sync the language dropdown
+  var el = gi('elng');
+  if (el) el.value = edLangActive;
+  // Show/hide textarea vs empty state
+  var ta = gi('ebdy');
+  var emp = gi('lang-empty');
+  var hasContent = edLangBuf[edLangActive] !== undefined;
+  if (ta) ta.style.display = hasContent ? '' : 'none';
+  if (emp) {
+    emp.classList.toggle('on', !hasContent);
+    emp.querySelector('.lang-empty-txt').innerHTML = 'No <b>' + LNAMES[edLangActive] + '</b> content yet.<br>Click to start writing.';
+  }
+}
+
+function switchEditorLang(lang) {
+  if (lang === edLangActive) return;
+  // Save current textarea content to buffer
+  var ta = gi('ebdy');
+  if (ta) edLangBuf[edLangActive] = ta.value || '';
+  edLangActive = lang;
+  // Load target language content
+  if (ta) {
+    var content = edLangBuf[lang];
+    if (content !== undefined) {
+      ta.value = content;
+      ta.style.display = '';
+      var emp = gi('lang-empty');
+      if (emp) emp.classList.remove('on');
+    }
+  }
+  // Sync language dropdown
+  var el = gi('elng');
+  if (el) el.value = lang;
+  refreshLangTabs();
+}
+
+function editorLangEmptyClick() {
+  // Create empty buffer entry and show textarea
+  edLangBuf[edLangActive] = '';
+  var ta = gi('ebdy');
+  var emp = gi('lang-empty');
+  if (ta) { ta.value = ''; ta.style.display = ''; ta.focus(); }
+  if (emp) emp.classList.remove('on');
+  refreshLangTabs();
+}
+
+// Wire up sidebar tab clicks + dropdown sync
+(function() {
+  var tabs = document.querySelectorAll('#lang-sidebar .lang-tab');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() { switchEditorLang(tab.dataset.lang); });
+  });
+  var emp = gi('lang-empty');
+  if (emp) emp.addEventListener('click', editorLangEmptyClick);
+  var elng = gi('elng');
+  if (elng) elng.addEventListener('change', function() { switchEditorLang(elng.value); });
+})();
 
 function showToast(msg){
   var t=gi('toast');
