@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.12.3 — Fix snippet persistence to chrome.storage.sync
+// SPRINTBRAIN POPUP v2.12.4 — Notion deletion detection on sync
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -679,6 +679,33 @@ function _runNotionSync(cb, force) {
                   // Always persist all Notion snippets to Supabase so they
                   // survive popup reload even when debounce blocks re-sync
                   notionSnippets.forEach(function(ns) { DB.upsertSnippet(ns); });
+
+                  // Deletion detection: remove snippets that came from Notion
+                  // but are no longer in the Notion response (deleted in Notion)
+                  if (success && notionSnippets.length > 0) {
+                    var notionIds = {};
+                    notionSnippets.forEach(function(ns) {
+                      if (ns.notion_page_id) notionIds[ns.notion_page_id] = true;
+                    });
+
+                    var toDelete = [];
+                    snips.forEach(function(s) {
+                      if (s.notion_page_id && !notionIds[s.notion_page_id]) {
+                        toDelete.push(s.id);
+                      }
+                    });
+
+                    if (toDelete.length > 0) {
+                      toDelete.forEach(function(id) {
+                        snips = snips.filter(function(s) { return s.id !== id; });
+                      });
+                      _saveLocalCache();
+                      toDelete.forEach(function(id) { DB.deleteSnippet(id); });
+                      changed = true;
+                      console.log('[SprintBrain] Removed', toDelete.length,
+                        'snippet(s) deleted in Notion');
+                    }
+                  }
 
                   if (changed) {
                             syncSnippets();
