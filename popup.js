@@ -849,7 +849,7 @@ function renderList(q){
       +'<div class="iname" id="iname-'+s.id+'">'+esc(baseTitle)+'</div>'
       +'<div style="display:flex;gap:4px;margin-top:2px">'+usesBadge+fillsBadge+pillsHtml+'</div>'
       +'</div>'
-      +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc((s.shortcut||'').replace(trig,''))+'</span>'
+      +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc((s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''))+'</span>'
       +'<span class="lb '+esc(s.lang||'EN')+'">'+esc(s.lang||'EN')+'</span>'
       +'<button class="iedit" data-eid="'+s.id+'">Edit</button>'
       +'<button class="idots" data-dots="'+s.id+'" title="More actions">\u22EF</button>'
