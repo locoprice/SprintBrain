@@ -251,7 +251,7 @@ var DEFAULT_SNIPPETS = [
 
 // ── STATE ──────────────────────────────────────────────────────────
 var snippets = DEFAULT_SNIPPETS.slice();
-var trigger  = ';;';
+var trigger  = '::';
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 
