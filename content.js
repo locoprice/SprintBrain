@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.13.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.13.1 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -281,8 +281,12 @@ function resolveVariant(variants, preferred) {
 }
 
 // ── LOAD FROM STORAGE ──────────────────────────────────────────────
+// Snippets live in chrome.storage.local (5MB) because the array exceeds
+// chrome.storage.sync's 8KB per-item limit (silent failure otherwise).
+// Small settings (trigger, triggerCfg, default lang) remain in sync so
+// they roam across devices. Cross-device snippet sync goes through Supabase.
 try {
-  chrome.storage.sync.get(['snippets','trigger','triggerCfg','sb_default_lang'], function(data) {
+  chrome.storage.sync.get(['trigger','triggerCfg','sb_default_lang'], function(data) {
     try {
       if (data && data.trigger) trigger = data.trigger;
       if (data && data.sb_default_lang) defaultLang = data.sb_default_lang;
@@ -292,16 +296,36 @@ try {
         if (data.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = data.triggerCfg.snippetActivationKey;
         if (data.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = data.triggerCfg.promptActivationKey;
       }
-      if (data && data.snippets && data.snippets.length > 0) {
-        snippets = data.snippets;
-      } else {
-        chrome.storage.sync.set({snippets: DEFAULT_SNIPPETS, trigger: trigger});
-      }
-      console.log('[Sprintbrain v2.13] \u26a1 trigger:"' + trigger + '" snippetTrigger:"' + triggerCfg.snippetTrigger + '" promptTrigger:"' + triggerCfg.promptTrigger + '" defaultLang:"' + defaultLang + '" snippets:' + snippets.length);
     } catch(e) {}
   });
-  chrome.storage.onChanged.addListener(function(changes) {
+
+  chrome.storage.local.get('snippets', function(data) {
     try {
+      if (data && data.snippets && data.snippets.length > 0) {
+        snippets = data.snippets;
+        console.log('[Sprintbrain v2.13.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
+      } else {
+        // Migration: check if sync has a stale snippets copy from pre-v2.13.1
+        chrome.storage.sync.get('snippets', function(sd) {
+          if (sd && sd.snippets && sd.snippets.length > 0) {
+            snippets = sd.snippets;
+            console.log('[Sprintbrain v2.13.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            chrome.storage.local.set({snippets: snippets}, function() {
+              chrome.storage.sync.remove('snippets');
+            });
+          } else {
+            snippets = DEFAULT_SNIPPETS.slice();
+            chrome.storage.local.set({snippets: snippets});
+            console.log('[Sprintbrain v2.13.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+          }
+        });
+      }
+    } catch(e) {}
+  });
+
+  chrome.storage.onChanged.addListener(function(changes, areaName) {
+    try {
+      // Snippets only fire from local (areaName === 'local'); small settings from sync.
       if (changes.snippets && changes.snippets.newValue) snippets = changes.snippets.newValue;
       if (changes.trigger  && changes.trigger.newValue)  trigger  = changes.trigger.newValue;
       if (changes.sb_default_lang && changes.sb_default_lang.newValue) defaultLang = changes.sb_default_lang.newValue;
@@ -1145,13 +1169,13 @@ function _handlePickerAction(action, item) {
     try { navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); } catch(e) {}
   } else if (action === 'pin') {
     item.pinned = !item.pinned;
-    // Persist via storage sync
-    chrome.storage.sync.get('snippets', function(d) {
+    // Persist to local (snippets > 8KB exceed sync per-item limit)
+    chrome.storage.local.get('snippets', function(d) {
       var arr = d.snippets || [];
       for (var i = 0; i < arr.length; i++) {
         if (arr[i].id === item.id) { arr[i].pinned = item.pinned; break; }
       }
-      chrome.storage.sync.set({snippets: arr});
+      chrome.storage.local.set({snippets: arr});
     });
     _renderPickerItems(triggerPickerQuery);
   } else if (action === 'duplicate') {
@@ -1160,31 +1184,31 @@ function _handlePickerAction(action, item) {
     copy.title = 'Copy of ' + copy.title;
     copy.shortcut = (copy.shortcut || '') + '2';
     snippets.push(copy);
-    chrome.storage.sync.get('snippets', function(d) {
+    chrome.storage.local.get('snippets', function(d) {
       var arr = d.snippets || [];
       arr.push(copy);
-      chrome.storage.sync.set({snippets: arr});
+      chrome.storage.local.set({snippets: arr});
     });
     _renderPickerItems(triggerPickerQuery);
   } else if (action === 'rename') {
     var newName = prompt('Rename snippet:', item.title);
     if (newName && newName.trim()) {
       item.title = newName.trim();
-      chrome.storage.sync.get('snippets', function(d) {
+      chrome.storage.local.get('snippets', function(d) {
         var arr = d.snippets || [];
         for (var i = 0; i < arr.length; i++) {
           if (arr[i].id === item.id) { arr[i].title = item.title; break; }
         }
-        chrome.storage.sync.set({snippets: arr});
+        chrome.storage.local.set({snippets: arr});
       });
       _renderPickerItems(triggerPickerQuery);
     }
   } else if (action === 'delete') {
     if (!confirm('Delete snippet "' + item.title + '"?')) return;
     snippets = snippets.filter(function(s) { return s.id !== item.id; });
-    chrome.storage.sync.get('snippets', function(d) {
+    chrome.storage.local.get('snippets', function(d) {
       var arr = (d.snippets || []).filter(function(s) { return s.id !== item.id; });
-      chrome.storage.sync.set({snippets: arr});
+      chrome.storage.local.set({snippets: arr});
     });
     _renderPickerItems(triggerPickerQuery);
   }

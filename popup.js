@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.13.0 — Default language preference + fallback logic
+// SPRINTBRAIN POPUP v2.13.1 — Snippet storage moved to chrome.storage.local (8KB sync limit fix)
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -296,7 +296,21 @@ function loadTrigger(cb){
   catch(e){ if(cb) cb(); }
 }
 function saveTrigger(){ try{ chrome.storage.sync.set({trigger:trig}); }catch(e){} }
-function syncSnippets(){ try{ chrome.storage.sync.set({snippets:snips}); }catch(e){ console.warn('syncSnippets:',e); } }
+// Snippets are stored in chrome.storage.local (5MB) because the array exceeds
+// chrome.storage.sync's 8KB per-item limit, causing silent write failures.
+// Cross-device sync is handled by Supabase, not chrome.storage.sync.
+function syncSnippets(){
+  try{
+    chrome.storage.local.set({snippets:snips}, function(){
+      if(chrome.runtime.lastError) console.warn('syncSnippets local:', chrome.runtime.lastError.message);
+    });
+    // Also clear any stale snippets in sync (from pre-v2.13.1 versions) so
+    // content.js doesn't accidentally fall back to an out-of-date list.
+    chrome.storage.sync.remove('snippets', function(){
+      if(chrome.runtime.lastError) { /* ignore: key may not exist */ }
+    });
+  }catch(e){ console.warn('syncSnippets:',e); }
+}
 
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
