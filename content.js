@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.12.4 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.13.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -265,11 +265,27 @@ var PROMPT_TEMPLATES = [
   { id: 'bullet', title: 'Convert to bullets', body: '\u2022 ' }
 ];
 
+// ── DEFAULT LANGUAGE PREFERENCE ────────────────────────────────────
+var defaultLang = 'EN';
+
+// Resolve which variant to use for an insertion, with fallback chain.
+// variants: { EN: snip, ES: snip, ... }, preferred: 'IT', etc.
+function resolveVariant(variants, preferred) {
+  if (!variants) return null;
+  var order = [preferred, 'EN', 'ES', 'IT', 'FR'];
+  for (var i = 0; i < order.length; i++) {
+    var v = variants[order[i]];
+    if (v && v.body && v.body.trim()) return v;
+  }
+  return null;
+}
+
 // ── LOAD FROM STORAGE ──────────────────────────────────────────────
 try {
-  chrome.storage.sync.get(['snippets','trigger','triggerCfg'], function(data) {
+  chrome.storage.sync.get(['snippets','trigger','triggerCfg','sb_default_lang'], function(data) {
     try {
       if (data && data.trigger) trigger = data.trigger;
+      if (data && data.sb_default_lang) defaultLang = data.sb_default_lang;
       if (data && data.triggerCfg) {
         if (data.triggerCfg.snippetTrigger) triggerCfg.snippetTrigger = data.triggerCfg.snippetTrigger;
         if (data.triggerCfg.promptTrigger) triggerCfg.promptTrigger = data.triggerCfg.promptTrigger;
@@ -281,13 +297,14 @@ try {
       } else {
         chrome.storage.sync.set({snippets: DEFAULT_SNIPPETS, trigger: trigger});
       }
-      console.log('[Sprintbrain v2.8] \u26a1 trigger:"' + trigger + '" snippetTrigger:"' + triggerCfg.snippetTrigger + '" promptTrigger:"' + triggerCfg.promptTrigger + '" snippets:' + snippets.length);
+      console.log('[Sprintbrain v2.13] \u26a1 trigger:"' + trigger + '" snippetTrigger:"' + triggerCfg.snippetTrigger + '" promptTrigger:"' + triggerCfg.promptTrigger + '" defaultLang:"' + defaultLang + '" snippets:' + snippets.length);
     } catch(e) {}
   });
   chrome.storage.onChanged.addListener(function(changes) {
     try {
       if (changes.snippets && changes.snippets.newValue) snippets = changes.snippets.newValue;
       if (changes.trigger  && changes.trigger.newValue)  trigger  = changes.trigger.newValue;
+      if (changes.sb_default_lang && changes.sb_default_lang.newValue) defaultLang = changes.sb_default_lang.newValue;
       if (changes.triggerCfg && changes.triggerCfg.newValue) {
         var nc = changes.triggerCfg.newValue;
         if (nc.snippetTrigger) triggerCfg.snippetTrigger = nc.snippetTrigger;

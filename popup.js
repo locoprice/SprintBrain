@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.12.4 — Notion deletion detection on sync
+// SPRINTBRAIN POPUP v2.13.0 — Default language preference + fallback logic
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -51,6 +51,8 @@ var DB = {
             timer_duration_ms: s.timer_duration_ms || 0,
             scarcity_count: s.scarcity_count || 0,
             notion_page_id: s.notion_page_id || null,
+            manually_edited: s.manually_edited || false,
+            ai_generated: s.ai_generated || false,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -66,7 +68,9 @@ var DB = {
       enable_urgency_timer: s.enable_urgency_timer || false,
       timer_duration_ms: s.timer_duration_ms || 0,
       scarcity_count: s.scarcity_count || 0,
-      notion_page_id: s.notion_page_id || null
+      notion_page_id: s.notion_page_id || null,
+      manually_edited: s.manually_edited || false,
+      ai_generated: s.ai_generated || false
     }).catch(function(e) { console.warn('upsertSnippet:', e); });
   },
   deleteSnippet: function(id) {
@@ -86,6 +90,29 @@ var DB = {
     }).catch(function(e) { console.warn('updateStats:', e); });
   }
 };
+
+// ── USER PREFERENCES ──────────────────────────────────────────────
+var userPrefs = { defaultLang: 'EN', aiProvider: 'anthropic', aiModel: 'claude-sonnet-4-20250514', aiApiKey: '' };
+
+function loadUserPrefs(cb) {
+  chrome.storage.local.get('sb_user_prefs', function(d) {
+    if (d && d.sb_user_prefs) {
+      var p = d.sb_user_prefs;
+      if (p.defaultLang) userPrefs.defaultLang = p.defaultLang;
+      if (p.aiProvider) userPrefs.aiProvider = p.aiProvider;
+      if (p.aiModel) userPrefs.aiModel = p.aiModel;
+      if (p.aiApiKey) userPrefs.aiApiKey = p.aiApiKey;
+    }
+    // Sync default language to chrome.storage.sync for content.js
+    try { chrome.storage.sync.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
+    if (cb) cb();
+  });
+}
+
+function saveUserPrefs() {
+  chrome.storage.local.set({ sb_user_prefs: userPrefs });
+  try { chrome.storage.sync.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
+}
 
 // DEFAULT DATA
 var DEFAULT_FOLDERS = [
@@ -568,6 +595,11 @@ function boot() {
           var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
           var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
           var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+    });
+
+    loadUserPrefs(function() {
+      var dl = gi('cfg-default-lang');
+      if (dl) dl.value = userPrefs.defaultLang;
     });
 
     var st = gi('st');   if (st) st.textContent = '● Syncing…';
@@ -1251,6 +1283,8 @@ function applyTrig(){
   // Sync: update snippetTrigger to match trigger prefix (single source of truth)
   triggerCfg.snippetTrigger=chosen; saveTriggerCfg();
   var s=gi('tcfg-snip'); if(s) s.value=chosen;
+  // Save default language preference
+  var dl=gi('cfg-default-lang'); if(dl) { userPrefs.defaultLang=dl.value; saveUserPrefs(); }
   show('pane-list'); refreshUI();
 }
 
@@ -1408,7 +1442,7 @@ var edLangVariants = {};  // {EN: snippetObj, ES: snippetObj, ...}
 function initEditorLangTabs(snip) {
   edLangBuf = {};
   edLangVariants = {};
-  edLangActive = snip ? (snip.lang || 'EN') : 'EN';
+  edLangActive = snip ? (snip.lang || userPrefs.defaultLang || 'EN') : (userPrefs.defaultLang || 'EN');
   if (snip) {
     edLangVariants = findVariants(snip);
     LANGS.forEach(function(l) {
