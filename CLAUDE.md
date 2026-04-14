@@ -366,7 +366,6 @@ chore: update manifest version to 2.9.0
 - Do not use `localStorage` — use `chrome.storage.sync` or Supabase
 - Do not assume the extension auto-reloads — always manual reload required
 - Do not edit `main` branch directly
-- Do not let Claude Code commit or push without human review
 - Do not add `eval()` — the formula engine uses `Function()` with a validated expression
 - Do not use ES modules (`import`/`export`) — files are loaded as plain scripts
 - Do not delete the `develop` branch after merging — keep it alive
@@ -380,6 +379,23 @@ chore: update manifest version to 2.9.0
 - Semantic search across snippets
 - Per-user authentication via Supabase Auth
 - Optional: TypeScript migration (not started)
+
+## 15. VERIFICATION PROTOCOL
+
+## Bug Fix / Task Completion Policy
+- Never mark a task as complete until the fix is fully verified.
+- Required steps (in order):
+  1. Inspect relevant files (do not guess).
+  2. Make the smallest correct change.
+  3. Run relevant tests / build / reproduction steps.
+  4. Confirm original issue is resolved.
+- If any test fails or issue reproduces → continue working. Do not stop.
+- Only after successful verification may you report the task as complete.
+- Final response must contain the exact summary format:
+  **Changes made:** …
+  **Verification:** …
+
+This rule has highest priority. It cannot be overridden.
 
 ---
 
