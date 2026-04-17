@@ -6,7 +6,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 
 /* ══════════════════════════════════════════════════════════════════
-   SPRINTBRAIN v2.12.3 — PREMIUM DESIGN SYSTEM
+   SPRINTBRAIN v2.13.1 — PREMIUM DESIGN SYSTEM
    Inspired by: Anthropic Claude · Google Material 3 · Revolut
    ══════════════════════════════════════════════════════════════════ */
 
@@ -105,7 +105,8 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
 .item.ctx-open{background:var(--bg2)}
 .iname{font-size:13px;font-weight:500;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .iname-edit{font-size:13px;font-weight:500;color:var(--tx);flex:1;border:1px solid var(--ac);border-radius:6px;padding:2px 8px;outline:none;background:var(--ac-bg);font-family:inherit;width:180px}
-.isc{font-size:10px;font-weight:600;color:var(--ac);font-family:var(--mono);background:var(--ac-bg);border:1px solid var(--ac-bdr);border-radius:20px;padding:2px 8px;flex-shrink:0;max-width:100px;overflow:hidden;text-overflow:ellipsis}
+.isc{font-size:10px;font-weight:600;color:var(--ac);font-family:var(--mono);background:var(--ac-bg);border:1px solid var(--ac-bdr);border-radius:20px;padding:2px 8px;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.isc-pfx{opacity:.45;font-weight:400}
 .lb{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;flex-shrink:0}
 .EN{background:#2563EB14;color:var(--en);border:1px solid #2563EB33}
 .ES{background:#EA580C14;color:var(--es);border:1px solid #EA580C33}
@@ -343,7 +344,7 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
       <span class="ic ic-sm"><svg><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
       <input class="sinp" id="sq" placeholder="Search snippets or /shortcut...">
     </div>
-    <div class="tpill" id="tp">;;</div>
+    <div class="tpill" id="tp">::</div>
   </div>
   <div class="body">
     <div class="sb">
@@ -352,7 +353,7 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
       <div class="sb-add" id="btn-new-folder"><span class="ic ic-sm"><svg><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> New folder</div>
     </div>
     <div class="main">
-      <div class="hint">Type <strong id="hint-ex">;;quoteEN</strong> &middot; right-click for options</div>
+      <div class="hint">Type <strong id="hint-ex">::quoteEN</strong> &middot; right-click for options</div>
       <div class="list" id="list"></div>
     </div>
   </div>
@@ -373,8 +374,8 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
     <div><div class="lbl">Title</div><input class="einp" id="etit" placeholder="e.g. ESTIMATE B2C"></div>
     <div>
       <div class="lbl">Shortcut</div>
-      <div class="scrow"><div class="scpfx" id="spfx">;;</div><input id="ewrd" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
-      <div class="schint">Full shortcut: <strong id="sprev">;;quoteEN</strong></div>
+      <div class="scrow"><div class="scpfx" id="spfx">::</div><input id="ewrd" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
+      <div class="schint">Full shortcut: <strong id="sprev">::quoteEN</strong></div>
     </div>
     <div class="row2">
       <div style="flex:1"><div class="lbl">Language</div>
@@ -434,15 +435,15 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
   <div style="padding:16px;overflow-y:auto;height:420px">
     <div class="lbl" style="margin-bottom:8px">Trigger character</div>
     <div class="tgrid">
-      <div class="topt on" data-t=";;"><span class="tk">;;</span><span class="td">Recommended<br>Zero conflicts</span></div>
-      <div class="topt" data-t="::"><span class="tk">::</span><span class="td">Professional</span></div>
+      <div class="topt" data-t=";;"><span class="tk">;;</span><span class="td">Zero conflicts</span></div>
+      <div class="topt on" data-t="::"><span class="tk">::</span><span class="td">Recommended</span></div>
       <div class="topt" data-t="!!"><span class="tk">!!</span><span class="td">Easy to type</span></div>
     </div>
     <div><div class="lbl" style="margin-bottom:6px">Custom trigger</div>
-      <input class="einp" id="ctrig" placeholder=";;" maxlength="4" spellcheck="false" autocomplete="off"
+      <input class="einp" id="ctrig" placeholder="::" maxlength="4" spellcheck="false" autocomplete="off"
         style="font-family:var(--mono);font-weight:700;font-size:16px;text-align:center;letter-spacing:2px"></div>
     <div class="warn" id="wbox"></div>
-    <div class="ibox">Active: <strong id="itrig">;;</strong> &middot; Example: <strong id="iex">;;quoteEN</strong></div>
+    <div class="ibox">Active: <strong id="itrig">::</strong> &middot; Example: <strong id="iex">::quoteEN</strong></div>
 
     <!-- DUAL TRIGGER CONFIG -->
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--bdr)">
@@ -499,6 +500,20 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
         <span style="font-size:11px;color:var(--tx);min-width:65px">DB ID</span>
         <input class="einp" id="notion-db" placeholder="abc123..." spellcheck="false" autocomplete="off"
           style="flex:1;font-size:11px;padding:6px 8px">
+      </div>
+    </div>
+
+    <!-- DEFAULT LANGUAGE -->
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--bdr)">
+      <div class="lbl" style="margin-bottom:8px;color:var(--ac)">Default Language</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:var(--tx);min-width:80px;display:flex;align-items:center;gap:4px"><span class="ic ic-sm" style="color:var(--ac)"><svg><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span> Language</span>
+        <select class="einp" id="cfg-default-lang" style="width:130px;padding:6px 8px;font-size:11px">
+          <option value="EN">English</option><option value="ES">Espa&ntilde;ol</option><option value="IT">Italiano</option><option value="FR">Fran&ccedil;ais</option>
+        </select>
+      </div>
+      <div style="font-size:10px;color:var(--tx3);line-height:1.6">
+        Pre-selects this language when creating snippets and at trigger time.
       </div>
     </div>
   </div>
@@ -571,8 +586,8 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
 
 <!-- ═══ VERSION BAR ═══ -->
 <div style="padding:4px 16px;background:var(--bg2);border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
-  <button class="ver-btn" id="ver-btn">v2.12.3</button>
-  <span style="font-size:10px;color:var(--tx3)">2026-04-12</span>
+  <button class="ver-btn" id="ver-btn">v2.13.1</button>
+  <span style="font-size:10px;color:var(--tx3)">2026-04-13</span>
 </div>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->
