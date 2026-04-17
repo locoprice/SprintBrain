@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- SprintBrain Mobile v2.11.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -139,6 +140,111 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px}
 #copy-btn:active{transform:scale(.97)}
 #copy-btn.ok{background:var(--success)}
+
+/* ── THREE-DOT MENU BUTTON ─────────────────────── */
+.snip-card{position:relative;padding-right:52px}
+.snip-menu{
+  position:absolute;top:8px;right:8px;
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:none;cursor:pointer;
+  color:var(--text2);font-size:22px;font-weight:700;line-height:1;
+  padding:0;border-radius:50%;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s;user-select:none
+}
+.snip-menu:active{background:rgba(0,0,0,.08)}
+.snip-menu:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+
+/* ── BOTTOM SHEET ──────────────────────────────── */
+.sb-hidden{display:none !important}
+.sb-bottom-sheet{position:fixed;inset:0;z-index:9998}
+.sb-sheet-backdrop{
+  position:absolute;inset:0;background:rgba(0,0,0,.5);
+  opacity:0;transition:opacity .3s ease
+}
+.sb-bottom-sheet.sb-open .sb-sheet-backdrop{opacity:1}
+.sb-sheet-panel{
+  position:absolute;left:0;right:0;bottom:0;
+  background:var(--card);
+  border-radius:16px 16px 0 0;
+  padding:0 0 calc(8px + env(safe-area-inset-bottom));
+  transform:translateY(100%);
+  transition:transform .3s ease;
+  box-shadow:0 -4px 24px rgba(0,0,0,.18);
+  touch-action:pan-y
+}
+.sb-bottom-sheet.sb-open .sb-sheet-panel{transform:translateY(0)}
+.sb-sheet-handle{
+  width:36px;height:4px;background:var(--border);
+  border-radius:2px;margin:10px auto 6px;
+  touch-action:none;cursor:grab
+}
+.sb-sheet-handle-area{padding:6px 0;display:flex;justify-content:center;touch-action:none}
+.sb-sheet-title{
+  font-size:15px;font-weight:600;color:var(--text);
+  padding:6px 20px 10px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.sb-sheet-actions{list-style:none;margin:0;padding:0}
+.sb-sheet-actions li{
+  padding:16px 20px;font-size:16px;color:var(--text);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;gap:12px;
+  border-top:1px solid var(--border);user-select:none;
+  min-height:44px
+}
+.sb-sheet-actions li:active{background:var(--bg)}
+.sb-action-danger{color:#E74C3C !important}
+
+/* ── EDIT MODAL ────────────────────────────────── */
+.sb-edit-modal{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  height:100dvh;
+  display:flex;flex-direction:column
+}
+.sb-modal-header{
+  background:var(--primary);color:#fff;flex-shrink:0;
+  padding:8px 8px;
+  padding-top:calc(8px + env(safe-area-inset-top));
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.15)
+}
+.sb-modal-header button{
+  background:none;border:none;color:#fff;font-size:16px;font-weight:600;
+  cursor:pointer;padding:10px 14px;border-radius:8px;
+  -webkit-tap-highlight-color:transparent;min-height:44px
+}
+.sb-modal-header button:active{background:rgba(255,255,255,.15)}
+#sb-modal-cancel{font-size:20px;line-height:1}
+.sb-modal-title{
+  flex:1;font-size:16px;font-weight:700;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#sb-modal-save{font-weight:700}
+#sb-modal-save.saved{color:var(--success);background:rgba(255,255,255,.1)}
+.sb-modal-body{
+  flex:1;display:flex;flex-direction:column;
+  overflow-y:auto;padding:16px;gap:12px
+}
+.sb-modal-body input,
+.sb-modal-body textarea{
+  width:100%;padding:14px;font-size:16px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-in);color:var(--text);
+  font-family:inherit;outline:none;
+  -webkit-appearance:none;appearance:none
+}
+.sb-modal-body input:focus,
+.sb-modal-body textarea:focus{border-color:var(--primary)}
+.sb-modal-body textarea{
+  flex:1;min-height:200px;resize:none;
+  line-height:1.5
+}
+.sb-modal-err{
+  color:#E74C3C;font-size:14px;padding:0 4px;min-height:18px
+}
 </style>
 </head>
 <body>
@@ -197,6 +303,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
       <span id="cico">📋</span>
       <span id="clbl">Copy to clipboard</span>
     </button>
+  </div>
+</div>
+
+<!-- BOTTOM SHEET -->
+<div id="sb-bottom-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-sheet-snippet-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
+    <ul class="sb-sheet-actions">
+      <li data-action="use">▶ Use</li>
+      <li data-action="copy">📋 Copy</li>
+      <li data-action="edit">✏️ Edit</li>
+      <li data-action="share">↗ Share</li>
+      <li data-action="delete" class="sb-action-danger">🗑 Delete</li>
+    </ul>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="sb-edit-modal" class="sb-edit-modal sb-hidden" role="dialog" aria-modal="true" aria-labelledby="sb-modal-title-text">
+  <div class="sb-modal-header">
+    <button id="sb-modal-cancel" type="button" aria-label="Cancel">✕</button>
+    <span class="sb-modal-title" id="sb-modal-title-text">Edit Snippet</span>
+    <button id="sb-modal-save" type="button">Save</button>
+  </div>
+  <div class="sb-modal-body">
+    <input type="text" id="sb-edit-title" placeholder="Snippet title..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <input type="text" id="sb-edit-shortcut" placeholder="Shortcut (e.g. /greet)" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="sb-modal-err" id="sb-edit-err"></div>
+    <textarea id="sb-edit-body" placeholder="Snippet body..." autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
   </div>
 </div>
 
@@ -389,7 +528,7 @@ function renderList(){
   }
   el.innerHTML=list.map(function(s){
     var lang=s.lang||'EN';
-    return '<button class="snip-card" data-id="'+esc(s.id)+'">'
+    return '<div class="snip-card" data-id="'+esc(s.id)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+getIcon(s)+'</div>'
       +'<div class="snip-info">'
         +'<div class="snip-title">'+esc(s.title||s.id)+'</div>'
@@ -398,14 +537,29 @@ function renderList(){
           +'<span class="lbadge l'+esc(lang)+'">'+esc(lang)+'</span>'
         +'</div>'
       +'</div>'
-      +'<span class="snip-arr">›</span>'
-    +'</button>';
+      +'<button type="button" class="snip-menu" data-menu-id="'+esc(s.id)+'" aria-label="More actions">⋮</button>'
+    +'</div>';
   }).join('');
-  el.querySelectorAll('.snip-card').forEach(function(btn){
-    btn.addEventListener('click',function(){
+  el.querySelectorAll('.snip-card').forEach(function(card){
+    card.addEventListener('click',function(e){
+      if(e.target.closest('.snip-menu'))return;
       var id=this.getAttribute('data-id');
       var s=allSnips.find(function(x){return x.id===id;});
       if(s)openDetail(s);
+    });
+    card.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();
+        var id=this.getAttribute('data-id');
+        var s=allSnips.find(function(x){return x.id===id;});
+        if(s)openDetail(s);
+      }
+    });
+  });
+  el.querySelectorAll('.snip-menu').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      openBottomSheet(this.getAttribute('data-menu-id'));
     });
   });
 }
@@ -526,6 +680,203 @@ window.addEventListener('popstate',function(){
   if(document.getElementById('view-detail').classList.contains('active')){
     document.getElementById('back-btn').click();
   }
+});
+
+/* ── BOTTOM SHEET ───────────────────────────────── */
+var sheetSnip=null;
+
+function openBottomSheet(id){
+  var s=allSnips.find(function(x){return x.id===id;});
+  if(!s)return;
+  sheetSnip=s;
+  document.getElementById('sb-sheet-snippet-title').textContent=s.title||s.id;
+  var sh=document.getElementById('sb-bottom-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+}
+function closeBottomSheet(){
+  var sh=document.getElementById('sb-bottom-sheet');
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  setTimeout(function(){
+    sh.classList.add('sb-hidden');
+    sheetSnip=null;
+  },300);
+}
+
+document.querySelector('#sb-bottom-sheet .sb-sheet-backdrop')
+  .addEventListener('click',closeBottomSheet);
+
+(function(){
+  var area=document.querySelector('#sb-bottom-sheet .sb-sheet-handle-area');
+  var panel=document.querySelector('#sb-bottom-sheet .sb-sheet-panel');
+  var startY=null, delta=0, dragging=false;
+  function onStart(e){
+    startY=(e.touches?e.touches[0].clientY:e.clientY);
+    delta=0;dragging=true;
+    panel.style.transition='none';
+  }
+  function onMove(e){
+    if(!dragging)return;
+    var y=(e.touches?e.touches[0].clientY:e.clientY);
+    delta=y-startY;
+    if(delta<0)delta=0;
+    panel.style.transform='translateY('+delta+'px)';
+  }
+  function onEnd(){
+    if(!dragging)return;
+    dragging=false;
+    panel.style.transition='';
+    panel.style.transform='';
+    if(delta>80)closeBottomSheet();
+    startY=null;delta=0;
+  }
+  area.addEventListener('touchstart',onStart,{passive:true});
+  area.addEventListener('touchmove',onMove,{passive:true});
+  area.addEventListener('touchend',onEnd);
+  area.addEventListener('touchcancel',onEnd);
+  area.addEventListener('mousedown',onStart);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+})();
+
+document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
+  .addEventListener('click',function(e){
+    var li=e.target.closest('li[data-action]');
+    if(!li||!sheetSnip)return;
+    var act=li.getAttribute('data-action');
+    var s=sheetSnip;
+    if(act==='use'){
+      copyText(resolveBody(s.body||'',{}));
+      closeBottomSheet();
+    }else if(act==='copy'){
+      copyText(s.body||'');
+      closeBottomSheet();
+    }else if(act==='edit'){
+      var snapshot=s;
+      closeBottomSheet();
+      setTimeout(function(){openEditModal(snapshot);},320);
+    }else if(act==='share'){
+      var payload={title:s.title||'Snippet',text:s.body||''};
+      if(navigator.share){
+        navigator.share(payload).catch(function(){});
+      }else{
+        copyText((s.title?s.title+'\n\n':'')+(s.body||''));
+      }
+      closeBottomSheet();
+    }else if(act==='delete'){
+      if(confirm('Delete this snippet?'))deleteSnippet(s);
+    }
+  });
+
+function copyText(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).catch(function(){fbCopy(t,function(){});});
+  }else{fbCopy(t,function(){});}
+}
+
+function deleteSnippet(s){
+  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(s.id),{
+    method:'DELETE',
+    headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}
+  }).then(function(r){
+    if(!r.ok)throw new Error('delete failed');
+    allSnips=allSnips.filter(function(x){return x.id!==s.id;});
+    try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
+    closeBottomSheet();
+    renderList();
+    if(curSnip&&curSnip.id===s.id){
+      curSnip=null;
+      document.getElementById('view-detail').classList.remove('active');
+      document.getElementById('view-list').classList.add('active');
+    }
+  }).catch(function(err){
+    console.error('[SprintBrain] delete failed',err);
+    closeBottomSheet();
+  });
+}
+
+/* ── EDIT MODAL ─────────────────────────────────── */
+var editSnip=null, editOriginal=null;
+
+function openEditModal(s){
+  editSnip=s;
+  editOriginal={title:s.title||'',shortcut:s.shortcut||'',body:s.body||''};
+  document.getElementById('sb-edit-title').value=editOriginal.title;
+  document.getElementById('sb-edit-shortcut').value=editOriginal.shortcut;
+  document.getElementById('sb-edit-body').value=editOriginal.body;
+  document.getElementById('sb-edit-err').textContent='';
+  var saveBtn=document.getElementById('sb-modal-save');
+  saveBtn.textContent='Save';
+  saveBtn.classList.remove('saved');
+  saveBtn.disabled=false;
+  document.getElementById('sb-edit-modal').classList.remove('sb-hidden');
+}
+function isDirty(){
+  if(!editOriginal)return false;
+  return document.getElementById('sb-edit-title').value!==editOriginal.title
+    ||document.getElementById('sb-edit-shortcut').value!==editOriginal.shortcut
+    ||document.getElementById('sb-edit-body').value!==editOriginal.body;
+}
+function closeEditModal(){
+  document.getElementById('sb-edit-modal').classList.add('sb-hidden');
+  editSnip=null;editOriginal=null;
+}
+
+document.getElementById('sb-modal-cancel').addEventListener('click',function(){
+  if(isDirty()&&!confirm('Discard changes?'))return;
+  closeEditModal();
+});
+
+document.getElementById('sb-modal-save').addEventListener('click',function(){
+  if(!editSnip)return;
+  var title=document.getElementById('sb-edit-title').value.trim();
+  var shortcut=document.getElementById('sb-edit-shortcut').value.trim();
+  var body=document.getElementById('sb-edit-body').value;
+  var err=document.getElementById('sb-edit-err');
+  if(!title){err.textContent='Title is required';return;}
+  if(!body.trim()){err.textContent='Body is required';return;}
+  err.textContent='';
+  var btn=this;
+  btn.disabled=true;btn.textContent='Saving…';
+  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(editSnip.id),{
+    method:'PATCH',
+    headers:{
+      'apikey':KEY,
+      'Authorization':'Bearer '+KEY,
+      'Content-Type':'application/json',
+      'Prefer':'return=representation'
+    },
+    body:JSON.stringify({title:title,shortcut:shortcut,body:body})
+  })
+  .then(function(r){
+    if(!r.ok)throw new Error('save failed');
+    return r.json();
+  })
+  .then(function(rows){
+    var updated=(Array.isArray(rows)&&rows[0])?rows[0]:null;
+    var idx=allSnips.findIndex(function(x){return x.id===editSnip.id;});
+    if(idx>-1){
+      allSnips[idx]=updated
+        ?Object.assign({},allSnips[idx],updated)
+        :Object.assign({},allSnips[idx],{title:title,shortcut:shortcut,body:body});
+    }
+    try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
+    btn.textContent='✓ Saved';btn.classList.add('saved');
+    renderList();
+    if(curSnip&&editSnip&&curSnip.id===editSnip.id&&idx>-1){
+      curSnip=allSnips[idx];
+      renderDetail(curSnip);
+    }
+    setTimeout(closeEditModal,2000);
+  })
+  .catch(function(){
+    err.textContent='Save failed. Please try again.';
+    btn.disabled=false;btn.textContent='Save';
+    btn.classList.remove('saved');
+  });
 });
 
 /* ── INIT ───────────────────────────────────────── */
