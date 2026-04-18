@@ -1,2 +1,35 @@
 [build]
-  publish = "."
+  base    = "web"
+  command = "npm ci && npm run build"
+  publish = "web/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Legacy desktop landing at /landing/
+[[redirects]]
+  from   = "/landing"
+  to     = "/landing/"
+  status = 301
+
+[[redirects]]
+  from   = "/landing/*"
+  to     = "/landing/:splat"
+  status = 200
+
+# Mobile app at /mobile/
+[[redirects]]
+  from   = "/mobile"
+  to     = "/mobile/"
+  status = 301
+
+[[redirects]]
+  from   = "/mobile/*"
+  to     = "/mobile/:splat"
+  status = 200
+
+# SPA fallback for the dashboard (must be last)
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
