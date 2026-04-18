@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.11.0 -->
+<!-- SprintBrain Mobile v2.12.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -51,6 +51,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2.2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:12px center}
 .search-bar input::placeholder{color:var(--text2)}
+
+/* FOLDER TABS */
+.folder-tabs{background:var(--card);border-bottom:1px solid var(--border);
+  display:flex;padding:8px 16px;gap:6px;overflow-x:auto;
+  flex-shrink:0;scrollbar-width:none}
+.folder-tabs::-webkit-scrollbar{display:none}
+.folder-pill{border:none;border-radius:20px;padding:5px 12px;font-size:13px;
+  font-weight:600;cursor:pointer;white-space:nowrap;background:var(--bg);
+  color:var(--text2);transition:all .15s;-webkit-tap-highlight-color:transparent;
+  display:inline-flex;align-items:center;gap:6px;min-height:30px}
+.folder-pill.on{background:var(--primary);color:#fff}
+.folder-pill-ico{font-size:14px;line-height:1}
+.folder-pill-cnt{font-size:11px;font-weight:600;
+  background:rgba(0,0,0,.06);padding:1px 7px;border-radius:10px;color:var(--text2)}
+.folder-pill.on .folder-pill-cnt{background:rgba(255,255,255,.22);color:#fff}
 
 /* LANG TABS */
 .lang-tabs{background:var(--card);border-bottom:1px solid var(--border);
@@ -265,6 +280,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     <input id="srch" type="search" placeholder="Search snippets…"
       autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
+  <div class="folder-tabs" id="ftabs" style="display:none"></div>
   <div class="lang-tabs" id="ltabs">
     <button class="lang-pill on" data-l="ALL">All</button>
     <button class="lang-pill" data-l="EN">🇬🇧 EN</button>
@@ -454,27 +470,37 @@ function resolveBody(body,vals){
 }
 
 /* ── STATE ─────────────────────────────────────── */
-var allSnips=[], curSnip=null, curLang='ALL', curSearch='';
+var allSnips=[], allFolders=[], curSnip=null, curLang='ALL', curFolder='ALL', curSearch='';
 
 /* ── LOAD ───────────────────────────────────────── */
 function loadSnips(){
   try{
     var c=JSON.parse(localStorage.getItem('sb_mob_cache')||'null');
-    if(c&&c.length){allSnips=c;showList();renderList();}
+    var fc=JSON.parse(localStorage.getItem('sb_mob_folders')||'null');
+    if(fc&&fc.length)allFolders=fc;
+    if(c&&c.length){allSnips=c;showList();renderFolderChips();renderList();}
   }catch(e){}
 
-  fetch(SUPA+'/rest/v1/snippets?select=*&order=sort_order,title',{
-    headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}
-  })
-  .then(function(r){return r.json();})
-  .then(function(d){
+  var hdrs={'apikey':KEY,'Authorization':'Bearer '+KEY};
+  var sFetch=fetch(SUPA+'/rest/v1/snippets?select=*&order=sort_order,title',{headers:hdrs})
+    .then(function(r){return r.json();});
+  var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:hdrs})
+    .then(function(r){return r.ok?r.json():[];})
+    .catch(function(){return [];});
+
+  Promise.all([sFetch,fFetch]).then(function(res){
+    var d=res[0], f=res[1];
     if(!Array.isArray(d))throw new Error('bad');
     allSnips=d;
+    allFolders=Array.isArray(f)?f:[];
+    // prune curFolder if it no longer exists
+    if(curFolder!=='ALL'&&!allFolders.some(function(x){return x.id===curFolder;}))curFolder='ALL';
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(d));}catch(e){}
-    showList();renderList();
+    try{localStorage.setItem('sb_mob_folders',JSON.stringify(allFolders));}catch(e){}
+    showList();renderFolderChips();renderList();
   })
   .catch(function(){
-    if(!allSnips.length){showList();renderList();}
+    if(!allSnips.length){showList();renderFolderChips();renderList();}
   });
 }
 
@@ -512,14 +538,53 @@ function esc(s){
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+var FOLDER_ICO_MAP={
+  folder:'📁', clipboard:'📋', home:'🏠', message:'💬',
+  cpu:'🤖', star:'⭐', key:'🔑', dollar:'💰',
+  'file-text':'📄', globe:'🌐'
+};
+function folderIcon(f){
+  var ic=(f&&f.ico)||'';
+  if(!ic)return '📁';
+  if(FOLDER_ICO_MAP[ic])return FOLDER_ICO_MAP[ic];
+  var cp=ic.codePointAt?ic.codePointAt(0):ic.charCodeAt(0);
+  if(cp>=0x1F300||(cp>=0x2600&&cp<=0x27FF))return ic;
+  return '📁';
+}
+function folderCount(fid){
+  var n=0;
+  for(var i=0;i<allSnips.length;i++){
+    if(allSnips[i].folder_id===fid)n++;
+  }
+  return n;
+}
+function renderFolderChips(){
+  var el=document.getElementById('ftabs');
+  if(!el)return;
+  if(!allFolders.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='';
+  var html='<button class="folder-pill'+(curFolder==='ALL'?' on':'')+'" data-fid="ALL">'
+    +'<span class="folder-pill-ico">📂</span><span>All</span>'
+    +'<span class="folder-pill-cnt">'+allSnips.length+'</span></button>';
+  for(var i=0;i<allFolders.length;i++){
+    var f=allFolders[i];
+    html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'">'
+      +'<span class="folder-pill-ico">'+folderIcon(f)+'</span>'
+      +'<span>'+esc(f.name||'Untitled')+'</span>'
+      +'<span class="folder-pill-cnt">'+folderCount(f.id)+'</span></button>';
+  }
+  el.innerHTML=html;
+}
+
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
   var list=allSnips.filter(function(s){
     var ml=curLang==='ALL'||s.lang===curLang;
+    var mf=curFolder==='ALL'||s.folder_id===curFolder;
     var ms=!q||(s.title||'').toLowerCase().includes(q)||
             (s.shortcut||'').toLowerCase().includes(q);
-    return ml&&ms;
+    return ml&&mf&&ms;
   });
   document.getElementById('cnt').textContent=allSnips.length;
   if(!list.length){
@@ -663,6 +728,16 @@ document.getElementById('ltabs').addEventListener('click',function(e){
   p.classList.add('on');renderList();
 });
 
+/* ── FOLDER TABS ────────────────────────────────── */
+document.getElementById('ftabs').addEventListener('click',function(e){
+  var p=e.target.closest('.folder-pill');if(!p)return;
+  var fid=p.getAttribute('data-fid');
+  if(fid===curFolder)return;
+  curFolder=fid;
+  renderFolderChips();
+  renderList();
+});
+
 /* ── SEARCH ─────────────────────────────────────── */
 var st;
 document.getElementById('srch').addEventListener('input',function(){
@@ -786,6 +861,7 @@ function deleteSnippet(s){
     allSnips=allSnips.filter(function(x){return x.id!==s.id;});
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
     closeBottomSheet();
+    renderFolderChips();
     renderList();
     if(curSnip&&curSnip.id===s.id){
       curSnip=null;
@@ -865,6 +941,7 @@ document.getElementById('sb-modal-save').addEventListener('click',function(){
     }
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
     btn.textContent='✓ Saved';btn.classList.add('saved');
+    renderFolderChips();
     renderList();
     if(curSnip&&editSnip&&curSnip.id===editSnip.id&&idx>-1){
       curSnip=allSnips[idx];
