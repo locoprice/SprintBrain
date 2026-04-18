@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — SprintBrain
-> **Version:** 2.14.0 | **Branch:** develop | **Last Updated:** 2026-04-18  
+> **Version:** 2.14.1 | **Branch:** develop | **Last Updated:** 2026-04-18  
 > **Author:** Alessandro Verdicchio | **Maintainer:** Alessandro + Claude Chat  
 > ⚠️ This file is the primary context entry point for Claude Code and all AI agents. Read before executing any task.
 
@@ -55,10 +55,10 @@ Expanded snippet injected into DOM
 
 | File | Version | Responsibility |
 |---|---|---|
-| `manifest.json` | 2.14.0 | Permissions, metadata, version |
+| `manifest.json` | 2.14.1 | Permissions, metadata, version |
 | `content.js` | — | DOM injection, trigger detection, formula engine |
 | `popup.js` | — | UI boot, Notion credential persistence, sync trigger |
-| `popup.html` | 2.14.0 | Extension popup UI markup |
+| `popup.html` | 2.14.1 | Extension popup UI markup |
 | `background.js` | v2.9 | Service worker, startup sync, context menus |
 | `notion-sync.js` | v2.2 | Notion → Extension sync engine |
 | `overlay.css` | — | Snippet overlay styles |
