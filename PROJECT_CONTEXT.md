@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — SprintBrain
-> **Version:** 2.9.1 | **Branch:** develop | **Last Updated:** 2026-04-05  
+> **Version:** 2.14.0 | **Branch:** develop | **Last Updated:** 2026-04-18  
 > **Author:** Alessandro Verdicchio | **Maintainer:** Alessandro + Claude Chat  
 > ⚠️ This file is the primary context entry point for Claude Code and all AI agents. Read before executing any task.
 
@@ -49,17 +49,36 @@ Text Field (Airbnb, WhatsApp, CRM, etc.)
 Expanded snippet injected into DOM
 ```
 
-### 3.2 Extension File Map
+### 3.2 Repo File Map
+
+**Chrome Extension (root)**
 
 | File | Version | Responsibility |
 |---|---|---|
-| `manifest.json` | 2.9.1 | Permissions, metadata, version |
+| `manifest.json` | 2.14.0 | Permissions, metadata, version |
 | `content.js` | — | DOM injection, trigger detection, formula engine |
 | `popup.js` | — | UI boot, Notion credential persistence, sync trigger |
-| `popup.html` | — | Extension popup UI markup |
+| `popup.html` | 2.14.0 | Extension popup UI markup |
 | `background.js` | v2.9 | Service worker, startup sync, context menus |
 | `notion-sync.js` | v2.2 | Notion → Extension sync engine |
 | `overlay.css` | — | Snippet overlay styles |
+| `icon{16,48,128}.png` | — | Extension icons (also duplicated in `web/public/`) |
+
+**Web Dashboard (`web/`)** — added in v2.14.0
+
+| Path | Responsibility |
+|---|---|
+| `web/src/App.tsx` | Router + viewport gate |
+| `web/src/routes/` | DashboardLayout + 4 page components (Snippets, Analytics, Prompts, Settings) |
+| `web/src/features/` | Per-feature components grouped by domain |
+| `web/src/components/{ui,layout,shared}/` | Shadcn primitives + layout chrome + reusable widgets |
+| `web/src/stores/` | Zustand stores (snippet, prompt, analytics, settings, ui) |
+| `web/src/lib/api/` | Mock service layer; same shape as future Supabase impl |
+| `web/src/types/database.ts` | Mirrors Supabase schema (§4) |
+| `web/src/mock/fixtures.ts` | Deterministic seed data |
+| `web/public/landing/` | Legacy desktop marketing landing (was repo-root `index.html`) |
+| `web/public/mobile/` | Mobile companion app (moved from repo-root `mobile/`) |
+| `web/CLAUDE.md` | Dashboard-specific AI rules (separate stack from extension) |
 
 ### 3.3 Snippet Data Priority (Strict Order)
 
@@ -231,6 +250,10 @@ After every feature/fix batch, increment version across:
 
 | Item | Status |
 |---|---|
+| Web dashboard scaffold (`web/`, mock data, 4 pages) | ✅ v2.14.0 |
+| Web dashboard auth (Supabase magic link or OAuth) | 📋 Planned |
+| Web dashboard live data + CRUD | 📋 Planned |
+| Marketing site rebuild on Webflow (external) | 📋 Planned |
 | Complete RLS setup (Alex + Valentina accounts) | 🔄 In Progress |
 | Trigger whitelist validation fix | 📋 Planned |
 | Google Chrome Web Store submission | 📋 Planned |
