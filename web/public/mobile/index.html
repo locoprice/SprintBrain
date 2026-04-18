@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.12.0 -->
+<!-- SprintBrain Mobile v2.12.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -538,9 +538,15 @@ function esc(s){
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+var FOLDER_ICO_MAP={
+  folder:'📁', clipboard:'📋', home:'🏠', message:'💬',
+  cpu:'🤖', star:'⭐', key:'🔑', dollar:'💰',
+  'file-text':'📄', globe:'🌐'
+};
 function folderIcon(f){
   var ic=(f&&f.ico)||'';
-  if(!ic||ic==='folder')return '📁';
+  if(!ic)return '📁';
+  if(FOLDER_ICO_MAP[ic])return FOLDER_ICO_MAP[ic];
   var cp=ic.codePointAt?ic.codePointAt(0):ic.charCodeAt(0);
   if(cp>=0x1F300||(cp>=0x2600&&cp<=0x27FF))return ic;
   return '📁';
