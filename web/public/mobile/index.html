@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.12.1 -->
+<!-- SprintBrain Mobile v2.13.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -93,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .snip-info{flex:1;min-width:0}
 .snip-title{font-size:15px;font-weight:600;color:var(--text);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.snip-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.snip-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;row-gap:4px}
 .snip-sc{font-size:12px;color:var(--text2);font-family:ui-monospace,monospace}
 .lbadge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;
   text-transform:uppercase;letter-spacing:.3px}
@@ -101,6 +101,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .lES{background:#FFF7ED;color:#C2410C}
 .lIT{background:#F0FDF4;color:#15803D}
 .lMULTI{background:#F5F3FF;color:#7C3AED}
+.fbadge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;
+  background:#F3F4F6;color:var(--text2);
+  display:inline-flex;align-items:center;gap:4px;
+  max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbadge-ico{font-size:11px;line-height:1}
 .snip-arr{color:#C7C7CC;font-size:20px;flex-shrink:0}
 
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
@@ -112,7 +117,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .back-btn{background:none;border:none;color:#fff;font-size:16px;
   padding:0 14px 0 0;cursor:pointer;display:flex;align-items:center;
   gap:5px;font-weight:500;-webkit-tap-highlight-color:transparent;flex-shrink:0}
-#det-title{font-size:16px;font-weight:700;flex:1;
+.det-title-wrap{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px;overflow:hidden}
+.det-folder{font-size:11px;font-weight:500;color:rgba(255,255,255,.78);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:flex;align-items:center;gap:4px}
+.det-folder.sb-hide{display:none}
+.det-folder-ico{font-size:12px;line-height:1}
+#det-title{font-size:16px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #det-lang{margin-left:8px;flex-shrink:0}
 
@@ -301,7 +312,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
       </svg>
       Back
     </button>
-    <span id="det-title"></span>
+    <div class="det-title-wrap">
+      <span id="det-title"></span>
+      <span id="det-folder" class="det-folder sb-hide">
+        <span id="det-folder-ico" class="det-folder-ico"></span>
+        <span id="det-folder-name"></span>
+      </span>
+    </div>
     <span id="det-lang" class="lbadge"></span>
   </div>
   <div class="det-body" id="det-body">
@@ -558,6 +575,13 @@ function folderCount(fid){
   }
   return n;
 }
+function getFolderById(id){
+  if(!id)return null;
+  for(var i=0;i<allFolders.length;i++){
+    if(allFolders[i].id===id)return allFolders[i];
+  }
+  return null;
+}
 function renderFolderChips(){
   var el=document.getElementById('ftabs');
   if(!el)return;
@@ -593,6 +617,16 @@ function renderList(){
   }
   el.innerHTML=list.map(function(s){
     var lang=s.lang||'EN';
+    var fbadge='';
+    if(curFolder==='ALL'&&s.folder_id){
+      var f=getFolderById(s.folder_id);
+      if(f){
+        fbadge='<span class="fbadge" title="'+esc(f.name||'')+'">'
+          +'<span class="fbadge-ico">'+folderIcon(f)+'</span>'
+          +esc(f.name||'Folder')
+        +'</span>';
+      }
+    }
     return '<div class="snip-card" data-id="'+esc(s.id)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+getIcon(s)+'</div>'
       +'<div class="snip-info">'
@@ -600,6 +634,7 @@ function renderList(){
         +'<div class="snip-meta">'
           +'<span class="snip-sc">'+esc(s.shortcut||'')+'</span>'
           +'<span class="lbadge l'+esc(lang)+'">'+esc(lang)+'</span>'
+          +fbadge
         +'</div>'
       +'</div>'
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(s.id)+'" aria-label="More actions">⋮</button>'
@@ -646,6 +681,18 @@ function renderDetail(snip){
   var lb=document.getElementById('det-lang');
   var lang=snip.lang||'EN';
   lb.textContent=lang;lb.className='lbadge l'+lang;
+
+  var fWrap=document.getElementById('det-folder');
+  var fIco=document.getElementById('det-folder-ico');
+  var fName=document.getElementById('det-folder-name');
+  var f=getFolderById(snip.folder_id);
+  if(f&&fWrap){
+    fIco.textContent=folderIcon(f);
+    fName.textContent=f.name||'Folder';
+    fWrap.classList.remove('sb-hide');
+  }else if(fWrap){
+    fWrap.classList.add('sb-hide');
+  }
 
   var fields=extractFields(snip.body||'');
   var cfg=snip.field_cfg||{};
