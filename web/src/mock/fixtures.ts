@@ -1,0 +1,440 @@
+import type {
+  AnalyticsSummary,
+  Folder,
+  NotionSyncState,
+  Profile,
+  Prompt,
+  Snippet,
+  SnippetStat,
+  TopTrigger,
+  UsagePoint,
+} from '@/types/database';
+
+// Deterministic mock data sized to exercise every component state
+// (multi-folder filter, search hit/miss, empty result, KPI rounding).
+// All ids are stable UUIDs so React keys stay consistent across renders.
+
+const USER_ID = '11111111-1111-4111-8111-111111111111';
+
+export const mockProfile: Profile = {
+  id: USER_ID,
+  email: 'alessandro@leibtour.com',
+  display_name: 'Alessandro Verdicchio',
+  shortcut_prefix: '::',
+  created_at: '2025-12-01T09:00:00Z',
+};
+
+export const mockFolders: Folder[] = [
+  {
+    id: '22222222-0000-4000-8000-000000000001',
+    user_id: USER_ID,
+    name: 'LeibTour EN',
+    icon: '🇬🇧',
+    sort_order: 0,
+  },
+  {
+    id: '22222222-0000-4000-8000-000000000002',
+    user_id: USER_ID,
+    name: 'LeibTour IT',
+    icon: '🇮🇹',
+    sort_order: 1,
+  },
+  {
+    id: '22222222-0000-4000-8000-000000000003',
+    user_id: USER_ID,
+    name: 'Personal',
+    icon: '👤',
+    sort_order: 2,
+  },
+  {
+    id: '22222222-0000-4000-8000-000000000004',
+    user_id: USER_ID,
+    name: 'Archived',
+    icon: '🗄️',
+    sort_order: 3,
+  },
+];
+
+const day = (offset: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offset);
+  d.setUTCHours(10, 0, 0, 0);
+  return d.toISOString();
+};
+
+export const mockSnippets: Snippet[] = [
+  {
+    id: '33333333-0000-4000-8000-000000000001',
+    user_id: USER_ID,
+    name: 'Quote — English',
+    content: 'Dear {guest},\n\nThe total for {nights} nights is €{=nights*rate}.',
+    triggers: ['quoteEN'],
+    tags: ['booking', 'quote'],
+    is_formula: true,
+    formula: 'nights*rate',
+    variables: { rate: 150 },
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-2),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000002',
+    user_id: USER_ID,
+    name: 'Quote — Italian',
+    content: 'Gentile {ospite},\n\nIl totale per {notti} notti è di €{=notti*tariffa}.',
+    triggers: ['quoteIT'],
+    tags: ['booking', 'quote'],
+    is_formula: true,
+    formula: 'notti*tariffa',
+    variables: { tariffa: 150 },
+    folder_id: '22222222-0000-4000-8000-000000000002',
+    language: 'IT',
+    updated_at: day(-1),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000003',
+    user_id: USER_ID,
+    name: 'Check-in instructions',
+    content: 'Hi {name}, your check-in is at {time}. Address: {address}.',
+    triggers: ['checkin'],
+    tags: ['ops'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-3),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000004',
+    user_id: USER_ID,
+    name: 'Firm signature',
+    content: 'Best regards,\nAlessandro Verdicchio\nLeibTour',
+    triggers: ['firm'],
+    tags: ['signature'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000003',
+    language: 'EN',
+    updated_at: day(-12),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000005',
+    user_id: USER_ID,
+    name: 'Refund policy',
+    content: 'Free cancellation up to 7 days before check-in.',
+    triggers: ['refund'],
+    tags: ['policy'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-7),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000006',
+    user_id: USER_ID,
+    name: 'Welcome message',
+    content: 'Welcome to Ibiza! Here is everything you need: {link}.',
+    triggers: ['welcome'],
+    tags: ['ops'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-4),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000007',
+    user_id: USER_ID,
+    name: 'Late checkout policy',
+    content: 'Late checkout available for €30 (subject to availability).',
+    triggers: ['late'],
+    tags: ['policy'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-15),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000008',
+    user_id: USER_ID,
+    name: 'Discount calculator',
+    content: 'Original €{base}, discount {discount}% → final €{=base*(1-discount/100)}.',
+    triggers: ['disc'],
+    tags: ['quote'],
+    is_formula: true,
+    formula: 'base*(1-discount/100)',
+    variables: { discount: 10 },
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-1),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000009',
+    user_id: USER_ID,
+    name: 'WhatsApp greeting',
+    content: 'Hi {name}! Thanks for reaching out — happy to help with your booking.',
+    triggers: ['hi'],
+    tags: ['ops'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000003',
+    language: 'EN',
+    updated_at: day(-2),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000a',
+    user_id: USER_ID,
+    name: 'Apartment specs',
+    content: '2 bedrooms · sleeps 4 · pool · 5 min walk from Playa den Bossa.',
+    triggers: ['specs'],
+    tags: ['property'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-6),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000b',
+    user_id: USER_ID,
+    name: 'Quote — Italian (formal)',
+    content: 'Gentile Sig./Sig.ra {cognome}, il preventivo richiesto è di €{=notti*tariffa}.',
+    triggers: ['quoteITf'],
+    tags: ['quote'],
+    is_formula: true,
+    formula: 'notti*tariffa',
+    variables: { tariffa: 180 },
+    folder_id: '22222222-0000-4000-8000-000000000002',
+    language: 'IT',
+    updated_at: day(-9),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000c',
+    user_id: USER_ID,
+    name: 'Cleaning fee notice',
+    content: 'A cleaning fee of €60 applies to all stays.',
+    triggers: ['clean'],
+    tags: ['policy'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-20),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000d',
+    user_id: USER_ID,
+    name: 'Old promo (2024)',
+    content: 'Early-bird 15% off — expires Sept 2024.',
+    triggers: ['promo24'],
+    tags: ['archived'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000004',
+    language: 'EN',
+    updated_at: day(-90),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000e',
+    user_id: USER_ID,
+    name: 'Booking confirmation',
+    content: 'Your booking #{id} is confirmed for {checkin} → {checkout}.',
+    triggers: ['confirm'],
+    tags: ['booking'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'EN',
+    updated_at: day(-5),
+  },
+  {
+    id: '33333333-0000-4000-8000-00000000000f',
+    user_id: USER_ID,
+    name: 'Quote — Spanish',
+    content: 'Estimado {huesped}, el total por {noches} noches es €{=noches*tarifa}.',
+    triggers: ['quoteES'],
+    tags: ['quote'],
+    is_formula: true,
+    formula: 'noches*tarifa',
+    variables: { tarifa: 150 },
+    folder_id: '22222222-0000-4000-8000-000000000001',
+    language: 'ES',
+    updated_at: day(-8),
+  },
+  {
+    id: '33333333-0000-4000-8000-000000000010',
+    user_id: USER_ID,
+    name: 'Personal — laundry',
+    content: 'Lavanderia → consegna entro 48h, ritiro libero.',
+    triggers: ['laundry'],
+    tags: ['personal'],
+    is_formula: false,
+    formula: null,
+    variables: {},
+    folder_id: '22222222-0000-4000-8000-000000000003',
+    language: 'IT',
+    updated_at: day(-30),
+  },
+];
+
+// Build deterministic usage counts per snippet (folded into SnippetRow).
+const usageWeights: Record<string, number> = {
+  quoteEN: 84,
+  quoteIT: 61,
+  checkin: 57,
+  firm: 142,
+  refund: 12,
+  welcome: 39,
+  late: 8,
+  disc: 21,
+  hi: 96,
+  specs: 17,
+  quoteITf: 14,
+  clean: 6,
+  promo24: 0,
+  confirm: 33,
+  quoteES: 24,
+  laundry: 3,
+};
+
+export const usageBySnippetId: Record<string, number> = Object.fromEntries(
+  mockSnippets.map((s) => [s.id, usageWeights[s.triggers[0] ?? ''] ?? 0]),
+);
+
+export const mockPrompts: Prompt[] = [
+  {
+    id: '44444444-0000-4000-8000-000000000001',
+    user_id: USER_ID,
+    name: 'Reply to negative review',
+    content:
+      'You are a hospitality manager. Reply to this guest review with empathy, acknowledge the issue, and offer a concrete next step.',
+    type: 'one-shot',
+    tags: ['ops', 'communication'],
+    updated_at: day(-3),
+    last_used_at: day(-1),
+  },
+  {
+    id: '44444444-0000-4000-8000-000000000002',
+    user_id: USER_ID,
+    name: 'Translate to formal Italian',
+    content:
+      'Translate the following text to formal Italian. Keep the same tone and structure.\n\nText:',
+    type: 'one-shot',
+    tags: ['translation'],
+    updated_at: day(-7),
+    last_used_at: day(-2),
+  },
+  {
+    id: '44444444-0000-4000-8000-000000000003',
+    user_id: USER_ID,
+    name: 'Booking summary extractor',
+    content:
+      'Extract structured data from this email. Return JSON with: guest_name, checkin, checkout, nights, total_price.\n\nExample 1: ...\nExample 2: ...',
+    type: 'few-shot',
+    tags: ['parsing', 'booking'],
+    updated_at: day(-10),
+    last_used_at: day(-4),
+  },
+  {
+    id: '44444444-0000-4000-8000-000000000004',
+    user_id: USER_ID,
+    name: 'Property description rewriter',
+    content:
+      'Rewrite this property description to be more compelling. Keep it under 60 words and lead with the strongest feature.',
+    type: 'one-shot',
+    tags: ['marketing'],
+    updated_at: day(-15),
+    last_used_at: null,
+  },
+  {
+    id: '44444444-0000-4000-8000-000000000005',
+    user_id: USER_ID,
+    name: 'Multi-language reply generator',
+    content:
+      'Given a guest message in any language, reply in the same language with a warm, professional tone.\n\nExample: ...',
+    type: 'few-shot',
+    tags: ['communication'],
+    updated_at: day(-1),
+    last_used_at: day(0),
+  },
+  {
+    id: '44444444-0000-4000-8000-000000000006',
+    user_id: USER_ID,
+    name: 'Pricing recommendation',
+    content:
+      'Given a date range, occupancy rate, and competitor prices, suggest an optimal nightly rate with reasoning.',
+    type: 'one-shot',
+    tags: ['pricing'],
+    updated_at: day(-22),
+    last_used_at: day(-10),
+  },
+];
+
+export const mockNotionSync: NotionSyncState = {
+  database_id: 'a06cac8d5e0282c28c4101e9e3ea3f88',
+  last_sync_at: day(0),
+  status: 'idle',
+  last_error: null,
+};
+
+// 30-day usage series (deterministic pseudo-random for chart shape)
+function buildDailyUsage(): UsagePoint[] {
+  const points: UsagePoint[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    d.setUTCHours(0, 0, 0, 0);
+    const seed = (i * 9301 + 49297) % 233280;
+    const rnd = seed / 233280;
+    const base = 18 + Math.round(rnd * 22);
+    const dow = d.getUTCDay();
+    const weekendDip = dow === 0 || dow === 6 ? 0.6 : 1;
+    points.push({
+      date: d.toISOString().slice(0, 10),
+      count: Math.max(2, Math.round(base * weekendDip)),
+    });
+  }
+  return points;
+}
+
+const dailyUsage = buildDailyUsage();
+
+const topTriggers: TopTrigger[] = [
+  { trigger: 'firm', count: 142, trend: [4, 6, 5, 7, 9, 6, 8, 10, 7, 11, 9, 12, 14, 11] },
+  { trigger: 'hi', count: 96, trend: [3, 4, 5, 4, 6, 7, 5, 8, 6, 9, 8, 10, 9, 12] },
+  { trigger: 'quoteEN', count: 84, trend: [2, 3, 4, 3, 5, 6, 4, 7, 5, 8, 6, 9, 7, 11] },
+  { trigger: 'quoteIT', count: 61, trend: [1, 2, 3, 2, 4, 5, 3, 6, 4, 7, 5, 8, 6, 9] },
+  { trigger: 'checkin', count: 57, trend: [2, 1, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8, 7] },
+];
+
+const triggersThisWeek = dailyUsage.slice(-7).reduce((sum, p) => sum + p.count, 0);
+const totalSnippets = mockSnippets.length;
+const estimatedSecondsSaved = Object.values(usageWeights).reduce(
+  (sum, n) => sum + n * 18,
+  0,
+);
+
+export const mockAnalytics: AnalyticsSummary = {
+  total_snippets: totalSnippets,
+  triggers_this_week: triggersThisWeek,
+  estimated_seconds_saved: estimatedSecondsSaved,
+  top_trigger: topTriggers[0]?.trigger ?? '—',
+  daily_usage: dailyUsage,
+  top_triggers: topTriggers,
+};
+
+// Empty stats array kept for type-completeness; analytics uses the
+// pre-aggregated summary above to avoid repeating reduction in the UI.
+export const mockSnippetStats: SnippetStat[] = [];
