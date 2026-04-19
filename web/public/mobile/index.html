@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.14.0 -->
+<!-- SprintBrain Mobile v2.14.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -272,22 +272,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   color:#E74C3C;font-size:14px;padding:0 4px;min-height:18px
 }
 
+/* Edit modal: field groups with labels */
+.sb-field-group{display:flex;flex-direction:column;gap:6px}
+.sb-field-group-grow{flex:1;min-height:0}
+.sb-field-group-grow textarea{flex:1}
+.sb-field-label{
+  font-size:12px;font-weight:600;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.4px;padding:0 2px
+}
+
 /* Folder row inside Edit modal */
 .sb-field-row{
   width:100%;display:flex;align-items:center;gap:10px;
   padding:14px;background:var(--card);
   border:1px solid var(--border);border-radius:var(--r-in);
   color:var(--text);font-size:16px;cursor:pointer;
-  -webkit-tap-highlight-color:transparent;min-height:48px
+  -webkit-tap-highlight-color:transparent;min-height:48px;text-align:left
 }
 .sb-field-row:active{background:var(--bg)}
-.sb-field-lbl{font-size:14px;color:var(--text2);font-weight:500;flex-shrink:0}
-.sb-field-val{flex:1;display:flex;align-items:center;gap:6px;
-  min-width:0;overflow:hidden;
-  white-space:nowrap;text-overflow:ellipsis;color:var(--text)}
-.sb-field-ico{font-size:16px;line-height:1;flex-shrink:0}
-#sb-edit-folder-name{overflow:hidden;text-overflow:ellipsis}
+.sb-field-ico{font-size:18px;line-height:1;flex-shrink:0;width:22px;text-align:center}
+.sb-field-val-text{flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .sb-field-chev{color:var(--text2);font-size:20px;line-height:1;flex-shrink:0}
+
+/* Folder picker sits ABOVE the edit modal (which is z-index 9999) */
+#sb-folder-sheet{z-index:10001}
 
 /* Folder picker list rows */
 .sb-folder-list{max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -413,7 +422,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
     <ul class="sb-sheet-actions">
       <li data-action="edit">✏️ Edit</li>
-      <li data-action="duplicate">📄 Duplicate</li>
       <li data-action="delete" class="sb-action-danger">🗑 Delete</li>
     </ul>
   </div>
@@ -427,18 +435,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     <button id="sb-modal-save" type="button">Save</button>
   </div>
   <div class="sb-modal-body">
-    <input type="text" id="sb-edit-title" placeholder="Snippet title..." autocomplete="off" autocorrect="off" spellcheck="false">
-    <input type="text" id="sb-edit-shortcut" placeholder="Shortcut (e.g. /greet)" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button type="button" id="sb-edit-folder-btn" class="sb-field-row">
-      <span class="sb-field-lbl">Folder</span>
-      <span class="sb-field-val" id="sb-edit-folder-val">
+    <div class="sb-field-group">
+      <label for="sb-edit-title" class="sb-field-label">Snippet Title</label>
+      <input type="text" id="sb-edit-title" placeholder="e.g. Booking quote EN" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="sb-field-group">
+      <label for="sb-edit-shortcut" class="sb-field-label">Shortcut</label>
+      <input type="text" id="sb-edit-shortcut" placeholder="e.g. ;;quoteEN" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="sb-field-group">
+      <label for="sb-edit-folder-btn" class="sb-field-label">Folder</label>
+      <button type="button" id="sb-edit-folder-btn" class="sb-field-row">
         <span id="sb-edit-folder-ico" class="sb-field-ico">📁</span>
-        <span id="sb-edit-folder-name">None</span>
-      </span>
-      <span class="sb-field-chev">›</span>
-    </button>
+        <span id="sb-edit-folder-name" class="sb-field-val-text">None</span>
+        <span class="sb-field-chev">›</span>
+      </button>
+    </div>
     <div class="sb-modal-err" id="sb-edit-err"></div>
-    <textarea id="sb-edit-body" placeholder="Snippet body..." autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="sb-field-group sb-field-group-grow">
+      <label for="sb-edit-body" class="sb-field-label">Content</label>
+      <textarea id="sb-edit-body" placeholder="Snippet body…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    </div>
   </div>
 </div>
 
@@ -972,10 +989,6 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       var snapshot=s;
       closeBottomSheet();
       setTimeout(function(){openEditModal(snapshot);},320);
-    }else if(act==='duplicate'){
-      var snap=s;
-      closeBottomSheet();
-      duplicateSnippet(snap);
     }else if(act==='delete'){
       if(confirm('Delete this snippet?'))deleteSnippet(s);
     }
@@ -990,40 +1003,6 @@ function copyText(t){
 function newId(){
   if(typeof crypto!=='undefined'&&crypto.randomUUID){return crypto.randomUUID();}
   return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
-}
-
-function duplicateSnippet(s){
-  if(!s)return;
-  var dup=Object.assign({},s,{
-    id:newId(),
-    title:(s.title||'Snippet')+' (copy)',
-    shortcut:s.shortcut||'',
-    notion_page_id:null
-  });
-  // Strip any server-managed columns we shouldn't copy
-  delete dup.created_at;delete dup.updated_at;
-  fetch(SUPA+'/rest/v1/snippets',{
-    method:'POST',
-    headers:{
-      'apikey':KEY,
-      'Authorization':'Bearer '+KEY,
-      'Content-Type':'application/json',
-      'Prefer':'return=representation'
-    },
-    body:JSON.stringify(dup)
-  }).then(function(r){
-    if(!r.ok)throw new Error('duplicate failed');
-    return r.json();
-  }).then(function(rows){
-    var row=(Array.isArray(rows)&&rows[0])?rows[0]:dup;
-    allSnips.unshift(row);
-    try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
-    renderFolderChips();
-    renderList();
-  }).catch(function(err){
-    console.error('[SprintBrain] duplicate failed',err);
-    alert('Duplicate failed. Please try again.');
-  });
 }
 
 function deleteSnippet(s){
@@ -1089,9 +1068,26 @@ function isDirty(){
     ||document.getElementById('sb-edit-body').value!==editOriginal.body
     ||editFolderId!==editOriginal.folder_id;
 }
+function forceCloseBottomSheet(){
+  var sh=document.getElementById('sb-bottom-sheet');
+  if(!sh)return;
+  sh.classList.remove('sb-open');
+  sh.classList.add('sb-hidden');
+  sh.setAttribute('aria-hidden','true');
+  sheetSnip=null;
+}
 function closeEditModal(){
   document.getElementById('sb-edit-modal').classList.add('sb-hidden');
   editSnip=null;editOriginal=null;editFolderId=null;
+  // Defensive: guarantee the 3-dots sheet is fully dismissed (no lingering
+  // open state) and shield the list from phantom clicks that some mobile
+  // browsers synthesize when a covering element disappears under a touch.
+  forceCloseBottomSheet();
+  var el=document.getElementById('snip-list');
+  if(el){
+    el.style.pointerEvents='none';
+    setTimeout(function(){el.style.pointerEvents='';},350);
+  }
 }
 
 /* ── FOLDER PICKER ──────────────────────────────── */
@@ -1264,12 +1260,14 @@ document.getElementById('sb-folder-list').addEventListener('click',function(e){
   closeFolderPicker();
 });
 
-document.getElementById('sb-modal-cancel').addEventListener('click',function(){
+document.getElementById('sb-modal-cancel').addEventListener('click',function(e){
+  e.stopPropagation();
   if(isDirty()&&!confirm('Discard changes?'))return;
   closeEditModal();
 });
 
-document.getElementById('sb-modal-save').addEventListener('click',function(){
+document.getElementById('sb-modal-save').addEventListener('click',function(e){
+  e.stopPropagation();
   if(!editSnip)return;
   var title=document.getElementById('sb-edit-title').value.trim();
   var shortcut=document.getElementById('sb-edit-shortcut').value.trim();
