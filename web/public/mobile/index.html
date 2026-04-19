@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.13.0 -->
+<!-- SprintBrain Mobile v2.14.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -271,6 +271,70 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .sb-modal-err{
   color:#E74C3C;font-size:14px;padding:0 4px;min-height:18px
 }
+
+/* Folder row inside Edit modal */
+.sb-field-row{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:14px;background:var(--card);
+  border:1px solid var(--border);border-radius:var(--r-in);
+  color:var(--text);font-size:16px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;min-height:48px
+}
+.sb-field-row:active{background:var(--bg)}
+.sb-field-lbl{font-size:14px;color:var(--text2);font-weight:500;flex-shrink:0}
+.sb-field-val{flex:1;display:flex;align-items:center;gap:6px;
+  min-width:0;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;color:var(--text)}
+.sb-field-ico{font-size:16px;line-height:1;flex-shrink:0}
+#sb-edit-folder-name{overflow:hidden;text-overflow:ellipsis}
+.sb-field-chev{color:var(--text2);font-size:20px;line-height:1;flex-shrink:0}
+
+/* Folder picker list rows */
+.sb-folder-list{max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sb-folder-list li{display:flex;align-items:center;gap:12px}
+.sb-folder-list li.sb-selected{background:var(--primary-lt);font-weight:600}
+.sb-folder-list li.sb-selected::after{
+  content:'✓';margin-left:auto;color:var(--primary);font-weight:700;font-size:18px
+}
+.sb-folder-row-ico{font-size:18px;line-height:1;flex-shrink:0;width:24px;text-align:center}
+.sb-folder-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-folder-empty{padding:18px 20px;color:var(--text2);font-size:14px;text-align:center;border-top:1px solid var(--border)}
+
+/* Folder picker: search input */
+.sb-folder-search-wrap{padding:4px 16px 10px}
+#sb-folder-search{
+  width:100%;padding:10px 12px;font-size:15px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-in);color:var(--text);outline:none;
+  -webkit-appearance:none;appearance:none
+}
+#sb-folder-search:focus{border-color:var(--primary)}
+
+/* Folder picker: New Folder inline create */
+.sb-folder-new-wrap{border-top:1px solid var(--border);padding:8px 16px 12px}
+.sb-folder-new-btn{
+  width:100%;display:flex;align-items:center;gap:10px;
+  background:none;border:none;padding:12px 4px;
+  color:var(--primary);font-size:15px;font-weight:600;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;min-height:44px
+}
+.sb-folder-new-btn:active{opacity:.7}
+.sb-folder-new-ico{font-size:20px;line-height:1;width:24px;text-align:center}
+.sb-folder-new-form{display:flex;gap:8px;padding:4px 0 2px}
+.sb-folder-new-form input{
+  flex:1;padding:10px 12px;font-size:15px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-in);color:var(--text);outline:none;
+  -webkit-appearance:none;appearance:none
+}
+.sb-folder-new-form input:focus{border-color:var(--primary)}
+.sb-folder-new-form button{
+  padding:0 16px;font-size:14px;font-weight:700;
+  background:var(--primary);color:#fff;border:none;border-radius:var(--r-in);
+  cursor:pointer;min-height:44px;-webkit-tap-highlight-color:transparent
+}
+.sb-folder-new-form button:disabled{opacity:.55;cursor:not-allowed}
+.sb-folder-new-err{color:#E74C3C;font-size:13px;padding:4px 0 0;min-height:0}
 </style>
 </head>
 <body>
@@ -348,10 +412,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     </div>
     <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
     <ul class="sb-sheet-actions">
-      <li data-action="use">▶ Use</li>
-      <li data-action="copy">📋 Copy</li>
       <li data-action="edit">✏️ Edit</li>
-      <li data-action="share">↗ Share</li>
+      <li data-action="duplicate">📄 Duplicate</li>
       <li data-action="delete" class="sb-action-danger">🗑 Delete</li>
     </ul>
   </div>
@@ -367,8 +429,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   <div class="sb-modal-body">
     <input type="text" id="sb-edit-title" placeholder="Snippet title..." autocomplete="off" autocorrect="off" spellcheck="false">
     <input type="text" id="sb-edit-shortcut" placeholder="Shortcut (e.g. /greet)" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button type="button" id="sb-edit-folder-btn" class="sb-field-row">
+      <span class="sb-field-lbl">Folder</span>
+      <span class="sb-field-val" id="sb-edit-folder-val">
+        <span id="sb-edit-folder-ico" class="sb-field-ico">📁</span>
+        <span id="sb-edit-folder-name">None</span>
+      </span>
+      <span class="sb-field-chev">›</span>
+    </button>
     <div class="sb-modal-err" id="sb-edit-err"></div>
     <textarea id="sb-edit-body" placeholder="Snippet body..." autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<!-- FOLDER PICKER BOTTOM SHEET -->
+<div id="sb-folder-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-folder-sheet-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-folder-sheet-title">Select Folder</div>
+    <div class="sb-folder-search-wrap">
+      <input type="search" id="sb-folder-search" placeholder="Search folders…"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <ul class="sb-sheet-actions sb-folder-list" id="sb-folder-list"></ul>
+    <div class="sb-folder-new-wrap" id="sb-folder-new-wrap">
+      <button type="button" id="sb-folder-new-btn" class="sb-folder-new-btn">
+        <span class="sb-folder-new-ico">＋</span>
+        <span>New Folder</span>
+      </button>
+      <div class="sb-folder-new-form sb-hidden" id="sb-folder-new-form">
+        <input type="text" id="sb-folder-new-name" placeholder="Folder name"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <button type="button" id="sb-folder-new-create">Create</button>
+      </div>
+      <div class="sb-folder-new-err" id="sb-folder-new-err"></div>
+    </div>
   </div>
 </div>
 
@@ -870,24 +968,14 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
     if(!li||!sheetSnip)return;
     var act=li.getAttribute('data-action');
     var s=sheetSnip;
-    if(act==='use'){
-      copyText(resolveBody(s.body||'',{}));
-      closeBottomSheet();
-    }else if(act==='copy'){
-      copyText(s.body||'');
-      closeBottomSheet();
-    }else if(act==='edit'){
+    if(act==='edit'){
       var snapshot=s;
       closeBottomSheet();
       setTimeout(function(){openEditModal(snapshot);},320);
-    }else if(act==='share'){
-      var payload={title:s.title||'Snippet',text:s.body||''};
-      if(navigator.share){
-        navigator.share(payload).catch(function(){});
-      }else{
-        copyText((s.title?s.title+'\n\n':'')+(s.body||''));
-      }
+    }else if(act==='duplicate'){
+      var snap=s;
       closeBottomSheet();
+      duplicateSnippet(snap);
     }else if(act==='delete'){
       if(confirm('Delete this snippet?'))deleteSnippet(s);
     }
@@ -897,6 +985,45 @@ function copyText(t){
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).catch(function(){fbCopy(t,function(){});});
   }else{fbCopy(t,function(){});}
+}
+
+function newId(){
+  if(typeof crypto!=='undefined'&&crypto.randomUUID){return crypto.randomUUID();}
+  return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+}
+
+function duplicateSnippet(s){
+  if(!s)return;
+  var dup=Object.assign({},s,{
+    id:newId(),
+    title:(s.title||'Snippet')+' (copy)',
+    shortcut:s.shortcut||'',
+    notion_page_id:null
+  });
+  // Strip any server-managed columns we shouldn't copy
+  delete dup.created_at;delete dup.updated_at;
+  fetch(SUPA+'/rest/v1/snippets',{
+    method:'POST',
+    headers:{
+      'apikey':KEY,
+      'Authorization':'Bearer '+KEY,
+      'Content-Type':'application/json',
+      'Prefer':'return=representation'
+    },
+    body:JSON.stringify(dup)
+  }).then(function(r){
+    if(!r.ok)throw new Error('duplicate failed');
+    return r.json();
+  }).then(function(rows){
+    var row=(Array.isArray(rows)&&rows[0])?rows[0]:dup;
+    allSnips.unshift(row);
+    try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
+    renderFolderChips();
+    renderList();
+  }).catch(function(err){
+    console.error('[SprintBrain] duplicate failed',err);
+    alert('Duplicate failed. Please try again.');
+  });
 }
 
 function deleteSnippet(s){
@@ -922,15 +1049,33 @@ function deleteSnippet(s){
 }
 
 /* ── EDIT MODAL ─────────────────────────────────── */
-var editSnip=null, editOriginal=null;
+var editSnip=null, editOriginal=null, editFolderId=null;
+
+function renderEditFolderRow(){
+  var f=getFolderById(editFolderId);
+  var ico=document.getElementById('sb-edit-folder-ico');
+  var name=document.getElementById('sb-edit-folder-name');
+  if(f){
+    ico.textContent=folderIcon(f);
+    name.textContent=f.name||'Folder';
+  }else{
+    ico.textContent='📁';
+    name.textContent='None';
+  }
+}
 
 function openEditModal(s){
   editSnip=s;
-  editOriginal={title:s.title||'',shortcut:s.shortcut||'',body:s.body||''};
+  editOriginal={
+    title:s.title||'',shortcut:s.shortcut||'',body:s.body||'',
+    folder_id:s.folder_id||null
+  };
+  editFolderId=editOriginal.folder_id;
   document.getElementById('sb-edit-title').value=editOriginal.title;
   document.getElementById('sb-edit-shortcut').value=editOriginal.shortcut;
   document.getElementById('sb-edit-body').value=editOriginal.body;
   document.getElementById('sb-edit-err').textContent='';
+  renderEditFolderRow();
   var saveBtn=document.getElementById('sb-modal-save');
   saveBtn.textContent='Save';
   saveBtn.classList.remove('saved');
@@ -941,12 +1086,183 @@ function isDirty(){
   if(!editOriginal)return false;
   return document.getElementById('sb-edit-title').value!==editOriginal.title
     ||document.getElementById('sb-edit-shortcut').value!==editOriginal.shortcut
-    ||document.getElementById('sb-edit-body').value!==editOriginal.body;
+    ||document.getElementById('sb-edit-body').value!==editOriginal.body
+    ||editFolderId!==editOriginal.folder_id;
 }
 function closeEditModal(){
   document.getElementById('sb-edit-modal').classList.add('sb-hidden');
-  editSnip=null;editOriginal=null;
+  editSnip=null;editOriginal=null;editFolderId=null;
 }
+
+/* ── FOLDER PICKER ──────────────────────────────── */
+var folderPickerSearch='';
+
+function openFolderPicker(){
+  folderPickerSearch='';
+  var si=document.getElementById('sb-folder-search');
+  if(si)si.value='';
+  resetFolderNewForm();
+  renderFolderPicker();
+  var sh=document.getElementById('sb-folder-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+}
+function closeFolderPicker(){
+  var sh=document.getElementById('sb-folder-sheet');
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  setTimeout(function(){sh.classList.add('sb-hidden');},300);
+}
+function renderFolderPicker(){
+  var ul=document.getElementById('sb-folder-list');
+  var q=(folderPickerSearch||'').toLowerCase().trim();
+  var list=allFolders.filter(function(f){
+    if(!q)return true;
+    return (f.name||'').toLowerCase().indexOf(q)>-1;
+  });
+  var html='';
+  if(!q){
+    html+='<li data-fid="" class="'+(editFolderId==null?'sb-selected':'')+'">'
+      +'<span class="sb-folder-row-ico">🚫</span>'
+      +'<span class="sb-folder-row-name">No folder</span>'
+    +'</li>';
+  }
+  for(var i=0;i<list.length;i++){
+    var f=list[i];
+    var sel=(editFolderId===f.id)?'sb-selected':'';
+    html+='<li data-fid="'+esc(f.id)+'" class="'+sel+'">'
+      +'<span class="sb-folder-row-ico">'+folderIcon(f)+'</span>'
+      +'<span class="sb-folder-row-name">'+esc(f.name||'Untitled')+'</span>'
+    +'</li>';
+  }
+  if(!list.length&&q){
+    html+='<div class="sb-folder-empty">No folders match "'+esc(q)+'"</div>';
+  }
+  ul.innerHTML=html;
+}
+
+function resetFolderNewForm(){
+  var form=document.getElementById('sb-folder-new-form');
+  var btn=document.getElementById('sb-folder-new-btn');
+  var input=document.getElementById('sb-folder-new-name');
+  var err=document.getElementById('sb-folder-new-err');
+  if(form)form.classList.add('sb-hidden');
+  if(btn)btn.classList.remove('sb-hidden');
+  if(input)input.value='';
+  if(err)err.textContent='';
+}
+
+function createFolderInline(){
+  var input=document.getElementById('sb-folder-new-name');
+  var createBtn=document.getElementById('sb-folder-new-create');
+  var err=document.getElementById('sb-folder-new-err');
+  var name=(input.value||'').trim();
+  if(!name){err.textContent='Folder name is required';input.focus();return;}
+  // Duplicate-name guard (case-insensitive)
+  for(var i=0;i<allFolders.length;i++){
+    if((allFolders[i].name||'').toLowerCase()===name.toLowerCase()){
+      err.textContent='A folder with that name already exists';
+      return;
+    }
+  }
+  err.textContent='';
+  createBtn.disabled=true;createBtn.textContent='Creating…';
+  var maxSort=0;
+  for(var j=0;j<allFolders.length;j++){
+    var so=allFolders[j].sort_order;
+    if(typeof so==='number'&&so>maxSort)maxSort=so;
+  }
+  var f={id:newId(),name:name,ico:'folder',sort_order:maxSort+1};
+  fetch(SUPA+'/rest/v1/folders',{
+    method:'POST',
+    headers:{
+      'apikey':KEY,
+      'Authorization':'Bearer '+KEY,
+      'Content-Type':'application/json',
+      'Prefer':'return=representation'
+    },
+    body:JSON.stringify(f)
+  }).then(function(r){
+    if(!r.ok)throw new Error('create folder failed');
+    return r.json();
+  }).then(function(rows){
+    var row=(Array.isArray(rows)&&rows[0])?rows[0]:f;
+    allFolders.push(row);
+    try{localStorage.setItem('sb_mob_folders',JSON.stringify(allFolders));}catch(e){}
+    editFolderId=row.id;
+    renderEditFolderRow();
+    resetFolderNewForm();
+    renderFolderChips();
+    closeFolderPicker();
+  }).catch(function(e2){
+    console.error('[SprintBrain] create folder failed',e2);
+    err.textContent='Could not create folder. Please try again.';
+    createBtn.disabled=false;createBtn.textContent='Create';
+  });
+}
+
+document.getElementById('sb-edit-folder-btn').addEventListener('click',openFolderPicker);
+document.querySelector('#sb-folder-sheet .sb-sheet-backdrop')
+  .addEventListener('click',closeFolderPicker);
+
+document.getElementById('sb-folder-search').addEventListener('input',function(){
+  folderPickerSearch=this.value;
+  renderFolderPicker();
+});
+
+document.getElementById('sb-folder-new-btn').addEventListener('click',function(){
+  this.classList.add('sb-hidden');
+  var form=document.getElementById('sb-folder-new-form');
+  form.classList.remove('sb-hidden');
+  var input=document.getElementById('sb-folder-new-name');
+  // Seed name from current search query if any
+  if(folderPickerSearch)input.value=folderPickerSearch;
+  setTimeout(function(){input.focus();},50);
+});
+document.getElementById('sb-folder-new-create').addEventListener('click',createFolderInline);
+document.getElementById('sb-folder-new-name').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){e.preventDefault();createFolderInline();}
+});
+(function(){
+  var area=document.querySelector('#sb-folder-sheet .sb-sheet-handle-area');
+  var panel=document.querySelector('#sb-folder-sheet .sb-sheet-panel');
+  var startY=null, delta=0, dragging=false;
+  function onStart(e){
+    startY=(e.touches?e.touches[0].clientY:e.clientY);
+    delta=0;dragging=true;
+    panel.style.transition='none';
+  }
+  function onMove(e){
+    if(!dragging)return;
+    var y=(e.touches?e.touches[0].clientY:e.clientY);
+    delta=y-startY;if(delta<0)delta=0;
+    panel.style.transform='translateY('+delta+'px)';
+  }
+  function onEnd(){
+    if(!dragging)return;
+    dragging=false;
+    panel.style.transition='';panel.style.transform='';
+    if(delta>80)closeFolderPicker();
+    startY=null;delta=0;
+  }
+  area.addEventListener('touchstart',onStart,{passive:true});
+  area.addEventListener('touchmove',onMove,{passive:true});
+  area.addEventListener('touchend',onEnd);
+  area.addEventListener('touchcancel',onEnd);
+  area.addEventListener('mousedown',onStart);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+})();
+document.getElementById('sb-folder-list').addEventListener('click',function(e){
+  var li=e.target.closest('li[data-fid]');
+  if(!li)return;
+  var fid=li.getAttribute('data-fid');
+  editFolderId=fid?fid:null;
+  renderEditFolderRow();
+  closeFolderPicker();
+});
 
 document.getElementById('sb-modal-cancel').addEventListener('click',function(){
   if(isDirty()&&!confirm('Discard changes?'))return;
@@ -958,12 +1274,23 @@ document.getElementById('sb-modal-save').addEventListener('click',function(){
   var title=document.getElementById('sb-edit-title').value.trim();
   var shortcut=document.getElementById('sb-edit-shortcut').value.trim();
   var body=document.getElementById('sb-edit-body').value;
+  var folderId=editFolderId;
   var err=document.getElementById('sb-edit-err');
   if(!title){err.textContent='Title is required';return;}
   if(!body.trim()){err.textContent='Body is required';return;}
   err.textContent='';
   var btn=this;
   btn.disabled=true;btn.textContent='Saving…';
+
+  // Optimistic update — apply locally first, roll back on error
+  var idx=allSnips.findIndex(function(x){return x.id===editSnip.id;});
+  var prevRow=idx>-1?Object.assign({},allSnips[idx]):null;
+  if(idx>-1){
+    allSnips[idx]=Object.assign({},allSnips[idx],{
+      title:title,shortcut:shortcut,body:body,folder_id:folderId
+    });
+  }
+
   fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(editSnip.id),{
     method:'PATCH',
     headers:{
@@ -972,7 +1299,7 @@ document.getElementById('sb-modal-save').addEventListener('click',function(){
       'Content-Type':'application/json',
       'Prefer':'return=representation'
     },
-    body:JSON.stringify({title:title,shortcut:shortcut,body:body})
+    body:JSON.stringify({title:title,shortcut:shortcut,body:body,folder_id:folderId})
   })
   .then(function(r){
     if(!r.ok)throw new Error('save failed');
@@ -980,11 +1307,8 @@ document.getElementById('sb-modal-save').addEventListener('click',function(){
   })
   .then(function(rows){
     var updated=(Array.isArray(rows)&&rows[0])?rows[0]:null;
-    var idx=allSnips.findIndex(function(x){return x.id===editSnip.id;});
-    if(idx>-1){
-      allSnips[idx]=updated
-        ?Object.assign({},allSnips[idx],updated)
-        :Object.assign({},allSnips[idx],{title:title,shortcut:shortcut,body:body});
+    if(updated&&idx>-1){
+      allSnips[idx]=Object.assign({},allSnips[idx],updated);
     }
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
     btn.textContent='✓ Saved';btn.classList.add('saved');
@@ -997,6 +1321,8 @@ document.getElementById('sb-modal-save').addEventListener('click',function(){
     setTimeout(closeEditModal,2000);
   })
   .catch(function(){
+    // Roll back optimistic update
+    if(idx>-1&&prevRow){allSnips[idx]=prevRow;}
     err.textContent='Save failed. Please try again.';
     btn.disabled=false;btn.textContent='Save';
     btn.classList.remove('saved');
