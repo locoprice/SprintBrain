@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.14.1 -->
+<!-- SprintBrain Mobile v2.14.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -144,6 +144,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .field-in{border:none;outline:none;font-size:16px;color:var(--text);
   background:transparent;width:100%;padding:0;font-family:inherit}
 .field-in::placeholder{color:#C7C7CC}
+.field-in[type=date],.field-in[type=time],.field-in[type=datetime-local]{
+  color:#c2410c;font-weight:500}
 
 .no-fields{background:var(--card);border-radius:var(--r);padding:20px 16px;
   text-align:center;color:var(--text2);font-size:14px;box-shadow:var(--shadow)}
@@ -492,14 +494,99 @@ var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
-var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1};
+var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
+
+/* ── DATE/TIME HELPERS ─────────────────────────── */
+function _sbPad(n){ return (n<10?'0':'')+n; }
+function sbFormatDate(d,fmt){
+  if(!d||isNaN(d.getTime()))return '';
+  var M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var W=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var hr12=d.getHours()%12; if(hr12===0)hr12=12;
+  var tok={
+    YYYY:String(d.getFullYear()),YY:String(d.getFullYear()).slice(-2),
+    MMMM:M[d.getMonth()],MMM:M[d.getMonth()].slice(0,3),
+    MM:_sbPad(d.getMonth()+1),DD:_sbPad(d.getDate()),D:String(d.getDate()),
+    dddd:W[d.getDay()],ddd:W[d.getDay()].slice(0,3),
+    HH:_sbPad(d.getHours()),H:String(d.getHours()),
+    hh:_sbPad(hr12),h:String(hr12),
+    mm:_sbPad(d.getMinutes()),m:String(d.getMinutes()),
+    ss:_sbPad(d.getSeconds()),s:String(d.getSeconds()),
+    A:d.getHours()<12?'AM':'PM',a:d.getHours()<12?'am':'pm'
+  };
+  var order=['YYYY','YY','MMMM','MMM','MM','DD','D','dddd','ddd','HH','hh','H','mm','m','ss','s','h','A','a'];
+  var ph={},out=fmt;
+  for(var i=0;i<order.length;i++){var p='\x00'+i+'\x00';ph[p]=tok[order[i]];out=out.split(order[i]).join(p);}
+  for(var k in ph)out=out.split(k).join(ph[k]);
+  return out;
+}
+function sbApplyShift(d,shift){
+  if(!shift)return d;
+  var m=/^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/.exec(String(shift).replace(/\s+/g,''));
+  if(!m)return d;
+  var sign=m[1]==='-'?-1:1,n=parseInt(m[2],10)*sign,u=m[3];
+  var out=new Date(d.getTime());
+  if(u==='M')out.setMinutes(out.getMinutes()+n);
+  else if(u==='H')out.setHours(out.getHours()+n);
+  else if(u==='D')out.setDate(out.getDate()+n);
+  else if(u==='W')out.setDate(out.getDate()+n*7);
+  else if(u==='Mo')out.setMonth(out.getMonth()+n);
+  else if(u==='Y')out.setFullYear(out.getFullYear()+n);
+  return out;
+}
+function sbParseUserDate(s){
+  if(s==null||s==='')return null;
+  var str=String(s).replace(/^\s+|\s+$/g,'');
+  var mt=/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(str);
+  if(mt){var d=new Date();d.setHours(+mt[1],+mt[2],+(mt[3]||0),0);return d;}
+  var md=/^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if(md)return new Date(+md[1],+md[2]-1,+md[3]);
+  var mdt=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(str);
+  if(mdt)return new Date(+mdt[1],+mdt[2]-1,+mdt[3],+mdt[4],+mdt[5],+(mdt[6]||0));
+  var dd=new Date(str);
+  return isNaN(dd.getTime())?null:dd;
+}
+function sbParseTimeToken(rest,vals){
+  var parts=String(rest).split(';');
+  var fmt=(parts[0]||'').replace(/^\s+|\s+$/g,''),opts={};
+  for(var i=1;i<parts.length;i++){
+    var eq=parts[i].indexOf('=');
+    if(eq>-1){var k=parts[i].slice(0,eq).replace(/^\s+|\s+$/g,'');opts[k]=parts[i].slice(eq+1).replace(/^\s+|\s+$/g,'');}
+  }
+  var base=null;
+  if(opts.from&&vals&&vals[opts.from]!==undefined&&vals[opts.from]!=='')base=sbParseUserDate(vals[opts.from]);
+  if(!base||isNaN(base.getTime()))base=new Date();
+  if(opts.shift)base=sbApplyShift(base,opts.shift);
+  return sbFormatDate(base,fmt||'YYYY-MM-DD HH:mm');
+}
+function sbDatetimeDiffUnitMs(unit){
+  var u=String(unit||'').toLowerCase();
+  if(u==='second'||u==='seconds'||u==='s'||u==='sec')return 1000;
+  if(u==='minute'||u==='minutes'||u==='min')return 60000;
+  if(u==='hour'||u==='hours'||u==='h')return 3600000;
+  if(u==='day'||u==='days'||u==='d')return 86400000;
+  return 60000;
+}
+function sbResolveDatetimeDiff(expr,vals){
+  var re=/datetimediff\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
+  return String(expr).replace(re,function(_,a,b,unit){
+    function resolve(arg){
+      if(arg.charAt(0)==='"'||arg.charAt(0)==="'")return arg.slice(1,-1);
+      return (vals&&vals[arg]!==undefined)?String(vals[arg]):'';
+    }
+    var da=sbParseUserDate(resolve(a)),db=sbParseUserDate(resolve(b));
+    if(!da||!db)return '0';
+    return String((db.getTime()-da.getTime())/sbDatetimeDiffUnitMs(unit));
+  });
+}
 
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
     var t=m[1].replace(/^\s+|\s+$/g,'');
     if(t.charAt(0)!=='='&&t!=='endif'&&
-       t.slice(0,3)!=='if:'&&t.slice(0,4)!=='var:'){
+       t.slice(0,3)!=='if:'&&t.slice(0,4)!=='var:'&&
+       t.slice(0,5).toLowerCase()!=='time:'){
       var dup=false;
       for(var i=0;i<vars.length;i++){if(vars[i]===t){dup=true;break;}}
       if(!dup)vars.push(t);
@@ -562,13 +649,13 @@ function resolveBody(body,vals){
 
       /* {=expr} */
       if(tok.charAt(0)==='='){
-        var ex=tok.slice(1);
+        var ex=sbResolveDatetimeDiff(tok.slice(1),vals);
         var s=ex.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(n){
           if(FUNS[n])return n;
           var v=parseFloat(vals[n]);
           return isNaN(v)?'0':String(v);
         });
-        var stripped=s.replace(/round|floor|ceil|abs|min|max/g,'');
+        var stripped=s.replace(/round|floor|ceil|abs|min|max|datetimediff/g,'');
         var fv=null;
         if(/^[0-9+\-*/().\s,]+$/.test(stripped)){
           try{
@@ -577,6 +664,12 @@ function resolveBody(body,vals){
           }catch(e){}
         }
         out+=fv!==null?String(fv):'';
+        i=cl+1;continue;
+      }
+
+      /* {time: FORMAT[; shift=+1D][; from=FIELD]} */
+      if(tok.slice(0,5).toLowerCase()==='time:'){
+        out+=sbParseTimeToken(tok.slice(5),vals);
         i=cl+1;continue;
       }
 
@@ -785,6 +878,10 @@ function humanLbl(f){
 }
 function fieldType(f,cfg){
   if(cfg&&cfg[f]&&cfg[f].type)return cfg[f].type;
+  var u=String(f).toUpperCase();
+  if(/\bDATETIME\b/.test(u))return 'datetime';
+  if(/\bDATE\b/.test(u))return 'date';
+  if(/\bTIME\b/.test(u))return 'time';
   var l=f.toLowerCase();
   if(l.includes('price')||l.includes('cost')||l.includes('hours')||
      l.includes('ota'))return 'number';
@@ -816,12 +913,34 @@ function renderDetail(snip){
   if(!fields.length){
     form.innerHTML='<div class="no-fields">No input fields — ready to copy ✓</div>';
   }else{
+    var _sbNow=new Date();
+    var _sbToday=sbFormatDate(_sbNow,'YYYY-MM-DD');
+    var _sbTime=sbFormatDate(_sbNow,'HH:mm');
+    var _sbDT=_sbToday+'T'+_sbTime;
     form.innerHTML=fields.map(function(f){
       var c=cfg[f]||{};
       var lbl=c.label||humanLbl(f);
       var t=fieldType(f,cfg);
-      var itype=t==='number'?'number':'text';
       var def=c.default||'';
+      if(t==='date'){
+        return '<div class="field-row">'
+          +'<div class="field-lbl">'+esc(lbl)+'</div>'
+          +'<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">'
+          +'</div>';
+      }
+      if(t==='time'){
+        return '<div class="field-row">'
+          +'<div class="field-lbl">'+esc(lbl)+'</div>'
+          +'<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def||_sbTime)+'">'
+          +'</div>';
+      }
+      if(t==='datetime'||t==='datetime-local'){
+        return '<div class="field-row">'
+          +'<div class="field-lbl">'+esc(lbl)+'</div>'
+          +'<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def||_sbDT)+'">'
+          +'</div>';
+      }
+      var itype=t==='number'?'number':'text';
       return '<div class="field-row">'
         +'<div class="field-lbl">'+esc(lbl)+'</div>'
         +'<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
@@ -841,7 +960,10 @@ function renderDetail(snip){
 function getVals(){
   var v={};
   document.querySelectorAll('#fform .field-in').forEach(function(i){
-    var f=i.getAttribute('data-f'),val=i.value;
+    var f=i.getAttribute('data-f'),val=i.value,type=i.getAttribute('type');
+    if(type==='date'||type==='time'||type==='datetime-local'){
+      v[f]=val; return;
+    }
     var n=parseFloat(val);
     v[f]=(!isNaN(n)&&val.trim()!=='')?n:val;
   });

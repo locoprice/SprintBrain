@@ -1,13 +1,138 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.13.1 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.14.2 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
-var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1};
+var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
+
+// ── DATE/TIME HELPERS ─────────────────────────────────────────────
+function _sbPad(n){ return (n < 10 ? '0' : '') + n; }
+
+function sbFormatDate(d, fmt){
+  if (!d || isNaN(d.getTime())) return '';
+  var M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var W = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var hr12 = d.getHours() % 12; if (hr12 === 0) hr12 = 12;
+  var tok = {
+    YYYY: String(d.getFullYear()),
+    YY:   String(d.getFullYear()).slice(-2),
+    MMMM: M[d.getMonth()],
+    MMM:  M[d.getMonth()].slice(0,3),
+    MM:   _sbPad(d.getMonth()+1),
+    DD:   _sbPad(d.getDate()),
+    D:    String(d.getDate()),
+    dddd: W[d.getDay()],
+    ddd:  W[d.getDay()].slice(0,3),
+    HH:   _sbPad(d.getHours()),
+    H:    String(d.getHours()),
+    hh:   _sbPad(hr12),
+    h:    String(hr12),
+    mm:   _sbPad(d.getMinutes()),
+    m:    String(d.getMinutes()),
+    ss:   _sbPad(d.getSeconds()),
+    s:    String(d.getSeconds()),
+    A:    d.getHours() < 12 ? 'AM' : 'PM',
+    a:    d.getHours() < 12 ? 'am' : 'pm'
+  };
+  // Order: longer tokens first to prevent partial matches
+  var order = ['YYYY','YY','MMMM','MMM','MM','DD','D','dddd','ddd','HH','hh','H','mm','m','ss','s','h','A','a'];
+  var placeholders = {}, out = fmt;
+  for (var i = 0; i < order.length; i++) {
+    var p = '\x00' + i + '\x00';
+    placeholders[p] = tok[order[i]];
+    out = out.split(order[i]).join(p);
+  }
+  for (var k in placeholders) out = out.split(k).join(placeholders[k]);
+  return out;
+}
+
+function sbApplyShift(d, shift){
+  if (!shift) return d;
+  var m = /^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/.exec(String(shift).replace(/\s+/g,''));
+  if (!m) return d;
+  var sign = m[1] === '-' ? -1 : 1;
+  var n = parseInt(m[2], 10) * sign;
+  var u = m[3];
+  var out = new Date(d.getTime());
+  if (u === 'M')  out.setMinutes(out.getMinutes() + n);
+  else if (u === 'H')  out.setHours(out.getHours() + n);
+  else if (u === 'D')  out.setDate(out.getDate() + n);
+  else if (u === 'W')  out.setDate(out.getDate() + n * 7);
+  else if (u === 'Mo') out.setMonth(out.getMonth() + n);
+  else if (u === 'Y')  out.setFullYear(out.getFullYear() + n);
+  return out;
+}
+
+function sbParseUserDate(s){
+  if (s == null || s === '') return null;
+  var str = String(s).replace(/^\s+|\s+$/g, '');
+  // HH:mm — today at that time
+  var mt = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(str);
+  if (mt) { var d = new Date(); d.setHours(+mt[1], +mt[2], +(mt[3]||0), 0); return d; }
+  // YYYY-MM-DD
+  var md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (md) return new Date(+md[1], +md[2]-1, +md[3]);
+  // YYYY-MM-DDTHH:mm
+  var mdt = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(str);
+  if (mdt) return new Date(+mdt[1], +mdt[2]-1, +mdt[3], +mdt[4], +mdt[5], +(mdt[6]||0));
+  var dd = new Date(str);
+  return isNaN(dd.getTime()) ? null : dd;
+}
+
+function sbParseTimeToken(rest, vals){
+  // "FORMAT[; shift=+1D][; from=FIELD]"
+  var parts = String(rest).split(';');
+  var fmt = (parts[0] || '').replace(/^\s+|\s+$/g, '');
+  var opts = {};
+  for (var i = 1; i < parts.length; i++) {
+    var eq = parts[i].indexOf('=');
+    if (eq > -1) {
+      var k = parts[i].slice(0, eq).replace(/^\s+|\s+$/g, '');
+      var v = parts[i].slice(eq + 1).replace(/^\s+|\s+$/g, '');
+      opts[k] = v;
+    }
+  }
+  var base = null;
+  if (opts.from && vals && vals[opts.from] !== undefined && vals[opts.from] !== '') {
+    base = sbParseUserDate(vals[opts.from]);
+  }
+  if (!base || isNaN(base.getTime())) base = new Date();
+  if (opts.shift) base = sbApplyShift(base, opts.shift);
+  return sbFormatDate(base, fmt || 'YYYY-MM-DD HH:mm');
+}
+
+function sbDatetimeDiffUnitMs(unit){
+  var u = String(unit || '').toLowerCase();
+  if (u === 'second' || u === 'seconds' || u === 's' || u === 'sec') return 1000;
+  if (u === 'minute' || u === 'minutes' || u === 'min')              return 60000;
+  if (u === 'hour'   || u === 'hours'   || u === 'h')                return 3600000;
+  if (u === 'day'    || u === 'days'    || u === 'd')                return 86400000;
+  return 60000;
+}
+
+// Preprocess datetimediff(A, B, "unit") calls: identifiers resolve from vals
+// (so date/time strings like "2026-04-20" become numeric diffs before safeEval).
+function sbResolveDatetimeDiff(expr, vals){
+  var re = /datetimediff\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
+  return String(expr).replace(re, function(_, a, b, unit){
+    function resolve(arg) {
+      if (arg.charAt(0) === '"' || arg.charAt(0) === "'") return arg.slice(1, -1);
+      return (vals && vals[arg] !== undefined) ? String(vals[arg]) : '';
+    }
+    var da = sbParseUserDate(resolve(a));
+    var db = sbParseUserDate(resolve(b));
+    if (!da || !db) return '0';
+    var ms = db.getTime() - da.getTime();
+    return String(ms / sbDatetimeDiffUnitMs(unit));
+  });
+}
 
 function evalFormula(expr, vals) {
   try {
-    // Substitute variable names with their numeric values
-    var s = expr.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
+    // Resolve datetimediff(A,B,"unit") to a literal number first, so string
+    // date fields (CHECKIN, CHECKOUT, etc.) don't get clobbered to 0 below.
+    var s = sbResolveDatetimeDiff(expr, vals);
+    // Substitute remaining variable names with their numeric values
+    s = s.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
       if (FUNS[n]) return n;
       var v = parseFloat(vals[n]);
       return isNaN(v) ? '0' : String(v);
@@ -128,6 +253,10 @@ function resolveBody(body, vals) {
         out += fv !== null ? String(fv) : '';
         i = cl+1; continue;
       }
+      if (tok.slice(0,5).toLowerCase() === 'time:') {
+        out += sbParseTimeToken(tok.slice(5), vals);
+        i = cl+1; continue;
+      }
       if (tok.slice(0,3) === 'if:') {
         var cond = tok.slice(3).replace(/^\s+|\s+$/g, '');
         var ei = '{endif}', eidx = body.indexOf(ei, cl+1);
@@ -156,7 +285,9 @@ function extractFields(body) {
   var vars = [], re = /\{([^}]+)\}/g, m;
   while ((m = re.exec(body)) !== null) {
     var t = m[1].replace(/^\s+|\s+$/g, '');
-    if (t.charAt(0) !== '=' && t !== 'endif' && t.slice(0,3) !== 'if:' && t.slice(0,4) !== 'var:') {
+    if (t.charAt(0) !== '=' && t !== 'endif' &&
+        t.slice(0,3) !== 'if:' && t.slice(0,4) !== 'var:' &&
+        t.slice(0,5).toLowerCase() !== 'time:') {
       var dup = false;
       for (var i = 0; i < vars.length; i++) { if (vars[i] === t) { dup = true; break; } }
       if (!dup) vars.push(t);
@@ -704,12 +835,24 @@ function showOverlay(targetEl, snip, fields, done) {
   removeOverlay();
   overlayDone = done;
   var cfgs  = snip.fieldCfg || {};
-  var today = new Date().toISOString().split('T')[0];
+  var _now  = new Date();
+  var today = sbFormatDate(_now, 'YYYY-MM-DD');
+  var nowTime = sbFormatDate(_now, 'HH:mm');
+  var nowDT = sbFormatDate(_now, 'YYYY-MM-DD') + 'T' + sbFormatDate(_now, 'HH:mm');
 
   var fhtml = '';
   for (var i = 0; i < fields.length; i++) {
     var key = fields[i];
-    var cfg = cfgs[key] || {type:'text'};
+    var rawCfg = cfgs[key] || {};
+    var cfg = { type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default };
+    // Auto-detect date/time/datetime by field name when cfg.type is not set
+    if (!cfg.type) {
+      var up = String(key).toUpperCase();
+      if (/\bDATETIME\b/.test(up)) cfg.type = 'datetime';
+      else if (/\bDATE\b/.test(up)) cfg.type = 'date';
+      else if (/\bTIME\b/.test(up)) cfg.type = 'time';
+      else cfg.type = 'text';
+    }
     var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
     var inp;
     if (cfg.type === 'dd' && opts.length) {
@@ -718,9 +861,13 @@ function showOverlay(targetEl, snip, fields, done) {
         opts.map(function(o){ return '<option value="'+xesc(o)+'">'+xesc(o)+'</option>'; }).join('') +
         '</select>';
     } else if (cfg.type === 'date') {
-      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+today+'">';
+      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||today)+'">';
+    } else if (cfg.type === 'time') {
+      inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowTime)+'">';
+    } else if (cfg.type === 'datetime' || cfg.type === 'datetime-local') {
+      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowDT)+'">';
     } else {
-      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+(cfg.default||'')+'">';
+      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.default||'')+'">';
     }
     fhtml += '<div class="sb-field"><label class="sb-lbl">{'+key+'}</label>'+inp+'</div>';
   }
@@ -1491,7 +1638,7 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
     '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:16px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;}' +
     '#sb-overlay .sb-inp:focus{border-color:#e8c97a;background:#fffbf0;}' +
-    '#sb-overlay .sb-inp[type=date]{color:#c2410c;border-color:#fed7aa;background:#fff7ed;}' +
+    '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#c2410c;border-color:#fed7aa;background:#fff7ed;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23BA7517"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
     '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#f5f4f0;border:1px solid #e8e5e0;border-radius:6px;font-size:11px;color:#6e6c67;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #e8e5e0;display:flex;align-items:center;gap:8px;background:#fafaf8;}' +
