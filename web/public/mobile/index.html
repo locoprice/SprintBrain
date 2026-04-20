@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.14.3 -->
+<!-- SprintBrain Mobile v2.14.4 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -423,6 +423,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     </div>
     <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
     <ul class="sb-sheet-actions">
+      <li data-action="use">▶ Use</li>
       <li data-action="edit">✏️ Edit</li>
       <li data-action="delete" class="sb-action-danger">🗑 Delete</li>
     </ul>
@@ -1109,7 +1110,19 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
     if(!li||!sheetSnip)return;
     var act=li.getAttribute('data-action');
     var s=sheetSnip;
-    if(act==='edit'){
+    if(act==='use'){
+      // If the snippet has fields, jump into the detail view so the user
+      // can fill them in; otherwise copy the resolved body straight to
+      // the clipboard — one-tap flow Valentina relies on.
+      var fields=extractFields(s.body||'');
+      if(fields.length){
+        closeBottomSheet();
+        setTimeout(function(){openDetail(s);},320);
+      }else{
+        copyText(resolveBody(s.body||'',{}));
+        closeBottomSheet();
+      }
+    }else if(act==='edit'){
       var snapshot=s;
       closeBottomSheet();
       setTimeout(function(){openEditModal(snapshot);},320);
