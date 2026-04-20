@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.14.2 -->
+<!-- SprintBrain Mobile v2.14.3 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -878,10 +878,12 @@ function humanLbl(f){
 }
 function fieldType(f,cfg){
   if(cfg&&cfg[f]&&cfg[f].type)return cfg[f].type;
-  var u=String(f).toUpperCase();
-  if(/\bDATETIME\b/.test(u))return 'datetime';
-  if(/\bDATE\b/.test(u))return 'date';
-  if(/\bTIME\b/.test(u))return 'time';
+  // Split on any non-letter so "TIME_HH:MM" and "DATE_DD/MM/YYYY"
+  // still expose TIME / DATE as standalone tokens.
+  var toks=String(f).toUpperCase().split(/[^A-Z]+/);
+  if(toks.indexOf('DATETIME')>=0)return 'datetime';
+  if(toks.indexOf('DATE')>=0)return 'date';
+  if(toks.indexOf('TIME')>=0)return 'time';
   var l=f.toLowerCase();
   if(l.includes('price')||l.includes('cost')||l.includes('hours')||
      l.includes('ota'))return 'number';
