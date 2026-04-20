@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.14.2 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.14.3 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -845,12 +845,14 @@ function showOverlay(targetEl, snip, fields, done) {
     var key = fields[i];
     var rawCfg = cfgs[key] || {};
     var cfg = { type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default };
-    // Auto-detect date/time/datetime by field name when cfg.type is not set
+    // Auto-detect date/time/datetime by field name when cfg.type is not set.
+    // Split on non-letters so "TIME_HH:MM" / "DATE_DD/MM/YYYY" still expose
+    // TIME / DATE as standalone tokens.
     if (!cfg.type) {
-      var up = String(key).toUpperCase();
-      if (/\bDATETIME\b/.test(up)) cfg.type = 'datetime';
-      else if (/\bDATE\b/.test(up)) cfg.type = 'date';
-      else if (/\bTIME\b/.test(up)) cfg.type = 'time';
+      var toks = String(key).toUpperCase().split(/[^A-Z]+/);
+      if (toks.indexOf('DATETIME') >= 0) cfg.type = 'datetime';
+      else if (toks.indexOf('DATE') >= 0) cfg.type = 'date';
+      else if (toks.indexOf('TIME') >= 0) cfg.type = 'time';
       else cfg.type = 'text';
     }
     var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
