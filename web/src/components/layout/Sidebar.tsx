@@ -1,14 +1,16 @@
+import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
   HelpCircle,
   LifeBuoy,
+  LogOut,
   MessageSquareText,
   Settings,
   Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useAuthStore } from '@/stores/authStore';
 
 interface NavItem {
   to: string;
@@ -38,8 +40,51 @@ function navClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
+/** Derive a friendly display name from the Supabase user object. */
+function pickDisplayName(
+  metadata: Record<string, unknown> | undefined,
+  email: string | undefined,
+): string {
+  const name = metadata?.['full_name'] ?? metadata?.['name'];
+  if (typeof name === 'string' && name.trim()) return name;
+  if (email) return email.split('@')[0] ?? email;
+  return 'Account';
+}
+
 export function Sidebar() {
-  const profile = useSettingsStore((s) => s.profile);
+  const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const email = user?.email ?? '';
+  const displayName = pickDisplayName(user?.user_metadata, email);
+  const initial = displayName.slice(0, 1).toUpperCase();
+
+  // Close the dropdown on any outside click.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
+
+  async function onSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      // onAuthStateChange flips status to 'anon' → AuthGate redirects to /login.
+    } finally {
+      setSigningOut(false);
+      setMenuOpen(false);
+    }
+  }
 
   return (
     <aside className="flex h-screen w-[260px] shrink-0 flex-col border-r border-line bg-card">
@@ -85,22 +130,36 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* User block */}
-      <div className="border-t border-line p-3">
+      {/* User block — click to open sign-out menu */}
+      <div ref={menuRef} className="relative border-t border-line p-3">
+        {menuOpen && (
+          <div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-[10px] border border-line bg-card shadow-lg">
+            <button
+              type="button"
+              onClick={onSignOut}
+              disabled={signingOut}
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-ink hover:bg-bg-alt disabled:opacity-50"
+            >
+              <LogOut className="h-4 w-4 text-ink-muted" />
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
+          </div>
+        )}
         <button
           type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
           className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-bg-alt"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
-            {profile?.display_name.slice(0, 1) ?? 'A'}
+            {initial}
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-ink">
-              {profile?.display_name ?? 'Loading…'}
+              {displayName}
             </div>
-            <div className="truncate text-xs text-ink-subtle">
-              {profile?.email ?? ''}
-            </div>
+            <div className="truncate text-xs text-ink-subtle">{email}</div>
           </div>
         </button>
       </div>
