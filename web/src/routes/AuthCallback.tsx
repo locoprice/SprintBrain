@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/authStore';
+
+/**
+ * The magic link from the email lands here. Supabase SDK auto-detects
+ * the token in the URL hash (detectSessionInUrl: true) and persists the
+ * session before this component mounts. We just wait briefly for the
+ * auth store to pick it up, then bounce to the dashboard.
+ */
+export function AuthCallback() {
+  const status = useAuthStore((s) => s.status);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    // Surface any hash-level error the redirect carries.
+    const hash = window.location.hash.replace(/^#/, '');
+    const params = new URLSearchParams(hash);
+    const err = params.get('error_description') ?? params.get('error');
+    if (err) {
+      setErrorMsg(err);
+      return;
+    }
+
+    // Kick Supabase to read the URL once (safety net in case detectSessionInUrl
+    // hasn't fired yet by the time React mounts this route).
+    void supabase.auth.getSession();
+
+    // Fallback — if the session doesn't appear within 5s, treat it as a
+    // failed callback rather than spinning forever.
+    const t = window.setTimeout(() => setTimedOut(true), 5000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  if (errorMsg) {
+    return <Navigate to={`/login?error=${encodeURIComponent(errorMsg)}`} replace />;
+  }
+
+  if (status === 'authed') {
+    return <Navigate to="/" replace />;
+  }
+
+  if (status === 'anon' || timedOut) {
+    return (
+      <Navigate
+        to="/login?error=Sign-in+link+expired+or+was+already+used"
+        replace
+      />
+    );
+  }
+
+  // status === 'loading'
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bg">
+      <div className="flex items-center gap-3 text-sm text-ink-muted">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        Signing you in…
+      </div>
+    </div>
+  );
+}
