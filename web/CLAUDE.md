@@ -1,7 +1,7 @@
 # web/CLAUDE.md — SprintBrain Dashboard (React)
 
-**Document Version**: 1.0
-**Last Updated**: April 18, 2026
+**Document Version**: 2.0
+**Last Updated**: April 21, 2026
 **Project**: SprintBrain SaaS Dashboard (web/)
 **Purpose**: AI development reference for the React dashboard. The Chrome extension lives at the repo root and follows a different stack — see `../CLAUDE.md` for that codebase.
 
@@ -11,7 +11,7 @@
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.
 
-**Scope (v2.14.0)**: layout-only scaffold with mock data. No authentication, no live Supabase calls, no CRUD. Follow-up tickets wire auth and replace mock services.
+**Scope (v2.15.0)**: Supabase magic-link authentication (domain-restricted to `@leibtour.com`) with live reads for snippets, folders, and profile. Prompts and analytics pages still use mock fixtures pending backing tables (`prompts`, `snippet_events`). No CRUD yet — that's the next ticket.
 
 **Audience**: hospitality operators (LeibTour) primarily; B2B prospects evaluating SprintBrain.
 
@@ -115,12 +115,19 @@ web/
 - Prefer `interface` for object shapes, `type` for unions and primitives.
 - All API service responses are typed against `src/types/database.ts`.
 
-### 4.7 Mock data
-- Fixtures in `src/mock/fixtures.ts` are deterministic (no `Math.random()` at runtime). Date offsets use a fixed `day(offset)` helper from `Date.now()` so the chart shape is stable per session.
-- All UUIDs are hand-rolled and stable across re-renders.
+### 4.7 Mock vs live data (as of v2.15.0)
+- **Live**: `snippetsApi` (folders + snippets + stats joined), `settingsApi.getProfile` (derived from the authed `auth.users` record), `settingsApi.getNotionSync` (reads latest `notion_sync_log` row).
+- **Still mock**: `promptsApi` (no `prompts` table yet — tracked in `PROMPTS-001`), `analyticsApi` (needs `snippet_events` time-series table — tracked in `ANALYTICS-001`).
+- Fixtures in `src/mock/fixtures.ts` remain deterministic (no `Math.random()` at runtime). Date offsets use a fixed `day(offset)` helper from `Date.now()` so the chart shape is stable per session.
+- All mock UUIDs are hand-rolled and stable across re-renders.
 
-### 4.8 Forms
-- All forms in v2.14.0 are non-functional placeholders. Wire-up happens in the CRUD ticket.
+### 4.8 Auth + RLS
+- Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Only `@leibtour.com` emails can sign up (enforced by a `BEFORE INSERT` trigger on `auth.users`).
+- The dashboard uses the Supabase publishable key; the JS client attaches the user's JWT to every request automatically.
+- DB RLS still has permissive `team_*` policies (`qual: true`) needed by the extension's anon-key reads. Until the extension migrates (`AUTH-EXT-001`), every dashboard query explicitly filters `.eq('user_id', currentUserId)` in app code — do NOT remove those filters.
+
+### 4.9 Forms
+- All forms in v2.15.0 remain non-functional placeholders. Wire-up happens in the CRUD ticket.
 - Disabled controls must include `title` explaining why.
 
 ---
@@ -141,21 +148,23 @@ web/
 ## 6. What NOT to do
 
 - Do not import from the extension files at the repo root (`background.js`, `popup.js`, etc.). They share no runtime.
-- Do not add a Supabase client until the auth ticket lands. The mock service layer is the seam.
+- Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query until `AUTH-EXT-001` lands and the `team_*` RLS policies come off — without it, every authed user can read every other user's rows.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
 - Do not run `npm install` at the repo root — install only inside `web/`.
+- Do not commit the Supabase publishable key anywhere else (it's already in `src/lib/supabase.ts`; don't duplicate into `.env` files).
 
 ---
 
 ## 7. Roadmap (next tickets)
 
-1. Supabase auth (magic link or Google) + replace mock services with live reads
-2. Snippet CRUD with Zod validation + optimistic updates
-3. Prompt CRUD + AI provider integration
-4. Analytics live aggregation from `snippet_stats`
-5. Notion sync trigger + history view
-6. Dark mode (`uiStore` already has the seam)
+1. ~~Supabase auth (magic link) + live reads~~ ✅ shipped in v2.15.0 (AUTH-001).
+2. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies.
+3. **SNIPPETS-CRUD-001** — create / edit / delete snippets and folders from the dashboard with Zod validation and optimistic updates.
+4. **PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.
+5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
+6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
+7. Dark mode (`uiStore` already has the seam).
 
 ---
 
