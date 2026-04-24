@@ -44,3 +44,26 @@ export const promptSchema = z.object({
   updated_at: z.string(),
   last_used_at: z.string().nullable(),
 });
+
+// Form-level schemas — used for validation in CRUD dialogs.
+
+export const snippetFormSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or fewer'),
+  trigger: z
+    .string()
+    .min(1, 'Trigger is required')
+    .max(60, 'Trigger must be 60 characters or fewer')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, hyphens, and underscores only'),
+  content: z.string().min(1, 'Content is required'),
+  folder_id: z.string().uuid().nullable(),
+  language: z.enum(['EN', 'IT', 'ES', 'FR', 'MULTI']),
+});
+
+export type SnippetFormValues = z.infer<typeof snippetFormSchema>;
+
+export const folderFormSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
+  icon: z.string().min(1, 'Icon is required'),
+});
+
+export type FolderFormValues = z.infer<typeof folderFormSchema>;

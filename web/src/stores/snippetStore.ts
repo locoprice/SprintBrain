@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Folder, SnippetRow } from '@/types/database';
+import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
 
 interface SnippetStore {
@@ -12,9 +13,17 @@ interface SnippetStore {
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
+
+  // Mutations — throw on failure so the calling dialog can keep the form open.
+  addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
+  editSnippet: (id: string, patch: Partial<SnippetFormValues>) => Promise<SnippetRow>;
+  removeSnippet: (id: string) => Promise<void>;
+  addFolder: (payload: FolderFormValues) => Promise<Folder>;
+  editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
+  removeFolder: (id: string) => Promise<void>;
 }
 
-export const useSnippetStore = create<SnippetStore>((set) => ({
+export const useSnippetStore = create<SnippetStore>((set, get) => ({
   folders: [],
   snippets: [],
   loading: false,
@@ -38,6 +47,111 @@ export const useSnippetStore = create<SnippetStore>((set) => ({
   },
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
   setSearchQuery: (q) => set({ searchQuery: q }),
+
+  addSnippet: async (payload) => {
+    try {
+      const row = await snippetsApi.createSnippet(payload);
+      // Ensure the folder_name is populated (the join returns it on insert, but
+      // fall back to our local folders list if needed).
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      const enriched: SnippetRow = {
+        ...row,
+        folder_name: row.folder_name ?? folder?.name ?? null,
+      };
+      set((s) => ({ snippets: [...s.snippets, enriched], error: null }));
+      return enriched;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create snippet';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  editSnippet: async (id, patch) => {
+    try {
+      const row = await snippetsApi.updateSnippet(id, patch);
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      const enriched: SnippetRow = {
+        ...row,
+        folder_name: row.folder_name ?? folder?.name ?? null,
+      };
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === id ? enriched : sn)),
+        error: null,
+      }));
+      return enriched;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update snippet';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  removeSnippet: async (id) => {
+    try {
+      await snippetsApi.deleteSnippet(id);
+      set((s) => ({
+        snippets: s.snippets.filter((sn) => sn.id !== id),
+        error: null,
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete snippet';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  addFolder: async (payload) => {
+    try {
+      const folder = await snippetsApi.createFolder(payload);
+      set((s) => ({ folders: [...s.folders, folder], error: null }));
+      return folder;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create folder';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  editFolder: async (id, patch) => {
+    try {
+      const folder = await snippetsApi.updateFolder(id, patch);
+      set((s) => ({
+        folders: s.folders.map((f) => (f.id === id ? folder : f)),
+        // Propagate any rename to cached snippet rows.
+        snippets: s.snippets.map((sn) =>
+          sn.folder_id === id ? { ...sn, folder_name: folder.name } : sn,
+        ),
+        error: null,
+      }));
+      return folder;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update folder';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  removeFolder: async (id) => {
+    try {
+      await snippetsApi.deleteFolder(id);
+      set((s) => ({
+        folders: s.folders.filter((f) => f.id !== id),
+        // Mirror the server-side reassignment: snippets in this folder drop
+        // back to "no folder" in memory.
+        snippets: s.snippets.map((sn) =>
+          sn.folder_id === id ? { ...sn, folder_id: null, folder_name: null } : sn,
+        ),
+        // Clear the folder selection if it was the one we just removed.
+        selectedFolderId: s.selectedFolderId === id ? null : s.selectedFolderId,
+        error: null,
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete folder';
+      set({ error: msg });
+      throw err;
+    }
+  },
 }));
 
 // Selector: filtered snippet list derived from current folder + query.

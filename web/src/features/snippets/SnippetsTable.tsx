@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -7,13 +7,16 @@ import {
   useFilteredSnippets,
   useSnippetStore,
 } from '@/stores/snippetStore';
+import { useUiStore } from '@/stores/uiStore';
 
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
+  const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const query = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
+  const openEditSnippet = useUiStore((s) => s.openEditSnippet);
 
   if (loading && rows.length === 0) {
     return (
@@ -50,6 +53,15 @@ export function SnippetsTable() {
     );
   }
 
+  async function handleDelete(id: string) {
+    try {
+      await removeSnippet(id);
+    } catch {
+      // Error surfaces on the store; the edit dialog would show it.
+      // Silent here to avoid a toast system this iteration.
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-[16px] border border-line bg-card">
       <table className="w-full text-sm">
@@ -60,18 +72,20 @@ export function SnippetsTable() {
             <th className="px-5 py-3">Folder</th>
             <th className="px-5 py-3">Updated</th>
             <th className="px-5 py-3 text-right">Usage</th>
+            <th className="w-10 px-2 py-3" aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => {
             const trigger = row.triggers[0] ?? '';
+            const isLast = i === rows.length - 1;
             return (
               <tr
                 key={row.id}
+                onClick={() => openEditSnippet(row.id)}
                 className={
-                  i === rows.length - 1
-                    ? 'hover:bg-bg-alt/60'
-                    : 'border-b border-line hover:bg-bg-alt/60'
+                  (isLast ? '' : 'border-b border-line ') +
+                  'group cursor-pointer hover:bg-bg-alt/60'
                 }
               >
                 <td className="px-5 py-3">
@@ -105,6 +119,20 @@ export function SnippetsTable() {
                 </td>
                 <td className="px-5 py-3 text-right font-mono text-xs text-ink-muted">
                   {row.usage_count.toLocaleString()}
+                </td>
+                <td className="px-2 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(row.id);
+                    }}
+                    aria-label={`Delete ${row.name}`}
+                    title={`Delete ${row.name}`}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-ink-subtle opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </td>
               </tr>
             );
