@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import type { Folder, Snippet, SnippetRow } from '@/types/database';
+import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
-// Live Supabase reads for snippets + folders, scoped to the authed user.
+// Live Supabase reads + writes for snippets + folders, scoped to the authed user.
 //
 // Why we filter explicitly by user_id in app code instead of relying on RLS:
 // the DB still has permissive `team_*` policies (qual: true) needed by the
@@ -13,6 +14,12 @@ import type { Folder, Snippet, SnippetRow } from '@/types/database';
 export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;
   listSnippets(): Promise<SnippetRow[]>;
+  createSnippet(payload: SnippetFormValues): Promise<SnippetRow>;
+  updateSnippet(id: string, patch: Partial<SnippetFormValues>): Promise<SnippetRow>;
+  deleteSnippet(id: string): Promise<void>;
+  createFolder(payload: FolderFormValues): Promise<Folder>;
+  updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
+  deleteFolder(id: string): Promise<void>;
 }
 
 type DbFolder = {
@@ -89,6 +96,9 @@ async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
+const SNIPPET_SELECT =
+  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, folders(name), snippet_stats(uses)';
+
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
     const userId = await currentUserId();
@@ -105,12 +115,120 @@ export const snippetsApi: SnippetsApi = {
     const userId = await currentUserId();
     const { data, error } = await supabase
       .from('snippets')
-      .select(
-        'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, folders(name), snippet_stats(uses)',
-      )
+      .select(SNIPPET_SELECT)
       .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
     return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
+  },
+
+  async createSnippet(payload) {
+    const userId = await currentUserId();
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const insert = {
+      id,
+      user_id: userId,
+      title: payload.name,
+      shortcut: payload.trigger,
+      body: payload.content,
+      lang: payload.language,
+      folder_id: payload.folder_id,
+      field_cfg: {},
+      sort_order: Date.now(),
+      updated_at: now,
+    };
+    const { data, error } = await supabase
+      .from('snippets')
+      .insert(insert)
+      .select(SNIPPET_SELECT)
+      .single();
+    if (error) throw error;
+    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
+  async updateSnippet(id, patch) {
+    const userId = await currentUserId();
+    const update: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (patch.name !== undefined) update['title'] = patch.name;
+    if (patch.trigger !== undefined) update['shortcut'] = patch.trigger;
+    if (patch.content !== undefined) update['body'] = patch.content;
+    if (patch.language !== undefined) update['lang'] = patch.language;
+    if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
+
+    const { data, error } = await supabase
+      .from('snippets')
+      .update(update)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(SNIPPET_SELECT)
+      .single();
+    if (error) throw error;
+    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
+  async deleteSnippet(id) {
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('snippets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  async createFolder(payload) {
+    const userId = await currentUserId();
+    const id = crypto.randomUUID();
+    const { data, error } = await supabase
+      .from('folders')
+      .insert({
+        id,
+        user_id: userId,
+        name: payload.name,
+        ico: payload.icon,
+        sort_order: Date.now(),
+      })
+      .select('id, user_id, name, ico, sort_order')
+      .single();
+    if (error) throw error;
+    return dbFolderToFolder(data as DbFolder);
+  },
+
+  async updateFolder(id, patch) {
+    const userId = await currentUserId();
+    const update: Record<string, unknown> = {};
+    if (patch.name !== undefined) update['name'] = patch.name;
+    if (patch.icon !== undefined) update['ico'] = patch.icon;
+
+    const { data, error } = await supabase
+      .from('folders')
+      .update(update)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id, user_id, name, ico, sort_order')
+      .single();
+    if (error) throw error;
+    return dbFolderToFolder(data as DbFolder);
+  },
+
+  async deleteFolder(id) {
+    const userId = await currentUserId();
+    // Reassign snippets in this folder to "no folder" first, so nothing orphans.
+    const { error: reassignError } = await supabase
+      .from('snippets')
+      .update({ folder_id: null })
+      .eq('folder_id', id)
+      .eq('user_id', userId);
+    if (reassignError) throw reassignError;
+
+    const { error } = await supabase
+      .from('folders')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw error;
   },
 };

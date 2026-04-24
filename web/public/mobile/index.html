@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.14.4 -->
+<!-- SprintBrain Mobile v2.14.6 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -101,6 +101,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .lES{background:#FFF7ED;color:#C2410C}
 .lIT{background:#F0FDF4;color:#15803D}
 .lMULTI{background:#F5F3FF;color:#7C3AED}
+.lbadge.lpill{cursor:pointer;border:1px solid transparent;opacity:.55;
+  transition:opacity .12s,transform .1s;min-height:22px;
+  display:inline-flex;align-items:center;padding:3px 8px}
+.lbadge.lpill:active{transform:scale(.94)}
+.lbadge.lpill.on{opacity:1;border-color:currentColor}
 .fbadge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;
   background:#F3F4F6;color:var(--text2);
   display:inline-flex;align-items:center;gap:4px;
@@ -777,10 +782,20 @@ function folderIcon(f){
   if(cp>=0x1F300||(cp>=0x2600&&cp<=0x27FF))return ic;
   return '📁';
 }
+function groupCount(arr){
+  var seen={},n=0;
+  for(var i=0;i<arr.length;i++){
+    var gid=arr[i].lang_group_id||arr[i].id;
+    if(!seen[gid]){seen[gid]=1;n++;}
+  }
+  return n;
+}
 function folderCount(fid){
-  var n=0;
+  var seen={},n=0;
   for(var i=0;i<allSnips.length;i++){
-    if(allSnips[i].folder_id===fid)n++;
+    if(allSnips[i].folder_id!==fid)continue;
+    var gid=allSnips[i].lang_group_id||allSnips[i].id;
+    if(!seen[gid]){seen[gid]=1;n++;}
   }
   return n;
 }
@@ -798,7 +813,7 @@ function renderFolderChips(){
   el.style.display='';
   var html='<button class="folder-pill'+(curFolder==='ALL'?' on':'')+'" data-fid="ALL">'
     +'<span class="folder-pill-ico">📂</span><span>All</span>'
-    +'<span class="folder-pill-cnt">'+allSnips.length+'</span></button>';
+    +'<span class="folder-pill-cnt">'+groupCount(allSnips)+'</span></button>';
   for(var i=0;i<allFolders.length;i++){
     var f=allFolders[i];
     html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'">'
@@ -809,26 +824,56 @@ function renderFolderChips(){
   el.innerHTML=html;
 }
 
+var LANG_ORDER=['EN','IT','ES','MULTI'];
+function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
+function buildGroups(arr){
+  var map={},order=[];
+  for(var i=0;i<arr.length;i++){
+    var s=arr[i];
+    var k=s.lang_group_id||s.id;
+    if(!map[k]){ map[k]={key:k,variants:[]}; order.push(k); }
+    map[k].variants.push(s);
+  }
+  return order.map(function(k){
+    var g=map[k];
+    g.variants.sort(function(a,b){ return langRank(a.lang)-langRank(b.lang); });
+    return g;
+  });
+}
+function groupMatches(g,q,folder,lang){
+  // group matches if ANY variant satisfies every active filter
+  for(var i=0;i<g.variants.length;i++){
+    var s=g.variants[i];
+    var ml=lang==='ALL'||s.lang===lang;
+    var mf=folder==='ALL'||s.folder_id===folder;
+    var ms=!q||(s.title||'').toLowerCase().includes(q)||
+            (s.shortcut||'').toLowerCase().includes(q);
+    if(ml&&mf&&ms) return true;
+  }
+  return false;
+}
+function pickActiveVariant(g,lang){
+  if(lang&&lang!=='ALL'){
+    for(var i=0;i<g.variants.length;i++){ if(g.variants[i].lang===lang) return g.variants[i]; }
+  }
+  return g.variants[0];
+}
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
-  var list=allSnips.filter(function(s){
-    var ml=curLang==='ALL'||s.lang===curLang;
-    var mf=curFolder==='ALL'||s.folder_id===curFolder;
-    var ms=!q||(s.title||'').toLowerCase().includes(q)||
-            (s.shortcut||'').toLowerCase().includes(q);
-    return ml&&mf&&ms;
+  var groups=buildGroups(allSnips).filter(function(g){
+    return groupMatches(g,q,curFolder,curLang);
   });
-  document.getElementById('cnt').textContent=allSnips.length;
-  if(!list.length){
+  document.getElementById('cnt').textContent=groupCount(allSnips);
+  if(!groups.length){
     el.innerHTML='<div class="empty"><div class="emo">🔍</div><p>No snippets found</p></div>';
     return;
   }
-  el.innerHTML=list.map(function(s){
-    var lang=s.lang||'EN';
+  el.innerHTML=groups.map(function(g){
+    var active=pickActiveVariant(g,curLang);
     var fbadge='';
-    if(curFolder==='ALL'&&s.folder_id){
-      var f=getFolderById(s.folder_id);
+    if(curFolder==='ALL'&&active.folder_id){
+      var f=getFolderById(active.folder_id);
       if(f){
         fbadge='<span class="fbadge" title="'+esc(f.name||'')+'">'
           +'<span class="fbadge-ico">'+folderIcon(f)+'</span>'
@@ -836,27 +881,42 @@ function renderList(){
         +'</span>';
       }
     }
-    return '<div class="snip-card" data-id="'+esc(s.id)+'" role="button" tabindex="0">'
-      +'<div class="snip-icon">'+getIcon(s)+'</div>'
+    // Language pills: one per variant. Only render pills row if >1 variant.
+    var pills='';
+    if(g.variants.length>1){
+      pills=g.variants.map(function(v){
+        var on=v.id===active.id?' on':'';
+        return '<span class="lbadge lpill l'+esc(v.lang||'EN')+on+'" '
+          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(v.id)+'" '
+          +'role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'">'
+          +esc(v.lang||'EN')+'</span>';
+      }).join('');
+    }else{
+      pills='<span class="lbadge l'+esc(active.lang||'EN')+'">'+esc(active.lang||'EN')+'</span>';
+    }
+    return '<div class="snip-card" data-id="'+esc(active.id)+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
+      +'<div class="snip-icon">'+getIcon(active)+'</div>'
       +'<div class="snip-info">'
-        +'<div class="snip-title">'+esc(s.title||s.id)+'</div>'
+        +'<div class="snip-title">'+esc(active.title||active.id)+'</div>'
         +'<div class="snip-meta">'
-          +'<span class="snip-sc">'+esc(s.shortcut||'')+'</span>'
-          +'<span class="lbadge l'+esc(lang)+'">'+esc(lang)+'</span>'
+          +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
+          +pills
           +fbadge
         +'</div>'
       +'</div>'
-      +'<button type="button" class="snip-menu" data-menu-id="'+esc(s.id)+'" aria-label="More actions">⋮</button>'
+      +'<button type="button" class="snip-menu" data-menu-id="'+esc(active.id)+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
       if(e.target.closest('.snip-menu'))return;
+      if(e.target.classList&&e.target.classList.contains('lpill'))return;
       var id=this.getAttribute('data-id');
       var s=allSnips.find(function(x){return x.id===id;});
       if(s)openDetail(s);
     });
     card.addEventListener('keydown',function(e){
+      if(e.target.classList&&e.target.classList.contains('lpill'))return;
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
         var id=this.getAttribute('data-id');
@@ -865,9 +925,42 @@ function renderList(){
       }
     });
   });
+  // Language-pill switching — no re-render, just swap active state + card data-id
+  el.querySelectorAll('.lpill').forEach(function(pill){
+    var activate=function(e){
+      e.stopPropagation();
+      var card=pill.closest('.snip-card');
+      if(!card)return;
+      var vid=pill.getAttribute('data-vid');
+      var v=allSnips.find(function(x){return x.id===vid;});
+      if(!v)return;
+      // update card visuals
+      card.setAttribute('data-id',vid);
+      var menu=card.querySelector('.snip-menu');
+      if(menu)menu.setAttribute('data-menu-id',vid);
+      var titleEl=card.querySelector('.snip-title');
+      if(titleEl)titleEl.textContent=v.title||v.id;
+      var scEl=card.querySelector('.snip-sc');
+      if(scEl)scEl.textContent=v.shortcut||'';
+      var icoEl=card.querySelector('.snip-icon');
+      if(icoEl)icoEl.textContent=getIcon(v);
+      // toggle pill state
+      card.querySelectorAll('.lpill').forEach(function(p){
+        p.classList.remove('on');
+        p.setAttribute('aria-pressed','false');
+      });
+      pill.classList.add('on');
+      pill.setAttribute('aria-pressed','true');
+    };
+    pill.addEventListener('click',activate);
+    pill.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(e); }
+    });
+  });
   el.querySelectorAll('.snip-menu').forEach(function(btn){
     btn.addEventListener('click',function(e){
       e.stopPropagation();
+      // Always read the live data-menu-id (it changes when user switches language pill)
       openBottomSheet(this.getAttribute('data-menu-id'));
     });
   });

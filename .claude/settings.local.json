@@ -6,7 +6,13 @@
       "Bash(rm \"../sprintbrain-extension-v2.7.zip\")",
       "Bash(where gh:*)",
       "Bash(node -e \"console.log\\(''node works''\\)\")",
-      "Bash(python3 \"C:/Users/averd/OneDrive/Desktop/sprintbrain-extension/replace_snippets.py\")"
+      "Bash(python3 \"C:/Users/averd/OneDrive/Desktop/sprintbrain-extension/replace_snippets.py\")",
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__dec803c9-7f9d-407c-84d9-97ed275bd240__apply_migration",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
