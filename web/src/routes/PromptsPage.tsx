@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { PromptCard } from '@/features/prompts/PromptCard';
+import { PromptDialog } from '@/features/prompts/PromptDialog';
 import {
   useFilteredPrompts,
   usePromptStore,
   type PromptFilter,
 } from '@/stores/promptStore';
+import { useUiStore } from '@/stores/uiStore';
 
 export function PromptsPage() {
   const load = usePromptStore((s) => s.load);
@@ -17,6 +19,7 @@ export function PromptsPage() {
   const filter = usePromptStore((s) => s.filter);
   const setFilter = usePromptStore((s) => s.setFilter);
   const filtered = useFilteredPrompts();
+  const openNewPrompt = useUiStore((s) => s.openNewPrompt);
 
   useEffect(() => {
     if (prompts.length === 0) {
@@ -30,7 +33,7 @@ export function PromptsPage() {
         title="Prompts"
         description="Reusable AI prompts — one-shot templates and few-shot examples."
         action={
-          <Button variant="primary" disabled title="Available in next release">
+          <Button variant="primary" onClick={openNewPrompt}>
             <Plus className="h-4 w-4" />
             New prompt
           </Button>
@@ -66,6 +69,8 @@ export function PromptsPage() {
           ))}
         </div>
       )}
+
+      <PromptDialog />
     </>
   );
 }

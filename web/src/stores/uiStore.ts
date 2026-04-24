@@ -20,6 +20,16 @@ interface UiStore {
   folderDialogId: FolderDialogTarget | null;
   openFolderDialog: (id: FolderDialogTarget) => void;
   closeFolderDialog: () => void;
+
+  // Create-prompt dialog (triggered by the header "New prompt" button)
+  newPromptOpen: boolean;
+  openNewPrompt: () => void;
+  closeNewPrompt: () => void;
+
+  // Edit-prompt dialog (triggered by clicking a prompt card)
+  editPromptId: string | null;
+  openEditPrompt: (id: string) => void;
+  closeEditPrompt: () => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -34,4 +44,12 @@ export const useUiStore = create<UiStore>((set) => ({
   folderDialogId: null,
   openFolderDialog: (id) => set({ folderDialogId: id }),
   closeFolderDialog: () => set({ folderDialogId: null }),
+
+  newPromptOpen: false,
+  openNewPrompt: () => set({ newPromptOpen: true }),
+  closeNewPrompt: () => set({ newPromptOpen: false }),
+
+  editPromptId: null,
+  openEditPrompt: (id) => set({ editPromptId: id }),
+  closeEditPrompt: () => set({ editPromptId: null }),
 }));

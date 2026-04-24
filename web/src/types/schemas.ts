@@ -67,3 +67,12 @@ export const folderFormSchema = z.object({
 });
 
 export type FolderFormValues = z.infer<typeof folderFormSchema>;
+
+export const promptFormSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or fewer'),
+  content: z.string().min(1, 'Content is required'),
+  type: z.enum(['one-shot', 'few-shot']),
+  tags: z.array(z.string()),
+});
+
+export type PromptFormValues = z.infer<typeof promptFormSchema>;
