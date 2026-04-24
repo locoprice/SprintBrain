@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.14.3 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.14.6 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.13.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.14.6] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
-        // Migration: check if sync has a stale snippets copy from pre-v2.13.1
+        // Migration: check if sync has a stale snippets copy from pre-v2.14.6
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.13.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.14.6] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.13.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.14.6] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -1156,25 +1156,56 @@ var triggerPickerIdx      = 0;
 var triggerPickerQuery    = '';   // chars typed after trigger opens picker
 var triggerPickerFiltered = [];   // currently visible (filtered) items
 
-// Get pixel coords of the text cursor — used to position the picker
+// Get pixel coords of the text cursor — used to position the picker.
+// IMPORTANT: must not mutate the DOM or the live Selection, otherwise the
+// cursor shifts (typically to the previous line) before the picker appears
+// and subsequent insertions land at the wrong position.
 function _getCaretCoords(el) {
-  // Method 1: Selection API — works reliably for contenteditable (Gmail)
+  // Method 1: getBoundingClientRect() on a collapsed Range — zero DOM mutations.
+  // A collapsed range in Chrome returns the caret rect (width:0, height:lineHeight).
   try {
     var sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       var range = sel.getRangeAt(0).cloneRange();
       range.collapse(true);
+      var rect = range.getBoundingClientRect();
+      if (rect && rect.height > 0) {
+        return { x: rect.left, y: rect.bottom };
+      }
+    }
+  } catch(e) {}
+  // Method 2: Span-insertion fallback (rare edge cases where Method 1 returns
+  // a zero-height rect). Snapshots the selection endpoints before the DOM
+  // mutation and restores them afterward so the cursor never drifts.
+  try {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var liveRange   = sel.getRangeAt(0);
+      var startNode   = liveRange.startContainer;
+      var startOff    = liveRange.startOffset;
+      var endNode     = liveRange.endContainer;
+      var endOff      = liveRange.endOffset;
+      var insertRange = liveRange.cloneRange();
+      insertRange.collapse(true);
       var span = document.createElement('span');
       span.textContent = '\u200b'; // zero-width space
-      range.insertNode(span);
+      insertRange.insertNode(span);
       var rect = span.getBoundingClientRect();
       if (span.parentNode) span.parentNode.removeChild(span);
+      // Restore original selection to undo the cursor shift caused by insertNode
+      try {
+        var restored = document.createRange();
+        restored.setStart(startNode, startOff);
+        restored.setEnd(endNode, endOff);
+        sel.removeAllRanges();
+        sel.addRange(restored);
+      } catch(re) {}
       if (rect && (rect.width > 0 || rect.height > 0)) {
         return { x: rect.left, y: rect.bottom };
       }
     }
   } catch(e) {}
-  // Method 2: Fallback — bottom-left of the element
+  // Method 3: Fallback — bottom-left of the element
   var elRect = el.getBoundingClientRect();
   return { x: elRect.left, y: elRect.bottom };
 }
