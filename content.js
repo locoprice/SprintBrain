@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.14.6 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.14.6] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
-        // Migration: check if sync has a stale snippets copy from pre-v2.14.6
+        // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.14.6] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.14.6] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -482,8 +482,8 @@ var triggerPending = false;
 var triggerPendingMode = null;   // 'snippet' | 'prompt'
 var triggerAffix = '';
 var triggerDebounceTimer = null;
-var TRIGGER_MIN_CHARS = 2;
-var TRIGGER_DEBOUNCE_MS = 400;
+var TRIGGER_MIN_CHARS = 1;     // show suggestions after ::x (non-destructive, so safe)
+var TRIGGER_DEBOUNCE_MS = 120; // short — the picker never touches the field anymore
 
 function addKey(k) {
   if (k.length !== 1) return;
@@ -1155,6 +1155,8 @@ var triggerPickerTarget   = null;
 var triggerPickerIdx      = 0;
 var triggerPickerQuery    = '';   // chars typed after trigger opens picker
 var triggerPickerFiltered = [];   // currently visible (filtered) items
+var triggerPickerDeleteLen = 0;   // total chars in field to delete on confirm
+                                  // (trigger sequence + every char typed while picker open)
 
 // Get pixel coords of the text cursor — used to position the picker.
 // IMPORTANT: must not mutate the DOM or the live Selection, otherwise the
@@ -1401,36 +1403,40 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
   triggerPickerMode   = mode;
   triggerPickerIdx    = 0;
   triggerPickerQuery  = filterStr || '';
+  // NON-DESTRUCTIVE: we leave the user's typed text in the field. The picker
+  // is a suggestion preview; deletion + insertion only happens on explicit
+  // confirm (Tab / Enter / click). The field content remains visible and
+  // editable while the picker is open.
+  triggerPickerDeleteLen = seqLen || 0;
 
-  deleteChars(el, seqLen, function() {
-    var div = document.createElement('div');
-    div.id = 'sb-trigger-picker';
-    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  var div = document.createElement('div');
+  div.id = 'sb-trigger-picker';
+  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
-    var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
-    header += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
-    header += '</div>';
-    header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
-    div.innerHTML = header;
+  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Tab / Enter to insert</span>';
+  header += '</div>';
+  header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  div.innerHTML = header;
 
-    // Position at caret, keep inside viewport
-    var coords = _getCaretCoords(el);
-    var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
-    var top  = coords.y + 4;
-    var spaceBelow = window.innerHeight - top - 20;
-    if (spaceBelow < 120) {
-      // Flip above cursor
-      top = Math.max(4, coords.y - 4 - 300);
-      spaceBelow = 300;
-    }
-    div.style.left      = left + 'px';
-    div.style.top       = top  + 'px';
-    div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  // Position at caret, keep inside viewport
+  var coords = _getCaretCoords(el);
+  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+  var top  = coords.y + 4;
+  var spaceBelow = window.innerHeight - top - 20;
+  if (spaceBelow < 120) {
+    // Flip above cursor
+    top = Math.max(4, coords.y - 4 - 300);
+    spaceBelow = 300;
+  }
+  div.style.left      = left + 'px';
+  div.style.top       = top  + 'px';
+  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
 
-    document.body.appendChild(div);
-    triggerPickerEl = div;
-    _renderPickerItems(triggerPickerQuery);
-  });
+  document.body.appendChild(div);
+  triggerPickerEl = div;
+  _renderPickerItems(triggerPickerQuery);
 }
 
 function selectTriggerItem(idx) {
@@ -1438,7 +1444,9 @@ function selectTriggerItem(idx) {
   var item  = triggerPickerFiltered[idx];
   var el    = triggerPickerTarget;
   var mode  = triggerPickerMode;
-  var qLen  = triggerPickerQuery.length;
+  // Full delete span: the trigger sequence (::) + everything typed since.
+  // Captured BEFORE closeTriggerPicker resets state.
+  var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
 
@@ -1460,9 +1468,11 @@ function selectTriggerItem(idx) {
     }
   }
 
-  // Delete any chars the user typed as a filter query before inserting
-  if (qLen > 0) {
-    deleteChars(el, qLen, function() { doInsert(); });
+  // Delete the trigger + typed filter from the field, then insert the snippet.
+  // This is the ONLY place deletion happens — opening the picker no longer
+  // touches the field, so the user keeps seeing what they type.
+  if (dLen > 0) {
+    deleteChars(el, dLen, function() { doInsert(); });
   } else {
     doInsert();
   }
@@ -1470,11 +1480,12 @@ function selectTriggerItem(idx) {
 
 function closeTriggerPicker() {
   if (triggerPickerEl) { triggerPickerEl.remove(); triggerPickerEl = null; }
-  triggerPickerMode     = null;
-  triggerPickerTarget   = null;
-  triggerPickerIdx      = 0;
-  triggerPickerQuery    = '';
-  triggerPickerFiltered = [];
+  triggerPickerMode      = null;
+  triggerPickerTarget    = null;
+  triggerPickerIdx       = 0;
+  triggerPickerQuery     = '';
+  triggerPickerFiltered  = [];
+  triggerPickerDeleteLen = 0;
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -1498,29 +1509,49 @@ function handleTriggerPickerKey(e) {
     return true;
   }
   if (e.key === 'Tab' || e.key === 'Enter') {
-    e.preventDefault();
-    selectTriggerItem(triggerPickerIdx);
-    return true;
+    // Only confirm if there are filtered matches; otherwise let Tab/Enter
+    // pass through so the user isn't trapped when their query matches nothing.
+    if (count > 0) {
+      e.preventDefault();
+      selectTriggerItem(triggerPickerIdx);
+      return true;
+    }
+    closeTriggerPicker();
+    return false;
   }
   if (e.key === 'Escape') {
     e.preventDefault();
     closeTriggerPicker();
     return true;
   }
-  // Printable char — append to query, re-filter, let char go into field
-  if (e.key.length === 1) {
-    triggerPickerQuery += e.key;
-    _renderPickerItems(triggerPickerQuery);
+  // Space closes the picker without inserting — keeps whatever the user
+  // typed in the field as normal text, then the space flows through.
+  if (e.key === ' ') {
+    closeTriggerPicker();
     return false;
   }
-  // Backspace — shrink query, re-filter, let backspace go into field
+  // Printable char — append to query, re-filter, track the extra char as
+  // part of the delete-on-confirm span. Let the char reach the field too.
+  if (e.key.length === 1) {
+    triggerPickerQuery += e.key;
+    triggerPickerDeleteLen += 1;
+    _renderPickerItems(triggerPickerQuery);
+    // Return true to short-circuit the main keydown handler so the keystroke
+    // isn't accidentally appended to the shortcut buffer (which could match
+    // a different snippet while the picker is open).
+    return true;
+  }
+  // Backspace — shrink query, shrink delete span, let backspace go into field
   if (e.key === 'Backspace') {
     if (triggerPickerQuery.length > 0) {
       triggerPickerQuery = triggerPickerQuery.slice(0, -1);
+      triggerPickerDeleteLen = Math.max(0, triggerPickerDeleteLen - 1);
       _renderPickerItems(triggerPickerQuery);
-    } else {
-      closeTriggerPicker();
+      return true;
     }
+    // Nothing left in the query — close, but let the backspace through so
+    // the user can keep deleting their trigger sequence normally.
+    closeTriggerPicker();
     return false;
   }
   return false;

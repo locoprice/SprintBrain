@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.14.6 — Count snippets by lang_group_id (not rows)
+// SPRINTBRAIN POPUP v2.15.0 — Redesigned context menu (Recent + Folders + Unfiled)
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
