@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.14.6 — Context Menus + Notion Sync ──
+// ── SPRINTBRAIN BACKGROUND v2.15.0 — Redesigned context menu (Recent + Folders + Unfiled) ──
 importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
@@ -13,33 +13,96 @@ function supaFetch(table, qs) {
   }).then(function(r) { return r.json(); });
 }
 
-// ── LOAD SNIPPETS + FOLDERS FROM SUPABASE ─────────────────────────
+// ── LOAD SNIPPETS + FOLDERS + STATS FROM SUPABASE ─────────────────
 function loadData() {
   return Promise.all([
     supaFetch('folders',  'select=*&order=sort_order'),
-    supaFetch('snippets', 'select=id,title,shortcut,folder_id&order=sort_order')
+    supaFetch('snippets', 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order'),
+    supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
   ]).then(function(res) {
     return {
       folders:  Array.isArray(res[0]) ? res[0] : [],
-      snippets: Array.isArray(res[1]) ? res[1] : []
+      snippets: Array.isArray(res[1]) ? res[1] : [],
+      stats:    Array.isArray(res[2]) ? res[2] : []
     };
-  }).catch(function() { return { folders: [], snippets: [] }; });
+  }).catch(function() { return { folders: [], snippets: [], stats: [] }; });
 }
 
-// ── BUILD CONTEXT MENUS ───────────────────────────────────────────
+// ── ICON RULES (keyword-based, no schema change) ──────────────────
+var ICON_RULES = [
+  { re: /QUOTE|ESTIMATE|PRESUPUE|PREVENTIVO|BUDGET/i, icon: '\uD83D\uDCB0' },        // 💰
+  { re: /BOOKING|RESERV|NEOB/i,                       icon: '\uD83D\uDCC5' },        // 📅
+  { re: /FOLLOW[\s_-]?UP/i,                           icon: '\u2709\uFE0F' },        // ✉️
+  { re: /CALENDAR|\bCAL\b|PRICE/i,                    icon: '\uD83D\uDCC6' },        // 📆
+  { re: /NOT[\s_-]?AVAIL|DISPONIBIL/i,                icon: '\uD83D\uDEAB' },        // 🚫
+  { re: /ALTERN/i,                                    icon: '\uD83D\uDD00' },        // 🔀
+  { re: /WITHDRAW|CANCEL/i,                           icon: '\u21A9\uFE0F' },        // ↩️
+  { re: /MIN[\s_-]?STAY|MINIMUM/i,                    icon: '\uD83D\uDECF\uFE0F' },  // 🛏️
+  { re: /DISCOUNT|SALE|OFFER/i,                       icon: '\uD83C\uDFF7\uFE0F' },  // 🏷️
+  { re: /CHECK[\s_-]?IN/i,                            icon: '\uD83D\uDD11' },        // 🔑
+  { re: /CHECK[\s_-]?OUT/i,                           icon: '\uD83D\uDEAA' },        // 🚪
+  { re: /ADDRESS|LOCATION|INDIRIZZ/i,                 icon: '\uD83D\uDCCD' },        // 📍
+  { re: /PHONE|CALL\b/i,                              icon: '\uD83D\uDCDE' },        // 📞
+  { re: /PAYMENT|INVOICE|RECEIPT/i,                   icon: '\uD83D\uDCB3' },        // 💳
+  { re: /WELCOME|SALUDO|GREET|HELLO/i,                icon: '\uD83D\uDC4B' },        // 👋
+  { re: /THANK/i,                                     icon: '\uD83D\uDE4F' },        // 🙏
+  { re: /CONFIRM/i,                                   icon: '\u2705' },              // ✅
+  { re: /REMINDER/i,                                  icon: '\u23F0' },              // ⏰
+  { re: /FORM\b|JOT/i,                                icon: '\uD83D\uDCCB' },        // 📋
+  { re: /CUSTOMER|CLIENT|GUEST|CLIENTE/i,             icon: '\uD83D\uDC64' },        // 👤
+  { re: /ACCOMMO|HOUSE|ROOM|PROPERTY|LOCOPRICE/i,     icon: '\uD83C\uDFE0' }         // 🏠
+];
+function getSnippetIcon(title) {
+  var t = String(title || '');
+  for (var i = 0; i < ICON_RULES.length; i++) {
+    if (ICON_RULES[i].re.test(t)) return ICON_RULES[i].icon;
+  }
+  return '\uD83D\uDCC4'; // 📄
+}
+
+// ── LANGUAGE ORDERING (EN → IT → ES → MULTI → rest) ───────────────
+var LANG_ORDER = ['EN', 'IT', 'ES', 'MULTI'];
+function langRank(l) {
+  var i = LANG_ORDER.indexOf(l || 'EN');
+  return i < 0 ? 99 : i;
+}
+
+// ── LABEL BUILDER: "{icon} TITLE · LANG · !!shortcut" ─────────────
+function snippetLabel(s) {
+  var ico = getSnippetIcon(s.title);
+  var parts = [String(s.title || 'Untitled').trim()];
+  if (s.lang) parts.push(String(s.lang).toUpperCase());
+  if (s.shortcut) parts.push(String(s.shortcut));
+  return ico + '  ' + parts.join('  \u00B7  ');
+}
+
+// ── SORT: respect sort_order, then keep lang variants adjacent (EN first) ──
+function sortForMenu(arr) {
+  return arr.slice().sort(function(a, b) {
+    var sa = (a.sort_order == null) ? 1e9 : a.sort_order;
+    var sb = (b.sort_order == null) ? 1e9 : b.sort_order;
+    if (sa !== sb) return sa - sb;
+    var ta = (a.title || '').toLowerCase();
+    var tb = (b.title || '').toLowerCase();
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return langRank(a.lang) - langRank(b.lang);
+  });
+}
+
+// ── BUILD CONTEXT MENUS (v2.15.0: Recent + Folders + Unfiled) ─────
 function buildContextMenus(data) {
-  // Remove all existing menus first
   chrome.contextMenus.removeAll(function() {
 
-    // Root item — only shows in editable fields
+    // Root — only in editable fields
     chrome.contextMenus.create({
       id: 'sb-root',
       title: 'Insert SprintBrain snippet',
       contexts: ['editable']
     });
 
-    var folders  = data.folders;
-    var snippets = data.snippets;
+    var folders  = data.folders  || [];
+    var snippets = data.snippets || [];
+    var stats    = data.stats    || [];
 
     if (snippets.length === 0) {
       chrome.contextMenus.create({
@@ -49,15 +112,30 @@ function buildContextMenus(data) {
         contexts: ['editable'],
         enabled: false
       });
+      chrome.contextMenus.create({
+        id: 'sb-sep-empty',
+        parentId: 'sb-root',
+        type: 'separator',
+        contexts: ['editable']
+      });
+      chrome.contextMenus.create({
+        id: 'sb-open-dashboard',
+        parentId: 'sb-root',
+        title: '\uD83C\uDF10  Open SprintBrain Dashboard',
+        contexts: ['editable']
+      });
       return;
     }
 
-    // Group snippets by folder
+    // Index for quick lookup
+    var byId = {};
+    snippets.forEach(function(s) { byId[s.id] = s; });
+
+    // Group by folder
     var byFolder = {};
     var noFolder = [];
-
     snippets.forEach(function(s) {
-      if (s.folder_id) {
+      if (s.folder_id && folders.some(function(f) { return f.id === s.folder_id; })) {
         if (!byFolder[s.folder_id]) byFolder[s.folder_id] = [];
         byFolder[s.folder_id].push(s);
       } else {
@@ -65,60 +143,165 @@ function buildContextMenus(data) {
       }
     });
 
-    // Create folder submenus
-    folders.forEach(function(f) {
-      var fSnips = byFolder[f.id] || [];
-      if (fSnips.length === 0) return;
-
-      // Folder submenu parent
+    var sepN = 0;
+    function addSep(parent) {
       chrome.contextMenus.create({
-        id: 'sb-folder-' + f.id,
-        parentId: 'sb-root',
-        title: f.name,
+        id: 'sb-sep-' + (++sepN),
+        parentId: parent,
+        type: 'separator',
         contexts: ['editable']
       });
+    }
 
-      // Snippets inside folder
-      fSnips.forEach(function(s) {
-        chrome.contextMenus.create({
-          id: 'sb-snip-' + s.id,
-          parentId: 'sb-folder-' + f.id,
-          title: s.title + '  \u00B7  ' + s.shortcut,
-          contexts: ['editable']
-        });
+    // ── 1. RECENT (top 5 by last_used, only valid snippet IDs) ─────
+    var recent = stats
+      .map(function(st) { return byId[st.snippet_id]; })
+      .filter(function(s) { return !!s; })
+      .slice(0, 5);
+
+    if (recent.length > 0) {
+      chrome.contextMenus.create({
+        id: 'sb-hdr-recent',
+        parentId: 'sb-root',
+        title: '\u2B50  Recent',  // ⭐
+        contexts: ['editable'],
+        enabled: false
       });
-    });
-
-    // Snippets with no folder — directly under root
-    if (noFolder.length > 0) {
-      if (folders.length > 0) {
-        // Separator
+      recent.forEach(function(s) {
         chrome.contextMenus.create({
-          id: 'sb-sep',
+          id: 'sb-recent-' + s.id,
           parentId: 'sb-root',
-          type: 'separator',
-          contexts: ['editable']
-        });
-      }
-      noFolder.forEach(function(s) {
-        chrome.contextMenus.create({
-          id: 'sb-snip-' + s.id,
-          parentId: 'sb-root',
-          title: s.title + '  \u00B7  ' + s.shortcut,
+          title: snippetLabel(s),
           contexts: ['editable']
         });
       });
     }
 
-    console.log('[Sprintbrain] Context menus built —', snippets.length, 'snippets');
+    // ── 2. FOLDERS (multi-snippet = submenu; single-snippet = flattened at root) ──
+    var singletonSnips = [];
+    var foldersWithMulti = [];
+    folders.forEach(function(f) {
+      var fSnips = byFolder[f.id] || [];
+      if (fSnips.length === 0) return;
+      if (fSnips.length === 1) {
+        singletonSnips.push(fSnips[0]);
+      } else {
+        foldersWithMulti.push({ folder: f, snips: sortForMenu(fSnips) });
+      }
+    });
+
+    var showingFoldersOrSingletons = foldersWithMulti.length > 0 || singletonSnips.length > 0;
+    if (recent.length > 0 && showingFoldersOrSingletons) addSep('sb-root');
+
+    foldersWithMulti.forEach(function(entry) {
+      var f = entry.folder;
+      var folderIco = (f.ico && /\p{Extended_Pictographic}/u.test(f.ico)) ? f.ico : '\uD83D\uDCC2'; // 📂
+      chrome.contextMenus.create({
+        id: 'sb-folder-' + f.id,
+        parentId: 'sb-root',
+        title: folderIco + '  ' + (f.name || 'Folder'),
+        contexts: ['editable']
+      });
+      entry.snips.forEach(function(s) {
+        chrome.contextMenus.create({
+          id: 'sb-snip-' + s.id,
+          parentId: 'sb-folder-' + f.id,
+          title: snippetLabel(s),
+          contexts: ['editable']
+        });
+      });
+    });
+
+    // Flattened single-snippet folders — at root, after multi-folders
+    sortForMenu(singletonSnips).forEach(function(s) {
+      chrome.contextMenus.create({
+        id: 'sb-snip-' + s.id,
+        parentId: 'sb-root',
+        title: snippetLabel(s),
+        contexts: ['editable']
+      });
+    });
+
+    // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
+    if (noFolder.length > 0) {
+      var sortedNoFolder = sortForMenu(noFolder);
+      if (showingFoldersOrSingletons || recent.length > 0) addSep('sb-root');
+
+      if (sortedNoFolder.length >= 4) {
+        chrome.contextMenus.create({
+          id: 'sb-unfiled',
+          parentId: 'sb-root',
+          title: '\uD83D\uDCC4  Unfiled',  // 📄
+          contexts: ['editable']
+        });
+        sortedNoFolder.forEach(function(s) {
+          chrome.contextMenus.create({
+            id: 'sb-snip-' + s.id,
+            parentId: 'sb-unfiled',
+            title: snippetLabel(s),
+            contexts: ['editable']
+          });
+        });
+      } else {
+        sortedNoFolder.forEach(function(s) {
+          chrome.contextMenus.create({
+            id: 'sb-snip-' + s.id,
+            parentId: 'sb-root',
+            title: snippetLabel(s),
+            contexts: ['editable']
+          });
+        });
+      }
+    }
+
+    // ── 4. DASHBOARD LINK (always at the bottom) ──────────────────
+    addSep('sb-root');
+    chrome.contextMenus.create({
+      id: 'sb-open-dashboard',
+      parentId: 'sb-root',
+      title: '\uD83C\uDF10  Open SprintBrain Dashboard',  // 🌐
+      contexts: ['editable']
+    });
+
+    console.log('[SprintBrain] Context menus v2.15.0 built — ' +
+      snippets.length + ' snippets, ' +
+      foldersWithMulti.length + ' folder submenus, ' +
+      singletonSnips.length + ' flattened, ' +
+      recent.length + ' recent');
   });
 }
 
+// ── DASHBOARD URL ─────────────────────────────────────────────────
+var SB_DASHBOARD_URL = 'https://sprintbrain.netlify.app/';
+
 // ── CONTEXT MENU CLICK HANDLER ────────────────────────────────────
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
-  if (!info.menuItemId || !String(info.menuItemId).startsWith('sb-snip-')) return;
+  var id = String(info.menuItemId || '');
+  if (!id) return;
 
-  var snippetId = String(info.menuItemId).replace('sb-snip-', '');
+  // Dashboard link — opens in a new tab (reuses existing tab if already open)
+  if (id === 'sb-open-dashboard') {
+    try {
+      chrome.tabs.query({ url: SB_DASHBOARD_URL + '*' }, function(tabs) {
+        if (tabs && tabs.length) {
+          chrome.tabs.update(tabs[0].id, { active: true });
+          if (tabs[0].windowId != null) {
+            chrome.windows.update(tabs[0].windowId, { focused: true });
+          }
+        } else {
+          chrome.tabs.create({ url: SB_DASHBOARD_URL });
+        }
+      });
+    } catch (e) {
+      chrome.tabs.create({ url: SB_DASHBOARD_URL });
+    }
+    return;
+  }
+
+  var snippetId = null;
+  if (id.indexOf('sb-snip-') === 0)        snippetId = id.replace('sb-snip-', '');
+  else if (id.indexOf('sb-recent-') === 0) snippetId = id.replace('sb-recent-', '');
+  if (!snippetId) return;
 
   // Fetch full snippet body from Supabase then send to content script
   supaFetch('snippets', 'select=*&id=eq.' + snippetId)
