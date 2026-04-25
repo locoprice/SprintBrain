@@ -1,5 +1,22 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.14.3 ────────────────────────────
-// Configurable dual triggers + confetti celebration
+// ── SPRINTBRAIN CONTENT SCRIPT v2.14.4 ────────────────────────────
+// Configurable dual triggers + confetti celebration + analytics event log
+
+// ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
+function logEvent(snip, fieldsFilled) {
+  if (!snip) return;
+  try {
+    chrome.runtime.sendMessage({
+      type: 'log_event',
+      payload: {
+        snippet_id: snip.id || null,
+        user_id: snip.user_id || null,
+        shortcut: snip.shortcut || '',
+        lang: snip.lang || null,
+        fields_filled: fieldsFilled || 0
+      }
+    });
+  } catch(e) { /* extension context lost during reload — silent */ }
+}
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
 var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
@@ -702,6 +719,7 @@ function _proceedInsert(el, snip) {
     var text = resolveBody(snip.body, {});
     insertText(el, text);
     showCelebration(text);
+    logEvent(snip, 0);
     processing = false;
   } else {
     showOverlay(el, snip, fields, function() { processing = false; });
@@ -982,13 +1000,16 @@ function updatePrev(snip) {
 
 function doInsert(targetEl, snip) {
   if (isUrgExpired(snip)) return;
-  var text = resolveBody(snip.body, getVals());
+  var vals = getVals();
+  var text = resolveBody(snip.body, vals);
+  var fillCount = Object.keys(vals).length;
   closeOverlay();
   if (targetEl) {
     targetEl.focus();
     setTimeout(function() {
       insertText(targetEl, text);
       showCelebration(text);
+      logEvent(snip, fillCount);
     }, 50);
   }
 }
@@ -1420,12 +1441,14 @@ function selectTriggerItem(idx) {
         var text = resolveBody(item.body, {});
         insertText(el, text);
         showCelebration(text);
+        logEvent(item, 0);
         processing = false;
       } else {
         showOverlay(el, item, fields, function() { processing = false; });
       }
     } else {
       insertText(el, item.body || '');
+      logEvent(item, 0);
     }
   }
 
@@ -1700,6 +1723,7 @@ function _proceedContextInsert(el, snip) {
     var text = resolveBody(snip.body, {});
     if (el) insertText(el, text);
     showCelebration(text);
+    logEvent(snip, 0);
     processing = false;
   } else {
     processing = true;

@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.13.1 — Context Menus + Notion Sync ──
+// ── SPRINTBRAIN BACKGROUND v2.14.4 — Context Menus + Notion Sync + Analytics Log ──
 importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
@@ -12,6 +12,30 @@ function supaFetch(table, qs) {
     }
   }).then(function(r) { return r.json(); });
 }
+
+// ── ANALYTICS-001: log per-trigger events from content.js ─────────
+function supaPost(table, body) {
+  return fetch(SUPA_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(body)
+  });
+}
+
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+  if (msg && msg.type === 'log_event' && msg.payload) {
+    supaPost('snippet_events', msg.payload).catch(function(e) {
+      console.warn('log_event:', e);
+    });
+    try { sendResponse({ ok: true }); } catch(e) {}
+    return true;
+  }
+});
 
 // ── LOAD SNIPPETS + FOLDERS FROM SUPABASE ─────────────────────────
 function loadData() {
