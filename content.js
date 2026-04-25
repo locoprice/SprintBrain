@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.15.5 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.6 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.15.5] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.6] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.15.5] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.6] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.15.5] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.6] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -493,14 +493,56 @@ function addKey(k) {
 
 function checkBuf() {
   if (processing || !snippets.length) return;
-  // Check shortcut-based snippet matches (e.g. ;;quoteEN)
+  // Check shortcut-based snippet matches (e.g. ;;quoteEN).
+  //
+  // Some users have legacy shortcuts stored with the snippet-trigger prefix
+  // baked in (e.g. "::!!quoteEN" instead of "!!quoteEN") — they manually
+  // typed the trigger into the shortcut field. To handle both shapes
+  // consistently, we test up to two forms per snippet:
+  //   1) the stored shortcut, exactly as-is
+  //   2) the stored shortcut with a leading trigger stripped (so a typed
+  //      sequence of "::!!quoteEN" matches a bare-stored "!!quoteEN" too)
+  // Whichever form actually appears at the end of buf wins, and we delete
+  // exactly that many chars — never more, so the trigger isn't double-counted
+  // and never less, so no residue is left behind.
+  var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
-    if (sc && buf.slice(-sc.length) === sc) {
-      var snip = snippets[i];
+    if (!sc) continue;
+    // Form 1: exact stored shortcut at end of buf.
+    if (sc.length <= buf.length && buf.slice(-sc.length) === sc) {
       buf = '';
-      handleMatch(activeEl, snip, sc.length);
+      handleMatch(activeEl, snippets[i], sc.length);
       return;
+    }
+    // Form 2: trigger + (shortcut sans leading trigger).
+    if (sc.indexOf(snippetTrigger) === 0) {
+      var bare = sc.slice(snippetTrigger.length);
+      if (!bare) continue;
+      var full = snippetTrigger + bare; // == sc, already tested above
+      // Also try the bare form alone — covers the reverse case where the
+      // user types just the bare shortcut without the trigger prefix.
+      if (bare.length <= buf.length && buf.slice(-bare.length) === bare) {
+        // Only accept if the char before isn't the trigger's last char (to
+        // avoid swallowing the trigger from a `::bare` typed sequence — that
+        // case was already handled by form 1's exact match above).
+        var precedeIdx = buf.length - bare.length - 1;
+        if (precedeIdx < 0 || buf[precedeIdx] !== snippetTrigger[snippetTrigger.length - 1]) {
+          buf = '';
+          handleMatch(activeEl, snippets[i], bare.length);
+          return;
+        }
+      }
+    } else {
+      // Form 3: stored bare, but user typed `trigger + bare`. Match the
+      // composite at end of buf so we delete the trigger AND the shortcut
+      // together — prevents leftover "::" at the start of the inserted text.
+      var composite = snippetTrigger + sc;
+      if (composite.length <= buf.length && buf.slice(-composite.length) === composite) {
+        buf = '';
+        handleMatch(activeEl, snippets[i], composite.length);
+        return;
+      }
     }
   }
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
