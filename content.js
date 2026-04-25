@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.15.2 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.3 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.15.2] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.3] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.15.2] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.3] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.15.2] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.3] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -785,33 +785,99 @@ function _prevTextNode(node, rootEl) {
   return prev;
 }
 
+// Find the actual contenteditable host. `el` may be the inner span/<p> that
+// received the keydown — Lexical (WhatsApp Web) routes events through inner
+// nodes, and a TreeWalker rooted there only sees one fragment of the typed
+// text. We need the element whose `contenteditable` attribute is "true" (the
+// root of the editor instance) so the walker can see all text nodes.
+function _ceHost(el) {
+  var n = el;
+  while (n && n.getAttribute) {
+    var a = n.getAttribute('contenteditable');
+    if (a === 'true' || a === '') return n;
+    n = n.parentElement;
+  }
+  return el;
+}
+
 function deleteChars(el, n, cb) {
   if (!el || n <= 0) { if (cb) cb(); return; }
   var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     el.focus();
     if (isCE) {
+      // Per-text-node deletion bounded by the actual CE host.
+      // Lexical clips a single execCommand('delete') over a multi-node range
+      // to one text node, so we delete one text-node-bounded range at a time
+      // and re-read the selection between iterations (the DOM mutates as
+      // empty text nodes get pruned). Each delete is a single
+      // deleteContentBackward over a non-collapsed range, which Lexical
+      // accepts cleanly.
+      var host = _ceHost(el);
       var sel = window.getSelection();
-      var done = false;
-      if (sel && sel.rangeCount) {
-        try {
-          var r = sel.getRangeAt(0);
-          var start = _ceWalkBackChars(el, r.endContainer, r.endOffset, n);
-          var newRange = document.createRange();
-          newRange.setStart(start.node, start.offset);
-          newRange.setEnd(r.endContainer, r.endOffset);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-          if (!newRange.collapsed) {
-            document.execCommand('delete', false, null);
-            done = true;
+      var remaining = n;
+      var safety = n + 20; // worst case: one walk-step per char + slack
+      while (remaining > 0 && safety-- > 0) {
+        if (!sel || !sel.rangeCount) break;
+        var r0 = sel.getRangeAt(0);
+        var node = r0.endContainer;
+        var offset = r0.endOffset;
+
+        // If cursor is in an element node, descend to the rightmost text node
+        // before `offset`.
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          var moved = false;
+          var ch = node.childNodes;
+          var idx = Math.min(offset, ch.length) - 1;
+          while (idx >= 0) {
+            var c = ch[idx];
+            if (c.nodeType === Node.TEXT_NODE) {
+              node = c; offset = c.nodeValue.length; moved = true; break;
+            } else if (c.nodeType === Node.ELEMENT_NODE) {
+              var tw = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, null);
+              var last = null, t;
+              while ((t = tw.nextNode())) last = t;
+              if (last) { node = last; offset = last.nodeValue.length; moved = true; break; }
+            }
+            idx--;
           }
-        } catch(eRange) {}
-      }
-      if (!done) {
-        // Last-resort fallback — at least try the loop, in case some host
-        // ignores range-based deletion but accepts single-char deletes.
-        for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+          if (!moved) {
+            // No text under this element at the cursor — jump to previous text node in host.
+            var pp = _prevTextNode(node, host);
+            if (!pp) break;
+            node = pp; offset = pp.nodeValue.length;
+          }
+          // Update selection caret to the resolved text-node position.
+          var rJump = document.createRange();
+          rJump.setStart(node, offset);
+          rJump.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(rJump);
+          continue;
+        }
+
+        // Text node case.
+        if (offset === 0) {
+          // At start — hop to end of previous text node within host.
+          var prev = _prevTextNode(node, host);
+          if (!prev) break;
+          var rHop = document.createRange();
+          rHop.setStart(prev, prev.nodeValue.length);
+          rHop.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(rHop);
+          continue;
+        }
+
+        var consume = Math.min(offset, remaining);
+        var rDel = document.createRange();
+        rDel.setStart(node, offset - consume);
+        rDel.setEnd(node, offset);
+        sel.removeAllRanges();
+        sel.addRange(rDel);
+        try { document.execCommand('delete', false, null); }
+        catch(eDel) { break; }
+        remaining -= consume;
       }
     } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
       var s = (el.selectionStart != null) ? el.selectionStart : (el.value || '').length;
