@@ -1,29 +1,58 @@
-// ── SPRINTBRAIN BACKGROUND v2.15.7 — Recent + Folders context menu + analytics log ──
+// ── SPRINTBRAIN BACKGROUND v2.16.0 — Per-user JWT (AUTH-EXT-001 phase A) ──
+importScripts('auth.js');
 importScripts('notion-sync.js');
 
-var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
-var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
+var SUPA_URL = SB_SUPA_URL;
 
+// Authed GET. Returns the parsed JSON body, or [] when not signed in.
 function supaFetch(table, qs) {
-  return fetch(SUPA_URL + '/rest/v1/' + table + '?' + qs, {
-    headers: {
-      'apikey': SUPA_KEY,
-      'Authorization': 'Bearer ' + SUPA_KEY
+  return new Promise(function(resolve) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { resolve([]); return; }
+      _supaFetchWithHeaders(table, qs, headers, false, resolve);
+    });
+  });
+}
+
+function _supaFetchWithHeaders(table, qs, headers, retried, resolve) {
+  fetch(SUPA_URL + '/rest/v1/' + table + '?' + qs, {
+    headers: { 'apikey': headers.apikey, 'Authorization': headers.Authorization }
+  }).then(function(r) {
+    if (r.status === 401 && !retried) {
+      sbRefreshToken(function(rerr, fresh) {
+        if (rerr || !fresh) { resolve([]); return; }
+        _supaFetchWithHeaders(table, qs,
+          { apikey: SB_SUPA_ANON_KEY, Authorization: 'Bearer ' + fresh.access_token },
+          true, resolve);
+      });
+      return;
     }
-  }).then(function(r) { return r.json(); });
+    if (!r.ok) { resolve([]); return; }
+    r.json().then(resolve, function(){ resolve([]); });
+  }).catch(function() { resolve([]); });
 }
 
 // ── ANALYTICS-001: log per-trigger events from content.js ─────────
+// Stamps user_id from the live session (overrides any payload value to prevent spoofing).
 function supaPost(table, body) {
-  return fetch(SUPA_URL + '/rest/v1/' + table, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPA_KEY,
-      'Authorization': 'Bearer ' + SUPA_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify(body)
+  return new Promise(function(resolve, reject) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { reject(new Error('not_authed')); return; }
+      sbCurrentUserId(function(uid) {
+        var payload = Object.assign({}, body || {});
+        if (uid) payload.user_id = uid;
+        fetch(SUPA_URL + '/rest/v1/' + table, {
+          method: 'POST',
+          headers: {
+            'apikey': headers.apikey,
+            'Authorization': headers.Authorization,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(payload)
+        }).then(resolve, reject);
+      });
+    });
   });
 }
 
@@ -353,8 +382,26 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
 
 // ── INIT + REFRESH MENUS ──────────────────────────────────────────
 function initMenus() {
-  loadData().then(buildContextMenus);
+  sbGetSession(function(session) {
+    if (!session) {
+      chrome.contextMenus.removeAll(function() {
+        chrome.contextMenus.create({
+          id: 'sb-signin-required',
+          title: 'Sign in to SprintBrain',
+          contexts: ['editable'],
+          enabled: false
+        });
+      });
+      return;
+    }
+    loadData().then(buildContextMenus);
+  });
 }
+
+// Rebuild menus the moment the popup saves a session (or signs out).
+chrome.runtime.onMessage.addListener(function(msg) {
+  if (msg && msg.type === 'auth_changed') initMenus();
+});
 
 // Build on install + create sync alarm
 chrome.runtime.onInstalled.addListener(function(details) {

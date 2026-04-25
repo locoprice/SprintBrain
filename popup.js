@@ -1,30 +1,54 @@
-// SPRINTBRAIN POPUP v2.15.6 — Redesigned context menu (Recent + Folders + Unfiled)
+// SPRINTBRAIN POPUP v2.16.0 — Per-user JWT (AUTH-EXT-001 phase A)
 
-var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
-var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
+// SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
+var SUPA_URL = SB_SUPA_URL;
 
+// Authed REST wrapper. Refreshes once on 401, returns the original Response either way
+// so existing callers reading `.json()` / `.ok` keep working.
 function supaFetch(table, method, body, qs) {
+  return new Promise(function(resolve, reject) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { reject(new Error('not_authed')); return; }
+      _supaFire(table, method, body, qs, headers, false, resolve, reject);
+    });
+  });
+}
+
+function _supaFire(table, method, body, qs, headers, retried, resolve, reject) {
   var url  = SUPA_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
   var opts = {
     method: method || 'GET',
     headers: {
-      'apikey': SUPA_KEY,
-      'Authorization': 'Bearer ' + SUPA_KEY,
+      'apikey': headers.apikey,
+      'Authorization': headers.Authorization,
       'Content-Type': 'application/json',
       'Prefer': (method === 'POST' ? 'resolution=merge-duplicates,' : '') + 'return=minimal'
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  return fetch(url, opts).then(function(r) {
-    if (!r.ok) {
-      return r.text().then(function(t) {
-        console.error('[SprintBrain] supaFetch ' + method + ' ' + table + ' HTTP ' + r.status + ':', t);
-        return r;
+  fetch(url, opts).then(function(r) {
+    if (r.status === 401 && !retried) {
+      sbRefreshToken(function(rerr, fresh) {
+        if (rerr || !fresh) { resolve(r); return; }
+        _supaFire(table, method, body, qs,
+          { apikey: SB_SUPA_ANON_KEY, Authorization: 'Bearer ' + fresh.access_token },
+          true, resolve, reject);
       });
+      return;
     }
-    return r;
-  });
+    if (!r.ok) {
+      r.clone().text().then(function(t) {
+        console.error('[SprintBrain] supaFetch ' + method + ' ' + table + ' HTTP ' + r.status + ':', t);
+        resolve(r);
+      });
+      return;
+    }
+    resolve(r);
+  }).catch(reject);
 }
+
+// Returns the current authed user's id (set on every write payload).
+var SB_CURRENT_USER_ID = null;
 
 var DB = {
   loadAll: function() {
@@ -61,7 +85,7 @@ var DB = {
   },
   upsertSnippet: function(s) {
     supaFetch('snippets', 'POST', {
-      id: s.id, title: s.title, shortcut: s.shortcut || '',
+      id: s.id, user_id: SB_CURRENT_USER_ID, title: s.title, shortcut: s.shortcut || '',
       body: s.body || '', lang: s.lang || 'EN',
       folder_id: s.folder || null, field_cfg: s.fieldCfg || {}, lang_group_id: s.lang_group_id || s.id,
       sort_order: s.sort_order || 0,
@@ -78,7 +102,7 @@ var DB = {
   },
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
-      id: f.id, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0
+      id: f.id, user_id: SB_CURRENT_USER_ID, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0
     }).catch(function(e) { console.warn('upsertFolder:', e); });
   },
   deleteFolder: function(id) {
@@ -86,7 +110,7 @@ var DB = {
   },
   updateStats: function(snippetId, uses, fills, lastUsed) {
     supaFetch('snippet_stats', 'POST', {
-      snippet_id: snippetId, uses: uses, fills: fills, last_used: lastUsed
+      snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
     }).catch(function(e) { console.warn('updateStats:', e); });
   }
 };
@@ -1637,4 +1661,127 @@ if (syncNowBtn) {
   });
 }
 
-boot();
+// ── AUTH GATE (AUTH-EXT-001 phase A) ──────────────────────────────
+(function initAuthGate() {
+  var gate    = document.getElementById('sb-auth');
+  var emailEl = document.getElementById('sb-auth-email');
+  var codeEl  = document.getElementById('sb-auth-code');
+  var subEl   = document.getElementById('sb-auth-sub');
+  var primary = document.getElementById('sb-auth-primary');
+  var backEl  = document.getElementById('sb-auth-back');
+  var msgEl   = document.getElementById('sb-auth-msg');
+  if (!gate || !primary) return;
+
+  var state = 'email'; // 'email' | 'code'
+  var pendingEmail = '';
+  var booted = false;
+
+  function setMsg(text, ok) {
+    msgEl.textContent = text || '';
+    msgEl.className = 'sb-auth-msg' + (ok ? ' ok' : '');
+  }
+
+  function renderState() {
+    if (state === 'email') {
+      emailEl.style.display = '';
+      codeEl.style.display = 'none';
+      backEl.style.display = 'none';
+      primary.textContent = 'Send code';
+      subEl.textContent = "Enter your work email — we'll send a 6-digit code.";
+      setTimeout(function() { emailEl.focus(); }, 30);
+    } else {
+      emailEl.style.display = 'none';
+      codeEl.style.display = '';
+      backEl.style.display = '';
+      primary.textContent = 'Verify';
+      subEl.textContent = 'Enter the 6-digit code sent to ' + pendingEmail + '.';
+      setTimeout(function() { codeEl.focus(); }, 30);
+    }
+  }
+
+  function showGate() {
+    gate.classList.add('on');
+    state = 'email';
+    pendingEmail = '';
+    emailEl.value = '';
+    codeEl.value = '';
+    setMsg('');
+    renderState();
+  }
+
+  function hideGate() {
+    gate.classList.remove('on');
+  }
+
+  function bootOnce(session) {
+    SB_CURRENT_USER_ID = session.user_id;
+    var emailLabel = document.getElementById('sb-signed-as');
+    if (emailLabel && session.email) emailLabel.textContent = 'Signed in as ' + session.email;
+    var signOutBtn = document.getElementById('sb-signout-btn');
+    if (signOutBtn && !signOutBtn._wired) {
+      signOutBtn._wired = true;
+      signOutBtn.addEventListener('click', function() { window.sbSignOut(); });
+    }
+    if (!booted) { booted = true; boot(); }
+  }
+
+  primary.addEventListener('click', function() {
+    if (primary.disabled) return;
+    setMsg('');
+    if (state === 'email') {
+      var email = (emailEl.value || '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('Enter a valid email'); return; }
+      primary.disabled = true;
+      primary.textContent = 'Sending…';
+      sbRequestOtp(email, function(err) {
+        primary.disabled = false;
+        primary.textContent = 'Send code';
+        if (err) { setMsg(err); return; }
+        pendingEmail = email;
+        state = 'code';
+        renderState();
+        setMsg('Code sent — check your inbox.', true);
+      });
+    } else {
+      var code = (codeEl.value || '').trim();
+      if (!/^\d{6}$/.test(code)) { setMsg('Enter the 6-digit code'); return; }
+      primary.disabled = true;
+      primary.textContent = 'Verifying…';
+      sbVerifyOtp(pendingEmail, code, function(err, session) {
+        primary.disabled = false;
+        primary.textContent = 'Verify';
+        if (err || !session) { setMsg(err || 'Invalid code'); return; }
+        hideGate();
+        bootOnce(session);
+      });
+    }
+  });
+
+  backEl.addEventListener('click', function() {
+    state = 'email';
+    pendingEmail = '';
+    codeEl.value = '';
+    setMsg('');
+    renderState();
+  });
+
+  emailEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') primary.click(); });
+  codeEl.addEventListener('keydown',  function(e) { if (e.key === 'Enter') primary.click(); });
+
+  // Initial check: if a session exists already, skip the gate.
+  sbGetSession(function(session) {
+    if (session && session.access_token) { hideGate(); bootOnce(session); }
+    else { showGate(); }
+  });
+
+  // Expose a sign-out hook for the existing settings menu to call.
+  window.sbSignOut = function() {
+    sbClearSession(function() {
+      booted = false;
+      SB_CURRENT_USER_ID = null;
+      // Clear in-memory snippet cache so the next sign-in shows the new user's data.
+      try { snips = []; folders = []; refreshUI(); } catch(e) {}
+      showGate();
+    });
+  };
+})();

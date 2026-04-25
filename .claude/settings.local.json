@@ -19,7 +19,11 @@
       "Bash(git push *)",
       "Bash(git checkout *)",
       "Bash(git pull *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(node --check popup.js)",
+      "Bash(node --check background.js)",
+      "Bash(node --check auth.js)",
+      "Bash(node --check content.js)"
     ]
   }
 }
