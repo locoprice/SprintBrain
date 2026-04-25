@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.15.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.1 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.15.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
-        // Migration: check if sync has a stale snippets copy from pre-v2.15.0
+        // Migration: check if sync has a stale snippets copy from pre-v2.15.1
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.15.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.15.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -709,17 +709,43 @@ function _proceedInsert(el, snip) {
 }
 
 // ── DELETE N CHARS ─────────────────────────────────────────────────
+// On contenteditable hosts that intercept beforeinput (WhatsApp Web's Lexical
+// editor, Gmail compose, Slack, etc.), calling execCommand('delete') N times
+// in a tight loop is unreliable — the editor batches/normalizes events and
+// often only the first delete lands. Selecting the N chars first and then
+// issuing a single delete works around that, because the editor sees one
+// deleteContentBackward over a non-collapsed range.
 function deleteChars(el, n, cb) {
-  if (!el) { if (cb) cb(); return; }
+  if (!el || n <= 0) { if (cb) cb(); return; }
+  var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     el.focus();
-    for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+    if (isCE) {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount && typeof sel.modify === 'function') {
+        for (var i = 0; i < n; i++) sel.modify('extend', 'backward', 'character');
+        document.execCommand('delete', false, null);
+      } else {
+        for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+      }
+    } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      var s = (el.selectionStart != null) ? el.selectionStart : (el.value || '').length;
+      var np = Math.max(0, s - n);
+      var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      var nv = el.value.substring(0, np) + el.value.substring(s);
+      if (desc && desc.set) desc.set.call(el, nv); else el.value = nv;
+      el.setSelectionRange(np, np);
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+    } else {
+      for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+    }
   } catch(e) {
     try {
-      var s = el.selectionStart || 0;
-      el.value = el.value.substring(0, Math.max(0, s - n)) + el.value.substring(s);
-      var np = Math.max(0, s - n);
-      el.setSelectionRange(np, np);
+      var s2 = el.selectionStart || 0;
+      el.value = el.value.substring(0, Math.max(0, s2 - n)) + el.value.substring(s2);
+      var np2 = Math.max(0, s2 - n);
+      el.setSelectionRange(np2, np2);
       el.dispatchEvent(new Event('input', {bubbles:true}));
     } catch(e2) {}
   }
@@ -727,10 +753,33 @@ function deleteChars(el, n, cb) {
 }
 
 // ── INSERT TEXT ────────────────────────────────────────────────────
+// Multi-line text via execCommand('insertText', '...\n...') is mangled by
+// rich-text editors (WhatsApp Web/Lexical drops or reorders the segments).
+// Insert one line at a time and emit a real line break between them.
 function insertText(el, text) {
   if (!el) return;
+  var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     el.focus();
+    if (isCE) {
+      var lines = String(text).split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          var ok = false;
+          try { ok = document.execCommand('insertLineBreak', false, null); } catch(e) {}
+          if (!ok) {
+            try { ok = document.execCommand('insertParagraph', false, null); } catch(e) {}
+          }
+          if (!ok) {
+            try { document.execCommand('insertText', false, '\n'); } catch(e) {}
+          }
+        }
+        if (lines[i]) {
+          try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
+        }
+      }
+      return;
+    }
     if (document.execCommand('insertText', false, text)) return;
   } catch(e) {}
   try {
