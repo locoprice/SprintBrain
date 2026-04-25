@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.15.4 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.5 ────────────────────────────
 // Configurable dual triggers + confetti celebration
 
 // ── FORMULA ENGINE ────────────────────────────────────────────────
@@ -434,20 +434,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.15.4] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.5] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.15.4] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.5] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.15.4] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.5] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -883,8 +883,20 @@ function insertText(el, text) {
   if (!el) return;
   var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
-    el.focus();
     if (isCE) {
+      // CRITICAL: do NOT call el.focus() on the CE path. Lexical (WhatsApp Web)
+      // resets the DOM selection on focus events, which would wipe the
+      // non-collapsed range that deleteChars just set to span the trigger —
+      // causing execCommand('insertText') to insert at start-of-field while
+      // the trigger text survives. deleteChars already focused the editable
+      // when needed; trust it.
+      // The first execCommand('insertText') replaces the (possibly non-
+      // collapsed) selection with line[0] in one beforeinput insertText event,
+      // which Lexical handles atomically. After that the cursor is collapsed
+      // at the end of inserted text; subsequent line-break + line pairs append.
+      if (document.activeElement !== el && !el.contains(document.activeElement)) {
+        try { el.focus(); } catch(_) {}
+      }
       var lines = String(text).split('\n');
       for (var i = 0; i < lines.length; i++) {
         if (i > 0) {
@@ -903,6 +915,7 @@ function insertText(el, text) {
       }
       return;
     }
+    el.focus();
     if (document.execCommand('insertText', false, text)) return;
   } catch(e) {}
   try {

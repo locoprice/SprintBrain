@@ -12,7 +12,14 @@
       "mcp__Claude_Preview__preview_start",
       "mcp__dec803c9-7f9d-407c-84d9-97ed275bd240__apply_migration",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(node -c background.js)",
+      "Bash(node -c content.js)",
+      "Bash(git fetch *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(git merge *)"
     ]
   }
 }
