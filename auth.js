@@ -43,7 +43,7 @@ function sbRequestOtp(email, cb) {
   fetch(SB_SUPA_URL + '/auth/v1/otp', {
     method: 'POST',
     headers: { 'apikey': SB_SUPA_ANON_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email, create_user: true, options: { shouldCreateUser: true } })
+    body: JSON.stringify({ email: email, create_user: true })
   }).then(function(r) {
     if (r.ok) { cb(null); return; }
     return r.text().then(function(t) {
