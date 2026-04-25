@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.15.3 — Redesigned context menu (Recent + Folders + Unfiled) ──
+// ── SPRINTBRAIN BACKGROUND v2.15.4 — Redesigned context menu (Recent + Folders + Unfiled) ──
 importScripts('notion-sync.js');
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
@@ -89,7 +89,7 @@ function sortForMenu(arr) {
   });
 }
 
-// ── BUILD CONTEXT MENUS (v2.15.3: Recent + Folders + Unfiled) ─────
+// ── BUILD CONTEXT MENUS (v2.15.4: Recent + Folders + Unfiled) ─────
 function buildContextMenus(data) {
   chrome.contextMenus.removeAll(function() {
 
@@ -263,7 +263,7 @@ function buildContextMenus(data) {
       contexts: ['editable']
     });
 
-    console.log('[SprintBrain] Context menus v2.15.3 built — ' +
+    console.log('[SprintBrain] Context menus v2.15.4 built — ' +
       snippets.length + ' snippets, ' +
       foldersWithMulti.length + ' folder submenus, ' +
       singletonSnips.length + ' flattened, ' +

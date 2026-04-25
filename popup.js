@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.15.3 — Redesigned context menu (Recent + Folders + Unfiled)
+// SPRINTBRAIN POPUP v2.15.4 — Redesigned context menu (Recent + Folders + Unfiled)
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
