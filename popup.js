@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.13.1 — Snippet storage moved to chrome.storage.local (8KB sync limit fix)
+// SPRINTBRAIN POPUP v2.15.6 — Redesigned context menu (Recent + Folders + Unfiled)
 
 var SUPA_URL = 'https://eyowustlbqujaimaxggt.supabase.co';
 var SUPA_KEY = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -791,16 +791,18 @@ function _runNotionSync(cb, force) {
 }
 
 // UI REFRESH
+function groupCount(arr){ var seen={}; var n=0; for(var i=0;i<arr.length;i++){ var gid=arr[i].lang_group_id||arr[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
 function refreshUI(){
   var tp=gi('tp'); if(tp) tp.textContent=trig;
   var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';
-  var st=gi('st'); if(st) st.textContent='\u25CF '+snips.length+' snippet'+(snips.length!==1?'s':'');
+  var gc=groupCount(snips);
+  var st=gi('st'); if(st) st.textContent='\u25CF '+gc+' snippet'+(gc!==1?'s':'');
   renderFolders();
   renderList(gi('sq')?gi('sq').value:'');
 }
 
 // FOLDERS
-function folderCount(fid){ var n=0; for(var i=0;i<snips.length;i++){ if((snips[i].folder||'')===fid) n++; } return n; }
+function folderCount(fid){ var seen={}; var n=0; for(var i=0;i<snips.length;i++){ if((snips[i].folder||'')!==fid) continue; var gid=snips[i].lang_group_id||snips[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
 
 function findFolder(id){ for(var i=0;i<folders.length;i++){ if(folders[i].id===id) return folders[i]; } return null; }
 
@@ -822,7 +824,7 @@ function _folderSvg(ico){ return _FOLDER_SVGS[ico] || _FOLDER_SVGS.folder; }
 function renderFolders(){
   var el=gi('folder-list'); if(!el) return;
   var allIco='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
-  var h='<div class="folder-item'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" tabindex="0" role="treeitem"><span class="folder-ico">'+allIco+'</span><span class="folder-name">All snippets</span><span class="folder-count">'+snips.length+'</span></div>';
+  var h='<div class="folder-item'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" tabindex="0" role="treeitem"><span class="folder-ico">'+allIco+'</span><span class="folder-name">All snippets</span><span class="folder-count">'+groupCount(snips)+'</span></div>';
   for(var i=0;i<folders.length;i++){
     var f=folders[i];
     h+='<div class="folder-item'+(selFolder===f.id?' on':'')+'" data-fid="'+f.id+'" tabindex="0" role="treeitem">'
@@ -987,7 +989,7 @@ function doSave(){
   edLangBuf[edLangActive] = body;
   var lang = edLangActive;
 
-  var isNew=!editId, toSave;
+  var isNew=!editId, variantIsNew=false, toSave;
   if(isNew){
     toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
       enable_urgency_timer:urgEnabled,timer_duration_ms:urgDurMs,scarcity_count:urgSc,
@@ -995,21 +997,54 @@ function doSave(){
     toSave.lang_group_id=toSave.id;
     snips.unshift(toSave);
   } else {
+    // Resolve the anchor snippet and the correct save target for the active language.
+    // editId always points to the snippet that was opened — it may be a different language
+    // than the one currently active in the editor.
+    var anchorSnip = findSnip(editId);
+    if (!anchorSnip) return;
+    var anchorGid = anchorSnip.lang_group_id || anchorSnip.id;
+    // Find the existing variant for edLangActive within this lang group
     for(var i=0;i<snips.length;i++){
-      if(snips[i].id===editId){
-        snips[i].title=title; snips[i].shortcut=sc; snips[i].body=body;
-        snips[i].lang=lang; snips[i].folder=folder;
-        snips[i].enable_urgency_timer=urgEnabled;
-        snips[i].timer_duration_ms=urgDurMs;
-        snips[i].scarcity_count=urgSc;
+      if((snips[i].lang_group_id||snips[i].id)===anchorGid && snips[i].lang===lang){
         toSave=snips[i]; break;
       }
+    }
+    if(toSave){
+      // Update the language-correct variant
+      toSave.title=title; toSave.shortcut=sc; toSave.body=body;
+      toSave.folder=folder;
+      toSave.enable_urgency_timer=urgEnabled;
+      toSave.timer_duration_ms=urgDurMs;
+      toSave.scarcity_count=urgSc;
+    } else {
+      // No variant exists yet for this language — create one
+      variantIsNew=true;
+      toSave={
+        id:uid(), title:title, shortcut:sc, body:body, lang:lang,
+        folder:folder, fieldCfg:JSON.parse(JSON.stringify(anchorSnip.fieldCfg||{})),
+        lang_group_id:anchorGid, sort_order:snips.length+1,
+        enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
+        scarcity_count:urgSc, notion_page_id:null,
+        stats:{uses:0,fills:0,lastUsed:null}
+      };
+      snips.push(toSave);
+      // Keep edLangVariants in sync so the LANGS loop below won't double-create
+      edLangVariants[lang] = toSave;
+    }
+    // Propagate shared metadata changes (title, folder, urgency) to the anchor
+    // when the anchor is a different variant than the one being saved
+    if(anchorSnip !== toSave){
+      anchorSnip.title=title; anchorSnip.folder=folder;
+      anchorSnip.enable_urgency_timer=urgEnabled;
+      anchorSnip.timer_duration_ms=urgDurMs;
+      anchorSnip.scarcity_count=urgSc;
+      DB.upsertSnippet(anchorSnip);
     }
   }
   if(!toSave) return;
   DB.upsertSnippet(toSave);
   syncSnippets();
-  if(isNew) {
+  if(isNew || variantIsNew) {
     DB.updateStats(toSave.id,0,0,null);
     NotionPush.create(toSave);
   } else {

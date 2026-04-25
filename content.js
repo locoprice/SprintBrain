@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.14.4 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.15.7 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -451,20 +451,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.13.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.15.6] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
-        // Migration: check if sync has a stale snippets copy from pre-v2.13.1
+        // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.13.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.15.6] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.13.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.15.6] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -499,8 +499,8 @@ var triggerPending = false;
 var triggerPendingMode = null;   // 'snippet' | 'prompt'
 var triggerAffix = '';
 var triggerDebounceTimer = null;
-var TRIGGER_MIN_CHARS = 2;
-var TRIGGER_DEBOUNCE_MS = 400;
+var TRIGGER_MIN_CHARS = 1;     // show suggestions after ::x (non-destructive, so safe)
+var TRIGGER_DEBOUNCE_MS = 120; // short — the picker never touches the field anymore
 
 function addKey(k) {
   if (k.length !== 1) return;
@@ -510,14 +510,56 @@ function addKey(k) {
 
 function checkBuf() {
   if (processing || !snippets.length) return;
-  // Check shortcut-based snippet matches (e.g. ;;quoteEN)
+  // Check shortcut-based snippet matches (e.g. ;;quoteEN).
+  //
+  // Some users have legacy shortcuts stored with the snippet-trigger prefix
+  // baked in (e.g. "::!!quoteEN" instead of "!!quoteEN") — they manually
+  // typed the trigger into the shortcut field. To handle both shapes
+  // consistently, we test up to two forms per snippet:
+  //   1) the stored shortcut, exactly as-is
+  //   2) the stored shortcut with a leading trigger stripped (so a typed
+  //      sequence of "::!!quoteEN" matches a bare-stored "!!quoteEN" too)
+  // Whichever form actually appears at the end of buf wins, and we delete
+  // exactly that many chars — never more, so the trigger isn't double-counted
+  // and never less, so no residue is left behind.
+  var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
-    if (sc && buf.slice(-sc.length) === sc) {
-      var snip = snippets[i];
+    if (!sc) continue;
+    // Form 1: exact stored shortcut at end of buf.
+    if (sc.length <= buf.length && buf.slice(-sc.length) === sc) {
       buf = '';
-      handleMatch(activeEl, snip, sc.length);
+      handleMatch(activeEl, snippets[i], sc.length);
       return;
+    }
+    // Form 2: trigger + (shortcut sans leading trigger).
+    if (sc.indexOf(snippetTrigger) === 0) {
+      var bare = sc.slice(snippetTrigger.length);
+      if (!bare) continue;
+      var full = snippetTrigger + bare; // == sc, already tested above
+      // Also try the bare form alone — covers the reverse case where the
+      // user types just the bare shortcut without the trigger prefix.
+      if (bare.length <= buf.length && buf.slice(-bare.length) === bare) {
+        // Only accept if the char before isn't the trigger's last char (to
+        // avoid swallowing the trigger from a `::bare` typed sequence — that
+        // case was already handled by form 1's exact match above).
+        var precedeIdx = buf.length - bare.length - 1;
+        if (precedeIdx < 0 || buf[precedeIdx] !== snippetTrigger[snippetTrigger.length - 1]) {
+          buf = '';
+          handleMatch(activeEl, snippets[i], bare.length);
+          return;
+        }
+      }
+    } else {
+      // Form 3: stored bare, but user typed `trigger + bare`. Match the
+      // composite at end of buf so we delete the trigger AND the shortcut
+      // together — prevents leftover "::" at the start of the inserted text.
+      var composite = snippetTrigger + sc;
+      if (composite.length <= buf.length && buf.slice(-composite.length) === composite) {
+        buf = '';
+        handleMatch(activeEl, snippets[i], composite.length);
+        return;
+      }
     }
   }
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
@@ -727,17 +769,166 @@ function _proceedInsert(el, snip) {
 }
 
 // ── DELETE N CHARS ─────────────────────────────────────────────────
+// On contenteditable hosts that intercept beforeinput (WhatsApp Web's Lexical
+// editor, Gmail compose, Slack, etc.), calling execCommand('delete') N times
+// in a tight loop is unreliable — the editor batches/normalizes events and
+// often only the first delete lands. Selecting the N chars first and then
+// issuing a single delete works around that, because the editor sees one
+// deleteContentBackward over a non-collapsed range.
+//
+// We build the selection Range by walking backward through text nodes in
+// document order rather than calling Selection.modify N times. Modify-based
+// extension fails in WhatsApp Web's "first message" state (empty editor freshly
+// populated): Lexical re-normalizes the selection on every modify call and
+// the extend goes nowhere, so 0 chars get selected and the trigger survives.
+// Walking text nodes builds the final range in one shot, which Lexical
+// accepts as a single deleteContentBackward.
+function _ceWalkBackChars(rootEl, endNode, endOffset, n) {
+  // Returns {node, offset} of the position N characters before (endNode, endOffset),
+  // walking only text nodes that are descendants of rootEl. Falls back to
+  // (rootEl, 0) if we run out of text before reaching N.
+  var remaining = n;
+  var node = endNode;
+  var offset = endOffset;
+
+  // If we start in an element node (e.g. cursor right after a <br>), descend
+  // to the deepest text node at the offset position.
+  if (node && node.nodeType === Node.ELEMENT_NODE) {
+    var children = node.childNodes;
+    if (children.length === 0) {
+      // empty element — nothing to consume here, walk to previous text node
+    } else {
+      var idx = Math.min(offset, children.length) - 1;
+      while (idx >= 0) {
+        var c = children[idx];
+        if (c.nodeType === Node.TEXT_NODE) {
+          node = c; offset = c.nodeValue.length; break;
+        } else if (c.nodeType === Node.ELEMENT_NODE) {
+          // dive to the last text node inside
+          var tw = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, null);
+          var last = null, t;
+          while ((t = tw.nextNode())) last = t;
+          if (last) { node = last; offset = last.nodeValue.length; break; }
+        }
+        idx--;
+      }
+    }
+  }
+
+  while (remaining > 0 && node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (offset >= remaining) {
+        offset -= remaining; remaining = 0; break;
+      }
+      remaining -= offset;
+      // move to previous text node within rootEl
+      var prev = _prevTextNode(node, rootEl);
+      if (!prev) { node = rootEl; offset = 0; break; }
+      node = prev; offset = node.nodeValue.length;
+    } else {
+      var prev2 = _prevTextNode(node, rootEl);
+      if (!prev2) { node = rootEl; offset = 0; break; }
+      node = prev2; offset = node.nodeValue.length;
+    }
+  }
+  return { node: node, offset: offset };
+}
+
+function _prevTextNode(node, rootEl) {
+  // Document-order previous text node, bounded by rootEl.
+  var tw = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, null);
+  var prev = null, t;
+  while ((t = tw.nextNode())) {
+    if (t === node) return prev;
+    prev = t;
+  }
+  return prev;
+}
+
+// Find the actual contenteditable host. `el` may be the inner span/<p> that
+// received the keydown — Lexical (WhatsApp Web) routes events through inner
+// nodes, and a TreeWalker rooted there only sees one fragment of the typed
+// text. We need the element whose `contenteditable` attribute is "true" (the
+// root of the editor instance) so the walker can see all text nodes.
+function _ceHost(el) {
+  var n = el;
+  while (n && n.getAttribute) {
+    var a = n.getAttribute('contenteditable');
+    if (a === 'true' || a === '') return n;
+    n = n.parentElement;
+  }
+  return el;
+}
+
+function _selectionInside(sel, el) {
+  if (!sel || !sel.rangeCount || !el) return false;
+  var n = sel.getRangeAt(0).endContainer;
+  while (n) {
+    if (n === el) return true;
+    n = n.parentNode;
+  }
+  return false;
+}
+
 function deleteChars(el, n, cb) {
-  if (!el) { if (cb) cb(); return; }
+  if (!el || n <= 0) { if (cb) cb(); return; }
+  var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
-    el.focus();
-    for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+    if (isCE) {
+      // Lexical (WhatsApp Web) does NOT honor execCommand('delete') over a
+      // non-collapsed range — its beforeinput handler treats deleteContent-
+      // Backward as a single-char delete regardless of selection length.
+      // Strategy: don't actually delete here. Just SET the selection to span
+      // the N chars to remove. The next call (insertText) will fire
+      // execCommand('insertText') which Chrome dispatches as one beforeinput
+      // {inputType:'insertText'} over the live (non-collapsed) selection.
+      // Lexical handles that as an atomic replacement — clean delete + insert
+      // in one operation. Run synchronously (no setTimeout) so the selection
+      // we just set is still live when insertText executes.
+      var sel = window.getSelection();
+      if ((!sel || !sel.rangeCount) || !_selectionInside(sel, el)) {
+        try { el.focus(); } catch(_) {}
+        sel = window.getSelection();
+      }
+      var host = _ceHost((sel && sel.rangeCount && sel.getRangeAt(0).endContainer.nodeType === 1)
+        ? sel.getRangeAt(0).endContainer
+        : (sel && sel.rangeCount ? sel.getRangeAt(0).endContainer.parentElement : el));
+      if (!host || (host.nodeType !== 1)) host = _ceHost(el);
+
+      if (sel && sel.rangeCount) {
+        try {
+          var r = sel.getRangeAt(0);
+          var start = _ceWalkBackChars(host, r.endContainer, r.endOffset, n);
+          var sr = document.createRange();
+          sr.setStart(start.node, start.offset);
+          sr.setEnd(r.endContainer, r.endOffset);
+          sel.removeAllRanges();
+          sel.addRange(sr);
+          if (cb) cb();
+          return;
+        } catch(eRange) {}
+      }
+      // Selection unrecoverable — fall through to the legacy delete loop.
+      try { el.focus(); for (var i = 0; i < n; i++) document.execCommand('delete', false, null); } catch(_) {}
+    } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      el.focus();
+      var s = (el.selectionStart != null) ? el.selectionStart : (el.value || '').length;
+      var np = Math.max(0, s - n);
+      var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      var nv = el.value.substring(0, np) + el.value.substring(s);
+      if (desc && desc.set) desc.set.call(el, nv); else el.value = nv;
+      el.setSelectionRange(np, np);
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+    } else {
+      for (var i = 0; i < n; i++) document.execCommand('delete', false, null);
+    }
   } catch(e) {
     try {
-      var s = el.selectionStart || 0;
-      el.value = el.value.substring(0, Math.max(0, s - n)) + el.value.substring(s);
-      var np = Math.max(0, s - n);
-      el.setSelectionRange(np, np);
+      var s2 = el.selectionStart || 0;
+      el.value = el.value.substring(0, Math.max(0, s2 - n)) + el.value.substring(s2);
+      var np2 = Math.max(0, s2 - n);
+      el.setSelectionRange(np2, np2);
       el.dispatchEvent(new Event('input', {bubbles:true}));
     } catch(e2) {}
   }
@@ -745,9 +936,45 @@ function deleteChars(el, n, cb) {
 }
 
 // ── INSERT TEXT ────────────────────────────────────────────────────
+// Multi-line text via execCommand('insertText', '...\n...') is mangled by
+// rich-text editors (WhatsApp Web/Lexical drops or reorders the segments).
+// Insert one line at a time and emit a real line break between them.
 function insertText(el, text) {
   if (!el) return;
+  var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
+    if (isCE) {
+      // CRITICAL: do NOT call el.focus() on the CE path. Lexical (WhatsApp Web)
+      // resets the DOM selection on focus events, which would wipe the
+      // non-collapsed range that deleteChars just set to span the trigger —
+      // causing execCommand('insertText') to insert at start-of-field while
+      // the trigger text survives. deleteChars already focused the editable
+      // when needed; trust it.
+      // The first execCommand('insertText') replaces the (possibly non-
+      // collapsed) selection with line[0] in one beforeinput insertText event,
+      // which Lexical handles atomically. After that the cursor is collapsed
+      // at the end of inserted text; subsequent line-break + line pairs append.
+      if (document.activeElement !== el && !el.contains(document.activeElement)) {
+        try { el.focus(); } catch(_) {}
+      }
+      var lines = String(text).split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          var ok = false;
+          try { ok = document.execCommand('insertLineBreak', false, null); } catch(e) {}
+          if (!ok) {
+            try { ok = document.execCommand('insertParagraph', false, null); } catch(e) {}
+          }
+          if (!ok) {
+            try { document.execCommand('insertText', false, '\n'); } catch(e) {}
+          }
+        }
+        if (lines[i]) {
+          try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
+        }
+      }
+      return;
+    }
     el.focus();
     if (document.execCommand('insertText', false, text)) return;
   } catch(e) {}
@@ -1176,26 +1403,59 @@ var triggerPickerTarget   = null;
 var triggerPickerIdx      = 0;
 var triggerPickerQuery    = '';   // chars typed after trigger opens picker
 var triggerPickerFiltered = [];   // currently visible (filtered) items
+var triggerPickerDeleteLen = 0;   // total chars in field to delete on confirm
+                                  // (trigger sequence + every char typed while picker open)
 
-// Get pixel coords of the text cursor — used to position the picker
+// Get pixel coords of the text cursor — used to position the picker.
+// IMPORTANT: must not mutate the DOM or the live Selection, otherwise the
+// cursor shifts (typically to the previous line) before the picker appears
+// and subsequent insertions land at the wrong position.
 function _getCaretCoords(el) {
-  // Method 1: Selection API — works reliably for contenteditable (Gmail)
+  // Method 1: getBoundingClientRect() on a collapsed Range — zero DOM mutations.
+  // A collapsed range in Chrome returns the caret rect (width:0, height:lineHeight).
   try {
     var sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       var range = sel.getRangeAt(0).cloneRange();
       range.collapse(true);
+      var rect = range.getBoundingClientRect();
+      if (rect && rect.height > 0) {
+        return { x: rect.left, y: rect.bottom };
+      }
+    }
+  } catch(e) {}
+  // Method 2: Span-insertion fallback (rare edge cases where Method 1 returns
+  // a zero-height rect). Snapshots the selection endpoints before the DOM
+  // mutation and restores them afterward so the cursor never drifts.
+  try {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var liveRange   = sel.getRangeAt(0);
+      var startNode   = liveRange.startContainer;
+      var startOff    = liveRange.startOffset;
+      var endNode     = liveRange.endContainer;
+      var endOff      = liveRange.endOffset;
+      var insertRange = liveRange.cloneRange();
+      insertRange.collapse(true);
       var span = document.createElement('span');
       span.textContent = '\u200b'; // zero-width space
-      range.insertNode(span);
+      insertRange.insertNode(span);
       var rect = span.getBoundingClientRect();
       if (span.parentNode) span.parentNode.removeChild(span);
+      // Restore original selection to undo the cursor shift caused by insertNode
+      try {
+        var restored = document.createRange();
+        restored.setStart(startNode, startOff);
+        restored.setEnd(endNode, endOff);
+        sel.removeAllRanges();
+        sel.addRange(restored);
+      } catch(re) {}
       if (rect && (rect.width > 0 || rect.height > 0)) {
         return { x: rect.left, y: rect.bottom };
       }
     }
   } catch(e) {}
-  // Method 2: Fallback — bottom-left of the element
+  // Method 3: Fallback — bottom-left of the element
   var elRect = el.getBoundingClientRect();
   return { x: elRect.left, y: elRect.bottom };
 }
@@ -1391,36 +1651,40 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
   triggerPickerMode   = mode;
   triggerPickerIdx    = 0;
   triggerPickerQuery  = filterStr || '';
+  // NON-DESTRUCTIVE: we leave the user's typed text in the field. The picker
+  // is a suggestion preview; deletion + insertion only happens on explicit
+  // confirm (Tab / Enter / click). The field content remains visible and
+  // editable while the picker is open.
+  triggerPickerDeleteLen = seqLen || 0;
 
-  deleteChars(el, seqLen, function() {
-    var div = document.createElement('div');
-    div.id = 'sb-trigger-picker';
-    div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  var div = document.createElement('div');
+  div.id = 'sb-trigger-picker';
+  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
-    var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0">';
-    header += mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode';
-    header += '</div>';
-    header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
-    div.innerHTML = header;
+  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Tab / Enter to insert</span>';
+  header += '</div>';
+  header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  div.innerHTML = header;
 
-    // Position at caret, keep inside viewport
-    var coords = _getCaretCoords(el);
-    var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
-    var top  = coords.y + 4;
-    var spaceBelow = window.innerHeight - top - 20;
-    if (spaceBelow < 120) {
-      // Flip above cursor
-      top = Math.max(4, coords.y - 4 - 300);
-      spaceBelow = 300;
-    }
-    div.style.left      = left + 'px';
-    div.style.top       = top  + 'px';
-    div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  // Position at caret, keep inside viewport
+  var coords = _getCaretCoords(el);
+  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+  var top  = coords.y + 4;
+  var spaceBelow = window.innerHeight - top - 20;
+  if (spaceBelow < 120) {
+    // Flip above cursor
+    top = Math.max(4, coords.y - 4 - 300);
+    spaceBelow = 300;
+  }
+  div.style.left      = left + 'px';
+  div.style.top       = top  + 'px';
+  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
 
-    document.body.appendChild(div);
-    triggerPickerEl = div;
-    _renderPickerItems(triggerPickerQuery);
-  });
+  document.body.appendChild(div);
+  triggerPickerEl = div;
+  _renderPickerItems(triggerPickerQuery);
 }
 
 function selectTriggerItem(idx) {
@@ -1428,7 +1692,9 @@ function selectTriggerItem(idx) {
   var item  = triggerPickerFiltered[idx];
   var el    = triggerPickerTarget;
   var mode  = triggerPickerMode;
-  var qLen  = triggerPickerQuery.length;
+  // Full delete span: the trigger sequence (::) + everything typed since.
+  // Captured BEFORE closeTriggerPicker resets state.
+  var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
 
@@ -1452,9 +1718,11 @@ function selectTriggerItem(idx) {
     }
   }
 
-  // Delete any chars the user typed as a filter query before inserting
-  if (qLen > 0) {
-    deleteChars(el, qLen, function() { doInsert(); });
+  // Delete the trigger + typed filter from the field, then insert the snippet.
+  // This is the ONLY place deletion happens — opening the picker no longer
+  // touches the field, so the user keeps seeing what they type.
+  if (dLen > 0) {
+    deleteChars(el, dLen, function() { doInsert(); });
   } else {
     doInsert();
   }
@@ -1462,11 +1730,12 @@ function selectTriggerItem(idx) {
 
 function closeTriggerPicker() {
   if (triggerPickerEl) { triggerPickerEl.remove(); triggerPickerEl = null; }
-  triggerPickerMode     = null;
-  triggerPickerTarget   = null;
-  triggerPickerIdx      = 0;
-  triggerPickerQuery    = '';
-  triggerPickerFiltered = [];
+  triggerPickerMode      = null;
+  triggerPickerTarget    = null;
+  triggerPickerIdx       = 0;
+  triggerPickerQuery     = '';
+  triggerPickerFiltered  = [];
+  triggerPickerDeleteLen = 0;
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -1490,29 +1759,49 @@ function handleTriggerPickerKey(e) {
     return true;
   }
   if (e.key === 'Tab' || e.key === 'Enter') {
-    e.preventDefault();
-    selectTriggerItem(triggerPickerIdx);
-    return true;
+    // Only confirm if there are filtered matches; otherwise let Tab/Enter
+    // pass through so the user isn't trapped when their query matches nothing.
+    if (count > 0) {
+      e.preventDefault();
+      selectTriggerItem(triggerPickerIdx);
+      return true;
+    }
+    closeTriggerPicker();
+    return false;
   }
   if (e.key === 'Escape') {
     e.preventDefault();
     closeTriggerPicker();
     return true;
   }
-  // Printable char — append to query, re-filter, let char go into field
-  if (e.key.length === 1) {
-    triggerPickerQuery += e.key;
-    _renderPickerItems(triggerPickerQuery);
+  // Space closes the picker without inserting — keeps whatever the user
+  // typed in the field as normal text, then the space flows through.
+  if (e.key === ' ') {
+    closeTriggerPicker();
     return false;
   }
-  // Backspace — shrink query, re-filter, let backspace go into field
+  // Printable char — append to query, re-filter, track the extra char as
+  // part of the delete-on-confirm span. Let the char reach the field too.
+  if (e.key.length === 1) {
+    triggerPickerQuery += e.key;
+    triggerPickerDeleteLen += 1;
+    _renderPickerItems(triggerPickerQuery);
+    // Return true to short-circuit the main keydown handler so the keystroke
+    // isn't accidentally appended to the shortcut buffer (which could match
+    // a different snippet while the picker is open).
+    return true;
+  }
+  // Backspace — shrink query, shrink delete span, let backspace go into field
   if (e.key === 'Backspace') {
     if (triggerPickerQuery.length > 0) {
       triggerPickerQuery = triggerPickerQuery.slice(0, -1);
+      triggerPickerDeleteLen = Math.max(0, triggerPickerDeleteLen - 1);
       _renderPickerItems(triggerPickerQuery);
-    } else {
-      closeTriggerPicker();
+      return true;
     }
+    // Nothing left in the query — close, but let the backspace through so
+    // the user can keep deleting their trigger sequence normally.
+    closeTriggerPicker();
     return false;
   }
   return false;

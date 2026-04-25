@@ -1,7 +1,7 @@
 # web/CLAUDE.md — SprintBrain Dashboard (React)
 
-**Document Version**: 2.0
-**Last Updated**: April 21, 2026
+**Document Version**: 2.1
+**Last Updated**: April 25, 2026
 **Project**: SprintBrain SaaS Dashboard (web/)
 **Purpose**: AI development reference for the React dashboard. The Chrome extension lives at the repo root and follows a different stack — see `../CLAUDE.md` for that codebase.
 
@@ -11,7 +11,7 @@
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.
 
-**Scope (v2.15.0)**: Supabase magic-link authentication (domain-restricted to `@leibtour.com`) with live reads for snippets, folders, and profile. Prompts and analytics pages still use mock fixtures pending backing tables (`prompts`, `snippet_events`). No CRUD yet — that's the next ticket.
+**Scope (v2.17.0)**: Supabase magic-link authentication (domain-restricted to `@leibtour.com`) with live reads + full CRUD for snippets, folders, and prompts (AUTH-001 + SNIPPETS-CRUD-001 + PROMPTS-001 all shipped). Analytics still uses mock fixtures pending the `snippet_events` time-series table (`ANALYTICS-001`).
 
 **Audience**: hospitality operators (LeibTour) primarily; B2B prospects evaluating SprintBrain.
 
@@ -115,9 +115,9 @@ web/
 - Prefer `interface` for object shapes, `type` for unions and primitives.
 - All API service responses are typed against `src/types/database.ts`.
 
-### 4.7 Mock vs live data (as of v2.15.0)
-- **Live**: `snippetsApi` (folders + snippets + stats joined), `settingsApi.getProfile` (derived from the authed `auth.users` record), `settingsApi.getNotionSync` (reads latest `notion_sync_log` row).
-- **Still mock**: `promptsApi` (no `prompts` table yet — tracked in `PROMPTS-001`), `analyticsApi` (needs `snippet_events` time-series table — tracked in `ANALYTICS-001`).
+### 4.7 Mock vs live data (as of v2.17.0)
+- **Live**: `snippetsApi` (folders + snippets + stats joined, full CRUD), `promptsApi` (live reads + CRUD against `public.prompts`), `settingsApi.getProfile` (derived from the authed `auth.users` record), `settingsApi.getNotionSync` (reads latest `notion_sync_log` row).
+- **Still mock**: `analyticsApi` (needs `snippet_events` time-series table — tracked in `ANALYTICS-001`).
 - Fixtures in `src/mock/fixtures.ts` remain deterministic (no `Math.random()` at runtime). Date offsets use a fixed `day(offset)` helper from `Date.now()` so the chart shape is stable per session.
 - All mock UUIDs are hand-rolled and stable across re-renders.
 
@@ -127,8 +127,8 @@ web/
 - DB RLS still has permissive `team_*` policies (`qual: true`) needed by the extension's anon-key reads. Until the extension migrates (`AUTH-EXT-001`), every dashboard query explicitly filters `.eq('user_id', currentUserId)` in app code — do NOT remove those filters.
 
 ### 4.9 Forms
-- All forms in v2.15.0 remain non-functional placeholders. Wire-up happens in the CRUD ticket.
-- Disabled controls must include `title` explaining why.
+- Snippet, folder, and prompt forms are wired to Supabase via Zod-validated stores with optimistic updates (SNIPPETS-CRUD-001, PROMPTS-001).
+- Analytics-related controls remain disabled placeholders pending `ANALYTICS-001`. Disabled controls must include `title` explaining why.
 
 ---
 
@@ -159,9 +159,9 @@ web/
 ## 7. Roadmap (next tickets)
 
 1. ~~Supabase auth (magic link) + live reads~~ ✅ shipped in v2.15.0 (AUTH-001).
-2. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies.
-3. **SNIPPETS-CRUD-001** — create / edit / delete snippets and folders from the dashboard with Zod validation and optimistic updates.
-4. **PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.
+2. ~~**SNIPPETS-CRUD-001** — create / edit / delete snippets and folders from the dashboard with Zod validation and optimistic updates.~~ ✅ shipped in v2.16.0.
+3. ~~**PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.~~ ✅ shipped in v2.17.0.
+4. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies.
 5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
 6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
 7. Dark mode (`uiStore` already has the seam).
