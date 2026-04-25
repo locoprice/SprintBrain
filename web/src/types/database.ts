@@ -19,6 +19,7 @@ export interface Folder {
   name: string;
   icon: string; // emoji
   sort_order: number;
+  updated_at: IsoDateTime;
 }
 
 export interface Snippet {

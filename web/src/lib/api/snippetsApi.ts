@@ -28,7 +28,10 @@ type DbFolder = {
   name: string;
   ico: string;
   sort_order: number;
+  updated_at: string;
 };
+
+const FOLDER_SELECT = 'id, user_id, name, ico, sort_order, updated_at';
 
 type DbSnippetJoined = {
   id: string;
@@ -59,6 +62,7 @@ function dbFolderToFolder(row: DbFolder): Folder {
     name: row.name,
     icon: row.ico,
     sort_order: row.sort_order,
+    updated_at: row.updated_at,
   };
 }
 
@@ -104,7 +108,7 @@ export const snippetsApi: SnippetsApi = {
     const userId = await currentUserId();
     const { data, error } = await supabase
       .from('folders')
-      .select('id, user_id, name, ico, sort_order')
+      .select(FOLDER_SELECT)
       .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
@@ -191,7 +195,7 @@ export const snippetsApi: SnippetsApi = {
         ico: payload.icon,
         sort_order: Date.now(),
       })
-      .select('id, user_id, name, ico, sort_order')
+      .select(FOLDER_SELECT)
       .single();
     if (error) throw error;
     return dbFolderToFolder(data as DbFolder);
@@ -208,7 +212,7 @@ export const snippetsApi: SnippetsApi = {
       .update(update)
       .eq('id', id)
       .eq('user_id', userId)
-      .select('id, user_id, name, ico, sort_order')
+      .select(FOLDER_SELECT)
       .single();
     if (error) throw error;
     return dbFolderToFolder(data as DbFolder);

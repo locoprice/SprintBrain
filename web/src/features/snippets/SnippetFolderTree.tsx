@@ -1,8 +1,16 @@
+import { useState } from 'react';
 import { Folders, Pencil, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { FolderDialog } from '@/features/snippets/FolderDialog';
+import { FolderContextMenu } from '@/features/snippets/FolderContextMenu';
+
+interface MenuState {
+  folderId: string;
+  x: number;
+  y: number;
+}
 
 export function SnippetFolderTree() {
   const folders = useSnippetStore((s) => s.folders);
@@ -10,6 +18,10 @@ export function SnippetFolderTree() {
   const selected = useSnippetStore((s) => s.selectedFolderId);
   const setSelected = useSnippetStore((s) => s.setSelectedFolder);
   const openFolderDialog = useUiStore((s) => s.openFolderDialog);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const activeMenuFolder =
+    menu !== null ? folders.find((f) => f.id === menu.folderId) ?? null : null;
 
   const counts = new Map<string, number>();
   for (const s of snippets) {
@@ -58,6 +70,10 @@ export function SnippetFolderTree() {
         return (
           <div
             key={f.id}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({ folderId: f.id, x: e.clientX, y: e.clientY });
+            }}
             className={cn(
               'group relative flex items-center rounded-[10px] transition-colors',
               isActive ? 'bg-primary-light' : 'hover:bg-bg-alt',
@@ -94,6 +110,15 @@ export function SnippetFolderTree() {
       })}
 
       <FolderDialog />
+
+      {menu !== null && activeMenuFolder !== null && (
+        <FolderContextMenu
+          folder={activeMenuFolder}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </aside>
   );
 }

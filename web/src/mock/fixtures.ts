@@ -31,6 +31,7 @@ export const mockFolders: Folder[] = [
     name: 'LeibTour EN',
     icon: '🇬🇧',
     sort_order: 0,
+    updated_at: '2025-12-01T09:00:00Z',
   },
   {
     id: '22222222-0000-4000-8000-000000000002',
@@ -38,6 +39,7 @@ export const mockFolders: Folder[] = [
     name: 'LeibTour IT',
     icon: '🇮🇹',
     sort_order: 1,
+    updated_at: '2025-12-01T09:00:00Z',
   },
   {
     id: '22222222-0000-4000-8000-000000000003',
@@ -45,6 +47,7 @@ export const mockFolders: Folder[] = [
     name: 'Personal',
     icon: '👤',
     sort_order: 2,
+    updated_at: '2025-12-01T09:00:00Z',
   },
   {
     id: '22222222-0000-4000-8000-000000000004',
@@ -52,6 +55,7 @@ export const mockFolders: Folder[] = [
     name: 'Archived',
     icon: '🗄️',
     sort_order: 3,
+    updated_at: '2025-12-01T09:00:00Z',
   },
 ];
 
