@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.16.0 — Per-user JWT (AUTH-EXT-001 phase A)
+// SPRINTBRAIN POPUP v2.16.1 — WhatsApp trigger-residue fix
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,12 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.16.1', date:'2026-04-25', label:'WhatsApp Trigger Residue Fix',
+    changes:[
+      {type:'fix', text:'Trigger text (e.g. ::firma) no longer left as residue after snippet insertion in WhatsApp Web'},
+      {type:'fix', text:'insertText: fixed inverted containment check that caused unnecessary el.focus() on inner Lexical span, resetting the deletion selection'},
+      {type:'fix', text:'checkBuf: direct snippet match now cancels the debounce picker timer, preventing a spurious picker after a direct trigger fires'}
+    ]},
   { version:'v2.9.1', date:'2026-03-29', label:'Deferred Trigger + Trigger Sync',
     changes:[
       {type:'fix', text:'Trigger no longer opens picker immediately — deferred with 600ms debounce for shortcut matching'},
@@ -1662,6 +1668,11 @@ if (syncNowBtn) {
 }
 
 // ── AUTH GATE (AUTH-EXT-001 phase A) ──────────────────────────────
+// OTP flow: pending state persists in chrome.storage.local under 'sb_otp_pending'
+// so closing the popup mid-flow (e.g. to fetch the code from Gmail) doesn't reset it.
+// Pending state expires after OTP_TTL_MS to avoid showing a stale code screen.
+var OTP_TTL_MS = 55 * 60 * 1000; // Supabase OTPs are valid for 60 min; bail at 55.
+
 (function initAuthGate() {
   var gate    = document.getElementById('sb-auth');
   var emailEl = document.getElementById('sb-auth-email');
@@ -1675,6 +1686,27 @@ if (syncNowBtn) {
   var state = 'email'; // 'email' | 'code'
   var pendingEmail = '';
   var booted = false;
+
+  function setPending(email) {
+    pendingEmail = email || '';
+    if (email) {
+      chrome.storage.local.set({ sb_otp_pending: { email: email, sentAt: Date.now() } });
+    } else {
+      chrome.storage.local.remove('sb_otp_pending');
+    }
+  }
+
+  function loadPending(cb) {
+    chrome.storage.local.get('sb_otp_pending', function(d) {
+      var p = d && d.sb_otp_pending;
+      if (p && p.email && p.sentAt && (Date.now() - p.sentAt) < OTP_TTL_MS) {
+        cb(p.email);
+      } else {
+        if (p) chrome.storage.local.remove('sb_otp_pending');
+        cb(null);
+      }
+    });
+  }
 
   function setMsg(text, ok) {
     msgEl.textContent = text || '';
@@ -1701,12 +1733,22 @@ if (syncNowBtn) {
 
   function showGate() {
     gate.classList.add('on');
-    state = 'email';
-    pendingEmail = '';
     emailEl.value = '';
     codeEl.value = '';
     setMsg('');
-    renderState();
+    // Resume pending OTP if one was issued recently and the popup was closed mid-flow.
+    loadPending(function(email) {
+      if (email) {
+        pendingEmail = email;
+        state = 'code';
+        renderState();
+        setMsg('Code sent earlier — paste the 6-digit code from your inbox.', true);
+      } else {
+        pendingEmail = '';
+        state = 'email';
+        renderState();
+      }
+    });
   }
 
   function hideGate() {
@@ -1737,7 +1779,7 @@ if (syncNowBtn) {
         primary.disabled = false;
         primary.textContent = 'Send code';
         if (err) { setMsg(err); return; }
-        pendingEmail = email;
+        setPending(email);
         state = 'code';
         renderState();
         setMsg('Code sent — check your inbox.', true);
@@ -1747,10 +1789,12 @@ if (syncNowBtn) {
       if (!/^\d{6}$/.test(code)) { setMsg('Enter the 6-digit code'); return; }
       primary.disabled = true;
       primary.textContent = 'Verifying…';
+      if (!pendingEmail) { setMsg('Session lost — request a new code'); state = 'email'; renderState(); return; }
       sbVerifyOtp(pendingEmail, code, function(err, session) {
         primary.disabled = false;
         primary.textContent = 'Verify';
         if (err || !session) { setMsg(err || 'Invalid code'); return; }
+        setPending(null); // clear pending OTP — we're authed
         hideGate();
         bootOnce(session);
       });
@@ -1758,8 +1802,8 @@ if (syncNowBtn) {
   });
 
   backEl.addEventListener('click', function() {
+    setPending(null);
     state = 'email';
-    pendingEmail = '';
     codeEl.value = '';
     setMsg('');
     renderState();
