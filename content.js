@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.16.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.16.1 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -529,6 +529,8 @@ function checkBuf() {
     // Form 1: exact stored shortcut at end of buf.
     if (sc.length <= buf.length && buf.slice(-sc.length) === sc) {
       buf = '';
+      triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+      if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
       handleMatch(activeEl, snippets[i], sc.length);
       return;
     }
@@ -546,6 +548,8 @@ function checkBuf() {
         var precedeIdx = buf.length - bare.length - 1;
         if (precedeIdx < 0 || buf[precedeIdx] !== snippetTrigger[snippetTrigger.length - 1]) {
           buf = '';
+          triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+          if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
           handleMatch(activeEl, snippets[i], bare.length);
           return;
         }
@@ -557,6 +561,8 @@ function checkBuf() {
       var composite = snippetTrigger + sc;
       if (composite.length <= buf.length && buf.slice(-composite.length) === composite) {
         buf = '';
+        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
         handleMatch(activeEl, snippets[i], composite.length);
         return;
       }
@@ -954,7 +960,13 @@ function insertText(el, text) {
       // collapsed) selection with line[0] in one beforeinput insertText event,
       // which Lexical handles atomically. After that the cursor is collapsed
       // at the end of inserted text; subsequent line-break + line pairs append.
-      if (document.activeElement !== el && !el.contains(document.activeElement)) {
+      // Use !activeElement.contains(el) rather than !el.contains(activeElement):
+      // el may be an inner span while activeElement is the outer contenteditable
+      // div (WhatsApp Web / Lexical). The old check had the containment test
+      // backwards, causing an unnecessary el.focus() on the inner span, which
+      // makes Lexical reset the non-collapsed range set by deleteChars — leaving
+      // a fragment of the trigger text in the field.
+      if (document.activeElement !== el && !document.activeElement.contains(el)) {
         try { el.focus(); } catch(_) {}
       }
       var lines = String(text).split('\n');
