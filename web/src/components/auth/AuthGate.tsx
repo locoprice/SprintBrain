@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 export function AuthGate({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
   const init = useAuthStore((s) => s.init);
+  const location = useLocation();
 
   useEffect(() => {
     void init();
@@ -27,7 +28,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (status === 'anon') {
-    return <Navigate to="/login" replace />;
+    // Preserve the originally requested path so post-login we land back here
+    // (rather than always bouncing to "/"). Required for /extension-link.
+    const next = location.pathname + location.search;
+    const target = next && next !== '/' ? `/login?next=${encodeURIComponent(next)}` : '/login';
+    return <Navigate to={target} replace />;
   }
 
   return <>{children}</>;

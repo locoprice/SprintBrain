@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -13,6 +13,11 @@ export function AuthCallback() {
   const status = useAuthStore((s) => s.status);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [params] = useSearchParams();
+  // The `next` query param is preserved by LoginPage when it crafted the
+  // magic-link redirectTo. After auth succeeds we land back on the original
+  // deep link (e.g. /extension-link) instead of always bouncing to /.
+  const next = params.get('next') || '/';
 
   useEffect(() => {
     // Surface any hash-level error the redirect carries.
@@ -39,7 +44,7 @@ export function AuthCallback() {
   }
 
   if (status === 'authed') {
-    return <Navigate to="/" replace />;
+    return <Navigate to={next} replace />;
   }
 
   if (status === 'anon' || timedOut) {

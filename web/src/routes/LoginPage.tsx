@@ -25,9 +25,13 @@ export function LoginPage() {
     void init();
   }, [init]);
 
-  // If an authed user lands here (e.g. via the back button), bounce them home.
+  // Preserve the deep-link the AuthGate stashed on us (e.g. /extension-link).
+  // Falls back to "/" when absent so the existing behavior is unchanged.
+  const next = params.get('next') || '/';
+
+  // If an authed user lands here (e.g. via the back button), respect ?next=.
   if (status === 'authed') {
-    return <Navigate to="/" replace />;
+    return <Navigate to={next} replace />;
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -43,11 +47,15 @@ export function LoginPage() {
 
     setPhase('sending');
     try {
+      // Forward `next` through the magic link so AuthCallback can land
+      // the user on /extension-link (or wherever they came from).
+      const callback =
+        next === '/'
+          ? `${window.location.origin}/auth/callback`
+          : `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: callback },
       });
       if (error) {
         setErrorMsg(error.message);
