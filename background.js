@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.16.1 — Per-user JWT (AUTH-EXT-001 phase A) ──
+// ── SPRINTBRAIN BACKGROUND v2.16.2 — Per-user JWT (AUTH-EXT-001 phase A) ──
 importScripts('auth.js');
 importScripts('notion-sync.js');
 
