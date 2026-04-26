@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN AUTH v2.16.2 — Email-OTP auth for the extension ──
+// ── SPRINTBRAIN AUTH v2.17.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //

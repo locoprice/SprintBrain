@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.16.2 — Per-user JWT (AUTH-EXT-001 phase A) ──
+// ── SPRINTBRAIN BACKGROUND v2.17.0 — Dashboard SSO handoff (AUTH-EXT-002) ──
 importScripts('auth.js');
 importScripts('notion-sync.js');
 
@@ -64,6 +64,26 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     try { sendResponse({ ok: true }); } catch(e) {}
     return true;
   }
+});
+
+// ── AUTH-EXT-002: accept session handoff from the dashboard ───────
+// externally_connectable in manifest already restricts senders to the dashboard
+// origin; we double-check the URL prefix as defense in depth.
+chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse) {
+  if (!sender || !sender.url || sender.url.indexOf('https://sprintbrain.netlify.app/') !== 0) {
+    sendResponse({ ok: false, error: 'unauthorized_origin' });
+    return false;
+  }
+  if (msg && msg.type === 'session_handoff' && msg.session && msg.session.access_token) {
+    sbSetSession(msg.session, function() {
+      // Rebuild context menus immediately under the new identity.
+      try { initMenus(); } catch(e) {}
+      sendResponse({ ok: true, user_id: msg.session.user_id || null });
+    });
+    return true; // keep the channel open for the async sendResponse
+  }
+  sendResponse({ ok: false, error: 'invalid_payload' });
+  return false;
 });
 
 // ── LOAD SNIPPETS + FOLDERS + STATS FROM SUPABASE ─────────────────

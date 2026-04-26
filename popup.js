@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.16.1 — WhatsApp trigger-residue fix
+// SPRINTBRAIN POPUP v2.17.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -1673,8 +1673,15 @@ if (syncNowBtn) {
 // Pending state expires after OTP_TTL_MS to avoid showing a stale code screen.
 var OTP_TTL_MS = 55 * 60 * 1000; // Supabase OTPs are valid for 60 min; bail at 55.
 
+var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.netlify.app/extension-link';
+
 (function initAuthGate() {
   var gate    = document.getElementById('sb-auth');
+  var ssoPane = document.getElementById('sb-auth-sso');
+  var ssoBtn  = document.getElementById('sb-auth-sso-btn');
+  var showOtp = document.getElementById('sb-auth-show-otp');
+  var hideOtp = document.getElementById('sb-auth-hide-otp');
+  var otpPane = document.getElementById('sb-auth-otp');
   var emailEl = document.getElementById('sb-auth-email');
   var codeEl  = document.getElementById('sb-auth-code');
   var subEl   = document.getElementById('sb-auth-sub');
@@ -1812,10 +1819,41 @@ var OTP_TTL_MS = 55 * 60 * 1000; // Supabase OTPs are valid for 60 min; bail at 
   emailEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') primary.click(); });
   codeEl.addEventListener('keydown',  function(e) { if (e.key === 'Enter') primary.click(); });
 
+  // ── SSO via dashboard (AUTH-EXT-002) ────────────────────────────
+  function showSsoPane() {
+    if (ssoPane) ssoPane.style.display = 'flex';
+    if (otpPane) otpPane.style.display = 'none';
+    setMsg('');
+  }
+  function showOtpPane() {
+    if (ssoPane) ssoPane.style.display = 'none';
+    if (otpPane) otpPane.style.display = 'flex';
+    setMsg('');
+  }
+
+  if (ssoBtn) {
+    ssoBtn.addEventListener('click', function() {
+      try { chrome.tabs.create({ url: SB_DASHBOARD_LINK_URL }); } catch(e) { window.open(SB_DASHBOARD_LINK_URL, '_blank'); }
+      setMsg('Open the dashboard tab to confirm — popup will sign in automatically.', true);
+    });
+  }
+  if (showOtp) showOtp.addEventListener('click', showOtpPane);
+  if (hideOtp) hideOtp.addEventListener('click', showSsoPane);
+
+  // React to a session that arrives via SSO handoff (background.js stores it).
+  chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area !== 'local' || !changes.sb_session) return;
+    var next = changes.sb_session.newValue;
+    if (next && next.access_token && !booted) {
+      hideGate();
+      bootOnce(next);
+    }
+  });
+
   // Initial check: if a session exists already, skip the gate.
   sbGetSession(function(session) {
     if (session && session.access_token) { hideGate(); bootOnce(session); }
-    else { showGate(); }
+    else { showGate(); showSsoPane(); }
   });
 
   // Expose a sign-out hook for the existing settings menu to call.

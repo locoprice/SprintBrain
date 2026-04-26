@@ -6,6 +6,7 @@ import { PromptsPage } from '@/routes/PromptsPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 import { LoginPage } from '@/routes/LoginPage';
 import { AuthCallback } from '@/routes/AuthCallback';
+import { ExtensionLinkPage } from '@/routes/ExtensionLinkPage';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { DesktopGate } from '@/components/layout/DesktopGate';
 import { useIsDesktop } from '@/lib/useViewportGate';
@@ -23,6 +24,16 @@ export function App() {
         {/* Public auth routes — no AuthGate, no DashboardLayout */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* Protected, but renders standalone — no DashboardLayout chrome. */}
+        <Route
+          path="/extension-link"
+          element={
+            <AuthGate>
+              <ExtensionLinkPage />
+            </AuthGate>
+          }
+        />
 
         {/* Protected dashboard routes */}
         <Route
