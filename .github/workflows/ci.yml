@@ -1,0 +1,32 @@
+name: SprintBrain CI
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Version parity check
+        run: node scripts/check-version.js
+
+      - name: Snippet engine check
+        run: node scripts/check-snippets.js
+
+      - name: File structure check
+        run: |
+          test -f sprintbrain-extension/manifest.json
+          test -f Sprintbrain.html
+
+      - name: CI Passed
+        run: echo "SprintBrain CI OK"
