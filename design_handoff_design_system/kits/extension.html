@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Extension UI Kit</title>
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #EFEFF2; font-family: var(--sb-font); color: var(--sb-ink); }
+  .page { max-width: 1200px; margin: 0 auto; padding: 48px 40px 80px; }
+  .page-hd { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .page-ttl { font-size: 32px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 8px; color: var(--sb-ink); }
+  .page-sub { font-size: 14px; color: var(--sb-ink-muted); margin: 0 0 36px; max-width: 640px; line-height: 1.6; }
+  .sect-hd { display: flex; align-items: baseline; gap: 12px; margin: 44px 0 16px; }
+  .sect-hd h2 { font-size: 18px; font-weight: 700; letter-spacing: -.2px; margin: 0; color: var(--sb-ink); }
+  .sect-hd .tag { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; }
+  .sect-hd .tag.iris { color: var(--sb-iris); }
+  .sect-desc { font-size: 13px; color: var(--sb-ink-muted); margin: 0 0 20px; max-width: 600px; line-height: 1.6; }
+
+  .frames { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
+  .frame { display: flex; flex-direction: column; gap: 10px; }
+  .frame-label { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ────────── POPUP CHROME (600 wide) ────────── */
+  .popup {
+    width: 600px; background: var(--sb-bg);
+    border: 1px solid var(--sb-line); border-radius: 16px;
+    box-shadow: var(--sb-shadow-lg); overflow: hidden;
+    font-size: var(--sb-fs-13); color: var(--sb-ink);
+  }
+  .popup.sm { width: 600px; }
+  .pop-hdr {
+    padding: 12px 16px; background: var(--sb-bg);
+    border-bottom: 1px solid var(--sb-line);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pop-logo { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--sb-ink); }
+  .logo-mark {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--sb-iris), var(--sb-iris-light));
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .logo-mark svg { width: 14px; height: 14px; stroke: #fff; fill: #fff; stroke-width: 1; stroke-linejoin: round; }
+  .pop-st { font-size: 10px; color: var(--sb-ink-subtle); font-weight: 500; margin-left: auto; }
+  .pop-hdr-r { display: flex; gap: 8px; margin-left: 12px; }
+  .hdr-btn {
+    padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--sb-line); background: var(--sb-bg); color: var(--sb-ink-muted);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .hdr-btn.primary { background: var(--sb-iris); border-color: var(--sb-iris); color: #fff; }
+  .hdr-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* sync bar */
+  .sync-bar { display: flex; align-items: center; padding: 6px 16px; background: var(--sb-bg-alt); border-bottom: 1px solid var(--sb-line); gap: 8px; min-height: 32px; }
+  .sync-bar svg { width: 12px; height: 12px; stroke: var(--sb-ok); fill: none; stroke-width: 2; stroke-linecap: round; }
+  .sync-bar .tx { font-size: 10px; color: var(--sb-ink-subtle); flex: 1; }
+  .sync-bar .tx strong { color: var(--sb-ok); font-weight: 600; }
+  .sync-btn { font-size: 10px; font-weight: 600; padding: 3px 10px; background: var(--sb-bg); color: var(--sb-ink-muted); border: 1px solid var(--sb-line); border-radius: 6px; }
+
+  /* search row */
+  .srow { padding: 8px 16px; border-bottom: 1px solid var(--sb-line); display: flex; gap: 8px; align-items: center; background: var(--sb-bg); }
+  .search-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+  .search-wrap svg { position: absolute; left: 10px; width: 14px; height: 14px; stroke: var(--sb-ink-subtle); fill: none; stroke-width: 2; stroke-linecap: round; }
+  .sinp { flex: 1; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 8px 12px 8px 34px; font-size: 13px; color: var(--sb-ink); font-family: inherit; outline: none; }
+  .tpill { font-size: 10px; font-family: var(--sb-mono); font-weight: 600; color: var(--sb-iris); background: var(--sb-iris-bg); border: 1px solid var(--sb-iris-bdr); border-radius: 9999px; padding: 3px 10px; }
+
+  /* body layout */
+  .pop-body { display: flex; height: 420px; }
+  .pop-sb { width: 170px; border-right: 1px solid var(--sb-line); display: flex; flex-direction: column; background: var(--sb-bg-alt); }
+  .sb-lbl { padding: 12px 12px 4px; font-size: 10px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; }
+  .sb-list { flex: 1; padding: 4px 0; }
+  .folder-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-left: 2px solid transparent; font-size: 13px; color: var(--sb-ink-muted); margin: 1px 0; }
+  .folder-item.on { background: var(--sb-iris-bg); border-left-color: var(--sb-iris); color: var(--sb-iris); font-weight: 600; }
+  .folder-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder-count { font-size: 10px; color: var(--sb-ink-subtle); background: var(--sb-bg-muted); border-radius: 9999px; padding: 1px 7px; font-weight: 500; }
+  .folder-item.on .folder-count { background: var(--sb-iris-bg); color: var(--sb-iris); }
+  .sb-add { margin-top: auto; padding: 8px 12px; font-size: 13px; font-weight: 500; color: var(--sb-iris); border-top: 1px solid var(--sb-line); display: flex; align-items: center; gap: 6px; }
+  .sb-add svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+  .pop-main { flex: 1; display: flex; flex-direction: column; }
+  .hint { padding: 6px 16px; font-size: 10px; color: var(--sb-ink-subtle); background: var(--sb-bg-alt); border-bottom: 1px solid var(--sb-line); }
+  .hint strong { color: var(--sb-iris); font-weight: 600; font-family: var(--sb-mono); }
+
+  .snip-list { flex: 1; overflow-y: auto; }
+  .snip-item { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--sb-line); cursor: pointer; }
+  .snip-item:hover { background: var(--sb-bg-alt); }
+  .iname { font-size: 13px; font-weight: 500; color: var(--sb-ink); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .isc { font-size: 10px; font-weight: 600; color: var(--sb-iris); font-family: var(--sb-mono); background: var(--sb-iris-bg); border: 1px solid var(--sb-iris-bdr); border-radius: 9999px; padding: 2px 8px; }
+  .isc .pfx { opacity: .45; font-weight: 400; }
+  .lb { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .lb.EN { background: #2563EB14; color: var(--sb-lang-en); border: 1px solid #2563EB33; }
+  .lb.IT { background: #DC262614; color: var(--sb-lang-it); border: 1px solid #DC262633; }
+  .lb.ES { background: #EA580C14; color: var(--sb-lang-es); border: 1px solid #EA580C33; }
+  .stat-b { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; border: 1px solid; }
+  .stat-b.uses { background: var(--sb-ok-bg); color: var(--sb-ok); border-color: var(--sb-ok-bdr); }
+  .stat-b.hot { background: #FEF9C3; color: #854D0E; border-color: #FDE047; }
+
+  .pop-foot { padding: 8px 16px; border-top: 1px solid var(--sb-line); display: flex; gap: 8px; background: var(--sb-bg); }
+  .btn { flex: 1; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid var(--sb-line); background: transparent; color: var(--sb-ink-muted); display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .btn.p { background: var(--sb-iris); border-color: var(--sb-iris); color: #fff; }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .ver-bar { padding: 4px 16px; background: var(--sb-bg-alt); border-top: 1px solid var(--sb-line); display: flex; align-items: center; justify-content: space-between; }
+  .ver-bar button { background: none; border: none; font-family: var(--sb-mono); font-size: 10px; color: var(--sb-ink-subtle); padding: 0; }
+  .ver-bar .dt { font-size: 10px; color: var(--sb-ink-subtle); }
+
+  /* editor pane */
+  .ed-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; height: 420px; overflow-y: auto; }
+  .lbl { font-size: 10px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .einp { width: 100%; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--sb-ink); font-family: inherit; outline: none; }
+  .scrow { display: flex; align-items: stretch; border: 1px solid var(--sb-iris); border-radius: 8px; overflow: hidden; background: var(--sb-bg-muted); box-shadow: var(--sb-shadow-glow); }
+  .scpfx { padding: 8px 12px; font-size: 13px; font-family: var(--sb-mono); font-weight: 700; color: var(--sb-iris); background: var(--sb-iris-bg); border-right: 1px solid var(--sb-iris-bdr); }
+  .scrow input { background: transparent; border: none; outline: none; font-family: var(--sb-mono); font-size: 13px; color: var(--sb-iris); font-weight: 600; flex: 1; padding: 8px 12px; }
+  .schint { font-size: 10px; color: var(--sb-ink-subtle); margin-top: 4px; }
+  .schint strong { font-family: var(--sb-mono); color: var(--sb-iris); }
+  .row2 { display: flex; gap: 8px; }
+  .esel { background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--sb-ink); font-family: inherit; flex: 1; }
+  .lang-body-wrap { display: flex; gap: 8px; }
+  .lang-sidebar { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .lang-tab { width: 36px; padding: 6px 0; border: 1px solid var(--sb-line); border-radius: 8px; background: var(--sb-bg-muted); color: var(--sb-ink-subtle); font-size: 10px; font-weight: 700; text-align: center; position: relative; }
+  .lang-tab.on { color: #fff; border-color: transparent; }
+  .lang-tab.on.EN { background: var(--sb-lang-en); }
+  .lang-tab.on.IT { background: var(--sb-lang-it); }
+  .lang-tab .dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--sb-ok); }
+  .lang-tab.on .dot { background: rgba(255,255,255,.6); }
+  .eta { flex: 1; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--sb-ink); font-family: var(--sb-mono); outline: none; min-height: 110px; line-height: 1.7; resize: none; white-space: pre-wrap; }
+
+  .cmds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .cmd { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-family: var(--sb-mono); border: 1px solid var(--sb-line); background: var(--sb-bg-muted); color: var(--sb-ink-muted); }
+  .cmd.formula { color: var(--sb-lang-fr); border-color: #C4B5FD; background: #F5F3FF; }
+  .cmd.cond { color: #0891B2; border-color: #A5F3FC; background: #ECFEFF; }
+
+  .urg { background: var(--sb-bg-alt); border: 1px solid var(--sb-line); border-radius: 8px; padding: 12px; }
+  .urg-hdr { display: flex; align-items: center; justify-content: space-between; }
+  .urg-lbl { font-size: 11px; font-weight: 600; color: var(--sb-ink); display: flex; align-items: center; gap: 5px; }
+  .urg-lbl svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+  .urg-sub { font-size: 10px; color: var(--sb-ink-subtle); margin-top: 2px; }
+  .urg-switch { position: relative; width: 34px; height: 19px; background: var(--sb-iris); border-radius: 19px; }
+  .urg-switch::after { content: ''; position: absolute; top: 3px; left: 18px; width: 13px; height: 13px; background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .urg-fields { display: flex; gap: 8px; margin-top: 8px; }
+  .urg-field { display: flex; flex-direction: column; gap: 3px; }
+  .urg-field small { font-size: 9px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .06em; }
+  .urg-field input { background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 6px; padding: 6px 8px; font-size: 11px; color: var(--sb-ink); width: 90px; font-family: inherit; }
+
+  .ed-foot { padding: 12px 16px; border-top: 1px solid var(--sb-line); display: flex; gap: 8px; align-items: center; background: var(--sb-bg); }
+  .bsave { padding: 8px 20px; background: var(--sb-iris); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 5px; }
+  .bsave svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .bsec { padding: 8px 14px; background: transparent; border: 1px solid var(--sb-line); border-radius: 8px; font-size: 13px; color: var(--sb-ink-muted); }
+  .bdel { padding: 8px 14px; background: transparent; border: 1px solid var(--sb-danger-bdr); border-radius: 8px; font-size: 13px; color: var(--sb-danger); margin-left: auto; }
+
+  /* ────────── OVERLAY (inline on host page) ────────── */
+  .overlay {
+    width: 420px; background: var(--sb-bg);
+    border: 1.5px solid var(--sb-line); border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+    overflow: hidden; font-family: var(--sb-font); font-size: 13px;
+  }
+  .ov-hdr { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--sb-line); }
+  .ov-logo { font-weight: 700; font-size: 13px; color: var(--sb-iris); display: flex; align-items: center; gap: 6px; }
+  .ov-logo svg { width: 14px; height: 14px; fill: currentColor; }
+  .ov-name { font-size: 12px; color: var(--sb-ink-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-x { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--sb-ink-subtle); border-radius: 6px; font-size: 16px; line-height: 1; }
+  .ov-fields { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ov-field { display: flex; flex-direction: column; gap: 4px; }
+  .ov-lbl { font-size: 10px; font-weight: 600; color: var(--sb-iris); text-transform: uppercase; letter-spacing: .06em; font-family: var(--sb-mono); }
+  .ov-inp { background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--sb-ink); }
+  .ov-inp.date { color: var(--sb-iris); border-color: var(--sb-iris-bdr); background: var(--sb-iris-bg); }
+  .ov-inp.focus { border-color: var(--sb-iris); background: var(--sb-bg); box-shadow: 0 0 0 3px var(--sb-iris-glow); }
+  .ov-prev { margin: 0 16px; padding: 10px 12px; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; font-size: 12px; color: var(--sb-ink-muted); line-height: 1.6; white-space: pre-wrap; }
+  .ov-prev strong { color: var(--sb-ink); font-weight: 600; }
+  .ov-foot { padding: 12px 16px; border-top: 1px solid var(--sb-line); display: flex; align-items: center; gap: 8px; background: var(--sb-bg-alt); }
+  .ov-go { padding: 8px 20px; background: var(--sb-iris); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; }
+  .ov-tip { font-size: 10px; color: var(--sb-ink-subtle); margin-left: auto; }
+
+  /* fake host "page" behind overlay, so it looks in context */
+  .host-stage { background: #FFFFFF; border: 1px dashed var(--sb-line-2); border-radius: 16px; padding: 48px 60px; position: relative; }
+  .host-stage::before { content: 'HOST PAGE · simulated'; position: absolute; top: 10px; left: 16px; font-size: 9px; color: var(--sb-ink-subtle); font-family: var(--sb-mono); letter-spacing: .1em; }
+  .host-caret { font-family: var(--sb-mono); font-size: 14px; color: var(--sb-ink-muted); margin-bottom: 14px; }
+  .host-caret .q { color: var(--sb-iris); background: var(--sb-iris-bg); padding: 1px 4px; border-radius: 3px; }
+
+  /* Trigger picker (when user types `::` in empty field) */
+  .tp { width: 360px; background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 12px; box-shadow: var(--sb-shadow-lg); overflow: hidden; }
+  .tp-hd { padding: 10px 14px; border-bottom: 1px solid var(--sb-line); display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--sb-ink-subtle); font-weight: 500; }
+  .tp-hd strong { font-family: var(--sb-mono); color: var(--sb-iris); font-weight: 700; }
+  .tp-list { max-height: 260px; overflow-y: auto; padding: 4px 0; }
+  .tp-item { display: flex; align-items: center; gap: 10px; padding: 8px 14px; font-size: 13px; color: var(--sb-ink); }
+  .tp-item.on { background: var(--sb-iris-bg); }
+  .tp-item .tp-sc { font-size: 11px; font-family: var(--sb-mono); font-weight: 600; color: var(--sb-iris); }
+  .tp-item .tp-nm { flex: 1; color: var(--sb-ink-muted); font-size: 12px; }
+  .tp-foot { padding: 8px 14px; border-top: 1px solid var(--sb-line); font-size: 10px; color: var(--sb-ink-subtle); display: flex; gap: 14px; background: var(--sb-bg-alt); }
+  .tp-foot kbd { font-family: var(--sb-mono); font-size: 10px; padding: 1px 5px; border: 1px solid var(--sb-line); border-bottom-width: 2px; border-radius: 4px; background: var(--sb-bg); color: var(--sb-ink); margin-right: 4px; }
+
+  /* Context menu (right-click) */
+  .cmenu { width: 230px; background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 12px; box-shadow: var(--sb-shadow-lg); padding: 4px 0; }
+  .ci { display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; color: var(--sb-ink); }
+  .ci:hover { background: var(--sb-bg-alt); }
+  .ci.dn { color: var(--sb-danger); }
+  .ci svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ci-sep { height: 1px; background: var(--sb-line); margin: 4px 0; }
+  .ci-arr { margin-left: auto; color: var(--sb-ink-subtle); }
+
+  /* Modals */
+  .modal { width: 320px; background: var(--sb-bg); border-radius: 16px; padding: 24px; box-shadow: var(--sb-shadow-xl); }
+  .mt-ttl { font-size: 16px; font-weight: 700; color: var(--sb-ink); margin-bottom: 16px; }
+  .ico-grid { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+  .ico-opt { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1.5px solid transparent; color: var(--sb-ink-muted); }
+  .ico-opt.on { border-color: var(--sb-iris); background: var(--sb-iris-bg); color: var(--sb-iris); }
+  .ico-opt svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .mf { display: flex; gap: 8px; justify-content: flex-end; }
+  .mbtn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid var(--sb-line); background: transparent; color: var(--sb-ink-muted); }
+  .mbtn.p { background: var(--sb-iris); border-color: var(--sb-iris); color: #fff; }
+
+  /* Language picker modal */
+  .lp { width: 300px; background: var(--sb-bg); border-radius: 16px; padding: 20px; box-shadow: var(--sb-shadow-xl); }
+  .lp-ttl { font-size: 15px; font-weight: 700; color: var(--sb-ink); margin-bottom: 4px; }
+  .lp-sub { font-size: 11px; color: var(--sb-ink-muted); margin-bottom: 16px; }
+  .lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+  .lp-opt { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--sb-line); border-radius: 8px; }
+  .lp-opt.has { border-color: var(--sb-ok-bdr); background: var(--sb-ok-bg); }
+  .lp-opt.sel { border-color: var(--sb-iris); background: var(--sb-iris-bg); }
+  .lp-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; background: var(--sb-bg-muted); flex-shrink: 0; }
+  .lp-dot.EN { background: #2563EB14; color: var(--sb-lang-en); }
+  .lp-dot.ES { background: #EA580C14; color: var(--sb-lang-es); }
+  .lp-dot.IT { background: #DC262614; color: var(--sb-lang-it); }
+  .lp-dot.FR { background: #7C3AED14; color: var(--sb-lang-fr); }
+  .lp-nm { font-size: 11px; font-weight: 600; color: var(--sb-ink); }
+  .lp-opt.has .lp-nm { color: var(--sb-ok); }
+
+  /* Settings tgrid */
+  .tgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .topt { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--sb-line); }
+  .topt.on { border-color: var(--sb-iris); background: var(--sb-iris-bg); }
+  .tk { font-size: 20px; font-weight: 700; font-family: var(--sb-mono); color: var(--sb-ink); }
+  .topt.on .tk { color: var(--sb-iris); }
+  .td { font-size: 10px; color: var(--sb-ink-subtle); text-align: center; }
+  .topt.on .td { color: var(--sb-iris-dark); }
+  .ibox { padding: 8px 12px; background: var(--sb-ok-bg); border: 1px solid var(--sb-ok-bdr); border-radius: 8px; font-size: 11px; color: var(--sb-ok); line-height: 1.6; margin-top: 12px; }
+  .ibox strong { font-family: var(--sb-mono); }
+</style>
+</head>
+<body data-sb-surface="extension">
+<div class="page">
+  <div class="page-hd">SprintBrain · UI Kit 1 of 2</div>
+  <h1 class="page-ttl">Chrome Extension</h1>
+  <p class="page-sub">The extension is a 600×420 popup plus an inline overlay injected into host pages by the content script. Every surface below uses the Iris accent and the 13px base font. This kit is annotated with the source selector so you can trace a pattern back to <code class="sb-mono">popup.html</code> or <code class="sb-mono">overlay.css</code>.</p>
+
+  <!-- ════════ LIST VIEW ════════ -->
+  <div class="sect-hd"><h2>Popup · Snippet list</h2><span class="tag">popup.html · <code>#pane-list</code></span></div>
+  <p class="sect-desc">The primary screen. Sync bar on top, search row with trigger pill, folder sidebar + snippet rows. The window is a fixed 600×420 — don't add vertical scroll to the popup itself; scroll lives inside <code class="sb-mono">.snip-list</code>.</p>
+  <div class="frames">
+    <div class="frame">
+      <span class="frame-label">Default state · 4 of 16 snippets in "LeibTour EN"</span>
+      <div class="popup">
+        <div class="sync-bar">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span class="tx">Notion sync · <strong>4 min ago</strong> · 16 snippets</span>
+          <button class="sync-btn">Sync Now</button>
+        </div>
+        <div class="pop-hdr">
+          <div class="pop-logo"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> SprintBrain</div>
+          <span class="pop-st">16 snippets</span>
+          <div class="pop-hdr-r">
+            <button class="hdr-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+            <button class="hdr-btn primary"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="sinp" placeholder="Search snippets or /shortcut...">
+          </div>
+          <div class="tpill">::</div>
+        </div>
+        <div class="pop-body">
+          <div class="pop-sb">
+            <div class="sb-lbl">Folders</div>
+            <div class="sb-list">
+              <div class="folder-item on"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="folder-name">LeibTour EN</span><span class="folder-count">9</span></div>
+              <div class="folder-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="folder-name">LeibTour IT</span><span class="folder-count">2</span></div>
+              <div class="folder-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="folder-name">Personal</span><span class="folder-count">3</span></div>
+              <div class="folder-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="folder-name">Archived</span><span class="folder-count">1</span></div>
+            </div>
+            <div class="sb-add"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New folder</div>
+          </div>
+          <div class="pop-main">
+            <div class="hint">Type <strong>::quoteEN</strong> · right-click for options</div>
+            <div class="snip-list">
+              <div class="snip-item"><span class="iname">Quote — English</span><span class="lb EN">EN</span><span class="stat-b hot">🔥 84</span><span class="isc"><span class="pfx">::</span>quoteEN</span></div>
+              <div class="snip-item"><span class="iname">Check-in instructions</span><span class="lb EN">EN</span><span class="stat-b uses">57</span><span class="isc"><span class="pfx">::</span>checkin</span></div>
+              <div class="snip-item"><span class="iname">Welcome message</span><span class="lb EN">EN</span><span class="stat-b uses">39</span><span class="isc"><span class="pfx">::</span>welcome</span></div>
+              <div class="snip-item"><span class="iname">Refund policy</span><span class="lb EN">EN</span><span class="stat-b uses">12</span><span class="isc"><span class="pfx">::</span>refund</span></div>
+              <div class="snip-item"><span class="iname">Discount calculator</span><span class="lb EN">EN</span><span class="stat-b uses">21</span><span class="isc"><span class="pfx">::</span>disc</span></div>
+              <div class="snip-item"><span class="iname">Late checkout policy</span><span class="lb EN">EN</span><span class="stat-b uses">8</span><span class="isc"><span class="pfx">::</span>late</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="pop-foot">
+          <button class="btn"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg> Reload</button>
+          <button class="btn p"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Snippet</button>
+        </div>
+        <div class="ver-bar"><button>v2.14.5</button><span class="dt">2026-04-13</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ EDITOR VIEW ════════ -->
+  <div class="sect-hd"><h2>Popup · Snippet editor</h2><span class="tag">popup.html · <code>#pane-ed</code></span></div>
+  <p class="sect-desc">Opens when the user creates or edits a snippet. The shortcut field is the only place where the input itself wears the Iris border — shortcut collisions are a load-bearing validation, so the field announces itself. Language sidebar on the right of the body textarea gives one-click access to sibling translations.</p>
+  <div class="frames">
+    <div class="frame">
+      <span class="frame-label">Edit · "Quote — English"</span>
+      <div class="popup">
+        <div class="pop-hdr">
+          <button class="hdr-btn"><svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back</button>
+          <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)">Quote — English</span>
+          <span style="font-size:11px;color:var(--sb-ok);font-weight:600">Saved</span>
+        </div>
+        <div class="ed-body">
+          <div><div class="lbl">Title</div><input class="einp" value="Quote — English"></div>
+          <div>
+            <div class="lbl">Shortcut</div>
+            <div class="scrow"><div class="scpfx">::</div><input value="quoteEN"></div>
+            <div class="schint">Full shortcut: <strong>::quoteEN</strong></div>
+          </div>
+          <div class="row2">
+            <div style="flex:1"><div class="lbl">Language</div><select class="esel"><option>EN</option></select></div>
+            <div style="flex:2"><div class="lbl">Folder</div><select class="esel"><option>LeibTour EN</option></select></div>
+          </div>
+          <div>
+            <div class="lbl">Body — use {variable} for dynamic fields</div>
+            <div class="lang-body-wrap">
+              <div class="lang-sidebar">
+                <button class="lang-tab on EN">EN<span class="dot"></span></button>
+                <button class="lang-tab">IT<span class="dot"></span></button>
+                <button class="lang-tab">ES</button>
+                <button class="lang-tab">FR</button>
+              </div>
+              <textarea class="eta">Dear {guest_name},
+
+Your stay of {nights} nights at {property_name} totals €{=nights*rate}.
+
+{if:discount > 0}You save €{=discount}!{endif}
+
+Best regards,
+LeibTour</textarea>
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Quick insert</div>
+            <div class="cmds">
+              <span class="cmd">{guest_name}</span>
+              <span class="cmd">{property_name}</span>
+              <span class="cmd">{nights}</span>
+              <span class="cmd">{total_price}</span>
+              <span class="cmd formula">{=formula}</span>
+              <span class="cmd cond">{if:cond}</span>
+            </div>
+          </div>
+          <div class="urg">
+            <div class="urg-hdr">
+              <div><div class="urg-lbl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Urgency Timer</div><div class="urg-sub">Countdown + scarcity for quotes</div></div>
+              <div class="urg-switch"></div>
+            </div>
+            <div class="urg-fields">
+              <div class="urg-field"><small>Duration (min)</small><input value="30"></div>
+              <div class="urg-field"><small>Units left</small><input value="3"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ed-foot">
+          <button class="bsave"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
+          <button class="bsec">Cancel</button>
+          <button class="bdel">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ SETTINGS ════════ -->
+  <div class="sect-hd"><h2>Popup · Settings</h2><span class="tag">popup.html · <code>#pane-cfg</code></span></div>
+  <p class="sect-desc">Trigger picker uses 3 preset cards plus a custom field. The info box at the bottom previews what the user will actually type.</p>
+  <div class="frames">
+    <div class="frame">
+      <span class="frame-label">Trigger character selection</span>
+      <div class="popup">
+        <div class="pop-hdr">
+          <button class="hdr-btn"><svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back</button>
+          <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)">Settings</span>
+        </div>
+        <div style="padding:16px;height:420px">
+          <div class="lbl" style="margin-bottom:8px">Trigger character</div>
+          <div class="tgrid">
+            <div class="topt"><span class="tk">;;</span><span class="td">Zero conflicts</span></div>
+            <div class="topt on"><span class="tk">::</span><span class="td">Recommended</span></div>
+            <div class="topt"><span class="tk">!!</span><span class="td">Easy to type</span></div>
+          </div>
+          <div class="ibox" style="margin-top:14px">Active: <strong>::</strong> · Example: <strong>::quoteEN</strong></div>
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--sb-line)">
+            <div class="lbl" style="margin-bottom:8px;color:var(--sb-iris)">Inline Trigger Sequences</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px;display:flex;align-items:center;gap:4px">
+                <svg style="width:12px;height:12px;color:var(--sb-iris);fill:currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Snippet
+              </span>
+              <input class="einp" value="::" style="font-family:var(--sb-mono);font-weight:700;font-size:13px;text-align:center;width:70px;padding:6px 8px">
+              <span style="font-size:10px;color:var(--sb-ok)">✓ active</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px;display:flex;align-items:center;gap:4px">
+                <svg style="width:12px;height:12px;color:var(--sb-iris);stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                Prompt
+              </span>
+              <input class="einp" value='"""' style="font-family:var(--sb-mono);font-weight:700;font-size:13px;text-align:center;width:70px;padding:6px 8px">
+              <span style="font-size:10px;color:var(--sb-ok)">✓ active</span>
+            </div>
+            <div style="font-size:10px;color:var(--sb-ink-subtle);line-height:1.6;margin-top:4px">Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">::</strong> in any text field to pick a snippet. Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">"""</strong> to pick a prompt template.</div>
+          </div>
+        </div>
+        <div class="pop-foot">
+          <button class="btn p" style="flex:0 0 auto;padding:8px 24px">Apply</button>
+          <button class="btn" style="flex:0 0 auto">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ OVERLAYS ════════ -->
+  <div class="sect-hd"><h2>Inline overlay · fires on trigger</h2><span class="tag">overlay.css · <code>#sprintbrain-overlay</code></span></div>
+  <p class="sect-desc">Injected into any host page (Airbnb, WhatsApp, Gmail, etc.) when the user types a shortcut with required fields. Chrome is minimal so it reads as a polite visitor, not a takeover — all styles are <code class="sb-mono">!important</code>-fenced in the real CSS to beat host styles, but the tokens are unchanged.</p>
+  <div class="frames">
+    <div class="frame" style="flex:1;min-width:440px">
+      <span class="frame-label">Field-fill overlay · ::quoteEN triggered</span>
+      <div class="host-stage">
+        <div class="host-caret">To: guest@example.com<br>Subject: Your quote<br><br>Hi, <span class="q">::quoteEN</span>|</div>
+        <div class="overlay">
+          <div class="ov-hdr">
+            <span class="ov-logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> SprintBrain</span>
+            <span class="ov-name">Quote — English</span>
+            <span class="ov-x">×</span>
+          </div>
+          <div class="ov-fields">
+            <div class="ov-field"><span class="ov-lbl">GUEST_NAME</span><div class="ov-inp focus">Maria Rossi</div></div>
+            <div class="ov-field"><span class="ov-lbl">NIGHTS</span><div class="ov-inp">4</div></div>
+            <div class="ov-field"><span class="ov-lbl">CHECKIN_DATE</span><div class="ov-inp date">2026-05-14</div></div>
+          </div>
+          <div class="ov-prev">Dear <strong>Maria Rossi</strong>,\n\nYour stay of <strong>4 nights</strong> starting <strong>May 14</strong>…</div>
+          <div class="ov-foot">
+            <button class="ov-go">Insert</button>
+            <span class="ov-tip"><span class="sb-kbd">⏎</span> confirm · <span class="sb-kbd">Esc</span> cancel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <span class="frame-label">Trigger picker · typed "::" in empty field</span>
+      <div class="host-stage" style="padding:32px 40px">
+        <div class="host-caret"><span class="q">::</span>|</div>
+        <div class="tp">
+          <div class="tp-hd">Pick a snippet — type to filter · <strong>::</strong></div>
+          <div class="tp-list">
+            <div class="tp-item on"><span class="tp-sc">::quoteEN</span><span class="tp-nm">Quote — English</span><span class="lb EN">EN</span></div>
+            <div class="tp-item"><span class="tp-sc">::quoteIT</span><span class="tp-nm">Quote — Italian</span><span class="lb IT">IT</span></div>
+            <div class="tp-item"><span class="tp-sc">::checkin</span><span class="tp-nm">Check-in instructions</span><span class="lb EN">EN</span></div>
+            <div class="tp-item"><span class="tp-sc">::firm</span><span class="tp-nm">Firm signature</span><span class="lb EN">EN</span></div>
+            <div class="tp-item"><span class="tp-sc">::welcome</span><span class="tp-nm">Welcome message</span><span class="lb EN">EN</span></div>
+          </div>
+          <div class="tp-foot"><span><kbd>↑↓</kbd>navigate</span><span><kbd>⏎</kbd>insert</span><span><kbd>Esc</kbd>dismiss</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ CONTEXT + MODALS ════════ -->
+  <div class="sect-hd"><h2>Floating surfaces</h2><span class="tag">popup.html · <code>.ctx-menu, .modal-overlay, .lp-bg</code></span></div>
+  <p class="sect-desc">Context menus, the new-folder modal, and the language picker. All share a 12–16px radius, the same shadow-lg, and the same Iris-on-hover rule for interactive rows.</p>
+  <div class="frames" style="align-items:flex-start">
+    <div class="frame">
+      <span class="frame-label">Snippet right-click menu</span>
+      <div class="cmenu">
+        <div class="ci"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate snippet</div>
+        <div class="ci"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Move to folder<span class="ci-arr">›</span></div>
+        <div class="ci-sep"></div>
+        <div class="ci"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Rename…</div>
+        <div class="ci"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V6l1-4H8l1 4v4.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2z"/></svg>Pin to top</div>
+        <div class="ci-sep"></div>
+        <div class="ci"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy content</div>
+        <div class="ci"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>Share snippet</div>
+        <div class="ci-sep"></div>
+        <div class="ci dn"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete snippet…</div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <span class="frame-label">New folder modal</span>
+      <div class="modal">
+        <div class="mt-ttl">New Folder</div>
+        <input class="einp" placeholder="Folder name…" value="LeibTour FR">
+        <div class="lbl" style="margin-top:14px">Icon</div>
+        <div class="ico-grid">
+          <span class="ico-opt"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="ico-opt on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          <span class="ico-opt"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="ico-opt"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="ico-opt"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+          <span class="ico-opt"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        </div>
+        <div class="mf"><button class="mbtn">Cancel</button><button class="mbtn p">Create folder</button></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <span class="frame-label">Language picker · copy body</span>
+      <div class="lp">
+        <div class="lp-ttl">Choose language</div>
+        <div class="lp-sub">Select which version to copy from.</div>
+        <div class="lp-grid">
+          <div class="lp-opt sel"><span class="lp-dot EN">EN</span><span class="lp-nm">English</span></div>
+          <div class="lp-opt has"><span class="lp-dot IT">IT</span><span class="lp-nm">Italiano</span></div>
+          <div class="lp-opt"><span class="lp-dot ES">ES</span><span class="lp-nm">Español</span></div>
+          <div class="lp-opt"><span class="lp-dot FR">FR</span><span class="lp-nm">Français</span></div>
+        </div>
+        <div class="mf"><button class="mbtn">Cancel</button><button class="mbtn p" style="flex:1">Copy from EN</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

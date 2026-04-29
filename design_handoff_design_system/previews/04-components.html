@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Components</title>
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding:40px 48px; background:var(--sb-bg-alt); font-family:var(--sb-font); }
+  .wrap { max-width:1040px; margin:0 auto; }
+  .hd { font-size:11px; font-weight:600; color:var(--sb-ink-subtle); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+  h1.ttl { font-size:32px; font-weight:700; letter-spacing:-.3px; margin:0 0 6px; color:var(--sb-ink);}
+  .sub { font-size:14px; color:var(--sb-ink-muted); margin:0 0 32px;}
+  .sect { font-size:11px; font-weight:600; color:var(--sb-ink); text-transform:uppercase; letter-spacing:.08em; margin:28px 0 12px;}
+  .card { background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:16px; padding:20px 24px; margin-bottom:14px;}
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .stk { display:flex; flex-direction:column; gap:12px; }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; font-family:inherit;}
+  .btn.pri { background:var(--sb-accent); color:#fff; box-shadow:var(--sb-shadow-md);}
+  .btn.gho { background:transparent; border-color:var(--sb-line); color:var(--sb-ink);}
+  .btn.sub { background:var(--sb-bg-muted); color:var(--sb-ink);}
+  .btn.dng { background:transparent; border-color:var(--sb-danger-bdr); color:var(--sb-danger);}
+  .btn.sm { padding:5px 10px; font-size:12px;}
+  .btn.ic { width:36px; height:36px; padding:0; justify-content:center;}
+  .inp { height:36px; padding:0 12px; border-radius:8px; border:1px solid var(--sb-line); background:var(--sb-bg-muted); font-size:13px; color:var(--sb-ink); font-family:inherit; width:240px; outline:none;}
+  .inp:focus { border-color:var(--sb-accent); box-shadow:var(--sb-shadow-glow); background:var(--sb-bg);}
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:500; border:1px solid;}
+  .b-pri { color:var(--sb-accent); background:var(--sb-accent-bg); border-color:var(--sb-accent-bdr);}
+  .b-neu { color:var(--sb-ink-muted); background:var(--sb-bg-muted); border-color:var(--sb-line);}
+  .b-ok { color:var(--sb-ok); background:var(--sb-ok-bg); border-color:var(--sb-ok-bdr);}
+  .b-wn { color:var(--sb-warn); background:var(--sb-warn-bg); border-color:var(--sb-warn-bdr);}
+  .b-dn { color:var(--sb-danger); background:var(--sb-danger-bg); border-color:var(--sb-danger-bdr);}
+  .b-out { color:var(--sb-ink-muted); background:transparent; border-color:var(--sb-line);}
+  .code { font-family:var(--sb-mono); font-size:11px; font-weight:600; color:var(--sb-accent); background:var(--sb-accent-bg); border:1px solid var(--sb-accent-bdr); border-radius:9999px; padding:3px 10px;}
+  .code .pfx { opacity:.45; font-weight:400;}
+  .lp { display:inline-flex; align-items:center; padding:3px 10px; border-radius:9999px; font-size:10px; font-weight:700; border:1px solid;}
+  .lp.EN { color:var(--sb-lang-en); background:#2563EB14; border-color:#2563EB33;}
+  .lp.ES { color:var(--sb-lang-es); background:#EA580C14; border-color:#EA580C33;}
+  .lp.IT { color:var(--sb-lang-it); background:#DC262614; border-color:#DC262633;}
+  .lp.FR { color:var(--sb-lang-fr); background:#7C3AED14; border-color:#C4B5FD;}
+  .kpi { flex:1; background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:16px; padding:20px; box-shadow:var(--sb-shadow-sm);}
+  .kpi .k-lbl { font-size:11px; font-weight:600; color:var(--sb-ink-subtle); text-transform:uppercase; letter-spacing:.08em;}
+  .kpi .k-v { font-size:28px; font-weight:700; letter-spacing:-.3px; color:var(--sb-ink); margin-top:8px;}
+  .kpi .k-hint { font-size:11px; color:var(--sb-ink-muted); margin-top:8px;}
+  .kpi-head { display:flex; justify-content:space-between; align-items:flex-start;}
+  .kpi-ic { width:36px; height:36px; border-radius:10px; background:var(--sb-accent-bg); color:var(--sb-accent); display:flex; align-items:center; justify-content:center;}
+  .kpi-delta { display:inline-block; padding:2px 7px; border-radius:9999px; font-size:10px; font-weight:600; background:var(--sb-ok-bg); color:var(--sb-ok); margin-right:6px;}
+  svg.i { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  svg.i16 { width:16px; height:16px;}
+  .chk { display:inline-flex; align-items:center; gap:6px; color:var(--sb-ok); font-size:11px; font-weight:500; background:var(--sb-ok-bg); border:1px solid var(--sb-ok-bdr); padding:4px 10px; border-radius:9999px;}
+  .stat-b { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:9999px; font-size:10px; font-weight:600; border:1px solid; font-family:var(--sb-mono);}
+  .stat-b.uses { background:var(--sb-ok-bg); color:var(--sb-ok); border-color:var(--sb-ok-bdr);}
+  .stat-b.hot { background:#FEF9C3; color:#854D0E; border-color:#FDE047;}
+  .stat-b.never { background:var(--sb-bg-muted); color:var(--sb-ink-subtle); border-color:var(--sb-line);}
+  .mt { display:flex; flex-direction:column; gap:2px; background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:12px; padding:6px; box-shadow:var(--sb-shadow-lg); width:220px;}
+  .mt-item { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; font-size:13px; color:var(--sb-ink);}
+  .mt-item:hover { background:var(--sb-bg-muted);}
+  .mt-item.dn { color:var(--sb-danger);}
+  .mt-sep { height:1px; background:var(--sb-line); margin:4px 0;}
+</style>
+</head>
+<body data-sb-surface="dashboard">
+<div class="wrap">
+  <div class="hd">SprintBrain · Components</div>
+  <h1 class="ttl">Atoms that compose both surfaces</h1>
+  <p class="sub">Shown here in Azure (dashboard). Every component also renders correctly under Iris via <code style="font-family:var(--sb-mono);color:var(--sb-ink)">data-sb-surface="extension"</code>.</p>
+
+  <div class="sect">Buttons</div>
+  <div class="card row">
+    <button class="btn pri"><svg class="i" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New snippet</button>
+    <button class="btn gho">Cancel</button>
+    <button class="btn sub">Sync now</button>
+    <button class="btn dng">Delete snippet…</button>
+    <button class="btn pri sm">Save</button>
+    <button class="btn gho sm">Back</button>
+    <button class="btn gho ic"><svg class="i16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></button>
+  </div>
+
+  <div class="sect">Inputs</div>
+  <div class="card stk">
+    <div class="row">
+      <input class="inp" placeholder="Search snippets or /shortcut…">
+      <input class="inp" value="Quote — English">
+      <input class="inp" disabled value="secret_••••••••" style="opacity:.6">
+    </div>
+    <div class="row" style="gap:0;border:1px solid var(--sb-accent);border-radius:8px;overflow:hidden;width:max-content;box-shadow:var(--sb-shadow-glow)">
+      <span style="padding:8px 12px;font-family:var(--sb-mono);font-weight:700;color:var(--sb-accent);background:var(--sb-accent-bg);border-right:1px solid var(--sb-accent-bdr);font-size:13px">::</span>
+      <input style="border:none;outline:none;padding:8px 12px;font-family:var(--sb-mono);font-weight:600;color:var(--sb-accent);font-size:13px;width:160px" value="quoteEN">
+    </div>
+  </div>
+
+  <div class="sect">Badges</div>
+  <div class="card row">
+    <span class="badge b-pri">formula</span>
+    <span class="badge b-neu">booking</span>
+    <span class="badge b-ok"><svg class="i" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>synced</span>
+    <span class="badge b-wn">rate-limited</span>
+    <span class="badge b-dn">error</span>
+    <span class="badge b-out">archived</span>
+    <span class="stat-b uses">142 uses</span>
+    <span class="stat-b hot">🔥 hot</span>
+    <span class="stat-b never">never</span>
+  </div>
+
+  <div class="sect">Code tokens · shortcut pills · language pills</div>
+  <div class="card row">
+    <span class="code"><span class="pfx">::</span>quoteEN</span>
+    <span class="code"><span class="pfx">::</span>firm</span>
+    <span class="code"><span class="pfx">;;</span>checkin</span>
+    <span class="code"><span class="pfx">"""</span>reply</span>
+    <span class="lp EN">EN</span>
+    <span class="lp ES">ES</span>
+    <span class="lp IT">IT</span>
+    <span class="lp FR">FR</span>
+  </div>
+
+  <div class="sect">KPI cards</div>
+  <div class="card row" style="gap:14px">
+    <div class="kpi">
+      <div class="kpi-head"><div><div class="k-lbl">Total snippets</div><div class="k-v">16</div></div>
+      <div class="kpi-ic"><svg class="i16" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div></div>
+      <div class="k-hint">across 4 folders</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head"><div><div class="k-lbl">Triggers this week</div><div class="k-v">847</div></div>
+      <div class="kpi-ic"><svg class="i16" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div></div>
+      <div class="k-hint"><span class="kpi-delta">↑ 12%</span>vs. previous 7 days</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head"><div><div class="k-lbl">Time saved</div><div class="k-v">3h 42m</div></div>
+      <div class="kpi-ic"><svg class="i16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div>
+      <div class="k-hint">estimated, last 30 days</div>
+    </div>
+  </div>
+
+  <div class="sect">Context menu</div>
+  <div class="card" style="background:var(--sb-bg-alt);display:flex;justify-content:center;padding:36px">
+    <div class="mt">
+      <div class="mt-item"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate snippet</div>
+      <div class="mt-item"><svg class="i" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Move to folder…</div>
+      <div class="mt-sep"></div>
+      <div class="mt-item"><svg class="i" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Rename…</div>
+      <div class="mt-item"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy content</div>
+      <div class="mt-sep"></div>
+      <div class="mt-item dn"><svg class="i" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete snippet…</div>
+    </div>
+  </div>
+
+  <div class="sect">Status pills</div>
+  <div class="card row">
+    <span class="chk"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Synced 4 min ago</span>
+    <span class="badge b-wn"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Retry in 60 s</span>
+    <span class="badge b-dn"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Key invalid</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Spacing, Radii, Shadows</title>
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding:40px 48px; background:var(--sb-bg-alt); font-family:var(--sb-font); }
+  .wrap { max-width:1040px; margin:0 auto; }
+  .hd { font-size:11px; font-weight:600; color:var(--sb-ink-subtle); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+  h1.ttl { font-size:32px; font-weight:700; letter-spacing:-.3px; margin:0 0 6px; color:var(--sb-ink);}
+  .sub { font-size:14px; color:var(--sb-ink-muted); margin:0 0 32px;}
+  .sect { font-size:11px; font-weight:600; color:var(--sb-ink); text-transform:uppercase; letter-spacing:.08em; margin:32px 0 14px;}
+  .sprows { display:flex; flex-direction:column; gap:10px;}
+  .sprow { display:flex; align-items:center; gap:16px; background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:10px; padding:10px 14px;}
+  .sprow .tok { font-family:var(--sb-mono); font-size:11px; color:var(--sb-accent); background:var(--sb-accent-bg); border:1px solid var(--sb-accent-bdr); border-radius:9999px; padding:3px 8px; width:96px; text-align:center; font-weight:600;}
+  .sprow .px { font-family:var(--sb-mono); font-size:11px; color:var(--sb-ink-subtle); width:40px;}
+  .sprow .bar { background:var(--sb-accent); height:12px; border-radius:3px;}
+  .sprow .use { font-size:12px; color:var(--sb-ink-muted);}
+  .rgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  .rcard { background:var(--sb-bg); border:1px solid var(--sb-line); padding:16px; display:flex; flex-direction:column; gap:10px; align-items:flex-start;}
+  .rcard .shape { width:100%; height:72px; background:var(--sb-accent-bg); border:1.5px dashed var(--sb-accent-bdr);}
+  .rcard .tok { font-family:var(--sb-mono); font-size:11px; color:var(--sb-accent); font-weight:600;}
+  .rcard .lbl { font-size:12px; color:var(--sb-ink-muted); font-weight:500;}
+  .rcard .px { font-family:var(--sb-mono); font-size:10px; color:var(--sb-ink-subtle);}
+  .shadows { display:grid; grid-template-columns:repeat(4,1fr); gap:20px;}
+  .shcard { background:var(--sb-bg); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:8px; border:1px solid var(--sb-line);}
+  .shcard .tok { font-family:var(--sb-mono); font-size:11px; color:var(--sb-accent); font-weight:600;}
+  .shcard .use { font-size:11px; color:var(--sb-ink-muted); line-height:1.5;}
+  .shdemo { background:var(--sb-bg); border-radius:40px; padding:40px 16px;}
+  .shdemo .box { background:var(--sb-bg); border-radius:12px; height:70px;}
+</style>
+</head>
+<body data-sb-surface="dashboard">
+<div class="wrap">
+  <div class="hd">SprintBrain · Spacing, Radii, Shadows</div>
+  <h1 class="ttl">4px grid, 7 radii, 4 shadows</h1>
+  <p class="sub">Dense in the extension, comfortable in the dashboard — same tokens, different typical values.</p>
+
+  <div class="sect">Spacing scale</div>
+  <div class="sprows">
+    <div class="sprow"><span class="tok">--sb-s-1</span><span class="px">4</span><span class="bar" style="width:4px"></span><span class="use">Icon↔text gap inside chip</span></div>
+    <div class="sprow"><span class="tok">--sb-s-2</span><span class="px">8</span><span class="bar" style="width:8px"></span><span class="use">Chip padding; tight vertical stack</span></div>
+    <div class="sprow"><span class="tok">--sb-s-3</span><span class="px">12</span><span class="bar" style="width:12px"></span><span class="use">Input padding; list row vertical</span></div>
+    <div class="sprow"><span class="tok">--sb-s-4</span><span class="px">16</span><span class="bar" style="width:16px"></span><span class="use">Card padding (extension); section gap</span></div>
+    <div class="sprow"><span class="tok">--sb-s-5</span><span class="px">20</span><span class="bar" style="width:20px"></span><span class="use">Card padding (dashboard)</span></div>
+    <div class="sprow"><span class="tok">--sb-s-6</span><span class="px">24</span><span class="bar" style="width:24px"></span><span class="use">Page margin; big group gap</span></div>
+    <div class="sprow"><span class="tok">--sb-s-8</span><span class="px">32</span><span class="bar" style="width:32px"></span><span class="use">Major layout gap</span></div>
+    <div class="sprow"><span class="tok">--sb-s-10</span><span class="px">40</span><span class="bar" style="width:40px"></span><span class="use">Hero padding</span></div>
+    <div class="sprow"><span class="tok">--sb-s-12</span><span class="px">48</span><span class="bar" style="width:48px"></span><span class="use">Empty-state vertical padding</span></div>
+  </div>
+
+  <div class="sect">Radii</div>
+  <div class="rgrid">
+    <div class="rcard"><div class="shape" style="border-radius:4px"></div><div class="tok">--sb-r-xs</div><div class="lbl">Inner chips, code tokens</div><div class="px">4px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:6px"></div><div class="tok">--sb-r-sm</div><div class="lbl">Icon wells, close buttons</div><div class="px">6px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:8px"></div><div class="tok">--sb-r-md</div><div class="lbl">Inputs, folder rows</div><div class="px">8px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:10px"></div><div class="tok">--sb-r-lg</div><div class="lbl">Dashboard nav, topbar search</div><div class="px">10px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:12px"></div><div class="tok">--sb-r-xl</div><div class="lbl">Primary buttons, menus</div><div class="px">12px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:16px"></div><div class="tok">--sb-r-2xl</div><div class="lbl">Dashboard cards, modals</div><div class="px">16px</div></div>
+    <div class="rcard"><div class="shape" style="border-radius:9999px"></div><div class="tok">--sb-r-pill</div><div class="lbl">Pills, badges, status dots</div><div class="px">∞</div></div>
+    <div class="rcard" style="background:var(--sb-accent-bg);border-color:var(--sb-accent-bdr)">
+      <div style="font-size:12px;color:var(--sb-accent);font-weight:600">Nesting rule</div>
+      <div style="font-size:11px;color:var(--sb-ink-muted);line-height:1.5">Child radius ≤ parent radius minus its inset. A 12px button inside a 16px card with 16px inset = right.</div>
+    </div>
+  </div>
+
+  <div class="sect">Shadows</div>
+  <div class="shadows">
+    <div class="shdemo" style="background:var(--sb-bg-alt)">
+      <div class="box" style="box-shadow:var(--sb-shadow-sm)"></div>
+    </div>
+    <div class="shdemo" style="background:var(--sb-bg-alt)">
+      <div class="box" style="box-shadow:var(--sb-shadow-md)"></div>
+    </div>
+    <div class="shdemo" style="background:var(--sb-bg-alt)">
+      <div class="box" style="box-shadow:var(--sb-shadow-lg)"></div>
+    </div>
+    <div class="shdemo" style="background:var(--sb-bg-alt)">
+      <div class="box" style="box-shadow:var(--sb-shadow-xl)"></div>
+    </div>
+  </div>
+  <div class="shadows" style="margin-top:12px">
+    <div class="shcard"><div class="tok">--sb-shadow-sm</div><div class="use">Resting cards in a grid</div></div>
+    <div class="shcard"><div class="tok">--sb-shadow-md</div><div class="use">Primary button; card hover</div></div>
+    <div class="shcard"><div class="tok">--sb-shadow-lg</div><div class="use">Context menus, popovers</div></div>
+    <div class="shcard"><div class="tok">--sb-shadow-xl</div><div class="use">Modals, changelog</div></div>
+  </div>
+</div>
+</body>
+</html>
