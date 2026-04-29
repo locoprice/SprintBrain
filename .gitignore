@@ -1,1 +1,16 @@
+# Dependencies
 node_modules/
+
+# Sensitive — Chrome extension signing key. NEVER commit.
+*.pem
+sb-extension.pem
+
+# Build output
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Claude Code local config — never commit
+.claude/

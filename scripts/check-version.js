@@ -1,22 +1,20 @@
 const fs = require('fs');
 
 function fail(msg) {
-  console.error("❌ " + msg);
+  console.error("X " + msg);
   process.exit(1);
 }
 
-const manifest = JSON.parse(fs.readFileSync('sprintbrain-extension/manifest.json', 'utf8'));
+const manifest = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'));
 const extVersion = manifest.version;
 
-const html = fs.readFileSync('Sprintbrain.html', 'utf8');
-const match = html.match(/version:\s*["']([^"']+)["']/);
+const pkg = JSON.parse(fs.readFileSync('app/package.json', 'utf8'));
+const webVersion = pkg.version;
 
-if (!match) fail("Version not found in Sprintbrain.html");
-
-const webVersion = match[1];
+if (!webVersion) fail("Version not found in app/package.json");
 
 if (extVersion !== webVersion) {
-  fail(`Version mismatch → extension: ${extVersion}, web: ${webVersion}`);
+  fail("Version mismatch -> extension: " + extVersion + ", web: " + webVersion);
 }
 
-console.log("✅ Version OK:", extVersion);
+console.log("OK Version:", extVersion);

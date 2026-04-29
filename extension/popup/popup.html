@@ -351,9 +351,9 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
 
   <!-- Fallback path: email + OTP code -->
   <div id="sb-auth-otp" style="display:none;flex-direction:column;align-items:center;width:100%">
-    <div class="sb-auth-sub" id="sb-auth-sub">Enter your work email — we'll send a 6-digit code.</div>
+    <div class="sb-auth-sub" id="sb-auth-sub">Enter your work email — we'll send a one-time code.</div>
     <input class="sb-auth-input" id="sb-auth-email" type="email" placeholder="you@leibtour.com" autocomplete="email">
-    <input class="sb-auth-input code" id="sb-auth-code" type="text" placeholder="······" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="display:none">
+    <input class="sb-auth-input code" id="sb-auth-code" type="text" placeholder="········" maxlength="10" inputmode="numeric" autocomplete="one-time-code" style="display:none">
     <button class="sb-auth-btn" id="sb-auth-primary">Send code</button>
     <button class="sb-auth-link" id="sb-auth-back" style="display:none">Use a different email</button>
     <button class="sb-auth-link" id="sb-auth-hide-otp">Back to one-click sign in</button>
@@ -630,8 +630,8 @@ html,body{width:600px;font-family:var(--font);font-size:15px;color:var(--tx);bac
   <div class="ctx-item" id="ectx-new-folder" role="menuitem"><span class="ctx-ico"><svg><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>New folder</div>
 </div>
 
-<script src="auth.js"></script>
-<script src="notion-sync.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../services/notion-sync/notion-sync.js"></script>
 <script src="popup.js"></script>
 
 <!-- ═══ VERSION BAR ═══ -->

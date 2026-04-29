@@ -1,9 +1,9 @@
-# web/CLAUDE.md — SprintBrain Dashboard (React)
+# app/CLAUDE.md — SprintBrain Dashboard (React)
 
-**Document Version**: 2.1
-**Last Updated**: April 25, 2026
-**Project**: SprintBrain SaaS Dashboard (web/)
-**Purpose**: AI development reference for the React dashboard. The Chrome extension lives at the repo root and follows a different stack — see `../CLAUDE.md` for that codebase.
+**Document Version**: 2.2
+**Last Updated**: April 29, 2026
+**Project**: SprintBrain SaaS Dashboard (app/)
+**Purpose**: AI development reference for the React dashboard. The Chrome extension lives in `extension/` and follows a different stack — see `../docs/CLAUDE.md` for that codebase.
 
 ---
 
@@ -38,7 +38,7 @@ The SprintBrain dashboard is a **desktop-only single-page application** served a
 ## 3. Folder structure
 
 ```
-web/
+app/
 ├── public/                # Static assets served verbatim
 │   ├── icon{16,48,128}.png
 │   ├── landing/           # Legacy desktop landing (was repo-root index.html)
@@ -137,11 +137,11 @@ web/
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Vite dev server on `http://localhost:5173` |
-| `npm run build` | `tsc -b && vite build` → `web/dist/` |
+| `npm run build` | `tsc -b && vite build` → `app/dist/` |
 | `npm run typecheck` | `tsc -b --noEmit` |
 | `npm run preview` | Serve the production build locally |
 
-**Netlify** publishes `web/dist`. SPA fallback to `index.html`. The static folders `landing/` and `mobile/` are copied verbatim from `web/public/` and served at `/landing/` and `/mobile/`.
+**Netlify** publishes `app/dist`. SPA fallback to `index.html`. The static folders `landing/` and `mobile/` are copied verbatim from `app/public/` and served at `/landing/` and `/mobile/`.
 
 ---
 
@@ -151,7 +151,7 @@ web/
 - Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query until `AUTH-EXT-001` lands and the `team_*` RLS policies come off — without it, every authed user can read every other user's rows.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
-- Do not run `npm install` at the repo root — install only inside `web/`.
+- Do not run `npm install` at the repo root — install only inside `app/`.
 - Do not commit the Supabase publishable key anywhere else (it's already in `src/lib/supabase.ts`; don't duplicate into `.env` files).
 
 ---
@@ -168,4 +168,4 @@ web/
 
 ---
 
-> Read this file and `../CLAUDE.md` before any modification. Push to `origin develop` only. No direct commits to `main`.
+> Read this file and `../docs/CLAUDE.md` before any modification. Push to `origin develop` only. No direct commits to `main`.

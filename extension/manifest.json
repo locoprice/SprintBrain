@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sprintbrain",
-  "version": "2.17.0",
+  "version": "2.20.3",
   "description": "Type ::quoteEN in any text field — configurable dual triggers for snippets and prompts.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq1wgvxztXiXixAUPxPtXISoEAZodPiMzT31H6pAj8nkXSxA69O+LZoMnvVyuqqsE1kRuyINR0s9lcBkWNl61u/uFRGLlqvdgSaN89O0NGS3vL87B6+isdUoZsXLS3zmAqbe2p7C1PrsQKp5/vHLDxzcLWW+y24WpaPmLbP1cbMTGhcrZsM5wOVKk9PzDTtat7RSomyR3y4KqB3sVs1n99v+Hopi3rG+N4RuGPtaFkqbns7CoHJjAE2G2ySpIKGZ9v8I11HqQlbfFnVA0WgOganOz7m6iA65xOKYp9Ddp6EcMvzKqTvpHrTOWw213ADQoPx6wCraxF1e9KOxZmTf+jQIDAQAB",
   "permissions": [
@@ -21,7 +21,7 @@
     "matches": ["https://sprintbrain.netlify.app/*"]
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/background.js"
   },
   "content_scripts": [
     {
@@ -29,22 +29,22 @@
         "<all_urls>"
       ],
       "js": [
-        "content.js"
+        "content/content.js"
       ],
       "css": [
-        "overlay.css"
+        "overlay/overlay.css"
       ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/popup.html",
     "default_title": "SprintBrain"
   },
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
   }
 }

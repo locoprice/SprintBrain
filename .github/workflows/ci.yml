@@ -25,8 +25,9 @@ jobs:
 
       - name: File structure check
         run: |
-          test -f sprintbrain-extension/manifest.json
-          test -f Sprintbrain.html
+          test -f extension/manifest.json
+          test -f app/index.html
+          test -f app/package.json
 
       - name: CI Passed
         run: echo "SprintBrain CI OK"

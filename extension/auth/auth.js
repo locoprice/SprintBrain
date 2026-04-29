@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN AUTH v2.17.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN AUTH v2.20.3 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //
@@ -54,7 +54,7 @@ function sbRequestOtp(email, cb) {
   }).catch(function(e) { cb(e.message || 'Network error'); });
 }
 
-// POST /auth/v1/verify — exchanges (email, 6-digit code) for tokens.
+// POST /auth/v1/verify — exchanges (email, OTP code) for tokens.
 function sbVerifyOtp(email, token, cb) {
   fetch(SB_SUPA_URL + '/auth/v1/verify', {
     method: 'POST',

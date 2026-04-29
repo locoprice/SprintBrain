@@ -1726,14 +1726,14 @@ var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.netlify.app/extension-link';
       codeEl.style.display = 'none';
       backEl.style.display = 'none';
       primary.textContent = 'Send code';
-      subEl.textContent = "Enter your work email — we'll send a 6-digit code.";
+      subEl.textContent = "Enter your work email — we'll send a one-time code.";
       setTimeout(function() { emailEl.focus(); }, 30);
     } else {
       emailEl.style.display = 'none';
       codeEl.style.display = '';
       backEl.style.display = '';
       primary.textContent = 'Verify';
-      subEl.textContent = 'Enter the 6-digit code sent to ' + pendingEmail + '.';
+      subEl.textContent = 'Enter the code sent to ' + pendingEmail + '.';
       setTimeout(function() { codeEl.focus(); }, 30);
     }
   }
@@ -1749,7 +1749,7 @@ var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.netlify.app/extension-link';
         pendingEmail = email;
         state = 'code';
         renderState();
-        setMsg('Code sent earlier — paste the 6-digit code from your inbox.', true);
+        setMsg('Code sent earlier — paste the code from your inbox.', true);
       } else {
         pendingEmail = '';
         state = 'email';
@@ -1793,7 +1793,7 @@ var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.netlify.app/extension-link';
       });
     } else {
       var code = (codeEl.value || '').trim();
-      if (!/^\d{6}$/.test(code)) { setMsg('Enter the 6-digit code'); return; }
+      if (!/^\d{6,10}$/.test(code)) { setMsg('Enter the code from your email'); return; }
       primary.disabled = true;
       primary.textContent = 'Verifying…';
       if (!pendingEmail) { setMsg('Session lost — request a new code'); state = 'email'; renderState(); return; }
