@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.17.0 — Dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN BACKGROUND v2.20.4 — Dashboard SSO handoff (AUTH-EXT-002) ──
 importScripts('../auth/auth.js');
 importScripts('../services/notion-sync/notion-sync.js');
 

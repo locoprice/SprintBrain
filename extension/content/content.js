@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.17.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.20.4 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -534,27 +534,14 @@ function checkBuf() {
       handleMatch(activeEl, snippets[i], sc.length);
       return;
     }
-    // Form 2: trigger + (shortcut sans leading trigger).
-    if (sc.indexOf(snippetTrigger) === 0) {
-      var bare = sc.slice(snippetTrigger.length);
-      if (!bare) continue;
-      var full = snippetTrigger + bare; // == sc, already tested above
-      // Also try the bare form alone — covers the reverse case where the
-      // user types just the bare shortcut without the trigger prefix.
-      if (bare.length <= buf.length && buf.slice(-bare.length) === bare) {
-        // Only accept if the char before isn't the trigger's last char (to
-        // avoid swallowing the trigger from a `::bare` typed sequence — that
-        // case was already handled by form 1's exact match above).
-        var precedeIdx = buf.length - bare.length - 1;
-        if (precedeIdx < 0 || buf[precedeIdx] !== snippetTrigger[snippetTrigger.length - 1]) {
-          buf = '';
-          triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-          if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-          handleMatch(activeEl, snippets[i], bare.length);
-          return;
-        }
-      }
-    } else {
+    // Form 2 (bare-suffix match) was REMOVED in v2.20.4 — TKT "Unintended
+    // Snippet Expansion Trigger Bug". Matching a stored "::time" against
+    // bare "time" typed in normal prose caused unwanted expansions on
+    // common English/Italian words ("time", "thanks", etc.). Snippets
+    // stored with the trigger prefix now require the user to type the
+    // full prefix; Form 1's exact match above handles that case. Snippets
+    // stored bare (without the trigger) remain tolerated via Form 3.
+    if (sc.indexOf(snippetTrigger) !== 0) {
       // Form 3: stored bare, but user typed `trigger + bare`. Match the
       // composite at end of buf so we delete the trigger AND the shortcut
       // together — prevents leftover "::" at the start of the inserted text.
