@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.20.4 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.20.5 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -510,49 +510,38 @@ function addKey(k) {
 
 function checkBuf() {
   if (processing || !snippets.length) return;
-  // Check shortcut-based snippet matches (e.g. ;;quoteEN).
+  // Snippet matching contract (v2.20.5):
+  //   Every snippet expansion REQUIRES the user to type the configured
+  //   snippet trigger (default "::") immediately before the shortcut.
+  //   No exceptions. This is enforced by always testing for `trigger+sc`
+  //   at the end of the buffer, regardless of how the shortcut was
+  //   stored. Two storage shapes are tolerated:
   //
-  // Some users have legacy shortcuts stored with the snippet-trigger prefix
-  // baked in (e.g. "::!!quoteEN" instead of "!!quoteEN") — they manually
-  // typed the trigger into the shortcut field. To handle both shapes
-  // consistently, we test up to two forms per snippet:
-  //   1) the stored shortcut, exactly as-is
-  //   2) the stored shortcut with a leading trigger stripped (so a typed
-  //      sequence of "::!!quoteEN" matches a bare-stored "!!quoteEN" too)
-  // Whichever form actually appears at the end of buf wins, and we delete
-  // exactly that many chars — never more, so the trigger isn't double-counted
-  // and never less, so no residue is left behind.
+  //     - sc stored with the prefix already baked in ("::time")  -> the
+  //       expected typed sequence is just sc itself ("::time").
+  //     - sc stored bare ("time")                                -> the
+  //       expected typed sequence is trigger + sc ("::time").
+  //
+  //   In both cases the matched length is exactly what was typed, so we
+  //   never delete more or fewer characters than the user produced.
+  //
+  //   This replaces the older Form 1 / Form 2 / Form 3 logic. Form 2
+  //   (bare-suffix match) was removed in v2.20.4 because typing common
+  //   words like "time" or "thanks" expanded snippets stored as
+  //   "::time"/"::thanks" mid-sentence. Form 1's bare-stored bare-typed
+  //   path (e.g. stored "time", user types "time" alone) is removed in
+  //   v2.20.5 — it was the same hazard for bare-stored shortcuts.
   var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
     if (!sc) continue;
-    // Form 1: exact stored shortcut at end of buf.
-    if (sc.length <= buf.length && buf.slice(-sc.length) === sc) {
+    var expected = sc.indexOf(snippetTrigger) === 0 ? sc : snippetTrigger + sc;
+    if (expected.length <= buf.length && buf.slice(-expected.length) === expected) {
       buf = '';
       triggerPending = false; triggerPendingMode = null; triggerAffix = '';
       if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-      handleMatch(activeEl, snippets[i], sc.length);
+      handleMatch(activeEl, snippets[i], expected.length);
       return;
-    }
-    // Form 2 (bare-suffix match) was REMOVED in v2.20.4 — TKT "Unintended
-    // Snippet Expansion Trigger Bug". Matching a stored "::time" against
-    // bare "time" typed in normal prose caused unwanted expansions on
-    // common English/Italian words ("time", "thanks", etc.). Snippets
-    // stored with the trigger prefix now require the user to type the
-    // full prefix; Form 1's exact match above handles that case. Snippets
-    // stored bare (without the trigger) remain tolerated via Form 3.
-    if (sc.indexOf(snippetTrigger) !== 0) {
-      // Form 3: stored bare, but user typed `trigger + bare`. Match the
-      // composite at end of buf so we delete the trigger AND the shortcut
-      // together — prevents leftover "::" at the start of the inserted text.
-      var composite = snippetTrigger + sc;
-      if (composite.length <= buf.length && buf.slice(-composite.length) === composite) {
-        buf = '';
-        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-        handleMatch(activeEl, snippets[i], composite.length);
-        return;
-      }
     }
   }
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
