@@ -1,0 +1,36 @@
+name: SprintBrain CI
+
+on:
+  push:
+    branches: [develop]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Version parity check
+        run: node scripts/check-version.js
+
+      - name: Snippet engine check
+        run: node scripts/check-snippets.js
+
+      - name: File structure check
+        run: |
+          test -f extension/manifest.json
+          test -f app/index.html
+          test -f app/package.json
+
+      - name: CI Passed
+        run: echo "SprintBrain CI OK"

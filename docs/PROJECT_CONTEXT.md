@@ -62,23 +62,23 @@ Expanded snippet injected into DOM
 | `background.js` | v2.9 | Service worker, startup sync, context menus |
 | `notion-sync.js` | v2.2 | Notion → Extension sync engine |
 | `overlay.css` | — | Snippet overlay styles |
-| `icon{16,48,128}.png` | — | Extension icons (also duplicated in `web/public/`) |
+| `icon{16,48,128}.png` | — | Extension icons (also duplicated in `app/public/`) |
 
-**Web Dashboard (`web/`)** — added in v2.14.0
+**Web Dashboard (`app/`)** — added in v2.14.0
 
 | Path | Responsibility |
 |---|---|
-| `web/src/App.tsx` | Router + viewport gate |
-| `web/src/routes/` | DashboardLayout + 4 page components (Snippets, Analytics, Prompts, Settings) |
-| `web/src/features/` | Per-feature components grouped by domain |
-| `web/src/components/{ui,layout,shared}/` | Shadcn primitives + layout chrome + reusable widgets |
-| `web/src/stores/` | Zustand stores (snippet, prompt, analytics, settings, ui) |
-| `web/src/lib/api/` | Mock service layer; same shape as future Supabase impl |
-| `web/src/types/database.ts` | Mirrors Supabase schema (§4) |
-| `web/src/mock/fixtures.ts` | Deterministic seed data |
-| `web/public/landing/` | Legacy desktop marketing landing (was repo-root `index.html`) |
-| `web/public/mobile/` | Mobile companion app (moved from repo-root `mobile/`) |
-| `web/CLAUDE.md` | Dashboard-specific AI rules (separate stack from extension) |
+| `app/src/App.tsx` | Router + viewport gate |
+| `app/src/routes/` | DashboardLayout + 4 page components (Snippets, Analytics, Prompts, Settings) |
+| `app/src/features/` | Per-feature components grouped by domain |
+| `app/src/components/{ui,layout,shared}/` | Shadcn primitives + layout chrome + reusable widgets |
+| `app/src/stores/` | Zustand stores (snippet, prompt, analytics, settings, ui) |
+| `app/src/lib/api/` | Mock service layer; same shape as future Supabase impl |
+| `app/src/types/database.ts` | Mirrors Supabase schema (§4) |
+| `app/src/mock/fixtures.ts` | Deterministic seed data |
+| `app/public/landing/` | Legacy desktop marketing landing (was repo-root `index.html`) |
+| `app/public/mobile/` | Mobile companion app (moved from repo-root `mobile/`) |
+| `app/CLAUDE.md` | Dashboard-specific AI rules (separate stack from extension) |
 
 ### 3.3 Snippet Data Priority (Strict Order)
 
@@ -250,7 +250,7 @@ After every feature/fix batch, increment version across:
 
 | Item | Status |
 |---|---|
-| Web dashboard scaffold (`web/`, mock data, 4 pages) | ✅ v2.14.0 |
+| Web dashboard scaffold (`app/`, mock data, 4 pages) | ✅ v2.14.0 |
 | Web dashboard auth (Supabase magic link or OAuth) | 📋 Planned |
 | Web dashboard live data + CRUD | 📋 Planned |
 | Marketing site rebuild on Webflow (external) | 📋 Planned |

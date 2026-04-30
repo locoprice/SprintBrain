@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Colors</title>
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding:40px 48px; background:var(--sb-bg-alt); font-family:var(--sb-font); }
+  .wrap { max-width:1040px; margin:0 auto; }
+  .hd { font-size:11px; font-weight:600; color:var(--sb-ink-subtle); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+  h1.ttl { font-size:32px; font-weight:700; letter-spacing:-.3px; margin:0 0 6px; color:var(--sb-ink);}
+  .sub { font-size:14px; color:var(--sb-ink-muted); margin:0 0 32px;}
+  .sect { font-size:11px; font-weight:600; color:var(--sb-ink); text-transform:uppercase; letter-spacing:.08em; margin:32px 0 12px;}
+  .grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:12px;}
+  .sw { background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:12px; overflow:hidden;}
+  .sw .chip { height:80px;}
+  .sw .meta { padding:10px 12px;}
+  .sw .nm { font-size:12px; font-weight:600; color:var(--sb-ink);}
+  .sw .hx { font-family:var(--sb-mono); font-size:10px; color:var(--sb-ink-muted); margin-top:2px;}
+  .pair-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  .pair { background:var(--sb-bg); border:1px solid var(--sb-line); border-radius:16px; padding:20px;}
+  .pair h3 { margin:0 0 4px; font-size:15px; font-weight:700; letter-spacing:-.2px;}
+  .pair p { margin:0 0 14px; font-size:12px; color:var(--sb-ink-muted);}
+  .pair .chips { display:flex; gap:8px;}
+  .pair .chip2 { flex:1; height:52px; border-radius:8px; border:1px solid var(--sb-line); display:flex; align-items:flex-end; padding:6px 8px; font-family:var(--sb-mono); font-size:9px; color:rgba(255,255,255,.9);}
+  .pair .chip2.lt { color:var(--sb-ink);}
+  .btnrow { margin-top:14px; display:flex; gap:8px;}
+  .btn { padding:8px 14px; border-radius:12px; font-size:13px; font-weight:600; border:none; cursor:pointer;}
+  .btn.pri { color:#fff;}
+  .btn.gho { background:transparent; border:1px solid var(--sb-line); color:var(--sb-ink);}
+  .lang-row { display:flex; gap:10px; flex-wrap:wrap;}
+  .lp { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; border:1px solid; font-size:11px; font-weight:700;}
+  .sem { display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  .sem-card { border-radius:12px; padding:14px 16px; border:1px solid;}
+  .sem-card .t { font-size:13px; font-weight:600;}
+  .sem-card .d { font-size:11px; margin-top:2px; opacity:.8;}
+</style>
+</head>
+<body data-sb-surface="dashboard">
+<div class="wrap">
+  <div class="hd">SprintBrain · Colors</div>
+  <h1 class="ttl">Two accents, one system</h1>
+  <p class="sub">Neutrals, semantics, and language codes are identical on both surfaces. Only the <code style="font-family:var(--sb-mono);color:var(--sb-ink)">--sb-accent</code> resolves differently.</p>
+
+  <div class="sect">Primary accents</div>
+  <div class="pair-grid">
+    <div class="pair" data-sb-surface="extension" style="--sb-accent:var(--sb-iris);--sb-accent-bg:var(--sb-iris-bg);--sb-accent-bdr:var(--sb-iris-bdr);">
+      <h3 style="color:var(--sb-iris)">Iris · Chrome Extension</h3>
+      <p>Popup + inline overlay. In-browser assistant personality.</p>
+      <div class="chips">
+        <div class="chip2" style="background:#F0EDFF;color:#5A4BD1;border-color:#C9C0FF">#F0EDFF bg</div>
+        <div class="chip2 lt" style="background:#C9C0FF;border-color:#C9C0FF">#C9C0FF bdr</div>
+        <div class="chip2" style="background:#8B7CF6;border-color:#8B7CF6">#8B7CF6 light</div>
+        <div class="chip2" style="background:#6C5CE7;border-color:#6C5CE7">#6C5CE7 DEFAULT</div>
+        <div class="chip2" style="background:#5A4BD1;border-color:#5A4BD1">#5A4BD1 dark</div>
+      </div>
+      <div class="btnrow">
+        <button class="btn pri" style="background:#6C5CE7">Save snippet</button>
+        <button class="btn gho">Cancel</button>
+      </div>
+    </div>
+    <div class="pair" style="--sb-accent:var(--sb-azure);--sb-accent-bg:var(--sb-azure-bg);--sb-accent-bdr:var(--sb-azure-bdr);">
+      <h3 style="color:var(--sb-azure)">Azure · Web Dashboard</h3>
+      <p>Desktop-only workspace. Configuration + data personality.</p>
+      <div class="chips">
+        <div class="chip2" style="background:#EEF2FF;color:#1440B0;border-color:#BED0FF">#EEF2FF bg</div>
+        <div class="chip2 lt" style="background:#BED0FF;border-color:#BED0FF">#BED0FF bdr</div>
+        <div class="chip2" style="background:#3D6FE8;border-color:#3D6FE8">#3D6FE8 light</div>
+        <div class="chip2" style="background:#1B4FD8;border-color:#1B4FD8">#1B4FD8 DEFAULT</div>
+        <div class="chip2" style="background:#1440B0;border-color:#1440B0">#1440B0 dark</div>
+      </div>
+      <div class="btnrow">
+        <button class="btn pri" style="background:#1B4FD8">New snippet</button>
+        <button class="btn gho">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect">Neutrals · ink</div>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid var(--sb-line)"></div><div class="meta"><div class="nm">bg</div><div class="hx">#FFFFFF</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FAFAFA"></div><div class="meta"><div class="nm">bg-alt</div><div class="hx">#FAFAFA</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F4F4F5"></div><div class="meta"><div class="nm">bg-muted</div><div class="hx">#F4F4F5</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E4E4E7"></div><div class="meta"><div class="nm">line</div><div class="hx">#E4E4E7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#D4D4D8"></div><div class="meta"><div class="nm">line-2</div><div class="hx">#D4D4D8</div></div></div>
+    <div class="sw"><div class="chip" style="background:#A1A1AA"></div><div class="meta"><div class="nm">ink-subtle</div><div class="hx">#A1A1AA</div></div></div>
+    <div class="sw"><div class="chip" style="background:#52525B"></div><div class="meta"><div class="nm">ink-muted</div><div class="hx">#52525B</div></div></div>
+    <div class="sw"><div class="chip" style="background:#18181B"></div><div class="meta"><div class="nm">ink</div><div class="hx">#18181B</div></div></div>
+  </div>
+
+  <div class="sect">Semantic</div>
+  <div class="sem">
+    <div class="sem-card" style="background:#F0FDF4;border-color:#BBF7D0;color:#16A34A"><div class="t">Synced 4 min ago</div><div class="d">ok · #16A34A on #F0FDF4</div></div>
+    <div class="sem-card" style="background:#FFFBEB;border-color:#FDE68A;color:#D97706"><div class="t">Notion rate-limit — retry in 60s</div><div class="d">warn · #D97706 on #FFFBEB</div></div>
+    <div class="sem-card" style="background:#FEF2F2;border-color:#FECACA;color:#DC2626"><div class="t">Delete snippet permanently</div><div class="d">danger · #DC2626 on #FEF2F2</div></div>
+  </div>
+
+  <div class="sect">Language codes — identical both surfaces</div>
+  <div class="lang-row">
+    <span class="lp" style="background:#2563EB14;color:#2563EB;border-color:#2563EB33">EN · #2563EB</span>
+    <span class="lp" style="background:#EA580C14;color:#EA580C;border-color:#EA580C33">ES · #EA580C</span>
+    <span class="lp" style="background:#DC262614;color:#DC2626;border-color:#DC262633">IT · #DC2626</span>
+    <span class="lp" style="background:#7C3AED14;color:#7C3AED;border-color:#C4B5FD">FR · #7C3AED</span>
+  </div>
+</div>
+</body>
+</html>

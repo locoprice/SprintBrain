@@ -1,6 +1,6 @@
-// ── SPRINTBRAIN BACKGROUND v2.17.0 — Dashboard SSO handoff (AUTH-EXT-002) ──
-importScripts('auth.js');
-importScripts('notion-sync.js');
+// ── SPRINTBRAIN BACKGROUND v2.20.5 — Dashboard SSO handoff (AUTH-EXT-002) ──
+importScripts('../auth/auth.js');
+importScripts('../services/notion-sync/notion-sync.js');
 
 var SUPA_URL = SB_SUPA_URL;
 

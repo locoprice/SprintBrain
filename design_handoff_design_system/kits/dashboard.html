@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Dashboard UI Kit</title>
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--sb-bg-alt); font-family: var(--sb-font); color: var(--sb-ink); }
+  .page { max-width: 1280px; margin: 0 auto; padding: 48px 40px 80px; }
+  .page-hd { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .page-ttl { font-size: 32px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 8px; color: var(--sb-ink); }
+  .page-sub { font-size: 14px; color: var(--sb-ink-muted); margin: 0 0 36px; max-width: 680px; line-height: 1.6; }
+  .sect-hd { display: flex; align-items: baseline; gap: 12px; margin: 52px 0 16px; }
+  .sect-hd h2 { font-size: 18px; font-weight: 700; letter-spacing: -.2px; margin: 0; }
+  .sect-hd .tag { font-size: 11px; font-weight: 600; color: var(--sb-azure); text-transform: uppercase; letter-spacing: .08em; }
+  .sect-desc { font-size: 13px; color: var(--sb-ink-muted); margin: 0 0 22px; max-width: 700px; line-height: 1.6; }
+  .frame-label { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; display: block; }
+
+  /* ── APP SHELL ─────────────────────────────────── */
+  .app {
+    width: 1200px; height: 760px; background: var(--sb-bg); border: 1px solid var(--sb-line);
+    border-radius: 16px; overflow: hidden; display: grid;
+    grid-template-columns: 240px 1fr; grid-template-rows: 60px 1fr;
+    box-shadow: var(--sb-shadow-md); font-size: var(--sb-fs-14);
+  }
+  .topbar { grid-column: 1 / 3; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--sb-line); background: var(--sb-bg); gap: 16px; }
+  .tb-logo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; letter-spacing: -.3px; width: 220px; }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--sb-iris), var(--sb-iris-light));
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .logo-mark svg { width: 16px; height: 16px; fill: #fff; stroke: #fff; stroke-width: 1; stroke-linejoin: round; }
+  .tb-search { flex: 1; max-width: 460px; position: relative; }
+  .tb-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; stroke: var(--sb-ink-subtle); fill: none; stroke-width: 2; }
+  .tb-search input { width: 100%; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 10px; padding: 9px 14px 9px 38px; font-size: 14px; font-family: inherit; outline: none; color: var(--sb-ink); }
+  .tb-kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--sb-mono); font-size: 10px; color: var(--sb-ink-subtle); border: 1px solid var(--sb-line); padding: 1px 6px; border-radius: 4px; background: var(--sb-bg); }
+  .tb-spacer { flex: 1; }
+  .tb-btn { width: 36px; height: 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--sb-ink-muted); border: 1px solid transparent; background: transparent; position: relative; }
+  .tb-btn:hover { background: var(--sb-bg-muted); }
+  .tb-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tb-btn .dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: var(--sb-danger); border-radius: 50%; border: 2px solid var(--sb-bg); }
+  .tb-user { display: flex; align-items: center; gap: 10px; margin-left: 8px; padding-left: 16px; border-left: 1px solid var(--sb-line); }
+  .ua { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #F59E0B, #F97316); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+  .un { font-size: 13px; font-weight: 600; color: var(--sb-ink); }
+  .uw { font-size: 11px; color: var(--sb-ink-subtle); }
+
+  /* Nav */
+  .nav { background: var(--sb-bg-alt); border-right: 1px solid var(--sb-line); padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-group { font-size: 10px; font-weight: 700; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; margin: 14px 12px 6px; }
+  .nav-group:first-child { margin-top: 4px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; font-size: 14px; color: var(--sb-ink-muted); font-weight: 500; position: relative; }
+  .nav-item svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .nav-item:hover { background: var(--sb-bg-muted); color: var(--sb-ink); }
+  .nav-item.on { background: var(--sb-azure-bg); color: var(--sb-azure); font-weight: 600; }
+  .nav-item.on::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--sb-azure); border-radius: 3px; }
+  .nav-count { margin-left: auto; font-size: 11px; color: var(--sb-ink-subtle); background: var(--sb-bg-muted); border-radius: 9999px; padding: 1px 8px; font-weight: 600; }
+  .nav-item.on .nav-count { background: var(--sb-azure); color: #fff; }
+  .nav-foot { margin-top: auto; padding: 12px; border-top: 1px solid var(--sb-line); }
+  .tier-card { background: linear-gradient(135deg, var(--sb-azure) 0%, var(--sb-azure-dark) 100%); border-radius: 10px; padding: 12px; color: #fff; }
+  .tier-card .tn { font-size: 11px; opacity: .8; }
+  .tier-card .tv { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .tier-card .tb { display: inline-block; margin-top: 8px; padding: 4px 10px; background: rgba(255,255,255,.16); border-radius: 6px; font-size: 11px; font-weight: 600; }
+
+  /* Main area */
+  .main { overflow: hidden; display: flex; flex-direction: column; }
+  .page-header { padding: 20px 28px 16px; border-bottom: 1px solid var(--sb-line); display: flex; align-items: center; gap: 16px; }
+  .crumbs { font-size: 12px; color: var(--sb-ink-subtle); margin-bottom: 4px; }
+  .crumbs strong { color: var(--sb-ink-muted); font-weight: 500; }
+  .page-h { font-size: 24px; font-weight: 700; letter-spacing: -.3px; margin: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; border: 1px solid; margin-left: 10px; vertical-align: 3px; }
+  .pill.ok { background: var(--sb-ok-bg); color: var(--sb-ok); border-color: var(--sb-ok-bdr); }
+  .ph-r { margin-left: auto; display: flex; gap: 8px; }
+  .btn { padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid var(--sb-line); background: var(--sb-bg); color: var(--sb-ink-muted); display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+  .btn:hover { border-color: var(--sb-line-2); color: var(--sb-ink); }
+  .btn.p { background: var(--sb-azure); border-color: var(--sb-azure); color: #fff; font-weight: 600; box-shadow: 0 2px 6px rgba(27,79,216,.25); }
+  .btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* KPI row */
+  .body-scroll { padding: 24px 28px; overflow-y: auto; flex: 1; background: var(--sb-bg-alt); }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi { background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 16px; padding: 18px 20px; }
+  .kpi-hd { display: flex; align-items: flex-start; justify-content: space-between; }
+  .kpi-lbl { font-size: 11px; font-weight: 600; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .06em; }
+  .kpi-ic { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--sb-azure-bg); color: var(--sb-azure); }
+  .kpi-ic svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .kpi-v { font-size: 30px; font-weight: 700; letter-spacing: -.5px; margin-top: 10px; color: var(--sb-ink); font-variant-numeric: tabular-nums; }
+  .kpi-v .u { font-size: 14px; color: var(--sb-ink-subtle); font-weight: 500; margin-left: 2px; }
+  .kpi-foot { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .dlt { display: inline-flex; align-items: center; gap: 2px; padding: 2px 7px; border-radius: 9999px; font-weight: 600; font-size: 11px; }
+  .dlt.up { color: var(--sb-ok); background: var(--sb-ok-bg); }
+  .dlt.dn { color: var(--sb-danger); background: var(--sb-danger-bg); }
+  .kpi-sub { color: var(--sb-ink-subtle); }
+
+  /* 2-col layout below KPIs */
+  .col2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 16px; }
+
+  .card { background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 16px; overflow: hidden; }
+  .ch { padding: 16px 20px; border-bottom: 1px solid var(--sb-line); display: flex; align-items: center; gap: 10px; }
+  .ch-t { font-size: 15px; font-weight: 700; color: var(--sb-ink); }
+  .ch-s { font-size: 12px; color: var(--sb-ink-subtle); margin-left: auto; }
+  .ch .seg { margin-left: auto; display: flex; gap: 2px; padding: 3px; background: var(--sb-bg-muted); border-radius: 8px; }
+  .ch .seg button { padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--sb-ink-muted); border-radius: 6px; border: none; background: transparent; font-family: inherit; }
+  .ch .seg button.on { background: var(--sb-bg); color: var(--sb-azure); box-shadow: var(--sb-shadow-sm); }
+
+  /* Chart */
+  .chart { padding: 20px; }
+  .chart svg { width: 100%; height: 220px; display: block; }
+
+  /* Top snippets list */
+  .tsn { padding: 8px 0; }
+  .ts { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--sb-line); }
+  .ts:last-child { border-bottom: none; }
+  .ts-rk { width: 20px; font-size: 11px; font-weight: 700; color: var(--sb-ink-subtle); font-variant-numeric: tabular-nums; }
+  .ts-n { font-size: 13px; font-weight: 500; color: var(--sb-ink); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-sc { font-family: var(--sb-mono); font-size: 11px; color: var(--sb-azure); background: var(--sb-azure-bg); border: 1px solid var(--sb-azure-bdr); padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+  .ts-u { font-size: 11px; color: var(--sb-ink-subtle); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+  .ts-bar { width: 40px; height: 4px; background: var(--sb-bg-muted); border-radius: 4px; overflow: hidden; }
+  .ts-bar div { height: 100%; background: var(--sb-azure); border-radius: 4px; }
+
+  /* ── SNIPPETS TABLE PAGE ─────────────────────── */
+  .filter-bar { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--sb-line); background: var(--sb-bg); }
+  .filt-search { position: relative; flex: 1; max-width: 320px; }
+  .filt-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--sb-ink-subtle); fill: none; stroke-width: 2; }
+  .filt-search input { width: 100%; background: var(--sb-bg-muted); border: 1px solid var(--sb-line); border-radius: 8px; padding: 7px 12px 7px 32px; font-size: 13px; outline: none; font-family: inherit; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--sb-line); border-radius: 9999px; font-size: 12px; color: var(--sb-ink-muted); background: var(--sb-bg); font-weight: 500; }
+  .chip.on { background: var(--sb-azure-bg); border-color: var(--sb-azure-bdr); color: var(--sb-azure); font-weight: 600; }
+  .chip svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .chip-x { margin-left: 2px; font-size: 13px; line-height: 1; cursor: pointer; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .06em; background: var(--sb-bg-alt); border-bottom: 1px solid var(--sb-line); position: sticky; top: 0; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--sb-line); vertical-align: middle; }
+  tbody tr:hover { background: var(--sb-bg-alt); }
+  .row-ck { width: 14px; height: 14px; border: 1.5px solid var(--sb-line-2); border-radius: 3px; }
+  .row-ck.on { background: var(--sb-azure); border-color: var(--sb-azure); position: relative; }
+  .row-ck.on::after { content: ''; position: absolute; top: 1px; left: 4px; width: 3px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .lang-cell { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .lang-cell.EN { background: #2563EB14; color: var(--sb-lang-en); border: 1px solid #2563EB33; }
+  .lang-cell.IT { background: #DC262614; color: var(--sb-lang-it); border: 1px solid #DC262633; }
+  .lang-cell.ES { background: #EA580C14; color: var(--sb-lang-es); border: 1px solid #EA580C33; }
+  .lang-cell.FR { background: #7C3AED14; color: var(--sb-lang-fr); border: 1px solid #7C3AED33; }
+  .sc-tag { font-family: var(--sb-mono); font-size: 12px; color: var(--sb-azure); font-weight: 600; }
+  .sc-tag .pfx { opacity: .45; font-weight: 400; }
+  .row-actions { display: flex; gap: 4px; opacity: 0; }
+  tr:hover .row-actions { opacity: 1; }
+  .row-act { width: 28px; height: 28px; border-radius: 6px; background: transparent; border: none; display: inline-flex; align-items: center; justify-content: center; color: var(--sb-ink-subtle); }
+  .row-act:hover { background: var(--sb-bg-muted); color: var(--sb-ink); }
+  .row-act svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* Form field specimens */
+  .specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .spec { background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 12px; padding: 16px; }
+  .spec-lbl { font-size: 10px; font-weight: 700; color: var(--sb-ink-subtle); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .flbl { font-size: 12px; font-weight: 500; color: var(--sb-ink); margin-bottom: 6px; }
+  .inp { width: 100%; background: var(--sb-bg); border: 1px solid var(--sb-line); border-radius: 8px; padding: 9px 12px; font-size: 14px; color: var(--sb-ink); font-family: inherit; outline: none; }
+  .inp.focus { border-color: var(--sb-azure); box-shadow: 0 0 0 3px var(--sb-azure-glow); }
+  .inp.err { border-color: var(--sb-danger); }
+  .help { font-size: 11px; color: var(--sb-ink-subtle); margin-top: 4px; }
+  .help.err { color: var(--sb-danger); }
+
+  /* Empty state */
+  .empty { padding: 60px 20px; text-align: center; background: var(--sb-bg); border: 1px dashed var(--sb-line-2); border-radius: 16px; max-width: 480px; margin: 0 auto; }
+  .empty-ic { width: 56px; height: 56px; border-radius: 16px; background: var(--sb-azure-bg); color: var(--sb-azure); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .empty-ic svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .empty-t { font-size: 17px; font-weight: 700; color: var(--sb-ink); margin-bottom: 4px; }
+  .empty-s { font-size: 13px; color: var(--sb-ink-muted); margin-bottom: 16px; line-height: 1.6; }
+
+  /* Toast */
+  .toast { background: var(--sb-ink); color: #fff; border-radius: 12px; padding: 12px 16px; display: inline-flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: var(--sb-shadow-lg); }
+  .toast svg { width: 16px; height: 16px; stroke: var(--sb-ok); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .toast .ac { color: #A5B4FC; font-weight: 600; margin-left: 6px; }
+</style>
+</head>
+<body data-sb-surface="dashboard">
+<div class="page">
+  <div class="page-hd">SprintBrain · UI Kit 2 of 2</div>
+  <h1 class="page-ttl">Web Dashboard</h1>
+  <p class="page-sub">The Next.js dashboard at <code class="sb-mono">app.sprintbrain.io</code>. Fixed 240px nav, 60px topbar, main content scrolls. Accent is Azure (<span class="sb-code-token">--sb-azure</span>) — the logo mark stays Iris, everything else shifts. 14px base, 16px card radius.</p>
+
+  <!-- OVERVIEW -->
+  <div class="sect-hd"><h2>Overview page · full shell</h2><span class="tag">/overview</span></div>
+  <p class="sect-desc">The landing view after login. KPI strip, usage chart, and top-snippets list. Nav shows the full info architecture.</p>
+  <div class="app">
+    <div class="topbar">
+      <div class="tb-logo"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> SprintBrain</div>
+      <div class="tb-search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search snippets, prompts, folders…">
+        <span class="tb-kbd">⌘K</span>
+      </div>
+      <div class="tb-spacer"></div>
+      <button class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
+      <button class="tb-btn"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></button>
+      <div class="tb-user"><div class="ua">MR</div><div><div class="un">Marco Rossi</div><div class="uw">LeibTour Workspace</div></div></div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-group">Workspace</div>
+      <a class="nav-item on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Snippets<span class="nav-count">142</span></a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Prompts<span class="nav-count">24</span></a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Folders<span class="nav-count">8</span></a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics</a>
+      <div class="nav-group">Team</div>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Members<span class="nav-count">6</span></a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Integrations</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+      <div class="nav-foot">
+        <div class="tier-card">
+          <div class="tn">Current plan</div>
+          <div class="tv">Team · 6 seats</div>
+          <div class="tb">Upgrade to Scale →</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="page-header">
+        <div>
+          <div class="crumbs"><strong>LeibTour</strong> / Overview</div>
+          <h2 class="page-h">Overview <span class="pill ok">● Synced</span></h2>
+        </div>
+        <div class="ph-r">
+          <button class="btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+          <button class="btn p"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New snippet</button>
+        </div>
+      </div>
+
+      <div class="body-scroll">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="kpi-hd"><span class="kpi-lbl">Snippets</span><span class="kpi-ic"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span></div>
+            <div class="kpi-v">142</div>
+            <div class="kpi-foot"><span class="dlt up">↗ 12</span><span class="kpi-sub">this week</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-hd"><span class="kpi-lbl">Expansions</span><span class="kpi-ic"><svg viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></span></div>
+            <div class="kpi-v">3,847</div>
+            <div class="kpi-foot"><span class="dlt up">↗ 18%</span><span class="kpi-sub">vs last week</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-hd"><span class="kpi-lbl">Time saved</span><span class="kpi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span></div>
+            <div class="kpi-v">64<span class="u">h</span></div>
+            <div class="kpi-foot"><span class="dlt up">↗ 8h</span><span class="kpi-sub">this month</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-hd"><span class="kpi-lbl">Active members</span><span class="kpi-ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></span></div>
+            <div class="kpi-v">6<span class="u">/6</span></div>
+            <div class="kpi-foot"><span class="dlt dn">↘ 1</span><span class="kpi-sub">offline today</span></div>
+          </div>
+        </div>
+
+        <div class="col2">
+          <div class="card">
+            <div class="ch"><div class="ch-t">Expansions over time</div><div class="seg"><button>24h</button><button class="on">7d</button><button>30d</button><button>90d</button></div></div>
+            <div class="chart">
+              <svg viewBox="0 0 700 220" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#1B4FD8" stop-opacity=".25"/>
+                    <stop offset="1" stop-color="#1B4FD8" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <g stroke="#E4E4E7" stroke-width="1">
+                  <line x1="40" y1="40" x2="680" y2="40"/>
+                  <line x1="40" y1="90" x2="680" y2="90"/>
+                  <line x1="40" y1="140" x2="680" y2="140"/>
+                  <line x1="40" y1="190" x2="680" y2="190"/>
+                </g>
+                <g font-size="10" fill="#A1A1AA" font-family="system-ui">
+                  <text x="10" y="44">600</text><text x="10" y="94">400</text><text x="10" y="144">200</text><text x="10" y="194">0</text>
+                  <text x="70" y="210">Mon</text><text x="170" y="210">Tue</text><text x="270" y="210">Wed</text><text x="370" y="210">Thu</text><text x="470" y="210">Fri</text><text x="570" y="210">Sat</text><text x="650" y="210">Sun</text>
+                </g>
+                <path d="M 60 150 L 160 130 L 260 95 L 360 105 L 460 70 L 560 60 L 660 50 L 660 190 L 60 190 Z" fill="url(#cg)"/>
+                <path d="M 60 150 L 160 130 L 260 95 L 360 105 L 460 70 L 560 60 L 660 50" fill="none" stroke="#1B4FD8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <g fill="#1B4FD8">
+                  <circle cx="60" cy="150" r="3"/><circle cx="160" cy="130" r="3"/><circle cx="260" cy="95" r="3"/><circle cx="360" cy="105" r="3"/><circle cx="460" cy="70" r="3"/><circle cx="560" cy="60" r="3"/>
+                  <circle cx="660" cy="50" r="5" fill="#fff" stroke="#1B4FD8" stroke-width="2.5"/>
+                </g>
+                <g transform="translate(620, 20)">
+                  <rect width="76" height="28" rx="6" fill="#18181B"/>
+                  <text x="8" y="13" font-size="9" fill="#A1A1AA" font-family="system-ui">Sun</text>
+                  <text x="8" y="24" font-size="11" fill="#fff" font-weight="700" font-family="system-ui">682 exp.</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="ch"><div class="ch-t">Top snippets</div><div class="ch-s">this week</div></div>
+            <div class="tsn">
+              <div class="ts"><span class="ts-rk">1</span><span class="ts-n">Quote — English</span><span class="ts-sc">::quoteEN</span><span class="ts-bar"><div style="width:100%"></div></span><span class="ts-u">84</span></div>
+              <div class="ts"><span class="ts-rk">2</span><span class="ts-n">Check-in instructions</span><span class="ts-sc">::checkin</span><span class="ts-bar"><div style="width:68%"></div></span><span class="ts-u">57</span></div>
+              <div class="ts"><span class="ts-rk">3</span><span class="ts-n">Welcome message</span><span class="ts-sc">::welcome</span><span class="ts-bar"><div style="width:47%"></div></span><span class="ts-u">39</span></div>
+              <div class="ts"><span class="ts-rk">4</span><span class="ts-n">Discount calculator</span><span class="ts-sc">::disc</span><span class="ts-bar"><div style="width:25%"></div></span><span class="ts-u">21</span></div>
+              <div class="ts"><span class="ts-rk">5</span><span class="ts-n">Refund policy</span><span class="ts-sc">::refund</span><span class="ts-bar"><div style="width:14%"></div></span><span class="ts-u">12</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SNIPPETS TABLE -->
+  <div class="sect-hd"><h2>Snippets table · filter + bulk-select</h2><span class="tag">/snippets</span></div>
+  <p class="sect-desc">The bulk editor. Filter chips are light by default, Azure-filled when active. Row actions appear on hover only.</p>
+  <div class="card" style="width:1200px">
+    <div class="ch">
+      <div class="ch-t">All snippets</div>
+      <div class="ch-s" style="margin-left:10px">142 total · 3 selected</div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn">Bulk edit</button>
+        <button class="btn p"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New snippet</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <div class="filt-search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search…">
+      </div>
+      <span class="chip on">Folder: LeibTour EN <span class="chip-x">×</span></span>
+      <span class="chip on">Lang: EN <span class="chip-x">×</span></span>
+      <span class="chip"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>More filters</span>
+      <span style="flex:1"></span>
+      <span class="chip">Sort: Most used ↓</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:38px"><span class="row-ck"></span></th>
+        <th>Title</th>
+        <th style="width:160px">Shortcut</th>
+        <th style="width:64px">Lang</th>
+        <th style="width:140px">Folder</th>
+        <th style="width:80px">Uses</th>
+        <th style="width:120px">Updated</th>
+        <th style="width:110px"></th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="row-ck on"></span></td><td><strong style="font-weight:600">Quote — English</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">Dear {guest_name}, your stay of…</span></td><td><span class="sc-tag"><span class="pfx">::</span>quoteEN</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">84</td><td style="color:var(--sb-ink-subtle)">2 hours ago</td>
+          <td><div class="row-actions"><button class="row-act"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="row-act"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="row-act"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button></div></td></tr>
+        <tr><td><span class="row-ck on"></span></td><td><strong style="font-weight:600">Check-in instructions</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">Hi {guest_name}, here's how to access…</span></td><td><span class="sc-tag"><span class="pfx">::</span>checkin</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">57</td><td style="color:var(--sb-ink-subtle)">Yesterday</td><td></td></tr>
+        <tr><td><span class="row-ck on"></span></td><td><strong style="font-weight:600">Welcome message</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">Welcome to {property_name}! We're…</span></td><td><span class="sc-tag"><span class="pfx">::</span>welcome</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">39</td><td style="color:var(--sb-ink-subtle)">3 days ago</td><td></td></tr>
+        <tr><td><span class="row-ck"></span></td><td><strong style="font-weight:600">Discount calculator</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">Your total of €{total} becomes €{=total*0.85}…</span></td><td><span class="sc-tag"><span class="pfx">::</span>disc</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">21</td><td style="color:var(--sb-ink-subtle)">1 week ago</td><td></td></tr>
+        <tr><td><span class="row-ck"></span></td><td><strong style="font-weight:600">Refund policy</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">Cancellations up to 48 hours before…</span></td><td><span class="sc-tag"><span class="pfx">::</span>refund</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">12</td><td style="color:var(--sb-ink-subtle)">2 weeks ago</td><td></td></tr>
+        <tr><td><span class="row-ck"></span></td><td><strong style="font-weight:600">Late checkout policy</strong><span style="display:block;font-size:11px;color:var(--sb-ink-subtle);margin-top:2px">A late checkout (after 11am) is €25…</span></td><td><span class="sc-tag"><span class="pfx">::</span>late</span></td><td><span class="lang-cell EN">EN</span></td><td>LeibTour EN</td><td style="font-variant-numeric:tabular-nums">8</td><td style="color:var(--sb-ink-subtle)">3 weeks ago</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FORMS + STATES -->
+  <div class="sect-hd"><h2>Form fields · states</h2><span class="tag">components/Input</span></div>
+  <p class="sect-desc">The dashboard uses a single Input primitive. Errors are bordered and sub-labeled, never toast-only.</p>
+  <div class="specs">
+    <div class="spec">
+      <div class="spec-lbl">Default</div>
+      <div class="flbl">Property name</div>
+      <input class="inp" value="LeibTour Roma">
+      <div class="help">Visible to all team members.</div>
+    </div>
+    <div class="spec">
+      <div class="spec-lbl">Focused</div>
+      <div class="flbl">Shortcut</div>
+      <input class="inp focus" value="::quoteEN" style="font-family:var(--sb-mono)">
+      <div class="help">Full trigger: <strong style="color:var(--sb-azure);font-family:var(--sb-mono)">::quoteEN</strong></div>
+    </div>
+    <div class="spec">
+      <div class="spec-lbl">Error</div>
+      <div class="flbl">Shortcut</div>
+      <input class="inp err" value="::welcome" style="font-family:var(--sb-mono)">
+      <div class="help err">Already in use by "Welcome message".</div>
+    </div>
+  </div>
+
+  <!-- EMPTY + TOAST -->
+  <div class="sect-hd"><h2>Feedback surfaces</h2><span class="tag">EmptyState · Toast</span></div>
+  <p class="sect-desc">Empty states are lined, not filled — they shouldn't compete with cards. Toasts live 3s and offer a single inline Undo.</p>
+  <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1;min-width:480px">
+      <span class="frame-label">Empty · no snippets in folder yet</span>
+      <div class="empty">
+        <div class="empty-ic"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
+        <div class="empty-t">No snippets yet</div>
+        <div class="empty-s">Create your first snippet to start saving time. You can also import from a CSV or sync an existing Notion workspace.</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn">Import from Notion</button>
+          <button class="btn p"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New snippet</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:360px">
+      <span class="frame-label">Toast · saved</span>
+      <div class="toast">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Snippet saved. <span class="ac">Undo</span>
+      </div>
+      <div style="margin-top:16px" class="frame-label">Toast · error</div>
+      <div class="toast">
+        <svg viewBox="0 0 24 24" style="stroke:var(--sb-danger)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Couldn't sync to Notion. <span class="ac" style="color:#FCA5A5">Retry</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
