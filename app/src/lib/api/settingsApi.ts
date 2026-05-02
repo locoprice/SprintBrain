@@ -1,16 +1,22 @@
 import { supabase } from '@/lib/supabase';
 import type { NotionSyncState, Profile } from '@/types/database';
 
-// Live reads for the Settings page.
+// Live reads + writes for the Settings page.
 //
-// There is no `profiles` table yet — Profile is derived from the authed
-// user (email, user_metadata). `shortcut_prefix` is an extension-level
-// setting and is not persisted in Postgres; the dashboard just displays
-// the default value. A future ticket can promote it to a real column on
-// a per-user `settings` row.
+// There is no `profiles` table — Profile is derived from the authed
+// auth.users row. Edits land in `user_metadata` via supabase.auth.updateUser,
+// which Supabase persists server-side and ships back via getUser/onAuthStateChange.
+
+type Prefix = '/' | '::' | ';';
+
+const PREFIXES: readonly Prefix[] = ['/', '::', ';'];
+function isPrefix(v: unknown): v is Prefix {
+  return typeof v === 'string' && (PREFIXES as readonly string[]).includes(v);
+}
 
 export interface SettingsApi {
   getProfile(): Promise<Profile>;
+  updateProfile(patch: { display_name?: string; shortcut_prefix?: Prefix }): Promise<Profile>;
   getNotionSync(): Promise<NotionSyncState>;
 }
 
@@ -24,21 +30,45 @@ function pickDisplayName(
   return handle && handle.length > 0 ? handle : 'Account';
 }
 
+function pickShortcutPrefix(metadata: Record<string, unknown> | undefined): Prefix {
+  const v = metadata?.['shortcut_prefix'];
+  return isPrefix(v) ? v : '::';
+}
+
+function userToProfile(u: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; created_at?: string }): Profile {
+  const email = u.email ?? '';
+  return {
+    id: u.id,
+    email,
+    display_name: pickDisplayName(u.user_metadata, email),
+    shortcut_prefix: pickShortcutPrefix(u.user_metadata),
+    created_at: u.created_at ?? new Date().toISOString(),
+  };
+}
+
 export const settingsApi: SettingsApi = {
   async getProfile() {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     if (!data.user) throw new Error('Not authenticated');
-    const u = data.user;
-    const email = u.email ?? '';
-    return {
-      id: u.id,
-      email,
-      display_name: pickDisplayName(u.user_metadata, email),
-      // Extension config; not yet persisted server-side.
-      shortcut_prefix: ';',
-      created_at: u.created_at ?? new Date().toISOString(),
-    };
+    return userToProfile(data.user);
+  },
+
+  async updateProfile(patch) {
+    const { data: cur, error: getErr } = await supabase.auth.getUser();
+    if (getErr) throw getErr;
+    if (!cur.user) throw new Error('Not authenticated');
+
+    // Merge into existing user_metadata so unrelated keys (e.g. set by other
+    // surfaces) survive. Only forward keys the caller actually changed.
+    const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
+    if (patch.display_name !== undefined) next['full_name'] = patch.display_name.trim();
+    if (patch.shortcut_prefix !== undefined) next['shortcut_prefix'] = patch.shortcut_prefix;
+
+    const { data, error } = await supabase.auth.updateUser({ data: next });
+    if (error) throw error;
+    if (!data.user) throw new Error('Update returned no user');
+    return userToProfile(data.user);
   },
 
   async getNotionSync() {

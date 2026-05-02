@@ -10,7 +10,7 @@ interface SettingsStore {
   loading: boolean;
   error: string | null;
   load: () => Promise<void>;
-  setShortcutPrefix: (prefix: Prefix) => void;
+  editProfile: (patch: { display_name?: string; shortcut_prefix?: Prefix }) => Promise<Profile>;
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
@@ -33,6 +33,14 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
       });
     }
   },
-  setShortcutPrefix: (prefix) =>
-    set((s) => (s.profile ? { profile: { ...s.profile, shortcut_prefix: prefix } } : s)),
+  editProfile: async (patch) => {
+    try {
+      const profile = await settingsApi.updateProfile(patch);
+      set({ profile, error: null });
+      return profile;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to save profile' });
+      throw err;
+    }
+  },
 }));
