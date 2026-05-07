@@ -1415,13 +1415,19 @@ var sList=gi('list'); if(sList) sList.addEventListener('contextmenu',function(e)
   e.preventDefault(); showEmptyCtxMenu(e.clientX,e.clientY);
 });
 
-// Changelog events
-var vbtn = gi('ver-btn');
-if(vbtn) vbtn.addEventListener('click', openChangelog);
-var clx = gi('cl-x');
-if(clx) clx.addEventListener('click', closeChangelog);
-var clbg = gi('cl-bg');
-if(clbg) clbg.addEventListener('click', function(e){ if(e.target===clbg) closeChangelog(); });
+// Changelog events — version bar AND changelog modal are rendered AFTER this <script>
+// tag in popup.html, so we wait for DOM ready before binding (otherwise gi() returns null).
+document.addEventListener('DOMContentLoaded', function() {
+  var v = document.getElementById('ver-btn');
+  if (v) {
+    v.textContent = 'v' + chrome.runtime.getManifest().version;
+    v.addEventListener('click', openChangelog);
+  }
+  var clx = document.getElementById('cl-x');
+  if (clx) clx.addEventListener('click', closeChangelog);
+  var clbg = document.getElementById('cl-bg');
+  if (clbg) clbg.addEventListener('click', function(e){ if(e.target===clbg) closeChangelog(); });
+});
 
 
 // GROUPING for extension list
@@ -1605,8 +1611,13 @@ function showToast(msg){
   setTimeout(function(){ t.style.opacity='0'; },2000);
 }
 
-var lpCancel=gi('lp-cancel'); if(lpCancel) lpCancel.addEventListener('click', function(){ var bg=gi('lp-bg'); if(bg) bg.className='lp-bg'; });
-var lpBg=gi('lp-bg'); if(lpBg) lpBg.addEventListener('click', function(e){ if(e.target===lpBg) lpBg.className='lp-bg'; });
+// Language picker modal — also rendered after the <script> tag, so wait for DOM ready.
+document.addEventListener('DOMContentLoaded', function() {
+  var lpCancel = document.getElementById('lp-cancel');
+  if (lpCancel) lpCancel.addEventListener('click', function(){ var bg=gi('lp-bg'); if(bg) bg.className='lp-bg'; });
+  var lpBg = document.getElementById('lp-bg');
+  if (lpBg) lpBg.addEventListener('click', function(e){ if(e.target===lpBg) lpBg.className='lp-bg'; });
+});
 
 // TRIGGER CONFIG EVENTS
 on('tcfg-snip','change', function(e){

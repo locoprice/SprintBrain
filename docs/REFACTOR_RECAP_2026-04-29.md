@@ -69,7 +69,7 @@ SprintBrain/
 
 ## Key paths for Claude Code
 
-- Extension entry for `chrome://extensions` "Load unpacked": `C:\Users\averd\OneDrive\Desktop\SprintBrain\extension\`
+- Extension entry for `chrome://extensions` "Load unpacked": `C:\Users\averd\Desktop\SprintBrain\extension\`
 - Web app dev: `cd app && npm run dev` (port 5173)
 - CI version check: `node scripts/check-version.js` (run from repo root)
 - Supabase migrations: `services/supabase/migrations/`
