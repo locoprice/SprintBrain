@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.22.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
+// SPRINTBRAIN POPUP v2.22.1 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,12 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.22.1', date:'2026-05-07', label:'Gmail false-positive fix',
+    changes:[
+      {type:'fix', text:'Implicit word-boundary trigger no longer fires on the lone keyword at buffer start (typing "time" in fresh Gmail compose was firing /time)'},
+      {type:'fix', text:'Buffer sanitized for zero-width / NBSP / soft-hyphen artifacts injected by rich-text contenteditable (Gmail, Slack)'},
+      {type:'fix', text:'Implicit keyword minimum raised from 2 → 3 chars; preceding-char check switched to explicit delimiter allowlist'}
+    ]},
   { version:'v2.22.0', date:'2026-05-07', label:'Design System Redesign',
     changes:[
       {type:'new', text:'Popup redesigned to match SprintBrain design system — iris accent, new typography tokens, refined spacing'},
