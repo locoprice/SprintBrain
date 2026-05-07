@@ -1,0 +1,167 @@
+/* ============================================================
+   SPRINTBRAIN DESIGN TOKENS
+   Covers: Chrome Extension popup + overlay (Iris accent)
+           Web Dashboard (Azure accent)
+   ============================================================ */
+
+:root {
+  /* ── NEUTRALS (shared across both surfaces) ──────────────── */
+  --sb-bg:        #FFFFFF;   /* card / surface */
+  --sb-bg-alt:    #FAFAFA;   /* page background (dashboard), sidebar (ext) */
+  --sb-bg-muted:  #F4F4F5;   /* inputs, chip backgrounds */
+  --sb-line:      #E4E4E7;   /* hairline borders */
+  --sb-line-2:    #D4D4D8;   /* hover border, dividers */
+
+  /* ── INK (text) ──────────────────────────────────────────── */
+  --sb-ink:        #18181B;  /* primary text */
+  --sb-ink-muted:  #52525B;  /* secondary text */
+  --sb-ink-subtle: #A1A1AA;  /* tertiary / hints */
+
+  /* ── PRIMARY PALETTES ────────────────────────────────────── */
+
+  /* Iris — Chrome Extension (personality: in-browser assistant) */
+  --sb-iris:        #6C5CE7;
+  --sb-iris-dark:   #5A4BD1;
+  --sb-iris-light:  #8B7CF6;
+  --sb-iris-bg:     #F0EDFF;
+  --sb-iris-bdr:    #C9C0FF;
+  --sb-iris-glow:   rgba(108, 92, 231, 0.12);
+
+  /* Azure — Web Dashboard (personality: workspace/admin) */
+  --sb-azure:       #1B4FD8;
+  --sb-azure-dark:  #1440B0;
+  --sb-azure-light: #3D6FE8;
+  --sb-azure-bg:    #EEF2FF;
+  --sb-azure-bdr:   #BED0FF;
+  --sb-azure-glow:  rgba(27, 79, 216, 0.14);
+
+  /* ── ACCENT (resolves per surface via [data-sb-surface]) ─── */
+  --sb-accent:       var(--sb-iris);
+  --sb-accent-dark:  var(--sb-iris-dark);
+  --sb-accent-light: var(--sb-iris-light);
+  --sb-accent-bg:    var(--sb-iris-bg);
+  --sb-accent-bdr:   var(--sb-iris-bdr);
+  --sb-accent-glow:  var(--sb-iris-glow);
+
+  /* ── SEMANTIC ────────────────────────────────────────────── */
+  --sb-ok:         #16A34A;
+  --sb-ok-bg:      #F0FDF4;
+  --sb-ok-bdr:     #BBF7D0;
+  --sb-warn:       #D97706;
+  --sb-warn-bg:    #FFFBEB;
+  --sb-warn-bdr:   #FDE68A;
+  --sb-danger:     #DC2626;
+  --sb-danger-bg:  #FEF2F2;
+  --sb-danger-bdr: #FECACA;
+
+  /* ── LANGUAGE (shared — must stay identical both surfaces) ─ */
+  --sb-lang-en:    #2563EB;
+  --sb-lang-es:    #EA580C;
+  --sb-lang-it:    #DC2626;
+  --sb-lang-fr:    #7C3AED;
+
+  /* ── TYPOGRAPHY ──────────────────────────────────────────── */
+  --sb-font:  -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',
+              system-ui, sans-serif;
+  --sb-mono:  'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code',
+              ui-monospace, Menlo, Consolas, monospace;
+
+  /* Type scale — used by both surfaces. Extension leans on 10–15; dashboard uses full ramp. */
+  --sb-fs-10: 10px;   /* micro labels, kbd */
+  --sb-fs-11: 11px;   /* uppercase labels, fine print */
+  --sb-fs-12: 12px;   /* secondary body, meta */
+  --sb-fs-13: 13px;   /* default UI text (extension) */
+  --sb-fs-14: 14px;   /* default UI text (dashboard) */
+  --sb-fs-15: 15px;   /* extension base, dashboard section titles */
+  --sb-fs-16: 16px;   /* dashboard body-lg / popup title */
+  --sb-fs-20: 20px;   /* H3 */
+  --sb-fs-24: 24px;   /* H2 — page titles (dashboard) */
+  --sb-fs-32: 32px;   /* H1 — stat display, onboarding */
+
+  /* ── SPACING (4px base) ──────────────────────────────────── */
+  --sb-s-1: 4px;
+  --sb-s-2: 8px;
+  --sb-s-3: 12px;
+  --sb-s-4: 16px;
+  --sb-s-5: 20px;
+  --sb-s-6: 24px;
+  --sb-s-8: 32px;
+  --sb-s-10: 40px;
+  --sb-s-12: 48px;
+
+  /* ── RADII ───────────────────────────────────────────────── */
+  --sb-r-xs:  4px;   /* inner chips, code tokens */
+  --sb-r-sm:  6px;   /* small buttons, icon wells */
+  --sb-r-md:  8px;   /* inputs, standard buttons, folder items */
+  --sb-r-lg:  10px;  /* dashboard nav items, topbar search */
+  --sb-r-xl:  12px;  /* primary buttons, context menus, overlay */
+  --sb-r-2xl: 16px;  /* cards (dashboard), modals */
+  --sb-r-pill: 9999px;
+
+  /* ── SHADOWS ─────────────────────────────────────────────── */
+  --sb-shadow-sm:   0 1px 3px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04);
+  --sb-shadow-md:   0 4px 20px rgba(27,79,216,.10), 0 1px 3px rgba(0,0,0,.06);
+  --sb-shadow-lg:   0 12px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --sb-shadow-xl:   0 20px 60px rgba(0,0,0,.16);
+  --sb-shadow-glow: 0 0 0 3px var(--sb-accent-glow);
+
+  /* ── MOTION ──────────────────────────────────────────────── */
+  --sb-dur-fast:   120ms;
+  --sb-dur-base:   150ms;
+  --sb-dur-slow:   220ms;
+  --sb-ease:       cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-ease-out:   cubic-bezier(0.34, 1.56, 0.64, 1); /* gentle overshoot for modals */
+
+  /* ── Z-INDEX ─────────────────────────────────────────────── */
+  --sb-z-dropdown:     100;
+  --sb-z-sticky:       200;
+  --sb-z-overlay:      9000;
+  --sb-z-modal:        9500;
+  --sb-z-context-menu: 9999;
+}
+
+/* Surface switch — body[data-sb-surface="dashboard"] picks Azure. */
+[data-sb-surface='dashboard'] {
+  --sb-accent:       var(--sb-azure);
+  --sb-accent-dark:  var(--sb-azure-dark);
+  --sb-accent-light: var(--sb-azure-light);
+  --sb-accent-bg:    var(--sb-azure-bg);
+  --sb-accent-bdr:   var(--sb-azure-bdr);
+  --sb-accent-glow:  var(--sb-azure-glow);
+}
+
+/* Base typography reset. Apply only inside [data-sb-surface]. */
+[data-sb-surface] {
+  font-family: var(--sb-font);
+  font-size: var(--sb-fs-14);
+  color: var(--sb-ink);
+  background: var(--sb-bg);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-sb-surface='extension'] { font-size: var(--sb-fs-13); }
+
+/* Utility classes for tokens people reach for constantly. */
+.sb-mono  { font-family: var(--sb-mono); }
+.sb-kbd   {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-fs-11);
+  padding: 2px 6px;
+  border: 1px solid var(--sb-line);
+  border-bottom-width: 2px;
+  border-radius: var(--sb-r-sm);
+  background: var(--sb-bg);
+  color: var(--sb-ink-muted);
+}
+.sb-code-token {
+  display: inline-block;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-fs-11);
+  font-weight: 600;
+  color: var(--sb-accent);
+  background: var(--sb-accent-bg);
+  border: 1px solid var(--sb-accent-bdr);
+  border-radius: var(--sb-r-pill);
+  padding: 2px 8px;
+}
