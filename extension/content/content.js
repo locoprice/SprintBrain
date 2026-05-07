@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.20.5 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.20.6 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
