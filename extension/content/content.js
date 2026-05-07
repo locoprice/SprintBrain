@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.20.6 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.21.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -402,6 +402,7 @@ var snippets = DEFAULT_SNIPPETS.slice();
 var trigger  = '::';
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
+var isPasting = false; // guards against paste events feeding the trigger buffer
 
 // ── PROMPT TEMPLATES ──────────────────────────────────────────────
 var PROMPT_TEMPLATES = [
@@ -451,20 +452,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.15.6] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.21.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.15.6] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.21.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.15.6] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.21.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -544,6 +545,31 @@ function checkBuf() {
       return;
     }
   }
+
+  // ── IMPLICIT WORD-BOUNDARY TRIGGER ───────────────────────────────
+  // Activates snippets when the user types the bare keyword (e.g. "price")
+  // without the explicit prefix (e.g. "::price"). The character immediately
+  // before the keyword must be a non-word character or the start of the
+  // buffer to avoid false positives like "appreciate" matching "price".
+  for (var j = 0; j < snippets.length; j++) {
+    var isc = snippets[j].shortcut || '';
+    if (!isc) continue;
+    // Strip any leading non-alphanumeric prefix (:: / ;; !! etc.)
+    var kw = isc.replace(/^[^A-Za-z0-9]+/, '');
+    if (!kw || kw.length < 2) continue;
+    if (buf.length >= kw.length && buf.slice(-kw.length) === kw) {
+      var pre = buf.length > kw.length ? buf[buf.length - kw.length - 1] : null;
+      // Only fire on word boundary — preceding char must be non-word or buffer start
+      if (pre === null || /[^A-Za-z0-9_]/.test(pre)) {
+        buf = '';
+        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+        handleMatch(activeEl, snippets[j], kw.length);
+        return;
+      }
+    }
+  }
+
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
   var snippetSeq = triggerCfg.snippetTrigger || '::';
   if (!triggerPending) {
@@ -1854,6 +1880,12 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key.length !== 1) return;
 
+  // Skip modifier-key combos (Ctrl+V, Cmd+V, etc.) — paste is handled separately
+  if (e.ctrlKey || e.metaKey) return;
+
+  // Skip if a paste is in progress
+  if (isPasting) return;
+
   // Only track editable elements
   var editable = false;
   if (t) {
@@ -1877,6 +1909,20 @@ document.addEventListener('keydown', function(e) {
   setTimeout(checkBuf, 10);
 }, true);
 
+// ── PASTE GUARD ───────────────────────────────────────────────────
+// Sets isPasting=true before paste characters reach the input event,
+// preventing clipboard content from feeding the trigger buffer regardless
+// of whether the browser populates InputEvent.inputType.
+document.addEventListener('paste', function() {
+  isPasting = true;
+  buf = '';
+  triggerPending = false;
+  triggerPendingMode = null;
+  triggerAffix = '';
+  if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+  setTimeout(function() { isPasting = false; }, 50);
+}, true);
+
 // ── MOBILE INPUT LISTENER ─────────────────────────────────────────
 // Soft keyboards (Android) fire `input` events instead of keydown with real keys.
 // This listener is the primary trigger path on mobile; on desktop it is suppressed
@@ -1892,7 +1938,7 @@ document.addEventListener('input', function(e) {
   if (iType && iType.indexOf('insert') === -1) return;
 
   // Clear buffer on paste/drop to prevent partial trigger matches
-  if (iType === 'insertFromPaste' || iType === 'insertFromDrop') {
+  if (isPasting || iType === 'insertFromPaste' || iType === 'insertFromDrop') {
     buf = '';
     return;
   }
