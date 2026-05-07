@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.21.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
+// SPRINTBRAIN POPUP v2.22.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,14 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.22.0', date:'2026-05-07', label:'Design System Redesign',
+    changes:[
+      {type:'new', text:'Popup redesigned to match SprintBrain design system — iris accent, new typography tokens, refined spacing'},
+      {type:'new', text:'shared/tokens/colors_and_type.css imported into the popup bundle (--sb-* design tokens)'},
+      {type:'new', text:'Sync bar uses CheckCircle icon in --sb-ok green; header count rendered as muted pill chip'},
+      {type:'new', text:'Edit and New Snippet buttons restyled with --sb-line border and --sb-r-xl radius'},
+      {type:'new', text:'Version bar uses .ver-bar / .dt classes with --sb-mono and --sb-ink-subtle tokens'}
+    ]},
   { version:'v2.21.0', date:'2026-05-07', label:'Paste Fix + Implicit Triggers + Sidebar Sync',
     changes:[
       {type:'fix', text:'Paste with "/" no longer triggers snippet execution — dedicated paste guard clears buffer before any trigger evaluation'},
