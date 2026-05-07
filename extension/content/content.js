@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.22.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.22.1 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -452,20 +452,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.22.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.22.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.22.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.22.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.22.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.22.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -511,12 +511,20 @@ function addKey(k) {
 
 function checkBuf() {
   if (processing || !snippets.length) return;
-  // Snippet matching contract (v2.20.5):
+
+  // Strip invisible artifacts that Gmail's rich-text contenteditable can
+  // splice into the keystroke stream (smart-compose, autocorrect, paste
+  // normalization). ZWSP/ZWNJ/ZWJ/BOM/soft-hyphen are removed; NBSP is folded
+  // to a regular space so it still acts as a word boundary for implicit
+  // triggers. \uXXXX escapes — invisible literal chars in regex are fragile
+  // across editors and diffs.
+  var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ');
+  if (sanitized !== buf) buf = sanitized;
+
+  // Snippet matching contract (v2.22.1):
   //   Every snippet expansion REQUIRES the user to type the configured
   //   snippet trigger (default "::") immediately before the shortcut.
-  //   No exceptions. This is enforced by always testing for `trigger+sc`
-  //   at the end of the buffer, regardless of how the shortcut was
-  //   stored. Two storage shapes are tolerated:
+  //   Two storage shapes are tolerated:
   //
   //     - sc stored with the prefix already baked in ("::time")  -> the
   //       expected typed sequence is just sc itself ("::time").
@@ -525,13 +533,6 @@ function checkBuf() {
   //
   //   In both cases the matched length is exactly what was typed, so we
   //   never delete more or fewer characters than the user produced.
-  //
-  //   This replaces the older Form 1 / Form 2 / Form 3 logic. Form 2
-  //   (bare-suffix match) was removed in v2.20.4 because typing common
-  //   words like "time" or "thanks" expanded snippets stored as
-  //   "::time"/"::thanks" mid-sentence. Form 1's bare-stored bare-typed
-  //   path (e.g. stored "time", user types "time" alone) is removed in
-  //   v2.20.5 — it was the same hazard for bare-stored shortcuts.
   var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
@@ -548,26 +549,29 @@ function checkBuf() {
 
   // ── IMPLICIT WORD-BOUNDARY TRIGGER ───────────────────────────────
   // Activates snippets when the user types the bare keyword (e.g. "price")
-  // without the explicit prefix (e.g. "::price"). The character immediately
-  // before the keyword must be a non-word character or the start of the
-  // buffer to avoid false positives like "appreciate" matching "price".
+  // without the explicit "::" prefix. v2.22.1 hardening (Gmail false-positive
+  // fix — typing the lone word "time" was firing the snippet):
+  //   • Buffer start is NOT a boundary. Require strictly more buffer than
+  //     the keyword length so a real preceding char exists. Typing "time"
+  //     into a fresh compose box must not trigger.
+  //   • Minimum keyword length raised from 2 → 3 to keep common 2-letter
+  //     words from being claimed.
+  //   • Preceding char must match an explicit delimiter allowlist
+  //     (whitespace + common punctuation), not just "anything non-word".
   for (var j = 0; j < snippets.length; j++) {
     var isc = snippets[j].shortcut || '';
     if (!isc) continue;
-    // Strip any leading non-alphanumeric prefix (:: / ;; !! etc.)
     var kw = isc.replace(/^[^A-Za-z0-9]+/, '');
-    if (!kw || kw.length < 2) continue;
-    if (buf.length >= kw.length && buf.slice(-kw.length) === kw) {
-      var pre = buf.length > kw.length ? buf[buf.length - kw.length - 1] : null;
-      // Only fire on word boundary — preceding char must be non-word or buffer start
-      if (pre === null || /[^A-Za-z0-9_]/.test(pre)) {
-        buf = '';
-        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-        handleMatch(activeEl, snippets[j], kw.length);
-        return;
-      }
-    }
+    if (!kw || kw.length < 3) continue;
+    if (buf.length <= kw.length) continue;
+    if (buf.slice(-kw.length) !== kw) continue;
+    var pre = buf.charAt(buf.length - kw.length - 1);
+    if (!/[\s.,;:!?(){}\[\]"'`\/\\\-—–]/.test(pre)) continue;
+    buf = '';
+    triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+    if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+    handleMatch(activeEl, snippets[j], kw.length);
+    return;
   }
 
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
