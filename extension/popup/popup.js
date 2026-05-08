@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.25.0 — Shortcut-base heuristic for multi-language detection
+// SPRINTBRAIN POPUP v2.26.0 — Lang modal fires from both checkBuf and trigger picker
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,11 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.26.0', date:'2026-05-08', label:'Fix: lang modal now fires from trigger picker',
+    changes:[
+      {type:'fix', text:'The language picker modal was only wired into checkBuf() (direct full-trigger match) but NOT into selectTriggerItem() (the inline trigger picker that appears when typing ::goo…). Since most users select snippets from the picker, the modal never appeared. Now both paths share _findLangVariants() and show the modal when siblings exist.'},
+      {type:'refactor', text:'Extracted _findLangVariants(item) as a shared helper — dual-pass detection (lang_group_id first, shortcut-base heuristic second) used by both checkBuf() and selectTriggerItem().'}
+    ]},
   { version:'v2.25.0', date:'2026-05-08', label:'Fix: multi-language modal now fires for all snippets',
     changes:[
       {type:'fix', text:'Modal was never triggered because all snippets have lang_group_id=null in Supabase. Added a shortcut-base heuristic as fallback: strips the trailing language suffix (EN/ES/IT/FR/MULTI) from the shortcut and groups snippets that share the same base (e.g. /quoteEN + /quoteES + /quoteIT → modal with 3 buttons). Explicit lang_group_id is still tried first for forward compatibility.'}

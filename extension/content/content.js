@@ -1,6 +1,6 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.25.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.26.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
-// v2.25.0: shortcut-base heuristic for multi-language variant detection
+// v2.26.0: lang modal fires from BOTH checkBuf() and trigger picker
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -453,20 +453,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.25.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.26.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.25.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.26.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.25.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.26.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -537,14 +537,11 @@ function checkBuf() {
   //   In both cases the matched length is exactly what was typed, so we
   //   never delete more or fewer characters than the user produced.
   //
-  //   Multi-language (v2.25.0): two-pass variant detection before insertion.
-  //   Pass 1 — explicit lang_group_id: use when a real shared group ID is set
-  //   in Supabase (forward-compatible path once the DB is populated).
-  //   Pass 2 — shortcut-base heuristic: strip the trailing language suffix
-  //   (EN/ES/IT/FR/MULTI) from the shortcut and collect all snippets that
-  //   reduce to the same base. Handles the current production state where
-  //   lang_group_id is null for all records.
-  var LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
+  //   Multi-language (v2.26.0): _findLangVariants() detects sibling
+  //   translations via lang_group_id (when set) or shortcut-base heuristic
+  //   (strips trailing EN/ES/IT/FR/MULTI). Applied in BOTH checkBuf() and
+  //   selectTriggerItem() so the modal fires regardless of how the user
+  //   selects the snippet.
   var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
@@ -555,34 +552,8 @@ function checkBuf() {
       triggerPending = false; triggerPendingMode = null; triggerAffix = '';
       if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
       var matched = snippets[i];
-      var variantsMap = {};
-
-      // Pass 1: explicit lang_group_id (only trust it when non-null)
-      if (matched.lang_group_id) {
-        var rawGid = matched.lang_group_id;
-        for (var vi = 0; vi < snippets.length; vi++) {
-          if (snippets[vi].lang_group_id === rawGid &&
-              snippets[vi].body && snippets[vi].body.trim()) {
-            variantsMap[snippets[vi].lang] = snippets[vi];
-          }
-        }
-      }
-
-      // Pass 2: shortcut-base heuristic (fallback when gid gives ≤1 result)
-      if (Object.keys(variantsMap).length <= 1) {
-        variantsMap = {};
-        var matchedBase = (matched.shortcut || '').replace(LANG_SUFFIX_RE, '');
-        for (var vi2 = 0; vi2 < snippets.length; vi2++) {
-          var candidateBase = (snippets[vi2].shortcut || '').replace(LANG_SUFFIX_RE, '');
-          if (candidateBase === matchedBase &&
-              snippets[vi2].body && snippets[vi2].body.trim()) {
-            variantsMap[snippets[vi2].lang] = snippets[vi2];
-          }
-        }
-      }
-
-      var variantCount = Object.keys(variantsMap).length;
-      if (variantCount > 1) {
+      var variantsMap = _findLangVariants(matched);
+      if (Object.keys(variantsMap).length > 1) {
         processing = true;
         injectLangModal(variantsMap, activeEl, expected.length);
       } else {
@@ -646,9 +617,36 @@ function checkBuf() {
   }
 }
 
-// ── LANGUAGE PICKER MODAL (Shadow DOM) ──────────────────────────────
+// ── LANGUAGE VARIANT DETECTION ───────────────────────────────────────
 var LANG_FLAGS = { EN: '🇬🇧', IT: '🇮🇹', ES: '🇪🇸', FR: '🇫🇷', MULTI: '🌐' };
 var LANG_NAMES = { EN: 'English', IT: 'Italiano', ES: 'Español', FR: 'Français', MULTI: 'Multi' };
+var LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
+
+function _findLangVariants(item) {
+  var map = {};
+  if (item.lang_group_id) {
+    var rawGid = item.lang_group_id;
+    for (var i = 0; i < snippets.length; i++) {
+      if (snippets[i].lang_group_id === rawGid &&
+          snippets[i].body && snippets[i].body.trim()) {
+        map[snippets[i].lang] = snippets[i];
+      }
+    }
+  }
+  if (Object.keys(map).length <= 1) {
+    map = {};
+    var base = (item.shortcut || '').replace(LANG_SUFFIX_RE, '');
+    for (var j = 0; j < snippets.length; j++) {
+      var cb = (snippets[j].shortcut || '').replace(LANG_SUFFIX_RE, '');
+      if (cb === base && snippets[j].body && snippets[j].body.trim()) {
+        map[snippets[j].lang] = snippets[j];
+      }
+    }
+  }
+  return map;
+}
+
+// ── LANGUAGE PICKER MODAL (Shadow DOM) ──────────────────────────────
 
 function injectLangModal(variantsMap, el, scLen) {
   var host = document.createElement('div');
@@ -1824,6 +1822,19 @@ function selectTriggerItem(idx) {
   var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
+
+  // Multi-language detection: if the selected snippet has sibling translations,
+  // show the language picker modal instead of inserting directly. The modal
+  // re-enters through handleMatch() which handles deletion + the full insertion
+  // pipeline (placeholders, formulas, fields, urgency, celebration).
+  if (mode === 'snippet') {
+    var variantsMap = _findLangVariants(item);
+    if (Object.keys(variantsMap).length > 1) {
+      processing = true;
+      injectLangModal(variantsMap, el, dLen);
+      return;
+    }
+  }
 
   function doInsert() {
     if (mode === 'snippet') {
