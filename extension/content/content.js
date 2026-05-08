@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.22.1 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.23.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -452,20 +452,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.22.1] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.23.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.22.1] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.23.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.22.1] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.23.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -515,15 +515,17 @@ function checkBuf() {
   // Strip invisible artifacts that Gmail's rich-text contenteditable can
   // splice into the keystroke stream (smart-compose, autocorrect, paste
   // normalization). ZWSP/ZWNJ/ZWJ/BOM/soft-hyphen are removed; NBSP is folded
-  // to a regular space so it still acts as a word boundary for implicit
-  // triggers. \uXXXX escapes — invisible literal chars in regex are fragile
-  // across editors and diffs.
+  // to a regular space so the trigger sequence isn't broken by an invisible
+  // char between the two colons. \uXXXX escapes — invisible literal chars in
+  // regex are fragile across editors and diffs.
   var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ');
   if (sanitized !== buf) buf = sanitized;
 
-  // Snippet matching contract (v2.22.1):
+  // Snippet matching contract (v2.23.0):
   //   Every snippet expansion REQUIRES the user to type the configured
   //   snippet trigger (default "::") immediately before the shortcut.
+  //   Bare-keyword (implicit) matching was removed in v2.23.0 — typing a
+  //   shortcut as part of normal prose ("the price is...") MUST NOT fire.
   //   Two storage shapes are tolerated:
   //
   //     - sc stored with the prefix already baked in ("::time")  -> the
@@ -545,33 +547,6 @@ function checkBuf() {
       handleMatch(activeEl, snippets[i], expected.length);
       return;
     }
-  }
-
-  // ── IMPLICIT WORD-BOUNDARY TRIGGER ───────────────────────────────
-  // Activates snippets when the user types the bare keyword (e.g. "price")
-  // without the explicit "::" prefix. v2.22.1 hardening (Gmail false-positive
-  // fix — typing the lone word "time" was firing the snippet):
-  //   • Buffer start is NOT a boundary. Require strictly more buffer than
-  //     the keyword length so a real preceding char exists. Typing "time"
-  //     into a fresh compose box must not trigger.
-  //   • Minimum keyword length raised from 2 → 3 to keep common 2-letter
-  //     words from being claimed.
-  //   • Preceding char must match an explicit delimiter allowlist
-  //     (whitespace + common punctuation), not just "anything non-word".
-  for (var j = 0; j < snippets.length; j++) {
-    var isc = snippets[j].shortcut || '';
-    if (!isc) continue;
-    var kw = isc.replace(/^[^A-Za-z0-9]+/, '');
-    if (!kw || kw.length < 3) continue;
-    if (buf.length <= kw.length) continue;
-    if (buf.slice(-kw.length) !== kw) continue;
-    var pre = buf.charAt(buf.length - kw.length - 1);
-    if (!/[\s.,;:!?(){}\[\]"'`\/\\\-—–]/.test(pre)) continue;
-    buf = '';
-    triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-    if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-    handleMatch(activeEl, snippets[j], kw.length);
-    return;
   }
 
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
