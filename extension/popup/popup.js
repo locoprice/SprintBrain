@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.23.2 — Submenu flips left when parent is near popup edge
+// SPRINTBRAIN POPUP v2.24.0 — Language picker modal for multi-language snippets
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,10 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.24.0', date:'2026-05-08', label:'Language picker modal for multi-language snippets',
+    changes:[
+      {type:'feat', text:'When typing a trigger that matches a snippet with multiple language variants, a modal now appears letting the user pick the target language (EN/IT/ES/FR) before inserting. Each button shows the country flag and language name. Escape or backdrop click cancels without insertion.'}
+    ]},
   { version:'v2.23.2', date:'2026-05-08', label:'Submenu flips left near popup edge',
     changes:[
       {type:'fix', text:'"Move to folder" submenu no longer hides past the popup right edge — when the parent menu is anchored near the right side, the submenu flips to the left (reported by Alessandro after the v2.23.1 patch)'}
