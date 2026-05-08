@@ -454,6 +454,26 @@ try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
         console.log('[Sprintbrain v2.24.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        // DEBUG v2.24.0 \u2014 dump lang_group_id state for all loaded snippets
+        var _gidMap = {};
+        snippets.forEach(function(s) {
+          var gid = s.lang_group_id || '(null)';
+          if (!_gidMap[gid]) _gidMap[gid] = [];
+          _gidMap[gid].push(s.shortcut + '[' + (s.lang || '?') + ']' + (s.body ? '' : ' (NO BODY)'));
+        });
+        var _multiGroups = Object.keys(_gidMap).filter(function(g) { return _gidMap[g].length > 1; });
+        console.log('[SB-DEBUG] Total snippets:', snippets.length,
+          '| Groups with >1 variant:', _multiGroups.length);
+        if (_multiGroups.length > 0) {
+          _multiGroups.forEach(function(g) {
+            console.log('[SB-DEBUG] Multi-lang group', g, '\u2192', _gidMap[g].join(', '));
+          });
+        } else {
+          console.warn('[SB-DEBUG] No multi-lang groups found. Sample of first 5 lang_group_ids:',
+            snippets.slice(0, 5).map(function(s) {
+              return s.shortcut + ':gid=' + (s.lang_group_id || 'NULL');
+            }));
+        }
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
@@ -551,15 +571,29 @@ function checkBuf() {
       if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
       var matched = snippets[i];
       var gid = matched.lang_group_id || matched.id;
+      console.log('[SB-DEBUG] Trigger matched:', expected,
+        '| snippet id:', matched.id,
+        '| lang:', matched.lang,
+        '| lang_group_id (raw):', matched.lang_group_id,
+        '| gid used:', gid,
+        '| body present:', !!(matched.body && matched.body.trim()));
       var variantsMap = {};
       var variantCount = 0;
       for (var vi = 0; vi < snippets.length; vi++) {
-        if ((snippets[vi].lang_group_id || snippets[vi].id) === gid &&
-            snippets[vi].body && snippets[vi].body.trim()) {
-          variantsMap[snippets[vi].lang] = snippets[vi];
-          variantCount++;
+        var _vgid = snippets[vi].lang_group_id || snippets[vi].id;
+        var _hasBody = !!(snippets[vi].body && snippets[vi].body.trim());
+        if (_vgid === gid) {
+          console.log('[SB-DEBUG]   candidate [' + vi + ']', snippets[vi].shortcut,
+            'lang:', snippets[vi].lang, 'gid:', _vgid, 'hasBody:', _hasBody);
+          if (_hasBody) {
+            variantsMap[snippets[vi].lang] = snippets[vi];
+            variantCount++;
+          }
         }
       }
+      console.log('[SB-DEBUG] variantCount:', variantCount,
+        '| langs found:', Object.keys(variantsMap).join(','),
+        '| will show modal:', variantCount > 1);
       if (variantCount > 1) {
         processing = true;
         injectLangModal(variantsMap, activeEl, expected.length);
