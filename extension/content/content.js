@@ -1,6 +1,6 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.26.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.27.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
-// v2.26.0: lang modal fires from BOTH checkBuf() and trigger picker
+// v2.27.0: delete trigger chars before showing lang modal (fixes leftover text)
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -555,7 +555,9 @@ function checkBuf() {
       var variantsMap = _findLangVariants(matched);
       if (Object.keys(variantsMap).length > 1) {
         processing = true;
-        injectLangModal(variantsMap, activeEl, expected.length);
+        deleteChars(activeEl, expected.length, function() {
+          injectLangModal(variantsMap, activeEl, 0);
+        });
       } else {
         handleMatch(activeEl, matched, expected.length);
       }
@@ -1594,12 +1596,33 @@ function _renderPickerItems(query) {
   if (!triggerPickerEl) return;
   var allItems = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
   var q = (query || '').toLowerCase();
-  triggerPickerFiltered = q
+  var filtered = q
     ? allItems.filter(function(s) {
         return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
                (s.shortcut || '').toLowerCase().indexOf(q) > -1;
       })
     : allItems.slice();
+
+  if (triggerPickerMode === 'snippet') {
+    var seen = {};
+    var deduped = [];
+    for (var di = 0; di < filtered.length; di++) {
+      var s = filtered[di];
+      var base = (s.shortcut || '').replace(LANG_SUFFIX_RE, '');
+      var gid  = s.lang_group_id || null;
+      var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
+      if (seen[key] !== undefined) {
+        if (!LANG_SUFFIX_RE.test(s.shortcut || '')) {
+          deduped[seen[key]] = s;
+        }
+        continue;
+      }
+      seen[key] = deduped.length;
+      deduped.push(s);
+    }
+    filtered = deduped;
+  }
+  triggerPickerFiltered = filtered;
 
   var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
   if (!itemsEl) return;
@@ -1831,7 +1854,9 @@ function selectTriggerItem(idx) {
     var variantsMap = _findLangVariants(item);
     if (Object.keys(variantsMap).length > 1) {
       processing = true;
-      injectLangModal(variantsMap, el, dLen);
+      deleteChars(el, dLen, function() {
+        injectLangModal(variantsMap, el, 0);
+      });
       return;
     }
   }

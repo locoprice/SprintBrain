@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.26.0 — Lang modal fires from both checkBuf and trigger picker
+// SPRINTBRAIN POPUP v2.27.0 — Fix trigger text leftover after lang modal selection
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,11 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.27.0', date:'2026-05-08', label:'Fix: clean lang modal insertion + deduplicated picker',
+    items:[
+      {type:'fix', text:'Trigger chars (e.g. ::goodnight) are now deleted before the language modal appears, so the chosen translation inserts cleanly without leftover text'},
+      {type:'fix', text:'Trigger picker now shows one entry per language group instead of listing every variant (EN/ES/IT/FR) separately — selecting it opens the language modal'}
+    ]},
   { version:'v2.26.0', date:'2026-05-08', label:'Fix: lang modal now fires from trigger picker',
     changes:[
       {type:'fix', text:'The language picker modal was only wired into checkBuf() (direct full-trigger match) but NOT into selectTriggerItem() (the inline trigger picker that appears when typing ::goo…). Since most users select snippets from the picker, the modal never appeared. Now both paths share _findLangVariants() and show the modal when siblings exist.'},
