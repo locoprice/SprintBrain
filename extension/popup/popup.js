@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.24.0 — Language picker modal for multi-language snippets
+// SPRINTBRAIN POPUP v2.25.0 — Shortcut-base heuristic for multi-language detection
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,10 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.25.0', date:'2026-05-08', label:'Fix: multi-language modal now fires for all snippets',
+    changes:[
+      {type:'fix', text:'Modal was never triggered because all snippets have lang_group_id=null in Supabase. Added a shortcut-base heuristic as fallback: strips the trailing language suffix (EN/ES/IT/FR/MULTI) from the shortcut and groups snippets that share the same base (e.g. /quoteEN + /quoteES + /quoteIT → modal with 3 buttons). Explicit lang_group_id is still tried first for forward compatibility.'}
+    ]},
   { version:'v2.24.0', date:'2026-05-08', label:'Language picker modal for multi-language snippets',
     changes:[
       {type:'feat', text:'When typing a trigger that matches a snippet with multiple language variants, a modal now appears letting the user pick the target language (EN/IT/ES/FR) before inserting. Each button shows the country flag and language name. Escape or backdrop click cancels without insertion.'}
