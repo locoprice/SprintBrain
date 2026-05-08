@@ -457,6 +457,8 @@ html,body{
   z-index:calc(var(--sb-z-context-menu) + 1);padding:4px 0;
 }
 .ctx-item:hover .ctx-sub{display:block}
+/* Flip submenu to the left when the parent menu is anchored near the popup's right edge */
+.ctx-menu.flip-sub .ctx-sub{left:auto;right:100%}
 .ctx-sub-item{
   display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;
   font-size:var(--sb-fs-13);color:var(--sb-ink);transition:background 100ms;
@@ -927,7 +929,6 @@ html,body{
   <div class="ctx-item" id="ctx-pin" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span><span id="ctx-pin-label">Pin to top</span></div>
   <div class="ctx-sep" role="separator"></div>
   <div class="ctx-item" id="ctx-copy" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Copy content</div>
-  <div class="ctx-item" id="ctx-share" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>Share snippet</div>
   <div class="ctx-sep" role="separator"></div>
   <div class="ctx-item danger" id="ctx-delete" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>Delete snippet...</div>
 </div>
@@ -953,7 +954,7 @@ html,body{
 <!-- ═══ VERSION BAR ═══ -->
 <div class="ver-bar">
   <button class="ver-btn" id="ver-btn"></button>
-  <span class="dt">2026-05-07</span>
+  <span class="dt">2026-05-08</span>
 </div>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->

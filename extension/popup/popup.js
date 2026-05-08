@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.23.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
+// SPRINTBRAIN POPUP v2.23.2 — Submenu flips left when parent is near popup edge
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,16 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.23.2', date:'2026-05-08', label:'Submenu flips left near popup edge',
+    changes:[
+      {type:'fix', text:'"Move to folder" submenu no longer hides past the popup right edge — when the parent menu is anchored near the right side, the submenu flips to the left (reported by Alessandro after the v2.23.1 patch)'}
+    ]},
+  { version:'v2.23.1', date:'2026-05-08', label:'Popup context-menu polish',
+    changes:[
+      {type:'fix', text:'"More actions" dropdown no longer clips behind the popup edge — menu measures itself off-screen, then clamps inside the viewport with a 4px safe margin (reported by Alessandro)'},
+      {type:'fix', text:'Empty-area context menu now uses the same boundary-aware clamping logic'},
+      {type:'fix', text:'Removed "Share snippet" entry from the snippet context menu — handler and menu item both gone'}
+    ]},
   { version:'v2.23.0', date:'2026-05-08', label:'Strict colon-prefix trigger',
     changes:[
       {type:'fix', text:'Removed implicit bare-keyword matching — snippets now fire ONLY when the user types the configured "::" prefix (reported by Valentina, false positives in normal prose)'},
@@ -1196,9 +1206,24 @@ function showCtxMenu(x,y){
   // Update pin label
   var pinLbl=gi('ctx-pin-label'); var pinSnip=findSnip(ctxId);
   if(pinLbl&&pinSnip) pinLbl.textContent=pinSnip.pinned?'Unpin':'Pin to top';
-  var m=gi('ctx-menu'); m.style.left=x+'px'; m.style.top=y+'px'; m.className='ctx-menu on';
+  var m=gi('ctx-menu'); if(!m) return;
+  // Hide off-screen first to measure final size, then clamp inside the popup viewport.
+  m.style.left='-9999px'; m.style.top='-9999px'; m.className='ctx-menu on';
   setTimeout(function(){
-    var r=m.getBoundingClientRect(); if(r.right>window.innerWidth) m.style.left=(x-r.width)+'px'; if(r.bottom>window.innerHeight) m.style.top=(y-r.height)+'px';
+    var r=m.getBoundingClientRect();
+    var vw=document.documentElement.clientWidth||window.innerWidth;
+    var vh=document.documentElement.clientHeight||window.innerHeight;
+    var finalX=Math.max(4,Math.min(x,vw-r.width-4));
+    var finalY=Math.max(4,Math.min(y,vh-r.height-4));
+    m.style.left=finalX+'px';
+    m.style.top=finalY+'px';
+    // Decide whether the "Move to folder" submenu should flip to the left side.
+    // .ctx-sub has min-width:200px; if it can't fit to the right of the parent menu,
+    // toggle the flip-sub class which switches the submenu to right:100%.
+    var subEl=m.querySelector('.ctx-sub');
+    var subW=(subEl&&subEl.getBoundingClientRect().width)||200;
+    var fitsRight=(finalX+r.width+subW+4)<=vw;
+    if(fitsRight) m.classList.remove('flip-sub'); else m.classList.add('flip-sub');
     // Focus first menu item for keyboard navigation
     var first=m.querySelector('.ctx-item'); if(first) first.focus();
   },0);
@@ -1255,8 +1280,16 @@ function closeFolderCtxMenu(){ var m=gi('fctx-menu'); if(m) m.className='ctx-men
 function showEmptyCtxMenu(x,y){
   closeCtxMenu();
   var m=gi('ectx-menu'); if(!m) return;
-  m.style.left=x+'px'; m.style.top=y+'px'; m.className='ctx-menu on';
-  setTimeout(function(){ var r=m.getBoundingClientRect(); if(r.right>window.innerWidth) m.style.left=(x-r.width)+'px'; if(r.bottom>window.innerHeight) m.style.top=(y-r.height)+'px'; },0);
+  m.style.left='-9999px'; m.style.top='-9999px'; m.className='ctx-menu on';
+  setTimeout(function(){
+    var r=m.getBoundingClientRect();
+    var vw=document.documentElement.clientWidth||window.innerWidth;
+    var vh=document.documentElement.clientHeight||window.innerHeight;
+    var finalX=Math.max(4,Math.min(x,vw-r.width-4));
+    var finalY=Math.max(4,Math.min(y,vh-r.height-4));
+    m.style.left=finalX+'px';
+    m.style.top=finalY+'px';
+  },0);
 }
 function closeEmptyCtxMenu(){ var m=gi('ectx-menu'); if(m) m.className='ctx-menu'; }
 
@@ -1323,15 +1356,6 @@ var ctxCopy=gi('ctx-copy'); if(ctxCopy) ctxCopy.addEventListener('click',functio
   closeCtxMenu();
   // Flash feedback on snippet name
   var nm=gi('iname-'+s.id); if(nm){ var orig=nm.textContent; nm.textContent='\u2713 Content copied!'; setTimeout(function(){ nm.textContent=orig; },1400); }
-});
-
-// Share snippet (serialized JSON to clipboard)
-var ctxShare=gi('ctx-share'); if(ctxShare) ctxShare.addEventListener('click',function(){
-  var s=findSnip(ctxId); if(!s) return;
-  var payload={title:s.title,shortcut:s.shortcut||'',body:s.body||'',lang:s.lang||'EN',folder:s.folder||'',fieldCfg:s.fieldCfg||{}};
-  try{ navigator.clipboard.writeText(JSON.stringify(payload,null,2)); }catch(e2){}
-  closeCtxMenu();
-  var nm=gi('iname-'+s.id); if(nm){ var orig=nm.textContent; nm.textContent='\u2713 Snippet shared!'; setTimeout(function(){ nm.textContent=orig; },1400); }
 });
 
 function startInlineRename(id){
