@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.23.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.23.2 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
@@ -452,20 +452,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.23.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.23.2] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.23.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.23.2] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.23.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.23.2] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -521,10 +521,10 @@ function checkBuf() {
   var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ');
   if (sanitized !== buf) buf = sanitized;
 
-  // Snippet matching contract (v2.23.0):
+  // Snippet matching contract (v2.23.2):
   //   Every snippet expansion REQUIRES the user to type the configured
   //   snippet trigger (default "::") immediately before the shortcut.
-  //   Bare-keyword (implicit) matching was removed in v2.23.0 — typing a
+  //   Bare-keyword (implicit) matching was removed in v2.23.2 — typing a
   //   shortcut as part of normal prose ("the price is...") MUST NOT fire.
   //   Two storage shapes are tolerated:
   //
@@ -1534,7 +1534,6 @@ function _showPickerCtxMenu(anchor, item) {
     {id:'pin', label: item.pinned ? 'Unpin' : 'Pin to top', icon:'\uD83D\uDCCC'},
     {id:'sep'},
     {id:'copy', label:'Copy content', icon:'\uD83D\uDCCB'},
-    {id:'share', label:'Share snippet', icon:'\uD83D\uDD17'},
     {id:'sep'},
     {id:'delete', label:'Delete', icon:'\uD83D\uDDD1', danger:true}
   ];
@@ -1587,9 +1586,6 @@ function _closePickerCtxMenu() {
 function _handlePickerAction(action, item) {
   if (action === 'copy') {
     try { navigator.clipboard.writeText(item.body || ''); } catch(e) {}
-  } else if (action === 'share') {
-    var payload = {title:item.title, shortcut:item.shortcut||'', body:item.body||'', lang:item.lang||'EN'};
-    try { navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); } catch(e) {}
   } else if (action === 'pin') {
     item.pinned = !item.pinned;
     // Persist to local (snippets > 8KB exceed sync per-item limit)
