@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.22.1 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
+// SPRINTBRAIN POPUP v2.23.0 — Dashboard SSO + email-OTP fallback (AUTH-EXT-002)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,11 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.23.0', date:'2026-05-08', label:'Strict colon-prefix trigger',
+    changes:[
+      {type:'fix', text:'Removed implicit bare-keyword matching — snippets now fire ONLY when the user types the configured "::" prefix (reported by Valentina, false positives in normal prose)'},
+      {type:'fix', text:'Typing a shortcut as part of a sentence ("the price is...") no longer expands. The "::" trigger is mandatory for every snippet, regardless of how it was stored'}
+    ]},
   { version:'v2.22.1', date:'2026-05-07', label:'Gmail false-positive fix',
     changes:[
       {type:'fix', text:'Implicit word-boundary trigger no longer fires on the lone keyword at buffer start (typing "time" in fresh Gmail compose was firing /time)'},

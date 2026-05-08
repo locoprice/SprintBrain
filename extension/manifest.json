@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sprintbrain",
-  "version": "2.22.1",
+  "version": "2.23.0",
   "description": "Type ::quoteEN in any text field — configurable dual triggers for snippets and prompts.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq1wgvxztXiXixAUPxPtXISoEAZodPiMzT31H6pAj8nkXSxA69O+LZoMnvVyuqqsE1kRuyINR0s9lcBkWNl61u/uFRGLlqvdgSaN89O0NGS3vL87B6+isdUoZsXLS3zmAqbe2p7C1PrsQKp5/vHLDxzcLWW+y24WpaPmLbP1cbMTGhcrZsM5wOVKk9PzDTtat7RSomyR3y4KqB3sVs1n99v+Hopi3rG+N4RuGPtaFkqbns7CoHJjAE2G2ySpIKGZ9v8I11HqQlbfFnVA0WgOganOz7m6iA65xOKYp9Ddp6EcMvzKqTvpHrTOWw213ADQoPx6wCraxF1e9KOxZmTf+jQIDAQAB",
   "permissions": [
