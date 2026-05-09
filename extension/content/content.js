@@ -1,5 +1,8 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.23.2 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.29.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
+// v2.29.0: lang-modal expansion fix — defer trigger deletion until after
+//          language pick (modal focus was wiping the CE selection set by
+//          deleteChars, leaving the literal ::shortcut in the field)
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -452,20 +455,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.23.2] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.29.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.23.2] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.29.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.23.2] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.29.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -521,7 +524,7 @@ function checkBuf() {
   var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ');
   if (sanitized !== buf) buf = sanitized;
 
-  // Snippet matching contract (v2.23.2):
+  // Snippet matching contract (v2.24.0):
   //   Every snippet expansion REQUIRES the user to type the configured
   //   snippet trigger (default "::") immediately before the shortcut.
   //   Bare-keyword (implicit) matching was removed in v2.23.2 — typing a
@@ -535,16 +538,35 @@ function checkBuf() {
   //
   //   In both cases the matched length is exactly what was typed, so we
   //   never delete more or fewer characters than the user produced.
+  //
+  //   Multi-language (v2.26.0): _findLangVariants() detects sibling
+  //   translations via lang_group_id (when set) or shortcut-base heuristic
+  //   (strips trailing EN/ES/IT/FR/MULTI). Applied in BOTH checkBuf() and
+  //   selectTriggerItem() so the modal fires regardless of how the user
+  //   selects the snippet.
   var snippetTrigger = (triggerCfg && triggerCfg.snippetTrigger) || '::';
   for (var i = 0; i < snippets.length; i++) {
     var sc = snippets[i].shortcut || '';
     if (!sc) continue;
     var expected = sc.indexOf(snippetTrigger) === 0 ? sc : snippetTrigger + sc;
-    if (expected.length <= buf.length && buf.slice(-expected.length) === expected) {
+    if (expected.length <= buf.length && buf.slice(-expected.length).toLowerCase() === expected.toLowerCase()) {
       buf = '';
       triggerPending = false; triggerPendingMode = null; triggerAffix = '';
       if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-      handleMatch(activeEl, snippets[i], expected.length);
+      var matched = snippets[i];
+      var variantsMap = _findLangVariants(matched);
+      if (Object.keys(variantsMap).length > 1) {
+        // Do NOT pre-delete the trigger here. For contenteditable hosts,
+        // deleteChars only SETS a non-collapsed selection (it relies on the
+        // immediate next insertText to consume it). Opening the modal steals
+        // focus and destroys that selection — so the trigger text survives.
+        // Instead, defer deletion to handleMatch (called when the user picks
+        // a language) where deleteChars + insertText fire atomically.
+        processing = true;
+        injectLangModal(variantsMap, activeEl, expected.length);
+      } else {
+        handleMatch(activeEl, matched, expected.length);
+      }
       return;
     }
   }
@@ -601,6 +623,128 @@ function checkBuf() {
     }
     return;
   }
+}
+
+// ── LANGUAGE VARIANT DETECTION ───────────────────────────────────────
+var LANG_FLAGS = { EN: '🇬🇧', IT: '🇮🇹', ES: '🇪🇸', FR: '🇫🇷', MULTI: '🌐' };
+var LANG_NAMES = { EN: 'English', IT: 'Italiano', ES: 'Español', FR: 'Français', MULTI: 'Multi' };
+var LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
+
+function _findLangVariants(item) {
+  var map = {};
+  if (item.lang_group_id) {
+    var rawGid = item.lang_group_id;
+    for (var i = 0; i < snippets.length; i++) {
+      if (snippets[i].lang_group_id === rawGid &&
+          snippets[i].body && snippets[i].body.trim()) {
+        map[snippets[i].lang] = snippets[i];
+      }
+    }
+  }
+  if (Object.keys(map).length <= 1) {
+    map = {};
+    var base = (item.shortcut || '').replace(LANG_SUFFIX_RE, '');
+    for (var j = 0; j < snippets.length; j++) {
+      var cb = (snippets[j].shortcut || '').replace(LANG_SUFFIX_RE, '');
+      if (cb === base && snippets[j].body && snippets[j].body.trim()) {
+        map[snippets[j].lang] = snippets[j];
+      }
+    }
+  }
+  return map;
+}
+
+// ── LANGUAGE PICKER MODAL (Shadow DOM) ──────────────────────────────
+
+function injectLangModal(variantsMap, el, scLen) {
+  var host = document.createElement('div');
+  host.id = 'sb-lang-modal-host';
+  host.style.cssText =
+    'position:fixed;inset:0;z-index:2147483647;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'background:rgba(0,0,0,0.45);font-family:sans-serif;';
+  var shadow = host.attachShadow({ mode: 'closed' });
+
+  var style = document.createElement('style');
+  style.textContent =
+    '.sb-modal{background:#fff;border-radius:12px;padding:28px 32px;width:400px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:16px;}' +
+    '.sb-modal h2{margin:0;font-size:16px;font-weight:600;color:#1a1a1a;letter-spacing:-0.2px;}' +
+    '.sb-modal p.sb-sub{margin:-8px 0 0;font-size:13px;color:#666;}' +
+    '.sb-lang-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;}' +
+    '.sb-lang-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 18px;border-radius:10px;border:1.5px solid #e0e0e0;background:#fafafa;cursor:pointer;font-size:13px;font-weight:500;color:#333;transition:border-color 0.15s,background 0.15s;min-width:80px;flex:1;}' +
+    '.sb-lang-btn:hover{border-color:#5c6bc0;background:#eef0fb;color:#5c6bc0;}' +
+    '.sb-lang-flag{font-size:26px;line-height:1;}' +
+    '.sb-cancel-row{display:flex;justify-content:flex-end;}' +
+    '.sb-btn-cancel{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#f0f0f0;color:#555;transition:opacity 0.15s;}' +
+    '.sb-btn-cancel:hover{opacity:0.75;}';
+
+  var modal = document.createElement('div');
+  modal.className = 'sb-modal';
+
+  var h2 = document.createElement('h2');
+  h2.textContent = '🌐 Available in multiple languages';
+  modal.appendChild(h2);
+
+  var sub = document.createElement('p');
+  sub.className = 'sb-sub';
+  sub.textContent = 'Choose a language to insert';
+  modal.appendChild(sub);
+
+  var grid = document.createElement('div');
+  grid.className = 'sb-lang-grid';
+
+  var langs = Object.keys(variantsMap);
+  langs.forEach(function(langCode) {
+    var btn = document.createElement('button');
+    btn.className = 'sb-lang-btn';
+    var flag = document.createElement('span');
+    flag.className = 'sb-lang-flag';
+    flag.textContent = LANG_FLAGS[langCode] || '🌐';
+    var name = document.createElement('span');
+    name.textContent = LANG_NAMES[langCode] || langCode;
+    btn.appendChild(flag);
+    btn.appendChild(name);
+    btn.addEventListener('click', function() {
+      cleanup();
+      processing = false;
+      handleMatch(el, variantsMap[langCode], scLen);
+    });
+    grid.appendChild(btn);
+  });
+  modal.appendChild(grid);
+
+  var cancelRow = document.createElement('div');
+  cancelRow.className = 'sb-cancel-row';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'sb-btn-cancel';
+  cancelBtn.textContent = 'Cancel';
+  cancelRow.appendChild(cancelBtn);
+  modal.appendChild(cancelRow);
+
+  shadow.appendChild(style);
+  shadow.appendChild(modal);
+  document.body.appendChild(host);
+
+  function cleanup() {
+    host.remove();
+    document.removeEventListener('keydown', escHandler);
+  }
+
+  function cancelFn() {
+    cleanup();
+    processing = false;
+  }
+
+  cancelBtn.addEventListener('click', cancelFn);
+  host.addEventListener('click', function(e) { if (e.target === host) cancelFn(); });
+
+  var escHandler = function(e) { if (e.key === 'Escape') cancelFn(); };
+  document.addEventListener('keydown', escHandler);
+
+  setTimeout(function() {
+    var firstBtn = grid.querySelector('.sb-lang-btn');
+    if (firstBtn) firstBtn.focus();
+  }, 50);
 }
 
 // ── DYNAMIC SNIPPET MODAL (Shadow DOM) ───────────────────────────
@@ -962,7 +1106,11 @@ function insertText(el, text) {
             try { document.execCommand('insertText', false, '\n'); } catch(e) {}
           }
         }
-        if (lines[i]) {
+        // Always emit execCommand on the first line (even when empty) so that
+        // the non-collapsed selection set by deleteChars is atomically replaced.
+        // Without this, an empty body leaves the trigger text selected in the
+        // field — producing the "outputs ::shortcut" symptom.
+        if (i === 0 || lines[i]) {
           try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
         }
       }
@@ -1458,12 +1606,33 @@ function _renderPickerItems(query) {
   if (!triggerPickerEl) return;
   var allItems = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
   var q = (query || '').toLowerCase();
-  triggerPickerFiltered = q
+  var filtered = q
     ? allItems.filter(function(s) {
         return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
                (s.shortcut || '').toLowerCase().indexOf(q) > -1;
       })
     : allItems.slice();
+
+  if (triggerPickerMode === 'snippet') {
+    var seen = {};
+    var deduped = [];
+    for (var di = 0; di < filtered.length; di++) {
+      var s = filtered[di];
+      var base = (s.shortcut || '').replace(LANG_SUFFIX_RE, '');
+      var gid  = s.lang_group_id || null;
+      var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
+      if (seen[key] !== undefined) {
+        if (!LANG_SUFFIX_RE.test(s.shortcut || '')) {
+          deduped[seen[key]] = s;
+        }
+        continue;
+      }
+      seen[key] = deduped.length;
+      deduped.push(s);
+    }
+    filtered = deduped;
+  }
+  triggerPickerFiltered = filtered;
 
   var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
   if (!itemsEl) return;
@@ -1686,6 +1855,23 @@ function selectTriggerItem(idx) {
   var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
+
+  // Multi-language detection: if the selected snippet has sibling translations,
+  // show the language picker modal instead of inserting directly. The modal
+  // re-enters through handleMatch() which handles deletion + the full insertion
+  // pipeline (placeholders, formulas, fields, urgency, celebration).
+  if (mode === 'snippet') {
+    var variantsMap = _findLangVariants(item);
+    if (Object.keys(variantsMap).length > 1) {
+      // Same fix as in checkBuf(): pass the full delete length through to
+      // handleMatch instead of pre-deleting. The CE selection set by
+      // deleteChars would be wiped when the modal grabs focus, leaving the
+      // trigger string in the field after the user picks a language.
+      processing = true;
+      injectLangModal(variantsMap, el, dLen);
+      return;
+    }
+  }
 
   function doInsert() {
     if (mode === 'snippet') {

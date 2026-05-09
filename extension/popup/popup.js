@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.23.2 — Submenu flips left when parent is near popup edge
+// SPRINTBRAIN POPUP v2.29.0 — Lang-modal trigger-text expansion fix
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,33 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.29.0', date:'2026-05-09', label:'Fix: lang-modal expansion now replaces trigger text',
+    items:[
+      {type:'fix', text:'Picking a language no longer leaves the literal ::shortcut in the field. Root cause: trigger chars were pre-deleted before opening the modal, but the contenteditable path of deleteChars only SETS a non-collapsed selection — opening the modal stole focus and wiped that selection, so the eventual insertText fell back to inserting at the cursor and the trigger survived. Fix: pass the trigger length through the modal and let handleMatch perform the delete + insert atomically after the user picks a language.'}
+    ]},
+  { version:'v2.28.0', date:'2026-05-09', label:'Fix: case-insensitive shortcut match + empty-body CE expansion',
+    items:[
+      {type:'fix', text:'::Time (or any mixed-case variant) now directly expands ::time without requiring the picker — shortcut comparison is now case-insensitive'},
+      {type:'fix', text:'Typing a shortcut whose snippet has an empty body no longer leaves the trigger text selected in the field (contenteditable fix: execCommand is now always fired on the first line so the non-collapsed selection is atomically cleared)'}
+    ]},
+  { version:'v2.27.0', date:'2026-05-08', label:'Fix: clean lang modal insertion + deduplicated picker',
+    items:[
+      {type:'fix', text:'Trigger chars (e.g. ::goodnight) are now deleted before the language modal appears, so the chosen translation inserts cleanly without leftover text'},
+      {type:'fix', text:'Trigger picker now shows one entry per language group instead of listing every variant (EN/ES/IT/FR) separately — selecting it opens the language modal'}
+    ]},
+  { version:'v2.26.0', date:'2026-05-08', label:'Fix: lang modal now fires from trigger picker',
+    changes:[
+      {type:'fix', text:'The language picker modal was only wired into checkBuf() (direct full-trigger match) but NOT into selectTriggerItem() (the inline trigger picker that appears when typing ::goo…). Since most users select snippets from the picker, the modal never appeared. Now both paths share _findLangVariants() and show the modal when siblings exist.'},
+      {type:'refactor', text:'Extracted _findLangVariants(item) as a shared helper — dual-pass detection (lang_group_id first, shortcut-base heuristic second) used by both checkBuf() and selectTriggerItem().'}
+    ]},
+  { version:'v2.25.0', date:'2026-05-08', label:'Fix: multi-language modal now fires for all snippets',
+    changes:[
+      {type:'fix', text:'Modal was never triggered because all snippets have lang_group_id=null in Supabase. Added a shortcut-base heuristic as fallback: strips the trailing language suffix (EN/ES/IT/FR/MULTI) from the shortcut and groups snippets that share the same base (e.g. /quoteEN + /quoteES + /quoteIT → modal with 3 buttons). Explicit lang_group_id is still tried first for forward compatibility.'}
+    ]},
+  { version:'v2.24.0', date:'2026-05-08', label:'Language picker modal for multi-language snippets',
+    changes:[
+      {type:'feat', text:'When typing a trigger that matches a snippet with multiple language variants, a modal now appears letting the user pick the target language (EN/IT/ES/FR) before inserting. Each button shows the country flag and language name. Escape or backdrop click cancels without insertion.'}
+    ]},
   { version:'v2.23.2', date:'2026-05-08', label:'Submenu flips left near popup edge',
     changes:[
       {type:'fix', text:'"Move to folder" submenu no longer hides past the popup right edge — when the parent menu is anchored near the right side, the submenu flips to the left (reported by Alessandro after the v2.23.1 patch)'}
