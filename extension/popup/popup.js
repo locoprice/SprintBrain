@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.27.0 — Fix trigger text leftover after lang modal selection
+// SPRINTBRAIN POPUP v2.28.0 — Case-insensitive shortcut match + empty-body CE fix
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -339,6 +339,11 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.28.0', date:'2026-05-09', label:'Fix: case-insensitive shortcut match + empty-body CE expansion',
+    items:[
+      {type:'fix', text:'::Time (or any mixed-case variant) now directly expands ::time without requiring the picker — shortcut comparison is now case-insensitive'},
+      {type:'fix', text:'Typing a shortcut whose snippet has an empty body no longer leaves the trigger text selected in the field (contenteditable fix: execCommand is now always fired on the first line so the non-collapsed selection is atomically cleared)'}
+    ]},
   { version:'v2.27.0', date:'2026-05-08', label:'Fix: clean lang modal insertion + deduplicated picker',
     items:[
       {type:'fix', text:'Trigger chars (e.g. ::goodnight) are now deleted before the language modal appears, so the chosen translation inserts cleanly without leftover text'},

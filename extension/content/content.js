@@ -1,6 +1,6 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.27.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.28.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
-// v2.27.0: delete trigger chars before showing lang modal (fixes leftover text)
+// v2.28.0: case-insensitive shortcut matching + empty-body CE selection fix
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -453,20 +453,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.26.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.28.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.26.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.28.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.26.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.28.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -547,7 +547,7 @@ function checkBuf() {
     var sc = snippets[i].shortcut || '';
     if (!sc) continue;
     var expected = sc.indexOf(snippetTrigger) === 0 ? sc : snippetTrigger + sc;
-    if (expected.length <= buf.length && buf.slice(-expected.length) === expected) {
+    if (expected.length <= buf.length && buf.slice(-expected.length).toLowerCase() === expected.toLowerCase()) {
       buf = '';
       triggerPending = false; triggerPendingMode = null; triggerAffix = '';
       if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
@@ -1100,7 +1100,11 @@ function insertText(el, text) {
             try { document.execCommand('insertText', false, '\n'); } catch(e) {}
           }
         }
-        if (lines[i]) {
+        // Always emit execCommand on the first line (even when empty) so that
+        // the non-collapsed selection set by deleteChars is atomically replaced.
+        // Without this, an empty body leaves the trigger text selected in the
+        // field — producing the "outputs ::shortcut" symptom.
+        if (i === 0 || lines[i]) {
           try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
         }
       }
