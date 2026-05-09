@@ -508,6 +508,13 @@ html,body{
 .cl-b.fix{background:var(--sb-warn-bg);color:var(--sb-warn);border:1px solid var(--sb-warn-bdr)}
 .ver-btn{cursor:pointer;font-family:var(--sb-mono);font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:none;border:none;padding:0;transition:color 120ms}
 .ver-btn:hover{color:var(--sb-iris)}
+.cl-footer{
+  flex-shrink:0;border-top:1px solid var(--sb-line);padding:10px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono);
+  background:var(--sb-bg-alt);
+}
+.cl-footer strong{color:var(--sb-iris);font-weight:700}
 
 /* ── URGENCY TIMER ── */
 .urg-cfg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px;margin-top:4px}
@@ -983,6 +990,7 @@ html,body{
       <button class="cl-x" id="cl-x"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="cl-scroll" id="cl-scroll"></div>
+    <div class="cl-footer" id="cl-footer"></div>
   </div>
 </div>
 

@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.30.0 — Push-to-Sync team snippet sharing ──
+// ── SPRINTBRAIN BACKGROUND v2.31.0 — Changelog modal: missing entry + key fix + footer ──
 importScripts('../auth/auth.js');
 importScripts('../services/notion-sync/notion-sync.js');
 

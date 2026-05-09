@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.30.0 — Push-to-Sync team snippet sharing
+// SPRINTBRAIN POPUP v2.31.0 — Changelog modal: v2.30 entry + items/changes fix + footer
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -358,6 +358,19 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.31.0', date:'2026-05-09', label:'Changelog modal: missing entry + key fix + footer',
+    changes:[
+      {type:'fix', text:'v2.30.0 entry was missing from CHANGELOG — modal appeared empty when opened on the latest build'},
+      {type:'fix', text:'Renderer now reads rel.changes || rel.items so entries written with either key display correctly (v2.27–v2.29 were silently blank)'},
+      {type:'new', text:'Changelog modal footer shows "Ver. [latest] Last Update: [date]" for at-a-glance version info'}
+    ]},
+  { version:'v2.30.0', date:'2026-05-09', label:'Push-to-Sync team snippet sharing',
+    changes:[
+      {type:'new', text:'Team Sync section in Settings — "Sincronizza Snippet con il Team" button promotes private snippets to team-visible status on demand'},
+      {type:'new', text:'DB: is_shared column added to snippets; RLS policy extended to expose shared snippets to all authenticated team members'},
+      {type:'new', text:'Extension loadData() now fetches both private (user_id match) and shared snippets in a single OR-filtered query'},
+      {type:'new', text:'Last sync timestamp persisted to chrome.storage.local and displayed in the Team Sync panel'}
+    ]},
   { version:'v2.29.0', date:'2026-05-09', label:'Fix: lang-modal expansion now replaces trigger text',
     items:[
       {type:'fix', text:'Picking a language no longer leaves the literal ::shortcut in the field. Root cause: trigger chars were pre-deleted before opening the modal, but the contenteditable path of deleteChars only SETS a non-collapsed selection — opening the modal stole focus and wiped that selection, so the eventual insertText fell back to inserting at the cursor and the trigger survived. Fix: pass the trigger length through the modal and let handleMatch perform the delete + insert atomically after the user picks a language.'}
@@ -507,12 +520,15 @@ function openChangelog() {
       + '<span class="cl-rl">'+esc(rel.label)+'</span>'
       + '<span class="cl-rd">'+rel.date+'</span>'
       + '</div><div class="cl-cs">';
-    rel.changes.forEach(function(c) {
+    (rel.changes || rel.items || []).forEach(function(c) {
       h += '<div class="cl-c"><span class="cl-b '+c.type+'">'+c.type+'</span><span>'+esc(c.text)+'</span></div>';
     });
     h += '</div></div>';
   });
   body.innerHTML = h;
+  var latest = CHANGELOG[0];
+  var ft = gi('cl-footer');
+  if (ft) ft.innerHTML = '<span>Ver. <strong>'+esc(latest.version)+'</strong></span><span>Last Update: <strong>'+esc(latest.date)+'</strong></span>';
   gi('cl-bg').className = 'cl-bg on';
 }
 
