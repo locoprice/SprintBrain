@@ -34,6 +34,7 @@ export interface Snippet {
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
   language: 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
+  is_shared: boolean;
   updated_at: IsoDateTime;
 }
 

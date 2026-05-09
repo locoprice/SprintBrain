@@ -18,6 +18,8 @@ export interface SettingsApi {
   getProfile(): Promise<Profile>;
   updateProfile(patch: { display_name?: string; shortcut_prefix?: Prefix }): Promise<Profile>;
   getNotionSync(): Promise<NotionSyncState>;
+  getLastSyncedAt(): Promise<string | null>;
+  markSynced(): Promise<string>;
 }
 
 function pickDisplayName(
@@ -103,5 +105,24 @@ export const settingsApi: SettingsApi = {
       status: data.error ? 'error' : 'idle',
       last_error: data.error,
     };
+  },
+
+  async getLastSyncedAt() {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!data.user) return null;
+    const v = data.user.user_metadata?.['snippet_sync_at'];
+    return typeof v === 'string' ? v : null;
+  },
+
+  async markSynced() {
+    const { data: cur, error: getErr } = await supabase.auth.getUser();
+    if (getErr) throw getErr;
+    if (!cur.user) throw new Error('Not authenticated');
+    const ts = new Date().toISOString();
+    const next = { ...(cur.user.user_metadata ?? {}), snippet_sync_at: ts };
+    const { error } = await supabase.auth.updateUser({ data: next });
+    if (error) throw error;
+    return ts;
   },
 };

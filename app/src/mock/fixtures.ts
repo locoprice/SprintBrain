@@ -79,6 +79,7 @@ export const mockSnippets: Snippet[] = [
     variables: { rate: 150 },
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-2),
   },
   {
@@ -93,6 +94,7 @@ export const mockSnippets: Snippet[] = [
     variables: { tariffa: 150 },
     folder_id: '22222222-0000-4000-8000-000000000002',
     language: 'IT',
+    is_shared: false,
     updated_at: day(-1),
   },
   {
@@ -107,6 +109,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-3),
   },
   {
@@ -121,6 +124,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000003',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-12),
   },
   {
@@ -135,6 +139,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-7),
   },
   {
@@ -149,6 +154,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-4),
   },
   {
@@ -163,6 +169,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-15),
   },
   {
@@ -177,6 +184,7 @@ export const mockSnippets: Snippet[] = [
     variables: { discount: 10 },
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-1),
   },
   {
@@ -191,6 +199,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000003',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-2),
   },
   {
@@ -205,6 +214,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-6),
   },
   {
@@ -219,6 +229,7 @@ export const mockSnippets: Snippet[] = [
     variables: { tariffa: 180 },
     folder_id: '22222222-0000-4000-8000-000000000002',
     language: 'IT',
+    is_shared: false,
     updated_at: day(-9),
   },
   {
@@ -233,6 +244,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-20),
   },
   {
@@ -247,6 +259,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000004',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-90),
   },
   {
@@ -261,6 +274,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'EN',
+    is_shared: false,
     updated_at: day(-5),
   },
   {
@@ -275,6 +289,7 @@ export const mockSnippets: Snippet[] = [
     variables: { tarifa: 150 },
     folder_id: '22222222-0000-4000-8000-000000000001',
     language: 'ES',
+    is_shared: false,
     updated_at: day(-8),
   },
   {
@@ -289,6 +304,7 @@ export const mockSnippets: Snippet[] = [
     variables: {},
     folder_id: '22222222-0000-4000-8000-000000000003',
     language: 'IT',
+    is_shared: false,
     updated_at: day(-30),
   },
 ];

@@ -20,6 +20,7 @@ export interface SnippetsApi {
   createFolder(payload: FolderFormValues): Promise<Folder>;
   updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
   deleteFolder(id: string): Promise<void>;
+  syncSnippets(): Promise<void>;
 }
 
 type DbFolder = {
@@ -44,6 +45,7 @@ type DbSnippetJoined = {
   field_cfg: Record<string, unknown> | null;
   sort_order: number;
   updated_at: string;
+  is_shared: boolean;
   folders: { name: string } | null;
   snippet_stats: Array<{ uses: number | null }> | null;
 };
@@ -87,6 +89,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
     language: normalizeLang(row.lang),
+    is_shared: row.is_shared ?? false,
     updated_at: row.updated_at,
     folder_name: row.folders?.name ?? null,
     usage_count: usage,
@@ -101,7 +104,7 @@ async function currentUserId(): Promise<string> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, folders(name), snippet_stats(uses)';
 
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
@@ -232,6 +235,17 @@ export const snippetsApi: SnippetsApi = {
       .from('folders')
       .delete()
       .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  // Idempotent: marks ALL snippets owned by the current user as shared.
+  // Calling this multiple times is safe — already-shared snippets are no-ops.
+  async syncSnippets() {
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('snippets')
+      .update({ is_shared: true })
       .eq('user_id', userId);
     if (error) throw error;
   },
