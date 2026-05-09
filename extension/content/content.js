@@ -1,6 +1,8 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.28.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.29.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
-// v2.28.0: case-insensitive shortcut matching + empty-body CE selection fix
+// v2.29.0: lang-modal expansion fix — defer trigger deletion until after
+//          language pick (modal focus was wiping the CE selection set by
+//          deleteChars, leaving the literal ::shortcut in the field)
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -453,20 +455,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.28.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.29.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.28.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.29.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.28.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.29.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -554,10 +556,14 @@ function checkBuf() {
       var matched = snippets[i];
       var variantsMap = _findLangVariants(matched);
       if (Object.keys(variantsMap).length > 1) {
+        // Do NOT pre-delete the trigger here. For contenteditable hosts,
+        // deleteChars only SETS a non-collapsed selection (it relies on the
+        // immediate next insertText to consume it). Opening the modal steals
+        // focus and destroys that selection — so the trigger text survives.
+        // Instead, defer deletion to handleMatch (called when the user picks
+        // a language) where deleteChars + insertText fire atomically.
         processing = true;
-        deleteChars(activeEl, expected.length, function() {
-          injectLangModal(variantsMap, activeEl, 0);
-        });
+        injectLangModal(variantsMap, activeEl, expected.length);
       } else {
         handleMatch(activeEl, matched, expected.length);
       }
@@ -1857,10 +1863,12 @@ function selectTriggerItem(idx) {
   if (mode === 'snippet') {
     var variantsMap = _findLangVariants(item);
     if (Object.keys(variantsMap).length > 1) {
+      // Same fix as in checkBuf(): pass the full delete length through to
+      // handleMatch instead of pre-deleting. The CE selection set by
+      // deleteChars would be wiped when the modal grabs focus, leaving the
+      // trigger string in the field after the user picks a language.
       processing = true;
-      deleteChars(el, dLen, function() {
-        injectLangModal(variantsMap, el, 0);
-      });
+      injectLangModal(variantsMap, el, dLen);
       return;
     }
   }
