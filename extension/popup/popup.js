@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.33.0 — Feat: per-snippet "Condividi con il Team" toggle + Edge Function Notion push
+// SPRINTBRAIN POPUP v2.33.0 — Feat: per-snippet "Share with Team" toggle + Edge Function Notion push
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -1133,8 +1133,8 @@ function _updateShareSub(isShared) {
   var sub = gi('eshare-sub');
   if (!sub) return;
   sub.textContent = isShared
-    ? 'Condiviso con il team — visibile su Notion'
-    : 'Visibile ai colleghi via Notion';
+    ? 'Shared with team — visible on Notion'
+    : 'Visible to teammates via Notion';
 }
 
 function buildFolderOpts(current){

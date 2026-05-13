@@ -153,8 +153,8 @@ export function SnippetsTable() {
                       }
                       title={
                         row.is_shared
-                          ? 'Condiviso con il team — clicca per rimuovere'
-                          : 'Condividi con il team via Notion'
+                          ? 'Shared with team — click to unshare'
+                          : 'Share with team via Notion'
                       }
                       className={
                         'inline-flex h-8 w-8 items-center justify-center rounded-[8px] transition-colors ' +
