@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccountPanel } from '@/features/settings/AccountPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
-import { TeamSyncPanel } from '@/features/settings/TeamSyncPanel';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 export function SettingsPage() {
@@ -28,7 +27,6 @@ export function SettingsPage() {
         <TabsList>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="notion">Notion sync</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
@@ -37,9 +35,6 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="notion">
           <NotionSyncPanel />
-        </TabsContent>
-        <TabsContent value="team">
-          <TeamSyncPanel />
         </TabsContent>
         <TabsContent value="integrations">
           <IntegrationsPanel />

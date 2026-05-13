@@ -22,7 +22,6 @@ export interface SnippetsApi {
   createFolder(payload: FolderFormValues): Promise<Folder>;
   updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
   deleteFolder(id: string): Promise<void>;
-  syncSnippets(): Promise<void>;
   /** Mark a snippet shared/unshared without touching Notion. */
   setShared(id: string, isShared: boolean): Promise<SnippetRow>;
   /** Push snippet to the team Notion DB via Edge Function, sets is_shared=true. */
@@ -243,17 +242,6 @@ export const snippetsApi: SnippetsApi = {
       .from('folders')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId);
-    if (error) throw error;
-  },
-
-  // Idempotent: marks ALL snippets owned by the current user as shared.
-  // Calling this multiple times is safe — already-shared snippets are no-ops.
-  async syncSnippets() {
-    const userId = await currentUserId();
-    const { error } = await supabase
-      .from('snippets')
-      .update({ is_shared: true })
       .eq('user_id', userId);
     if (error) throw error;
   },

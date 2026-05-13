@@ -142,21 +142,6 @@ var DB = {
       snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
     }).catch(function(e) { console.warn('updateStats:', e); });
   },
-  // Idempotent: marks all snippets owned by the current user as shared.
-  syncTeam: function() {
-    if (!SB_CURRENT_USER_ID) return Promise.reject(new Error('not_authed'));
-    return supaFetch(
-      'snippets', 'PATCH',
-      { is_shared: true },
-      'user_id=eq.' + SB_CURRENT_USER_ID
-    ).then(function(r) {
-      if (!r.ok) throw new Error('sync_failed_http_' + r.status);
-      var ts = new Date().toISOString();
-      chrome.storage.local.set({ sb_last_team_sync: ts });
-      return ts;
-    });
-  },
-
   // Flip is_shared for a single snippet (used for unsharing).
   setShared: function(snippetId, isShared) {
     if (!SB_CURRENT_USER_ID) return Promise.reject(new Error('not_authed'));
@@ -1567,52 +1552,7 @@ var icoPicker=document.getElementById('ico-picker'); if(icoPicker) icoPicker.add
 });
 
 // SETTINGS
-function loadLastTeamSync() {
-  chrome.storage.local.get('sb_last_team_sync', function(d) {
-    var tsEl = gi('team-sync-ts');
-    var stEl = gi('team-sync-st');
-    if (!tsEl) return;
-    var ts = d && d.sb_last_team_sync;
-    if (ts) {
-      try {
-        var fmt = new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ts));
-        tsEl.textContent = 'Ultimo sync: ' + fmt;
-      } catch(e) { tsEl.textContent = 'Ultimo sync: ' + ts; }
-      if (stEl) { stEl.textContent = '✓ Sincronizzato'; stEl.style.color = 'var(--sb-ok)'; }
-    } else {
-      tsEl.textContent = 'Ultimo sync: mai';
-      if (stEl) { stEl.textContent = ''; }
-    }
-  });
-}
-
-function doTeamSync() {
-  var btn = gi('btn-team-sync');
-  var stEl = gi('team-sync-st');
-  if (!btn || btn.disabled) return;
-  btn.disabled = true;
-  btn.textContent = 'Sincronizzazione…';
-  if (stEl) { stEl.textContent = ''; }
-  DB.syncTeam().then(function(ts) {
-    var tsEl = gi('team-sync-ts');
-    if (tsEl) {
-      try {
-        var fmt = new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ts));
-        tsEl.textContent = 'Ultimo sync: ' + fmt;
-      } catch(e) { tsEl.textContent = 'Ultimo sync: ' + ts; }
-    }
-    if (stEl) { stEl.textContent = '✓ Sincronizzato'; stEl.style.color = 'var(--sb-ok)'; }
-    btn.disabled = false;
-    btn.textContent = 'Sincronizza Snippet con il Team';
-  }).catch(function(e) {
-    console.error('[SprintBrain] syncTeam:', e);
-    if (stEl) { stEl.textContent = '⚠ Errore'; stEl.style.color = 'var(--sb-danger)'; }
-    btn.disabled = false;
-    btn.textContent = 'Sincronizza Snippet con il Team';
-  });
-}
-
-function openCfg(){ pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); loadLastTeamSync(); show('pane-cfg'); }
+function openCfg(){ pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); show('pane-cfg'); }
 function syncTG(t){ document.querySelectorAll('.topt').forEach(function(el){ el.className='topt'+(el.dataset.t===t?' on':''); }); }
 function updateWarn(t){ var w=gi('wbox'); if(t==='/'){ w.innerHTML='<strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>::</strong> instead.'; w.className='warn on'; }else if(/^[a-zA-Z0-9]$/.test(t)){ w.innerHTML='Single alphanumeric triggers may cause false positives.'; w.className='warn on'; }else{ w.className='warn'; } }
 function updateInfo(t){ gi('itrig').textContent=t; gi('iex').textContent=t+'quoteEN'; }
@@ -1642,7 +1582,6 @@ on('bcfg','click',        openCfg);
 on('bbcfg','click',       function(){ show('pane-list'); refreshUI(); });
 on('bcct','click',        function(){ show('pane-list'); refreshUI(); });
 on('bappt','click',       applyTrig);
-on('btn-team-sync','click', doTeamSync);
 on('brel','click',   function(){
   var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   DB.loadAll().then(function(data){
