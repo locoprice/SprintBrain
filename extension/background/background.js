@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.31.0 — Changelog modal: missing entry + key fix + footer ──
+// ── SPRINTBRAIN BACKGROUND v2.32.0 — Fix: Notion sync no longer overwrites manually-edited snippets ──
 importScripts('../auth/auth.js');
 importScripts('../services/notion-sync/notion-sync.js');
 

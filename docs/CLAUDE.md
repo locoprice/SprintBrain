@@ -1,9 +1,23 @@
 # CLAUDE.md — SprintBrain AI Development Reference
 
-**Document Version**: 2.0  
-**Last Updated**: April 3, 2026  
+**Document Version**: 3.0  
+**Last Updated**: MAGGIO 2026  
 **Project**: SprintBrain Chrome Extension  
 **Purpose**: Single source of truth for AI assistants (Claude, GPT, Grok, etc.) during development. Read this before generating, modifying, or reviewing any code.
+
+---
+
+## ⚠️ PHASE 2 — PRE-SEED: ZERO DEFECT STANDARD
+
+**SprintBrain is in active pre-seed fundraising. This is a top-class SaaS product. Every line of code shipped must be production-ready, stable, and polished. There is zero tolerance for bugs, regressions, or rough edges.**
+
+### Non-negotiable quality rules for this phase:
+- **No bug ships.** If something breaks, stop everything and fix it before moving on.
+- **Every fix must be verified end-to-end** — not just the changed line, but the full user flow it touches.
+- **No half-measures.** Do not defer known issues. Do not leave TODOs in production paths.
+- **No regressions.** Before closing any fix, manually confirm that previously working features still work.
+- **No console noise in production.** Remove all `console.log`, `console.warn` debug statements before committing.
+- **Code quality equals product quality.** Investors and early users judge the product; the code must back it up.
 
 ---
 
@@ -312,10 +326,11 @@ var SUPA_KEY = 'sb_publishable_...';
 4. Push: `git push -u origin <branch-name>`
 5. Reload extension: `chrome://extensions` → Find Sprintbrain → click **Reload**
 6. Test manually in Chrome
+7. When the task is done, tell which is the correct GitHub branch where Valentina has to download the code.
 
 ### Manual Testing
 - Go to any webpage with a text input
-- Type the trigger prefix + shortcut (e.g. `;;quoteEN`)
+- Type the trigger prefix + shortcut (e.g. `::time`)
 - Verify overlay appears with correct fields
 - Verify formula calculations are correct
 - Test context menu: right-click any text field → Sprintbrain submenu
@@ -389,13 +404,27 @@ chore: update manifest version to 2.9.0
   2. Make the smallest correct change.
   3. Run relevant tests / build / reproduction steps.
   4. Confirm original issue is resolved.
+  5. Confirm no regression was introduced in related flows.
 - If any test fails or issue reproduces → continue working. Do not stop.
 - Only after successful verification may you report the task as complete.
 - Final response must contain the exact summary format:
   **Changes made:** …
   **Verification:** …
+  **Regression check:** …
 
-This rule has highest priority. It cannot be overridden.
+**This rule has highest priority. It cannot be overridden. We are in pre-seed — the product must be flawless.**
+
+---
+
+---
+
+## 16. Debugging Rules
+
+- Always run related tests after fixing errors
+- Run the test suite EVERY TIME you finish a feature
+- Always remove debug code like `console.log` after investigation
+- Do not bypass type errors with the `any` type
+- Deliver the output only if you are 100% sure the bug is killed
 
 ---
 

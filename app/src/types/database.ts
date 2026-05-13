@@ -35,6 +35,7 @@ export interface Snippet {
   folder_id: Uuid | null;
   language: 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
   is_shared: boolean;
+  notion_page_id: string | null;
   updated_at: IsoDateTime;
 }
 
