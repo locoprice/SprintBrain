@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.34.0 — Fix: remove three-dot hover context menu from snippet autocomplete
+// SPRINTBRAIN POPUP v2.35.0 — Fix: stop DEFAULT_SNIPPETS flash + old-snippet save race condition
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -244,9 +244,10 @@ var DEFAULT_SNIPPETS = [
    body:'Valentina P.\n[Reservations department LeibTour]'}
 ];
 
-// STATE
-var snips        = DEFAULT_SNIPPETS.slice();
-var folders      = DEFAULT_FOLDERS.slice();
+// STATE — start empty; defaults are never shown (prevents race condition where user
+// edits a DEFAULT_SNIPPET before Supabase loads and the save silently fails).
+var snips        = [];
+var folders      = [];
 var trig         = '::';
 var editId       = null;
 var pendT        = '::';
@@ -394,6 +395,13 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.35.0', date:'2026-05-14', label:'Fix: stop DEFAULT_SNIPPETS flash + old-snippet save race condition',
+    changes:[
+      {type:'fix', text:'snips and folders now initialise as empty arrays instead of DEFAULT_SNIPPETS/DEFAULT_FOLDERS — no hardcoded snippets are ever shown before Supabase data loads'},
+      {type:'fix', text:'Eliminated race condition: opening Edit on a DEFAULT_SNIPPET before DB loaded set editId to a string key (e.g. "quoteEN") that no longer existed in snips after load, causing doSave() to return silently without saving'},
+      {type:'fix', text:'doSave() now shows a visible error toast when findSnip(editId) returns null, so failures are never silent'},
+      {type:'fix', text:'Empty-DB branch now sets folders=DEFAULT_FOLDERS in memory (not just seeds to Supabase) so folder sidebar renders correctly on first-ever launch'}
+    ]},
   { version:'v2.32.0', date:'2026-05-10', label:'Fix: snippet edits persist — Notion sync respects manually_edited flag',
     changes:[
       {type:'fix', text:'Removing "!!" (or any trigger prefix) from a snippet shortcut or body now persists across popup restarts — Notion sync no longer overwrites manually-edited snippets'},
@@ -795,6 +803,7 @@ function boot() {
                   snips   = data.snippets;
                   folders = (data.folders && data.folders.length > 0) ? data.folders : DEFAULT_FOLDERS;
           } else {
+                  folders = DEFAULT_FOLDERS.slice();
                   DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
                   console.log('[SprintBrain] Empty DB — seeding folders, waiting for Notion sync');
           }
@@ -1197,7 +1206,10 @@ function doSave(){
     // editId always points to the snippet that was opened — it may be a different language
     // than the one currently active in the editor.
     var anchorSnip = findSnip(editId);
-    if (!anchorSnip) return;
+    if (!anchorSnip) {
+      showToast('Save failed — snippet not found. Please close and reopen the popup, then try again.');
+      return;
+    }
     var anchorGid = anchorSnip.lang_group_id || anchorSnip.id;
     // Find the existing variant for edLangActive within this lang group
     for(var i=0;i<snips.length;i++){
