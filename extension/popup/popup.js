@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.33.0 — Feat: per-snippet "Share with Team" toggle + Edge Function Notion push
+// SPRINTBRAIN POPUP v2.34.0 — Fix: remove three-dot hover context menu from snippet autocomplete
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
