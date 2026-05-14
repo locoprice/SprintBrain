@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.35.0 — Fix: stop DEFAULT_SNIPPETS flash + old-snippet save race condition
+// SPRINTBRAIN POPUP v2.36.0 — Fix: Notion sync dedup — one row per snippet group, multi-lang Body properties
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -395,6 +395,13 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.36.0', date:'2026-05-14', label:'Fix: Notion sync dedup — one row per snippet group, multi-lang Body properties',
+    changes:[
+      {type:'fix', text:'NotionPush now groups all language variants by lang_group_id and upserts a single Notion page per snippet — no more N rows for N languages'},
+      {type:'fix', text:'Per-language Body properties (Body EN, Body IT, Body ES, Body MULTI) replace the single Body field; Notion pull recreates all variants from these properties'},
+      {type:'fix', text:'onComplete match logic now prioritises exact snippet id before falling back to notion_page_id+lang — prevents variant cross-contamination on re-sync'},
+      {type:'fix', text:'Sync is idempotent: triggering sync multiple times on the same snippets produces no new Notion rows'}
+    ]},
   { version:'v2.35.0', date:'2026-05-14', label:'Fix: stop DEFAULT_SNIPPETS flash + old-snippet save race condition',
     changes:[
       {type:'fix', text:'snips and folders now initialise as empty arrays instead of DEFAULT_SNIPPETS/DEFAULT_FOLDERS — no hardcoded snippets are ever shown before Supabase data loads'},
@@ -654,49 +661,85 @@ function updateSyncStatus() {
   );
 }
 
-// ── NOTION PUSH — App → Notion (bidirectional sync) ───────────────
+// ── NOTION PUSH — App → Notion (bidirectional sync, upsert) ───────
 var NotionPush = {
 
-  _buildProps: function(snippet) {
+  // Collect all language variants for a snippet's lang_group_id
+  _getGroupVariants: function(snippet) {
+    var gid = snippet.lang_group_id || snippet.id;
+    var variants = snips.filter(function(s) {
+      return (s.lang_group_id || s.id) === gid;
+    });
+    return variants.length ? variants : [snippet];
+  },
+
+  // Find the Notion page id already assigned to any variant in the group
+  _getGroupPageId: function(variants) {
+    for (var i = 0; i < variants.length; i++) {
+      if (variants[i].notion_page_id) return variants[i].notion_page_id;
+    }
+    return null;
+  },
+
+  // Build Notion page properties from all variants (one row, per-lang Body fields)
+  _buildProps: function(variants) {
     var props = {};
 
-    props['Nome Snippet'] = {
-      title: [{ text: { content: snippet.title || '' } }]
-    };
-
-    props['Shortcut'] = {
-      rich_text: [{ text: { content: snippet.shortcut || '' } }]
-    };
-
-    var bodyText = (snippet.body || '').slice(0, 2000);
-    if (snippet.body && snippet.body.length > 2000) {
-      console.warn('[SprintBrain] Body truncated to 2000 chars for Notion:', snippet.title);
+    // Use EN variant as title/shortcut anchor, fall back to first
+    var anchor = variants[0];
+    for (var i = 0; i < variants.length; i++) {
+      if (variants[i].lang === 'EN') { anchor = variants[i]; break; }
     }
-    props['Body'] = {
-      rich_text: [{ text: { content: bodyText } }]
+
+    props['Nome Snippet'] = {
+      title: [{ text: { content: anchor.title || '' } }]
+    };
+    props['Shortcut'] = {
+      rich_text: [{ text: { content: anchor.shortcut || '' } }]
     };
 
-    if (snippet.folder) {
-      // Resolve folder ID → folder name for Notion select
-      var folderName = snippet.folder;
-      for (var i = 0; i < folders.length; i++) {
-        if (folders[i].id === snippet.folder) { folderName = folders[i].name; break; }
+    // Per-language body properties — one field per language variant
+    var langPropMap = { 'EN': 'Body EN', 'IT': 'Body IT', 'ES': 'Body ES', 'MULTI': 'Body MULTI' };
+    variants.forEach(function(v) {
+      var propName = langPropMap[v.lang] || ('Body ' + v.lang);
+      var bodyText = (v.body || '').slice(0, 2000);
+      if ((v.body || '').length > 2000) {
+        console.warn('[SprintBrain] Body truncated to 2000 chars for Notion:', v.title, v.lang);
+      }
+      props[propName] = { rich_text: [{ text: { content: bodyText } }] };
+    });
+
+    if (anchor.folder) {
+      var folderName = anchor.folder;
+      for (var j = 0; j < folders.length; j++) {
+        if (folders[j].id === anchor.folder) { folderName = folders[j].name; break; }
       }
       props['Categoria'] = { select: { name: folderName } };
     }
 
-    if (snippet.versione) {
+    if (anchor.versione) {
       props['Versione'] = {
-        rich_text: [{ text: { content: snippet.versione || '' } }]
+        rich_text: [{ text: { content: anchor.versione || '' } }]
       };
     }
 
     return props;
   },
 
-  create: function(snippet) {
+  // Unified push — creates or updates the single Notion page for a snippet group
+  push: function(snippet) {
     if (!notionCfg || !notionCfg.apiKey || !notionCfg.dbId) return;
+    var variants = this._getGroupVariants(snippet);
+    var pageId   = this._getGroupPageId(variants);
+    if (!pageId) {
+      this._create(variants);
+    } else {
+      this._update(pageId, variants);
+    }
+  },
 
+  _create: function(variants) {
+    var self = this;
     fetch('https://api.notion.com/v1/pages', {
       method: 'POST',
       headers: {
@@ -706,15 +749,17 @@ var NotionPush = {
       },
       body: JSON.stringify({
         parent: { database_id: notionCfg.dbId },
-        properties: this._buildProps(snippet)
+        properties: self._buildProps(variants)
       })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data && data.id) {
-        snippet.notion_page_id = data.id;
-        DB.upsertSnippet(snippet);
-        console.log('[SprintBrain] Pushed to Notion:', snippet.title, '→', data.id);
+        variants.forEach(function(v) {
+          v.notion_page_id = data.id;
+          DB.upsertSnippet(v);
+        });
+        console.log('[SprintBrain] Pushed to Notion:', variants[0].title, '→', data.id);
       } else {
         console.warn('[SprintBrain] Notion create returned no id:', data);
       }
@@ -724,25 +769,20 @@ var NotionPush = {
     });
   },
 
-  update: function(snippet) {
-    if (!notionCfg || !notionCfg.apiKey) return;
-    if (!snippet.notion_page_id) {
-      this.create(snippet);
-      return;
-    }
-
-    fetch('https://api.notion.com/v1/pages/' + snippet.notion_page_id, {
+  _update: function(pageId, variants) {
+    var self = this;
+    fetch('https://api.notion.com/v1/pages/' + pageId, {
       method: 'PATCH',
       headers: {
         'Authorization': 'Bearer ' + notionCfg.apiKey,
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
-      body: JSON.stringify({ properties: this._buildProps(snippet) })
+      body: JSON.stringify({ properties: self._buildProps(variants) })
     })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      console.log('[SprintBrain] Updated in Notion:', snippet.title);
+      console.log('[SprintBrain] Updated in Notion:', variants[0].title);
     })
     .catch(function(err) {
       console.warn('[SprintBrain] Notion update failed:', err.message);
@@ -885,9 +925,16 @@ function _runNotionSync(cb, force) {
                   var changed = false;
                   notionSnippets.forEach(function(ns) {
                             var existingIdx = -1;
+                            // Priority 1: exact id match (stable for multi-lang variants)
                             for (var i = 0; i < snips.length; i++) {
-                                        if (snips[i].notion_page_id && snips[i].notion_page_id === ns.notion_page_id) { existingIdx = i; break; }
                                         if (snips[i].id === ns.id) { existingIdx = i; break; }
+                            }
+                            // Priority 2: notion_page_id + lang (handles legacy single-lang snippets)
+                            if (existingIdx === -1 && ns.notion_page_id) {
+                                        for (var i = 0; i < snips.length; i++) {
+                                                  if (snips[i].notion_page_id === ns.notion_page_id &&
+                                                      (snips[i].lang || 'EN') === (ns.lang || 'EN')) { existingIdx = i; break; }
+                                        }
                             }
                             if (existingIdx > -1) {
                                         var existing = snips[existingIdx];
@@ -909,8 +956,12 @@ function _runNotionSync(cb, force) {
                   notionSnippets.forEach(function(ns) {
                     var local = null;
                     for (var j = 0; j < snips.length; j++) {
-                      if (snips[j].notion_page_id === ns.notion_page_id || snips[j].id === ns.id) {
-                        local = snips[j]; break;
+                      if (snips[j].id === ns.id) { local = snips[j]; break; }
+                    }
+                    if (!local && ns.notion_page_id) {
+                      for (var j = 0; j < snips.length; j++) {
+                        if (snips[j].notion_page_id === ns.notion_page_id &&
+                            (snips[j].lang || 'EN') === (ns.lang || 'EN')) { local = snips[j]; break; }
                       }
                     }
                     if (!local || !local.manually_edited) DB.upsertSnippet(ns);
@@ -1256,10 +1307,8 @@ function doSave(){
   syncSnippets();
   if(isNew || variantIsNew) {
     DB.updateStats(toSave.id,0,0,null);
-    NotionPush.create(toSave);
-  } else {
-    NotionPush.update(toSave);
   }
+  NotionPush.push(toSave);
 
   // Handle team share toggle change
   var wasShared = !!(toSave.is_shared);

@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────
-// SPRINTBRAIN — notion-sync.js  v2.2
-// Fix: hybrid body fetch — property first, blocks fallback
+// SPRINTBRAIN — notion-sync.js  v2.3
+// Fix: upsert dedup — one Notion page per snippet group, multi-lang
+// Body EN / Body IT / Body ES / Body MULTI per-language properties
 // Pagination, backoff, debounce, offline cache all intact
 // ─────────────────────────────────────────────────────────────────
 
@@ -218,12 +219,6 @@ var NotionSync = (function () {
       shortcut = _extractText(p['Shortcut'].rich_text);
     }
 
-    // Body → "Body" (text/rich_text type) ← direct property now
-    var body = '';
-    if (p['Body'] && p['Body'].rich_text) {
-      body = _extractText(p['Body'].rich_text);
-    }
-
     // Folder → "Categoria" (select type)
     var folder = '';
     if (p['Categoria'] && p['Categoria'].select &&
@@ -240,8 +235,51 @@ var NotionSync = (function () {
     // Guard: skip pages missing required fields
     if (!title || !shortcut) return null;
 
-    return {
-      id:                   'notion_' + page.id.replace(/-/g, ''),
+    var baseId     = 'notion_' + page.id.replace(/-/g, '');
+    var langGroupId = baseId;
+
+    // ── Multi-language body properties (one Notion page per snippet group) ──
+    // Each language variant gets a stable id: baseId + '_' + lang
+    var LANG_PROPS = [
+      { lang: 'EN',    prop: 'Body EN'   },
+      { lang: 'IT',    prop: 'Body IT'   },
+      { lang: 'ES',    prop: 'Body ES'   },
+      { lang: 'MULTI', prop: 'Body MULTI' }
+    ];
+    var variants = [];
+    LANG_PROPS.forEach(function(lp) {
+      if (p[lp.prop] && p[lp.prop].rich_text) {
+        var bodyText = _extractText(p[lp.prop].rich_text);
+        if (bodyText) {
+          variants.push({
+            id:                   baseId + '_' + lp.lang,
+            notion_page_id:       page.id,
+            title:                title,
+            shortcut:             shortcut,
+            body:                 bodyText,
+            lang:                 lp.lang,
+            folder:               folder,
+            versione:             versione,
+            sort_order:           0,
+            fieldCfg:             {},
+            lang_group_id:        langGroupId,
+            enable_urgency_timer: false,
+            timer_duration_ms:    0,
+            scarcity_count:       0
+          });
+        }
+      }
+    });
+
+    if (variants.length > 0) return variants;
+
+    // Fallback: legacy single "Body" property (backward compatibility)
+    var body = '';
+    if (p['Body'] && p['Body'].rich_text) {
+      body = _extractText(p['Body'].rich_text);
+    }
+    return [{
+      id:                   baseId,
       notion_page_id:       page.id,
       title:                title,
       shortcut:             shortcut,
@@ -251,11 +289,11 @@ var NotionSync = (function () {
       versione:             versione,
       sort_order:           0,
       fieldCfg:             {},
-      lang_group_id:        'notion_' + page.id.replace(/-/g, ''),
+      lang_group_id:        langGroupId,
       enable_urgency_timer: false,
       timer_duration_ms:    0,
       scarcity_count:       0
-    };
+    }];
   }
 
   /* ── Public API ─────────────────────────────────────────────── */
@@ -313,11 +351,13 @@ var NotionSync = (function () {
           .then(function (pages) {
             _releaseLock();
 
-            // Map pages — body may be empty if property is blank
+            // Map pages → flatten multi-lang variant arrays
             var snippets = [];
             pages.forEach(function (page) {
-              var s = _mapPage(page);
-              if (s) snippets.push(s);
+              var result = _mapPage(page);
+              if (result) {
+                result.forEach(function(v) { snippets.push(v); });
+              }
             });
 
             if (snippets.length === 0) {
