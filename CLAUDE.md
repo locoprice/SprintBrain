@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 Core Feature — Non-Negotiable
+**UX/UI excellence and extreme ease of navigation is the primary goal of this project.**  
+Every task, feature, and fix must be evaluated first against its impact on simplicity and ease of use.
+
+### Guiding Principles (apply in every session)
+- **UX/UI First:** Technical decisions are only acceptable if they preserve or improve the user experience. A technically elegant solution that degrades UX is unacceptable.
+- **Navigation Clarity:** Intuitive, low-friction navigation flows take priority over all other concerns. If a feature complicates the interface, it must be redesigned before shipping.
+- **Simplicity over Features:** Fewer, well-executed interactions beat many complex ones. Resist feature creep that adds cognitive load.
+- **Visible Feedback:** Every user action must produce a clear, immediate, and meaningful response (loading states, success/error signals, confirmation).
+- **Consistency:** Visual language, interaction patterns, and terminology must be uniform across the extension and web app.
+
+---
+
 ## 🧠 Philosophy
 - **Production-first:** Stability and predictability over speed.
 - **Zero-defect mindset:** No regressions, no silent failures, no degraded UX.
