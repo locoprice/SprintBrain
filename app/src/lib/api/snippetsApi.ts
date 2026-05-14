@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase';
 import type { Folder, Snippet, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
+const EDGE_FN_SHARE = 'notion-snippet-push';
+
 // Live Supabase reads + writes for snippets + folders, scoped to the authed user.
 //
 // Why we filter explicitly by user_id in app code instead of relying on RLS:
@@ -20,6 +22,10 @@ export interface SnippetsApi {
   createFolder(payload: FolderFormValues): Promise<Folder>;
   updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
   deleteFolder(id: string): Promise<void>;
+  /** Mark a snippet shared/unshared without touching Notion. */
+  setShared(id: string, isShared: boolean): Promise<SnippetRow>;
+  /** Push snippet to the team Notion DB via Edge Function, sets is_shared=true. */
+  shareWithNotion(id: string): Promise<{ notion_page_id: string }>;
 }
 
 type DbFolder = {
@@ -44,6 +50,8 @@ type DbSnippetJoined = {
   field_cfg: Record<string, unknown> | null;
   sort_order: number;
   updated_at: string;
+  is_shared: boolean;
+  notion_page_id: string | null;
   folders: { name: string } | null;
   snippet_stats: Array<{ uses: number | null }> | null;
 };
@@ -87,6 +95,8 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
     language: normalizeLang(row.lang),
+    is_shared: row.is_shared ?? false,
+    notion_page_id: row.notion_page_id ?? null,
     updated_at: row.updated_at,
     folder_name: row.folders?.name ?? null,
     usage_count: usage,
@@ -101,7 +111,7 @@ async function currentUserId(): Promise<string> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, folders(name), snippet_stats(uses)';
 
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
@@ -234,5 +244,35 @@ export const snippetsApi: SnippetsApi = {
       .eq('id', id)
       .eq('user_id', userId);
     if (error) throw error;
+  },
+
+  // Flip is_shared for a single snippet without touching Notion.
+  // Used for unsharing (is_shared → false) and direct DB corrections.
+  async setShared(id, isShared) {
+    const userId = await currentUserId();
+    const { data, error } = await supabase
+      .from('snippets')
+      .update({ is_shared: isShared, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(SNIPPET_SELECT)
+      .single();
+    if (error) throw error;
+    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
+  // Call the Edge Function to push the snippet to the shared team Notion DB.
+  // The EF sets is_shared=true and writes notion_page_id back to the DB.
+  // Returns the Notion page ID on success.
+  async shareWithNotion(id) {
+    const { data, error } = await supabase.functions.invoke<{
+      ok: boolean;
+      notion_page_id: string;
+    }>(EDGE_FN_SHARE, { body: { snippet_id: id } });
+    if (error) throw error;
+    if (!data?.ok || !data.notion_page_id) {
+      throw new Error('notion-snippet-push returned unexpected response');
+    }
+    return { notion_page_id: data.notion_page_id };
   },
 };

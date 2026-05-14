@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.29.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.34.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
@@ -455,20 +455,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.29.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.34.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.29.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.34.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.29.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.34.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -1646,7 +1646,6 @@ function _renderPickerItems(query) {
     h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
       + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
       + xesc(item.title) + sc
-      + '<span class="sb-tp-dots" data-dots-idx="' + i + '" style="margin-left:auto;cursor:pointer;padding:2px 4px;font-size:14px;color:#a8a59f;border-radius:4px;opacity:0;transition:opacity .12s" title="More actions">\u22EF</span>'
       + '</div>';
   }
   if (!triggerPickerFiltered.length) {
@@ -1656,14 +1655,7 @@ function _renderPickerItems(query) {
   triggerPickerIdx = 0;
 
   itemsEl.querySelectorAll('.sb-tp-item').forEach(function(itemEl) {
-    // Show dots on hover
-    var dots = itemEl.querySelector('.sb-tp-dots');
-    itemEl.addEventListener('mouseenter', function() { if (dots) dots.style.opacity = '1'; });
-    itemEl.addEventListener('mouseleave', function() { if (dots) dots.style.opacity = '0'; });
-
     function onPickerSelect(e) {
-      // Don't select if clicking dots
-      if (e.target.classList.contains('sb-tp-dots')) return;
       e.preventDefault();
       var now = Date.now();
       if (onPickerSelect._last && now - onPickerSelect._last < 400) return;
@@ -1673,134 +1665,8 @@ function _renderPickerItems(query) {
     itemEl.addEventListener('mousedown', onPickerSelect);
     itemEl.addEventListener('touchstart', onPickerSelect, {passive: false});
   });
-
-  // Dots click — show mini context menu
-  itemsEl.querySelectorAll('.sb-tp-dots').forEach(function(dotEl) {
-    dotEl.addEventListener('mousedown', function(e) {
-      e.preventDefault(); e.stopPropagation();
-      var idx = parseInt(dotEl.dataset.dotsIdx);
-      var item = triggerPickerFiltered[idx];
-      if (!item) return;
-      _showPickerCtxMenu(dotEl, item);
-    });
-  });
 }
 
-// Mini context menu for trigger picker items
-function _showPickerCtxMenu(anchor, item) {
-  _closePickerCtxMenu();
-  var rect = anchor.getBoundingClientRect();
-  var menu = document.createElement('div');
-  menu.id = 'sb-tp-ctx';
-  menu.setAttribute('role', 'menu');
-  menu.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:160px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:4px 0;';
-  menu.style.left = rect.right + 'px';
-  menu.style.top = rect.top + 'px';
-
-  var actions = [
-    {id:'rename', label:'Rename', icon:'\u270E'},
-    {id:'duplicate', label:'Duplicate', icon:'\u2398'},
-    {id:'pin', label: item.pinned ? 'Unpin' : 'Pin to top', icon:'\uD83D\uDCCC'},
-    {id:'sep'},
-    {id:'copy', label:'Copy content', icon:'\uD83D\uDCCB'},
-    {id:'sep'},
-    {id:'delete', label:'Delete', icon:'\uD83D\uDDD1', danger:true}
-  ];
-
-  var h = '';
-  for (var i = 0; i < actions.length; i++) {
-    var a = actions[i];
-    if (a.id === 'sep') { h += '<div style="height:1px;background:#e8e5e0;margin:4px 0"></div>'; continue; }
-    h += '<div class="sb-tp-ctx-item" role="menuitem" data-action="' + a.id + '" style="padding:7px 12px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:8px;transition:background .1s;'
-      + (a.danger ? 'color:#DC2626' : 'color:#1c1c1a') + '">'
-      + '<span style="width:16px;text-align:center;font-size:13px">' + a.icon + '</span>'
-      + a.label + '</div>';
-  }
-  menu.innerHTML = h;
-
-  // Keep inside viewport
-  document.body.appendChild(menu);
-  var mr = menu.getBoundingClientRect();
-  if (mr.right > window.innerWidth) menu.style.left = (rect.left - mr.width) + 'px';
-  if (mr.bottom > window.innerHeight) menu.style.top = (rect.top - mr.height + rect.height) + 'px';
-
-  menu.querySelectorAll('.sb-tp-ctx-item').forEach(function(el) {
-    el.addEventListener('mouseenter', function() { el.style.background = el.dataset.action === 'delete' ? '#FEF2F2' : '#f5f5f0'; });
-    el.addEventListener('mouseleave', function() { el.style.background = ''; });
-    el.addEventListener('mousedown', function(e) {
-      e.preventDefault(); e.stopPropagation();
-      var action = el.dataset.action;
-      _closePickerCtxMenu();
-      _handlePickerAction(action, item);
-    });
-  });
-
-  // Close on outside click
-  setTimeout(function() {
-    document.addEventListener('mousedown', _pickerCtxOutside);
-  }, 0);
-}
-
-function _pickerCtxOutside(e) {
-  var m = document.getElementById('sb-tp-ctx');
-  if (m && !m.contains(e.target)) _closePickerCtxMenu();
-}
-
-function _closePickerCtxMenu() {
-  var m = document.getElementById('sb-tp-ctx');
-  if (m) m.remove();
-  document.removeEventListener('mousedown', _pickerCtxOutside);
-}
-
-function _handlePickerAction(action, item) {
-  if (action === 'copy') {
-    try { navigator.clipboard.writeText(item.body || ''); } catch(e) {}
-  } else if (action === 'pin') {
-    item.pinned = !item.pinned;
-    // Persist to local (snippets > 8KB exceed sync per-item limit)
-    chrome.storage.local.get('snippets', function(d) {
-      var arr = d.snippets || [];
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i].id === item.id) { arr[i].pinned = item.pinned; break; }
-      }
-      chrome.storage.local.set({snippets: arr});
-    });
-    _renderPickerItems(triggerPickerQuery);
-  } else if (action === 'duplicate') {
-    var copy = JSON.parse(JSON.stringify(item));
-    copy.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-    copy.title = 'Copy of ' + copy.title;
-    copy.shortcut = (copy.shortcut || '') + '2';
-    snippets.push(copy);
-    chrome.storage.local.get('snippets', function(d) {
-      var arr = d.snippets || [];
-      arr.push(copy);
-      chrome.storage.local.set({snippets: arr});
-    });
-    _renderPickerItems(triggerPickerQuery);
-  } else if (action === 'rename') {
-    var newName = prompt('Rename snippet:', item.title);
-    if (newName && newName.trim()) {
-      item.title = newName.trim();
-      chrome.storage.local.get('snippets', function(d) {
-        var arr = d.snippets || [];
-        for (var i = 0; i < arr.length; i++) {
-          if (arr[i].id === item.id) { arr[i].title = item.title; break; }
-        }
-        chrome.storage.local.set({snippets: arr});
-      });
-      _renderPickerItems(triggerPickerQuery);
-    }
-  } else if (action === 'delete') {
-    if (!confirm('Delete snippet "' + item.title + '"?')) return;
-    snippets = snippets.filter(function(s) { return s.id !== item.id; });
-    chrome.storage.local.get('snippets', function(d) {
-      var arr = (d.snippets || []).filter(function(s) { return s.id !== item.id; });
-      chrome.storage.local.set({snippets: arr});
-    });
-    _renderPickerItems(triggerPickerQuery);
-  }
-}
 
 function showTriggerPicker(el, mode, seqLen, filterStr) {
   if (processing) return;

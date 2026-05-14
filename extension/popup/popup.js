@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.29.0 — Lang-modal trigger-text expansion fix
+// SPRINTBRAIN POPUP v2.34.0 — Fix: remove three-dot hover context menu from snippet autocomplete
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -47,14 +47,43 @@ function _supaFire(table, method, body, qs, headers, retried, resolve, reject) {
   }).catch(reject);
 }
 
+// Calls a Supabase Edge Function by name.
+// cb(err, responseJson) — err is null on success.
+function callEdgeFunction(fnName, body, cb) {
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) { cb(new Error('not_authed')); return; }
+    fetch(SB_SUPA_URL + '/functions/v1/' + fnName, {
+      method: 'POST',
+      headers: {
+        'apikey': headers.apikey,
+        'Authorization': headers.Authorization,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) {
+      return r.json().then(function(data) {
+        if (!r.ok) { cb(new Error(data && data.error ? data.error : 'ef_http_' + r.status)); return; }
+        cb(null, data);
+      });
+    })
+    .catch(function(e) { cb(e); });
+  });
+}
+
 // Returns the current authed user's id (set on every write payload).
 var SB_CURRENT_USER_ID = null;
 
 var DB = {
   loadAll: function() {
+    // Show the current user's own snippets plus any shared by teammates.
+    var uid = SB_CURRENT_USER_ID;
+    var snipQs = uid
+      ? 'select=*&order=sort_order&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
+      : 'select=*&order=sort_order&is_shared=eq.true';
     return Promise.all([
       supaFetch('folders',       'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
-      supaFetch('snippets',      'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
+      supaFetch('snippets',      'GET', null, snipQs).then(function(r){ return r.json(); }),
       supaFetch('snippet_stats', 'GET', null, 'select=*').then(function(r){ return r.json(); })
     ]).then(function(res) {
       var folders  = Array.isArray(res[0]) ? res[0] : [];
@@ -112,6 +141,32 @@ var DB = {
     supaFetch('snippet_stats', 'POST', {
       snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
     }).catch(function(e) { console.warn('updateStats:', e); });
+  },
+  // Flip is_shared for a single snippet (used for unsharing).
+  setShared: function(snippetId, isShared) {
+    if (!SB_CURRENT_USER_ID) return Promise.reject(new Error('not_authed'));
+    return supaFetch(
+      'snippets', 'PATCH',
+      { is_shared: isShared },
+      'id=eq.' + snippetId + '&user_id=eq.' + SB_CURRENT_USER_ID
+    ).then(function(r) {
+      if (!r.ok) throw new Error('setShared_failed_http_' + r.status);
+    });
+  },
+
+  // Call the Edge Function to push the snippet to the shared team Notion DB.
+  // On success, updates snippet.is_shared and snippet.notion_page_id in memory.
+  shareWithTeamNotion: function(snippet, cb) {
+    callEdgeFunction('notion-snippet-push', { snippet_id: snippet.id }, function(err, data) {
+      if (err || !data || !data.ok) {
+        if (cb) cb(err || new Error('notion_push_failed'));
+        return;
+      }
+      snippet.is_shared = true;
+      if (data.notion_page_id) snippet.notion_page_id = data.notion_page_id;
+      DB.upsertSnippet(snippet);
+      if (cb) cb(null, data.notion_page_id);
+    });
   }
 };
 
@@ -339,6 +394,26 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.32.0', date:'2026-05-10', label:'Fix: snippet edits persist — Notion sync respects manually_edited flag',
+    changes:[
+      {type:'fix', text:'Removing "!!" (or any trigger prefix) from a snippet shortcut or body now persists across popup restarts — Notion sync no longer overwrites manually-edited snippets'},
+      {type:'fix', text:'_runNotionSync onComplete skips overwriting any snippet where manually_edited=true, so Notion can no longer restore stale shortcuts'},
+      {type:'fix', text:'The always-upsert pass (line 856) now checks manually_edited before pushing Notion data back to Supabase'},
+      {type:'fix', text:'doSave(), applyTrig(), and trigger-change handler all set manually_edited=true so the guard is active from the first save'}
+    ]},
+  { version:'v2.31.0', date:'2026-05-09', label:'Changelog modal: missing entry + key fix + footer',
+    changes:[
+      {type:'fix', text:'v2.30.0 entry was missing from CHANGELOG — modal appeared empty when opened on the latest build'},
+      {type:'fix', text:'Renderer now reads rel.changes || rel.items so entries written with either key display correctly (v2.27–v2.29 were silently blank)'},
+      {type:'new', text:'Changelog modal footer shows "Ver. [latest] Last Update: [date]" for at-a-glance version info'}
+    ]},
+  { version:'v2.30.0', date:'2026-05-09', label:'Push-to-Sync team snippet sharing',
+    changes:[
+      {type:'new', text:'Team Sync section in Settings — "Sincronizza Snippet con il Team" button promotes private snippets to team-visible status on demand'},
+      {type:'new', text:'DB: is_shared column added to snippets; RLS policy extended to expose shared snippets to all authenticated team members'},
+      {type:'new', text:'Extension loadData() now fetches both private (user_id match) and shared snippets in a single OR-filtered query'},
+      {type:'new', text:'Last sync timestamp persisted to chrome.storage.local and displayed in the Team Sync panel'}
+    ]},
   { version:'v2.29.0', date:'2026-05-09', label:'Fix: lang-modal expansion now replaces trigger text',
     items:[
       {type:'fix', text:'Picking a language no longer leaves the literal ::shortcut in the field. Root cause: trigger chars were pre-deleted before opening the modal, but the contenteditable path of deleteChars only SETS a non-collapsed selection — opening the modal stole focus and wiped that selection, so the eventual insertText fell back to inserting at the cursor and the trigger survived. Fix: pass the trigger length through the modal and let handleMatch perform the delete + insert atomically after the user picks a language.'}
@@ -488,12 +563,15 @@ function openChangelog() {
       + '<span class="cl-rl">'+esc(rel.label)+'</span>'
       + '<span class="cl-rd">'+rel.date+'</span>'
       + '</div><div class="cl-cs">';
-    rel.changes.forEach(function(c) {
+    (rel.changes || rel.items || []).forEach(function(c) {
       h += '<div class="cl-c"><span class="cl-b '+c.type+'">'+c.type+'</span><span>'+esc(c.text)+'</span></div>';
     });
     h += '</div></div>';
   });
   body.innerHTML = h;
+  var latest = CHANGELOG[0];
+  var ft = gi('cl-footer');
+  if (ft) ft.innerHTML = '<span>Ver. <strong>'+esc(latest.version)+'</strong></span><span>Last Update: <strong>'+esc(latest.date)+'</strong></span>';
   gi('cl-bg').className = 'cl-bg on';
 }
 
@@ -804,7 +882,8 @@ function _runNotionSync(cb, force) {
                             }
                             if (existingIdx > -1) {
                                         var existing = snips[existingIdx];
-                                        if (existing.title !== ns.title || existing.body !== ns.body || existing.shortcut !== ns.shortcut) {
+                                        if (!existing.manually_edited &&
+                                            (existing.title !== ns.title || existing.body !== ns.body || existing.shortcut !== ns.shortcut)) {
                                                       snips[existingIdx] = Object.assign({}, existing, ns);
                                                       DB.upsertSnippet(snips[existingIdx]);
                                                       changed = true;
@@ -816,9 +895,17 @@ function _runNotionSync(cb, force) {
                                         changed = true;
                             }
                   });
-                  // Always persist all Notion snippets to Supabase so they
-                  // survive popup reload even when debounce blocks re-sync
-                  notionSnippets.forEach(function(ns) { DB.upsertSnippet(ns); });
+                  // Persist Notion snippets to Supabase so they survive popup reload when debounce blocks
+                  // re-sync — but skip any snippet the user has manually edited to avoid overwriting edits.
+                  notionSnippets.forEach(function(ns) {
+                    var local = null;
+                    for (var j = 0; j < snips.length; j++) {
+                      if (snips[j].notion_page_id === ns.notion_page_id || snips[j].id === ns.id) {
+                        local = snips[j]; break;
+                      }
+                    }
+                    if (!local || !local.manually_edited) DB.upsertSnippet(ns);
+                  });
 
                   // Deletion detection: remove snippets that came from Notion
                   // but are no longer in the Notion response (deleted in Notion)
@@ -1027,6 +1114,14 @@ function renderList(q){
 }
 
 // EDITOR
+function _updateShareSub(isShared) {
+  var sub = gi('eshare-sub');
+  if (!sub) return;
+  sub.textContent = isShared
+    ? 'Shared with team — visible on Notion'
+    : 'Visible to teammates via Notion';
+}
+
 function buildFolderOpts(current){
   var h='<option value="">— No folder —</option>';
   for(var i=0;i<folders.length;i++){
@@ -1057,6 +1152,10 @@ function openEd(id){
   _s('eurg-dur','value',urgDur);
   _s('eurg-sc','value',urgSc);
   var uf=gi('urg-fields'); if(uf) uf.style.display = urgOn ? '' : 'none';
+  // Share toggle
+  var shareOn = s ? !!s.is_shared : false;
+  var es=gi('eshare'); if(es) es.checked = shareOn;
+  _updateShareSub(shareOn);
   var sk=gi('sok'); if(sk) sk.className='saveok';
   initEditorLangTabs(s);
   updateSprev();
@@ -1080,6 +1179,7 @@ function doSave(){
   var urgEnabled = gi('eurg').checked;
   var urgDurMs = Math.max(1, parseInt(gi('eurg-dur').value) || 30) * 60000;
   var urgSc = Math.max(0, parseInt(gi('eurg-sc').value) || 0);
+  var shareEnabled = !!(gi('eshare') && gi('eshare').checked);
 
   // Capture current textarea into the active language buffer
   edLangBuf[edLangActive] = body;
@@ -1089,7 +1189,7 @@ function doSave(){
   if(isNew){
     toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
       enable_urgency_timer:urgEnabled,timer_duration_ms:urgDurMs,scarcity_count:urgSc,
-      stats:{uses:0,fills:0,lastUsed:null}};
+      manually_edited:true,stats:{uses:0,fills:0,lastUsed:null}};
     toSave.lang_group_id=toSave.id;
     snips.unshift(toSave);
   } else {
@@ -1112,6 +1212,7 @@ function doSave(){
       toSave.enable_urgency_timer=urgEnabled;
       toSave.timer_duration_ms=urgDurMs;
       toSave.scarcity_count=urgSc;
+      toSave.manually_edited=true;
     } else {
       // No variant exists yet for this language — create one
       variantIsNew=true;
@@ -1121,7 +1222,7 @@ function doSave(){
         lang_group_id:anchorGid, sort_order:snips.length+1,
         enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
         scarcity_count:urgSc, notion_page_id:null,
-        stats:{uses:0,fills:0,lastUsed:null}
+        manually_edited:true, stats:{uses:0,fills:0,lastUsed:null}
       };
       snips.push(toSave);
       // Keep edLangVariants in sync so the LANGS loop below won't double-create
@@ -1134,6 +1235,7 @@ function doSave(){
       anchorSnip.enable_urgency_timer=urgEnabled;
       anchorSnip.timer_duration_ms=urgDurMs;
       anchorSnip.scarcity_count=urgSc;
+      anchorSnip.manually_edited=true;
       DB.upsertSnippet(anchorSnip);
     }
   }
@@ -1145,6 +1247,25 @@ function doSave(){
     NotionPush.create(toSave);
   } else {
     NotionPush.update(toSave);
+  }
+
+  // Handle team share toggle change
+  var wasShared = !!(toSave.is_shared);
+  if (shareEnabled && !wasShared) {
+    // User just turned sharing ON — push to team Notion DB via Edge Function
+    DB.shareWithTeamNotion(toSave, function(err) {
+      if (err) console.warn('[SprintBrain] shareWithTeamNotion failed:', err.message);
+    });
+  } else if (!shareEnabled && wasShared) {
+    // User just turned sharing OFF — unshare in Supabase (Notion page kept as history)
+    DB.setShared(toSave.id, false).then(function() {
+      toSave.is_shared = false;
+    }).catch(function(err) {
+      console.warn('[SprintBrain] setShared(false) failed:', err.message);
+    });
+  } else if (shareEnabled) {
+    // Already shared; just ensure the flag is set in memory
+    toSave.is_shared = true;
   }
 
   // Save all other language variant buffers
@@ -1160,6 +1281,7 @@ function doSave(){
       existing.enable_urgency_timer = urgEnabled;
       existing.timer_duration_ms = urgDurMs;
       existing.scarcity_count = urgSc;
+      existing.manually_edited = true;
       DB.upsertSnippet(existing);
     } else {
       // Create new variant
@@ -1172,7 +1294,7 @@ function doSave(){
         fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
         lang_group_id: gid, sort_order: snips.length + 1,
         enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
-        scarcity_count: urgSc,
+        scarcity_count: urgSc, manually_edited: true,
         stats: { uses: 0, fills: 0, lastUsed: null }
       };
       snips.push(ns);
@@ -1437,7 +1559,7 @@ function updateInfo(t){ gi('itrig').textContent=t; gi('iex').textContent=t+'quot
 function applyTrig(){
   var custom=(gi('ctrig').value||'').trim(); var chosen=custom||pendT; if(!chosen) return;
   var old=trig;
-  for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=chosen+sc.slice(old.length); DB.upsertSnippet(snips[i]); } }
+  for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=chosen+sc.slice(old.length); snips[i].manually_edited=true; DB.upsertSnippet(snips[i]); } }
   trig=chosen; saveTrigger();
   // Sync: update snippetTrigger to match trigger prefix (single source of truth)
   triggerCfg.snippetTrigger=chosen; saveTriggerCfg();
@@ -1456,10 +1578,10 @@ on('bbed','click',   function(){ show('pane-list'); refreshUI(); });
 on('bcan','click',   function(){ show('pane-list'); refreshUI(); });
 on('bsav','click',   doSave);
 on('bdel','click',   doDel);
-on('bcfg','click',   openCfg);
-on('bbcfg','click',  function(){ show('pane-list'); refreshUI(); });
-on('bcct','click',   function(){ show('pane-list'); refreshUI(); });
-on('bappt','click',  applyTrig);
+on('bcfg','click',        openCfg);
+on('bbcfg','click',       function(){ show('pane-list'); refreshUI(); });
+on('bcct','click',        function(){ show('pane-list'); refreshUI(); });
+on('bappt','click',       applyTrig);
 on('brel','click',   function(){
   var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   DB.loadAll().then(function(data){
@@ -1472,6 +1594,7 @@ on('sq','input',    function(e){ renderList(e.target.value); });
 on('ewrd','input',  updateSprev);
 on('ebdy','keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();doSave();} });
 on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
+on('eshare','change', function(){ var es=gi('eshare'); if(es) _updateShareSub(es.checked); });
 var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
 document.querySelectorAll('.topt').forEach(function(opt){
   opt.addEventListener('click',function(){ pendT=opt.dataset.t; gi('ctrig').value=pendT; syncTG(pendT); updateWarn(pendT); updateInfo(pendT); });
@@ -1708,7 +1831,7 @@ on('tcfg-snip','change', function(e){
   // Sync: rewrite all snippet prefixes and update trigger to match
   var old=trig;
   if(old!==v){
-    for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=v+sc.slice(old.length); DB.upsertSnippet(snips[i]); } }
+    for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=v+sc.slice(old.length); snips[i].manually_edited=true; DB.upsertSnippet(snips[i]); } }
     trig=v; saveTrigger();
     var tp=gi('tp'); if(tp) tp.textContent=trig;
     var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';

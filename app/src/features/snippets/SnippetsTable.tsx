@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, Search, Trash2 } from 'lucide-react';
+import { FileText, Loader2, Search, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -13,6 +13,9 @@ export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
+  const shareSnippet = useSnippetStore((s) => s.shareSnippet);
+  const unshareSnippet = useSnippetStore((s) => s.unshareSnippet);
+  const sharingIds = useSnippetStore((s) => s.sharingIds);
   const query = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
@@ -62,6 +65,19 @@ export function SnippetsTable() {
     }
   }
 
+  async function handleShareToggle(e: React.MouseEvent, id: string, currentlyShared: boolean) {
+    e.stopPropagation();
+    try {
+      if (currentlyShared) {
+        await unshareSnippet(id);
+      } else {
+        await shareSnippet(id);
+      }
+    } catch {
+      // Error state surfaced via store.error; no toast system yet.
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-[16px] border border-line bg-card">
       <table className="w-full text-sm">
@@ -72,6 +88,9 @@ export function SnippetsTable() {
             <th className="px-5 py-3">Folder</th>
             <th className="px-5 py-3">Updated</th>
             <th className="px-5 py-3 text-right">Usage</th>
+            <th className="px-4 py-3 text-center" title="Share this snippet with the team via Notion">
+              <Users className="mx-auto h-3.5 w-3.5" />
+            </th>
             <th className="w-10 px-2 py-3" aria-label="Actions" />
           </tr>
         </thead>
@@ -119,6 +138,34 @@ export function SnippetsTable() {
                 </td>
                 <td className="px-5 py-3 text-right font-mono text-xs text-ink-muted">
                   {row.usage_count.toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {sharingIds.has(row.id) ? (
+                    <Loader2 className="mx-auto h-4 w-4 animate-spin text-ink-subtle" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => void handleShareToggle(e, row.id, row.is_shared)}
+                      aria-label={
+                        row.is_shared
+                          ? `Unshare ${row.name} from team`
+                          : `Share ${row.name} with team`
+                      }
+                      title={
+                        row.is_shared
+                          ? 'Shared with team — click to unshare'
+                          : 'Share with team via Notion'
+                      }
+                      className={
+                        'inline-flex h-8 w-8 items-center justify-center rounded-[8px] transition-colors ' +
+                        (row.is_shared
+                          ? 'bg-primary-light text-primary hover:bg-danger/10 hover:text-danger'
+                          : 'text-ink-subtle opacity-0 hover:bg-primary-light hover:text-primary focus-visible:opacity-100 group-hover:opacity-100')
+                      }
+                    >
+                      <Users className="h-4 w-4" />
+                    </button>
+                  )}
                 </td>
                 <td className="px-2 py-3 text-right">
                   <button

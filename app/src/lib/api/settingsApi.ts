@@ -104,4 +104,5 @@ export const settingsApi: SettingsApi = {
       last_error: data.error,
     };
   },
+
 };

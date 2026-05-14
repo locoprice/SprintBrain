@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.29.0 — Dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN BACKGROUND v2.32.0 — Fix: Notion sync no longer overwrites manually-edited snippets ──
 importScripts('../auth/auth.js');
 importScripts('../services/notion-sync/notion-sync.js');
 
@@ -87,18 +87,26 @@ chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse)
 });
 
 // ── LOAD SNIPPETS + FOLDERS + STATS FROM SUPABASE ─────────────────
+// Shows the current user's own snippets plus any shared by teammates.
 function loadData() {
-  return Promise.all([
-    supaFetch('folders',  'select=*&order=sort_order'),
-    supaFetch('snippets', 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order'),
-    supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
-  ]).then(function(res) {
-    return {
-      folders:  Array.isArray(res[0]) ? res[0] : [],
-      snippets: Array.isArray(res[1]) ? res[1] : [],
-      stats:    Array.isArray(res[2]) ? res[2] : []
-    };
-  }).catch(function() { return { folders: [], snippets: [], stats: [] }; });
+  return new Promise(function(resolve) {
+    sbCurrentUserId(function(uid) {
+      var snipQs = uid
+        ? 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
+        : 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_shared=eq.true';
+      Promise.all([
+        supaFetch('folders',  'select=*&order=sort_order'),
+        supaFetch('snippets', snipQs),
+        supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
+      ]).then(function(res) {
+        resolve({
+          folders:  Array.isArray(res[0]) ? res[0] : [],
+          snippets: Array.isArray(res[1]) ? res[1] : [],
+          stats:    Array.isArray(res[2]) ? res[2] : []
+        });
+      }).catch(function() { resolve({ folders: [], snippets: [], stats: [] }); });
+    });
+  });
 }
 
 // ── ICON RULES (keyword-based, no schema change) ──────────────────

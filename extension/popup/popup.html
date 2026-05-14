@@ -508,6 +508,13 @@ html,body{
 .cl-b.fix{background:var(--sb-warn-bg);color:var(--sb-warn);border:1px solid var(--sb-warn-bdr)}
 .ver-btn{cursor:pointer;font-family:var(--sb-mono);font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:none;border:none;padding:0;transition:color 120ms}
 .ver-btn:hover{color:var(--sb-iris)}
+.cl-footer{
+  flex-shrink:0;border-top:1px solid var(--sb-line);padding:10px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono);
+  background:var(--sb-bg-alt);
+}
+.cl-footer strong{color:var(--sb-iris);font-weight:700}
 
 /* ── URGENCY TIMER ── */
 .urg-cfg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px;margin-top:4px}
@@ -768,6 +775,19 @@ html,body{
         <div class="urg-cfg-field"><label>Units left</label><input type="number" id="eurg-sc" min="0" max="999" value="0"></div>
       </div>
     </div>
+    <!-- TEAM SHARE TOGGLE -->
+    <div class="urg-cfg" style="margin-top:0;border-top:1px solid var(--sb-line)">
+      <div class="urg-cfg-hdr">
+        <div>
+          <div class="urg-cfg-lbl">
+            <span class="ic ic-sm"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            Share with Team
+          </div>
+          <div class="urg-cfg-sub" id="eshare-sub">Visible to teammates via Notion</div>
+        </div>
+        <label class="urg-switch"><input type="checkbox" id="eshare"><span class="urg-slider"></span></label>
+      </div>
+    </div>
   </div>
   <div class="efoot">
     <button class="bsave" id="bsav">
@@ -878,6 +898,8 @@ html,body{
       </div>
     </div>
 
+    <!-- TEAM SYNC -->
+
     <!-- Sign out -->
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--sb-line);display:flex;align-items:center;justify-content:space-between;gap:12px">
       <div style="font-size:11px;color:var(--sb-ink-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sb-signed-as">Signed in</div>
@@ -954,7 +976,7 @@ html,body{
 <!-- ═══ VERSION BAR ═══ -->
 <div class="ver-bar">
   <button class="ver-btn" id="ver-btn"></button>
-  <span class="dt">2026-05-08</span>
+  <span class="dt">2026-05-09</span>
 </div>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->
@@ -968,6 +990,7 @@ html,body{
       <button class="cl-x" id="cl-x"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="cl-scroll" id="cl-scroll"></div>
+    <div class="cl-footer" id="cl-footer"></div>
   </div>
 </div>
 

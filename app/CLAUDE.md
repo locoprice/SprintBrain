@@ -7,6 +7,22 @@
 
 ---
 
+## ⚠️ PHASE 2 — PRE-SEED: ZERO DEFECT STANDARD
+
+**SprintBrain is in active pre-seed fundraising. This is a top-class SaaS product. Every line of code shipped must be production-ready, stable, and polished. There is zero tolerance for bugs, regressions, or rough edges.**
+
+### Non-negotiable quality rules for this phase:
+- **No bug ships.** If something breaks, stop everything and fix it before moving on.
+- **Every fix must be verified end-to-end** — not just the changed line, but the full user flow it touches.
+- **No half-measures.** Do not defer known issues. Do not leave TODOs in production paths.
+- **No regressions.** Before closing any fix, manually confirm that previously working features still work.
+- **No `any` shortcuts.** TypeScript strict mode is enforced — type safety is non-negotiable.
+- **No console noise in production.** Remove all `console.log` debug statements before committing.
+- **Run `npm run typecheck` and `npm run build` before every commit.** A build that fails is not shippable.
+- **Code quality equals product quality.** Investors and early users judge the product; the code must back it up.
+
+---
+
 ## 1. What this is
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.
@@ -165,6 +181,14 @@ app/
 5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
 6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
 7. Dark mode (`uiStore` already has the seam).
+
+---
+
+## 8. Debugging Rules
+
+- Always run related tests after fixing errors
+- Always remove debug code like `console.log` after investigation
+- Do not bypass type errors with the `any` type
 
 ---
 

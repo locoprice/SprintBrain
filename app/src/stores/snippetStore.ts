@@ -10,6 +10,8 @@ interface SnippetStore {
   error: string | null;
   selectedFolderId: string | null; // null = "All"
   searchQuery: string;
+  /** Set of snippet IDs currently awaiting a share/unshare operation. */
+  sharingIds: Set<string>;
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
@@ -21,6 +23,16 @@ interface SnippetStore {
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
   editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
+  /**
+   * Push snippet to the shared team Notion DB via Edge Function.
+   * Optimistically sets is_shared=true; rolls back on failure.
+   */
+  shareSnippet: (id: string) => Promise<void>;
+  /**
+   * Unshare a snippet: sets is_shared=false in Supabase.
+   * The Notion page is intentionally preserved as team knowledge history.
+   */
+  unshareSnippet: (id: string) => Promise<void>;
 }
 
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
@@ -30,6 +42,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   error: null,
   selectedFolderId: null,
   searchQuery: '',
+  sharingIds: new Set<string>(),
   load: async () => {
     set({ loading: true, error: null });
     try {
@@ -149,6 +162,57 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete folder';
       set({ error: msg });
+      throw err;
+    }
+  },
+
+  shareSnippet: async (id) => {
+    // Optimistic update: flip is_shared immediately so the toggle feels instant.
+    set((s) => ({
+      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: true } : sn)),
+      sharingIds: new Set([...s.sharingIds, id]),
+    }));
+    try {
+      const { notion_page_id } = await snippetsApi.shareWithNotion(id);
+      // Persist the notion_page_id returned by the Edge Function.
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...sn, is_shared: true, notion_page_id } : sn,
+        ),
+        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback optimistic update on failure.
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: false } : sn)),
+        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
+        error: err instanceof Error ? err.message : 'Failed to share snippet',
+      }));
+      throw err;
+    }
+  },
+
+  unshareSnippet: async (id) => {
+    // Optimistic update.
+    set((s) => ({
+      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: false } : sn)),
+      sharingIds: new Set([...s.sharingIds, id]),
+    }));
+    try {
+      const updated = await snippetsApi.setShared(id, false);
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, ...updated } : sn)),
+        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback optimistic update on failure.
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: true } : sn)),
+        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
+        error: err instanceof Error ? err.message : 'Failed to unshare snippet',
+      }));
       throw err;
     }
   },
