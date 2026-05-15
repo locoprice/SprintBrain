@@ -58,6 +58,7 @@ export function LoginPage() {
         options: { emailRedirectTo: callback },
       });
       if (error) {
+        console.error('[SprintBrain] signInWithOtp failed:', error.message, error);
         setErrorMsg(error.message);
         setPhase('error');
       } else {

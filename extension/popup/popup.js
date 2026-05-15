@@ -448,6 +448,11 @@ var CHANGELOG = [
       {type:'fix', text:'The language picker modal was only wired into checkBuf() (direct full-trigger match) but NOT into selectTriggerItem() (the inline trigger picker that appears when typing ::goo…). Since most users select snippets from the picker, the modal never appeared. Now both paths share _findLangVariants() and show the modal when siblings exist.'},
       {type:'refactor', text:'Extracted _findLangVariants(item) as a shared helper — dual-pass detection (lang_group_id first, shortcut-base heuristic second) used by both checkBuf() and selectTriggerItem().'}
     ]},
+  { version:'v2.26.0', date:'2026-05-15', label:'Fix: OTP email delivery failure — diagnostic logging for auth errors',
+    changes:[
+      {type:'fix', text:'Added HTTP status code logging to sbRequestOtp so SMTP failures (e.g. 535 Authentication credentials invalid) appear in the browser console. Rate-limit responses (HTTP 429) now surface a clear user message instead of the raw Supabase error string.'},
+      {type:'fix', text:'Added console.error logging to LoginPage.tsx signInWithOtp error path for the same diagnostic purpose.'}
+    ]},
   { version:'v2.25.0', date:'2026-05-08', label:'Fix: multi-language modal now fires for all snippets',
     changes:[
       {type:'fix', text:'Modal was never triggered because all snippets have lang_group_id=null in Supabase. Added a shortcut-base heuristic as fallback: strips the trailing language suffix (EN/ES/IT/FR/MULTI) from the shortcut and groups snippets that share the same base (e.g. /quoteEN + /quoteES + /quoteIT → modal with 3 buttons). Explicit lang_group_id is still tried first for forward compatibility.'}

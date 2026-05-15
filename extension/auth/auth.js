@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN AUTH v2.20.3 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN AUTH v2.26.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //
@@ -38,7 +38,6 @@ function sbClearSession(cb) {
 }
 
 // POST /auth/v1/otp — sends a 6-digit code via email.
-// shouldCreateUser=false so domain-restricted emails fail fast at the trigger.
 function sbRequestOtp(email, cb) {
   fetch(SB_SUPA_URL + '/auth/v1/otp', {
     method: 'POST',
@@ -47,9 +46,11 @@ function sbRequestOtp(email, cb) {
   }).then(function(r) {
     if (r.ok) { cb(null); return; }
     return r.text().then(function(t) {
+      var status = r.status;
       var msg = 'Could not send code';
       try { var j = JSON.parse(t); msg = j.msg || j.error_description || j.error || msg; } catch(e) {}
-      cb(msg);
+      console.error('[SprintBrain] OTP request failed — HTTP ' + status + ':', msg);
+      cb(status === 429 ? 'Too many requests — wait a few minutes and try again.' : msg);
     });
   }).catch(function(e) { cb(e.message || 'Network error'); });
 }
