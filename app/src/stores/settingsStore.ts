@@ -11,6 +11,7 @@ interface SettingsStore {
   error: string | null;
   load: () => Promise<void>;
   editProfile: (patch: { display_name?: string; shortcut_prefix?: Prefix }) => Promise<Profile>;
+  editNotionSettings: (patch: { api_key?: string; db_id?: string }) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
@@ -40,6 +41,25 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
       return profile;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to save profile' });
+      throw err;
+    }
+  },
+  editNotionSettings: async (patch) => {
+    try {
+      await settingsApi.updateNotionSettings(patch);
+      set((s) => {
+        if (!s.notionSync) return {};
+        return {
+          notionSync: {
+            ...s.notionSync,
+            ...(patch.api_key !== undefined && { api_key: patch.api_key }),
+            ...(patch.db_id !== undefined && { database_id: patch.db_id }),
+          },
+          error: null,
+        };
+      });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to save Notion settings' });
       throw err;
     }
   },

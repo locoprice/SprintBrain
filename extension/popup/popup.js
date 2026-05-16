@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.36.0 — Fix: Notion sync dedup — one row per snippet group, multi-lang Body properties
+// SPRINTBRAIN POPUP v2.37.0 — feat: Notion credentials shared between dashboard and extension via Supabase user_metadata
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -313,6 +313,41 @@ function saveNotionCfg() {
   chrome.storage.local.set({ sb_notion_cfg: notionCfg });
 }
 
+// Pull Notion credentials from Supabase user_metadata (written by the dashboard).
+// Merges into local config, overwrites only fields that are currently empty.
+// Calls cb() when done (including on error, so callers always continue).
+function syncNotionCfgFromSupabase(cb) {
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) { if (cb) cb(); return; }
+    fetch(SB_SUPA_URL + '/auth/v1/user', { headers: headers })
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        var meta = (j && j.user_metadata) ? j.user_metadata : {};
+        var remoteKey = meta.notion_api_key || '';
+        var remoteDb  = meta.notion_db_id  || '';
+        var changed = false;
+        if (!notionCfg.apiKey && remoteKey) { notionCfg.apiKey = remoteKey; changed = true; }
+        if (!notionCfg.dbId  && remoteDb)  { notionCfg.dbId   = remoteDb;  changed = true; }
+        if (changed) saveNotionCfg();
+        if (cb) cb();
+      })
+      .catch(function() { if (cb) cb(); });
+  });
+}
+
+// Push current Notion credentials to Supabase user_metadata so the dashboard stays in sync.
+// Best-effort: failures are silent (local storage is the authoritative source for the extension).
+function pushNotionCfgToSupabase() {
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) return;
+    fetch(SB_SUPA_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: Object.assign({}, headers, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ data: { notion_api_key: notionCfg.apiKey, notion_db_id: notionCfg.dbId } })
+    }).catch(function() {});
+  });
+}
+
 function notionSync(entry) {
   var key = entry.triggerType + '|' + entry.field + '|' + entry.newValue + '|' + entry.timestamp;
   notionLog.push({ entry: entry, status: 'pending' });
@@ -395,6 +430,13 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.37.0', date:'2026-05-16', label:'feat: Notion credentials shared between dashboard and extension via Supabase',
+    changes:[
+      {type:'feat', text:'Dashboard NotionSyncPanel now has editable API key and database ID fields; credentials are stored in Supabase user_metadata'},
+      {type:'feat', text:'Extension pulls credentials from Supabase on boot if chrome.storage.local is empty, so dashboard-entered credentials are picked up automatically'},
+      {type:'feat', text:'Extension pushes credentials to Supabase on every change, so the dashboard stays in sync with popup edits'},
+      {type:'feat', text:'Single source of truth: both surfaces read and write notion_api_key / notion_db_id from auth.users.user_metadata'}
+    ]},
   { version:'v2.36.0', date:'2026-05-14', label:'Fix: Notion sync dedup — one row per snippet group, multi-lang Body properties',
     changes:[
       {type:'fix', text:'NotionPush now groups all language variants by lang_group_id and upserts a single Notion page per snippet — no more N rows for N languages'},
@@ -888,11 +930,25 @@ function boot() {
     loadNotionCfg(function() {
       var nk = document.getElementById('notion-key');
       var nd = document.getElementById('notion-db');
-      if (nk && notionCfg.apiKey) nk.value = notionCfg.apiKey;
-      if (nd && notionCfg.dbId) nd.value = notionCfg.dbId;
-      updateNotionStatus();
+
+      function applyNotionInputs() {
+        if (nk && notionCfg.apiKey) nk.value = notionCfg.apiKey;
+        if (nd && notionCfg.dbId)   nd.value  = notionCfg.dbId;
+        updateNotionStatus();
+      }
+
+      applyNotionInputs();
       updateSyncStatus();
-      _runNotionSync();
+
+      if (!notionCfg.apiKey || !notionCfg.dbId) {
+        // Config is incomplete — check Supabase (set from dashboard) before syncing.
+        syncNotionCfgFromSupabase(function() {
+          applyNotionInputs();
+          _runNotionSync();
+        });
+      } else {
+        _runNotionSync();
+      }
     });
 
     // Refresh status bar timestamp every 60 seconds
@@ -1916,8 +1972,8 @@ on('tcfg-prompt','change', function(e){
 });
 on('tcfg-snip-key','change', function(e){ setTriggerCfgValue('snippetActivationKey',e.target.value); });
 on('tcfg-prompt-key','change', function(e){ setTriggerCfgValue('promptActivationKey',e.target.value); });
-on('notion-key','change', function(e){ notionCfg.apiKey=e.target.value.trim(); saveNotionCfg(); updateNotionStatus(); });
-on('notion-db','change', function(e){ notionCfg.dbId=e.target.value.trim(); saveNotionCfg(); updateNotionStatus(); });
+on('notion-key','change', function(e){ notionCfg.apiKey=e.target.value.trim(); saveNotionCfg(); pushNotionCfgToSupabase(); updateNotionStatus(); });
+on('notion-db','change', function(e){ notionCfg.dbId=e.target.value.trim(); saveNotionCfg(); pushNotionCfgToSupabase(); updateNotionStatus(); });
 
 function updateNotionStatus(){
   var st=gi('notion-st');

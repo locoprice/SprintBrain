@@ -18,6 +18,7 @@ export interface SettingsApi {
   getProfile(): Promise<Profile>;
   updateProfile(patch: { display_name?: string; shortcut_prefix?: Prefix }): Promise<Profile>;
   getNotionSync(): Promise<NotionSyncState>;
+  updateNotionSettings(patch: { api_key?: string; db_id?: string }): Promise<void>;
 }
 
 function pickDisplayName(
@@ -76,6 +77,10 @@ export const settingsApi: SettingsApi = {
     if (userErr) throw userErr;
     if (!userData.user) throw new Error('Not authenticated');
 
+    const meta = userData.user.user_metadata ?? {};
+    const api_key = typeof meta['notion_api_key'] === 'string' ? meta['notion_api_key'] : '';
+    const database_id = typeof meta['notion_db_id'] === 'string' ? meta['notion_db_id'] : '';
+
     const { data, error } = await supabase
       .from('notion_sync_log')
       .select('ran_at, error')
@@ -86,23 +91,26 @@ export const settingsApi: SettingsApi = {
 
     if (error) throw error;
 
-    if (!data) {
-      return {
-        // database_id lives in the extension's chrome.storage config.
-        // The dashboard doesn't know it; show empty until we migrate that.
-        database_id: '',
-        last_sync_at: null,
-        status: 'idle',
-        last_error: null,
-      };
-    }
-
     return {
-      database_id: '',
-      last_sync_at: data.ran_at,
-      status: data.error ? 'error' : 'idle',
-      last_error: data.error,
+      database_id,
+      api_key,
+      last_sync_at: data?.ran_at ?? null,
+      status: (data?.error ? 'error' : 'idle') as NotionSyncState['status'],
+      last_error: data?.error ?? null,
     };
+  },
+
+  async updateNotionSettings(patch) {
+    const { data: cur, error: getErr } = await supabase.auth.getUser();
+    if (getErr) throw getErr;
+    if (!cur.user) throw new Error('Not authenticated');
+
+    const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
+    if (patch.api_key !== undefined) next['notion_api_key'] = patch.api_key.trim();
+    if (patch.db_id !== undefined) next['notion_db_id'] = patch.db_id.trim();
+
+    const { error } = await supabase.auth.updateUser({ data: next });
+    if (error) throw error;
   },
 
 };
