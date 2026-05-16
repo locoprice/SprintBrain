@@ -14,8 +14,19 @@ import { useIsDesktop } from '@/lib/useViewportGate';
 export function App() {
   const isDesktop = useIsDesktop();
 
+  // On mobile, only auth routes are served so magic links resolve correctly
+  // when opened on a phone. The dashboard itself requires ≥1024px — all
+  // non-auth paths fall through to DesktopGate which points to /mobile/.
   if (!isDesktop) {
-    return <DesktopGate />;
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="*" element={<DesktopGate />} />
+        </Routes>
+      </BrowserRouter>
+    );
   }
 
   return (

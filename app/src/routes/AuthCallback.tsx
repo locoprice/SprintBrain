@@ -44,6 +44,12 @@ export function AuthCallback() {
   }
 
   if (status === 'authed') {
+    // On mobile viewports the dashboard is inaccessible — redirect to the
+    // mobile companion app instead. `next` is dashboard-only so it is ignored.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      window.location.replace('/mobile/');
+      return null;
+    }
     return <Navigate to={next} replace />;
   }
 
@@ -58,7 +64,7 @@ export function AuthCallback() {
 
   // status === 'loading'
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg">
+    <div className="flex min-h-dvh items-center justify-center bg-bg">
       <div className="flex items-center gap-3 text-sm text-ink-muted">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         Signing you in…

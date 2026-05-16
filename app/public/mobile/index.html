@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.16.0 -->
+<!-- SprintBrain Mobile v2.30.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -41,6 +41,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .hdr h1{font-size:18px;font-weight:700;letter-spacing:-.3px;flex:1}
 .hdr-badge{background:rgba(255,255,255,.22);border-radius:20px;
   padding:2px 10px;font-size:12px;font-weight:600}
+.hdr-btn{background:rgba(255,255,255,.18);border:none;color:#fff;
+  width:44px;height:44px;min-width:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;padding:0}
+.hdr-btn:active{background:rgba(255,255,255,.32)}
+.hdr-btn svg{width:20px;height:20px;display:block}
 
 /* SEARCH */
 .search-bar{background:var(--card);padding:10px 16px;
@@ -366,6 +372,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   <div class="hdr">
     <h1>⚡ SprintBrain</h1>
     <span class="hdr-badge" id="cnt">0</span>
+    <button class="hdr-btn" id="logout-btn" aria-label="Sign out" title="Sign out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
   </div>
   <div class="search-bar">
     <input id="srch" type="search" placeholder="Search snippets…"
@@ -498,6 +512,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 <script>
 var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
+
+/* ── AUTH ───────────────────────────────────────── */
+/* Session is written to localStorage by the dashboard's Supabase client at
+   key 'sb-sprintbrain-auth'. Same-origin, so /mobile/ can read it directly.
+   When absent or expired, bounce to /login?next=/mobile/. The dashboard's
+   /auth/callback already hard-redirects mobile viewports back to /mobile/. */
+var AUTH_KEY = 'sb-sprintbrain-auth';
+var SESSION = null, USER_ID = null, ACCESS_TOKEN = null;
+
+function readSession(){
+  try{
+    var raw=localStorage.getItem(AUTH_KEY);
+    if(!raw)return null;
+    var s=JSON.parse(raw);
+    if(!s||!s.access_token||!s.user||!s.user.id)return null;
+    if(s.expires_at&&s.expires_at*1000<Date.now())return null;
+    return s;
+  }catch(e){return null;}
+}
+function clearLocalCaches(){
+  try{localStorage.removeItem('sb_mob_cache');}catch(e){}
+  try{localStorage.removeItem('sb_mob_folders');}catch(e){}
+  try{localStorage.removeItem('sb_mob_uid');}catch(e){}
+}
+function redirectToLogin(){
+  clearLocalCaches();
+  window.location.replace('/login?next='+encodeURIComponent('/mobile/'));
+}
+function requireAuth(){
+  SESSION=readSession();
+  if(!SESSION){redirectToLogin();return false;}
+  ACCESS_TOKEN=SESSION.access_token;
+  USER_ID=SESSION.user.id;
+  return true;
+}
+function authHeaders(extra){
+  var h={'apikey':KEY,'Authorization':'Bearer '+ACCESS_TOKEN};
+  if(extra){for(var k in extra)h[k]=extra[k];}
+  return h;
+}
+function handle401(r){
+  if(r&&r.status===401){
+    try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+    redirectToLogin();
+    return true;
+  }
+  return false;
+}
+function logout(){
+  try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+  redirectToLogin();
+}
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
 var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
@@ -705,18 +771,25 @@ var allSnips=[], allFolders=[], curSnip=null, curLang='ALL', curFolder='ALL', cu
 
 /* ── LOAD ───────────────────────────────────────── */
 function loadSnips(){
+  // Only read cache when it belongs to the current user. Avoids briefly
+  // showing a previous user's snippets after a session change on the device.
   try{
-    var c=JSON.parse(localStorage.getItem('sb_mob_cache')||'null');
-    var fc=JSON.parse(localStorage.getItem('sb_mob_folders')||'null');
-    if(fc&&fc.length)allFolders=fc;
-    if(c&&c.length){allSnips=c;showList();renderFolderChips();renderList();}
+    var cachedUid=localStorage.getItem('sb_mob_uid');
+    if(cachedUid===USER_ID){
+      var c=JSON.parse(localStorage.getItem('sb_mob_cache')||'null');
+      var fc=JSON.parse(localStorage.getItem('sb_mob_folders')||'null');
+      if(fc&&fc.length)allFolders=fc;
+      if(c&&c.length){allSnips=c;showList();renderFolderChips();renderList();}
+    }else{
+      clearLocalCaches();
+    }
   }catch(e){}
 
-  var hdrs={'apikey':KEY,'Authorization':'Bearer '+KEY};
-  var sFetch=fetch(SUPA+'/rest/v1/snippets?select=*&order=sort_order,title',{headers:hdrs})
-    .then(function(r){return r.json();});
-  var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:hdrs})
-    .then(function(r){return r.ok?r.json():[];})
+  var uidQ='user_id=eq.'+encodeURIComponent(USER_ID);
+  var sFetch=fetch(SUPA+'/rest/v1/snippets?select=*&'+uidQ+'&order=sort_order,title',{headers:authHeaders()})
+    .then(function(r){if(handle401(r))throw new Error('401');return r.json();});
+  var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&'+uidQ+'&order=sort_order,name',{headers:authHeaders()})
+    .then(function(r){if(handle401(r))throw new Error('401');return r.ok?r.json():[];})
     .catch(function(){return [];});
 
   Promise.all([sFetch,fFetch]).then(function(res){
@@ -726,8 +799,11 @@ function loadSnips(){
     allFolders=Array.isArray(f)?f:[];
     // prune curFolder if it no longer exists
     if(curFolder!=='ALL'&&!allFolders.some(function(x){return x.id===curFolder;}))curFolder='ALL';
-    try{localStorage.setItem('sb_mob_cache',JSON.stringify(d));}catch(e){}
-    try{localStorage.setItem('sb_mob_folders',JSON.stringify(allFolders));}catch(e){}
+    try{
+      localStorage.setItem('sb_mob_cache',JSON.stringify(d));
+      localStorage.setItem('sb_mob_folders',JSON.stringify(allFolders));
+      localStorage.setItem('sb_mob_uid',USER_ID);
+    }catch(e){}
     showList();renderFolderChips();renderList();
   })
   .catch(function(){
@@ -1236,10 +1312,11 @@ function newId(){
 }
 
 function deleteSnippet(s){
-  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(s.id),{
+  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(s.id)+'&user_id=eq.'+encodeURIComponent(USER_ID),{
     method:'DELETE',
-    headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}
+    headers:authHeaders()
   }).then(function(r){
+    if(handle401(r))throw new Error('401');
     if(!r.ok)throw new Error('delete failed');
     allSnips=allSnips.filter(function(x){return x.id!==s.id;});
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
@@ -1400,17 +1477,16 @@ function createFolderInline(){
     var so=allFolders[j].sort_order;
     if(typeof so==='number'&&so>maxSort)maxSort=so;
   }
-  var f={id:newId(),name:name,ico:'folder',sort_order:maxSort+1};
+  var f={id:newId(),name:name,ico:'folder',sort_order:maxSort+1,user_id:USER_ID};
   fetch(SUPA+'/rest/v1/folders',{
     method:'POST',
-    headers:{
-      'apikey':KEY,
-      'Authorization':'Bearer '+KEY,
+    headers:authHeaders({
       'Content-Type':'application/json',
       'Prefer':'return=representation'
-    },
+    }),
     body:JSON.stringify(f)
   }).then(function(r){
+    if(handle401(r))throw new Error('401');
     if(!r.ok)throw new Error('create folder failed');
     return r.json();
   }).then(function(rows){
@@ -1519,17 +1595,16 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
     });
   }
 
-  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(editSnip.id),{
+  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(editSnip.id)+'&user_id=eq.'+encodeURIComponent(USER_ID),{
     method:'PATCH',
-    headers:{
-      'apikey':KEY,
-      'Authorization':'Bearer '+KEY,
+    headers:authHeaders({
       'Content-Type':'application/json',
       'Prefer':'return=representation'
-    },
+    }),
     body:JSON.stringify({title:title,shortcut:shortcut,body:body,folder_id:folderId})
   })
   .then(function(r){
+    if(handle401(r))throw new Error('401');
     if(!r.ok)throw new Error('save failed');
     return r.json();
   })
@@ -1557,8 +1632,17 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
   });
 });
 
+/* ── LOGOUT BUTTON ──────────────────────────────── */
+(function(){
+  var btn=document.getElementById('logout-btn');
+  if(!btn)return;
+  btn.addEventListener('click',function(){
+    if(confirm('Sign out of SprintBrain?'))logout();
+  });
+})();
+
 /* ── INIT ───────────────────────────────────────── */
-loadSnips();
+if(requireAuth())loadSnips();
 </script>
 </body>
 </html>

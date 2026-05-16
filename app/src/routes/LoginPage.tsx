@@ -31,6 +31,16 @@ export function LoginPage() {
 
   // If an authed user lands here (e.g. via the back button), respect ?next=.
   if (status === 'authed') {
+    // On mobile viewports the dashboard is inaccessible — hard-redirect to
+    // the static /mobile/ companion app. React Router cannot reach /mobile/
+    // because it lives outside the SPA route tree.
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 1023px)').matches
+    ) {
+      window.location.replace('/mobile/');
+      return null;
+    }
     return <Navigate to={next} replace />;
   }
 
@@ -71,8 +81,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-alt p-6">
-      <div className="w-full max-w-md rounded-[16px] border border-line bg-card p-10 shadow-sm">
+    <div className="flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-alt px-4 py-8 sm:px-6">
+      <div className="w-full max-w-md rounded-[16px] border border-line bg-card p-6 shadow-sm sm:p-10">
         {/* Brand */}
         <div className="mb-8 flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary text-sm font-extrabold text-white">
@@ -130,6 +140,9 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 autoFocus
                 required
                 placeholder="you@leibtour.com"
@@ -139,6 +152,7 @@ export function LoginPage() {
                   if (phase === 'error') setPhase('idle');
                 }}
                 disabled={phase === 'sending'}
+                className="min-h-[44px]"
               />
             </div>
 
@@ -152,7 +166,7 @@ export function LoginPage() {
             <Button
               type="submit"
               variant="primary"
-              size="md"
+              size="lg"
               className="w-full"
               disabled={phase === 'sending'}
             >
