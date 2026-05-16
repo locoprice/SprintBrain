@@ -420,6 +420,7 @@ export const mockPrompts: Prompt[] = [
 
 export const mockNotionSync: NotionSyncState = {
   database_id: 'a06cac8d5e0282c28c4101e9e3ea3f88',
+  api_key: '',
   last_sync_at: day(0),
   status: 'idle',
   last_error: null,

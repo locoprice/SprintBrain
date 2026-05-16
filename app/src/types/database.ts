@@ -58,6 +58,7 @@ export interface Prompt {
 
 export interface NotionSyncState {
   database_id: string;
+  api_key: string;
   last_sync_at: IsoDateTime | null;
   status: 'idle' | 'syncing' | 'error';
   last_error: string | null;
