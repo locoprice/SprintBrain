@@ -1,8 +1,8 @@
 # CLAUDE.md — SprintBrain AI Development Reference
 
-**Document Version**: 3.0  
-**Last Updated**: MAGGIO 2026  
-**Project**: SprintBrain Chrome Extension  
+**Document Version**: 3.1  
+**Last Updated**: 2026-05-16  
+**Project**: SprintBrain Chrome Extension (`extension/`)  
 **Purpose**: Single source of truth for AI assistants (Claude, GPT, Grok, etc.) during development. Read this before generating, modifying, or reviewing any code.
 
 ---
@@ -37,7 +37,7 @@
 
 **Goal**: Replace tools like TextBlaze / TextExpander / Magical, emphasizing dynamic formulas, AI prompts, and reliable sync.
 
-**Version**: 2.8.0  
+**Version**: 2.37.0  
 **Owner**: Alessandro Verdicchio
 
 ---
@@ -67,26 +67,36 @@
 
 ## 3. File Structure
 
+> **Post-refactor (2026-04-29):** Extension source was moved from the repo root into the `extension/` subdirectory. All paths below reflect the current layout.
+
 ```
-SprintBrain/
-├── background.js       # Service worker: context menus, Supabase sync, Notion bg sync
-├── content.js          # Content script: keystroke detection, formula engine, overlay UI
-├── popup.js            # Popup UI controller: snippet/folder CRUD, stats, Supabase DB
-├── notion-sync.js      # Notion API integration: incremental sync engine
-├── popup.html          # Popup HTML (520px wide, full UI structure)
-├── overlay.css         # Styles for the inline field input overlay
-├── manifest.json       # Chrome MV3 manifest (v2.8.0)
-├── CLAUDE.md           # This file — AI development reference
-├── WORKFLOW.md         # Git workflow, branch strategy, commit conventions
-├── icon16.png          # Extension icons
-├── icon48.png
-├── icon128.png
-└── .claude/
-    ├── settings.local.json  # Claude Code permitted commands
-    └── launch.json          # Preview server configs
+extension/                              # Chrome MV3 source root (no build step)
+├── manifest.json                       # v2.37.0 — permissions, icons, entry points
+├── background/
+│   └── background.js                  # Service worker: context menus, sync, Supabase
+├── content/
+│   └── content.js                     # Keystroke buffer, formula engine, overlay UI
+├── popup/
+│   ├── popup.html                     # Popup UI (600×420px fixed)
+│   └── popup.js                       # CRUD controller, Supabase DB wrapper
+├── auth/
+│   └── auth.js                        # Supabase OTP + session (importScripts'd by bg)
+├── services/
+│   └── notion-sync/
+│       └── notion-sync.js             # Notion incremental sync engine (17K)
+├── overlay/
+│   └── overlay.css                    # Field input overlay styles
+├── shared/
+│   └── tokens/
+│       └── colors_and_type.css        # Design tokens (shared with dashboard)
+└── assets/
+    └── icons/
+        ├── icon16.png
+        ├── icon48.png
+        └── icon128.png
 ```
 
-**All source files are in the root directory — there are no subdirectories for source code.**
+**The extension is vanilla JS with no subdirectory nesting beyond the above structure — no `node_modules`, no `package.json`, no build output.**
 
 ---
 
@@ -115,28 +125,30 @@ sessionStorage
 ### Data Flow Between Files
 
 ```
-popup.js  ──── Supabase REST ────►  PostgreSQL
-    │               ▲
-    │               │
-background.js ─────┘  (also reads Supabase for context menus)
-    │
-    └── chrome.storage.sync ──►  content.js (reads snippets for expansion)
-                                          │
-                                          └── overlay.css (field input UI)
+popup/popup.js  ──── Supabase REST ────►  PostgreSQL
+       │                   ▲
+       │                   │
+background/background.js ──┘  (GET-only; also drives context menus)
+       │
+       └── chrome.storage.sync ──►  content/content.js (reads snippets)
+                                              │
+                                              └── overlay/overlay.css (field UI)
 
-notion-sync.js ──── Notion API ──── Supabase (via popup.js calls)
+services/notion-sync/notion-sync.js ──── Notion API (via Supabase edge function proxy)
+auth/auth.js  ────  importScripts'd by background.js  ────  Supabase OTP sessions
 ```
 
 ### Key Modules
 
-**`background.js`** — Service worker (persistent)
+**`background/background.js`** — Service worker (persistent via MV3 alarms)
+- Loads `auth/auth.js` and `services/notion-sync/notion-sync.js` via `importScripts()`
 - `supaFetch(table, qs)` — GET-only wrapper to Supabase REST API
 - `loadData()` — Fetches folders + snippets, builds context menus
 - `buildContextMenus()` — Creates hierarchical right-click menus
-- `bgNotionSync()` — Runs Notion sync on browser startup
+- `bgNotionSync()` — Runs Notion sync on browser startup + alarm
 - Responds to `chrome.runtime.onMessage` events
 
-**`content.js`** — Injected into all pages
+**`content/content.js`** — Injected into all pages
 - `evalFormula(expr, vals)` — Safe math evaluator (whitelist: round, floor, ceil, abs, min, max)
 - `resolveBody(body, vals)` — Template resolver: `{field}`, `{=formula}`, `{if:cond}...{endif}`
 - `extractFields(body)` — Parses template to identify required input fields
@@ -145,7 +157,7 @@ notion-sync.js ──── Notion API ──── Supabase (via popup.js calls
 - `showOverlay()` — Inline field input UI
 - `isUrgExpired()` — Checks urgency timer (uses sessionStorage)
 
-**`popup.js`** — Popup UI (instantiated on icon click)
+**`popup/popup.js`** — Popup UI (instantiated on every icon click)
 - `DB` object — wraps all Supabase CRUD operations:
   - `DB.loadAll()` — Loads folders, snippets, stats
   - `DB.upsertSnippet(s)` — Create/update snippet
@@ -154,7 +166,12 @@ notion-sync.js ──── Notion API ──── Supabase (via popup.js calls
   - `DB.updateStats(snippetId, uses, fills, lastUsed)` — Usage tracking
 - `supaFetch(table, method, body, qs)` — Full REST wrapper (GET/POST/DELETE)
 
-**`notion-sync.js`** — Notion integration
+**`auth/auth.js`** — Supabase OTP + session management
+- Loaded via `importScripts()` in `background.js`
+- `signInWithOtp(email)`, `verifyOtp(email, token)`, `getSession()`, `refreshSession()`
+- Stores session JWT in `chrome.storage.local`
+
+**`services/notion-sync/notion-sync.js`** — Notion integration (17K)
 - `_queryDatabase()` — Incremental query filtered by `last_edited_time`
 - Race-condition lock (30s cooldown), 8s timeout, session guard
 - Maps Notion pages → SprintBrain snippets via `notion_page_id`
@@ -320,26 +337,34 @@ var SUPA_KEY = 'sb_publishable_...';
 ## 11. Development Workflow
 
 ### Making Changes
-1. Edit files directly in the repository root (no build step)
+1. Edit files under `extension/` (no build step — changes are immediate)
 2. Review: `git diff`
 3. Stage and commit: `git add <files> && git commit -m "type: description"`
 4. Push: `git push -u origin <branch-name>`
 5. Reload extension: `chrome://extensions` → Find Sprintbrain → click **Reload**
 6. Test manually in Chrome
-7. When the task is done, tell which is the correct GitHub branch where Valentina has to download the code.
+7. Push to `develop`; open PR to `main` when stable.
 
-### Manual Testing
+### Manual Testing Checklist
 - Go to any webpage with a text input
-- Type the trigger prefix + shortcut (e.g. `::time`)
+- Type the trigger prefix + shortcut (e.g. `;;quoteEN`)
 - Verify overlay appears with correct fields
 - Verify formula calculations are correct
 - Test context menu: right-click any text field → Sprintbrain submenu
+- Confirm service worker has no errors (`chrome://extensions` → inspect service worker)
 
 ### Preview Server (for popup UI development)
 ```bash
+# From repo root
 python3 -m http.server 8080
-# Open http://localhost:8080/popup.html in browser
+# Open http://localhost:8080/extension/popup/popup.html
 ```
+
+### CI (GitHub Actions)
+CI runs on push to `develop` and checks:
+1. `extension/manifest.json` version == `app/package.json` version
+2. Formula syntax via `scripts/check-snippets.js`
+3. File structure assertions
 
 ### Branch Strategy
 | Branch | Purpose |
@@ -354,8 +379,10 @@ feat: add new snippet template for /checkinIT
 fix: correct formula rounding in quote template
 docs: update CLAUDE.md with accurate tech stack
 refactor: extract field parsing from resolveBody
-chore: update manifest version to 2.9.0
+chore: bump manifest version to 2.38.0
 ```
+
+> **Version bump rule:** After every feature/fix batch, increment the version in **both** `extension/manifest.json` and `app/package.json` in the same commit.
 
 ---
 

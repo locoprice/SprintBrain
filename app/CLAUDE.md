@@ -1,7 +1,7 @@
 # app/CLAUDE.md — SprintBrain Dashboard (React)
 
-**Document Version**: 2.2
-**Last Updated**: April 29, 2026
+**Document Version**: 2.3
+**Last Updated**: 2026-05-16
 **Project**: SprintBrain SaaS Dashboard (app/)
 **Purpose**: AI development reference for the React dashboard. The Chrome extension lives in `extension/` and follows a different stack — see `../docs/CLAUDE.md` for that codebase.
 
@@ -27,7 +27,7 @@
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.
 
-**Scope (v2.17.0)**: Supabase magic-link authentication (domain-restricted to `@leibtour.com`) with live reads + full CRUD for snippets, folders, and prompts (AUTH-001 + SNIPPETS-CRUD-001 + PROMPTS-001 all shipped). Analytics still uses mock fixtures pending the `snippet_events` time-series table (`ANALYTICS-001`).
+**Scope (v2.28.0)**: Supabase OTP authentication (domain-restricted to `@leibtour.com`) with live reads + full CRUD for snippets, folders, and prompts (AUTH-001 + SNIPPETS-CRUD-001 + PROMPTS-001 all shipped). Analytics still uses mock fixtures pending the `snippet_events` time-series table (`ANALYTICS-001`). Dashboard now includes an `ExtensionLinkPage` for connecting the Chrome extension to a logged-in user session.
 
 **Audience**: hospitality operators (LeibTour) primarily; B2B prospects evaluating SprintBrain.
 
@@ -55,41 +55,57 @@ The SprintBrain dashboard is a **desktop-only single-page application** served a
 
 ```
 app/
-├── public/                # Static assets served verbatim
+├── public/                    # Static assets served verbatim
 │   ├── icon{16,48,128}.png
-│   ├── landing/           # Legacy desktop landing (was repo-root index.html)
-│   └── mobile/            # Mobile companion app
+│   ├── landing/               # Legacy desktop landing (served at /landing/)
+│   └── mobile/                # Mobile companion app (served at /mobile/)
+├── netlify/
+│   └── edge-functions/        # Netlify edge function stubs
 ├── src/
-│   ├── main.tsx           # ReactDOM root
-│   ├── App.tsx            # Router + DesktopGate
-│   ├── index.css          # Tailwind layers + base styles
+│   ├── main.tsx               # ReactDOM root
+│   ├── App.tsx                # BrowserRouter + DesktopGate + route definitions
+│   ├── index.css              # Tailwind layers + base styles
 │   ├── routes/
 │   │   ├── DashboardLayout.tsx
 │   │   ├── SnippetsPage.tsx
 │   │   ├── AnalyticsPage.tsx
 │   │   ├── PromptsPage.tsx
-│   │   └── SettingsPage.tsx
+│   │   ├── SettingsPage.tsx
+│   │   ├── LoginPage.tsx       # OTP email auth entry point
+│   │   ├── AuthCallback.tsx    # Supabase PKCE callback handler
+│   │   └── ExtensionLinkPage.tsx  # Links Chrome extension to user session
 │   ├── components/
-│   │   ├── ui/            # shadcn primitives
-│   │   ├── layout/        # Sidebar, Topbar, PageHeader, EmptyState, DesktopGate
-│   │   └── shared/        # Reusable cross-feature components (KpiCard)
+│   │   ├── ui/                # shadcn/ui primitives (Radix-based)
+│   │   │   ├── button.tsx, card.tsx, input.tsx, dialog.tsx
+│   │   │   ├── tabs.tsx, badge.tsx, separator.tsx
+│   │   ├── layout/            # Sidebar, Topbar, PageHeader, EmptyState, DesktopGate
+│   │   ├── auth/
+│   │   │   └── AuthGate.tsx   # Route guard (redirects unauthenticated users)
+│   │   └── shared/            # KpiCard + other cross-feature widgets
 │   ├── features/
-│   │   ├── snippets/      # SnippetFolderTree, SnippetsTable, NewSnippetDialog
-│   │   ├── analytics/     # UsageChart, TopTriggersTable
-│   │   ├── prompts/       # PromptCard
-│   │   └── settings/      # NotionSyncPanel, AccountPanel, IntegrationsPanel
-│   ├── stores/            # Zustand stores: snippet, prompt, analytics, settings, ui
+│   │   ├── snippets/          # SnippetFolderTree, SnippetsTable, NewSnippetDialog,
+│   │   │                      #   FolderDialog, FolderContextMenu
+│   │   ├── analytics/         # UsageChart, TopTriggersTable
+│   │   ├── prompts/           # PromptCard, PromptDialog
+│   │   └── settings/          # NotionSyncPanel, AccountPanel, IntegrationsPanel
+│   ├── stores/                # Zustand: snippet, prompt, analytics, settings, auth, ui
 │   ├── lib/
-│   │   ├── api/           # Mock service layer; same shape as future Supabase impl
-│   │   ├── utils.ts       # cn(), formatDuration(), formatCompact()
+│   │   ├── api/               # Service layer (live Supabase + mock stubs)
+│   │   │   ├── snippetsApi.ts # LIVE CRUD
+│   │   │   ├── promptsApi.ts  # LIVE CRUD
+│   │   │   ├── settingsApi.ts # LIVE reads + Notion config
+│   │   │   └── analyticsApi.ts  # MOCK (pending snippet_events — ANALYTICS-001)
+│   │   ├── supabase.ts        # Supabase JS client (publishable key)
+│   │   ├── extensionId.ts     # Extension ID for postMessage handshake
+│   │   ├── utils.ts           # cn(), formatDuration(), formatCompact()
 │   │   └── useViewportGate.ts
 │   ├── types/
-│   │   ├── database.ts    # Mirrors Supabase tables (see ../PROJECT_CONTEXT.md §4)
-│   │   └── schemas.ts     # Zod schemas
+│   │   ├── database.ts        # Mirrors Supabase tables (see PROJECT_CONTEXT.md §4)
+│   │   └── schemas.ts         # Zod schemas
 │   └── mock/
-│       └── fixtures.ts    # Deterministic seed data
-├── index.html             # Vite root
-├── package.json
+│       └── fixtures.ts        # Deterministic seed data (stable UUIDs, fixed dates)
+├── index.html                 # Vite root
+├── package.json               # Version must match extension/manifest.json
 ├── tailwind.config.ts
 ├── tsconfig.json + tsconfig.app.json + tsconfig.node.json
 └── vite.config.ts
@@ -163,7 +179,7 @@ app/
 
 ## 6. What NOT to do
 
-- Do not import from the extension files at the repo root (`background.js`, `popup.js`, etc.). They share no runtime.
+- Do not import from extension source files (`extension/`). They share no runtime with the dashboard.
 - Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query until `AUTH-EXT-001` lands and the `team_*` RLS policies come off — without it, every authed user can read every other user's rows.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
@@ -174,10 +190,10 @@ app/
 
 ## 7. Roadmap (next tickets)
 
-1. ~~Supabase auth (magic link) + live reads~~ ✅ shipped in v2.15.0 (AUTH-001).
-2. ~~**SNIPPETS-CRUD-001** — create / edit / delete snippets and folders from the dashboard with Zod validation and optimistic updates.~~ ✅ shipped in v2.16.0.
-3. ~~**PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.~~ ✅ shipped in v2.17.0.
-4. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies.
+1. ~~Supabase auth (OTP / magic link) + live reads~~ ✅ shipped AUTH-001.
+2. ~~**SNIPPETS-CRUD-001** — create / edit / delete snippets and folders with Zod validation and optimistic updates.~~ ✅ shipped.
+3. ~~**PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.~~ ✅ shipped.
+4. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies. `ExtensionLinkPage` is the UI entry point.
 5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
 6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
 7. Dark mode (`uiStore` already has the seam).

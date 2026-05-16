@@ -100,6 +100,35 @@ Every implementation summary must include:
 
 ---
 
+## 🐛 Bug Fix Protocol
+
+These rules apply to every bug fix task, without exception.
+
+### Step 1 — Reproduce first, code second
+Before touching a single line of code, Claude **must** reproduce the bug. This means running the exact steps that trigger the failure and observing it directly. Guessing at a fix without confirmed reproduction is forbidden.
+
+> **If the bug cannot be reproduced:** Stop immediately. Do not make any code change. Ask the user for a clearer reproduction case (exact steps, environment, inputs, expected vs actual behavior) before continuing.
+
+### Step 2 — Fix only what is broken
+The fix must be scoped strictly to the reported bug. No refactoring, cleanup, or opportunistic improvements beyond the failing behavior — unless explicitly approved. Scope creep during a bug fix introduces untested risk.
+
+### Step 3 — Verify the fix is complete
+A bug fix is **not done** until all four gates pass:
+
+1. **Re-reproduce** — Run the exact same steps that triggered the bug and confirm it no longer occurs.
+2. **Related flows** — Manually test every user flow that touches the changed code, not just the broken path.
+3. **Regression test** — Add a test (unit or integration) that would have caught this bug, so it cannot silently return.
+4. **Automated gates** — `npm run lint`, `npm run typecheck`, `npm run build` must all pass (for `app/`).
+
+### Hard rules
+- **Never ship a fix that introduces a new bug.** Zero-regression policy: if fixing A breaks B, the task remains open.
+- **Never mark a task complete without end-to-end verification.** The fix must be confirmed working in the actual runtime, not just in theory.
+
+### Communication during bug fixes
+Work silently and autonomously. Surface a message only when genuinely blocked — not for status updates, intermediate findings, or routine progress. The final report uses the standard summary format above.
+
+---
+
 ## 🧪 Regression Policy
 - Mandatory regression analysis before implementation.
 - Map affected modules, APIs, routes, state flows, and dependencies.
@@ -192,13 +221,83 @@ Every implementation summary must include:
 
 ## 📦 Monorepo Structure
 
-| Path | Purpose |
-|------|---------|
-| `/CLAUDE.md` | **This file** — global engineering standards (floor for all packages) |
-| `/docs/CLAUDE.md` | Chrome Extension — vanilla JS rules, MV3 specifics |
+```
+SprintBrain/
+├── CLAUDE.md                          # This file — global engineering standards
+├── netlify.toml                       # Netlify deploy (base: app/, publishes dist/)
+├── .github/workflows/ci.yml           # CI pipeline (runs on push to develop)
+│
+├── extension/                         # Chrome MV3 extension (vanilla JS, no build)
+│   ├── manifest.json                  # v2.37.0 — permissions, icons, entry points
+│   ├── background/background.js       # Service worker: context menus, sync triggers
+│   ├── content/content.js             # Keystroke buffer, formula engine, overlay
+│   ├── popup/popup.html + popup.js    # Extension popup UI (600×420px)
+│   ├── auth/auth.js                   # Supabase OTP + session management
+│   ├── services/notion-sync/          # Notion incremental sync engine
+│   ├── overlay/overlay.css            # Field input overlay styles
+│   ├── shared/tokens/                 # Shared design tokens (colors_and_type.css)
+│   └── assets/icons/                  # Extension icons (16/48/128px)
+│
+├── app/                               # React + Vite SaaS dashboard (v2.28.0)
+│   ├── CLAUDE.md                      # Dashboard-specific AI rules
+│   ├── package.json                   # Dependencies + version (must match manifest)
+│   ├── vite.config.ts                 # Vite 5 config
+│   ├── tailwind.config.ts             # Design tokens exposed as Tailwind classes
+│   ├── src/                           # All React/TypeScript source
+│   └── public/                        # Static assets (landing/, mobile/, icons)
+│
+├── services/supabase/                 # Backend infrastructure
+│   ├── migrations/                    # Ordered SQL migrations (apply via Supabase CLI)
+│   └── functions/notion-snippet-push/ # Edge function: Notion → Supabase proxy
+│
+├── design_handoff_design_system/      # Design system (v1.0)
+│   ├── tokens/colors_and_type.css     # Canonical token file (source of truth)
+│   ├── kits/                          # Reference HTML kits (extension + dashboard)
+│   ├── previews/                      # Live token preview pages
+│   └── docs/                          # VISUAL_FOUNDATIONS, CONTENT, ICONOGRAPHY
+│
+├── scripts/                           # Node.js CI helper scripts
+│   ├── check-version.js               # Enforces manifest ≈ package.json version parity
+│   └── check-snippets.js              # Validates formula/template syntax
+│
+└── docs/                              # Architecture + workflow documentation
+    ├── CLAUDE.md                      # Extension AI dev reference (vanilla JS rules)
+    ├── PROJECT_CONTEXT.md             # Full project context (primary AI entry point)
+    └── WORKFLOW.md                    # Git branching + commit conventions
+```
+
+### CLAUDE.md hierarchy
+
+| File | Scope |
+|------|-------|
+| `/CLAUDE.md` | **This file** — global floor for all packages |
+| `/docs/CLAUDE.md` | Chrome Extension — vanilla JS, MV3, no-build rules |
 | `/app/CLAUDE.md` | React/TypeScript dashboard — strict TS, Vite, Supabase |
 
 Local module rules extend but never weaken the global standards defined here.
+
+---
+
+## 🔄 CI / Build Pipeline
+
+### GitHub Actions (`.github/workflows/ci.yml`)
+Runs on every push to `develop`. Three gates must pass:
+
+1. **Version parity** — `scripts/check-version.js` verifies `extension/manifest.json` version matches `app/package.json`. Both must be kept in sync; increment together.
+2. **Formula validation** — `scripts/check-snippets.js` validates snippet template/formula syntax.
+3. **File structure** — Asserts `extension/manifest.json`, `app/index.html`, and `app/package.json` exist.
+
+### Dashboard build (Netlify)
+Auto-deploys from `main` via `netlify.toml` (`base = "app"`, publishes `dist/`).
+
+```bash
+cd app
+npm ci && npm run build   # tsc -b && vite build → app/dist/
+```
+
+### Extension (no build)
+Chrome MV3 extension loads directly from `extension/` — no compilation, no bundling.
+Manual reload always required: `chrome://extensions` → Reload.
 
 ---
 
