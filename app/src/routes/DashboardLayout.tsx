@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
 
 export function DashboardLayout() {
   const loadSettings = useSettingsStore((s) => s.load);
@@ -26,6 +27,10 @@ export function DashboardLayout() {
             <Outlet />
           </div>
         </main>
+        <footer className="flex items-center justify-between border-t border-line bg-bg-alt px-4 py-1">
+          <span className="font-mono text-[10px] text-ink-subtle">{APP_VERSION}</span>
+          <span className="font-mono text-[10px] text-ink-subtle">{RELEASE_DATE}</span>
+        </footer>
       </div>
     </div>
   );
