@@ -100,6 +100,35 @@ Every implementation summary must include:
 
 ---
 
+## 🐛 Bug Fix Protocol
+
+These rules apply to every bug fix task, without exception.
+
+### Step 1 — Reproduce first, code second
+Before touching a single line of code, Claude **must** reproduce the bug. This means running the exact steps that trigger the failure and observing it directly. Guessing at a fix without confirmed reproduction is forbidden.
+
+> **If the bug cannot be reproduced:** Stop immediately. Do not make any code change. Ask the user for a clearer reproduction case (exact steps, environment, inputs, expected vs actual behavior) before continuing.
+
+### Step 2 — Fix only what is broken
+The fix must be scoped strictly to the reported bug. No refactoring, cleanup, or opportunistic improvements beyond the failing behavior — unless explicitly approved. Scope creep during a bug fix introduces untested risk.
+
+### Step 3 — Verify the fix is complete
+A bug fix is **not done** until all four gates pass:
+
+1. **Re-reproduce** — Run the exact same steps that triggered the bug and confirm it no longer occurs.
+2. **Related flows** — Manually test every user flow that touches the changed code, not just the broken path.
+3. **Regression test** — Add a test (unit or integration) that would have caught this bug, so it cannot silently return.
+4. **Automated gates** — `npm run lint`, `npm run typecheck`, `npm run build` must all pass (for `app/`).
+
+### Hard rules
+- **Never ship a fix that introduces a new bug.** Zero-regression policy: if fixing A breaks B, the task remains open.
+- **Never mark a task complete without end-to-end verification.** The fix must be confirmed working in the actual runtime, not just in theory.
+
+### Communication during bug fixes
+Work silently and autonomously. Surface a message only when genuinely blocked — not for status updates, intermediate findings, or routine progress. The final report uses the standard summary format above.
+
+---
+
 ## 🧪 Regression Policy
 - Mandatory regression analysis before implementation.
 - Map affected modules, APIs, routes, state flows, and dependencies.
