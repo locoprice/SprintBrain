@@ -8,6 +8,46 @@ import {
   useSnippetStore,
 } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import type { Snippet } from '@/types/database';
+
+/**
+ * Language pill palette — matches the mobile companion app at
+ * app/public/mobile/index.html. Defined inline so each language gets the
+ * correct tint without bloating tailwind.config.ts with language tokens.
+ */
+const LANG_STYLE: Record<Snippet['language'], string> = {
+  EN:    'bg-[#EEF2FF] text-[#1B4FD8]',
+  ES:    'bg-[#FFF7ED] text-[#C2410C]',
+  IT:    'bg-[#F0FDF4] text-[#15803D]',
+  FR:    'bg-[#EEF2FF] text-[#1B4FD8]', // FR retired in v1.1 but kept until type union is cleaned up
+  MULTI: 'bg-[#F5F3FF] text-[#7C3AED]',
+};
+const LANG_LABEL: Record<Snippet['language'], string> = {
+  EN: 'EN', ES: 'ES', IT: 'IT', FR: 'FR', MULTI: 'Multi',
+};
+
+function LangPill({ lang }: { lang: Snippet['language'] }) {
+  return (
+    <span
+      className={
+        'inline-block rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ' +
+        LANG_STYLE[lang]
+      }
+    >
+      {LANG_LABEL[lang]}
+    </span>
+  );
+}
+
+/** Shortcut tag — `::` prefix at 0.45 opacity, trigger at full weight. */
+function ShortcutTag({ trigger }: { trigger: string }) {
+  return (
+    <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+      <span className="font-normal opacity-45">::</span>
+      <span>{trigger}</span>
+    </code>
+  );
+}
 
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
@@ -78,20 +118,24 @@ export function SnippetsTable() {
     }
   }
 
+  // `overflow-clip` (Chromium 90+ / Safari 16+ / Firefox 102+) clips visually
+  // without establishing a scroll container, which is what lets the sticky
+  // <th> cells stick to <main>'s scroll position instead of being clipped here.
   return (
-    <div className="overflow-hidden rounded-[16px] border border-line bg-card">
-      <table className="w-full text-sm">
+    <div className="overflow-clip rounded-[16px] border border-line bg-card">
+      <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-line bg-bg-alt text-left text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-            <th className="px-5 py-3">Name</th>
-            <th className="px-5 py-3">Shortcut</th>
-            <th className="px-5 py-3">Folder</th>
-            <th className="px-5 py-3">Updated</th>
-            <th className="px-5 py-3 text-right">Usage</th>
-            <th className="px-4 py-3 text-center" title="Share this snippet with the team via Notion">
+          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Name</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Shortcut</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Lang</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Folder</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Updated</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-right">Usage</th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center" title="Share this snippet with the team via Notion">
               <Users className="mx-auto h-3.5 w-3.5" />
             </th>
-            <th className="w-10 px-2 py-3" aria-label="Actions" />
+            <th className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-2 py-3" aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
@@ -128,15 +172,16 @@ export function SnippetsTable() {
                   </div>
                 </td>
                 <td className="px-5 py-3">
-                  <code className="rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-                    ::{trigger}
-                  </code>
+                  <ShortcutTag trigger={trigger} />
+                </td>
+                <td className="px-5 py-3">
+                  <LangPill lang={row.language} />
                 </td>
                 <td className="px-5 py-3 text-ink-muted">{row.folder_name ?? '—'}</td>
                 <td className="px-5 py-3 text-ink-muted">
                   {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
                 </td>
-                <td className="px-5 py-3 text-right font-mono text-xs text-ink-muted">
+                <td className="px-5 py-3 text-right font-mono text-xs tabular-nums text-ink-muted">
                   {row.usage_count.toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-center">

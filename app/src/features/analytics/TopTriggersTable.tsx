@@ -39,12 +39,12 @@ export function TopTriggersTable({ data }: TopTriggersTableProps) {
         <CardDescription>Your most-used shortcuts in the last 14 days.</CardDescription>
       </CardHeader>
       <CardContent className="px-0 pb-0">
-        <table className="w-full text-sm">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-              <th className="px-6 py-2.5">Trigger</th>
-              <th className="px-6 py-2.5">Trend</th>
-              <th className="px-6 py-2.5 text-right">Uses</th>
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+              <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-6 py-2.5">Trigger</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-6 py-2.5">Trend</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-6 py-2.5 text-right">Uses</th>
             </tr>
           </thead>
           <tbody>
@@ -54,14 +54,15 @@ export function TopTriggersTable({ data }: TopTriggersTableProps) {
                 className={i === data.length - 1 ? '' : 'border-b border-line'}
               >
                 <td className="px-6 py-3">
-                  <code className="rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-                    ::{row.trigger}
+                  <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+                    <span className="font-normal opacity-45">::</span>
+                    <span>{row.trigger}</span>
                   </code>
                 </td>
                 <td className="px-6 py-3">
                   <Sparkline values={row.trend} />
                 </td>
-                <td className="px-6 py-3 text-right font-mono text-xs text-ink">
+                <td className="px-6 py-3 text-right font-mono text-xs tabular-nums text-ink">
                   {row.count.toLocaleString()}
                 </td>
               </tr>

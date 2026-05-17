@@ -6,6 +6,12 @@ import { ChangelogModal } from '@/components/layout/ChangelogModal';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
 
+/**
+ * Dashboard shell — design system v1.1.
+ * Topbar spans the full width above both the sidebar and the main canvas
+ * (mirrors the mockup's grid `[topbar / sidebar | main]`). The sidebar
+ * starts directly under the topbar; main owns the scroll.
+ */
 export function DashboardLayout() {
   const loadSettings = useSettingsStore((s) => s.load);
   const profile = useSettingsStore((s) => s.profile);
@@ -20,25 +26,27 @@ export function DashboardLayout() {
   }, [loadSettings, profile]);
 
   return (
-    <div className="flex h-screen min-w-[1024px] bg-bg text-ink">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-content px-8 py-8">
-            <Outlet />
-          </div>
-        </main>
-        <footer className="flex items-center justify-between border-t border-line bg-bg-alt px-4 py-1">
-          <button
-            type="button"
-            onClick={() => setChangelogOpen(true)}
-            className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
-          >
-            {APP_VERSION}
-          </button>
-          <span className="font-mono text-[10px] text-ink-subtle">{RELEASE_DATE}</span>
-        </footer>
+    <div className="flex h-screen min-w-[1024px] flex-col bg-bg text-ink">
+      <Topbar />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-content px-8 py-8">
+              <Outlet />
+            </div>
+          </main>
+          <footer className="flex items-center justify-between border-t border-line bg-bg-alt px-4 py-1">
+            <button
+              type="button"
+              onClick={() => setChangelogOpen(true)}
+              className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+            >
+              {APP_VERSION}
+            </button>
+            <span className="font-mono text-[10px] text-ink-subtle">{RELEASE_DATE}</span>
+          </footer>
+        </div>
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </div>

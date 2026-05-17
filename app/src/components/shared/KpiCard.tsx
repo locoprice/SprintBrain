@@ -17,7 +17,7 @@ export function KpiCard({ label, value, icon: Icon, hint, delta }: KpiCardProps)
           <div className="text-xs font-medium uppercase tracking-wider text-ink-subtle">
             {label}
           </div>
-          <div className="mt-2 text-3xl font-bold tracking-tight text-ink">{value}</div>
+          <div className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-ink">{value}</div>
         </div>
         <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary-light text-primary">
           <Icon className="h-4 w-4" />

@@ -11,32 +11,42 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
+import { useSnippetStore } from '@/stores/snippetStore';
+import { usePromptStore } from '@/stores/promptStore';
 
 interface NavItem {
   to: string;
   label: string;
   icon: typeof Type;
   end?: boolean;
+  /** When provided, renders a count pill — filled (primary) when active, muted otherwise. */
+  count?: number;
 }
 
-const PRIMARY: NavItem[] = [
-  { to: '/', label: 'Snippets', icon: Type, end: true },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/prompts', label: 'Prompts', icon: MessageSquareText },
-  { to: '/settings', label: 'Settings', icon: Settings },
-];
-
-const SECONDARY: NavItem[] = [
-  { to: '/help', label: 'Help', icon: HelpCircle },
-  { to: '/feedback', label: 'Feedback', icon: LifeBuoy },
-];
-
 function navClass({ isActive }: { isActive: boolean }): string {
+  // Reserve the 3px-wide track for the left bar on every item so the active
+  // state slides in/out without shifting content. The bar is painted via
+  // a ::before pseudo-element when active.
   return cn(
-    'flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors',
+    'group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors',
+    "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-[3px] before:content-['']",
     isActive
-      ? 'bg-primary-light text-primary'
-      : 'text-ink-muted hover:bg-bg-alt hover:text-ink',
+      ? 'bg-primary-light text-primary before:bg-primary'
+      : 'text-ink-muted before:bg-transparent hover:bg-bg-alt hover:text-ink',
+  );
+}
+
+/** Filled count pill (active) or muted bg-alt pill (inactive). Used on nav rows. */
+function NavCountPill({ count, active }: { count: number; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        'ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+        active ? 'bg-primary text-white' : 'bg-bg-alt text-ink-subtle',
+      )}
+    >
+      {count}
+    </span>
   );
 }
 
@@ -54,6 +64,11 @@ function pickDisplayName(
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  // Live counts drive the nav pills. Counts are only displayed once the
+  // matching store has loaded at least one row — avoids flashing "0" before
+  // pages hydrate. The settings/analytics rows intentionally have no count.
+  const snippetCount = useSnippetStore((s) => s.snippets.length);
+  const promptCount = usePromptStore((s) => s.prompts.length);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -61,6 +76,18 @@ export function Sidebar() {
   const email = user?.email ?? '';
   const displayName = pickDisplayName(user?.user_metadata, email);
   const initial = displayName.slice(0, 1).toUpperCase();
+
+  const PRIMARY: NavItem[] = [
+    { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
+    { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { to: '/prompts', label: 'Prompts', icon: MessageSquareText, count: promptCount },
+    { to: '/settings', label: 'Settings', icon: Settings },
+  ];
+
+  const SECONDARY: NavItem[] = [
+    { to: '/help', label: 'Help', icon: HelpCircle },
+    { to: '/feedback', label: 'Feedback', icon: LifeBuoy },
+  ];
 
   // Close the dropdown on any outside click.
   useEffect(() => {
@@ -87,25 +114,24 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-[260px] shrink-0 flex-col border-r border-line bg-card">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-line px-5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-primary text-sm font-extrabold text-white">
-          S
-        </div>
-        <span className="text-[15px] font-bold tracking-tight text-ink">SprintBrain</span>
-      </div>
-
-      {/* Primary nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
+      {/* Primary nav — group label sits at the top now that the brand moved to the topbar. */}
+      <nav className="flex-1 overflow-y-auto px-3 pt-5 pb-4">
         <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
           Workspace
         </div>
         <div className="flex flex-col gap-0.5">
           {PRIMARY.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                  {typeof item.count === 'number' && item.count > 0 ? (
+                    <NavCountPill count={item.count} active={isActive} />
+                  ) : null}
+                </>
+              )}
             </NavLink>
           ))}
         </div>
@@ -120,7 +146,7 @@ export function Sidebar() {
               href="#"
               onClick={(e) => e.preventDefault()}
               className={cn(
-                'flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-muted hover:bg-bg-alt hover:text-ink',
+                'flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-muted hover:bg-card hover:text-ink',
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -150,7 +176,7 @@ export function Sidebar() {
           onClick={() => setMenuOpen((open) => !open)}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
-          className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-bg-alt"
+          className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-card"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
             {initial}

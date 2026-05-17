@@ -3,6 +3,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
+/**
+ * Top bar — design system v1.1.
+ * Spans the dashboard width at 60px; brand sits on the left (mirrors the
+ * mockup at design_handoff_design_system/mockups/harmonized-final.html),
+ * search anchors the middle, and the sync pill + theme + bell stay on the right.
+ */
 export function Topbar() {
   const notionSync = useSettingsStore((s) => s.notionSync);
   const lastSyncLabel = notionSync?.last_sync_at
@@ -10,16 +16,24 @@ export function Topbar() {
     : 'Never synced';
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-card px-6">
+    <header className="flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-card px-6">
+      {/* Brand — small azure square + wordmark */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-primary text-sm font-extrabold text-white">
+          S
+        </div>
+        <span className="text-[15px] font-bold tracking-tight text-ink">SprintBrain</span>
+      </div>
+
       {/* Global search (stub) */}
-      <div className="relative w-[420px]">
+      <div className="relative w-[360px]">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
         <input
           type="text"
           placeholder="Search snippets, prompts, settings…"
-          className="h-9 w-full rounded-[10px] border border-line bg-bg-alt pl-9 pr-12 text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:bg-card focus:ring-2 focus:ring-primary/20"
+          className="h-9 w-full rounded-[10px] border border-line bg-bg-alt pl-9 pr-12 text-sm text-ink placeholder:text-ink-subtle focus:border-primary focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
-        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 items-center gap-1 rounded-md border border-line bg-card px-1.5 text-[11px] font-medium text-ink-subtle">
+        <kbd className="pointer-events-none absolute right-2 top-1/2 inline-flex h-6 -translate-y-1/2 items-center gap-1 rounded-md border border-line bg-card px-1.5 text-[11px] font-medium text-ink-subtle">
           <Command className="h-3 w-3" />
           K
         </kbd>
