@@ -8,22 +8,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Theme-sensitive tokens — resolved via CSS variables (light/dark mode aware)
         bg: {
-          DEFAULT: '#FAFAFA',
-          alt: '#F2F2F7',
+          DEFAULT: 'var(--color-bg)',
+          alt: 'var(--color-bg-alt)',
         },
-        card: '#FFFFFF',
+        card: 'var(--color-card)',
+        ink: {
+          DEFAULT: 'var(--color-ink)',
+          muted: 'var(--color-ink-muted)',
+          subtle: 'var(--color-ink-subtle)',
+        },
+        line: 'var(--color-line)',
+        // Brand + status tokens — fixed across themes
         primary: {
           DEFAULT: '#1B4FD8',
           dark: '#1440B0',
           light: '#EEF2FF',
         },
-        ink: {
-          DEFAULT: '#1C1C1E',
-          muted: '#6E6E73',
-          subtle: '#8E8E93',
-        },
-        line: '#E5E5EA',
         success: '#34C759',
         warning: '#FEBC2E',
         danger: '#FF5F57',

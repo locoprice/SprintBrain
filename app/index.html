@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Resolve theme before first paint to prevent flash of unstyled content -->
+    <script>
+      (function () {
+        var pref = localStorage.getItem('sprintbrain-theme') || 'auto';
+        var resolved =
+          pref === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : pref;
+        document.documentElement.setAttribute('data-theme', resolved);
+      })();
+    </script>
     <meta name="viewport" content="width=1280" />
     <meta name="theme-color" content="#1B4FD8" />
     <title>SprintBrain — Dashboard</title>

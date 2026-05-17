@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { applyTheme, getStoredTheme, type ThemePreference } from '@/lib/theme';
 
 // Cross-cutting UI state. Kept separate from feature stores to avoid coupling
 // the snippet panel state with global modals or theme toggles in the future.
@@ -30,6 +31,10 @@ interface UiStore {
   editPromptId: string | null;
   openEditPrompt: (id: string) => void;
   closeEditPrompt: () => void;
+
+  // Theme preference — persisted to localStorage, applied to <html data-theme>
+  theme: ThemePreference;
+  setTheme: (pref: ThemePreference) => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -52,4 +57,10 @@ export const useUiStore = create<UiStore>((set) => ({
   editPromptId: null,
   openEditPrompt: (id) => set({ editPromptId: id }),
   closeEditPrompt: () => set({ editPromptId: null }),
+
+  theme: getStoredTheme(),
+  setTheme: (pref) => {
+    applyTheme(pref);
+    set({ theme: pref });
+  },
 }));
