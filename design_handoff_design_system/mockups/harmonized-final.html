@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Harmonization Mockup</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Reconciled tokens — pulled from app/public/landing & app/public/mobile */
+  --bg:#FAFAFA; --bg-alt:#F2F2F7; --card:#FFFFFF;
+  --primary:#1B4FD8; --primary-dk:#1440B0; --primary-lt:#EEF2FF; --primary-grad:#4F7FE8;
+  --text:#1C1C1E; --text2:#6E6E73; --text3:#8E8E93;
+  --border:#E5E5EA; --success:#34C759; --danger:#E74C3C;
+  --r:16px; --r-card-mobile:12px; --r-btn:12px; --r-btn-mobile:14px; --r-in:10px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.04);
+  --shadow-md:0 4px 20px rgba(27,79,216,.12),0 1px 3px rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+body{font-family:var(--font);background:var(--bg-alt);color:var(--text);line-height:1.5;padding:48px 32px 96px;-webkit-font-smoothing:antialiased}
+.page{max-width:1320px;margin:0 auto}
+.eyebrow{font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+h1{font-size:40px;font-weight:800;letter-spacing:-1.2px;margin-bottom:8px}
+.lead{font-size:16px;color:var(--text2);max-width:720px;margin-bottom:40px;line-height:1.6}
+
+.sect{margin-top:56px}
+.sect-h{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.sect-sub{font-size:13px;color:var(--text2);margin-bottom:20px;max-width:680px;line-height:1.6}
+
+/* ── token strips ─────────────────────────── */
+.strip{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin-bottom:20px}
+.sw{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.sw .chip{height:54px;border-bottom:1px solid var(--border)}
+.sw .meta{padding:8px 10px}
+.sw .nm{font-size:11px;font-weight:600;color:var(--text)}
+.sw .hx{font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:1px}
+
+.langs{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.lpill{display:inline-flex;align-items:center;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.lEN{background:#EEF2FF;color:#1B4FD8}
+.lES{background:#FFF7ED;color:#C2410C}
+.lIT{background:#F0FDF4;color:#15803D}
+.lMULTI{background:#F5F3FF;color:#7C3AED}
+
+/* ── mockup row layout ────────────────────── */
+.surfaces{display:grid;grid-template-columns:1fr 380px;gap:28px;align-items:flex-start}
+@media(max-width:1200px){.surfaces{grid-template-columns:1fr}}
+
+/* ────────── LANDING ────────── */
+.landing{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.lnav{position:relative;background:rgba(250,250,250,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px}
+.lbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.3px}
+.lbrand-logo{width:28px;height:28px;border-radius:7px;background:var(--primary);color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.lnav-links{margin-left:auto;display:flex;gap:6px;align-items:center}
+.lnav-link{padding:7px 12px;font-size:13px;font-weight:500;color:var(--text2);border-radius:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 17px;font-size:13px;font-weight:600;border-radius:12px;border:none;cursor:pointer;font-family:inherit}
+.btn-pri{background:var(--primary);color:#fff;box-shadow:var(--shadow-md)}
+.btn-gho{background:transparent;color:var(--text);border:1px solid var(--border)}
+
+.lhero{padding:64px 24px 56px;text-align:center;position:relative}
+.lhero-eb{display:inline-flex;align-items:center;gap:8px;background:var(--primary-lt);color:var(--primary);padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;margin-bottom:18px}
+.lhero-eb::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--primary)}
+.lhero h2{font-size:48px;font-weight:800;letter-spacing:-1.5px;line-height:1.05;margin-bottom:14px}
+.lhero h2 span{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-grad) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lhero p{font-size:16px;color:var(--text2);max-width:520px;margin:0 auto 28px}
+.lctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
+
+.demo{max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-md);overflow:hidden;text-align:left}
+.demo-bar{background:var(--bg-alt);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.ddot{width:10px;height:10px;border-radius:50%}
+.ddot.r{background:#FF5F57}.ddot.y{background:#FEBC2E}.ddot.g{background:#28C840}
+.durl{margin-left:10px;font-size:11px;color:var(--text3);font-family:var(--mono)}
+.demo-body{padding:22px 22px;font-size:14px}
+.demo-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px}
+.demo-type{font-family:var(--mono);background:var(--primary-lt);color:var(--primary);padding:3px 8px;border-radius:5px;font-weight:600;font-size:13px}
+.demo-arr{color:var(--text3);margin:12px 0;text-align:center;font-size:16px}
+.demo-out{background:var(--bg-alt);border-radius:10px;padding:14px;line-height:1.6;font-size:13.5px;white-space:pre-wrap}
+
+.features{padding:48px 28px 56px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;background:var(--bg)}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
+.feat-ic{width:38px;height:38px;border-radius:10px;background:var(--primary-lt);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px}
+.feat h4{font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:-.2px}
+.feat p{font-size:13px;color:var(--text2);line-height:1.5}
+
+/* ────────── MOBILE (v2 — Uber/Hopper/Revolut/Apple) ────────── */
+.phone{width:380px;height:820px;background:#000;border-radius:48px;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.25),0 0 0 1px rgba(255,255,255,.08);position:sticky;top:20px;margin:0 auto}
+.phone-screen{width:100%;height:100%;background:#F2F2F7;border-radius:40px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:110px;height:28px;background:#000;border-radius:18px;z-index:5}
+
+/* iOS-style status bar */
+.mstat{position:absolute;top:0;left:0;right:0;height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font-size:13px;font-weight:700;color:#1C1C1E;z-index:6;pointer-events:none;letter-spacing:-.2px}
+.mstat-icons{display:flex;gap:5px;align-items:center;font-size:11px;font-weight:700}
+
+/* Revolut/Apple hero — gradient, big numbers */
+.mhero{padding:54px 18px 30px;background:linear-gradient(160deg,#1B4FD8 0%,#1440B0 100%);color:#fff;position:relative;overflow:hidden}
+.mhero::after{content:"";position:absolute;right:-40px;top:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 60%);pointer-events:none}
+.mhero::before{content:"";position:absolute;left:-30px;bottom:-60px;width:160px;height:160px;background:radial-gradient(circle,rgba(79,127,232,.55),transparent 65%);pointer-events:none}
+.mhello{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;position:relative;z-index:1}
+.mgreet{font-size:12px;opacity:.78;font-weight:500;letter-spacing:.1px}
+.mname{font-size:18px;font-weight:700;letter-spacing:-.4px;margin-top:1px}
+.mavatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#FFB940,#FF8A3B);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;border:2px solid rgba(255,255,255,.3);letter-spacing:-.3px}
+.mstatbig{font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:6px;font-variant-numeric:tabular-nums;position:relative;z-index:1}
+.mstatsub{font-size:12.5px;opacity:.9;font-weight:500;display:flex;align-items:center;gap:7px;position:relative;z-index:1}
+.mstatup{background:rgba(52,199,89,.28);color:#A7F0BA;padding:2px 7px;border-radius:6px;font-weight:700;font-size:10.5px;letter-spacing:.2px}
+
+/* Uber-style floating quick-action grid (overlaps hero) */
+.mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2}
+.mqa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#fff;border-radius:18px;padding:14px 6px;box-shadow:0 8px 24px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.04)}
+.mqa-tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 2px;border:none;background:transparent;font-family:inherit;cursor:pointer}
+.mqa-ico{width:40px;height:40px;border-radius:12px;background:#EEF2FF;color:#1B4FD8;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.mqa-ico.a1{background:#FFF7ED;color:#C2410C}
+.mqa-ico.a2{background:#F0FDF4;color:#15803D}
+.mqa-ico.a3{background:#F5F3FF;color:#7C3AED}
+.mqa-lbl{font-size:10.5px;font-weight:600;color:#1C1C1E;text-align:center;letter-spacing:-.1px}
+
+/* Apple-style section heading */
+.msec{padding:18px 16px 6px;display:flex;align-items:flex-end;justify-content:space-between}
+.msec-t{font-size:19px;font-weight:800;letter-spacing:-.5px;color:#1C1C1E}
+.msec-a{font-size:13px;color:#1B4FD8;font-weight:600}
+
+/* Apple Music-style horizontal recents carousel */
+.mrecs{display:flex;gap:10px;padding:6px 16px;overflow-x:auto;scrollbar-width:none}
+.mrecs::-webkit-scrollbar{display:none}
+.mrec{flex-shrink:0;width:152px;background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04)}
+.mrec-ico{width:34px;height:34px;border-radius:10px;background:#EEF2FF;color:#1B4FD8;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:10px}
+.mrec-ico.a1{background:#FFF7ED;color:#C2410C}
+.mrec-ico.a2{background:#F0FDF4;color:#15803D}
+.mrec-ico.a3{background:#F5F3FF;color:#7C3AED}
+.mrec-t{font-size:14px;font-weight:700;letter-spacing:-.3px;margin-bottom:2px;color:#1C1C1E}
+.mrec-sc{font-family:var(--mono);font-size:11px;color:#6E6E73;font-weight:600}
+.mrec-foot{margin-top:10px;font-size:10px;color:#34C759;font-weight:700;letter-spacing:.4px}
+
+/* Sleek Uber-style category chips (dark when active) */
+.mcats{padding:10px 16px 4px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.mcats::-webkit-scrollbar{display:none}
+.mcat{flex-shrink:0;border:1px solid #E5E5EA;border-radius:9999px;padding:7px 14px;font-size:13px;font-weight:600;color:#1C1C1E;background:#fff;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer}
+.mcat.on{background:#1C1C1E;color:#fff;border-color:#1C1C1E}
+
+/* Premium snippet cards */
+.mlist2{padding:6px 16px 110px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1}
+.smcard{background:#fff;border-radius:18px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 6px 18px rgba(0,0,0,.04)}
+.smc-ico{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:#EEF2FF;color:#1B4FD8}
+.smc-ico.b2{background:#FFF7ED;color:#C2410C}
+.smc-ico.b3{background:#F0FDF4;color:#15803D}
+.smc-ico.b4{background:#F5F3FF;color:#7C3AED}
+.smc-info{flex:1;min-width:0}
+.smc-top{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.smc-t{font-size:15px;font-weight:700;color:#1C1C1E;letter-spacing:-.2px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.smc-bot{display:flex;align-items:center;gap:7px;font-size:12px;color:#6E6E73}
+.smc-sc{font-family:var(--mono);font-weight:600;color:#1B4FD8;font-size:12px}
+.smc-sep{color:#C7C7CC}
+.smc-fire{color:#FF8A3B}
+.smc-newdot{width:7px;height:7px;border-radius:50%;background:#34C759;flex-shrink:0}
+.smc-arrow{color:#C7C7CC;font-size:20px;flex-shrink:0;font-weight:300}
+
+/* Shared lbadge — used by mobile AND dashboard table */
+.lbadge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;display:inline-block}
+
+/* Floating Apple-style tab bar with gradient FAB */
+.mtab-indicator{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:134px;height:5px;background:#1C1C1E;border-radius:3px;z-index:3;opacity:.18}
+.mtab{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;background:rgba(28,28,30,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:9999px;padding:7px;gap:2px;box-shadow:0 12px 36px rgba(0,0,0,.28);z-index:4;align-items:center}
+.mtab-item{width:46px;height:46px;border-radius:9999px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer}
+.mtab-item.on{background:rgba(255,255,255,.95);color:#1B4FD8}
+.mtab-fab{width:50px;height:50px;border-radius:9999px;background:linear-gradient(135deg,#4F7FE8 0%,#1B4FD8 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300;box-shadow:0 6px 16px rgba(27,79,216,.55);margin:0 4px}
+
+/* Mobile extras row (smaller phones) */
+.mxrow{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.mxcol{display:flex;flex-direction:column;align-items:center}
+.phone-sm{width:296px;height:608px;background:#000;border-radius:38px;padding:8px;box-shadow:0 20px 60px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.06)}
+.phone-sm .phone-screen{border-radius:32px;background:#F2F2F7}
+.phone-sm .notch{width:88px;height:22px;top:6px;border-radius:14px}
+.phone-sm .mstat{height:34px;font-size:11px;padding:0 22px 4px}
+.phone-cap{text-align:center;font-size:12.5px;color:var(--text2);font-weight:600;margin-top:14px;letter-spacing:-.1px}
+
+/* Detail view */
+.mdtl-hdr{padding:40px 14px 12px;background:#1B4FD8;color:#fff;display:flex;align-items:center;gap:8px}
+.mdtl-back{font-size:13px;display:inline-flex;align-items:center;gap:3px;font-weight:500}
+.mdtl-ttl{font-size:14px;font-weight:700;letter-spacing:-.3px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdtl-lang{font-size:9px;font-weight:700;background:rgba(255,255,255,.22);padding:3px 7px;border-radius:5px;letter-spacing:.3px}
+.mdtl-body{flex:1;overflow:hidden;padding:14px;display:flex;flex-direction:column;gap:14px}
+.mdtl-sec{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.mdtl-fcard{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden}
+.mdtl-field{padding:10px 12px;border-bottom:1px solid var(--border)}
+.mdtl-field:last-child{border-bottom:none}
+.mdtl-flbl{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.mdtl-fval{font-size:13px;color:var(--text);font-weight:500}
+.mdtl-fval.date{color:#C2410C}
+.mdtl-prev{background:#fff;border-radius:10px;padding:11px;box-shadow:0 1px 3px rgba(0,0,0,.04);font-size:11.5px;line-height:1.55;color:var(--text);white-space:pre-wrap}
+.mdtl-foot{padding:8px 14px 22px;background:rgba(242,242,247,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border)}
+.mdtl-cpy{width:100%;background:#1B4FD8;color:#fff;border:none;border-radius:14px;padding:13px;font-size:14px;font-weight:700;letter-spacing:-.2px;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;cursor:pointer}
+
+/* Quick-use bottom sheet */
+.msheet-bg{flex:1;background:#F2F2F7;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text2);padding:30px;opacity:.6}
+.msheet-bg-ico{font-size:40px;margin-bottom:8px;opacity:.35}
+.msheet-bg-txt{font-size:11px;font-weight:600;text-align:center}
+.msheet-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:2}
+.msheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:24px 24px 0 0;padding:8px 0 22px;box-shadow:0 -4px 24px rgba(0,0,0,.18);z-index:3}
+.msheet-handle{width:36px;height:4px;background:#E5E5EA;border-radius:2px;margin:6px auto 12px}
+.msheet-h{padding:0 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #F2F2F7}
+.msheet-h .smc-ico{width:38px;height:38px;font-size:18px;border-radius:10px}
+.msheet-h-info{flex:1;min-width:0}
+.msheet-h-t{font-size:14px;font-weight:700;letter-spacing:-.2px;color:#1C1C1E}
+.msheet-h-s{font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:1px;font-weight:600}
+.msheet-act{padding:14px 18px;font-size:14px;color:var(--text);display:flex;align-items:center;gap:11px;border-top:1px solid #F2F2F7;font-weight:500}
+.msheet-act:first-of-type{border-top:none}
+.msheet-act.use{color:#1B4FD8;font-weight:700}
+.msheet-act.del{color:#E74C3C}
+.msheet-act-i{width:24px;text-align:center;font-size:16px}
+
+/* ────────── DASHBOARD ────────── */
+.dash{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm);display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;height:680px;margin-top:28px}
+.dtop{grid-column:1/3;display:flex;align-items:center;padding:0 20px;border-bottom:1px solid var(--border);gap:14px;background:var(--card)}
+.dnav{background:var(--bg-alt);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.dgrp{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:8px 12px 6px}
+.dnav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;font-size:13px;color:var(--text2);font-weight:500;position:relative}
+.dnav-item.on{background:var(--primary-lt);color:var(--primary);font-weight:600}
+.dnav-item.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;background:var(--primary);border-radius:3px}
+.dnav-cnt{margin-left:auto;font-size:10px;background:var(--bg-alt);padding:1px 7px;border-radius:9999px;font-weight:600;color:var(--text3)}
+.dnav-item.on .dnav-cnt{background:var(--primary);color:#fff}
+.dmain{overflow:hidden;display:flex;flex-direction:column;background:var(--bg-alt)}
+.dph{padding:18px 24px 14px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
+.dph h3{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.dph-actions{margin-left:auto;display:flex;gap:8px}
+.dbody{flex:1;overflow:hidden;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 18px}
+.kpi-hd{display:flex;justify-content:space-between;align-items:flex-start}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
+.kpi-ic{width:30px;height:30px;border-radius:8px;background:var(--primary-lt);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px}
+.kpi-v{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:8px;font-variant-numeric:tabular-nums}
+.kpi-f{font-size:11px;color:var(--text2);margin-top:4px}
+.kpi-f .up{color:var(--success);font-weight:700}
+
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;flex:1}
+.tc-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center}
+.tc-h h4{font-size:14px;font-weight:700}
+.tc-h .sub{margin-left:auto;font-size:11px;color:var(--text3)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;padding:9px 14px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;background:var(--bg-alt);border-bottom:1px solid var(--border)}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--border)}
+tbody tr:last-child td{border-bottom:none}
+.sctag{font-family:var(--mono);font-size:11px;color:var(--primary);font-weight:600}
+.sctag .pfx{opacity:.45;font-weight:400}
+
+/* ────────── EXTENSION ────────── */
+.ext{width:560px;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-md);overflow:hidden;margin-top:28px}
+.ehdr{padding:11px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.ebrand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:15px;letter-spacing:-.3px}
+.ebrand-logo{width:22px;height:22px;border-radius:6px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+.est{margin-left:auto;font-size:10px;color:var(--text3)}
+.ehdr-r{display:flex;gap:6px;margin-left:10px}
+.ebtn{padding:5px 10px;border-radius:8px;font-size:12px;border:1px solid var(--border);background:var(--card);color:var(--text2);display:inline-flex;align-items:center;gap:4px;font-weight:500}
+.ebtn.p{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
+.esrch{padding:7px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.esrch input{flex:1;background:var(--bg-alt);border:1px solid var(--border);border-radius:8px;padding:7px 11px 7px 30px;font-size:12px;outline:none;font-family:inherit;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2.2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:9px center}
+.epill{font-size:10px;font-family:var(--mono);font-weight:700;color:var(--primary);background:var(--primary-lt);border-radius:9999px;padding:3px 9px}
+.ebody{display:flex;height:360px}
+.eside{width:160px;background:var(--bg-alt);border-right:1px solid var(--border);padding:8px 0}
+.eside-lbl{padding:6px 12px;font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px}
+.efolder{display:flex;align-items:center;gap:8px;padding:7px 12px;border-left:2px solid transparent;font-size:12px;color:var(--text2)}
+.efolder.on{background:var(--primary-lt);border-left-color:var(--primary);color:var(--primary);font-weight:600}
+.efolder .cnt{margin-left:auto;font-size:9px;background:var(--bg-alt);padding:1px 6px;border-radius:9999px;color:var(--text3);font-weight:600}
+.efolder.on .cnt{background:var(--primary);color:#fff}
+.emain{flex:1;overflow:hidden}
+.ehint{padding:5px 14px;font-size:9px;color:var(--text3);background:var(--bg-alt);border-bottom:1px solid var(--border)}
+.ehint strong{color:var(--primary);font-family:var(--mono);font-weight:700}
+.elist .erow{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border)}
+.ename{font-size:12px;font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.efoot{padding:7px 14px;border-top:1px solid var(--border);display:flex;gap:7px}
+.efoot button{flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--text2);font-family:inherit}
+.efoot button.p{background:var(--primary);border-color:var(--primary);color:#fff}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.compbox{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+.compbox h5{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.compbox.was h5{color:var(--danger)}
+.compbox.is h5{color:var(--success)}
+.compbox ul{list-style:none;font-size:12.5px;color:var(--text2);line-height:1.8}
+.compbox ul li::before{content:"·  ";color:var(--text3)}
+.compbox.is ul li::before{content:"✓  ";color:var(--success);font-weight:700}
+.compbox.was ul li::before{content:"✗  ";color:var(--danger);font-weight:700}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Design system v1.1 · preview</div>
+  <h1>Harmonized SprintBrain</h1>
+  <p class="lead">Every surface — landing, mobile app, web dashboard, Chrome extension — rebuilt on the single set of tokens extracted from <code style="font-family:var(--mono);color:var(--text)">app/public/landing</code> + <code style="font-family:var(--mono);color:var(--text)">app/public/mobile</code>. Mobile redesigned with inspiration from Uber, Hopper, Revolut and Apple.</p>
+
+  <!-- ─── TOKENS ─── -->
+  <div class="sect">
+    <div class="sect-h">Tokens · single source</div>
+    <p class="sect-sub">Iris purple is gone. One primary, one ink ramp, one shadow set. Language palette re-anchored from the real mobile code (EN blue · ES orange · IT green · MULTI violet).</p>
+    <div class="strip">
+      <div class="sw"><div class="chip" style="background:#FAFAFA;border-bottom:1px solid var(--border)"></div><div class="meta"><div class="nm">bg</div><div class="hx">#FAFAFA</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F2F2F7"></div><div class="meta"><div class="nm">bg-alt</div><div class="hx">#F2F2F7</div></div></div>
+      <div class="sw"><div class="chip" style="background:#E5E5EA"></div><div class="meta"><div class="nm">line</div><div class="hx">#E5E5EA</div></div></div>
+      <div class="sw"><div class="chip" style="background:#8E8E93"></div><div class="meta"><div class="nm">ink-subtle</div><div class="hx">#8E8E93</div></div></div>
+      <div class="sw"><div class="chip" style="background:#6E6E73"></div><div class="meta"><div class="nm">ink-muted</div><div class="hx">#6E6E73</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1C1C1E"></div><div class="meta"><div class="nm">ink</div><div class="hx">#1C1C1E</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1B4FD8"></div><div class="meta"><div class="nm">primary</div><div class="hx">#1B4FD8</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1440B0"></div><div class="meta"><div class="nm">primary-dk</div><div class="hx">#1440B0</div></div></div>
+    </div>
+    <div class="langs">
+      <span class="lpill lEN">EN</span>
+      <span class="lpill lES">ES</span>
+      <span class="lpill lIT">IT</span>
+      <span class="lpill lMULTI">Multi</span>
+    </div>
+  </div>
+
+  <!-- ─── LANDING + MOBILE side by side ─── -->
+  <div class="sect">
+    <div class="sect-h">Landing + mobile home</div>
+    <p class="sect-sub">Landing stays as-is (already canonical). Mobile gets the premium treatment: gradient hero with big tabular numbers (Revolut), floating quick-action grid (Uber), horizontal Recents carousel (Apple Music), clean Uber-style dark category chips, and a floating Apple-style tab bar with a gradient FAB.</p>
+    <div class="surfaces">
+      <div class="landing">
+        <div class="lnav">
+          <a class="lbrand"><span class="lbrand-logo">S</span> SprintBrain</a>
+          <div class="lnav-links">
+            <span class="lnav-link">Features</span>
+            <span class="lnav-link">Mobile</span>
+            <button class="btn btn-pri" style="padding:6px 13px;font-size:12.5px">Install</button>
+          </div>
+        </div>
+        <div class="lhero">
+          <div class="lhero-eb">Chrome Extension · v2.20</div>
+          <h2>Type faster.<br><span>Think less.</span></h2>
+          <p>Intelligent snippets, dynamic formulas, and AI prompts that expand anywhere you type.</p>
+          <div class="lctas">
+            <button class="btn btn-pri">⊕ Add to Chrome</button>
+            <button class="btn btn-gho">Open Mobile App</button>
+          </div>
+          <div class="demo">
+            <div class="demo-bar">
+              <span class="ddot r"></span><span class="ddot y"></span><span class="ddot g"></span>
+              <span class="durl">mail.google.com</span>
+            </div>
+            <div class="demo-body">
+              <div class="demo-lbl">You type</div>
+              <span class="demo-type">::quoteEN</span>
+              <div class="demo-arr">↓</div>
+              <div class="demo-lbl">SprintBrain expands to</div>
+              <div class="demo-out">Dear guest,
+
+Thank you for your interest. The total for 3 nights is €450 (€150/night × 3), including 10% early-bird discount.
+
+Best regards,
+LeibTour Team</div>
+            </div>
+          </div>
+        </div>
+        <div class="features">
+          <div class="feat"><div class="feat-ic">⚡</div><h4>Smart Snippets</h4><p>Triggers like <code style="font-family:var(--mono);color:var(--primary)">::quoteEN</code> expand into full multilingual templates.</p></div>
+          <div class="feat"><div class="feat-ic">🧮</div><h4>Dynamic Formulas</h4><p>Excel-like calculations inside snippets — discounts, fees, totals.</p></div>
+          <div class="feat"><div class="feat-ic">☁️</div><h4>Cloud Sync</h4><p>Supabase-backed sync across Chrome, mobile, every device.</p></div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="notch"></div>
+          <div class="mstat"><span>9:41</span><div class="mstat-icons"><span>●●●</span><span>📡</span><span>▮</span></div></div>
+
+          <div class="mhero">
+            <div class="mhello">
+              <div><div class="mgreet">Good morning</div><div class="mname">Alessandro</div></div>
+              <div class="mavatar">AV</div>
+            </div>
+            <div class="mstatbig">2h 18m</div>
+            <div class="mstatsub">saved this week <span class="mstatup">↑ 24%</span></div>
+          </div>
+
+          <div class="mqa">
+            <div class="mqa-grid">
+              <button class="mqa-tile"><span class="mqa-ico">＋</span><span class="mqa-lbl">New</span></button>
+              <button class="mqa-tile"><span class="mqa-ico a1">🤖</span><span class="mqa-lbl">Prompts</span></button>
+              <button class="mqa-tile"><span class="mqa-ico a2">↻</span><span class="mqa-lbl">Sync</span></button>
+              <button class="mqa-tile"><span class="mqa-ico a3">📁</span><span class="mqa-lbl">Folders</span></button>
+            </div>
+          </div>
+
+          <div class="msec"><span class="msec-t">Recently used</span><span class="msec-a">See all</span></div>
+          <div class="mrecs">
+            <div class="mrec"><div class="mrec-ico">💰</div><div class="mrec-t">Quote EN</div><div class="mrec-sc">::quoteEN</div><div class="mrec-foot">↑ 84 USES</div></div>
+            <div class="mrec"><div class="mrec-ico a1">💬</div><div class="mrec-t">Welcome ES</div><div class="mrec-sc">::welcomeES</div><div class="mrec-foot">↑ 21 USES</div></div>
+            <div class="mrec"><div class="mrec-ico a2">📋</div><div class="mrec-t">Refund IT</div><div class="mrec-sc">::refundIT</div><div class="mrec-foot">↑ 39 USES</div></div>
+          </div>
+
+          <div class="msec"><span class="msec-t">All snippets</span><span class="msec-a">⚙ Filter</span></div>
+          <div class="mcats">
+            <button class="mcat on">All · 12</button>
+            <button class="mcat">📁 LeibTour</button>
+            <button class="mcat">⭐ Personal</button>
+            <button class="mcat">🤖 Prompts</button>
+          </div>
+
+          <div class="mlist2">
+            <div class="smcard">
+              <div class="smc-ico">💰</div>
+              <div class="smc-info">
+                <div class="smc-top"><span class="smc-t">Quote — English</span><span class="lbadge lEN">EN</span></div>
+                <div class="smc-bot"><span class="smc-sc">::quoteEN</span><span class="smc-sep">·</span><span class="smc-fire">🔥</span><span>84 uses</span></div>
+              </div>
+              <span class="smc-arrow">›</span>
+            </div>
+            <div class="smcard">
+              <div class="smc-ico">🏨</div>
+              <div class="smc-info">
+                <div class="smc-top"><span class="smc-t">Check-in instructions</span><span class="lbadge lEN">EN</span></div>
+                <div class="smc-bot"><span class="smc-sc">::checkin</span><span class="smc-sep">·</span><span>57 uses</span></div>
+              </div>
+              <span class="smc-arrow">›</span>
+            </div>
+            <div class="smcard">
+              <div class="smc-ico b3">📋</div>
+              <div class="smc-info">
+                <div class="smc-top"><span class="smc-t">Refund policy IT</span><span class="lbadge lIT">IT</span><span class="smc-newdot" title="new"></span></div>
+                <div class="smc-bot"><span class="smc-sc">::refundIT</span><span class="smc-sep">·</span><span>Updated 2h ago</span></div>
+              </div>
+              <span class="smc-arrow">›</span>
+            </div>
+            <div class="smcard">
+              <div class="smc-ico b2">⭐</div>
+              <div class="smc-info">
+                <div class="smc-top"><span class="smc-t">Welcome message ES</span><span class="lbadge lES">ES</span></div>
+                <div class="smc-bot"><span class="smc-sc">::welcomeES</span><span class="smc-sep">·</span><span>21 uses</span></div>
+              </div>
+              <span class="smc-arrow">›</span>
+            </div>
+          </div>
+
+          <div class="mtab-indicator"></div>
+          <div class="mtab">
+            <span class="mtab-item on">⌂</span>
+            <span class="mtab-item">🔍</span>
+            <span class="mtab-fab">+</span>
+            <span class="mtab-item">📊</span>
+            <span class="mtab-item">👤</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── MOBILE EXTRAS ─── -->
+  <div class="sect">
+    <div class="sect-h">Mobile · additional states</div>
+    <p class="sect-sub">Snippet detail with live preview, and the long-press action sheet. Same tokens, same density, same polish.</p>
+    <div class="mxrow">
+
+      <div class="mxcol">
+        <div class="phone-sm">
+          <div class="phone-screen">
+            <div class="notch"></div>
+            <div class="mstat"><span>9:41</span><div class="mstat-icons"><span>●●●</span><span>▮</span></div></div>
+            <div class="mdtl-hdr">
+              <span class="mdtl-back">‹ Back</span>
+              <span class="mdtl-ttl">Quote — English</span>
+              <span class="mdtl-lang">EN</span>
+            </div>
+            <div class="mdtl-body">
+              <div>
+                <div class="mdtl-sec">Fields</div>
+                <div class="mdtl-fcard">
+                  <div class="mdtl-field"><div class="mdtl-flbl">Guest name</div><div class="mdtl-fval">Maria Rossi</div></div>
+                  <div class="mdtl-field"><div class="mdtl-flbl">Nights</div><div class="mdtl-fval">3</div></div>
+                  <div class="mdtl-field"><div class="mdtl-flbl">Check-in</div><div class="mdtl-fval date">2026-06-14</div></div>
+                </div>
+              </div>
+              <div>
+                <div class="mdtl-sec">Preview</div>
+                <div class="mdtl-prev">Dear Maria Rossi,
+
+The total for 3 nights is €450, including a 10% early-bird discount.
+
+Best regards,
+LeibTour</div>
+              </div>
+            </div>
+            <div class="mdtl-foot">
+              <button class="mdtl-cpy">📋 Copy to clipboard</button>
+            </div>
+          </div>
+        </div>
+        <div class="phone-cap">Detail · fields + live preview</div>
+      </div>
+
+      <div class="mxcol">
+        <div class="phone-sm">
+          <div class="phone-screen">
+            <div class="notch"></div>
+            <div class="mstat"><span>9:41</span><div class="mstat-icons"><span>●●●</span><span>▮</span></div></div>
+            <div class="msheet-bg">
+              <div class="msheet-bg-ico">📋</div>
+              <div class="msheet-bg-txt">List dimmed behind sheet</div>
+            </div>
+            <div class="msheet-backdrop"></div>
+            <div class="msheet">
+              <div class="msheet-handle"></div>
+              <div class="msheet-h">
+                <div class="smc-ico">💰</div>
+                <div class="msheet-h-info">
+                  <div class="msheet-h-t">Quote — English</div>
+                  <div class="msheet-h-s">::quoteEN</div>
+                </div>
+              </div>
+              <div class="msheet-act use"><span class="msheet-act-i">▶</span> Use now</div>
+              <div class="msheet-act"><span class="msheet-act-i">✏️</span> Edit</div>
+              <div class="msheet-act"><span class="msheet-act-i">📤</span> Share</div>
+              <div class="msheet-act del"><span class="msheet-act-i">🗑</span> Delete</div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-cap">Long-press · quick action sheet</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── DASHBOARD ─── -->
+  <div class="sect">
+    <div class="sect-h">Dashboard · harmonized</div>
+    <p class="sect-sub">Same tokens, comfortable density. Notice the nav active state and language pills now match the mobile.</p>
+    <div class="dash">
+      <div class="dtop">
+        <div class="lbrand"><span class="lbrand-logo">S</span> SprintBrain</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <input style="background:var(--bg-alt);border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:13px;width:280px;font-family:inherit" placeholder="Search snippets, prompts…">
+          <button class="btn btn-pri" style="padding:7px 14px;font-size:13px">+ New snippet</button>
+        </div>
+      </div>
+      <div class="dnav">
+        <div class="dgrp">Workspace</div>
+        <a class="dnav-item on">📊 Overview</a>
+        <a class="dnav-item">📋 Snippets <span class="dnav-cnt">142</span></a>
+        <a class="dnav-item">🤖 Prompts <span class="dnav-cnt">24</span></a>
+        <a class="dnav-item">📁 Folders <span class="dnav-cnt">8</span></a>
+        <a class="dnav-item">📈 Analytics</a>
+        <div class="dgrp">Team</div>
+        <a class="dnav-item">👥 Members</a>
+        <a class="dnav-item">⚙️ Settings</a>
+      </div>
+      <div class="dmain">
+        <div class="dph"><h3>Overview</h3>
+          <div class="dph-actions">
+            <button class="btn btn-gho">Export</button>
+            <button class="btn btn-pri">+ New snippet</button>
+          </div>
+        </div>
+        <div class="dbody">
+          <div class="kpis">
+            <div class="kpi"><div class="kpi-hd"><span class="kpi-lbl">Snippets</span><span class="kpi-ic">📋</span></div><div class="kpi-v">142</div><div class="kpi-f"><span class="up">↗ 12</span> this week</div></div>
+            <div class="kpi"><div class="kpi-hd"><span class="kpi-lbl">Expansions</span><span class="kpi-ic">⚡</span></div><div class="kpi-v">3,847</div><div class="kpi-f"><span class="up">↗ 18%</span> vs last week</div></div>
+            <div class="kpi"><div class="kpi-hd"><span class="kpi-lbl">Time saved</span><span class="kpi-ic">⏱</span></div><div class="kpi-v">64h</div><div class="kpi-f"><span class="up">↗ 8h</span> this month</div></div>
+            <div class="kpi"><div class="kpi-hd"><span class="kpi-lbl">Active</span><span class="kpi-ic">👥</span></div><div class="kpi-v">6/6</div><div class="kpi-f">all online</div></div>
+          </div>
+          <div class="tcard">
+            <div class="tc-h"><h4>Top snippets</h4><span class="sub">this week</span></div>
+            <table>
+              <thead><tr><th>Title</th><th>Shortcut</th><th>Lang</th><th style="text-align:right">Uses</th></tr></thead>
+              <tbody>
+                <tr><td>Quote — English</td><td><span class="sctag"><span class="pfx">::</span>quoteEN</span></td><td><span class="lbadge lEN">EN</span></td><td style="text-align:right;font-variant-numeric:tabular-nums">84</td></tr>
+                <tr><td>Check-in instructions</td><td><span class="sctag"><span class="pfx">::</span>checkin</span></td><td><span class="lbadge lEN">EN</span></td><td style="text-align:right;font-variant-numeric:tabular-nums">57</td></tr>
+                <tr><td>Refund policy IT</td><td><span class="sctag"><span class="pfx">::</span>refundIT</span></td><td><span class="lbadge lIT">IT</span></td><td style="text-align:right;font-variant-numeric:tabular-nums">39</td></tr>
+                <tr><td>Welcome ES</td><td><span class="sctag"><span class="pfx">::</span>welcomeES</span></td><td><span class="lbadge lES">ES</span></td><td style="text-align:right;font-variant-numeric:tabular-nums">21</td></tr>
+                <tr><td>Firm signature</td><td><span class="sctag"><span class="pfx">::</span>firm</span></td><td><span class="lbadge lMULTI">Multi</span></td><td style="text-align:right;font-variant-numeric:tabular-nums">12</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── EXTENSION ─── -->
+  <div class="sect">
+    <div class="sect-h">Chrome extension · harmonized</div>
+    <p class="sect-sub">Popup chrome now uses the same blue, same line, same neutrals. Compact density preserved.</p>
+    <div class="ext">
+      <div class="ehdr">
+        <span class="ebrand"><span class="ebrand-logo">S</span> SprintBrain</span>
+        <span class="est">12 snippets</span>
+        <div class="ehdr-r"><button class="ebtn">⚙</button><button class="ebtn p">+ New</button></div>
+      </div>
+      <div class="esrch"><input placeholder="Search snippets or /shortcut…"><span class="epill">::</span></div>
+      <div class="ebody">
+        <div class="eside">
+          <div class="eside-lbl">Folders</div>
+          <div class="efolder on">📁 LeibTour EN <span class="cnt">8</span></div>
+          <div class="efolder">📁 LeibTour IT <span class="cnt">2</span></div>
+          <div class="efolder">⭐ Personal <span class="cnt">3</span></div>
+          <div class="efolder">🗄 Archive <span class="cnt">1</span></div>
+        </div>
+        <div class="emain">
+          <div class="ehint">Type <strong>::quoteEN</strong> · right-click for options</div>
+          <div class="elist">
+            <div class="erow"><span class="ename">Quote — English</span><span class="lbadge lEN">EN</span><span class="sctag"><span class="pfx">::</span>quoteEN</span></div>
+            <div class="erow"><span class="ename">Check-in instructions</span><span class="lbadge lEN">EN</span><span class="sctag"><span class="pfx">::</span>checkin</span></div>
+            <div class="erow"><span class="ename">Refund policy IT</span><span class="lbadge lIT">IT</span><span class="sctag"><span class="pfx">::</span>refundIT</span></div>
+            <div class="erow"><span class="ename">Welcome message ES</span><span class="lbadge lES">ES</span><span class="sctag"><span class="pfx">::</span>welcomeES</span></div>
+            <div class="erow"><span class="ename">Firm signature</span><span class="lbadge lMULTI">Multi</span><span class="sctag"><span class="pfx">::</span>firm</span></div>
+            <div class="erow"><span class="ename">Discount calculator</span><span class="lbadge lEN">EN</span><span class="sctag"><span class="pfx">::</span>disc</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="efoot"><button>↻ Reload</button><button class="p">+ New Snippet</button></div>
+    </div>
+  </div>
+
+  <!-- ─── DIFF ─── -->
+  <div class="sect">
+    <div class="sect-h">What changed from v1.0 → v1.1</div>
+    <div class="compare">
+      <div class="compbox was">
+        <h5>Removed / wrong</h5>
+        <ul>
+          <li>Iris purple <code style="font-family:var(--mono)">#6C5CE7</code> — invented, not in code</li>
+          <li>Two-accent split (Iris / Azure)</li>
+          <li>IT = red <code style="font-family:var(--mono)">#DC2626</code></li>
+          <li>FR language pill</li>
+          <li>Neutrals from Zinc (<code style="font-family:var(--mono)">#18181B</code>, <code style="font-family:var(--mono)">#E4E4E7</code>…)</li>
+          <li>Plain mobile list with single emoji header</li>
+        </ul>
+      </div>
+      <div class="compbox is">
+        <h5>Now canonical</h5>
+        <ul>
+          <li>Single primary <code style="font-family:var(--mono)">#1B4FD8</code> across every surface</li>
+          <li>IT = green <code style="font-family:var(--mono)">#15803D</code> on <code style="font-family:var(--mono)">#F0FDF4</code></li>
+          <li>MULTI <code style="font-family:var(--mono)">#7C3AED</code> on <code style="font-family:var(--mono)">#F5F3FF</code></li>
+          <li>iOS ink ramp <code style="font-family:var(--mono)">#1C1C1E / #6E6E73 / #8E8E93</code></li>
+          <li>Apple semantic green <code style="font-family:var(--mono)">#34C759</code> / red <code style="font-family:var(--mono)">#E74C3C</code></li>
+          <li>Mobile: gradient hero · floating tab bar · Recents carousel · sleek chips</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
