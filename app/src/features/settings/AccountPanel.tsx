@@ -102,7 +102,7 @@ export function AccountPanel() {
   const newEmailTrimmed = newEmail.trim().toLowerCase();
   const newEmailValid =
     newEmailTrimmed.length > 0 &&
-    newEmailTrimmed.endsWith('@leibtour.com') &&
+    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmailTrimmed) &&
     newEmailTrimmed !== (profile?.email ?? '').toLowerCase();
 
   return (
@@ -173,7 +173,7 @@ export function AccountPanel() {
                   setNewEmail(e.target.value);
                   setEmailError(null);
                 }}
-                placeholder="new@leibtour.com"
+                placeholder="new@example.com"
                 disabled={emailSending}
                 autoFocus
               />

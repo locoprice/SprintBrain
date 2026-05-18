@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input';
 
 type Phase = 'idle' | 'sending' | 'sent' | 'error';
 
-const DOMAIN_RE = /^[^@\s]+@leibtour\.com$/i;
-
 export function LoginPage() {
   const status = useAuthStore((s) => s.status);
   const init = useAuthStore((s) => s.init);
@@ -49,12 +47,6 @@ export function LoginPage() {
     setErrorMsg(null);
 
     const trimmed = email.trim();
-    if (!DOMAIN_RE.test(trimmed)) {
-      setErrorMsg('Only @leibtour.com addresses can access SprintBrain.');
-      setPhase('error');
-      return;
-    }
-
     setPhase('sending');
     try {
       // Forward `next` through the magic link so AuthCallback can land
@@ -124,8 +116,7 @@ export function LoginPage() {
                 Sign in to SprintBrain
               </h1>
               <p className="text-sm text-ink-muted">
-                Enter your <span className="font-medium">@leibtour.com</span>{' '}
-                email and we will send you a sign-in link.
+                Enter your email and we'll send you a sign-in link.
               </p>
             </div>
 
@@ -145,7 +136,7 @@ export function LoginPage() {
                 spellCheck={false}
                 autoFocus
                 required
-                placeholder="you@leibtour.com"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -176,12 +167,12 @@ export function LoginPage() {
         )}
 
         <div className="mt-8 border-t border-line pt-5 text-center text-xs text-ink-subtle">
-          Not a LeibTour team member?{' '}
+          New to SprintBrain?{' '}
           <a
             href="/landing/"
             className="font-medium text-primary hover:underline"
           >
-            Learn more about SprintBrain
+            Learn more
           </a>
         </div>
       </div>

@@ -58,9 +58,6 @@ export const settingsApi: SettingsApi = {
 
   async updateEmail(newEmail: string) {
     const trimmed = newEmail.trim().toLowerCase();
-    if (!trimmed.endsWith('@leibtour.com')) {
-      throw new Error('Only @leibtour.com email addresses are allowed.');
-    }
     const { error } = await supabase.auth.updateUser({ email: trimmed });
     if (error) throw error;
   },
