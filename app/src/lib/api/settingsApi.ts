@@ -17,6 +17,7 @@ function isPrefix(v: unknown): v is Prefix {
 export interface SettingsApi {
   getProfile(): Promise<Profile>;
   updateProfile(patch: { display_name?: string; shortcut_prefix?: Prefix }): Promise<Profile>;
+  updateEmail(newEmail: string): Promise<void>;
   getNotionSync(): Promise<NotionSyncState>;
   updateNotionSettings(patch: { api_key?: string; db_id?: string }): Promise<void>;
 }
@@ -53,6 +54,15 @@ export const settingsApi: SettingsApi = {
     if (error) throw error;
     if (!data.user) throw new Error('Not authenticated');
     return userToProfile(data.user);
+  },
+
+  async updateEmail(newEmail: string) {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed.endsWith('@leibtour.com')) {
+      throw new Error('Only @leibtour.com email addresses are allowed.');
+    }
+    const { error } = await supabase.auth.updateUser({ email: trimmed });
+    if (error) throw error;
   },
 
   async updateProfile(patch) {

@@ -11,6 +11,7 @@ interface SettingsStore {
   error: string | null;
   load: () => Promise<void>;
   editProfile: (patch: { display_name?: string; shortcut_prefix?: Prefix }) => Promise<Profile>;
+  changeEmail: (newEmail: string) => Promise<void>;
   editNotionSettings: (patch: { api_key?: string; db_id?: string }) => Promise<void>;
 }
 
@@ -41,6 +42,14 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
       return profile;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to save profile' });
+      throw err;
+    }
+  },
+  changeEmail: async (newEmail: string) => {
+    try {
+      await settingsApi.updateEmail(newEmail);
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to send verification email' });
       throw err;
     }
   },

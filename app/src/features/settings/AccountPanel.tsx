@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,20 @@ const NAME_MAX = 80;
 export function AccountPanel() {
   const profile = useSettingsStore((s) => s.profile);
   const editProfile = useSettingsStore((s) => s.editProfile);
+  const changeEmail = useSettingsStore((s) => s.changeEmail);
 
   const [displayName, setDisplayName] = useState('');
   const [prefix, setPrefix] = useState<Prefix>('::');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // Change-email sub-form state
+  const [emailFormOpen, setEmailFormOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   // Hydrate local form from store when profile lands or changes underneath us.
   useEffect(() => {
@@ -62,6 +70,41 @@ export function AccountPanel() {
     setErrorMsg(null);
   }
 
+  function openEmailForm() {
+    setNewEmail('');
+    setEmailError(null);
+    setEmailSent(null);
+    setEmailFormOpen(true);
+  }
+
+  function closeEmailForm() {
+    setEmailFormOpen(false);
+    setNewEmail('');
+    setEmailError(null);
+  }
+
+  async function onSendEmailChange() {
+    if (emailSending) return;
+    setEmailSending(true);
+    setEmailError(null);
+    try {
+      await changeEmail(newEmail);
+      setEmailSent(newEmail.trim().toLowerCase());
+      setEmailFormOpen(false);
+      setNewEmail('');
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Failed to send verification email');
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
+  const newEmailTrimmed = newEmail.trim().toLowerCase();
+  const newEmailValid =
+    newEmailTrimmed.length > 0 &&
+    newEmailTrimmed.endsWith('@leibtour.com') &&
+    newEmailTrimmed !== (profile?.email ?? '').toLowerCase();
+
   return (
     <Card>
       <CardHeader>
@@ -97,6 +140,70 @@ export function AccountPanel() {
             <Input id="email" value={profile?.email ?? ''} disabled />
           </div>
         </div>
+
+        {/* Change-email section */}
+        {emailSent !== null && (
+          <div className="flex items-start gap-2 rounded-[10px] border border-primary/30 bg-primary-bg p-3 text-xs text-primary">
+            <Mail className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Verification email sent to <strong>{emailSent}</strong>. Click the link in the email to confirm the change.
+            </span>
+          </div>
+        )}
+
+        {!emailFormOpen ? (
+          <button
+            type="button"
+            onClick={openEmailForm}
+            className="text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+          >
+            Change email address →
+          </button>
+        ) : (
+          <div className="rounded-[12px] border border-line bg-bg-alt p-4 space-y-3">
+            <div className="grid gap-2">
+              <label htmlFor="new-email" className="text-xs font-medium text-ink-muted">
+                New email address
+              </label>
+              <Input
+                id="new-email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailError(null);
+                }}
+                placeholder="new@leibtour.com"
+                disabled={emailSending}
+                autoFocus
+              />
+              {emailError && (
+                <div className="flex items-start gap-1.5 text-xs text-danger">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>{emailError}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onSendEmailChange}
+                disabled={!newEmailValid || emailSending}
+              >
+                {emailSending ? 'Sending…' : 'Send verification email'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeEmailForm}
+                disabled={emailSending}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="text-xs font-medium text-ink-muted">Shortcut prefix</div>
