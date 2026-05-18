@@ -690,7 +690,7 @@ function updateSyncStatus() {
       }
 
       if (!lastSync) {
-        _setSyncBar('refresh', 'Never synced', '#6C5CE7');
+        _setSyncBar('refresh', 'Never synced', '#1B4FD8');
         return;
       }
 
@@ -700,7 +700,7 @@ function updateSyncStatus() {
       if (ageMin < 15) {
         _setSyncBar('check', 'Synced with Notion ' + _timeAgo(lastSync), '#16A34A');
       } else if (ageMin < 30) {
-        _setSyncBar('refresh', 'Synced ' + _timeAgo(lastSync), '#6C5CE7');
+        _setSyncBar('refresh', 'Synced ' + _timeAgo(lastSync), '#1B4FD8');
       } else {
         _setSyncBar('warn', 'Not synced for ' + _timeAgo(lastSync) + ' \u2014 click Sync Now', '#DC2626');
       }
@@ -962,8 +962,8 @@ function _runNotionSync(cb, force) {
 
           onProgress: function(state) {
                   if (state === 'syncing') {
-                            _setSyncBar('refresh', 'Syncing with Notion\u2026', '#6C5CE7');
-                            if (nsEl) { nsEl.textContent = 'Syncing\u2026'; nsEl.style.color = '#6C5CE7'; }
+                            _setSyncBar('refresh', 'Syncing with Notion\u2026', '#1B4FD8');
+                            if (nsEl) { nsEl.textContent = 'Syncing\u2026'; nsEl.style.color = '#1B4FD8'; }
                   } else {
                             updateSyncStatus();
                             if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
@@ -1990,7 +1990,7 @@ if (syncNowBtn) {
   syncNowBtn.addEventListener('click', function() {
     syncNowBtn.disabled = true;
     syncNowBtn.textContent = '…';
-    _setSyncBar('refresh', 'Syncing now\u2026', '#6C5CE7');
+    _setSyncBar('refresh', 'Syncing now\u2026', '#1B4FD8');
 
     chrome.storage.local.remove('sb_notion_sync_error');
     NotionSync.reset();

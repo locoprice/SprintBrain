@@ -18,7 +18,7 @@
   border-bottom:1px solid #E4E4E7 !important;
 }
 #sprintbrain-overlay .sb-logo {
-  font-weight:700 !important;font-size:14px !important;color:#6C5CE7 !important;
+  font-weight:700 !important;font-size:14px !important;color:#1B4FD8 !important;
   display:flex !important;align-items:center !important;gap:6px !important;
 }
 #sprintbrain-overlay .sb-sname {
@@ -41,7 +41,7 @@
   display:flex !important;flex-direction:column !important;gap:4px !important;
 }
 #sprintbrain-overlay .sb-lbl {
-  font-size:10px !important;font-weight:600 !important;color:#6C5CE7 !important;
+  font-size:10px !important;font-weight:600 !important;color:#1B4FD8 !important;
   text-transform:uppercase !important;letter-spacing:.06em !important;
   font-family:'SF Mono','Cascadia Code','JetBrains Mono','Fira Code',monospace !important;
 }
@@ -53,16 +53,16 @@
   transition:border-color .15s,box-shadow .15s !important;
 }
 #sprintbrain-overlay .sb-inp:focus {
-  border-color:#6C5CE7 !important;
-  box-shadow:0 0 0 3px rgba(108,92,231,.12) !important;
+  border-color:#1B4FD8 !important;
+  box-shadow:0 0 0 3px rgba(27,79,216,.14) !important;
   background:#FFFFFF !important;
 }
 #sprintbrain-overlay .sb-inp[type="date"] {
-  color:#6C5CE7 !important;border-color:#C9C0FF !important;background:#F0EDFF !important;
+  color:#1B4FD8 !important;border-color:#BED0FF !important;background:#EEF2FF !important;
 }
 #sprintbrain-overlay select.sb-inp {
   appearance:none !important;-webkit-appearance:none !important;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236C5CE7'/%3E%3C/svg%3E") !important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231B4FD8'/%3E%3C/svg%3E") !important;
   background-repeat:no-repeat !important;background-position:right 10px center !important;
   padding-right:28px !important;cursor:pointer !important;
 }
@@ -80,17 +80,17 @@
   background:#FAFAFA !important;
 }
 #sprintbrain-overlay .sb-go {
-  padding:8px 20px !important;background:#6C5CE7 !important;border:none !important;
+  padding:8px 20px !important;background:#1B4FD8 !important;border:none !important;
   border-radius:8px !important;font-size:13px !important;font-weight:600 !important;
   color:#fff !important;cursor:pointer !important;font-family:inherit !important;
   white-space:nowrap !important;transition:background .15s !important;
 }
-#sprintbrain-overlay .sb-go:hover { background:#5A4BD1 !important; }
+#sprintbrain-overlay .sb-go:hover { background:#1440B0 !important; }
 #sprintbrain-overlay .sb-tip {
   font-size:10px !important;color:#A1A1AA !important;
 }
 #sb-trigger-picker .sb-tp-item:hover .sb-tp-dots{opacity:1 !important}
-#sb-trigger-picker .sb-tp-dots:hover{color:#6C5CE7 !important;background:rgba(108,92,231,.08) !important}
+#sb-trigger-picker .sb-tp-dots:hover{color:#1B4FD8 !important;background:rgba(27,79,216,.08) !important}
 @keyframes sbIn {
   0%{opacity:0;transform:translateY(6px)}
   100%{opacity:1;transform:translateY(0)}

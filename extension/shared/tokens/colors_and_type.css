@@ -1,7 +1,11 @@
 /* ============================================================
-   SPRINTBRAIN DESIGN TOKENS
-   Covers: Chrome Extension popup + overlay (Iris accent)
-           Web Dashboard (Azure accent)
+   SPRINTBRAIN DESIGN TOKENS — v1.1 (harmonized)
+   Covers: Chrome Extension popup + overlay + Web Dashboard.
+   v1.1 collapses the dual Iris/Azure split into a single Azure
+   accent (#1B4FD8). The `--sb-iris*` aliases are kept so the
+   thousand-or-so existing references in popup.html / overlay.css
+   keep resolving — they all now point at azure values.
+   Canonical mockup: design_handoff_design_system/mockups/harmonized-final.html
    ============================================================ */
 
 :root {
@@ -17,17 +21,7 @@
   --sb-ink-muted:  #52525B;  /* secondary text */
   --sb-ink-subtle: #A1A1AA;  /* tertiary / hints */
 
-  /* ── PRIMARY PALETTES ────────────────────────────────────── */
-
-  /* Iris — Chrome Extension (personality: in-browser assistant) */
-  --sb-iris:        #6C5CE7;
-  --sb-iris-dark:   #5A4BD1;
-  --sb-iris-light:  #8B7CF6;
-  --sb-iris-bg:     #F0EDFF;
-  --sb-iris-bdr:    #C9C0FF;
-  --sb-iris-glow:   rgba(108, 92, 231, 0.12);
-
-  /* Azure — Web Dashboard (personality: workspace/admin) */
+  /* ── PRIMARY PALETTE — single azure across every surface (v1.1) ─ */
   --sb-azure:       #1B4FD8;
   --sb-azure-dark:  #1440B0;
   --sb-azure-light: #3D6FE8;
@@ -35,13 +29,22 @@
   --sb-azure-bdr:   #BED0FF;
   --sb-azure-glow:  rgba(27, 79, 216, 0.14);
 
+  /* Iris aliases — kept for backward-compat with existing consumers
+     (popup.html, overlay.css). All point at azure values now. */
+  --sb-iris:        var(--sb-azure);
+  --sb-iris-dark:   var(--sb-azure-dark);
+  --sb-iris-light:  var(--sb-azure-light);
+  --sb-iris-bg:     var(--sb-azure-bg);
+  --sb-iris-bdr:    var(--sb-azure-bdr);
+  --sb-iris-glow:   var(--sb-azure-glow);
+
   /* ── ACCENT (resolves per surface via [data-sb-surface]) ─── */
-  --sb-accent:       var(--sb-iris);
-  --sb-accent-dark:  var(--sb-iris-dark);
-  --sb-accent-light: var(--sb-iris-light);
-  --sb-accent-bg:    var(--sb-iris-bg);
-  --sb-accent-bdr:   var(--sb-iris-bdr);
-  --sb-accent-glow:  var(--sb-iris-glow);
+  --sb-accent:       var(--sb-azure);
+  --sb-accent-dark:  var(--sb-azure-dark);
+  --sb-accent-light: var(--sb-azure-light);
+  --sb-accent-bg:    var(--sb-azure-bg);
+  --sb-accent-bdr:   var(--sb-azure-bdr);
+  --sb-accent-glow:  var(--sb-azure-glow);
 
   /* ── SEMANTIC ────────────────────────────────────────────── */
   --sb-ok:         #16A34A;
@@ -54,11 +57,21 @@
   --sb-danger-bg:  #FEF2F2;
   --sb-danger-bdr: #FECACA;
 
-  /* ── LANGUAGE (shared — must stay identical both surfaces) ─ */
-  --sb-lang-en:    #2563EB;
-  --sb-lang-es:    #EA580C;
-  --sb-lang-it:    #DC2626;
-  --sb-lang-fr:    #7C3AED;
+  /* ── LANGUAGE PALETTE — v1.1 (matches /mobile/ and harmonized mockup)
+        EN azure, ES burnt-orange, IT FOREST-GREEN (was red), MULTI violet.
+        FR aliased to MULTI violet for backward compat — the FR pill is
+        retired in v1.1 but the Snippet['language'] type union still
+        includes 'FR' until a clean removal lands.                       ── */
+  --sb-lang-en:    #1B4FD8;
+  --sb-lang-en-bg: #EEF2FF;
+  --sb-lang-es:    #C2410C;
+  --sb-lang-es-bg: #FFF7ED;
+  --sb-lang-it:    #15803D;
+  --sb-lang-it-bg: #F0FDF4;
+  --sb-lang-multi: #7C3AED;
+  --sb-lang-multi-bg: #F5F3FF;
+  --sb-lang-fr:    var(--sb-lang-multi);
+  --sb-lang-fr-bg: var(--sb-lang-multi-bg);
 
   /* ── TYPOGRAPHY ──────────────────────────────────────────── */
   --sb-font:  -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',

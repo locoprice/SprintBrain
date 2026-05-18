@@ -46,13 +46,14 @@ html,body{
   font-size:16px;font-weight:700;letter-spacing:-.3px;
   color:var(--sb-ink);display:flex;align-items:center;gap:6px;flex-shrink:0;
 }
+/* v1.1: brand mark is a solid azure square (mockup uses solid, not gradient). */
 .logo-mark{
   width:22px;height:22px;
-  background:linear-gradient(135deg,var(--sb-iris),var(--sb-iris-light));
+  background:var(--sb-azure);
   border-radius:var(--sb-r-sm);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
-.logo-mark svg{width:14px;height:14px;stroke:#fff;fill:#fff;stroke-width:1;stroke-linejoin:round}
+.logo-mark svg{width:13px;height:13px;stroke:#fff;fill:#fff;stroke-width:1;stroke-linejoin:round}
 /* snippet count chip — middle of header */
 .pop-count{
   margin-left:auto;
@@ -134,7 +135,8 @@ html,body{
   background:var(--sb-bg-muted);border-radius:var(--sb-r-pill);
   padding:1px 7px;flex-shrink:0;font-weight:500;font-variant-numeric:tabular-nums;
 }
-.folder-item.on .folder-count{background:var(--sb-iris-bg);color:var(--sb-iris)}
+/* v1.1: active folder count is a filled azure pill (matches harmonized mockup). */
+.folder-item.on .folder-count{background:var(--sb-azure);color:#fff}
 .folder-dots{
   display:none;font-size:11px;color:var(--sb-ink-subtle);
   cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;letter-spacing:-1px;
@@ -186,15 +188,18 @@ html,body{
   max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .isc-pfx{opacity:.45;font-weight:400}
-/* language badge */
+/* Language badge — v1.1 palette (matches /mobile/ and harmonized mockup).
+   IT is now green, MULTI added; FR kept as alias of MULTI for legacy rows. */
 .lb{
   font-size:var(--sb-fs-10);padding:2px 6px;
-  border-radius:var(--sb-r-xs);font-weight:600;flex-shrink:0;
+  border-radius:var(--sb-r-xs);font-weight:700;flex-shrink:0;
+  text-transform:uppercase;letter-spacing:.3px;
 }
-.EN{background:#2563EB14;color:var(--sb-lang-en);border:1px solid #2563EB33}
-.ES{background:#EA580C14;color:var(--sb-lang-es);border:1px solid #EA580C33}
-.IT{background:#DC262614;color:var(--sb-lang-it);border:1px solid #DC262633}
-.FR{background:#7C3AED14;color:var(--sb-lang-fr);border:1px solid #C4B5FD}
+.EN{background:var(--sb-lang-en-bg);color:var(--sb-lang-en)}
+.ES{background:var(--sb-lang-es-bg);color:var(--sb-lang-es)}
+.IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
+.MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+.FR{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
 /* edit button */
 .iedit{
   height:32px;padding:0 10px;border-radius:var(--sb-r-sm);
@@ -308,7 +313,8 @@ html,body{
 .lang-tab.on[data-lang="EN"]{background:var(--sb-lang-en)}
 .lang-tab.on[data-lang="ES"]{background:var(--sb-lang-es)}
 .lang-tab.on[data-lang="IT"]{background:var(--sb-lang-it)}
-.lang-tab.on[data-lang="FR"]{background:var(--sb-lang-fr)}
+.lang-tab.on[data-lang="MULTI"]{background:var(--sb-lang-multi)}
+.lang-tab.on[data-lang="FR"]{background:var(--sb-lang-multi)}
 .lang-tab .lang-dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
 .lang-tab.has-content .lang-dot{display:block}
 .lang-tab.on .lang-dot{background:rgba(255,255,255,.6)}
@@ -541,15 +547,17 @@ html,body{
 .lang-bar{display:flex;gap:4px;padding:6px 12px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--sb-line)}
 .lang-pill{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-10);font-weight:700;cursor:pointer;border:1px solid;transition:all 120ms}
 .lang-pill.cur{box-shadow:0 1px 4px rgba(0,0,0,.1);transform:scale(1.05)}
-.lang-pill.EN{background:#2563EB14;color:var(--sb-lang-en);border-color:#2563EB33}
-.lang-pill.ES{background:#EA580C14;color:var(--sb-lang-es);border-color:#EA580C33}
-.lang-pill.IT{background:#DC262614;color:var(--sb-lang-it);border-color:#DC262633}
-.lang-pill.FR{background:#7C3AED14;color:var(--sb-lang-fr);border-color:#C4B5FD}
+.lang-pill.EN{background:var(--sb-lang-en-bg);color:var(--sb-lang-en);border-color:transparent}
+.lang-pill.ES{background:var(--sb-lang-es-bg);color:var(--sb-lang-es);border-color:transparent}
+.lang-pill.IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it);border-color:transparent}
+.lang-pill.MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:transparent}
+.lang-pill.FR{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:transparent}
 .add-chip{padding:3px 8px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-weight:600;cursor:pointer;border:1px dashed;background:transparent;font-family:inherit;transition:all 120ms}
-.add-chip.EN{color:var(--sb-lang-en);border-color:#2563EB44}
-.add-chip.ES{color:var(--sb-lang-es);border-color:#EA580C44}
-.add-chip.IT{color:var(--sb-lang-it);border-color:#DC262644}
-.add-chip.FR{color:var(--sb-lang-fr);border-color:#C4B5FD}
+.add-chip.EN{color:var(--sb-lang-en);border-color:var(--sb-lang-en)}
+.add-chip.ES{color:var(--sb-lang-es);border-color:var(--sb-lang-es)}
+.add-chip.IT{color:var(--sb-lang-it);border-color:var(--sb-lang-it)}
+.add-chip.MULTI{color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
+.add-chip.FR{color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
 .add-chip:disabled{opacity:.3;cursor:default;text-decoration:line-through}
 .lp-bg{
   position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:var(--sb-z-modal);
