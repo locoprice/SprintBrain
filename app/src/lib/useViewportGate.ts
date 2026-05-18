@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react';
 
 const MIN_DESKTOP_WIDTH = 1024;
 
+function getInitialIsDesktop(): boolean {
+  return window.matchMedia(`(min-width: ${MIN_DESKTOP_WIDTH}px)`).matches;
+}
+
 // Returns true when the viewport is wide enough to render the dashboard.
-// SSR-safe: defaults to true so the SPA shell renders immediately, then
-// re-evaluates after the first effect.
+// Reads matchMedia synchronously on first render to avoid a flash of the
+// wrong branch before the effect fires.
 export function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState<boolean>(true);
+  const [isDesktop, setIsDesktop] = useState<boolean>(getInitialIsDesktop);
 
   useEffect(() => {
     const mql = window.matchMedia(`(min-width: ${MIN_DESKTOP_WIDTH}px)`);
     const update = () => setIsDesktop(mql.matches);
-    update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);

@@ -1,9 +1,13 @@
+import { useEffect } from 'react';
 import { Smartphone } from 'lucide-react';
 
-// Rendered for any viewport below 1024px. The dashboard is desktop-only by
-// product decision (see ticket TKT 2.14.0). Mobile users get pointed to the
-// dedicated mobile app at /mobile/ which already exists in production.
+// Rendered for any viewport below 1024px. Immediately redirects to /mobile/;
+// the JSX below is a visual fallback shown while the redirect fires.
 export function DesktopGate() {
+  useEffect(() => {
+    window.location.replace('/mobile/');
+  }, []);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-6">
       <div className="max-w-md text-center">
