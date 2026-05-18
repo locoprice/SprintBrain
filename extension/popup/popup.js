@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.37.0 — feat: Notion credentials shared between dashboard and extension via Supabase user_metadata
+// SPRINTBRAIN POPUP v2.38.0 — feat(design-system): harmonized to v1.1 (Iris purple retired, azure primary across all surfaces)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -430,6 +430,14 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.38.0', date:'2026-05-18', label:'feat: design system v1.1 — harmonized across mobile, dashboard, extension',
+    changes:[
+      {type:'feat', text:'Single Azure primary (#1B4FD8) across every surface; Iris purple #6C5CE7 removed entirely from popup, overlay, and dashboard'},
+      {type:'feat', text:'Mobile companion (/mobile/) redesigned: gradient hero, floating quick-action grid, Uber-style chips, Apple/Revolut tab bar'},
+      {type:'feat', text:'Dashboard topbar hoisted to full width with brand square; sidebar active state gets 3px left bar + filled count pill'},
+      {type:'feat', text:'Language palette aligned across surfaces: IT switched from red to green; MULTI violet added; FR aliased to MULTI'},
+      {type:'feat', text:'Canonical mockup at design_handoff_design_system/mockups/harmonized-final.html is now the visual source of truth (codified in CLAUDE.md §Design System v1.1)'}
+    ]},
   { version:'v2.37.0', date:'2026-05-16', label:'feat: Notion credentials shared between dashboard and extension via Supabase',
     changes:[
       {type:'feat', text:'Dashboard NotionSyncPanel now has editable API key and database ID fields; credentials are stored in Supabase user_metadata'},
