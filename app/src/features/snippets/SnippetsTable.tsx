@@ -100,8 +100,7 @@ export function SnippetsTable() {
     try {
       await removeSnippet(id);
     } catch {
-      // Error surfaces on the store; the edit dialog would show it.
-      // Silent here to avoid a toast system this iteration.
+      // Error surfaces via store.error → page-level banner.
     }
   }
 
@@ -114,7 +113,7 @@ export function SnippetsTable() {
         await shareSnippet(id);
       }
     } catch {
-      // Error state surfaced via store.error; no toast system yet.
+      // Error surfaces via store.error → page-level banner.
     }
   }
 

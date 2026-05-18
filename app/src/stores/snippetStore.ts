@@ -15,6 +15,7 @@ interface SnippetStore {
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
+  clearError: () => void;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
   addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
@@ -60,6 +61,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   },
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
   setSearchQuery: (q) => set({ searchQuery: q }),
+  clearError: () => set({ error: null }),
 
   addSnippet: async (payload) => {
     try {

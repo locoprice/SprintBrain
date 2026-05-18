@@ -1494,6 +1494,7 @@ function deleteSnippet(s){
   }).catch(function(err){
     console.error('[SprintBrain] delete failed',err);
     closeBottomSheet();
+    alert('Delete failed. The snippet was not removed — please try again.');
   });
 }
 

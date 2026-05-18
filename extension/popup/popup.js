@@ -106,6 +106,7 @@ var DB = {
             notion_page_id: s.notion_page_id || null,
             manually_edited: s.manually_edited || false,
             ai_generated: s.ai_generated || false,
+            pinned: s.pinned || false,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -123,11 +124,18 @@ var DB = {
       scarcity_count: s.scarcity_count || 0,
       notion_page_id: s.notion_page_id || null,
       manually_edited: s.manually_edited || false,
-      ai_generated: s.ai_generated || false
-    }).catch(function(e) { console.warn('upsertSnippet:', e); });
+      ai_generated: s.ai_generated || false,
+      pinned: s.pinned || false
+    }).catch(function(e) {
+      console.warn('upsertSnippet:', e);
+      try { showToast('Save failed — changes may not have synced'); } catch (_) {}
+    });
   },
   deleteSnippet: function(id) {
-    supaFetch('snippets', 'DELETE', null, 'id=eq.' + id).catch(function(e) { console.warn(e); });
+    supaFetch('snippets', 'DELETE', null, 'id=eq.' + id).catch(function(e) {
+      console.warn('deleteSnippet:', e);
+      try { showToast('Delete failed — please retry'); } catch (_) {}
+    });
   },
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
