@@ -21,6 +21,10 @@ interface SnippetStore {
   addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
   editSnippet: (id: string, patch: Partial<SnippetFormValues>) => Promise<SnippetRow>;
   removeSnippet: (id: string) => Promise<void>;
+  /** Toggle the pinned flag on a snippet. Optimistic; rolls back on failure. */
+  togglePin: (id: string) => Promise<void>;
+  /** Duplicate a snippet. Returns the new row. */
+  duplicateSnippet: (id: string) => Promise<SnippetRow>;
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
   editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
@@ -111,6 +115,52 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
       }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete snippet';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  togglePin: async (id) => {
+    const target = get().snippets.find((s) => s.id === id);
+    if (!target) return;
+    const next = !target.pinned;
+    // Optimistic update.
+    set((s) => ({
+      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, pinned: next } : sn)),
+    }));
+    try {
+      const row = await snippetsApi.setPinned(id, next);
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...row, folder_name: row.folder_name ?? folder?.name ?? null } : sn,
+        ),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback on failure.
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...sn, pinned: target.pinned } : sn,
+        ),
+        error: err instanceof Error ? err.message : 'Failed to toggle pin',
+      }));
+      throw err;
+    }
+  },
+
+  duplicateSnippet: async (id) => {
+    try {
+      const row = await snippetsApi.duplicateSnippet(id);
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      const enriched: SnippetRow = {
+        ...row,
+        folder_name: row.folder_name ?? folder?.name ?? null,
+      };
+      set((s) => ({ snippets: [...s.snippets, enriched], error: null }));
+      return enriched;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to duplicate snippet';
       set({ error: msg });
       throw err;
     }
@@ -226,12 +276,17 @@ export function useFilteredSnippets(): SnippetRow[] {
   const folderId = useSnippetStore((s) => s.selectedFolderId);
   const query = useSnippetStore((s) => s.searchQuery.trim().toLowerCase());
 
-  return snippets.filter((s) => {
+  const filtered = snippets.filter((s) => {
     if (folderId !== null && s.folder_id !== folderId) return false;
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;
     if (s.tags.some((t) => t.toLowerCase().includes(query))) return true;
     return false;
+  });
+  // Pinned snippets float to top; within each group, newest-first by updated_at.
+  return [...filtered].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.updated_at.localeCompare(a.updated_at);
   });
 }

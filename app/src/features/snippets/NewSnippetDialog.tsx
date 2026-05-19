@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AlertCircle, Clock, Pin, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import {
@@ -27,7 +28,33 @@ const EMPTY_FORM: SnippetFormValues = {
   content: '',
   folder_id: null,
   language: 'EN',
+  pinned: false,
+  is_shared: false,
+  enable_urgency_timer: false,
+  timer_duration_ms: 0,
+  scarcity_count: 0,
 };
+
+// Quick Insert: matches the extension popup chips (popup.html:757-767).
+// Each entry inserts `data-c` at the cursor position in the body textarea.
+interface QuickInsert {
+  label: string;
+  value: string;
+  variant: 'default' | 'formula' | 'cond';
+}
+
+const QUICK_INSERTS: QuickInsert[] = [
+  { label: 'guest_name',     value: '{guest_name}',     variant: 'default' },
+  { label: 'property_name',  value: '{property_name}',  variant: 'default' },
+  { label: 'checkin_date',   value: '{checkin_date}',   variant: 'default' },
+  { label: 'checkout_date',  value: '{checkout_date}',  variant: 'default' },
+  { label: 'total_price',    value: '{total_price}',    variant: 'default' },
+  { label: 'nights',         value: '{nights}',         variant: 'default' },
+  { label: 'phone',          value: '{phone_number}',   variant: 'default' },
+  { label: 'review_link',    value: '{review_link}',    variant: 'default' },
+  { label: '{=formula}',     value: '{=A - B}',         variant: 'formula' },
+  { label: '{if:cond}',      value: '{if:A > 0}text{endif}', variant: 'cond' },
+];
 
 const FIELD_LABEL = 'text-xs font-medium text-ink-muted';
 const SELECT_CLASS =
@@ -80,11 +107,39 @@ export function NewSnippetDialog() {
         content: editingSnippet.content,
         folder_id: editingSnippet.folder_id,
         language: editingSnippet.language,
+        pinned: editingSnippet.pinned,
+        is_shared: editingSnippet.is_shared,
+        enable_urgency_timer: editingSnippet.enable_urgency_timer,
+        timer_duration_ms: editingSnippet.timer_duration_ms,
+        scarcity_count: editingSnippet.scarcity_count,
       });
     } else {
       setForm(EMPTY_FORM);
     }
   }, [open, editingSnippet]);
+
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Insert `value` at the textarea cursor (or append if focus is elsewhere),
+  // then re-focus so the user can keep typing without losing position.
+  function insertAtCursor(value: string) {
+    const el = contentRef.current;
+    if (!el) {
+      setForm((prev) => ({ ...prev, content: prev.content + value }));
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const next = el.value.slice(0, start) + value + el.value.slice(end);
+    setForm((prev) => ({ ...prev, content: next }));
+    // Restore cursor right after the inserted text on the next frame.
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + value.length;
+      el.setSelectionRange(pos, pos);
+    });
+    if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+  }
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -252,19 +307,111 @@ export function NewSnippetDialog() {
 
           <div className="grid gap-1.5">
             <label htmlFor="snippet-content" className={FIELD_LABEL}>
-              Content
+              Body — use {'{variable}'} for dynamic fields
             </label>
             <textarea
               id="snippet-content"
+              ref={contentRef}
               rows={6}
               value={form.content}
               onChange={(e) => updateField('content', e.target.value)}
               disabled={saving}
               className="w-full resize-none rounded-[12px] border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-              placeholder="Dear {guest}, …"
+              placeholder="Dear {guest_name}, …"
             />
             {errors.content && <FieldError message={errors.content} />}
           </div>
+
+          <div className="grid gap-1.5">
+            <span className={FIELD_LABEL}>Quick insert</span>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_INSERTS.map((qi) => (
+                <button
+                  key={qi.label}
+                  type="button"
+                  onClick={() => insertAtCursor(qi.value)}
+                  disabled={saving}
+                  title={`Insert ${qi.value}`}
+                  className={cn(
+                    'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
+                    qi.variant === 'formula' && 'border-[#BED0FF] bg-primary-light text-primary hover:bg-primary/15',
+                    qi.variant === 'cond' && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
+                    qi.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
+                  )}
+                >
+                  {qi.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <ToggleRow
+            id="snippet-urgency"
+            icon={<Clock className="h-4 w-4" />}
+            title="Urgency Timer"
+            description="Countdown + scarcity for quotes"
+            checked={form.enable_urgency_timer}
+            onChange={(checked) => updateField('enable_urgency_timer', checked)}
+            disabled={saving}
+          >
+            {form.enable_urgency_timer && (
+              <div className="grid grid-cols-2 gap-3 pt-3">
+                <div className="grid gap-1">
+                  <label htmlFor="snippet-timer-minutes" className={FIELD_LABEL}>
+                    Duration (minutes)
+                  </label>
+                  <Input
+                    id="snippet-timer-minutes"
+                    type="number"
+                    min={0}
+                    value={Math.round(form.timer_duration_ms / 60000)}
+                    onChange={(e) =>
+                      updateField(
+                        'timer_duration_ms',
+                        Math.max(0, Number(e.target.value) || 0) * 60000,
+                      )
+                    }
+                    disabled={saving}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <label htmlFor="snippet-scarcity" className={FIELD_LABEL}>
+                    Scarcity count
+                  </label>
+                  <Input
+                    id="snippet-scarcity"
+                    type="number"
+                    min={0}
+                    value={form.scarcity_count}
+                    onChange={(e) =>
+                      updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
+                    }
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+            )}
+          </ToggleRow>
+
+          <ToggleRow
+            id="snippet-share"
+            icon={<Users className="h-4 w-4" />}
+            title="Share with team"
+            description="Visible to teammates via Notion"
+            checked={form.is_shared}
+            onChange={(checked) => updateField('is_shared', checked)}
+            disabled={saving}
+          />
+
+          <ToggleRow
+            id="snippet-pin"
+            icon={<Pin className="h-4 w-4" />}
+            title="Pin to top"
+            description="Always shows first in the snippet list"
+            checked={form.pinned}
+            onChange={(checked) => updateField('pinned', checked)}
+            disabled={saving}
+          />
 
           {submitError && (
             <div className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
@@ -309,4 +456,63 @@ export function NewSnippetDialog() {
 
 function FieldError({ message }: { message: string }) {
   return <span className="text-xs text-danger">{message}</span>;
+}
+
+interface ToggleRowProps {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  children?: React.ReactNode;
+}
+
+function ToggleRow({
+  id,
+  icon,
+  title,
+  description,
+  checked,
+  onChange,
+  disabled,
+  children,
+}: ToggleRowProps) {
+  return (
+    <div className="rounded-[12px] border border-line bg-card p-3">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-bg-alt text-ink-muted">
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <label htmlFor={id} className="block text-sm font-medium text-ink">
+            {title}
+          </label>
+          <p className="text-xs text-ink-subtle">{description}</p>
+        </div>
+        <button
+          type="button"
+          id={id}
+          role="switch"
+          aria-checked={checked}
+          onClick={() => onChange(!checked)}
+          disabled={disabled}
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50',
+            checked ? 'bg-primary' : 'bg-line',
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition',
+              checked ? 'translate-x-5' : 'translate-x-0',
+            )}
+          />
+        </button>
+      </div>
+      {children}
+    </div>
+  );
 }

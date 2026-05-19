@@ -36,6 +36,10 @@ export interface Snippet {
   language: 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
   is_shared: boolean;
   notion_page_id: string | null;
+  pinned: boolean;
+  enable_urgency_timer: boolean;
+  timer_duration_ms: number;
+  scarcity_count: number;
   updated_at: IsoDateTime;
 }
 

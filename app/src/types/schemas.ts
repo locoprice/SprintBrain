@@ -57,6 +57,11 @@ export const snippetFormSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   folder_id: z.string().uuid().nullable(),
   language: z.enum(['EN', 'IT', 'ES', 'FR', 'MULTI']),
+  pinned: z.boolean().default(false),
+  is_shared: z.boolean().default(false),
+  enable_urgency_timer: z.boolean().default(false),
+  timer_duration_ms: z.number().int().nonnegative().default(0),
+  scarcity_count: z.number().int().nonnegative().default(0),
 });
 
 export type SnippetFormValues = z.infer<typeof snippetFormSchema>;

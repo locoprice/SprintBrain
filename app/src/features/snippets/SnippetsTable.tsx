@@ -1,14 +1,22 @@
+import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, Loader2, Search, Trash2, Users } from 'lucide-react';
+import { FileText, Loader2, Pin, Search, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
 import {
   useFilteredSnippets,
   useSnippetStore,
 } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
-import type { Snippet } from '@/types/database';
+import type { Snippet, SnippetRow } from '@/types/database';
+
+interface MenuState {
+  snippetId: string;
+  x: number;
+  y: number;
+}
 
 /**
  * Language pill palette — matches the mobile companion app at
@@ -60,6 +68,10 @@ export function SnippetsTable() {
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const activeMenuSnippet: SnippetRow | null =
+    menu !== null ? rows.find((r) => r.id === menu.snippetId) ?? null : null;
 
   if (loading && rows.length === 0) {
     return (
@@ -145,6 +157,10 @@ export function SnippetsTable() {
               <tr
                 key={row.id}
                 onClick={() => openEditSnippet(row.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ snippetId: row.id, x: e.clientX, y: e.clientY });
+                }}
                 className={
                   (isLast ? '' : 'border-b border-line ') +
                   'group cursor-pointer hover:bg-bg-alt/60'
@@ -156,7 +172,15 @@ export function SnippetsTable() {
                       <FileText className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate font-medium text-ink">{row.name}</div>
+                      <div className="flex items-center gap-1.5 truncate font-medium text-ink">
+                        {row.pinned && (
+                          <Pin
+                            className="h-3 w-3 shrink-0 fill-primary text-primary"
+                            aria-label="Pinned"
+                          />
+                        )}
+                        <span className="truncate">{row.name}</span>
+                      </div>
                       <div className="flex items-center gap-1.5 pt-0.5">
                         {row.is_formula ? (
                           <Badge variant="primary">formula</Badge>
@@ -234,6 +258,15 @@ export function SnippetsTable() {
         {rows.length} snippet{rows.length === 1 ? '' : 's'}
         {query.trim().length > 0 ? ` matching "${query.trim()}"` : ''}
       </div>
+
+      {menu !== null && activeMenuSnippet !== null && (
+        <SnippetContextMenu
+          snippet={activeMenuSnippet}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }
