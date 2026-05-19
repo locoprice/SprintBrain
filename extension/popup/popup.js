@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.38.0 — feat(design-system): harmonized to v1.1 (Iris purple retired, azure primary across all surfaces)
+// SPRINTBRAIN POPUP v2.40.0 — fix(expansion): atomically delete trigger before celebration on CE fields to prevent ::shortcut surviving after Paste
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -438,6 +438,12 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.40.0', date:'2026-05-19', label:'fix: snippet expansion — trigger no longer survives celebration on contenteditable fields',
+    changes:[
+      {type:'fix', text:'For CE fields (Gmail, Slack, Notion, etc.), the trigger text (e.g. ::time) now deletes atomically before the celebration modal appears, so focus changes during the 5-second window no longer leave ::shortcut in the field'},
+      {type:'fix', text:'Same fix applied to the quick-picker (selectTriggerItem) code path'},
+      {type:'fix', text:'restoreFieldState Undo path correctly skips re-deletion when the trigger was already pre-deleted'}
+    ]},
   { version:'v2.38.0', date:'2026-05-18', label:'feat: design system v1.1 — harmonized across mobile, dashboard, extension',
     changes:[
       {type:'feat', text:'Single Azure primary (#1B4FD8) across every surface; Iris purple #6C5CE7 removed entirely from popup, overlay, and dashboard'},

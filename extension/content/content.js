@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.35.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.40.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
@@ -455,20 +455,20 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.35.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
+        console.log('[Sprintbrain v2.40.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.35.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
+            console.log('[Sprintbrain v2.40.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.35.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
+            console.log('[Sprintbrain v2.40.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -867,6 +867,7 @@ function injectDynamicModal(variables, onConfirm, onCancel) {
 function handleMatch(el, snip, scLen) {
   if (processing) return;
   processing = true;
+  var fieldSnapshot = captureFieldState(el, scLen);
   deleteChars(el, scLen, function() {
     var vars = parsePlaceholders(snip.body);
     if (vars.length > 0) {
@@ -875,25 +876,58 @@ function handleMatch(el, snip, scLen) {
         var modSnip = {};
         for (var k in snip) modSnip[k] = snip[k];
         modSnip.body = newBody;
-        _proceedInsert(el, modSnip);
+        _proceedInsert(el, modSnip, fieldSnapshot);
       }, function() {
         processing = false;
       });
     } else {
-      _proceedInsert(el, snip);
+      _proceedInsert(el, snip, fieldSnapshot);
     }
   });
 }
 
-function _proceedInsert(el, snip) {
+function _proceedInsert(el, snip, fieldSnapshot) {
   var fields = extractFields(snip.body);
   if (!fields.length) {
     if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {});
-    insertText(el, text);
-    showCelebration(text);
-    logEvent(snip, 0);
-    processing = false;
+    var _isCE = el && (el.isContentEditable || (el.getAttribute &&
+      (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
+    if (_isCE) {
+      // For CE: deleteChars only SET the selection spanning the trigger.
+      // Insert synchronously NOW while that selection is still live — execCommand
+      // atomically replaces the trigger with the snippet in one browser undo step.
+      // The celebration is then purely informational; onConfirm only logs.
+      // onUndo calls execCommand('undo') to restore the trigger via the native stack.
+      insertText(el, text);
+      fieldSnapshot.syncInserted = true;
+      showCelebration(
+        text,
+        function onConfirm() {           // timer expired or user clicked OK
+          logEvent(snip, 0);
+          processing = false;
+        },
+        function onUndo() {              // user clicked Undo
+          restoreFieldState(fieldSnapshot);
+          processing = false;
+        }
+      );
+    } else {
+      // Non-CE (textarea / input): deleteChars already stripped the trigger.
+      // Defer insertion to onConfirm, as before.
+      showCelebration(
+        text,
+        function onConfirm() {           // timer expired or user clicked OK
+          insertText(el, text);
+          logEvent(snip, 0);
+          processing = false;
+        },
+        function onUndo() {              // user clicked Undo — never insert
+          restoreFieldState(fieldSnapshot);
+          processing = false;
+        }
+      );
+    }
   } else {
     showOverlay(el, snip, fields, function() { processing = false; });
   }
@@ -1444,6 +1478,64 @@ function launchConfetti() {
   setTimeout(function(){ if(cv.parentNode){ cancelAnimationFrame(raf); cv.remove(); } }, 5000);
 }
 
+// ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
+function captureFieldState(el, triggerLen) {
+  var isCE = el.isContentEditable || (el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''));
+  if (isCE) return { type: 'ce', el: el, triggerLen: triggerLen || 0 };
+  return { type: 'value', el: el, triggerLen: triggerLen || 0 };
+}
+
+function restoreFieldState(snapshot) {
+  if (!snapshot || !snapshot.el) return;
+  var el = snapshot.el;
+  try {
+    if (snapshot.type === 'ce') {
+      if (snapshot.syncInserted) {
+        // Snippet was already inserted synchronously before the celebration.
+        // Undo via the browser's native undo stack to restore the trigger text.
+        if (document.activeElement !== el && !document.activeElement.contains(el)) {
+          try { el.focus(); } catch(_) {}
+        }
+        try { document.execCommand('undo', false, null); } catch(_) {}
+        return;
+      }
+      // deleteChars for CE only SET the selection spanning the trigger (no DOM
+      // change). The trigger is still in the field, selected. Atomically delete
+      // it via execCommand('insertText', '') — same mechanism insertText uses on
+      // confirm, so Lexical/Gmail/Slack handle it as a single beforeinput event.
+      if (document.activeElement !== el && !document.activeElement.contains(el)) {
+        try { el.focus(); } catch(_) {}
+      }
+      var sel = window.getSelection();
+      var canAtomicDelete = sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed;
+      if (canAtomicDelete) {
+        try { document.execCommand('insertText', false, ''); } catch(_) {}
+      } else if (typeof snapshot.triggerLen === 'number' && snapshot.triggerLen > 0) {
+        // Fallback: selection was reset (rare). Re-select N chars backward from
+        // the current caret and delete them.
+        try {
+          var sel2 = window.getSelection();
+          if (sel2 && sel2.rangeCount > 0) {
+            var r  = sel2.getRangeAt(0);
+            var bk = _ceWalkBackChars(_ceHost(el), r.endContainer, r.endOffset, snapshot.triggerLen);
+            var nr = document.createRange();
+            nr.setStart(bk.node, bk.offset);
+            nr.setEnd(r.endContainer, r.endOffset);
+            sel2.removeAllRanges();
+            sel2.addRange(nr);
+            document.execCommand('insertText', false, '');
+          }
+        } catch(_) {}
+      }
+    } else {
+      // textarea / input: deleteChars already stripped the trigger from el.value
+      // BEFORE the celebration appeared, and insertText was deferred — never
+      // fired. The field is already in the clean post-undo state. Just refocus.
+      try { el.focus(); } catch(_) {}
+    }
+  } catch(e) {}
+}
+
 // ── CELEBRATION CARD ───────────────────────────────────────────────
 var MSGS = [
   {e:'🎉',h:'Message ready!',s:'Your fingers thank you.'},
@@ -1459,7 +1551,7 @@ var MSGS = [
 var totalSecs = 0;
 var totalSnips = 0;
 
-function showCelebration(text) {
+function showCelebration(text, onConfirm, onUndo) {
   ['sb-celebrate','sb-cel-bd'].forEach(function(id){ var e=document.getElementById(id); if(e)e.remove(); });
 
   var secs     = Math.max(2, Math.round((text||'').trim().length / 3.3));
@@ -1468,8 +1560,6 @@ function showCelebration(text) {
   var machineW = words - humanW;
   var machPct  = Math.round(machineW / Math.max(words,1) * 100);
   var humPct   = 100 - machPct;
-  totalSecs += secs; totalSnips++;
-
   var msg = MSGS[Math.floor(Math.random() * MSGS.length)];
 
   var bd = document.createElement('div');
@@ -1485,6 +1575,17 @@ function showCelebration(text) {
     'box-shadow:0 24px 80px rgba(0,0,0,.22);' +
     'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
     'animation:sbCardIn .3s cubic-bezier(.34,1.56,.64,1) forwards;';
+
+  var canUndo    = typeof onUndo === 'function';
+  var undoRowHtml = canUndo
+    ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
+        '<button id="sb-cel-undo" style="flex-shrink:0;padding:5px 12px;background:transparent;border:1.5px solid #e8c97a;border-radius:7px;font-size:12px;font-weight:600;color:#BA7517;cursor:pointer;font-family:inherit">&#8617; Undo</button>' +
+        '<div style="flex:1;height:3px;background:#f0efec;border-radius:99px;overflow:hidden">' +
+          '<div id="sb-cel-bar" style="height:100%;background:#e8c97a;border-radius:99px;width:100%"></div>' +
+        '</div>' +
+        '<span id="sb-cel-cd" style="flex-shrink:0;font-size:10px;color:#a8a59f;min-width:12px;text-align:right">5</span>' +
+      '</div>'
+    : '';
 
   card.innerHTML =
     '<div style="font-size:46px;line-height:1;margin-bottom:9px">'+msg.e+'</div>'+
@@ -1517,23 +1618,59 @@ function showCelebration(text) {
       '<span>'+humPct+'% you</span><span>'+machPct+'% Sprintbrain \ud83e\udd16</span>'+
     '</div>'+
     '<button id="sb-cel-ok" style="padding:9px 20px;background:#BA7517;border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;width:100%">Paste it now! \ud83d\udccb</button>'+
+    undoRowHtml+
     '<div id="sb-cel-skip" style="margin-top:8px;font-size:11px;color:#a8a59f;cursor:pointer">dismiss</div>';
 
   document.body.appendChild(bd);
   document.body.appendChild(card);
 
-  function close() {
+  var settled = false;
+  var autoCloseTimer;
+  var countdownIv;
+
+  function dismiss() {
+    if (settled) return;
+    settled = true;
+    clearTimeout(autoCloseTimer);
+    clearInterval(countdownIv);
     var c=document.getElementById('sb-celebrate'); if(c)c.remove();
     var b=document.getElementById('sb-cel-bd');    if(b)b.remove();
   }
 
+  function confirm() {
+    if (settled) return;
+    dismiss();
+    totalSecs += secs; totalSnips++;
+    if (typeof onConfirm === 'function') onConfirm();
+  }
+
+  function undo() {
+    if (settled) return;
+    dismiss();
+    if (typeof onUndo === 'function') onUndo();
+  }
+
   var okBtn   = document.getElementById('sb-cel-ok');
   var skipBtn = document.getElementById('sb-cel-skip');
-  if (okBtn)   okBtn.addEventListener('click',   close);
-  if (skipBtn) skipBtn.addEventListener('click',  close);
-  bd.addEventListener('click', close);
-  setTimeout(close, 5000);
+  var undoBtn = document.getElementById('sb-cel-undo');
+  if (okBtn)   okBtn.addEventListener('click',  confirm);
+  if (skipBtn) skipBtn.addEventListener('click', confirm);
+  if (undoBtn) undoBtn.addEventListener('click', undo);
+  bd.addEventListener('click', confirm);
 
+  if (canUndo) {
+    var barEl = document.getElementById('sb-cel-bar');
+    var cdEl  = document.getElementById('sb-cel-cd');
+    var t0    = Date.now();
+    countdownIv = setInterval(function() {
+      var elapsed = Date.now() - t0;
+      var pct = Math.max(0, (1 - elapsed / 5000) * 100);
+      if (barEl) barEl.style.width = pct + '%';
+      if (cdEl)  cdEl.textContent  = Math.max(0, Math.ceil((5000 - elapsed) / 1000));
+    }, 100);
+  }
+
+  autoCloseTimer = setTimeout(confirm, 5000);
   launchConfetti();
 }
 
@@ -1739,6 +1876,8 @@ function selectTriggerItem(idx) {
     }
   }
 
+  var fieldSnapshot = captureFieldState(el, dLen);
+
   function doInsert() {
     if (mode === 'snippet') {
       var fields = extractFields(item.body);
@@ -1746,10 +1885,38 @@ function selectTriggerItem(idx) {
       if (!fields.length) {
         if (isUrgExpired(item)) { processing = false; return; }
         var text = resolveBody(item.body, {});
-        insertText(el, text);
-        showCelebration(text);
-        logEvent(item, 0);
-        processing = false;
+        var _isCE2 = el && (el.isContentEditable || (el.getAttribute &&
+          (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
+        if (_isCE2) {
+          // Same sync-insert fix as _proceedInsert: insert while selection is live.
+          insertText(el, text);
+          fieldSnapshot.syncInserted = true;
+          showCelebration(
+            text,
+            function onConfirm() {     // timer expired or user clicked OK
+              logEvent(item, 0);
+              processing = false;
+            },
+            function onUndo() {        // user clicked Undo
+              restoreFieldState(fieldSnapshot);
+              processing = false;
+            }
+          );
+        } else {
+          // Non-CE: trigger already stripped; defer insertion to onConfirm.
+          showCelebration(
+            text,
+            function onConfirm() {     // timer expired or user clicked OK
+              insertText(el, text);
+              logEvent(item, 0);
+              processing = false;
+            },
+            function onUndo() {        // user clicked Undo — never insert
+              restoreFieldState(fieldSnapshot);
+              processing = false;
+            }
+          );
+        }
       } else {
         showOverlay(el, item, fields, function() { processing = false; });
       }
