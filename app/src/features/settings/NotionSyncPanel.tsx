@@ -10,22 +10,22 @@ export function NotionSyncPanel() {
   const sync = useSettingsStore((s) => s.notionSync);
   const editNotionSettings = useSettingsStore((s) => s.editNotionSettings);
 
-  const [apiKey, setApiKey] = useState('');
-  const [dbId, setDbId] = useState('');
+  const syncedApiKey = sync?.api_key ?? '';
+  const syncedDbId = sync?.database_id ?? '';
+
+  const [apiKey, setApiKey] = useState(syncedApiKey);
+  const [dbId, setDbId] = useState(syncedDbId);
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sync) {
-      setApiKey(sync.api_key ?? '');
-      setDbId(sync.database_id ?? '');
-    }
-  }, [sync?.api_key, sync?.database_id]);
+    setApiKey(syncedApiKey);
+    setDbId(syncedDbId);
+  }, [syncedApiKey, syncedDbId]);
 
-  const isDirty =
-    apiKey !== (sync?.api_key ?? '') || dbId !== (sync?.database_id ?? '');
+  const isDirty = apiKey !== syncedApiKey || dbId !== syncedDbId;
 
   async function handleSave() {
     setSaving(true);
