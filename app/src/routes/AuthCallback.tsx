@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
@@ -11,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
  */
 export function AuthCallback() {
   const status = useAuthStore((s) => s.status);
+  const init = useAuthStore((s) => s.init);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [params] = useSearchParams();
@@ -29,15 +29,17 @@ export function AuthCallback() {
       return;
     }
 
-    // Kick Supabase to read the URL once (safety net in case detectSessionInUrl
-    // hasn't fired yet by the time React mounts this route).
-    void supabase.auth.getSession();
+    // Subscribe the auth store to Supabase's onAuthStateChange BEFORE the
+    // PKCE exchange completes. Without this the SIGNED_IN event fires into
+    // the void and `status` stays 'loading' until the 5s fallback, which
+    // bounces the user to /login with a misleading "link expired" error.
+    void init();
 
     // Fallback — if the session doesn't appear within 5s, treat it as a
     // failed callback rather than spinning forever.
     const t = window.setTimeout(() => setTimedOut(true), 5000);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [init]);
 
   if (errorMsg) {
     return <Navigate to={`/login?error=${encodeURIComponent(errorMsg)}`} replace />;
