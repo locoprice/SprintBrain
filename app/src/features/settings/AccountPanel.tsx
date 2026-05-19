@@ -146,7 +146,7 @@ export function AccountPanel() {
           <div className="flex items-start gap-2 rounded-[10px] border border-primary/30 bg-primary-bg p-3 text-xs text-primary">
             <Mail className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
-              Verification email sent to <strong>{emailSent}</strong>. Click the link in the email to confirm the change.
+              Verification email sent to <strong>{emailSent}</strong>. Open it and click <strong>Change Email</strong> to confirm — the dashboard will refresh automatically once the change is applied.
             </span>
           </div>
         )}

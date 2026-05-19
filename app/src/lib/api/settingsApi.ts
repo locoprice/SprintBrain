@@ -58,7 +58,15 @@ export const settingsApi: SettingsApi = {
 
   async updateEmail(newEmail: string) {
     const trimmed = newEmail.trim().toLowerCase();
-    const { error } = await supabase.auth.updateUser({ email: trimmed });
+    // emailRedirectTo ensures the confirmation link lands on /auth/callback,
+    // where the auth store is subscribed to onAuthStateChange and will pick
+    // up the USER_UPDATED event with the new email. Without it, Supabase
+    // falls back to the project Site URL and the dashboard never refreshes.
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent('/settings')}`;
+    const { error } = await supabase.auth.updateUser(
+      { email: trimmed },
+      { emailRedirectTo: redirectTo },
+    );
     if (error) throw error;
   },
 
