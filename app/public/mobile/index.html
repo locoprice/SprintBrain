@@ -606,7 +606,6 @@ body{
     <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
     <ul class="sb-sheet-actions">
       <li data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
-      <li data-action="edit"><span class="sb-sheet-act-i">✏️</span> Edit</li>
       <li data-action="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
     </ul>
   </div>
@@ -1454,10 +1453,6 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
         copyText(resolveBody(s.body||'',{}));
         closeBottomSheet();
       }
-    }else if(act==='edit'){
-      var snapshot=s;
-      closeBottomSheet();
-      setTimeout(function(){openEditModal(snapshot);},320);
     }else if(act==='delete'){
       if(confirm('Delete this snippet?'))deleteSnippet(s);
     }
