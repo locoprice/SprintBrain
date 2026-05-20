@@ -1,15 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  Activity,
+  ArrowUpRight,
   BarChart3,
-  HelpCircle,
-  LifeBuoy,
+  Briefcase,
+  Bug,
+  Github,
   LogOut,
   MessageSquareText,
   Settings,
   Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RESOURCE_LINKS } from '@/lib/links';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
@@ -21,6 +25,13 @@ interface NavItem {
   end?: boolean;
   /** When provided, renders a count pill — filled (primary) when active, muted otherwise. */
   count?: number;
+}
+
+interface ResourceItem {
+  label: string;
+  icon: typeof Type;
+  /** External destination. `null` renders a disabled "coming soon" row. */
+  href: string | null;
 }
 
 function navClass({ isActive }: { isActive: boolean }): string {
@@ -84,9 +95,11 @@ export function Sidebar() {
     { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
-  const SECONDARY: NavItem[] = [
-    { to: '/help', label: 'Help', icon: HelpCircle },
-    { to: '/feedback', label: 'Feedback', icon: LifeBuoy },
+  const SECONDARY: ResourceItem[] = [
+    { label: 'Investor relations', icon: Briefcase, href: RESOURCE_LINKS.investors },
+    { label: 'Report a bug', icon: Bug, href: RESOURCE_LINKS.bugs },
+    { label: 'GitHub', icon: Github, href: RESOURCE_LINKS.github },
+    { label: 'Status', icon: Activity, href: RESOURCE_LINKS.status },
   ];
 
   // Close the dropdown on any outside click.
@@ -140,19 +153,34 @@ export function Sidebar() {
           Resources
         </div>
         <div className="flex flex-col gap-0.5">
-          {SECONDARY.map((item) => (
-            <a
-              key={item.to}
-              href="#"
-              onClick={(e) => e.preventDefault()}
-              className={cn(
-                'flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-muted hover:bg-card hover:text-ink',
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </a>
-          ))}
+          {SECONDARY.map((item) =>
+            item.href ? (
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-muted hover:bg-card hover:text-ink"
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+                <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-ink-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+              </a>
+            ) : (
+              <span
+                key={item.label}
+                title="Link coming soon"
+                aria-disabled="true"
+                className="flex cursor-default items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-subtle"
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+                <span className="ml-auto rounded-full bg-bg-alt px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-subtle">
+                  Soon
+                </span>
+              </span>
+            ),
+          )}
         </div>
       </nav>
 
