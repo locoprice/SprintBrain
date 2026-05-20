@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
 // ── Build-time changelog generator ──────────────────────────────────────────
@@ -91,8 +92,64 @@ const APP_VERSION  = latestTagged?.version ?? 'v0.0.0';
 const RELEASE_DATE = latestTagged?.date    ?? '';
 // ────────────────────────────────────────────────────────────────────────────
 
+// ── Landing page version stamp ──────────────────────────────────────────────
+// The marketing landing is static HTML served verbatim from public/, so it
+// can't read the `define` constants below. This plugin replaces the
+// `{{EXT_VERSION}}` token with the extension version (single source of truth:
+// extension/manifest.json) — in dev via middleware, in prod by rewriting the
+// emitted file. The badge can never drift from a release again.
+
+const EXT_VERSION_TOKEN = '{{EXT_VERSION}}';
+
+function readExtensionVersion(): string {
+  try {
+    const manifestPath = path.resolve(__dirname, '../extension/manifest.json');
+    const { version } = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
+      version: string;
+    };
+    return `v${version}`;
+  } catch {
+    return APP_VERSION;
+  }
+}
+
+function landingVersionPlugin(): Plugin {
+  const version = readExtensionVersion();
+  const sourceFile = path.resolve(__dirname, 'public/landing/index.html');
+  const distFile = path.resolve(__dirname, 'dist/landing/index.html');
+  const stamp = (html: string): string => html.split(EXT_VERSION_TOKEN).join(version);
+
+  return {
+    name: 'sprintbrain-landing-version',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? '').split('?')[0];
+        if (pathname === '/landing/' || pathname === '/landing/index.html') {
+          try {
+            const html = stamp(fs.readFileSync(sourceFile, 'utf-8'));
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(html);
+            return;
+          } catch {
+            // Fall through to Vite's default static handling.
+          }
+        }
+        next();
+      });
+    },
+    closeBundle() {
+      try {
+        fs.writeFileSync(distFile, stamp(fs.readFileSync(distFile, 'utf-8')));
+      } catch {
+        // Landing page absent from this build — nothing to stamp.
+      }
+    },
+  };
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), landingVersionPlugin()],
   define: {
     // Injected at build time — components read these as plain constants.
     __APP_CHANGELOG__:    JSON.stringify(CHANGELOG),
