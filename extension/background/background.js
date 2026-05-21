@@ -58,9 +58,7 @@ function supaPost(table, body) {
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (msg && msg.type === 'log_event' && msg.payload) {
-    supaPost('snippet_events', msg.payload).catch(function(e) {
-      console.warn('log_event:', e);
-    });
+    supaPost('snippet_events', msg.payload).catch(function() {});
     try { sendResponse({ ok: true }); } catch(e) {}
     return true;
   }
@@ -344,11 +342,6 @@ function buildContextMenus(data) {
       contexts: ['editable']
     });
 
-    console.log('[SprintBrain] Context menus v2.15.6 built — ' +
-      snippets.length + ' snippets, ' +
-      foldersWithMulti.length + ' folder submenus, ' +
-      singletonSnips.length + ' flattened, ' +
-      recent.length + ' recent');
   });
 }
 
@@ -437,7 +430,6 @@ chrome.runtime.onInstalled.addListener(function(details) {
     delayInMinutes: 1,
     periodInMinutes: 5
   });
-  console.log('[SprintBrain] Sync alarm created');
   initMenus();
 });
 
@@ -454,7 +446,6 @@ chrome.runtime.onStartup.addListener(function() {
         delayInMinutes: 1,
         periodInMinutes: 5
       });
-      console.log('[SprintBrain] Sync alarm recreated on startup');
     }
   });
   initMenus();
@@ -464,7 +455,6 @@ chrome.runtime.onStartup.addListener(function() {
 // ── ALARM LISTENER — fires every 5 minutes ──────────────────────
 chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name !== 'sb_sync_alarm') return;
-  console.log('[SprintBrain] Alarm fired — running background sync');
   _alarmSync();
 });
 // Message handler from popup
@@ -497,18 +487,16 @@ function bgNotionSync() {
       _bgRunSync(cfg);
     });
   } catch (e) {
-    console.warn('[SprintBrain BG] Notion cfg read failed:', e.message);
+    console.error('[SprintBrain BG] Notion cfg read failed:', e.message);
   }
 }
 
 function _bgRunSync(cfg) {
   NotionSync.reset();
   NotionSync.run(cfg, {
-    onComplete: function (snippets, ok) {
-      console.log('[SprintBrain BG] Notion bg-sync:', ok ? snippets.length + ' snippet(s)' : 'used cache or skipped');
-    },
+    onComplete: function () {},
     onError: function (err) {
-      console.warn('[SprintBrain BG] Notion bg-sync failed:', err.message);
+      console.error('[SprintBrain BG] Notion bg-sync failed:', err.message);
     }
   });
 }
@@ -518,7 +506,6 @@ function _alarmSync() {
   chrome.storage.local.get('sb_notion_cfg', function(d) {
     var cfg = (d && d.sb_notion_cfg) ? d.sb_notion_cfg : null;
     if (!cfg || !cfg.apiKey || !cfg.dbId) {
-      console.log('[SprintBrain Alarm] Notion not configured — skipping');
       return;
     }
 
@@ -528,22 +515,15 @@ function _alarmSync() {
       if (lastSync) {
         var elapsed = Date.now() - new Date(lastSync).getTime();
         if (elapsed < 180000) {
-          console.log('[SprintBrain Alarm] Skipped — synced ' +
-            Math.round(elapsed / 1000) + 's ago');
           return;
         }
       }
 
       NotionSync.reset();
       NotionSync.run(cfg, {
-        onProgress: function(state) {
-          console.log('[SprintBrain Alarm] Sync state:', state);
-        },
+        onProgress: function() {},
         onComplete: function(snippets, success) {
           if (!success) return;
-          console.log('[SprintBrain Alarm] Sync complete —',
-            snippets.length, 'snippet(s)');
-
           if (snippets.length > 0) {
             chrome.storage.local.set({
               sb_alarm_sync_result: {
@@ -554,7 +534,7 @@ function _alarmSync() {
           }
         },
         onError: function(err) {
-          console.warn('[SprintBrain Alarm] Sync failed:', err.message);
+          console.error('[SprintBrain Alarm] Sync failed:', err.message);
         }
       });
     });

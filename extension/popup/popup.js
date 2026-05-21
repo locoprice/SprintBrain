@@ -111,7 +111,7 @@ var DB = {
           };
         })
       };
-    }).catch(function(e) { console.warn('[Sprintbrain] loadAll:', e); return null; });
+    }).catch(function(e) { console.error('[Sprintbrain] loadAll:', e); return null; });
   },
   upsertSnippet: function(s) {
     supaFetch('snippets', 'POST', {
@@ -127,28 +127,28 @@ var DB = {
       ai_generated: s.ai_generated || false,
       pinned: s.pinned || false
     }).catch(function(e) {
-      console.warn('upsertSnippet:', e);
+      console.error('upsertSnippet:', e);
       try { showToast('Save failed — changes may not have synced'); } catch (_) {}
     });
   },
   deleteSnippet: function(id) {
     supaFetch('snippets', 'DELETE', null, 'id=eq.' + id).catch(function(e) {
-      console.warn('deleteSnippet:', e);
+      console.error('deleteSnippet:', e);
       try { showToast('Delete failed — please retry'); } catch (_) {}
     });
   },
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
       id: f.id, user_id: SB_CURRENT_USER_ID, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0
-    }).catch(function(e) { console.warn('upsertFolder:', e); });
+    }).catch(function(e) { console.error('upsertFolder:', e); });
   },
   deleteFolder: function(id) {
-    supaFetch('folders', 'DELETE', null, 'id=eq.' + id).catch(function(e) { console.warn('deleteFolder:', e); });
+    supaFetch('folders', 'DELETE', null, 'id=eq.' + id).catch(function(e) { console.error('deleteFolder:', e); });
   },
   updateStats: function(snippetId, uses, fills, lastUsed) {
     supaFetch('snippet_stats', 'POST', {
       snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
-    }).catch(function(e) { console.warn('updateStats:', e); });
+    }).catch(function(e) { console.error('updateStats:', e); });
   },
   // Flip is_shared for a single snippet (used for unsharing).
   setShared: function(snippetId, isShared) {
@@ -384,9 +384,11 @@ function notionSendWithRetry(entry, attempt, logIdx, key) {
     if (r.ok) { notionSentKeys[key] = true; if (notionLog[logIdx]) notionLog[logIdx].status = 'synced'; }
     else throw new Error('HTTP ' + r.status);
   }).catch(function(err) {
-    console.warn('[Sprintbrain NotionSync] attempt ' + (attempt+1) + ':', err.message);
     if (attempt < 2) setTimeout(function() { notionSendWithRetry(entry, attempt+1, logIdx, key); }, delays[attempt]);
-    else if (notionLog[logIdx]) notionLog[logIdx].status = 'failed';
+    else {
+      if (notionLog[logIdx]) notionLog[logIdx].status = 'failed';
+      console.error('[SprintBrain NotionSync] push failed:', err.message);
+    }
   });
 }
 
@@ -425,14 +427,14 @@ function saveTrigger(){ try{ chrome.storage.sync.set({trigger:trig}); }catch(e){
 function syncSnippets(){
   try{
     chrome.storage.local.set({snippets:snips}, function(){
-      if(chrome.runtime.lastError) console.warn('syncSnippets local:', chrome.runtime.lastError.message);
+      if(chrome.runtime.lastError) console.error('syncSnippets local:', chrome.runtime.lastError.message);
     });
     // Also clear any stale snippets in sync (from pre-v2.13.1 versions) so
     // content.js doesn't accidentally fall back to an out-of-date list.
     chrome.storage.sync.remove('snippets', function(){
       if(chrome.runtime.lastError) { /* ignore: key may not exist */ }
     });
-  }catch(e){ console.warn('syncSnippets:',e); }
+  }catch(e){ console.error('syncSnippets:',e); }
 }
 
 
@@ -773,7 +775,7 @@ var NotionPush = {
       var propName = langPropMap[v.lang] || ('Body ' + v.lang);
       var bodyText = (v.body || '').slice(0, 2000);
       if ((v.body || '').length > 2000) {
-        console.warn('[SprintBrain] Body truncated to 2000 chars for Notion:', v.title, v.lang);
+        console.error('[SprintBrain] Body truncated to 2000 chars for Notion:', v.title, v.lang);
       }
       props[propName] = { rich_text: [{ text: { content: bodyText } }] };
     });
@@ -828,13 +830,12 @@ var NotionPush = {
           v.notion_page_id = data.id;
           DB.upsertSnippet(v);
         });
-        console.log('[SprintBrain] Pushed to Notion:', variants[0].title, '→', data.id);
       } else {
-        console.warn('[SprintBrain] Notion create returned no id:', data);
+        console.error('[SprintBrain] Notion create returned no id:', data);
       }
     })
     .catch(function(err) {
-      console.warn('[SprintBrain] Notion push failed:', err.message);
+      console.error('[SprintBrain] Notion push failed:', err.message);
     });
   },
 
@@ -851,10 +852,9 @@ var NotionPush = {
     })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      console.log('[SprintBrain] Updated in Notion:', variants[0].title);
     })
     .catch(function(err) {
-      console.warn('[SprintBrain] Notion update failed:', err.message);
+      console.error('[SprintBrain] Notion update failed:', err.message);
     });
   },
 
@@ -873,10 +873,9 @@ var NotionPush = {
     })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      console.log('[SprintBrain] Archived in Notion:', notionPageId);
     })
     .catch(function(err) {
-      console.warn('[SprintBrain] Notion archive failed:', err.message);
+      console.error('[SprintBrain] Notion archive failed:', err.message);
     });
   }
 
@@ -914,7 +913,6 @@ function boot() {
           } else {
                   folders = DEFAULT_FOLDERS.slice();
                   DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
-                  console.log('[SprintBrain] Empty DB — seeding folders, waiting for Notion sync');
           }
           syncSnippets();
           refreshUI();
@@ -928,10 +926,6 @@ function boot() {
         var age = Date.now() - new Date(alarmTs).getTime();
 
         if (age < 600000 && alarmSnippets.length > 0) {
-          console.log('[SprintBrain] Using alarm cache —',
-            alarmSnippets.length, 'snippet(s) from',
-            Math.round(age / 1000) + 's ago');
-
           alarmSnippets.forEach(function(ns) {
             var exists = false;
             for (var i = 0; i < snips.length; i++) {
@@ -1072,8 +1066,6 @@ function _runNotionSync(cb, force) {
                       _saveLocalCache();
                       toDelete.forEach(function(id) { DB.deleteSnippet(id); });
                       changed = true;
-                      console.log('[SprintBrain] Removed', toDelete.length,
-                        'snippet(s) deleted in Notion');
                     }
                   }
 
@@ -1084,19 +1076,12 @@ function _runNotionSync(cb, force) {
                   // Always refresh the sidebar and snippet list after sync so
                   // imported snippets are visible even when no diff was detected.
                   refreshUI();
-
-                  console.log('[SprintBrain] Sync result:',
-                    notionSnippets.length, 'from Notion |',
-                    snips.length, 'total in app |',
-                    'changed:', changed
-                  );
-
                   updateSyncStatus();
                   if (cb) cb();
           },
 
           onError: function(err) {
-                  console.warn('[SprintBrain] Notion sync failed:', err.message);
+                  console.error('[SprintBrain] Notion sync failed:', err.message);
 
                   chrome.storage.local.set({
                             sb_notion_sync_error: {
@@ -1398,14 +1383,14 @@ function doSave(){
   if (shareEnabled && !wasShared) {
     // User just turned sharing ON — push to team Notion DB via Edge Function
     DB.shareWithTeamNotion(toSave, function(err) {
-      if (err) console.warn('[SprintBrain] shareWithTeamNotion failed:', err.message);
+      if (err) console.error('[SprintBrain] shareWithTeamNotion failed:', err.message);
     });
   } else if (!shareEnabled && wasShared) {
     // User just turned sharing OFF — unshare in Supabase (Notion page kept as history)
     DB.setShared(toSave.id, false).then(function() {
       toSave.is_shared = false;
     }).catch(function(err) {
-      console.warn('[SprintBrain] setShared(false) failed:', err.message);
+      console.error('[SprintBrain] setShared(false) failed:', err.message);
     });
   } else if (shareEnabled) {
     // Already shared; just ensure the flag is set in memory
