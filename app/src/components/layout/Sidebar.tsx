@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity,
   ArrowUpRight,
@@ -27,17 +27,7 @@ interface NavItem {
   count?: number;
 }
 
-interface ResourceItem {
-  label: string;
-  icon: typeof Type;
-  /** External destination. `null` renders a disabled "coming soon" row. */
-  href: string | null;
-}
-
 function navClass({ isActive }: { isActive: boolean }): string {
-  // Reserve the 3px-wide track for the left bar on every item so the active
-  // state slides in/out without shifting content. The bar is painted via
-  // a ::before pseudo-element when active.
   return cn(
     'group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors',
     "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-[3px] before:content-['']",
@@ -72,17 +62,18 @@ function pickDisplayName(
   return 'Account';
 }
 
+const MENU_ITEM =
+  'flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50';
+
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
-  // Live counts drive the nav pills. Counts are only displayed once the
-  // matching store has loaded at least one row — avoids flashing "0" before
-  // pages hydrate. The settings/analytics rows intentionally have no count.
   const snippetCount = useSnippetStore((s) => s.snippets.length);
   const promptCount = usePromptStore((s) => s.prompts.length);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
 
   const email = user?.email ?? '';
   const displayName = pickDisplayName(user?.user_metadata, email);
@@ -92,17 +83,8 @@ export function Sidebar() {
     { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/prompts', label: 'Prompts', icon: MessageSquareText, count: promptCount },
-    { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
-  const SECONDARY: ResourceItem[] = [
-    { label: 'Investor relations', icon: Briefcase, href: RESOURCE_LINKS.investors },
-    { label: 'Report a bug', icon: Bug, href: RESOURCE_LINKS.bugs },
-    { label: 'GitHub', icon: Github, href: RESOURCE_LINKS.github },
-    { label: 'Status', icon: Activity, href: RESOURCE_LINKS.status },
-  ];
-
-  // Close the dropdown on any outside click.
   useEffect(() => {
     if (!menuOpen) return;
     function onDown(e: MouseEvent) {
@@ -119,16 +101,19 @@ export function Sidebar() {
     setSigningOut(true);
     try {
       await signOut();
-      // onAuthStateChange flips status to 'anon' → AuthGate redirects to /login.
     } finally {
       setSigningOut(false);
       setMenuOpen(false);
     }
   }
 
+  function onSettings() {
+    setMenuOpen(false);
+    navigate('/settings');
+  }
+
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
-      {/* Primary nav — group label sits at the top now that the brand moved to the topbar. */}
       <nav className="flex-1 overflow-y-auto px-3 pt-5 pb-4">
         <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
           Workspace
@@ -148,57 +133,92 @@ export function Sidebar() {
             </NavLink>
           ))}
         </div>
+      </nav>
 
-        <div className="mb-1 mt-6 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-          Resources
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {SECONDARY.map((item) =>
-            item.href ? (
-              <a
-                key={item.label}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-muted hover:bg-card hover:text-ink"
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-                <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-ink-subtle opacity-0 transition-opacity group-hover:opacity-100" />
-              </a>
-            ) : (
+      {/* User block — click to open menu */}
+      <div ref={menuRef} className="relative border-t border-line p-3">
+        {menuOpen && (
+          <div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#1C1C1E] shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
+            {/* Email header */}
+            <div className="px-3 py-2.5 text-xs text-[#8E8E93]">{email}</div>
+
+            {/* Settings */}
+            <div className="border-t border-white/[0.08]">
+              <button type="button" onClick={onSettings} className={MENU_ITEM}>
+                <Settings className="h-4 w-4 text-[#8E8E93]" />
+                Settings
+              </button>
+            </div>
+
+            {/* Resource links */}
+            <div className="border-t border-white/[0.08]">
+              {RESOURCE_LINKS.investors && (
+                <a
+                  href={RESOURCE_LINKS.investors}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Briefcase className="h-4 w-4 text-[#8E8E93]" />
+                  Investor relations
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                </a>
+              )}
+              {RESOURCE_LINKS.bugs && (
+                <a
+                  href={RESOURCE_LINKS.bugs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Bug className="h-4 w-4 text-[#8E8E93]" />
+                  Report a bug
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                </a>
+              )}
+              {RESOURCE_LINKS.github && (
+                <a
+                  href={RESOURCE_LINKS.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Github className="h-4 w-4 text-[#8E8E93]" />
+                  GitHub
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                </a>
+              )}
               <span
-                key={item.label}
                 title="Link coming soon"
                 aria-disabled="true"
-                className="flex cursor-default items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium text-ink-subtle"
+                className="flex cursor-default items-center gap-3 px-3 py-2.5 text-sm text-[#636366]"
               >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-                <span className="ml-auto rounded-full bg-bg-alt px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-subtle">
+                <Activity className="h-4 w-4 text-[#636366]" />
+                Status
+                <span className="ml-auto rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#636366]">
                   Soon
                 </span>
               </span>
-            ),
-          )}
-        </div>
-      </nav>
+            </div>
 
-      {/* User block — click to open sign-out menu */}
-      <div ref={menuRef} className="relative border-t border-line p-3">
-        {menuOpen && (
-          <div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-[10px] border border-line bg-card shadow-lg">
-            <button
-              type="button"
-              onClick={onSignOut}
-              disabled={signingOut}
-              className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-ink hover:bg-bg-alt disabled:opacity-50"
-            >
-              <LogOut className="h-4 w-4 text-ink-muted" />
-              {signingOut ? 'Signing out…' : 'Sign out'}
-            </button>
+            {/* Sign out */}
+            <div className="border-t border-white/[0.08]">
+              <button
+                type="button"
+                onClick={onSignOut}
+                disabled={signingOut}
+                className={MENU_ITEM}
+              >
+                <LogOut className="h-4 w-4 text-[#8E8E93]" />
+                {signingOut ? 'Signing out…' : 'Log out'}
+              </button>
+            </div>
           </div>
         )}
+
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
@@ -210,9 +230,7 @@ export function Sidebar() {
             {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-ink">
-              {displayName}
-            </div>
+            <div className="truncate text-sm font-medium text-ink">{displayName}</div>
             <div className="truncate text-xs text-ink-subtle">{email}</div>
           </div>
         </button>
