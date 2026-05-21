@@ -16,7 +16,7 @@
     "https://api.notion.com/*"
   ],
   "externally_connectable": {
-    "matches": ["https://sprintbrain.netlify.app/*"]
+    "matches": ["https://sprintbrain.com/*"]
   },
   "background": {
     "service_worker": "background/background.js"

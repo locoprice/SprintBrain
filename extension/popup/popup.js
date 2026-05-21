@@ -2016,7 +2016,7 @@ if (syncNowBtn) {
 // Pending state expires after OTP_TTL_MS to avoid showing a stale code screen.
 var OTP_TTL_MS = 55 * 60 * 1000; // Supabase OTPs are valid for 60 min; bail at 55.
 
-var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.netlify.app/extension-link';
+var SB_DASHBOARD_LINK_URL = 'https://sprintbrain.com/extension-link';
 
 (function initAuthGate() {
   var gate    = document.getElementById('sb-auth');

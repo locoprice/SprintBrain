@@ -39,7 +39,7 @@ PRIVACY
 Snippets are stored locally in your browser (chrome.storage.local, up to 5 MB). They are also synced to your SprintBrain account via Supabase for cross-device access. Notion sync uses only the API key you provide — your Notion credentials never leave your browser except to reach api.notion.com directly. No snippet content is shared with third parties.
 
 ACCOUNT REQUIRED
-A free SprintBrain account (email + OTP) is required to save and sync snippets. Sign up at https://sprintbrain.netlify.app
+A free SprintBrain account (email + OTP) is required to save and sync snippets. Sign up at https://sprintbrain.com
 ```
 
 ---
@@ -77,8 +77,8 @@ Users who connect a Notion database can sync their snippet library. The extensio
 | Primary category | Productivity |
 | Language | English |
 | Support email | support@sprintbrain.com *(verify this address exists before submission)* |
-| Homepage URL | https://sprintbrain.netlify.app |
-| Privacy policy URL | *(add once hosted — required before submission)* |
+| Homepage URL | https://sprintbrain.com |
+| Privacy policy URL | https://sprintbrain.com/privacy *(add once page is live — required before submission)* |
 
 ---
 

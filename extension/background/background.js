@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 // externally_connectable in manifest already restricts senders to the dashboard
 // origin; we double-check the URL prefix as defense in depth.
 chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse) {
-  if (!sender || !sender.url || sender.url.indexOf('https://sprintbrain.netlify.app/') !== 0) {
+  if (!sender || !sender.url || sender.url.indexOf('https://sprintbrain.com/') !== 0) {
     sendResponse({ ok: false, error: 'unauthorized_origin' });
     return false;
   }
@@ -346,7 +346,7 @@ function buildContextMenus(data) {
 }
 
 // ── DASHBOARD URL ─────────────────────────────────────────────────
-var SB_DASHBOARD_URL = 'https://sprintbrain.netlify.app/';
+var SB_DASHBOARD_URL = 'https://sprintbrain.com/';
 
 // ── CONTEXT MENU CLICK HANDLER ────────────────────────────────────
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
