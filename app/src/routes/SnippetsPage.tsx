@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
+import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
+import { FilterToolbar } from '@/features/snippets/FilterToolbar';
 import { NewSnippetDialog } from '@/features/snippets/NewSnippetDialog';
 import { SnippetFolderTree } from '@/features/snippets/SnippetFolderTree';
 import { SnippetsTable } from '@/features/snippets/SnippetsTable';
@@ -10,10 +12,34 @@ import { useSnippetStore } from '@/stores/snippetStore';
 export function SnippetsPage() {
   const load = useSnippetStore((s) => s.load);
   const snippets = useSnippetStore((s) => s.snippets);
-  const query = useSnippetStore((s) => s.searchQuery);
+  const storeQuery = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const error = useSnippetStore((s) => s.error);
   const clearError = useSnippetStore((s) => s.clearError);
+
+  // Local input value so typing feels instant; debounce propagation to the store.
+  const [localQuery, setLocalQuery] = useState(storeQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync when the store query is reset externally (e.g. "Clear filters" in empty state).
+  useEffect(() => {
+    if (storeQuery === '') {
+      if (debounceRef.current !== null) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      setLocalQuery('');
+    }
+  }, [storeQuery]);
+
+  function handleQueryChange(value: string) {
+    setLocalQuery(value);
+    if (debounceRef.current !== null) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setQuery(value);
+      debounceRef.current = null;
+    }, 300);
+  }
 
   useEffect(() => {
     if (snippets.length === 0) {
@@ -50,18 +76,20 @@ export function SnippetsPage() {
       <div className="flex gap-8">
         <SnippetFolderTree />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="relative max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
             <Input
               type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={localQuery}
+              onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="Search by name, trigger, or tag…"
               className="pl-9"
             />
           </div>
 
+          <FilterToolbar />
+          <BulkActionsBar />
           <SnippetsTable />
         </div>
       </div>

@@ -30,6 +30,8 @@ export interface SnippetsApi {
   setShared(id: string, isShared: boolean): Promise<SnippetRow>;
   /** Push snippet to the team Notion DB via Edge Function, sets is_shared=true. */
   shareWithNotion(id: string): Promise<{ notion_page_id: string }>;
+  /** Move multiple snippets to a folder in a single idempotent request. */
+  bulkMoveSnippets(ids: string[], folderId: string | null): Promise<void>;
 }
 
 type DbFolder = {
@@ -351,5 +353,17 @@ export const snippetsApi: SnippetsApi = {
       throw new Error('notion-snippet-push returned unexpected response');
     }
     return { notion_page_id: data.notion_page_id };
+  },
+
+  // Move multiple snippets to a folder in one idempotent DB write.
+  async bulkMoveSnippets(ids, folderId) {
+    if (ids.length === 0) return;
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('snippets')
+      .update({ folder_id: folderId, updated_at: new Date().toISOString() })
+      .in('id', ids)
+      .eq('user_id', userId);
+    if (error) throw error;
   },
 };

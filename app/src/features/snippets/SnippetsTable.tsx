@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, Loader2, Pin, Search, Trash2, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Loader2, Pin, Search, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -9,8 +9,10 @@ import {
   useFilteredSnippets,
   useSnippetStore,
 } from '@/stores/snippetStore';
+import type { SortColumn } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import type { Snippet, SnippetRow } from '@/types/database';
+import { cn } from '@/lib/utils';
 
 interface MenuState {
   snippetId: string;
@@ -57,6 +59,28 @@ function ShortcutTag({ trigger }: { trigger: string }) {
   );
 }
 
+function SortableColumnHeader({ column, label }: { column: SortColumn; label: string }) {
+  const sortBy = useSnippetStore((s) => s.sortBy);
+  const sortDir = useSnippetStore((s) => s.sortDir);
+  const setSortBy = useSnippetStore((s) => s.setSortBy);
+  const isActive = sortBy === column;
+  const Icon = isActive ? (sortDir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setSortBy(column)}
+      className={cn(
+        'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+        isActive ? 'text-primary' : 'text-ink-subtle hover:text-ink',
+      )}
+    >
+      {label}
+      <Icon className={cn('h-3 w-3', !isActive && 'opacity-40')} />
+    </button>
+  );
+}
+
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
@@ -67,8 +91,23 @@ export function SnippetsTable() {
   const query = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
+  const setLanguageFilter = useSnippetStore((s) => s.setLanguageFilter);
+  const selectedIds = useSnippetStore((s) => s.selectedIds);
+  const toggleSelectSnippet = useSnippetStore((s) => s.toggleSelectSnippet);
+  const selectAllSnippets = useSnippetStore((s) => s.selectAllSnippets);
+  const clearSelection = useSnippetStore((s) => s.clearSelection);
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
   const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
+  const someSelected = !allSelected && rows.some((r) => selectedIds.has(r.id));
+
+  const masterCheckboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   const activeMenuSnippet: SnippetRow | null =
     menu !== null ? rows.find((r) => r.id === menu.snippetId) ?? null : null;
@@ -99,6 +138,7 @@ export function SnippetsTable() {
             onClick={() => {
               setQuery('');
               setFolder(null);
+              setLanguageFilter(null);
             }}
           >
             Clear filters
@@ -129,6 +169,14 @@ export function SnippetsTable() {
     }
   }
 
+  function handleMasterChange() {
+    if (allSelected) {
+      clearSelection();
+    } else {
+      selectAllSnippets(rows.map((r) => r.id));
+    }
+  }
+
   // `overflow-clip` (Chromium 90+ / Safari 16+ / Firefox 102+) clips visually
   // without establishing a scroll container, which is what lets the sticky
   // <th> cells stick to <main>'s scroll position instead of being clipped here.
@@ -136,23 +184,53 @@ export function SnippetsTable() {
     <div className="overflow-clip rounded-[16px] border border-line bg-card">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Name</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Shortcut</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Lang</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Folder</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">Updated</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-right">Usage</th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center" title="Share this snippet with the team via Notion">
-              <Users className="mx-auto h-3.5 w-3.5" />
+          <tr className="text-left">
+            {/* Master checkbox */}
+            <th className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-3 py-3">
+              <input
+                ref={masterCheckboxRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleMasterChange}
+                aria-label="Select all visible snippets"
+                className="h-4 w-4 cursor-pointer rounded accent-primary"
+              />
             </th>
-            <th className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-2 py-3" aria-label="Actions" />
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">
+              <SortableColumnHeader column="name" label="Name" />
+            </th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+              Shortcut
+            </th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+              Lang
+            </th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+              Folder
+            </th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">
+              <SortableColumnHeader column="updated_at" label="Updated" />
+            </th>
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-right">
+              <SortableColumnHeader column="usage_count" label="Usage" />
+            </th>
+            <th
+              className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center"
+              title="Share this snippet with the team via Notion"
+            >
+              <Users className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
+            </th>
+            <th
+              className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-2 py-3"
+              aria-label="Actions"
+            />
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => {
             const trigger = row.triggers[0] ?? '';
             const isLast = i === rows.length - 1;
+            const isSelected = selectedIds.has(row.id);
             return (
               <tr
                 key={row.id}
@@ -161,11 +239,27 @@ export function SnippetsTable() {
                   e.preventDefault();
                   setMenu({ snippetId: row.id, x: e.clientX, y: e.clientY });
                 }}
-                className={
-                  (isLast ? '' : 'border-b border-line ') +
-                  'group cursor-pointer hover:bg-bg-alt/60'
-                }
+                className={cn(
+                  !isLast && 'border-b border-line',
+                  'group cursor-pointer',
+                  isSelected
+                    ? 'bg-primary-light hover:bg-primary-light/80'
+                    : 'hover:bg-bg-alt/60',
+                )}
               >
+                {/* Checkbox cell */}
+                <td
+                  className="px-3 py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelectSnippet(row.id)}
+                    aria-label={`Select ${row.name}`}
+                    className="h-4 w-4 cursor-pointer rounded accent-primary"
+                  />
+                </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary-light text-primary">
