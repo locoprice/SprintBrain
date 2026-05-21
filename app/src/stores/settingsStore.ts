@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { NotionSyncState, Profile } from '@/types/database';
 import { settingsApi } from '@/lib/api/settingsApi';
+import { supabase } from '@/lib/supabase';
 
 type Prefix = '/' | '::' | ';';
 
@@ -15,7 +16,9 @@ interface SettingsStore {
   editNotionSettings: (patch: { api_key?: string; db_id?: string }) => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsStore>((set) => ({
+let authSubscribed = false;
+
+export const useSettingsStore = create<SettingsStore>((set, get) => ({
   profile: null,
   notionSync: null,
   loading: false,
@@ -32,6 +35,26 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
       set({
         loading: false,
         error: err instanceof Error ? err.message : 'Failed to load settings',
+      });
+    }
+
+    // Subscribe once: when Supabase emits USER_UPDATED (e.g. after the
+    // email-change confirmation link is clicked), re-derive the profile so
+    // the Account panel reflects the new email without a page reload.
+    if (!authSubscribed) {
+      authSubscribed = true;
+      supabase.auth.onAuthStateChange((event) => {
+        if (event !== 'USER_UPDATED') return;
+        if (!get().profile) return;
+        void settingsApi
+          .getProfile()
+          .then((profile) => set({ profile }))
+          .catch((err) => {
+            set({
+              error:
+                err instanceof Error ? err.message : 'Failed to refresh profile',
+            });
+          });
       });
     }
   },

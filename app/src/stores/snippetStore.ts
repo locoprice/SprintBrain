@@ -1,7 +1,15 @@
 import { create } from 'zustand';
-import type { Folder, SnippetRow } from '@/types/database';
+import type { Folder, Snippet, SnippetRow } from '@/types/database';
 import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
+
+export type SortColumn = 'updated_at' | 'usage_count' | 'name';
+export type SortDir = 'asc' | 'desc';
+
+export interface ImportBatchResult {
+  imported: number;
+  failed: number;
+}
 
 interface SnippetStore {
   folders: Folder[];
@@ -12,10 +20,26 @@ interface SnippetStore {
   searchQuery: string;
   /** Set of snippet IDs currently awaiting a share/unshare operation. */
   sharingIds: Set<string>;
+  /** IDs of rows checked in the bulk-selection column. */
+  selectedIds: Set<string>;
+  sortBy: SortColumn;
+  sortDir: SortDir;
+  languageFilter: Snippet['language'] | null;
+  /** True while a bulk-move network request is in flight. */
+  bulkMoving: boolean;
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
   clearError: () => void;
+  toggleSelectSnippet: (id: string) => void;
+  /** Replace the current selection with the provided ids. */
+  selectAllSnippets: (ids: string[]) => void;
+  clearSelection: () => void;
+  /** Switch sort column; toggles direction when the same column is clicked twice. */
+  setSortBy: (col: SortColumn) => void;
+  setLanguageFilter: (lang: Snippet['language'] | null) => void;
+  /** Move selected snippets to a folder in one network request. Clears selection on success. */
+  bulkMoveSnippets: (ids: string[], folderId: string | null) => Promise<void>;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
   addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
@@ -38,6 +62,12 @@ interface SnippetStore {
    * The Notion page is intentionally preserved as team knowledge history.
    */
   unshareSnippet: (id: string) => Promise<void>;
+  /**
+   * Bulk-create snippets from an import payload. Creates each snippet
+   * individually and appends all successful rows to the store in one
+   * update. Does not set store.error — callers own result feedback.
+   */
+  importSnippets: (items: SnippetFormValues[]) => Promise<ImportBatchResult>;
 }
 
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
@@ -48,6 +78,11 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   selectedFolderId: null,
   searchQuery: '',
   sharingIds: new Set<string>(),
+  selectedIds: new Set<string>(),
+  sortBy: 'updated_at',
+  sortDir: 'desc',
+  languageFilter: null,
+  bulkMoving: false,
   load: async () => {
     set({ loading: true, error: null });
     try {
@@ -66,6 +101,65 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
   setSearchQuery: (q) => set({ searchQuery: q }),
   clearError: () => set({ error: null }),
+
+  toggleSelectSnippet: (id) =>
+    set((s) => {
+      const next = new Set(s.selectedIds);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return { selectedIds: next };
+    }),
+
+  selectAllSnippets: (ids) => set({ selectedIds: new Set(ids) }),
+
+  clearSelection: () => set({ selectedIds: new Set<string>() }),
+
+  setSortBy: (col) =>
+    set((s) => ({
+      sortBy: col,
+      // Toggle direction on repeated click; default to desc (most recent/most-used first)
+      // except for name where asc (A-Z) is the natural default.
+      sortDir:
+        s.sortBy === col
+          ? s.sortDir === 'asc'
+            ? 'desc'
+            : 'asc'
+          : col === 'name'
+            ? 'asc'
+            : 'desc',
+    })),
+
+  setLanguageFilter: (lang) => set({ languageFilter: lang }),
+
+  bulkMoveSnippets: async (ids, folderId) => {
+    if (ids.length === 0) return;
+    const preState = get().snippets;
+    const folder = folderId ? get().folders.find((f) => f.id === folderId) : null;
+    // Optimistic update.
+    set((s) => ({
+      snippets: s.snippets.map((sn) =>
+        ids.includes(sn.id)
+          ? { ...sn, folder_id: folderId, folder_name: folder?.name ?? null }
+          : sn,
+      ),
+      bulkMoving: true,
+    }));
+    try {
+      await snippetsApi.bulkMoveSnippets(ids, folderId);
+      set({ selectedIds: new Set<string>(), bulkMoving: false, error: null });
+    } catch (err) {
+      // Rollback optimistic update on failure.
+      set({
+        snippets: preState,
+        bulkMoving: false,
+        error: err instanceof Error ? err.message : 'Failed to move snippets',
+      });
+      throw err;
+    }
+  },
 
   addSnippet: async (payload) => {
     try {
@@ -109,10 +203,15 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   removeSnippet: async (id) => {
     try {
       await snippetsApi.deleteSnippet(id);
-      set((s) => ({
-        snippets: s.snippets.filter((sn) => sn.id !== id),
-        error: null,
-      }));
+      set((s) => {
+        const selectedIds = new Set(s.selectedIds);
+        selectedIds.delete(id);
+        return {
+          snippets: s.snippets.filter((sn) => sn.id !== id),
+          selectedIds,
+          error: null,
+        };
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete snippet';
       set({ error: msg });
@@ -268,25 +367,62 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
       throw err;
     }
   },
+
+  importSnippets: async (items) => {
+    let imported = 0;
+    let failed = 0;
+    const created: SnippetRow[] = [];
+
+    for (const item of items) {
+      try {
+        const row = await snippetsApi.createSnippet(item);
+        const folder = get().folders.find((f) => f.id === row.folder_id);
+        created.push({ ...row, folder_name: row.folder_name ?? folder?.name ?? null });
+        imported++;
+      } catch {
+        failed++;
+      }
+    }
+
+    if (created.length > 0) {
+      set((s) => ({ snippets: [...s.snippets, ...created] }));
+    }
+
+    return { imported, failed };
+  },
 }));
 
-// Selector: filtered snippet list derived from current folder + query.
+// Selector: filtered + sorted snippet list derived from current store state.
 export function useFilteredSnippets(): SnippetRow[] {
   const snippets = useSnippetStore((s) => s.snippets);
   const folderId = useSnippetStore((s) => s.selectedFolderId);
   const query = useSnippetStore((s) => s.searchQuery.trim().toLowerCase());
+  const languageFilter = useSnippetStore((s) => s.languageFilter);
+  const sortBy = useSnippetStore((s) => s.sortBy);
+  const sortDir = useSnippetStore((s) => s.sortDir);
 
   const filtered = snippets.filter((s) => {
     if (folderId !== null && s.folder_id !== folderId) return false;
+    if (languageFilter !== null && s.language !== languageFilter) return false;
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;
     if (s.tags.some((t) => t.toLowerCase().includes(query))) return true;
     return false;
   });
-  // Pinned snippets float to top; within each group, newest-first by updated_at.
+
   return [...filtered].sort((a, b) => {
+    // Pinned snippets always float to the top regardless of sort column.
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return b.updated_at.localeCompare(a.updated_at);
+
+    let cmp = 0;
+    if (sortBy === 'name') {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sortBy === 'usage_count') {
+      cmp = a.usage_count - b.usage_count;
+    } else {
+      cmp = a.updated_at.localeCompare(b.updated_at);
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
   });
 }

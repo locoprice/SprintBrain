@@ -263,7 +263,7 @@ function resolveBody(body, vals) {
               ? vres : 0;
           } catch(e) {
             vals[vname] = 0;
-            console.warn('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
+            console.error('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
           }
         }
         i = cl + 1; continue;
@@ -455,20 +455,17 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.40.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.40.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.40.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -491,7 +488,7 @@ try {
     } catch(e) {}
   });
 } catch(e) {
-  console.warn('[Sprintbrain] Storage unavailable, using defaults');
+  console.error('[Sprintbrain] Storage unavailable, using defaults');
 }
 
 // ── KEYSTROKE BUFFER ───────────────────────────────────────────────
@@ -896,11 +893,15 @@ function _proceedInsert(el, snip, fieldSnapshot) {
     if (_isCE) {
       // For CE: deleteChars only SET the selection spanning the trigger.
       // Insert synchronously NOW while that selection is still live — execCommand
-      // atomically replaces the trigger with the snippet in one browser undo step.
-      // The celebration is then purely informational; onConfirm only logs.
-      // onUndo calls execCommand('undo') to restore the trigger via the native stack.
+      // atomically replaces the trigger with the snippet. The celebration is then
+      // purely informational; onConfirm only logs. onUndo deletes the inserted
+      // region (see restoreFieldState) so the field returns to its pre-trigger state.
       insertText(el, text);
       fieldSnapshot.syncInserted = true;
+      // Capture the inserted region for Undo: caret char-offset (end of snippet)
+      // and the snippet's visible length, measured the instant insertion finished.
+      fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
+      fieldSnapshot.visibleLen = String(text).replace(/\n/g, '').length;
       showCelebration(
         text,
         function onConfirm() {           // timer expired or user clicked OK
@@ -1479,6 +1480,35 @@ function launchConfetti() {
 }
 
 // ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
+// Character offset of the current caret within `host`, counting only text-node
+// characters (block boundaries contribute nothing) — the same unit insertText's
+// visible length uses. Returns -1 if the caret isn't inside the host.
+function _ceCaretCharOffset(host) {
+  try {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !host) return -1;
+    var r = sel.getRangeAt(0);
+    if (host !== r.endContainer && !host.contains(r.endContainer)) return -1;
+    var pre = document.createRange();
+    pre.selectNodeContents(host);
+    pre.setEnd(r.endContainer, r.endOffset);
+    return pre.toString().length;
+  } catch(_) { return -1; }
+}
+
+// Inverse of _ceCaretCharOffset: resolve a text-character offset within `host`
+// to a concrete {node, offset} DOM position.
+function _ceCharOffsetToPoint(host, target) {
+  var tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+  var acc = 0, node;
+  while ((node = tw.nextNode())) {
+    var len = node.nodeValue.length;
+    if (acc + len >= target) return { node: node, offset: Math.max(0, target - acc) };
+    acc += len;
+  }
+  return { node: host, offset: host.childNodes ? host.childNodes.length : 0 };
+}
+
 function captureFieldState(el, triggerLen) {
   var isCE = el.isContentEditable || (el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''));
   if (isCE) return { type: 'ce', el: el, triggerLen: triggerLen || 0 };
@@ -1491,12 +1521,54 @@ function restoreFieldState(snapshot) {
   try {
     if (snapshot.type === 'ce') {
       if (snapshot.syncInserted) {
-        // Snippet was already inserted synchronously before the celebration.
-        // Undo via the browser's native undo stack to restore the trigger text.
+        // The snippet was inserted synchronously, REPLACING the trigger. So the
+        // field's pre-trigger state == the field with the inserted region removed.
+        //
+        // Native execCommand('undo') is unusable for this: a large multi-block body
+        // produces more undo transactions than the editor keeps, so it can never
+        // fully revert (confirmed: 7 undos, fragment still stranded). Selecting the
+        // inserted region and deleting via execCommand is also unreliable — the
+        // editor collapses programmatic multi-block selections before the delete.
+        //
+        // Instead, delete the inserted region straight from the DOM with a Range
+        // (Range.deleteContents bypasses both the undo stack and selection
+        // normalization). The region is [endCharOffset - visibleLen, endCharOffset)
+        // measured in text characters from the host start — captured the instant the
+        // insertion finished — resolved to live DOM points at undo time, so it is
+        // immune to node re-identity. The caret collapses to where the trigger began.
         if (document.activeElement !== el && !document.activeElement.contains(el)) {
           try { el.focus(); } catch(_) {}
         }
-        try { document.execCommand('undo', false, null); } catch(_) {}
+        var hostU = _ceHost(el);
+        var endCO = (typeof snapshot.endCharOffset === 'number') ? snapshot.endCharOffset : -1;
+        var vlen  = (typeof snapshot.visibleLen === 'number') ? snapshot.visibleLen : 0;
+        var _ok = false;
+        if (hostU && endCO >= 0 && vlen > 0) {
+          try {
+            var startCO = Math.max(0, endCO - vlen);
+            var sp = _ceCharOffsetToPoint(hostU, startCO);
+            var ep = _ceCharOffsetToPoint(hostU, endCO);
+            var delR = document.createRange();
+            delR.setStart(sp.node, sp.offset);
+            delR.setEnd(ep.node, ep.offset);
+            delR.deleteContents();
+            try {
+              var caretR = document.createRange();
+              caretR.setStart(sp.node, sp.offset);
+              caretR.collapse(true);
+              var selR = window.getSelection();
+              selR.removeAllRanges();
+              selR.addRange(caretR);
+            } catch(_c) { try { hostU.focus(); } catch(_f) {} }
+            try { hostU.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' })); }
+            catch(_e) { try { hostU.dispatchEvent(new Event('input', { bubbles: true })); } catch(_e2) {} }
+            _ok = true;
+          } catch(_) {}
+        }
+        if (!_ok) {
+          // Offsets unavailable (selection wasn't captured) — best-effort native undo.
+          try { document.execCommand('undo', false, null); } catch(_) {}
+        }
         return;
       }
       // deleteChars for CE only SET the selection spanning the trigger (no DOM
@@ -1891,6 +1963,8 @@ function selectTriggerItem(idx) {
           // Same sync-insert fix as _proceedInsert: insert while selection is live.
           insertText(el, text);
           fieldSnapshot.syncInserted = true;
+          fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
+          fieldSnapshot.visibleLen = String(text).replace(/\n/g, '').length;
           showCelebration(
             text,
             function onConfirm() {     // timer expired or user clicked OK
@@ -2194,7 +2268,6 @@ document.addEventListener('input', function(e) {
   document.head.appendChild(s);
 })();
 
-console.log('[Sprintbrain v2.8] Content script loaded \u26a1');
 
 
 // ── CONTEXT MENU MESSAGE HANDLER ──────────────────────────────────
