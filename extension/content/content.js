@@ -263,7 +263,7 @@ function resolveBody(body, vals) {
               ? vres : 0;
           } catch(e) {
             vals[vname] = 0;
-            console.warn('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
+            console.error('[SprintBrain] {var:} eval error:', vname, vexpr, e.message);
           }
         }
         i = cl + 1; continue;
@@ -455,20 +455,17 @@ try {
     try {
       if (data && data.snippets && data.snippets.length > 0) {
         snippets = data.snippets;
-        console.log('[Sprintbrain v2.40.0] \u26a1 loaded ' + snippets.length + ' snippets from local');
       } else {
         // Migration: check if sync has a stale snippets copy from pre-v2.15.0
         chrome.storage.sync.get('snippets', function(sd) {
           if (sd && sd.snippets && sd.snippets.length > 0) {
             snippets = sd.snippets;
-            console.log('[Sprintbrain v2.40.0] \u26a1 migrated ' + snippets.length + ' snippets from sync\u2192local');
             chrome.storage.local.set({snippets: snippets}, function() {
               chrome.storage.sync.remove('snippets');
             });
           } else {
             snippets = DEFAULT_SNIPPETS.slice();
             chrome.storage.local.set({snippets: snippets});
-            console.log('[Sprintbrain v2.40.0] \u26a1 seeded ' + snippets.length + ' default snippets to local');
           }
         });
       }
@@ -491,7 +488,7 @@ try {
     } catch(e) {}
   });
 } catch(e) {
-  console.warn('[Sprintbrain] Storage unavailable, using defaults');
+  console.error('[Sprintbrain] Storage unavailable, using defaults');
 }
 
 // ── KEYSTROKE BUFFER ───────────────────────────────────────────────
@@ -2271,7 +2268,6 @@ document.addEventListener('input', function(e) {
   document.head.appendChild(s);
 })();
 
-console.log('[Sprintbrain v2.8] Content script loaded \u26a1');
 
 
 // ── CONTEXT MENU MESSAGE HANDLER ──────────────────────────────────

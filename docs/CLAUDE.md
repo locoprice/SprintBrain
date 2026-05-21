@@ -326,7 +326,7 @@ var SUPA_KEY = 'sb_publishable_...';
 - **Service worker** (`background.js`): no DOM access, no `window`, no persistent state in memory
 - **Content script** (`content.js` + `overlay.css`): injected into all pages via manifest
 - **Popup** (`popup.html` + `popup.js`): instantiated fresh on every icon click
-- **Permissions**: `storage`, `activeTab`, `scripting`, `clipboardWrite`, `contextMenus`
+- **Permissions**: `storage`, `activeTab`, `contextMenus`, `alarms`
 - **Host permissions**: `<all_urls>` (for content script), Supabase domain
 - **No blocking operations** in popup or service worker
 - **Message passing**: `chrome.runtime.sendMessage` / `chrome.runtime.onMessage` for cross-context communication

@@ -79,7 +79,6 @@ var NotionSync = (function () {
       if (r.status === 404) throw new Error('Notion database not found — check DB ID (HTTP 404)');
       // Retry on 429 / 5xx only
       if ((r.status === 429 || r.status >= 500) && attempt < MAX_RETRIES - 1) {
-        console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — HTTP ' + r.status);
         return new Promise(function (resolve) {
           setTimeout(resolve, RETRY_DELAYS[attempt]);
         }).then(function () {
@@ -92,7 +91,6 @@ var NotionSync = (function () {
       // Retry network errors (timeout, offline) but not 4xx client errors
       if (/HTTP [4]\d\d/.test(err.message)) throw err;
       if (attempt < MAX_RETRIES - 1) {
-        console.warn('[NotionSync] Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' — ' + err.message);
         return new Promise(function (resolve) {
           setTimeout(resolve, RETRY_DELAYS[attempt]);
         }).then(function () {
@@ -198,8 +196,7 @@ var NotionSync = (function () {
 
       return lines.join('\n');
     }).catch(function (err) {
-      console.warn('[NotionSync] Failed to fetch blocks for',
-        pageId, ':', err.message);
+      console.error('[NotionSync] Failed to fetch blocks for', pageId, ':', err.message);
       return ''; // non-blocking fallback
     });
   }
@@ -329,7 +326,6 @@ var NotionSync = (function () {
       if (!force && lastSyncTs) {
         var elapsed = Date.now() - new Date(lastSyncTs).getTime();
         if (elapsed < DEBOUNCE_MS) {
-          console.log('[NotionSync] Skipped — last sync was ' + Math.round(elapsed / 1000) + ' seconds ago');
           if (cb.onComplete) cb.onComplete([], false);
           return;
         }
@@ -363,7 +359,6 @@ var NotionSync = (function () {
             if (snippets.length === 0) {
               _setLocal(SYNC_TS_KEY, syncStart);
               _setLocal(CACHE_KEY, snippets);
-              console.log('[SprintBrain NotionSync] 0 snippets found');
               if (cb.onProgress) cb.onProgress('idle');
               if (cb.onComplete) cb.onComplete(snippets, true);
               return;
@@ -381,15 +376,10 @@ var NotionSync = (function () {
               }
             });
 
-            console.log('[NotionSync] Body from property:',
-              hasBody.length, '| Need block fetch:', needsBlocks.length);
-
             // If all snippets have body → complete immediately
             if (needsBlocks.length === 0) {
               _setLocal(SYNC_TS_KEY, syncStart);
               _setLocal(CACHE_KEY, snippets);
-              console.log('[SprintBrain NotionSync] Sync complete —',
-                snippets.length, 'snippet(s)');
               if (cb.onProgress) cb.onProgress('idle');
               if (cb.onComplete) cb.onComplete(snippets, true);
               return;
@@ -404,10 +394,6 @@ var NotionSync = (function () {
                 var allSnippets = hasBody.concat(needsBlocks);
                 _setLocal(SYNC_TS_KEY, syncStart);
                 _setLocal(CACHE_KEY, allSnippets);
-                console.log('[SprintBrain NotionSync] Sync complete —',
-                  allSnippets.length,
-                  'snippet(s) (' + needsBlocks.length +
-                  ' fetched from blocks)');
                 if (cb.onProgress) cb.onProgress('idle');
                 if (cb.onComplete) cb.onComplete(allSnippets, true);
                 return;
@@ -428,7 +414,7 @@ var NotionSync = (function () {
           })
           .catch(function (err) {
             _releaseLock();
-            console.warn('[SprintBrain NotionSync] Failed:', err.message, {
+            console.error('[SprintBrain NotionSync] Failed:', err.message, {
               timestamp: syncStart,
               dbId: cfg.dbId
             });
@@ -438,7 +424,6 @@ var NotionSync = (function () {
             // Offline cache fallback
             _getLocal(CACHE_KEY, function (cached) {
               if (cached && Array.isArray(cached) && cached.length > 0) {
-                console.log('[NotionSync] Offline — using cached snippets (' + cached.length + ' items)');
                 if (cb.onComplete) cb.onComplete(cached, false);
               } else {
                 if (cb.onComplete) cb.onComplete([], false);
