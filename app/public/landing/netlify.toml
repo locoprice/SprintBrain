@@ -1,0 +1,22 @@
+# Netlify config for the marketing site — sprintbrain.com
+# No build step: static HTML served directly.
+# Base dir in Netlify dashboard: app/public/landing
+# Publish dir: .
+
+# www → apex redirect
+[[redirects]]
+  from   = "https://www.sprintbrain.com/*"
+  to     = "https://sprintbrain.com/:splat"
+  status = 301
+  force  = true
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
