@@ -3,6 +3,11 @@ import type { Folder, SnippetRow } from '@/types/database';
 import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
 
+export interface ImportBatchResult {
+  imported: number;
+  failed: number;
+}
+
 interface SnippetStore {
   folders: Folder[];
   snippets: SnippetRow[];
@@ -38,6 +43,12 @@ interface SnippetStore {
    * The Notion page is intentionally preserved as team knowledge history.
    */
   unshareSnippet: (id: string) => Promise<void>;
+  /**
+   * Bulk-create snippets from an import payload. Creates each snippet
+   * individually and appends all successful rows to the store in one
+   * update. Does not set store.error — callers own result feedback.
+   */
+  importSnippets: (items: SnippetFormValues[]) => Promise<ImportBatchResult>;
 }
 
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
@@ -267,6 +278,29 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
       }));
       throw err;
     }
+  },
+
+  importSnippets: async (items) => {
+    let imported = 0;
+    let failed = 0;
+    const created: SnippetRow[] = [];
+
+    for (const item of items) {
+      try {
+        const row = await snippetsApi.createSnippet(item);
+        const folder = get().folders.find((f) => f.id === row.folder_id);
+        created.push({ ...row, folder_name: row.folder_name ?? folder?.name ?? null });
+        imported++;
+      } catch {
+        failed++;
+      }
+    }
+
+    if (created.length > 0) {
+      set((s) => ({ snippets: [...s.snippets, ...created] }));
+    }
+
+    return { imported, failed };
   },
 }));
 
