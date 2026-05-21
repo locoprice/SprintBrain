@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Search, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
 import { FilterToolbar } from '@/features/snippets/FilterToolbar';
+import { ImportExportButtons, type ImportResult } from '@/features/snippets/ImportExportButtons';
 import { NewSnippetDialog } from '@/features/snippets/NewSnippetDialog';
 import { SnippetFolderTree } from '@/features/snippets/SnippetFolderTree';
 import { SnippetsTable } from '@/features/snippets/SnippetsTable';
@@ -20,6 +21,7 @@ export function SnippetsPage() {
   // Local input value so typing feels instant; debounce propagation to the store.
   const [localQuery, setLocalQuery] = useState(storeQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   // Sync when the store query is reset externally (e.g. "Clear filters" in empty state).
   useEffect(() => {
@@ -52,7 +54,12 @@ export function SnippetsPage() {
       <PageHeader
         title="Snippets"
         description="Triggers, formulas, and templates synced across every device."
-        action={<NewSnippetDialog />}
+        action={
+          <>
+            <ImportExportButtons onResult={setImportResult} />
+            <NewSnippetDialog />
+          </>
+        }
       />
 
       {error && (
@@ -67,6 +74,38 @@ export function SnippetsPage() {
             onClick={clearError}
             aria-label="Dismiss error"
             className="text-danger/60 hover:text-danger"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {importResult && (
+        <div
+          role="status"
+          className={`mb-4 flex items-start gap-2 rounded-[10px] border p-3 text-xs ${
+            importResult.ok
+              ? 'border-success/30 bg-success/5 text-success'
+              : 'border-danger/30 bg-danger/5 text-danger'
+          }`}
+        >
+          {importResult.ok ? (
+            <CheckCircle2 className="mt-px h-4 w-4 shrink-0" />
+          ) : (
+            <AlertCircle className="mt-px h-4 w-4 shrink-0" />
+          )}
+          <span className="flex-1">
+            {importResult.ok
+              ? `${importResult.count} snippet${importResult.count !== 1 ? 's' : ''} imported successfully${importResult.skipped > 0 ? ` · ${importResult.skipped} skipped` : ''}.`
+              : importResult.message}
+          </span>
+          <button
+            type="button"
+            onClick={() => setImportResult(null)}
+            aria-label="Dismiss"
+            className={
+              importResult.ok ? 'text-success/60 hover:text-success' : 'text-danger/60 hover:text-danger'
+            }
           >
             <X className="h-4 w-4" />
           </button>
