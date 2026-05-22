@@ -110,8 +110,11 @@ function OrDivider() {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+    <div
+      role="alert"
+      className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger"
+    >
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <span>{message}</span>
     </div>
   );
@@ -429,10 +432,11 @@ function RecoveryView({
   loading,
   error,
   onRecovery,
-}: BaseViewProps &
-  WithEmail & {
-    onRecovery: (e: FormEvent) => void;
-  }) {
+}: WithEmail & {
+  loading: boolean;
+  error: string | null;
+  onRecovery: (e: FormEvent) => void;
+}) {
   return (
     <form onSubmit={onRecovery} className="space-y-5">
       <div className="space-y-1">
@@ -744,7 +748,6 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
                 setEmail={setEmail}
                 loading={loading}
                 error={error}
-                onGoTo={goTo}
                 onRecovery={onRecovery}
               />
             )}

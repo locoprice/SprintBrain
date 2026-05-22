@@ -36,8 +36,18 @@ export function LoginPage() {
     return <Navigate to={next} replace />;
   }
 
-  // Minimal branded background behind the modal.
-  // The "Sign in" button re-opens the modal if the user dismissed it.
+  // While the session check is in flight, show a neutral spinner so that
+  // already-authed users never briefly see a "Sign in" button before redirect.
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-bg-alt">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Once we know the user is anon, the modal is open over this background.
+  // The "Sign in" link re-opens it if they accidentally dismissed it.
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-alt">
       <div className="flex items-center gap-2">

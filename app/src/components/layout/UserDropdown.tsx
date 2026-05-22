@@ -34,8 +34,15 @@ export function UserDropdown() {
         setOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
     window.addEventListener('pointerdown', onPointerDown);
-    return () => window.removeEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [open]);
 
   async function handleSignOut() {
