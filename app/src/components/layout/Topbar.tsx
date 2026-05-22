@@ -2,6 +2,7 @@ import { Bell, CheckCircle2, Command, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserDropdown } from '@/components/layout/UserDropdown';
 
 /**
  * Top bar — design system v1.1.
@@ -55,6 +56,8 @@ export function Topbar() {
         >
           <Bell className="h-4 w-4" />
         </button>
+
+        <UserDropdown />
       </div>
     </header>
   );
