@@ -73,10 +73,35 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-alt px-4 py-8 sm:px-6">
-      <div className="w-full max-w-md rounded-[16px] border border-line bg-card p-6 shadow-sm sm:p-10">
-        {/* Brand */}
-        <div className="mb-8 flex items-center gap-2.5">
+    <div className="flex min-h-dvh flex-col sm:items-center sm:justify-center sm:overflow-y-auto sm:bg-bg-alt sm:px-4 sm:py-8">
+
+      {/* ── Mobile-only: gradient hero ── */}
+      <div className="flex flex-1 flex-col bg-gradient-to-br from-primary to-primary-dark px-6 pb-10 pt-16 sm:hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/20 text-sm font-extrabold text-white">
+            S
+          </div>
+          <span className="text-base font-bold tracking-tight text-white">
+            SprintBrain
+          </span>
+        </div>
+        {phase !== 'sent' && (
+          <div className="mt-auto">
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              Sign in to SprintBrain
+            </h1>
+            <p className="mt-2 text-sm text-white/75">
+              Enter your email and we'll send you a sign-in link.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Form card ── */}
+      <div className="rounded-t-[24px] bg-card px-6 py-8 sm:w-full sm:max-w-md sm:rounded-[16px] sm:border sm:border-line sm:p-10 sm:shadow-sm">
+
+        {/* Brand — desktop only */}
+        <div className="mb-8 hidden items-center gap-2.5 sm:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary text-sm font-extrabold text-white">
             S
           </div>
@@ -111,7 +136,8 @@ export function LoginPage() {
           </div>
         ) : (
           <form onSubmit={onSubmit} className="space-y-5">
-            <div className="space-y-1.5">
+            {/* Heading — desktop only (shown in gradient hero on mobile) */}
+            <div className="hidden space-y-1.5 sm:block">
               <h1 className="text-xl font-bold tracking-tight text-ink">
                 Sign in to SprintBrain
               </h1>
