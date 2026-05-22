@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms &amp; Conditions — SprintBrain</title>
+<meta name="description" content="SprintBrain Terms and Conditions governing use of the extension and web application.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f12;
+    --surface: #141720;
+    --border: rgba(255,255,255,0.08);
+    --text-primary: #f0f2f7;
+    --text-secondary: #8b90a0;
+    --text-muted: #555b6e;
+    --accent: #5b8df6;
+    --accent-soft: rgba(91,141,246,0.12);
+    --warning: #f59e0b;
+    --warning-soft: rgba(245,158,11,0.1);
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.75; min-height: 100vh; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(13,15,18,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; color: var(--text-primary); }
+  .logo span { color: var(--accent); }
+  .header-nav { display: flex; gap: 1.5rem; font-size: 0.875rem; }
+  .header-nav a { color: var(--text-secondary); }
+  .header-nav a:hover { color: var(--text-primary); text-decoration: none; }
+
+  .layout { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 6rem; display: grid; grid-template-columns: 220px 1fr; gap: 4rem; align-items: start; }
+
+  .toc { position: sticky; top: 80px; font-size: 0.8125rem; color: var(--text-secondary); }
+  .toc-label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6875rem; color: var(--text-muted); font-weight: 500; margin-bottom: 1rem; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc li { counter-increment: toc; margin-bottom: 0.5rem; }
+  .toc li::before { content: counter(toc) ". "; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem; }
+  .toc a { color: var(--text-secondary); transition: color 0.15s; }
+  .toc a:hover { color: var(--accent); text-decoration: none; }
+  .toc-divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+  .doc-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
+  .badge { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; padding: 0.25rem 0.625rem; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .badge-version { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+  .badge-free { background: rgba(52,211,153,0.12); color: #34d399; }
+  .doc-date { font-size: 0.8125rem; color: var(--text-muted); }
+
+  h1 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 1rem; }
+  .subtitle { font-size: 1rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 3rem; line-height: 1.6; }
+
+  .section { margin-bottom: 3.5rem; }
+  .section:target { scroll-margin-top: 100px; }
+
+  h2 { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  h3 { font-size: 1rem; font-weight: 500; color: var(--text-primary); margin: 1.75rem 0 0.5rem; }
+
+  p { color: var(--text-secondary); margin-bottom: 1rem; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { color: var(--text-secondary); padding-left: 1.25rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.375rem; }
+
+  .info-box { background: var(--accent-soft); border: 1px solid rgba(91,141,246,0.25); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .info-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
+
+  .warning-box { background: var(--warning-soft); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .warning-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
+  .warning-box strong { color: var(--warning); }
+
+  .free-banner { border: 1px solid rgba(52,211,153,0.2); background: rgba(52,211,153,0.07); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .free-banner p { color: #34d399; margin: 0; font-size: 0.9375rem; }
+
+  .contact-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .contact-block p { margin-bottom: 0.5rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; text-align: center; font-size: 0.8125rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+  footer a { color: var(--text-muted); }
+  footer a:hover { color: var(--text-primary); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; gap: 2rem; }
+    .toc { position: static; display: none; }
+    .header-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="logo">Sprint<span>Brain</span></a>
+  <nav class="header-nav">
+    <a href="privacy-policy.html">Privacy</a>
+    <a href="terms-and-conditions.html">Terms</a>
+    <a href="cookie-policy.html">Cookies</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <div class="toc-label">Contents</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance</a></li>
+      <li><a href="#license">License Grant</a></li>
+      <li><a href="#service">The Service</a></li>
+      <li><a href="#acceptable-use">Acceptable Use</a></li>
+      <li><a href="#prohibited">Prohibited Conduct</a></li>
+      <li><a href="#ip">Intellectual Property</a></li>
+      <li><a href="#third-party">Third-Party Services</a></li>
+      <li><a href="#disclaimer">Disclaimer</a></li>
+      <li><a href="#liability">Limitation of Liability</a></li>
+      <li><a href="#indemnification">Indemnification</a></li>
+      <li><a href="#termination">Termination</a></li>
+      <li><a href="#governing-law">Governing Law</a></li>
+      <li><a href="#changes">Changes</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+    <hr class="toc-divider">
+    <div class="toc-label">Related</div>
+    <a href="privacy-policy.html" style="display:block;margin-bottom:0.5rem;">Privacy Policy</a>
+    <a href="cookie-policy.html" style="display:block;">Cookie Policy</a>
+  </aside>
+
+  <main>
+    <div class="doc-meta">
+      <span class="badge badge-version">v1.0 — Pre-launch</span>
+      <span class="badge badge-free">Free tier</span>
+      <span class="doc-date">Last Updated: May 22, 2026 — Effective immediately</span>
+    </div>
+
+    <h1>Terms &amp; Conditions</h1>
+    <p class="subtitle">Please read these Terms carefully before installing or using SprintBrain. By installing the extension or creating an account, you agree to be bound by these Terms.</p>
+
+    <!-- 1 -->
+    <div class="section" id="acceptance">
+      <h2>01 &nbsp;Acceptance of Terms</h2>
+      <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("User", "you") and Alessandro Verdicchio, operating SprintBrain as a self-employed individual (autónomo) registered in Ibiza, Balearic Islands, Spain ("SprintBrain", "we", "us"), governing your access to and use of the SprintBrain Chrome Extension, the SprintBrain web application at sprintbrain.com, and any related services (collectively, the "Service").</p>
+      <p>If you do not agree to these Terms, do not install or use the Service. Use of the Service by persons under 16 years of age is not permitted.</p>
+    </div>
+
+    <!-- 2 -->
+    <div class="section" id="license">
+      <h2>02 &nbsp;License Grant</h2>
+      <p>Subject to your compliance with these Terms, Alessandro Verdicchio grants you a <strong>non-exclusive, non-transferable, revocable, limited license</strong> to install and use the SprintBrain Chrome Extension on devices you own or control, solely for your personal or internal business productivity purposes.</p>
+      <p>This license does not include:</p>
+      <ul>
+        <li>Sublicensing, selling, or distributing the extension to third parties.</li>
+        <li>Reverse engineering, decompiling, or disassembling any part of the Service.</li>
+        <li>Creating derivative works based on the Service without written permission from Alessandro Verdicchio.</li>
+        <li>Removing or altering any proprietary notices, attributions, or labels.</li>
+      </ul>
+    </div>
+
+    <!-- 3 -->
+    <div class="section" id="service">
+      <h2>03 &nbsp;The Service</h2>
+      <div class="free-banner">
+        <p><strong>SprintBrain is currently free to use.</strong> There are no paid plans or subscription fees at this time. When paid tiers are introduced, these Terms will be updated and users will be notified in advance.</p>
+      </div>
+      <p>SprintBrain is a Chrome Extension and companion web application that allows individuals and teams to create, manage, and expand reusable text snippets inside any web-based input field. Core features include:</p>
+      <ul>
+        <li>Local snippet library management with shortcut triggers.</li>
+        <li>Optional synchronization with a designated Notion database.</li>
+        <li>Account management via sprintbrain.com.</li>
+      </ul>
+      <p>The Service is currently in pre-launch / early access phase. Features may change, and availability is not guaranteed during this period.</p>
+    </div>
+
+    <!-- 4 -->
+    <div class="section" id="acceptable-use">
+      <h2>04 &nbsp;Acceptable Use Policy</h2>
+      <p>SprintBrain is designed to enhance the text-entry productivity of both individual users (B2C) and professional teams (B2B). You agree to use the Service only for lawful purposes consistent with these Terms.</p>
+      <p>Permitted uses include:</p>
+      <ul>
+        <li>Expanding pre-written snippets in any web input field for personal or business use.</li>
+        <li>Syncing your snippet library with your personal or team Notion workspace.</li>
+        <li>Building and managing a shared snippet library within an authorized team context.</li>
+        <li>Using SprintBrain as a productivity tool within customer support, sales, marketing, or operational workflows.</li>
+      </ul>
+    </div>
+
+    <!-- 5 -->
+    <div class="section" id="prohibited">
+      <h2>05 &nbsp;Prohibited Conduct</h2>
+      <div class="warning-box">
+        <p><strong>Warning:</strong> Violation of this section may result in immediate account termination and may expose you to civil or criminal liability under applicable Spanish and EU law.</p>
+      </div>
+      <p>You must not use SprintBrain to:</p>
+      <ul>
+        <li><strong>Automated scraping</strong> — harvest or extract data from third-party websites at scale without their explicit permission, using SprintBrain as an automation vector.</li>
+        <li><strong>API abuse</strong> — make requests to SprintBrain infrastructure or integrated services (Supabase, Notion) in excess of reasonable use limits or in a manner designed to circumvent restrictions.</li>
+        <li><strong>Malicious content</strong> — create, store, or distribute snippets containing spam, malware, phishing content, or illegal material.</li>
+        <li><strong>Unauthorized access</strong> — attempt to gain unauthorized access to SprintBrain systems, other users' accounts, or third-party services through the extension.</li>
+        <li><strong>Illegal activities</strong> — use the Service in connection with any purpose that violates applicable laws, including intellectual property rights, data protection regulations, or consumer protection rules.</li>
+        <li><strong>Impersonation</strong> — impersonate Alessandro Verdicchio, SprintBrain, or other users of the Service.</li>
+        <li><strong>Interference</strong> — interfere with, disrupt, or degrade the integrity or performance of the Service or connected third-party services.</li>
+      </ul>
+    </div>
+
+    <!-- 6 -->
+    <div class="section" id="ip">
+      <h2>06 &nbsp;Intellectual Property</h2>
+      <p>Alessandro Verdicchio retains all right, title, and interest in and to the SprintBrain software, extension code, design, trademarks, and associated content. These Terms do not transfer any ownership rights to you.</p>
+      <p><strong>Your content:</strong> You retain full ownership of all snippets and text content you create using the Service. By using the Service, you grant Alessandro Verdicchio a limited, non-exclusive, royalty-free license to process your content solely to provide the Service to you. This license ends when you delete your content or close your account.</p>
+      <p><strong>Feedback:</strong> Any suggestions, feature requests, or feedback you provide about the Service may be used by Alessandro Verdicchio to improve SprintBrain without restriction or compensation.</p>
+    </div>
+
+    <!-- 7 -->
+    <div class="section" id="third-party">
+      <h2>07 &nbsp;Third-Party Services</h2>
+      <p>The Service integrates with Supabase (authentication) and optionally with Notion (snippet synchronization). Your use of these integrations is also subject to the respective providers' own terms of service and privacy policies, which you should review independently.</p>
+      <p>Alessandro Verdicchio is not responsible for the availability, accuracy, security, or content provided by Supabase or Notion. Interruption of these third-party services may affect SprintBrain functionality.</p>
+      <div class="info-box">
+        <p><strong>No AI integration is currently active.</strong> SprintBrain does not currently transmit any user content to AI or language model providers. If AI features are introduced in the future, these Terms will be updated and users notified before activation.</p>
+      </div>
+    </div>
+
+    <!-- 8 -->
+    <div class="section" id="disclaimer">
+      <h2>08 &nbsp;Disclaimer of Warranties</h2>
+      <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR UNINTERRUPTED AVAILABILITY.</p>
+      <p>In particular, Alessandro Verdicchio does not warrant that:</p>
+      <ul>
+        <li>The Service will be uninterrupted, timely, or error-free during the pre-launch phase.</li>
+        <li>Data synchronized from Notion will always be accurate or complete.</li>
+        <li>Third-party integrations (Supabase, Notion) will remain continuously available.</li>
+        <li>The extension will function identically across all browsers, operating systems, or website environments.</li>
+      </ul>
+      <p>Where statutory consumer warranties apply under Spanish or EU law, they are not excluded by this disclaimer.</p>
+    </div>
+
+    <!-- 9 -->
+    <div class="section" id="liability">
+      <h2>09 &nbsp;Limitation of Liability</h2>
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, ALESSANDRO VERDICCHIO SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF DATA, LOSS OF PROFITS, OR BUSINESS INTERRUPTION, ARISING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE.</p>
+      <p>As SprintBrain is currently provided free of charge, our total aggregate liability to you for any claim arising from use of the Service shall not exceed <strong>€50 EUR</strong>.</p>
+      <p>Nothing in these Terms excludes or limits liability for death or personal injury caused by negligence, fraud or fraudulent misrepresentation, or any other liability that cannot be excluded under applicable Spanish or EU consumer law.</p>
+    </div>
+
+    <!-- 10 -->
+    <div class="section" id="indemnification">
+      <h2>10 &nbsp;Indemnification</h2>
+      <p>You agree to indemnify and hold harmless Alessandro Verdicchio from and against any claims, damages, losses, and expenses (including reasonable legal fees) arising from:</p>
+      <ul>
+        <li>Your use of the Service in violation of these Terms.</li>
+        <li>Your violation of any applicable law or third-party rights.</li>
+        <li>Content you create, store, or distribute using the Service.</li>
+      </ul>
+    </div>
+
+    <!-- 11 -->
+    <div class="section" id="termination">
+      <h2>11 &nbsp;Termination</h2>
+      <p>You may stop using the Service at any time by uninstalling the Chrome Extension and deleting your account at sprintbrain.com.</p>
+      <p>Alessandro Verdicchio may suspend or terminate your access immediately, without prior notice, if:</p>
+      <ul>
+        <li>You breach any provision of these Terms.</li>
+        <li>We are required to do so by law or regulatory authority.</li>
+        <li>We determine your use causes harm to SprintBrain, other users, or third-party services.</li>
+      </ul>
+      <p>Upon termination, your license to use the Service ceases immediately. Sections 6 (Intellectual Property), 8 (Disclaimer), 9 (Limitation of Liability), 10 (Indemnification), and 12 (Governing Law) survive termination.</p>
+    </div>
+
+    <!-- 12 -->
+    <div class="section" id="governing-law">
+      <h2>12 &nbsp;Governing Law &amp; Disputes</h2>
+      <p>These Terms are governed by the laws of Spain. EU consumer protection law applicable in your country of residence also applies and is not overridden by this clause.</p>
+      <p>Any dispute arising from these Terms should first be raised informally by contacting Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. If not resolved within 30 days, the dispute shall be submitted to the competent courts of Ibiza (Eivissa), Spain, unless mandatory law in your jurisdiction provides otherwise.</p>
+      <p>EU consumers may also use the European Commission's Online Dispute Resolution platform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">ec.europa.eu/consumers/odr</a>.</p>
+    </div>
+
+    <!-- 13 -->
+    <div class="section" id="changes">
+      <h2>13 &nbsp;Changes to Terms</h2>
+      <p>Alessandro Verdicchio reserves the right to modify these Terms at any time. For material changes — including the introduction of paid plans, AI features, or new data processing — registered users will be notified by email at least 14 days before the changes take effect. The "Last Updated" date will be updated on this page.</p>
+      <p>Continued use of the Service after changes take effect constitutes acceptance of the revised Terms. If you do not agree, you must stop using the Service before the effective date.</p>
+    </div>
+
+    <!-- 14 -->
+    <div class="section" id="contact">
+      <h2>14 &nbsp;Contact</h2>
+      <div class="contact-block">
+        <p><strong>Alessandro Verdicchio</strong> — SprintBrain</p>
+        <p>Email: <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
+        <p>Address: Ibiza, Balearic Islands, Spain</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+  <span>© 2026 Alessandro Verdicchio — SprintBrain</span>
+  <a href="privacy-policy.html">Privacy Policy</a>
+  <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+  <a href="cookie-policy.html">Cookie Policy</a>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — SprintBrain</title>
+<meta name="description" content="SprintBrain Privacy Policy — how we collect, use, and protect your data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f12;
+    --surface: #141720;
+    --border: rgba(255,255,255,0.08);
+    --text-primary: #f0f2f7;
+    --text-secondary: #8b90a0;
+    --text-muted: #555b6e;
+    --accent: #5b8df6;
+    --accent-soft: rgba(91,141,246,0.12);
+    --success: #34d399;
+    --warning: #f59e0b;
+    --warning-soft: rgba(245,158,11,0.1);
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.75; min-height: 100vh; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(13,15,18,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; color: var(--text-primary); }
+  .logo span { color: var(--accent); }
+  .header-nav { display: flex; gap: 1.5rem; font-size: 0.875rem; }
+  .header-nav a { color: var(--text-secondary); }
+  .header-nav a:hover { color: var(--text-primary); text-decoration: none; }
+
+  .layout { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 6rem; display: grid; grid-template-columns: 220px 1fr; gap: 4rem; align-items: start; }
+
+  .toc { position: sticky; top: 80px; font-size: 0.8125rem; color: var(--text-secondary); }
+  .toc-label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6875rem; color: var(--text-muted); font-weight: 500; margin-bottom: 1rem; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc li { counter-increment: toc; margin-bottom: 0.5rem; }
+  .toc li::before { content: counter(toc) ". "; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem; }
+  .toc a { color: var(--text-secondary); transition: color 0.15s; }
+  .toc a:hover { color: var(--accent); text-decoration: none; }
+  .toc-divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+  .doc-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
+  .badge { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; padding: 0.25rem 0.625rem; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .badge-gdpr { background: rgba(52,211,153,0.12); color: var(--success); }
+  .badge-ccpa { background: rgba(91,141,246,0.12); color: var(--accent); }
+  .badge-todo { background: var(--warning-soft); color: var(--warning); }
+  .doc-date { font-size: 0.8125rem; color: var(--text-muted); }
+
+  h1 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 1rem; }
+  .subtitle { font-size: 1rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 3rem; line-height: 1.6; }
+
+  .section { margin-bottom: 3.5rem; }
+  .section:target { scroll-margin-top: 100px; }
+
+  h2 { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  h3 { font-size: 1rem; font-weight: 500; color: var(--text-primary); margin: 1.75rem 0 0.5rem; }
+
+  p { color: var(--text-secondary); margin-bottom: 1rem; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { color: var(--text-secondary); padding-left: 1.25rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.375rem; }
+
+  .info-box { background: var(--accent-soft); border: 1px solid rgba(91,141,246,0.25); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .info-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
+
+  .permission-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 1.25rem 0; }
+  .permission-table th { text-align: left; padding: 0.625rem 1rem; background: rgba(255,255,255,0.04); color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  .permission-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+  .permission-table tr:last-child td { border-bottom: none; }
+  .permission-table td:first-child { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); white-space: nowrap; }
+
+  .third-party-card { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+  .tp-header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .tp-name { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
+  .tp-role { font-size: 0.8125rem; color: var(--text-muted); }
+  .tp-desc { font-size: 0.875rem; color: var(--text-secondary); margin: 0; }
+
+  .rights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin: 1.25rem 0; }
+  .right-item { border: 1px solid var(--border); border-radius: 8px; padding: 0.875rem 1rem; }
+  .right-title { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); margin-bottom: 0.25rem; }
+  .right-desc { font-size: 0.8125rem; color: var(--text-secondary); margin: 0; }
+
+  .contact-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .contact-block p { margin-bottom: 0.5rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; text-align: center; font-size: 0.8125rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+  footer a { color: var(--text-muted); }
+  footer a:hover { color: var(--text-primary); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; gap: 2rem; }
+    .toc { position: static; display: none; }
+    .header-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="logo">Sprint<span>Brain</span></a>
+  <nav class="header-nav">
+    <a href="privacy-policy.html">Privacy</a>
+    <a href="terms-and-conditions.html">Terms</a>
+    <a href="cookie-policy.html">Cookies</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <div class="toc-label">Contents</div>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#identity">Data Controller</a></li>
+      <li><a href="#permissions">Extension Permissions</a></li>
+      <li><a href="#data-collected">Data Collected</a></li>
+      <li><a href="#processing">Processing Purpose</a></li>
+      <li><a href="#storage">Data Storage</a></li>
+      <li><a href="#third-parties">Third Parties</a></li>
+      <li><a href="#retention">Retention</a></li>
+      <li><a href="#rights">Your Rights</a></li>
+      <li><a href="#children">Children</a></li>
+      <li><a href="#changes">Policy Changes</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+    <hr class="toc-divider">
+    <div class="toc-label">Related</div>
+    <a href="terms-and-conditions.html" style="display:block;margin-bottom:0.5rem;">Terms &amp; Conditions</a>
+    <a href="cookie-policy.html" style="display:block;">Cookie Policy</a>
+  </aside>
+
+  <main>
+    <div class="doc-meta">
+      <span class="badge badge-gdpr">GDPR</span>
+      <span class="badge badge-ccpa">CCPA</span>
+      <span class="doc-date">Last Updated: May 22, 2026</span>
+    </div>
+
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">This policy describes how SprintBrain collects, uses, and protects information when you use our Chrome Extension and web application at sprintbrain.com.</p>
+
+    <!-- 1 -->
+    <div class="section" id="overview">
+      <h2>01 &nbsp;Overview</h2>
+      <p>SprintBrain is a text-snippet expansion tool that operates primarily on your local device. We are committed to data minimization: the extension stores your snippet library locally using Chrome's sandboxed storage APIs and only transmits data when you explicitly trigger a synchronization.</p>
+      <div class="info-box">
+        <p><strong>Key principle:</strong> SprintBrain does not monitor your browsing activity, does not read page content passively, and does not sell or share your personal data with any third party for advertising or commercial purposes.</p>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="section" id="identity">
+      <h2>02 &nbsp;Data Controller</h2>
+      <p><strong>Product name:</strong> SprintBrain</p>
+      <p><strong>Data controller:</strong> Alessandro Verdicchio</p>
+      <p><strong>Operating as:</strong> Self-employed individual (autónomo), Spain</p>
+      <p><strong>Registered address:</strong> Ibiza, Balearic Islands, Spain (EU)</p>
+      <p><strong>Contact:</strong> <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
+      <p>As the data controller, Alessandro Verdicchio is responsible for the lawful processing of your personal data in compliance with Regulation (EU) 2016/679 (GDPR) and the Spanish Organic Law 3/2018 (LOPDGDD).</p>
+    </div>
+
+    <!-- 3 -->
+    <div class="section" id="permissions">
+      <h2>03 &nbsp;Extension Permissions</h2>
+      <p>The SprintBrain Chrome Extension declares the following manifest permissions. Each is used exclusively for the stated purpose — no permission is used beyond its declared scope.</p>
+      <table class="permission-table">
+        <thead>
+          <tr><th>Permission</th><th>Purpose</th><th>Data accessed</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>storage</td>
+            <td>Persist your snippet library, settings, and Notion sync configuration between browser sessions</td>
+            <td>Your snippet data and config, stored locally in <code>chrome.storage.local</code> only — never synced to external servers</td>
+          </tr>
+          <tr>
+            <td>activeTab</td>
+            <td>Inject the snippet expansion script into the active tab when you invoke a shortcut</td>
+            <td>Current tab context at the moment of invocation; no page content is read passively</td>
+          </tr>
+          <tr>
+            <td>contextMenus</td>
+            <td>Add a right-click menu entry to insert snippets into editable fields</td>
+            <td>Selected text, only when you right-click and choose a SprintBrain action</td>
+          </tr>
+          <tr>
+            <td>scripting</td>
+            <td>Execute snippet expansion into editable DOM fields on the active page</td>
+            <td>The target editable element only; no surrounding page content is read</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4 -->
+    <div class="section" id="data-collected">
+      <h2>04 &nbsp;Data Collected</h2>
+
+      <h3>A. Data you provide directly</h3>
+      <ul>
+        <li><strong>Snippets and templates</strong> — the shortcut triggers and expansion text you create and store.</li>
+        <li><strong>Account credentials</strong> — your email address and hashed password used to authenticate with Supabase. Passwords are never stored in plain text.</li>
+        <li><strong>Notion integration token</strong> — if you connect Notion, your personal integration token and database ID are stored encrypted in <code>chrome.storage.local</code> on your device only.</li>
+      </ul>
+
+      <h3>B. Data collected automatically</h3>
+      <ul>
+        <li><strong>Extension version identifier</strong> — used for compatibility verification during Notion sync operations.</li>
+        <li><strong>Sync timestamps</strong> — the last successful Notion sync time, stored locally on your device.</li>
+        <li><strong>Error logs</strong> — technical error messages written to the extension's internal log for debugging; these do not contain personal data or browsing history.</li>
+      </ul>
+
+      <h3>C. Data we do NOT collect</h3>
+      <ul>
+        <li>Your browsing history or visited URLs.</li>
+        <li>Content of web pages you visit.</li>
+        <li>Keystrokes outside of explicit SprintBrain snippet trigger invocations.</li>
+        <li>Device identifiers, IP address, or geographic location.</li>
+        <li>Any data transmitted to AI or machine learning systems (no AI integration is currently active).</li>
+      </ul>
+    </div>
+
+    <!-- 5 -->
+    <div class="section" id="processing">
+      <h2>05 &nbsp;Processing Purpose</h2>
+      <p>All data processing is initiated <strong>solely via your explicit user action</strong> — invoking a keyboard shortcut, selecting a context menu option, clicking a button in the extension popup, or triggering a Notion sync. SprintBrain runs no background processes that read or transmit data without your knowledge.</p>
+      <p>Specific processing purposes:</p>
+      <ul>
+        <li><strong>Snippet expansion</strong> — matching your typed trigger against the local library and inserting the expansion into the active field.</li>
+        <li><strong>Notion synchronization</strong> — when you trigger a sync, your snippet library is fetched from your designated Notion database using your personal integration token and written to <code>chrome.storage.local</code>.</li>
+        <li><strong>Authentication</strong> — your email and password are transmitted over HTTPS to Supabase to verify your identity and retrieve your account configuration.</li>
+      </ul>
+      <p>The legal basis for processing under GDPR is <strong>performance of a contract</strong> (Art. 6(1)(b)) for service delivery, and <strong>legitimate interests</strong> (Art. 6(1)(f)) for error logging and security.</p>
+    </div>
+
+    <!-- 6 -->
+    <div class="section" id="storage">
+      <h2>06 &nbsp;Data Storage Architecture</h2>
+      <p>The extension uses <strong><code>chrome.storage.local</code> exclusively</strong> — never <code>chrome.storage.sync</code> — for all local data including credentials, snippets, and configuration. Your data is stored only within your local Chrome profile and is never transmitted to Google's sync servers.</p>
+      <p>Account data (email address, session tokens, subscription status) is stored on Supabase infrastructure within the European Economic Area (EEA). Supabase encrypts data at rest (AES-256) and in transit (TLS 1.3).</p>
+      <p>No snippet content is stored on SprintBrain's own servers. Alessandro Verdicchio does not operate independent server infrastructure for this product.</p>
+    </div>
+
+    <!-- 7 -->
+    <div class="section" id="third-parties">
+      <h2>07 &nbsp;Third-Party Services</h2>
+      <p>SprintBrain currently integrates with the following two third-party services. Each integration is opt-in and strictly purpose-limited.</p>
+
+      <div class="third-party-card">
+        <div class="tp-header">
+          <div class="tp-name">Supabase</div>
+          <div class="tp-role">Authentication &amp; account storage</div>
+        </div>
+        <p class="tp-desc">Supabase manages user authentication and stores account-level configuration (email address, session token, account preferences). Supabase is GDPR-compliant, operates under a Data Processing Agreement, and hosts EU user data in the eu-central-1 (Frankfurt) region. Privacy policy: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a>.</p>
+      </div>
+
+      <div class="third-party-card">
+        <div class="tp-header">
+          <div class="tp-name">Notion</div>
+          <div class="tp-role">Snippet source — optional integration</div>
+        </div>
+        <p class="tp-desc">If you connect your Notion workspace, SprintBrain reads snippet content from your designated Notion database using the Notion API and your personal integration token. This connection is optional, configured by you, and uses only the specific database you designate. SprintBrain does not write data back to Notion. Privacy policy: <a href="https://www.notion.so/privacy" target="_blank" rel="noopener">notion.so/privacy</a>.</p>
+      </div>
+
+      <div class="info-box">
+        <p><strong>Planned future integration:</strong> SprintBrain may in the future integrate AI-powered text generation via the Anthropic Claude API. If and when this feature is activated, this Privacy Policy will be updated accordingly and users will be notified before the integration goes live.</p>
+      </div>
+    </div>
+
+    <!-- 8 -->
+    <div class="section" id="retention">
+      <h2>08 &nbsp;Data Retention</h2>
+      <p>Local extension data stored in <code>chrome.storage.local</code> is retained on your device until you uninstall the extension or manually clear extension storage via your Chrome settings.</p>
+      <p>Supabase account data is retained for the duration of your active account plus 30 days following a deletion request. You may request immediate deletion at any time by contacting us (see Your Rights below).</p>
+    </div>
+
+    <!-- 9 -->
+    <div class="section" id="rights">
+      <h2>09 &nbsp;Your Rights</h2>
+      <p>Under GDPR (EU/EEA residents) and CCPA (California residents), you have the following rights regarding your personal data:</p>
+      <div class="rights-grid">
+        <div class="right-item">
+          <div class="right-title">Access</div>
+          <p class="right-desc">Request a copy of all personal data we hold about you.</p>
+        </div>
+        <div class="right-item">
+          <div class="right-title">Rectification</div>
+          <p class="right-desc">Correct inaccurate or incomplete personal data.</p>
+        </div>
+        <div class="right-item">
+          <div class="right-title">Erasure</div>
+          <p class="right-desc">Request deletion of your personal data ("right to be forgotten").</p>
+        </div>
+        <div class="right-item">
+          <div class="right-title">Portability</div>
+          <p class="right-desc">Receive your data in a structured, machine-readable format.</p>
+        </div>
+        <div class="right-item">
+          <div class="right-title">Objection</div>
+          <p class="right-desc">Object to processing activities based on legitimate interests.</p>
+        </div>
+        <div class="right-item">
+          <div class="right-title">Restriction</div>
+          <p class="right-desc">Request that we limit how we process your data in specific circumstances.</p>
+        </div>
+      </div>
+      <p>To exercise any of these rights, contact Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. We will respond within 30 days. California residents: we do not sell personal data. EU residents have the right to lodge a complaint with the Spanish data protection authority: <a href="https://www.aepd.es" target="_blank" rel="noopener">Agencia Española de Protección de Datos (AEPD)</a>.</p>
+    </div>
+
+    <!-- 10 -->
+    <div class="section" id="children">
+      <h2>10 &nbsp;Children's Privacy</h2>
+      <p>SprintBrain is not directed at children under the age of 16. We do not knowingly collect personal data from children. If you believe a child has provided us with personal information, please contact us immediately at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a> and we will delete it without delay.</p>
+    </div>
+
+    <!-- 11 -->
+    <div class="section" id="changes">
+      <h2>11 &nbsp;Policy Changes</h2>
+      <p>We may update this Privacy Policy to reflect changes in our data practices, new integrations (such as future AI features), or legal requirements. When we make material changes, we will update the "Last Updated" date at the top of this page and notify registered users by email at least 14 days before the changes take effect.</p>
+    </div>
+
+    <!-- 12 -->
+    <div class="section" id="contact">
+      <h2>12 &nbsp;Contact</h2>
+      <div class="contact-block">
+        <p><strong>Alessandro Verdicchio</strong> — Data Controller, SprintBrain</p>
+        <p>Email: <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
+        <p>Address: Ibiza, Balearic Islands, Spain (EU)</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+  <span>© 2026 Alessandro Verdicchio — SprintBrain</span>
+  <a href="privacy-policy.html">Privacy Policy</a>
+  <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+  <a href="cookie-policy.html">Cookie Policy</a>
+</footer>
+
+</body>
+</html>

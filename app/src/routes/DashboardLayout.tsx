@@ -44,6 +44,32 @@ export function DashboardLayout() {
             >
               {APP_VERSION}
             </button>
+            <div className="flex items-center gap-3">
+              <a
+                href="https://sprintbrain.com/legal/privacy-policy.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                Privacy
+              </a>
+              <a
+                href="https://sprintbrain.com/legal/terms-and-conditions.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                Terms
+              </a>
+              <a
+                href="https://sprintbrain.com/legal/cookie-policy.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                Cookies
+              </a>
+            </div>
             <span className="font-mono text-[10px] text-ink-subtle">{RELEASE_DATE}</span>
           </footer>
         </div>
