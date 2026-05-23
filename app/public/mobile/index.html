@@ -81,6 +81,25 @@ body{
   padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;letter-spacing:.2px
 }
 
+/* ── PAGE FOOTER ─────────────────────────────── */
+.mpage-footer{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:28px 20px 12px;
+}
+.mpage-footer-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border);border-radius:9999px;
+  padding:5px 14px;box-shadow:var(--shadow-sm)
+}
+.mpage-footer-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--success);flex-shrink:0
+}
+.mpage-footer-label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.05px}
+.mpage-footer-ver{
+  font-size:11px;font-weight:700;color:var(--primary);letter-spacing:.2px;
+  background:var(--primary-lt);padding:2px 7px;border-radius:4px
+}
+
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2}
 .mqa-grid{
@@ -508,10 +527,7 @@ body{
       <span id="cnt">0</span>
       <span class="mstatbig-unit">snippets</span>
     </div>
-    <div class="mstatsub">
-      ready to use
-      <span class="mstatup">v1.1</span>
-    </div>
+    <div class="mstatsub">ready to use</div>
   </div>
 
   <!-- Floating quick-action grid (overlaps hero) -->
@@ -547,6 +563,15 @@ body{
 
   <!-- Snippet list -->
   <div id="snip-list"></div>
+
+  <!-- Page footer -->
+  <div class="mpage-footer">
+    <div class="mpage-footer-badge">
+      <span class="mpage-footer-dot" aria-hidden="true"></span>
+      <span class="mpage-footer-label">ready to use</span>
+      <span class="mpage-footer-ver">v1.1</span>
+    </div>
+  </div>
 
   <!-- iOS home indicator + floating tab bar -->
   <div class="mtab-indicator" aria-hidden="true"></div>
