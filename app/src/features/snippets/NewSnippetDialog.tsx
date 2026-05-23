@@ -18,7 +18,20 @@ import {
   type SnippetFormValues,
 } from '@/types/schemas';
 
-const LANGUAGES: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
+// FR retired in v1.1 — excluded from picker, still valid in DB for legacy rows
+const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'MULTI'];
+
+// Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
+const LANG_CONFIG: Record<
+  SnippetFormValues['language'],
+  { fg: string; bg: string; bdr: string; label: string }
+> = {
+  EN:    { fg: '#1B4FD8', bg: '#EEF2FF', bdr: '#BED0FF', label: 'EN' },
+  IT:    { fg: '#15803D', bg: '#F0FDF4', bdr: '#86EFAC', label: 'IT' },
+  ES:    { fg: '#C2410C', bg: '#FFF7ED', bdr: '#FDBA74', label: 'ES' },
+  FR:    { fg: '#7C3AED', bg: '#F5F3FF', bdr: '#C4B5FD', label: 'FR' },
+  MULTI: { fg: '#7C3AED', bg: '#F5F3FF', bdr: '#C4B5FD', label: 'Multi' },
+};
 
 type FieldErrors = Partial<Record<keyof SnippetFormValues, string>>;
 
@@ -44,41 +57,42 @@ interface QuickInsert {
 }
 
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'guest_name',     value: '{guest_name}',     variant: 'default' },
-  { label: 'property_name',  value: '{property_name}',  variant: 'default' },
-  { label: 'checkin_date',   value: '{checkin_date}',   variant: 'default' },
-  { label: 'checkout_date',  value: '{checkout_date}',  variant: 'default' },
-  { label: 'total_price',    value: '{total_price}',    variant: 'default' },
-  { label: 'nights',         value: '{nights}',         variant: 'default' },
-  { label: 'phone',          value: '{phone_number}',   variant: 'default' },
-  { label: 'review_link',    value: '{review_link}',    variant: 'default' },
-  { label: '{=formula}',     value: '{=A - B}',         variant: 'formula' },
-  { label: '{if:cond}',      value: '{if:A > 0}text{endif}', variant: 'cond' },
+  { label: 'guest_name',    value: '{guest_name}',           variant: 'default' },
+  { label: 'property_name', value: '{property_name}',        variant: 'default' },
+  { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default' },
+  { label: 'checkout_date', value: '{checkout_date}',        variant: 'default' },
+  { label: 'total_price',   value: '{total_price}',          variant: 'default' },
+  { label: 'nights',        value: '{nights}',               variant: 'default' },
+  { label: 'phone',         value: '{phone_number}',         variant: 'default' },
+  { label: 'review_link',   value: '{review_link}',          variant: 'default' },
+  { label: '{=formula}',    value: '{=A - B}',               variant: 'formula' },
+  { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond'    },
 ];
 
-const FIELD_LABEL = 'text-xs font-medium text-ink-muted';
+const FIELD_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
 const SELECT_CLASS =
-  'h-10 w-full rounded-[12px] border border-line bg-card px-3 text-sm text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
+  'h-10 w-full rounded-[10px] border border-line bg-card px-3 text-sm text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
 
 /**
- * The create/edit snippet dialog. Open-state is driven by the UI store:
- *   - `newSnippetOpen === true` → create mode
- *   - `editSnippetId` is a uuid → edit mode, form is pre-populated
+ * The create/edit snippet dialog — two-panel layout (main editor + options sidebar).
  *
- * When both are set at once, edit mode wins. The header `New snippet` button
- * opens the dialog via the `<DialogTrigger>` wrapper rendered below.
+ * Open-state is driven by the UI store:
+ *   - `newSnippetOpen === true`  → create mode
+ *   - `editSnippetId` is a UUID  → edit mode, form is pre-populated
+ *
+ * The header "New snippet" button opens the dialog via the <DialogTrigger> wrapper.
  */
 export function NewSnippetDialog() {
-  const newOpen = useUiStore((s) => s.newSnippetOpen);
-  const editId = useUiStore((s) => s.editSnippetId);
-  const openNew = useUiStore((s) => s.openNewSnippet);
+  const newOpen  = useUiStore((s) => s.newSnippetOpen);
+  const editId   = useUiStore((s) => s.editSnippetId);
+  const openNew  = useUiStore((s) => s.openNewSnippet);
   const closeNew = useUiStore((s) => s.closeNewSnippet);
   const closeEdit = useUiStore((s) => s.closeEditSnippet);
 
-  const folders = useSnippetStore((s) => s.folders);
-  const snippets = useSnippetStore((s) => s.snippets);
-  const addSnippet = useSnippetStore((s) => s.addSnippet);
-  const editSnippet = useSnippetStore((s) => s.editSnippet);
+  const folders      = useSnippetStore((s) => s.folders);
+  const snippets     = useSnippetStore((s) => s.snippets);
+  const addSnippet   = useSnippetStore((s) => s.addSnippet);
+  const editSnippet  = useSnippetStore((s) => s.editSnippet);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
 
   const editingSnippet = useMemo(
@@ -102,16 +116,16 @@ export function NewSnippetDialog() {
     setConfirmDelete(false);
     if (editingSnippet) {
       setForm({
-        name: editingSnippet.name,
-        trigger: editingSnippet.triggers[0] ?? '',
-        content: editingSnippet.content,
-        folder_id: editingSnippet.folder_id,
-        language: editingSnippet.language,
-        pinned: editingSnippet.pinned,
-        is_shared: editingSnippet.is_shared,
+        name:                 editingSnippet.name,
+        trigger:              editingSnippet.triggers[0] ?? '',
+        content:              editingSnippet.content,
+        folder_id:            editingSnippet.folder_id,
+        language:             editingSnippet.language,
+        pinned:               editingSnippet.pinned,
+        is_shared:            editingSnippet.is_shared,
         enable_urgency_timer: editingSnippet.enable_urgency_timer,
-        timer_duration_ms: editingSnippet.timer_duration_ms,
-        scarcity_count: editingSnippet.scarcity_count,
+        timer_duration_ms:    editingSnippet.timer_duration_ms,
+        scarcity_count:       editingSnippet.scarcity_count,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -129,8 +143,8 @@ export function NewSnippetDialog() {
       return;
     }
     const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const next = el.value.slice(0, start) + value + el.value.slice(end);
+    const end   = el.selectionEnd   ?? el.value.length;
+    const next  = el.value.slice(0, start) + value + el.value.slice(end);
     setForm((prev) => ({ ...prev, content: next }));
     // Restore cursor right after the inserted text on the next frame.
     requestAnimationFrame(() => {
@@ -219,8 +233,18 @@ export function NewSnippetDialog() {
           New snippet
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
+
+      {/*
+        Override defaults via tailwind-merge:
+          max-w-lg  → max-w-[860px]
+          p-6       → p-0
+          gap-4     → gap-0
+          grid      → flex flex-col
+      */}
+      <DialogContent className="max-w-[860px] p-0 gap-0 flex flex-col overflow-hidden max-h-[min(90vh,760px)]">
+
+        {/* ── Dialog header ── */}
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-4 pr-14 border-b border-line">
           <DialogTitle>
             {mode === 'edit' ? 'Edit snippet' : 'Create snippet'}
           </DialogTitle>
@@ -231,234 +255,286 @@ export function NewSnippetDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-          <div className="grid gap-1.5">
-            <label htmlFor="snippet-name" className={FIELD_LABEL}>
-              Name
-            </label>
-            <Input
-              id="snippet-name"
-              value={form.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              placeholder="Quote — English"
-              autoFocus
-              disabled={saving}
-            />
-            {errors.name && <FieldError message={errors.name} />}
+        {/* ── Two-panel body ── */}
+        {/*
+          The <form> wraps both panels. The footer Submit button links to it via
+          form="snippet-form" (HTML5 form association).
+        */}
+        <form
+          id="snippet-form"
+          onSubmit={onSubmit}
+          noValidate
+          className="flex flex-1 overflow-hidden min-h-0"
+        >
+          {/* ── LEFT PANEL: main editor ── */}
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 min-w-0">
+
+            {/* Name */}
+            <div>
+              <label htmlFor="snippet-name" className={FIELD_LABEL}>Name</label>
+              <Input
+                id="snippet-name"
+                value={form.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder="Quote — English"
+                autoFocus
+                disabled={saving}
+                className={errors.name ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
+              />
+              {errors.name && <FieldError message={errors.name} />}
+            </div>
+
+            {/* Trigger + Folder */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="snippet-trigger" className={FIELD_LABEL}>Trigger</label>
+                <Input
+                  id="snippet-trigger"
+                  value={form.trigger}
+                  onChange={(e) => updateField('trigger', e.target.value)}
+                  placeholder="quoteEN"
+                  disabled={saving}
+                  className={errors.trigger ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
+                />
+                {errors.trigger && <FieldError message={errors.trigger} />}
+              </div>
+              <div>
+                <label htmlFor="snippet-folder" className={FIELD_LABEL}>Folder</label>
+                <select
+                  id="snippet-folder"
+                  value={form.folder_id ?? ''}
+                  onChange={(e) =>
+                    updateField('folder_id', e.target.value === '' ? null : e.target.value)
+                  }
+                  disabled={saving}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">No folder</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.icon} {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label htmlFor="snippet-content" className={FIELD_LABEL}>
+                Body{' '}
+                <span className="font-normal text-ink-subtle">
+                  — use <code className="font-mono text-primary/80">{'{variable}'}</code> for dynamic fields
+                </span>
+              </label>
+              <textarea
+                id="snippet-content"
+                ref={contentRef}
+                rows={12}
+                value={form.content}
+                onChange={(e) => updateField('content', e.target.value)}
+                disabled={saving}
+                className={cn(
+                  'w-full resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
+                  errors.content && 'border-danger focus:border-danger focus:ring-danger/20',
+                )}
+                placeholder="Dear {guest_name}, …"
+              />
+              {errors.content && <FieldError message={errors.content} />}
+            </div>
+
+            {/* Quick insert */}
+            <div>
+              <span className={FIELD_LABEL}>Quick insert</span>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_INSERTS.map((qi) => (
+                  <button
+                    key={qi.label}
+                    type="button"
+                    onClick={() => insertAtCursor(qi.value)}
+                    disabled={saving}
+                    title={`Insert ${qi.value}`}
+                    className={cn(
+                      'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
+                      qi.variant === 'formula' && 'border-[#BED0FF] bg-[#EEF2FF] text-[#1B4FD8] hover:bg-[#E0EAFF]',
+                      qi.variant === 'cond'    && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
+                      qi.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
+                    )}
+                  >
+                    {qi.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <label htmlFor="snippet-trigger" className={FIELD_LABEL}>
-                Trigger
-              </label>
-              <Input
-                id="snippet-trigger"
-                value={form.trigger}
-                onChange={(e) => updateField('trigger', e.target.value)}
-                placeholder="quoteEN"
+          {/* ── PANEL DIVIDER ── */}
+          <div className="w-px bg-line shrink-0" />
+
+          {/* ── RIGHT PANEL: language + options ── */}
+          <div className="w-[240px] shrink-0 overflow-y-auto flex flex-col bg-bg">
+
+            {/* Language picker — visual pill tabs matching the extension popup */}
+            <div className="p-5 pb-4 border-b border-line">
+              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-3">
+                Language
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {LANG_PICKER.map((lang) => {
+                  const cfg = LANG_CONFIG[lang];
+                  const isActive = form.language === lang;
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => updateField('language', lang)}
+                      style={
+                        isActive
+                          ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
+                          : undefined
+                      }
+                      className={cn(
+                        'h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
+                        isActive
+                          ? 'shadow-sm'
+                          : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
+                      )}
+                    >
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="flex-1 p-5 flex flex-col gap-2.5">
+              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-0.5">
+                Options
+              </p>
+
+              <OptionToggle
+                id="snippet-urgency"
+                icon={<Clock className="h-3.5 w-3.5" />}
+                title="Urgency Timer"
+                description="Countdown + scarcity"
+                checked={form.enable_urgency_timer}
+                onChange={(v) => updateField('enable_urgency_timer', v)}
                 disabled={saving}
               />
-              {errors.trigger && <FieldError message={errors.trigger} />}
-            </div>
-            <div className="grid gap-1.5">
-              <label htmlFor="snippet-language" className={FIELD_LABEL}>
-                Language
-              </label>
-              <select
-                id="snippet-language"
-                value={form.language}
-                onChange={(e) =>
-                  updateField('language', e.target.value as SnippetFormValues['language'])
-                }
-                disabled={saving}
-                className={SELECT_CLASS}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          <div className="grid gap-1.5">
-            <label htmlFor="snippet-folder" className={FIELD_LABEL}>
-              Folder
-            </label>
-            <select
-              id="snippet-folder"
-              value={form.folder_id ?? ''}
-              onChange={(e) =>
-                updateField('folder_id', e.target.value === '' ? null : e.target.value)
-              }
-              disabled={saving}
-              className={SELECT_CLASS}
-            >
-              <option value="">No folder</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.icon} {f.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid gap-1.5">
-            <label htmlFor="snippet-content" className={FIELD_LABEL}>
-              Body — use {'{variable}'} for dynamic fields
-            </label>
-            <textarea
-              id="snippet-content"
-              ref={contentRef}
-              rows={6}
-              value={form.content}
-              onChange={(e) => updateField('content', e.target.value)}
-              disabled={saving}
-              className="w-full resize-none rounded-[12px] border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-              placeholder="Dear {guest_name}, …"
-            />
-            {errors.content && <FieldError message={errors.content} />}
-          </div>
-
-          <div className="grid gap-1.5">
-            <span className={FIELD_LABEL}>Quick insert</span>
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_INSERTS.map((qi) => (
-                <button
-                  key={qi.label}
-                  type="button"
-                  onClick={() => insertAtCursor(qi.value)}
-                  disabled={saving}
-                  title={`Insert ${qi.value}`}
-                  className={cn(
-                    'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
-                    qi.variant === 'formula' && 'border-[#BED0FF] bg-primary-light text-primary hover:bg-primary/15',
-                    qi.variant === 'cond' && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
-                    qi.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
-                  )}
-                >
-                  {qi.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <ToggleRow
-            id="snippet-urgency"
-            icon={<Clock className="h-4 w-4" />}
-            title="Urgency Timer"
-            description="Countdown + scarcity for quotes"
-            checked={form.enable_urgency_timer}
-            onChange={(checked) => updateField('enable_urgency_timer', checked)}
-            disabled={saving}
-          >
-            {form.enable_urgency_timer && (
-              <div className="grid grid-cols-2 gap-3 pt-3">
-                <div className="grid gap-1">
-                  <label htmlFor="snippet-timer-minutes" className={FIELD_LABEL}>
-                    Duration (minutes)
-                  </label>
-                  <Input
-                    id="snippet-timer-minutes"
-                    type="number"
-                    min={0}
-                    value={Math.round(form.timer_duration_ms / 60000)}
-                    onChange={(e) =>
-                      updateField(
-                        'timer_duration_ms',
-                        Math.max(0, Number(e.target.value) || 0) * 60000,
-                      )
-                    }
-                    disabled={saving}
-                  />
+              {form.enable_urgency_timer && (
+                <div className="grid gap-2 pl-1 pb-0.5">
+                  <div>
+                    <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
+                      Duration (minutes)
+                    </label>
+                    <Input
+                      id="snippet-timer-minutes"
+                      type="number"
+                      min={0}
+                      value={Math.round(form.timer_duration_ms / 60000)}
+                      onChange={(e) =>
+                        updateField(
+                          'timer_duration_ms',
+                          Math.max(0, Number(e.target.value) || 0) * 60000,
+                        )
+                      }
+                      disabled={saving}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
+                      Scarcity count
+                    </label>
+                    <Input
+                      id="snippet-scarcity"
+                      type="number"
+                      min={0}
+                      value={form.scarcity_count}
+                      onChange={(e) =>
+                        updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
+                      }
+                      disabled={saving}
+                      className="h-8 text-xs"
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-1">
-                  <label htmlFor="snippet-scarcity" className={FIELD_LABEL}>
-                    Scarcity count
-                  </label>
-                  <Input
-                    id="snippet-scarcity"
-                    type="number"
-                    min={0}
-                    value={form.scarcity_count}
-                    onChange={(e) =>
-                      updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
-                    }
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-            )}
-          </ToggleRow>
-
-          <ToggleRow
-            id="snippet-share"
-            icon={<Users className="h-4 w-4" />}
-            title="Share with team"
-            description="Visible to teammates via Notion"
-            checked={form.is_shared}
-            onChange={(checked) => updateField('is_shared', checked)}
-            disabled={saving}
-          />
-
-          <ToggleRow
-            id="snippet-pin"
-            icon={<Pin className="h-4 w-4" />}
-            title="Pin to top"
-            description="Always shows first in the snippet list"
-            checked={form.pinned}
-            onChange={(checked) => updateField('pinned', checked)}
-            disabled={saving}
-          />
-
-          {submitError && (
-            <div className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
-              <AlertCircle className="mt-px h-4 w-4 shrink-0" />
-              <span>{submitError}</span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <div>
-              {mode === 'edit' && (
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  disabled={saving}
-                  className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-danger/30 bg-danger/5 px-3 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {confirmDelete ? 'Click again to confirm' : 'Delete'}
-                </button>
               )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => handleOpenChange(false)}
+
+              <OptionToggle
+                id="snippet-share"
+                icon={<Users className="h-3.5 w-3.5" />}
+                title="Share with team"
+                description="Visible via Notion"
+                checked={form.is_shared}
+                onChange={(v) => updateField('is_shared', v)}
                 disabled={saving}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={saving}>
-                {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Create snippet'}
-              </Button>
+              />
+
+              <OptionToggle
+                id="snippet-pin"
+                icon={<Pin className="h-3.5 w-3.5" />}
+                title="Pin to top"
+                description="Always shows first"
+                checked={form.pinned}
+                onChange={(v) => updateField('pinned', v)}
+                disabled={saving}
+              />
             </div>
           </div>
         </form>
+
+        {/* ── Footer ── */}
+        <div className="shrink-0 px-6 py-4 border-t border-line bg-card flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {mode === 'edit' && (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={saving}
+                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-danger/30 bg-danger/5 px-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50 shrink-0"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {confirmDelete ? 'Click again to confirm' : 'Delete'}
+              </button>
+            )}
+            {submitError && (
+              <div className="flex items-center gap-1.5 text-xs text-danger min-w-0">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{submitError}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            {/* form= links this button to <form id="snippet-form"> above */}
+            <Button type="submit" form="snippet-form" variant="primary" disabled={saving}>
+              {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Create snippet'}
+            </Button>
+          </div>
+        </div>
+
       </DialogContent>
     </Dialog>
   );
 }
 
 function FieldError({ message }: { message: string }) {
-  return <span className="text-xs text-danger">{message}</span>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
-interface ToggleRowProps {
+interface OptionToggleProps {
   id: string;
   icon: React.ReactNode;
   title: string;
@@ -466,10 +542,9 @@ interface ToggleRowProps {
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
-  children?: React.ReactNode;
 }
 
-function ToggleRow({
+function OptionToggle({
   id,
   icon,
   title,
@@ -477,42 +552,36 @@ function ToggleRow({
   checked,
   onChange,
   disabled,
-  children,
-}: ToggleRowProps) {
+}: OptionToggleProps) {
   return (
-    <div className="rounded-[12px] border border-line bg-card p-3">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-bg-alt text-ink-muted">
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <label htmlFor={id} className="block text-sm font-medium text-ink">
-            {title}
-          </label>
-          <p className="text-xs text-ink-subtle">{description}</p>
-        </div>
-        <button
-          type="button"
-          id={id}
-          role="switch"
-          aria-checked={checked}
-          onClick={() => onChange(!checked)}
-          disabled={disabled}
-          className={cn(
-            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50',
-            checked ? 'bg-primary' : 'bg-line',
-          )}
-        >
-          <span
-            aria-hidden
-            className={cn(
-              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition',
-              checked ? 'translate-x-5' : 'translate-x-0',
-            )}
-          />
-        </button>
+    <div className="flex items-start gap-2.5 rounded-[10px] border border-line bg-card p-3">
+      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-bg-alt text-ink-muted">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-ink leading-tight">{title}</p>
+        <p className="text-[11px] text-ink-subtle leading-tight mt-0.5">{description}</p>
       </div>
-      {children}
+      <button
+        type="button"
+        id={id}
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        disabled={disabled}
+        className={cn(
+          'relative mt-0.5 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50',
+          checked ? 'bg-primary' : 'bg-line',
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition',
+            checked ? 'translate-x-4' : 'translate-x-0',
+          )}
+        />
+      </button>
     </div>
   );
 }

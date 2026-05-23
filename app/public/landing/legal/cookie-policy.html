@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cookie Policy — SprintBrain</title>
+<meta name="description" content="SprintBrain Cookie Policy — how we use storage in the Chrome Extension and cookies on sprintbrain.com.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f12;
+    --surface: #141720;
+    --border: rgba(255,255,255,0.08);
+    --text-primary: #f0f2f7;
+    --text-secondary: #8b90a0;
+    --text-muted: #555b6e;
+    --accent: #5b8df6;
+    --accent-soft: rgba(91,141,246,0.12);
+    --success: #34d399;
+    --success-soft: rgba(52,211,153,0.1);
+    --warning: #f59e0b;
+    --warning-soft: rgba(245,158,11,0.1);
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.75; min-height: 100vh; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(13,15,18,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; color: var(--text-primary); }
+  .logo span { color: var(--accent); }
+  .header-nav { display: flex; gap: 1.5rem; font-size: 0.875rem; }
+  .header-nav a { color: var(--text-secondary); }
+  .header-nav a:hover { color: var(--text-primary); text-decoration: none; }
+
+  .layout { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 6rem; display: grid; grid-template-columns: 220px 1fr; gap: 4rem; align-items: start; }
+
+  .toc { position: sticky; top: 80px; font-size: 0.8125rem; color: var(--text-secondary); }
+  .toc-label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6875rem; color: var(--text-muted); font-weight: 500; margin-bottom: 1rem; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc li { counter-increment: toc; margin-bottom: 0.5rem; }
+  .toc li::before { content: counter(toc) ". "; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem; }
+  .toc a { color: var(--text-secondary); transition: color 0.15s; }
+  .toc a:hover { color: var(--accent); text-decoration: none; }
+  .toc-divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+  .doc-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
+  .badge { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; padding: 0.25rem 0.625rem; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .badge-epd { background: rgba(52,211,153,0.12); color: var(--success); }
+  .doc-date { font-size: 0.8125rem; color: var(--text-muted); }
+
+  h1 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 1rem; }
+  .subtitle { font-size: 1rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 3rem; line-height: 1.6; }
+
+  .section { margin-bottom: 3.5rem; }
+  .section:target { scroll-margin-top: 100px; }
+
+  h2 { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  h3 { font-size: 1rem; font-weight: 500; color: var(--text-primary); margin: 1.75rem 0 0.5rem; }
+
+  p { color: var(--text-secondary); margin-bottom: 1rem; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { color: var(--text-secondary); padding-left: 1.25rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.375rem; }
+
+  .success-box { background: var(--success-soft); border: 1px solid rgba(52,211,153,0.2); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .success-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
+  .info-box { background: var(--accent-soft); border: 1px solid rgba(91,141,246,0.25); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .info-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
+
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+  .compare-card { border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+  .compare-label { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .compare-title { font-size: 0.9375rem; font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .compare-body { font-size: 0.875rem; color: var(--text-secondary); margin: 0; }
+
+  .cookie-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 1.25rem 0; }
+  .cookie-table th { text-align: left; padding: 0.625rem 1rem; background: rgba(255,255,255,0.04); color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  .cookie-table td { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+  .cookie-table tr:last-child td { border-bottom: none; }
+  .cookie-table td:first-child { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-primary); white-space: nowrap; }
+
+  .category-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6875rem; padding: 0.125rem 0.5rem; border-radius: 4px; margin-bottom: 0.375rem; }
+  .cat-essential { background: rgba(52,211,153,0.12); color: var(--success); }
+  .cat-analytics { background: rgba(91,141,246,0.12); color: var(--accent); }
+  .cat-functional { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+
+  .contact-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .contact-block p { margin-bottom: 0.5rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; text-align: center; font-size: 0.8125rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+  footer a { color: var(--text-muted); }
+  footer a:hover { color: var(--text-primary); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; gap: 2rem; }
+    .toc { position: static; display: none; }
+    .header-nav { display: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="logo">Sprint<span>Brain</span></a>
+  <nav class="header-nav">
+    <a href="privacy-policy.html">Privacy</a>
+    <a href="terms-and-conditions.html">Terms</a>
+    <a href="cookie-policy.html">Cookies</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <div class="toc-label">Contents</div>
+    <ol>
+      <li><a href="#what-are-cookies">What Are Cookies</a></li>
+      <li><a href="#extension-context">Extension — No Cookies</a></li>
+      <li><a href="#extension-storage">Extension Storage</a></li>
+      <li><a href="#web-app-cookies">Web App Cookies</a></li>
+      <li><a href="#cookie-list">Cookie List</a></li>
+      <li><a href="#consent">Consent</a></li>
+      <li><a href="#third-party-cookies">Third-Party Cookies</a></li>
+      <li><a href="#managing">Managing Preferences</a></li>
+      <li><a href="#changes">Policy Changes</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+    <hr class="toc-divider">
+    <div class="toc-label">Related</div>
+    <a href="privacy-policy.html" style="display:block;margin-bottom:0.5rem;">Privacy Policy</a>
+    <a href="terms-and-conditions.html" style="display:block;">Terms &amp; Conditions</a>
+  </aside>
+
+  <main>
+    <div class="doc-meta">
+      <span class="badge badge-epd">ePrivacy Directive</span>
+      <span class="doc-date">Last Updated: May 22, 2026</span>
+    </div>
+
+    <h1>Cookie Policy</h1>
+    <p class="subtitle">This policy explains how Alessandro Verdicchio, operating SprintBrain, uses cookies and similar storage technologies — and why the Chrome Extension uses none of them.</p>
+
+    <!-- 1 -->
+    <div class="section" id="what-are-cookies">
+      <h2>01 &nbsp;What Are Cookies</h2>
+      <p>Cookies are small text files placed on your device by a website when you visit it. They are set and read via standard HTTP headers in a browser page context, and are used to remember preferences, maintain sessions, and collect analytics data.</p>
+      <p>Chrome Extensions operate in a sandboxed service worker environment (Manifest V3) that is architecturally separate from the web page context. This means they interact with storage differently — and in SprintBrain's case, more privately.</p>
+    </div>
+
+    <!-- 2 -->
+    <div class="section" id="extension-context">
+      <h2>02 &nbsp;Chrome Extension — No HTTP Cookies</h2>
+      <div class="success-box">
+        <p><strong>The SprintBrain Chrome Extension does not set, read, or transmit HTTP cookies.</strong> The extension service worker and content scripts operate in a sandboxed runtime that does not access the browser's standard cookie jar.</p>
+      </div>
+      <p>This is an architectural property of Manifest V3 Chrome Extensions, not just a policy choice. All state persistence within the SprintBrain extension is handled exclusively through Chrome's own storage APIs, which are scoped to the extension and inaccessible to websites or other extensions.</p>
+    </div>
+
+    <!-- 3 -->
+    <div class="section" id="extension-storage">
+      <h2>03 &nbsp;Extension Storage (Not Cookies)</h2>
+      <p>SprintBrain uses Chrome's sandboxed key-value storage instead of cookies:</p>
+
+      <div class="compare-grid">
+        <div class="compare-card">
+          <div class="compare-label">Used by SprintBrain</div>
+          <div class="compare-title"><code>chrome.storage.local</code></div>
+          <p class="compare-body">Stores your snippets, settings, Notion token, and session data on your local device only. Never transmitted to Google's servers. Scoped exclusively to SprintBrain — no other extension or website can access it.</p>
+        </div>
+        <div class="compare-card">
+          <div class="compare-label">Explicitly NOT used</div>
+          <div class="compare-title"><code>chrome.storage.sync</code></div>
+          <p class="compare-body">Deliberately avoided. This API would sync data to Google's servers across your devices. SprintBrain stores all sensitive data locally only.</p>
+        </div>
+      </div>
+
+      <p>Data stored in <code>chrome.storage.local</code> by SprintBrain includes:</p>
+      <ul>
+        <li>Your snippet library (shortcut triggers and expansion text).</li>
+        <li>Notion integration configuration (database ID and encrypted integration token).</li>
+        <li>Application preferences and settings.</li>
+        <li>Last Notion sync timestamp.</li>
+        <li>Supabase authentication session token (for logged-in users).</li>
+      </ul>
+
+      <div class="info-box">
+        <p><code>chrome.storage.local</code> is not a cookie. It is not transmitted with HTTP requests, is not subject to browser cookie controls, and is not visible to any website you visit. It is cleared when you uninstall the extension or clear extension data in Chrome settings.</p>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="section" id="web-app-cookies">
+      <h2>04 &nbsp;Web Application — Cookie Usage</h2>
+      <p>The SprintBrain web application at <strong>sprintbrain.com</strong> (marketing site and account dashboard) does use standard HTTP cookies. These are categorized below:</p>
+
+      <h3>Essential cookies</h3>
+      <p>Strictly necessary for the website to function. They enable authentication sessions and security features. These are set when you log in and cannot be disabled without breaking core functionality.</p>
+
+      <h3>Functional cookies</h3>
+      <p>Remember your interface preferences (e.g. whether you have dismissed notices). Optional, but improve your experience across visits.</p>
+
+      <h3>Analytical cookies</h3>
+      <p>Collect anonymous, aggregated usage statistics to help Alessandro Verdicchio understand how sprintbrain.com is used and improve its content and performance. These are set <strong>only after you explicitly grant consent</strong> via the cookie banner.</p>
+
+      <h3>Marketing cookies</h3>
+      <p>SprintBrain does not currently use marketing or advertising cookies. If this changes, this policy will be updated and your prior consent will be requested.</p>
+    </div>
+
+    <!-- 5 -->
+    <div class="section" id="cookie-list">
+      <h2>05 &nbsp;Cookie List</h2>
+      <table class="cookie-table">
+        <thead>
+          <tr><th>Name</th><th>Category</th><th>Purpose</th><th>Duration</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>sb-auth-token</td>
+            <td><span class="category-badge cat-essential">Essential</span></td>
+            <td>Supabase authentication session. Keeps you logged into your SprintBrain account on sprintbrain.com.</td>
+            <td>Session / 7 days</td>
+          </tr>
+          <tr>
+            <td>sb-refresh-token</td>
+            <td><span class="category-badge cat-essential">Essential</span></td>
+            <td>Supabase refresh token used to silently renew your authentication session without requiring re-login.</td>
+            <td>30 days</td>
+          </tr>
+          <tr>
+            <td>sb-pkce-verifier</td>
+            <td><span class="category-badge cat-essential">Essential</span></td>
+            <td>Security token for the OAuth PKCE authentication flow. Deleted automatically after login completes.</td>
+            <td>Session</td>
+          </tr>
+          <tr>
+            <td>cookie-consent</td>
+            <td><span class="category-badge cat-functional">Functional</span></td>
+            <td>Stores your cookie consent choice so the consent banner is not shown on every page visit.</td>
+            <td>12 months</td>
+          </tr>
+          <tr>
+            <td>ui-prefs</td>
+            <td><span class="category-badge cat-functional">Functional</span></td>
+            <td>Saves your interface preferences on the sprintbrain.com dashboard (e.g. sidebar state, theme).</td>
+            <td>12 months</td>
+          </tr>
+          <tr>
+            <td>_sb_analytics</td>
+            <td><span class="category-badge cat-analytics">Analytics</span></td>
+            <td>Anonymous session identifier for aggregate usage analytics. No personal data attached. Only set after explicit consent.</td>
+            <td>30 days</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 6 -->
+    <div class="section" id="consent">
+      <h2>06 &nbsp;Cookie Consent</h2>
+      <p>On your first visit to sprintbrain.com, a cookie consent banner is displayed. Essential cookies are activated by default as they are strictly necessary. Functional and analytical cookies are only activated after you explicitly accept them.</p>
+      <p><strong>Important:</strong> No analytical or functional cookies are executed on this Cookie Policy page, the Privacy Policy page, or the Terms and Conditions page before cookie consent is explicitly granted. This complies with the ePrivacy Directive and Google's Chrome Web Store requirements.</p>
+      <p>You can change your preferences at any time via the Cookie Preferences link in the footer of sprintbrain.com.</p>
+    </div>
+
+    <!-- 7 -->
+    <div class="section" id="third-party-cookies">
+      <h2>07 &nbsp;Third-Party Cookies</h2>
+      <p>The following third-party services loaded on sprintbrain.com may set their own cookies. Alessandro Verdicchio does not control these cookies — please review the relevant privacy policies:</p>
+      <ul>
+        <li><strong>Supabase</strong> — authentication session management. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></li>
+        <li><strong>Google Fonts</strong> — font delivery via fonts.googleapis.com. Google may log font requests; no tracking cookies are set by this service. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a></li>
+      </ul>
+      <p>SprintBrain does not embed advertising scripts, social media tracking pixels, or retargeting cookies from any third party.</p>
+    </div>
+
+    <!-- 8 -->
+    <div class="section" id="managing">
+      <h2>08 &nbsp;Managing Your Preferences</h2>
+
+      <h3>Browser cookie settings</h3>
+      <p>You can view, manage, and delete cookies set by sprintbrain.com using your browser's built-in settings:</p>
+      <ul>
+        <li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
+        <li><a href="https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox" target="_blank" rel="noopener">Mozilla Firefox</a></li>
+        <li><a href="https://support.apple.com/guide/safari/manage-cookies-and-website-data-sfri11471" target="_blank" rel="noopener">Apple Safari</a></li>
+        <li><a href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge" target="_blank" rel="noopener">Microsoft Edge</a></li>
+      </ul>
+
+      <h3>Clearing extension storage</h3>
+      <p>To remove data stored by the SprintBrain extension in <code>chrome.storage.local</code>:</p>
+      <ol>
+        <li>Open Chrome and go to <code>chrome://settings/siteData</code>.</li>
+        <li>Search for "SprintBrain" or filter by extension entries.</li>
+        <li>Select and delete the extension's stored data.</li>
+      </ol>
+      <p>Note: this will remove your local snippet library and Notion configuration. Your Notion database remains untouched and can be re-synced at any time.</p>
+    </div>
+
+    <!-- 9 -->
+    <div class="section" id="changes">
+      <h2>09 &nbsp;Policy Changes</h2>
+      <p>Alessandro Verdicchio may update this Cookie Policy when new cookies are introduced or existing ones are changed. The "Last Updated" date will be updated, and if new non-essential cookies are added, prior consent will be requested before they are set.</p>
+    </div>
+
+    <!-- 10 -->
+    <div class="section" id="contact">
+      <h2>10 &nbsp;Contact</h2>
+      <div class="contact-block">
+        <p><strong>Alessandro Verdicchio</strong> — SprintBrain</p>
+        <p>Email: <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
+        <p>Address: Ibiza, Balearic Islands, Spain</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+  <span>© 2026 Alessandro Verdicchio — SprintBrain</span>
+  <a href="privacy-policy.html">Privacy Policy</a>
+  <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+  <a href="cookie-policy.html">Cookie Policy</a>
+</footer>
+
+</body>
+</html>
