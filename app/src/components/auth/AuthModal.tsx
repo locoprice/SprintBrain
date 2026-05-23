@@ -676,9 +676,13 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
 
         <DialogPrimitive.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-full max-w-[440px]',
-            '-translate-x-1/2 -translate-y-1/2',
-            'rounded-[20px] border border-line bg-card p-7 shadow-md',
+            'fixed z-50',
+            // Mobile: stretch to screen edges with 16px gutters, anchored near the top
+            'inset-x-4 top-[8dvh] max-h-[90dvh] overflow-y-auto',
+            // sm+: revert to centered floating card (original desktop behaviour)
+            'sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-[440px]',
+            'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:overflow-visible',
+            'rounded-[20px] border border-line bg-card p-5 sm:p-7 shadow-md',
             'data-[state=open]:animate-fade-in focus:outline-none',
           )}
         >
