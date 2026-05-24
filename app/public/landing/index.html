@@ -18,7 +18,11 @@
   --success:#34C759;--r:16px;--r-btn:12px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.04);
   --shadow-md:0 4px 20px rgba(27,79,216,.12),0 1px 3px rgba(0,0,0,.06);
-  --max:1120px
+  --max:1120px;
+  --sb-font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  --sb-mono:'SF Mono','Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace;
+  --sb-iris-light:#8B7CF6;
+  --sb-iris-soft:#B8AEFA
 }
 html{scroll-behavior:smooth}
 body{
@@ -143,6 +147,143 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
   .nav-link{display:none}
   .demo-body{padding:24px 20px}
 }
+
+/* ── FEATURES v2 — dark editorial grid ──────────────────── */
+.fs-bg{background:#07080A;color:#fff}
+.fs-section{
+  padding:120px 64px 140px;
+  max-width:1440px;
+  margin:0 auto;
+  --fs-accent:var(--sb-iris-light);
+  --fs-accent-soft:var(--sb-iris-soft);
+  --fs-card-bg:#111114;
+  --fs-card-bg-hi:#16161B;
+  --fs-card-bdr:#1F1F26;
+  --fs-card-bdr-hi:#2C2C36;
+  --fs-ink:#FFFFFF;
+  --fs-ink-muted:#8A8A93;
+  --fs-ink-subtle:#5E5E66
+}
+.fs-head{max-width:880px;margin:0 0 72px}
+.fs-eb{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--fs-accent-soft);
+  margin-bottom:28px
+}
+.fs-eb::before{content:"";width:24px;height:1px;background:var(--fs-accent)}
+.fs-title{
+  font-size:64px;line-height:1.02;letter-spacing:-.035em;
+  font-weight:700;color:var(--fs-ink);margin:0 0 24px;
+  text-wrap:balance
+}
+.fs-title em{font-style:normal;color:var(--fs-ink-muted)}
+.fs-sub{font-size:19px;line-height:1.5;color:var(--fs-ink-muted);max-width:620px;margin:0}
+.fs-sub b{color:var(--fs-ink);font-weight:600}
+
+.fs-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+
+.fs-card{
+  grid-column:span 3;
+  background:var(--fs-card-bg);
+  border:1px solid var(--fs-card-bdr);
+  border-radius:24px;
+  padding:36px 36px 28px;
+  display:flex;flex-direction:column;
+  min-height:320px;cursor:pointer;
+  transition:border-color .25s ease,background .25s ease,transform .25s ease
+}
+.fs-card:hover,.fs-card:focus-within{
+  background:var(--fs-card-bg-hi);
+  border-color:var(--fs-card-bdr-hi);
+  transform:translateY(-2px)
+}
+.fs-card:hover .fs-cta,.fs-card:focus-within .fs-cta{
+  background:var(--fs-accent);color:#fff;
+  transform:translate(4px,-4px)
+}
+.fs-card.fs-hero{
+  min-height:380px;
+  background:linear-gradient(180deg,#14141B 0%,#0E0E12 100%)
+}
+.fs-card.fs-hero .fs-card-title{font-size:40px;letter-spacing:-.03em}
+.fs-card.fs-hero .fs-card-body{font-size:16px;max-width:460px}
+
+.fs-card-tag{
+  font-size:12px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fs-ink-subtle);
+  margin-bottom:28px;display:flex;align-items:center;gap:8px
+}
+.fs-dot{width:6px;height:6px;border-radius:50%;background:var(--fs-accent);flex-shrink:0}
+.fs-card-title{
+  font-size:30px;line-height:1.1;letter-spacing:-.025em;
+  font-weight:700;color:var(--fs-ink);margin:0 0 14px
+}
+.fs-card-body{
+  font-size:15px;line-height:1.55;color:var(--fs-ink-muted);
+  margin:0;text-wrap:pretty
+}
+.fs-card-body b{color:var(--fs-ink);font-weight:600}
+.fs-card-body code{
+  font-family:var(--sb-mono);font-size:13px;
+  color:var(--fs-accent-soft);
+  background:rgba(139,124,246,.10);
+  padding:2px 7px;border-radius:6px;
+  border:1px solid rgba(139,124,246,.18);
+  white-space:nowrap
+}
+.fs-cta{
+  margin-top:auto;align-self:flex-end;
+  width:44px;height:44px;border-radius:50%;
+  background:#1C1C22;color:var(--fs-ink);
+  display:grid;place-items:center;
+  border:1px solid var(--fs-card-bdr-hi);
+  transition:background .25s ease,color .25s ease,transform .25s ease
+}
+.fs-cta svg{width:18px;height:18px}
+
+/* demo expansion block */
+.fs-demo{
+  margin:24px 0 0;padding:18px 18px 16px;
+  background:#08080B;border:1px solid #1F1F26;
+  border-radius:14px;font-family:var(--sb-mono);
+  font-size:13px;line-height:1.55;color:var(--fs-ink-muted);
+  max-width:420px
+}
+.fs-typed{
+  color:var(--fs-accent-soft);
+  background:rgba(139,124,246,.12);
+  padding:2px 6px;border-radius:4px
+}
+.fs-arrow{color:var(--fs-ink-subtle);margin:6px 0;font-size:12px}
+.fs-out{color:#DCDCE2;font-family:var(--sb-font);font-size:13.5px}
+.fs-out b{color:#fff;font-weight:600}
+.fs-num{color:var(--fs-accent-soft);font-variant-numeric:tabular-nums}
+
+/* formula table */
+.fs-formula{
+  margin-top:18px;display:grid;
+  grid-template-columns:1fr auto;gap:10px 18px;
+  font-family:var(--sb-mono);font-size:13px;color:var(--fs-ink-muted);
+  padding:16px 18px;background:#08080B;
+  border:1px solid #1F1F26;border-radius:12px;max-width:320px
+}
+.fs-lbl{color:var(--fs-ink-subtle)}
+.fs-val{color:#fff;font-variant-numeric:tabular-nums;text-align:right}
+.fs-val.fs-hi{color:var(--fs-accent-soft)}
+.fs-divider{grid-column:1/-1;height:1px;background:#1F1F26}
+
+@media(max-width:1080px){
+  .fs-grid{grid-template-columns:repeat(2,1fr)}
+  .fs-card,.fs-card.fs-hero{grid-column:span 1}
+  .fs-title{font-size:48px}
+}
+@media(max-width:640px){
+  .fs-section{padding:72px 24px 80px}
+  .fs-grid{grid-template-columns:1fr}
+  .fs-title{font-size:38px}
+  .fs-card-title{font-size:26px}
+}
 </style>
 </head>
 <body>
@@ -196,44 +337,117 @@ LeibTour Team</div>
   </div>
 </section>
 
-<section class="section" id="features">
-  <div class="section-inner">
-    <div class="section-head">
-      <div class="section-eyebrow">Features</div>
-      <h2>Six features. No filler.</h2>
-      <p>Replaces TextBlaze, TextExpander, and Magical. Adds the two things they don't do: live formulas and reusable AI prompts.</p>
-    </div>
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <h3>Snippets</h3>
-        <p>Trigger a snippet with a short tag like <code>::quoteEN</code>. It expands into a full template. Multi-language support for EN, IT, ES with automatic fallback.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🧮</div>
-        <h3>Formulas</h3>
-        <p>Real math inside your snippets. Totals, discounts, fees, net prices — calculated when the snippet expands. CSP-safe parser, no eval.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🤖</div>
-        <h3>AI Prompt Library</h3>
-        <p>Reusable one-shot and few-shot prompts for ChatGPT, Claude, and any AI tool. Stored next to your snippets, expanded the same way.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">☁️</div>
-        <h3>Cloud Sync</h3>
-        <p>Supabase-backed. Edits on one device show up on the others within a second.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📝</div>
-        <h3>Notion Sync</h3>
-        <p>Optional one-way or two-way sync with a Notion database. Edit snippets where your team already works.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📱</div>
-        <h3>Mobile Access</h3>
-        <p>Browse and copy your snippet library from your phone. No laptop required.</p>
-      </div>
+<section id="features" class="fs-bg">
+  <div class="fs-section">
+
+    <header class="fs-head">
+      <div class="fs-eb">What's inside</div>
+      <h2 class="fs-title">
+        Everything text expansion should be.
+        <em>Plus the two things it isn't.</em>
+      </h2>
+      <p class="fs-sub">
+        A drop-in replacement for <b>TextBlaze</b>, <b>TextExpander</b>, and <b>Magical</b> — with
+        live formulas and a reusable prompt library on top.
+      </p>
+    </header>
+
+    <div class="fs-grid">
+
+      <!-- 01 · Triggers (hero) -->
+      <article class="fs-card fs-hero">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>01 · Triggers</div>
+        <h3 class="fs-card-title">Type a short tag. Watch a full template appear.</h3>
+        <p class="fs-card-body">
+          <code>::quoteEN</code> expands into a <b>200-word multilingual quote</b>.
+          Works in Gmail, Notion, Slack, your CRM — anywhere you can type.
+        </p>
+        <div class="fs-demo" aria-hidden="true">
+          <span class="fs-typed">::quoteEN</span>
+          <div class="fs-arrow">↓</div>
+          <div class="fs-out">
+            Dear guest,<br>
+            Thank you for your interest. The total for 3 nights is
+            <b><span class="fs-num">€450</span></b> <span style="color:var(--fs-ink-subtle)">(€150/night × 3)</span>,
+            including a <b><span class="fs-num">10%</span></b> early-bird discount.
+          </div>
+        </div>
+        <button class="fs-cta" type="button" aria-label="Learn more about triggers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 02 · Formulas -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>02 · Formulas</div>
+        <h3 class="fs-card-title">Real math, inline.</h3>
+        <p class="fs-card-body">
+          <b>Totals, discounts, fees, net prices</b> — calculated the instant a template expands. CSP-safe parser, no <code>eval</code>.
+        </p>
+        <div class="fs-formula" aria-hidden="true">
+          <span class="fs-lbl">Nights × rate</span><span class="fs-val">€450.00</span>
+          <span class="fs-lbl">Early-bird −10%</span><span class="fs-val">−€45.00</span>
+          <span class="fs-lbl">City tax</span><span class="fs-val">+€7.50</span>
+          <span class="fs-divider"></span>
+          <span class="fs-lbl">Total due</span><span class="fs-val fs-hi">€412.50</span>
+        </div>
+        <button class="fs-cta" type="button" aria-label="Learn more about formulas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 03 · Prompts -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>03 · Prompts</div>
+        <h3 class="fs-card-title">A library of reusable prompts.</h3>
+        <p class="fs-card-body">
+          One-shot and few-shot prompts for <b>ChatGPT</b>, <b>Claude</b>, and any model — stored
+          next to your templates, expanded the same way.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about prompts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 04 · Cloud sync -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>04 · Cloud sync</div>
+        <h3 class="fs-card-title">Every device, under a second.</h3>
+        <p class="fs-card-body">
+          Backed by <b>Supabase</b>. Edit on your laptop, paste on your phone — propagated in
+          <b>&lt; 1&nbsp;s</b>, encrypted at rest, no conflicts.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about cloud sync">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 05 · Notion sync -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>05 · Notion sync</div>
+        <h3 class="fs-card-title">Edit where your team already works.</h3>
+        <p class="fs-card-body">
+          Mirror a <b>Notion database</b> as your library — one-way or two-way. Reviewers comment in
+          Notion; expansions update in the extension within the minute.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about Notion sync">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 06 · Mobile -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>06 · Mobile</div>
+        <h3 class="fs-card-title">Your library, on any phone.</h3>
+        <p class="fs-card-body">
+          Browse, search, and copy from <b>iOS</b> and <b>Android</b> — no laptop required.
+          Same library, same shortcuts, same formulas.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about mobile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
     </div>
   </div>
 </section>
