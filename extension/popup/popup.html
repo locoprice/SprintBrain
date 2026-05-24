@@ -72,6 +72,9 @@ html,body{
 .hdr-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .hdr-btn.primary{background:var(--sb-iris);border-color:var(--sb-iris);color:#fff}
 .hdr-btn.primary:hover{background:var(--sb-iris-dark);border-color:var(--sb-iris-dark)}
+.logo-txt{display:flex;flex-direction:column;gap:0}
+.pop-greet{font-size:10px;font-weight:500;color:var(--sb-ink-muted);line-height:1.2;letter-spacing:.05px}
+.pop-name{font-size:14px;font-weight:700;color:var(--sb-ink);line-height:1.2;letter-spacing:-.25px}
 
 /* ── SEARCH ROW ── */
 .srow{
@@ -678,7 +681,10 @@ html,body{
   <div class="hdr">
     <div class="logo">
       <span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
-      <span>SprintBrain</span>
+      <span class="logo-txt">
+        <span class="pop-greet" id="pop-greet">Welcome</span>
+        <span class="pop-name" id="pop-name">SprintBrain</span>
+      </span>
     </div>
     <span id="st" class="pop-count">0 snippets</span>
     <div class="hdr-r">
