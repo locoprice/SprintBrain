@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   AlertCircle,
@@ -151,7 +151,7 @@ function EmailView({
           Your email address
         </h2>
         <p className="text-sm text-ink-muted">
-          We'll send you a passwordless sign-in link.
+          We'll email you a sign-in link and a one-time code.
         </p>
       </div>
 
@@ -178,7 +178,7 @@ function EmailView({
         className="w-full"
         disabled={loading || !email.trim()}
       >
-        {loading ? 'Sending…' : 'Send magic link →'}
+        {loading ? 'Sending…' : 'Continue →'}
       </Button>
 
       <p className="text-center text-xs text-ink-subtle">
@@ -196,10 +196,20 @@ function EmailView({
 
 function SentView({
   email,
+  otpCode,
+  setOtpCode,
+  loading,
+  error,
   onGoTo,
+  onVerifyOtp,
 }: {
   email: string;
+  otpCode: string;
+  setOtpCode: (v: string) => void;
+  loading: boolean;
+  error: string | null;
   onGoTo: (v: AuthModalView) => void;
+  onVerifyOtp: (e: FormEvent) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -207,29 +217,130 @@ function SentView({
         <MailCheck className="h-6 w-6" />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         <h2 className="text-[22px] font-bold tracking-tight text-ink">
-          We emailed you a secure sign-in link.
+          Check your email
         </h2>
         <p className="text-sm text-ink-muted">
-          Click the link in the email we sent to{' '}
-          <span className="font-medium text-ink">{email}</span>. It expires in
-          1 hour.
+          Enter the code we sent to{' '}
+          <span className="font-medium text-ink">{email}</span>.
         </p>
       </div>
 
-      <p className="text-xs text-ink-subtle">
-        Wrong email?{' '}
-        <button
-          type="button"
-          className="font-medium text-primary underline-offset-2 hover:underline"
-          onClick={() => onGoTo('email')}
+      <form onSubmit={onVerifyOtp} className="space-y-4">
+        <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
+
+        {error && <ErrorBanner message={error} />}
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          disabled={loading || otpCode.replace(/\s/g, '').length < OTP_LENGTH}
         >
-          Try again
-        </button>
-        {' · '}
-        Not there? Check your spam folder.
-      </p>
+          {loading ? 'Verifying…' : 'Continue →'}
+        </Button>
+      </form>
+
+      <div className="space-y-1.5 text-center text-xs text-ink-subtle">
+        <p>
+          Or{' '}
+          <span className="font-medium text-ink">click the link in the email</span>
+          {' '}to sign in instantly.
+        </p>
+        <p>
+          Wrong email?{' '}
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+            onClick={() => onGoTo('email')}
+          >
+            Try a different address
+          </button>
+          {' · '}
+          Check your spam folder.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── OTP code input (8 individual digit boxes) ───────────────────────────────
+
+const OTP_LENGTH = 8;
+
+function OtpCodeInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(OTP_LENGTH).fill(null));
+
+  function handleChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '');
+    const digit = raw.slice(-1);
+    const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
+    arr[index] = digit;
+    onChange(arr.join(''));
+    if (digit && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus();
+  }
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
+      if (arr[index]) {
+        arr[index] = '';
+        onChange(arr.join(''));
+      } else if (index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < OTP_LENGTH - 1) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    onChange(pasted);
+    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+  }
+
+  return (
+    <div className="flex justify-center gap-1.5" onPaste={handlePaste}>
+      {Array.from({ length: OTP_LENGTH }, (_, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          pattern="\d"
+          maxLength={2}
+          autoFocus={i === 0}
+          value={value[i] ?? ''}
+          onChange={(e) => handleChange(i, e)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          disabled={disabled}
+          aria-label={`Digit ${i + 1} of ${OTP_LENGTH}`}
+          className={cn(
+            'h-13 w-10 rounded-[10px] border bg-card text-center',
+            'text-lg font-bold text-ink tabular-nums',
+            'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            value[i] ? 'border-primary/40' : 'border-line',
+          )}
+        />
+      ))}
     </div>
   );
 }
@@ -425,10 +536,11 @@ function RecoverySentView({
 
 // ─── Views that display a back button ────────────────────────────────────────
 
-const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'password', 'recovery'];
+const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'sent', 'password', 'recovery'];
 
 function backDestination(view: AuthModalView): AuthModalView {
   if (view === 'email' || view === 'password') return 'landing';
+  if (view === 'sent') return 'email';
   if (view === 'recovery') return 'password';
   return 'landing';
 }
@@ -441,6 +553,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
   const [view, setView] = useState<AuthModalView>(initialView);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -450,6 +563,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       setView(initialView);
       setEmail('');
       setPassword('');
+      setOtpCode('');
       setLoading(false);
       setError(null);
     }
@@ -496,6 +610,32 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       goTo('sent');
     }
     setLoading(false);
+  }
+
+  async function onVerifyOtp(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    const token = otpCode.trim();
+
+    setLoading(true);
+    setError(null);
+
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: trimmed,
+      token,
+      type: 'email',
+    });
+
+    if (err) {
+      analytics.track('auth_failed', { method: 'otp_code', error: err.message });
+      setError(
+        err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('invalid')
+          ? 'That code is incorrect or has expired. Request a new one.'
+          : err.message,
+      );
+      setLoading(false);
+    }
+    // On success onAuthStateChange fires → status becomes 'authed' → useEffect closes modal.
   }
 
   async function onPassword(e: FormEvent) {
@@ -623,7 +763,17 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
                 onMagicLink={onMagicLink}
               />
             )}
-            {view === 'sent' && <SentView email={email} onGoTo={goTo} />}
+            {view === 'sent' && (
+              <SentView
+                email={email}
+                otpCode={otpCode}
+                setOtpCode={setOtpCode}
+                loading={loading}
+                error={error}
+                onGoTo={goTo}
+                onVerifyOtp={onVerifyOtp}
+              />
+            )}
             {view === 'password' && (
               <PasswordView
                 email={email}
