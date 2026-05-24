@@ -108,6 +108,21 @@ img,svg{display:block;max-width:100%}
   line-height:1.1;margin-bottom:16px}
 .section-head p{font-size:18px;color:var(--text2);max-width:580px;margin:0 auto}
 
+/* TRUSTED BY */
+.trusted{padding:32px 24px 40px;border-bottom:1px solid var(--border);background:var(--card)}
+.trusted-inner{max-width:var(--max);margin:0 auto}
+.trusted-label{display:block;text-align:center;font-size:12px;font-weight:600;
+  color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:28px}
+.trusted-track{overflow:hidden;mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+  -webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.trusted-rail{display:flex;gap:56px;width:max-content;animation:marquee 28s linear infinite}
+.trusted-rail:hover{animation-play-state:paused}
+.trusted-logo{display:flex;align-items:center;height:30px;opacity:.38;
+  transition:opacity .25s;filter:grayscale(1);flex-shrink:0}
+.trusted-logo:hover{opacity:.7}
+.trusted-logo svg{height:22px;width:auto}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
 /* FEATURES */
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
 .feature{background:var(--card);border:1px solid var(--border);
@@ -296,8 +311,8 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
     </a>
     <div class="nav-links">
       <a href="#features" class="nav-link">Features</a>
-      <a href="/mobile/" class="nav-link">Mobile</a>
-      <a href="/login" class="nav-link">Sign in</a>
+      <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
+      <a href="https://app.sprintbrain.com/login" class="nav-link">Sign in</a>
       <a href="#install" class="btn btn-primary btn-sm">Install</a>
     </div>
   </div>
@@ -313,7 +328,7 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
         Get early access
       </a>
-      <a href="/mobile/" class="btn btn-ghost">Open mobile app</a>
+      <a href="https://app.sprintbrain.com/mobile/" class="btn btn-ghost">Open mobile app</a>
     </div>
 
     <div class="demo">
@@ -332,6 +347,126 @@ Thank you for your interest. The total for 3 nights is €450 (€150/night x 3)
 
 Best regards,
 LeibTour Team</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trusted">
+  <div class="trusted-inner">
+    <span class="trusted-label">Trusted by operators at</span>
+    <div class="trusted-track">
+      <div class="trusted-rail">
+
+        <!-- Airbnb -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 102 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <path d="M29.2 25.4c-.5 1.1-1.5 2.1-2.9 2.6-1.3.5-2.7.4-3.9-.3-1-.5-1.7-1.4-2.4-2.5l-.2-.4L16 19.6l-3.8 5.2-.2.4c-.7 1.1-1.4 2-2.4 2.5-1.2.7-2.6.8-3.9.3-1.4-.5-2.4-1.5-2.9-2.6-.6-1.2-.6-2.5 0-3.7l8.8-14.5c.4-.6.9-1 1.5-1.3.6-.3 1.3-.4 2-.4.7 0 1.4.1 2 .4.6.3 1.1.7 1.5 1.3l8.8 14.5c.6 1.2.6 2.5-.2 3.7zm-3.6-2.3L16 7.8 6.4 23.1c-.3.5-.3 1.1 0 1.6.3.5.8.9 1.4 1.1.6.2 1.2.1 1.8-.2.4-.2.7-.6 1-1l4.6-6.3h1.6l4.6 6.3c.3.4.6.8 1 1 .6.3 1.2.4 1.8.2.6-.2 1.1-.6 1.4-1.1.3-.5.3-1.1 0-1.6z"/>
+            <path d="M43.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.9-1 2.2-1.7 3.8-1.7 3.5 0 6 2.8 6 6.5s-2.5 6.5-6 6.5c-1.5 0-2.7-.6-3.6-1.5v5.1c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm5.6 9.8c2.2 0 3.8-1.8 3.8-4.4s-1.6-4.4-3.8-4.4c-2.1 0-3.8 1.8-3.8 4.4s1.7 4.4 3.8 4.4z"/>
+            <path d="M57.2 15.2c0-3.7 2.8-6.5 6.6-6.5s6.6 2.8 6.6 6.5-2.8 6.5-6.6 6.5-6.6-2.8-6.6-6.5zm10.9 0c0-2.6-1.8-4.4-4.3-4.4s-4.3 1.8-4.3 4.4 1.8 4.4 4.3 4.4 4.3-1.8 4.3-4.4z"/>
+            <path d="M73.1 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2 1c.7-1.1 1.9-1.8 3.4-1.8.7 0 1.3.1 1.7.3.4.2.5.6.3 1l-.3.7c-.2.4-.6.5-1 .4-.3-.1-.6-.2-1-.2-1.7 0-2.8 1.2-2.8 3.3v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+            <path d="M82 9.8c0-.5.4-.9.9-.9h.8c.5 0 .9.4.9.9v11.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm.8-5.3c.8 0 1.4.6 1.4 1.4s-.6 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/>
+            <path d="M87.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.8-.9 2.1-1.7 3.7-1.7 3 0 4.7 1.9 4.7 5.1v7.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9v-7c0-2.2-1-3.4-2.9-3.4-1.8 0-3 1.3-3 3.4v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+          </svg>
+        </div>
+
+        <!-- Marriott -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 120 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Marriott</text>
+          </svg>
+        </div>
+
+        <!-- Booking.com -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">Booking.com</text>
+          </svg>
+        </div>
+
+        <!-- Expedia -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 100 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Expedia</text>
+          </svg>
+        </div>
+
+        <!-- Hilton -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 88 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Hilton</text>
+          </svg>
+        </div>
+
+        <!-- TripAdvisor -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">TripAdvisor</text>
+          </svg>
+        </div>
+
+        <!-- Accor -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 82 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Accor</text>
+          </svg>
+        </div>
+
+        <!-- IHG -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 58 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="0">IHG</text>
+          </svg>
+        </div>
+
+        <!-- === duplicate set for seamless loop === -->
+
+        <div class="trusted-logo">
+          <svg viewBox="0 0 102 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <path d="M29.2 25.4c-.5 1.1-1.5 2.1-2.9 2.6-1.3.5-2.7.4-3.9-.3-1-.5-1.7-1.4-2.4-2.5l-.2-.4L16 19.6l-3.8 5.2-.2.4c-.7 1.1-1.4 2-2.4 2.5-1.2.7-2.6.8-3.9.3-1.4-.5-2.4-1.5-2.9-2.6-.6-1.2-.6-2.5 0-3.7l8.8-14.5c.4-.6.9-1 1.5-1.3.6-.3 1.3-.4 2-.4.7 0 1.4.1 2 .4.6.3 1.1.7 1.5 1.3l8.8 14.5c.6 1.2.6 2.5-.2 3.7zm-3.6-2.3L16 7.8 6.4 23.1c-.3.5-.3 1.1 0 1.6.3.5.8.9 1.4 1.1.6.2 1.2.1 1.8-.2.4-.2.7-.6 1-1l4.6-6.3h1.6l4.6 6.3c.3.4.6.8 1 1 .6.3 1.2.4 1.8.2.6-.2 1.1-.6 1.4-1.1.3-.5.3-1.1 0-1.6z"/>
+            <path d="M43.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.9-1 2.2-1.7 3.8-1.7 3.5 0 6 2.8 6 6.5s-2.5 6.5-6 6.5c-1.5 0-2.7-.6-3.6-1.5v5.1c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm5.6 9.8c2.2 0 3.8-1.8 3.8-4.4s-1.6-4.4-3.8-4.4c-2.1 0-3.8 1.8-3.8 4.4s1.7 4.4 3.8 4.4z"/>
+            <path d="M57.2 15.2c0-3.7 2.8-6.5 6.6-6.5s6.6 2.8 6.6 6.5-2.8 6.5-6.6 6.5-6.6-2.8-6.6-6.5zm10.9 0c0-2.6-1.8-4.4-4.3-4.4s-4.3 1.8-4.3 4.4 1.8 4.4 4.3 4.4 4.3-1.8 4.3-4.4z"/>
+            <path d="M73.1 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2 1c.7-1.1 1.9-1.8 3.4-1.8.7 0 1.3.1 1.7.3.4.2.5.6.3 1l-.3.7c-.2.4-.6.5-1 .4-.3-.1-.6-.2-1-.2-1.7 0-2.8 1.2-2.8 3.3v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+            <path d="M82 9.8c0-.5.4-.9.9-.9h.8c.5 0 .9.4.9.9v11.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm.8-5.3c.8 0 1.4.6 1.4 1.4s-.6 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/>
+            <path d="M87.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.8-.9 2.1-1.7 3.7-1.7 3 0 4.7 1.9 4.7 5.1v7.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9v-7c0-2.2-1-3.4-2.9-3.4-1.8 0-3 1.3-3 3.4v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 120 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Marriott</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">Booking.com</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 100 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Expedia</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 88 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Hilton</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">TripAdvisor</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 82 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Accor</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 58 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="0">IHG</text>
+          </svg>
+        </div>
+
       </div>
     </div>
   </div>
@@ -460,7 +595,7 @@ LeibTour Team</div>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       Notify me on launch
     </a>
-    <a href="/mobile/" class="btn btn-ghost">Try the mobile app</a>
+    <a href="https://app.sprintbrain.com/mobile/" class="btn btn-ghost">Try the mobile app</a>
   </div>
 </section>
 
@@ -471,12 +606,12 @@ LeibTour Team</div>
       SprintBrain · {{EXT_VERSION}}
     </div>
     <div class="foot-links">
-      <a href="/mobile/">Mobile</a>
+      <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
       <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener">GitHub</a>
       <a href="mailto:sprintbrainapp@gmail.com">Support</a>
-      <a href="/landing/legal/privacy-policy.html">Privacy</a>
-      <a href="/landing/legal/terms-and-conditions.html">Terms</a>
-      <a href="/landing/legal/cookie-policy.html">Cookies</a>
+      <a href="/legal/privacy-policy.html">Privacy</a>
+      <a href="/legal/terms-and-conditions.html">Terms</a>
+      <a href="/legal/cookie-policy.html">Cookies</a>
     </div>
   </div>
 </footer>
