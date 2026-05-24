@@ -22,7 +22,6 @@ export type AuthModalView =
   | 'landing'
   | 'email'
   | 'sent'
-  | 'otp'
   | 'password'
   | 'recovery'
   | 'recovery_sent';
@@ -242,7 +241,7 @@ function EmailView({
           Your email address
         </h2>
         <p className="text-sm text-ink-muted">
-          We'll send you a passwordless sign-in link.
+          We'll email you a sign-in link and a one-time code.
         </p>
       </div>
 
@@ -269,7 +268,7 @@ function EmailView({
         className="w-full"
         disabled={loading || !email.trim()}
       >
-        {loading ? 'Sending…' : 'Send magic link →'}
+        {loading ? 'Sending…' : 'Continue →'}
       </Button>
 
       <p className="text-center text-xs text-ink-subtle">
@@ -287,10 +286,20 @@ function EmailView({
 
 function SentView({
   email,
+  otpCode,
+  setOtpCode,
+  loading,
+  error,
   onGoTo,
+  onVerifyOtp,
 }: {
   email: string;
+  otpCode: string;
+  setOtpCode: (v: string) => void;
+  loading: boolean;
+  error: string | null;
   onGoTo: (v: AuthModalView) => void;
+  onVerifyOtp: (e: FormEvent) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -298,45 +307,51 @@ function SentView({
         <MailCheck className="h-6 w-6" />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         <h2 className="text-[22px] font-bold tracking-tight text-ink">
-          We emailed you a secure sign-in link.
+          Check your email
         </h2>
         <p className="text-sm text-ink-muted">
-          Click the link in the email we sent to{' '}
-          <span className="font-medium text-ink">{email}</span>. It expires in
-          1 hour.
+          Enter the code we sent to{' '}
+          <span className="font-medium text-ink">{email}</span>.
         </p>
       </div>
 
-      <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-3">
-        <p className="text-xs text-ink-muted">
-          Prefer to type a code?{' '}
+      <form onSubmit={onVerifyOtp} className="space-y-4">
+        <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
+
+        {error && <ErrorBanner message={error} />}
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          disabled={loading || otpCode.replace(/\s/g, '').length < OTP_LENGTH}
+        >
+          {loading ? 'Verifying…' : 'Continue →'}
+        </Button>
+      </form>
+
+      <div className="space-y-1.5 text-center text-xs text-ink-subtle">
+        <p>
+          Or{' '}
+          <span className="font-medium text-ink">click the link in the email</span>
+          {' '}to sign in instantly.
+        </p>
+        <p>
+          Wrong email?{' '}
           <button
             type="button"
             className="font-medium text-primary underline-offset-2 hover:underline"
-            onClick={() => onGoTo('otp')}
+            onClick={() => onGoTo('email')}
           >
-            Enter the 8-digit code instead →
+            Try a different address
           </button>
-        </p>
-        <p className="mt-1 text-[11px] text-ink-subtle">
-          The same email contains an 8-digit code you can paste here.
+          {' · '}
+          Check your spam folder.
         </p>
       </div>
-
-      <p className="text-xs text-ink-subtle">
-        Wrong email?{' '}
-        <button
-          type="button"
-          className="font-medium text-primary underline-offset-2 hover:underline"
-          onClick={() => onGoTo('email')}
-        >
-          Try again
-        </button>
-        {' · '}
-        Not there? Check your spam folder.
-      </p>
     </div>
   );
 }
@@ -417,59 +432,6 @@ function OtpCodeInput({
         />
       ))}
     </div>
-  );
-}
-
-function OtpView({
-  email,
-  otpCode,
-  setOtpCode,
-  loading,
-  error,
-  onGoTo,
-  onVerifyOtp,
-}: BaseViewProps & {
-  email: string;
-  otpCode: string;
-  setOtpCode: (v: string) => void;
-  onVerifyOtp: (e: FormEvent) => void;
-}) {
-  return (
-    <form onSubmit={onVerifyOtp} className="space-y-5">
-      <div className="space-y-1">
-        <h2 className="text-[22px] font-bold tracking-tight text-ink">
-          Enter your sign-in code
-        </h2>
-        <p className="text-sm text-ink-muted">
-          We sent an 8-digit code to{' '}
-          <span className="font-medium text-ink">{email}</span>.
-        </p>
-      </div>
-
-      <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
-
-      {error && <ErrorBanner message={error} />}
-
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        className="w-full"
-        disabled={loading || otpCode.replace(/\s/g, '').length < OTP_LENGTH}
-      >
-        {loading ? 'Verifying…' : 'Verify code →'}
-      </Button>
-
-      <p className="text-center text-xs text-ink-subtle">
-        <button
-          type="button"
-          className="text-ink-muted underline-offset-2 hover:underline"
-          onClick={() => onGoTo('sent')}
-        >
-          ← Use magic link instead
-        </button>
-      </p>
-    </form>
   );
 }
 
@@ -664,11 +626,11 @@ function RecoverySentView({
 
 // ─── Views that display a back button ────────────────────────────────────────
 
-const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'otp', 'password', 'recovery'];
+const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'sent', 'password', 'recovery'];
 
 function backDestination(view: AuthModalView): AuthModalView {
   if (view === 'email' || view === 'password') return 'landing';
-  if (view === 'otp') return 'sent';
+  if (view === 'sent') return 'email';
   if (view === 'recovery') return 'password';
   return 'landing';
 }
@@ -907,9 +869,8 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
                 onMagicLink={onMagicLink}
               />
             )}
-            {view === 'sent' && <SentView email={email} onGoTo={goTo} />}
-            {view === 'otp' && (
-              <OtpView
+            {view === 'sent' && (
+              <SentView
                 email={email}
                 otpCode={otpCode}
                 setOtpCode={setOtpCode}
