@@ -1,7 +1,7 @@
 {
   "name": "sprintbrain-dashboard",
   "private": true,
-  "version": "2.45.1",
+  "version": "2.46.0",
   "type": "module",
   "description": "SprintBrain SaaS dashboard (desktop-only). React + Vite + Tailwind + shadcn.",
   "scripts": {
