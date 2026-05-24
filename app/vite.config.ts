@@ -124,7 +124,11 @@ function landingVersionPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url ?? '').split('?')[0];
-        if (pathname === '/landing/' || pathname === '/landing/index.html') {
+        if (
+          pathname === '/landing' ||
+          pathname === '/landing/' ||
+          pathname === '/landing/index.html'
+        ) {
           try {
             const html = stamp(fs.readFileSync(sourceFile, 'utf-8'));
             res.setHeader('Content-Type', 'text/html; charset=utf-8');

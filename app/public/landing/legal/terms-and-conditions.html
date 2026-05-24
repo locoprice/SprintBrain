@@ -10,16 +10,16 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0d0f12;
-    --surface: #141720;
-    --border: rgba(255,255,255,0.08);
-    --text-primary: #f0f2f7;
-    --text-secondary: #8b90a0;
-    --text-muted: #555b6e;
-    --accent: #5b8df6;
-    --accent-soft: rgba(91,141,246,0.12);
-    --warning: #f59e0b;
-    --warning-soft: rgba(245,158,11,0.1);
+    --bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --border: #E5E5EA;
+    --text-primary: #1C1C1E;
+    --text-secondary: #6E6E73;
+    --text-muted: #8E8E93;
+    --accent: #1B4FD8;
+    --accent-soft: #EEF2FF;
+    --warning: #B45309;
+    --warning-soft: rgba(254,188,46,0.12);
     --font-display: 'DM Serif Display', Georgia, serif;
     --font-body: 'DM Sans', system-ui, sans-serif;
     --font-mono: 'DM Mono', monospace;
@@ -29,7 +29,7 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(13,15,18,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(250,250,250,0.95); backdrop-filter: blur(12px); z-index: 100; }
   .logo { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; color: var(--text-primary); }
   .logo span { color: var(--accent); }
   .header-nav { display: flex; gap: 1.5rem; font-size: 0.875rem; }
@@ -50,7 +50,7 @@
   .doc-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
   .badge { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; padding: 0.25rem 0.625rem; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
   .badge-version { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
-  .badge-free { background: rgba(52,211,153,0.12); color: #34d399; }
+  .badge-free { background: rgba(52,199,89,0.1); color: #15803D; }
   .doc-date { font-size: 0.8125rem; color: var(--text-muted); }
 
   h1 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 1rem; }
@@ -68,15 +68,15 @@
   ul, ol { color: var(--text-secondary); padding-left: 1.25rem; margin-bottom: 1rem; }
   li { margin-bottom: 0.375rem; }
 
-  .info-box { background: var(--accent-soft); border: 1px solid rgba(91,141,246,0.25); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .info-box { background: var(--accent-soft); border: 1px solid #BED0FF; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
   .info-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
 
-  .warning-box { background: var(--warning-soft); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .warning-box { background: var(--warning-soft); border: 1px solid rgba(254,188,46,0.3); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
   .warning-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
   .warning-box strong { color: var(--warning); }
 
-  .free-banner { border: 1px solid rgba(52,211,153,0.2); background: rgba(52,211,153,0.07); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
-  .free-banner p { color: #34d399; margin: 0; font-size: 0.9375rem; }
+  .free-banner { border: 1px solid rgba(52,199,89,0.2); background: rgba(52,199,89,0.08); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .free-banner p { color: #15803D; margin: 0; font-size: 0.9375rem; }
 
   .contact-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
   .contact-block p { margin-bottom: 0.5rem; }
@@ -141,7 +141,7 @@
     <!-- 1 -->
     <div class="section" id="acceptance">
       <h2>01 &nbsp;Acceptance of Terms</h2>
-      <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("User", "you") and Alessandro Verdicchio, operating SprintBrain as a self-employed individual (autónomo) registered in Ibiza, Balearic Islands, Spain ("SprintBrain", "we", "us"), governing your access to and use of the SprintBrain Chrome Extension, the SprintBrain web application at sprintbrain.com, and any related services (collectively, the "Service").</p>
+      <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("User", "you") and Alessandro Verdicchio, operating SprintBrain as a self-employed individual (libero professionista) registered in Maddaloni (CE), Italy ("SprintBrain", "we", "us"), governing your access to and use of the SprintBrain Chrome Extension, the SprintBrain web application at sprintbrain.com, and any related services (collectively, the "Service").</p>
       <p>If you do not agree to these Terms, do not install or use the Service. Use of the Service by persons under 16 years of age is not permitted.</p>
     </div>
 
@@ -190,7 +190,7 @@
     <div class="section" id="prohibited">
       <h2>05 &nbsp;Prohibited Conduct</h2>
       <div class="warning-box">
-        <p><strong>Warning:</strong> Violation of this section may result in immediate account termination and may expose you to civil or criminal liability under applicable Spanish and EU law.</p>
+        <p><strong>Warning:</strong> Violation of this section may result in immediate account termination and may expose you to civil or criminal liability under applicable Italian and EU law.</p>
       </div>
       <p>You must not use SprintBrain to:</p>
       <ul>
@@ -233,7 +233,7 @@
         <li>Third-party integrations (Supabase, Notion) will remain continuously available.</li>
         <li>The extension will function identically across all browsers, operating systems, or website environments.</li>
       </ul>
-      <p>Where statutory consumer warranties apply under Spanish or EU law, they are not excluded by this disclaimer.</p>
+      <p>Where statutory consumer warranties apply under Italian or EU law, they are not excluded by this disclaimer.</p>
     </div>
 
     <!-- 9 -->
@@ -241,7 +241,7 @@
       <h2>09 &nbsp;Limitation of Liability</h2>
       <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, ALESSANDRO VERDICCHIO SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF DATA, LOSS OF PROFITS, OR BUSINESS INTERRUPTION, ARISING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE.</p>
       <p>As SprintBrain is currently provided free of charge, our total aggregate liability to you for any claim arising from use of the Service shall not exceed <strong>€50 EUR</strong>.</p>
-      <p>Nothing in these Terms excludes or limits liability for death or personal injury caused by negligence, fraud or fraudulent misrepresentation, or any other liability that cannot be excluded under applicable Spanish or EU consumer law.</p>
+      <p>Nothing in these Terms excludes or limits liability for death or personal injury caused by negligence, fraud or fraudulent misrepresentation, or any other liability that cannot be excluded under applicable Italian or EU consumer law.</p>
     </div>
 
     <!-- 10 -->
@@ -271,8 +271,8 @@
     <!-- 12 -->
     <div class="section" id="governing-law">
       <h2>12 &nbsp;Governing Law &amp; Disputes</h2>
-      <p>These Terms are governed by the laws of Spain. EU consumer protection law applicable in your country of residence also applies and is not overridden by this clause.</p>
-      <p>Any dispute arising from these Terms should first be raised informally by contacting Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. If not resolved within 30 days, the dispute shall be submitted to the competent courts of Ibiza (Eivissa), Spain, unless mandatory law in your jurisdiction provides otherwise.</p>
+      <p>These Terms are governed by the laws of Italy. EU consumer protection law applicable in your country of residence also applies and is not overridden by this clause.</p>
+      <p>Any dispute arising from these Terms should first be raised informally by contacting Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. If not resolved within 30 days, the dispute shall be submitted to the competent courts of Santa Maria Capua Vetere, Italy, unless mandatory law in your jurisdiction provides otherwise.</p>
       <p>EU consumers may also use the European Commission's Online Dispute Resolution platform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">ec.europa.eu/consumers/odr</a>.</p>
     </div>
 

@@ -32,6 +32,8 @@ export interface SnippetsApi {
   shareWithNotion(id: string): Promise<{ notion_page_id: string }>;
   /** Move multiple snippets to a folder in a single idempotent request. */
   bulkMoveSnippets(ids: string[], folderId: string | null): Promise<void>;
+  /** Delete multiple snippets in a single request. */
+  bulkDeleteSnippets(ids: string[]): Promise<void>;
 }
 
 type DbFolder = {
@@ -362,6 +364,18 @@ export const snippetsApi: SnippetsApi = {
     const { error } = await supabase
       .from('snippets')
       .update({ folder_id: folderId, updated_at: new Date().toISOString() })
+      .in('id', ids)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  // Delete multiple snippets in one request.
+  async bulkDeleteSnippets(ids) {
+    if (ids.length === 0) return;
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('snippets')
+      .delete()
       .in('id', ids)
       .eq('user_id', userId);
     if (error) throw error;

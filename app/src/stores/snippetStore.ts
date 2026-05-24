@@ -27,6 +27,8 @@ interface SnippetStore {
   languageFilter: Snippet['language'] | null;
   /** True while a bulk-move network request is in flight. */
   bulkMoving: boolean;
+  /** True while a bulk-delete network request is in flight. */
+  bulkDeleting: boolean;
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
@@ -40,6 +42,8 @@ interface SnippetStore {
   setLanguageFilter: (lang: Snippet['language'] | null) => void;
   /** Move selected snippets to a folder in one network request. Clears selection on success. */
   bulkMoveSnippets: (ids: string[], folderId: string | null) => Promise<void>;
+  /** Delete multiple snippets in one network request. Clears selection on success. */
+  bulkDeleteSnippets: (ids: string[]) => Promise<void>;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
   addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
@@ -83,6 +87,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   sortDir: 'desc',
   languageFilter: null,
   bulkMoving: false,
+  bulkDeleting: false,
   load: async () => {
     set({ loading: true, error: null });
     try {
@@ -156,6 +161,28 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         snippets: preState,
         bulkMoving: false,
         error: err instanceof Error ? err.message : 'Failed to move snippets',
+      });
+      throw err;
+    }
+  },
+
+  bulkDeleteSnippets: async (ids) => {
+    if (ids.length === 0) return;
+    const preState = get().snippets;
+    // Optimistic removal.
+    set((s) => ({
+      snippets: s.snippets.filter((sn) => !ids.includes(sn.id)),
+      bulkDeleting: true,
+    }));
+    try {
+      await snippetsApi.bulkDeleteSnippets(ids);
+      set({ selectedIds: new Set<string>(), bulkDeleting: false, error: null });
+    } catch (err) {
+      // Rollback optimistic removal on failure.
+      set({
+        snippets: preState,
+        bulkDeleting: false,
+        error: err instanceof Error ? err.message : 'Failed to delete snippets',
       });
       throw err;
     }
