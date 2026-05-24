@@ -22,18 +22,29 @@ export interface Folder {
   updated_at: IsoDateTime;
 }
 
+export type SnippetLanguage = 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
+
+/**
+ * Per-language body slots. Each key holds the body the user typed while that
+ * language pill was active. `content` is a denormalized mirror of
+ * `bodies[language]` so the Chrome extension (which reads `body` directly
+ * from the snippets table) keeps working unchanged.
+ */
+export type SnippetBodies = Partial<Record<SnippetLanguage, string>>;
+
 export interface Snippet {
   id: Uuid;
   user_id: Uuid;
   name: string;
   content: string;
+  bodies: SnippetBodies;
   triggers: string[];
   tags: string[];
   is_formula: boolean;
   formula: string | null;
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
-  language: 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
+  language: SnippetLanguage;
   is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean;

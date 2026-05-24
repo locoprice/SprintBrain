@@ -13,6 +13,7 @@ interface ExportItem {
   name: string;
   trigger: string;
   content: string;
+  bodies: SnippetRow['bodies'];
   language: SnippetRow['language'];
   folder_name: string | null;
   pinned: boolean;
@@ -29,6 +30,7 @@ export function exportSnippets(snippets: SnippetRow[]): void {
       name: s.name,
       trigger: s.triggers[0] ?? '',
       content: s.content,
+      bodies: s.bodies,
       language: s.language,
       folder_name: s.folder_name,
       pinned: s.pinned,
@@ -85,11 +87,27 @@ function coerceItem(raw: Record<string, unknown>): SnippetFormValues | null {
   const trigger = sanitizeTrigger(triggerRaw);
   if (!trigger) return null;
 
+  const language = normalizeLang(raw['language'] ?? raw['lang']);
+  // Pull `bodies` from native exports if present; fall back to seeding the
+  // active language slot with `content` so the imported row already has a
+  // valid per-language map.
+  const bodies: SnippetFormValues['bodies'] = { [language]: content };
+  const rawBodies = raw['bodies'];
+  if (rawBodies && typeof rawBodies === 'object') {
+    for (const [key, value] of Object.entries(rawBodies)) {
+      const upper = key.toUpperCase();
+      if (VALID_LANGS.has(upper) && typeof value === 'string' && value.length > 0) {
+        bodies[upper as SnippetFormValues['language']] = value;
+      }
+    }
+  }
+
   return {
     name,
     trigger,
     content,
-    language: normalizeLang(raw['language'] ?? raw['lang']),
+    bodies,
+    language,
     folder_id: null,
     pinned: raw['pinned'] === true,
     is_shared: false,

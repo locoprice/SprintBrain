@@ -85,6 +85,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-2),
   },
   {
@@ -105,6 +106,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-1),
   },
   {
@@ -125,6 +127,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-3),
   },
   {
@@ -145,6 +148,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-12),
   },
   {
@@ -165,6 +169,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-7),
   },
   {
@@ -185,6 +190,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-4),
   },
   {
@@ -205,6 +211,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-15),
   },
   {
@@ -225,6 +232,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-1),
   },
   {
@@ -245,6 +253,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-2),
   },
   {
@@ -265,6 +274,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-6),
   },
   {
@@ -285,6 +295,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-9),
   },
   {
@@ -305,6 +316,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-20),
   },
   {
@@ -325,6 +337,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-90),
   },
   {
@@ -345,6 +358,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-5),
   },
   {
@@ -365,6 +379,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-8),
   },
   {
@@ -385,6 +400,7 @@ export const mockSnippets: Snippet[] = [
     enable_urgency_timer: false,
     timer_duration_ms: 0,
     scarcity_count: 0,
+    bodies: {},
     updated_at: day(-30),
   },
 ];

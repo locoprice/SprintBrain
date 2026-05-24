@@ -19,18 +19,25 @@ export const folderSchema = z.object({
   sort_order: z.number().int().nonnegative(),
 });
 
+const languageEnum = z.enum(['EN', 'IT', 'ES', 'FR', 'MULTI']);
+
+// Bodies keyed by language. Every key is optional — only languages the user
+// has actually typed into will be present after a save.
+export const snippetBodiesSchema = z.record(languageEnum, z.string()).default({});
+
 export const snippetSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
   name: z.string().min(1),
   content: z.string(),
+  bodies: snippetBodiesSchema,
   triggers: z.array(z.string()),
   tags: z.array(z.string()),
   is_formula: z.boolean(),
   formula: z.string().nullable(),
   variables: z.record(z.unknown()),
   folder_id: z.string().uuid().nullable(),
-  language: z.enum(['EN', 'IT', 'ES', 'FR', 'MULTI']),
+  language: languageEnum,
   updated_at: z.string(),
 });
 
@@ -55,8 +62,9 @@ export const snippetFormSchema = z.object({
     .max(60, 'Trigger must be 60 characters or fewer')
     .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, hyphens, and underscores only'),
   content: z.string().min(1, 'Content is required'),
+  bodies: snippetBodiesSchema,
   folder_id: z.string().uuid().nullable(),
-  language: z.enum(['EN', 'IT', 'ES', 'FR', 'MULTI']),
+  language: languageEnum,
   pinned: z.boolean().default(false),
   is_shared: z.boolean().default(false),
   enable_urgency_timer: z.boolean().default(false),
