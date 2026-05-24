@@ -511,8 +511,8 @@ body{
   <div class="mhero">
     <div class="mhello">
       <div>
-        <div class="mgreet">Welcome to</div>
-        <div class="mname">SprintBrain</div>
+        <div class="mgreet">Welcome</div>
+        <div class="mname" id="hero-name">SprintBrain</div>
       </div>
       <button class="hdr-btn" id="logout-btn" aria-label="Sign out" title="Sign out">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1897,7 +1897,20 @@ document.querySelector('.mtab').addEventListener('click',function(e){
 });
 
 /* ── INIT ───────────────────────────────────────── */
-if(requireAuth())loadSnips();
+function applyHeroName(){
+  var u=SESSION&&SESSION.user;
+  if(!u)return;
+  var meta=u.user_metadata||{};
+  var full=(meta.full_name||meta.name||'').trim();
+  var first=full.split(/\s+/)[0];
+  if(!first){
+    var e=u.email||'';
+    first=e.split('@')[0];
+    if(first)first=first.charAt(0).toUpperCase()+first.slice(1);
+  }
+  if(first)document.getElementById('hero-name').textContent=first;
+}
+if(requireAuth()){applyHeroName();loadSnips();}
 </script>
 </body>
 </html>
