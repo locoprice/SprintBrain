@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   AlertCircle,
@@ -22,6 +22,7 @@ export type AuthModalView =
   | 'landing'
   | 'email'
   | 'sent'
+  | 'otp'
   | 'password'
   | 'recovery'
   | 'recovery_sent';
@@ -308,6 +309,22 @@ function SentView({
         </p>
       </div>
 
+      <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-3">
+        <p className="text-xs text-ink-muted">
+          Prefer to type a code?{' '}
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+            onClick={() => onGoTo('otp')}
+          >
+            Enter the 6-digit code instead →
+          </button>
+        </p>
+        <p className="mt-1 text-[11px] text-ink-subtle">
+          The same email contains a 6-digit code you can paste here.
+        </p>
+      </div>
+
       <p className="text-xs text-ink-subtle">
         Wrong email?{' '}
         <button
@@ -321,6 +338,136 @@ function SentView({
         Not there? Check your spam folder.
       </p>
     </div>
+  );
+}
+
+// ─── OTP code input (6 individual digit boxes) ───────────────────────────────
+
+function OtpCodeInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null, null, null, null]);
+
+  function handleChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '');
+    const digit = raw.slice(-1);
+    const arr = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
+    arr[index] = digit;
+    onChange(arr.join(''));
+    if (digit && index < 5) inputRefs.current[index + 1]?.focus();
+  }
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const arr = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
+      if (arr[index]) {
+        arr[index] = '';
+        onChange(arr.join(''));
+      } else if (index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    onChange(pasted);
+    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+  }
+
+  return (
+    <div className="flex justify-center gap-2" onPaste={handlePaste}>
+      {([0, 1, 2, 3, 4, 5] as const).map((i) => (
+        <input
+          key={i}
+          ref={(el) => { inputRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          pattern="\d"
+          maxLength={2}
+          autoFocus={i === 0}
+          value={value[i] ?? ''}
+          onChange={(e) => handleChange(i, e)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          disabled={disabled}
+          aria-label={`Digit ${i + 1} of 6`}
+          className={cn(
+            'h-14 w-11 rounded-[10px] border bg-card text-center',
+            'text-xl font-bold text-ink tabular-nums',
+            'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            value[i] ? 'border-primary/40' : 'border-line',
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OtpView({
+  email,
+  otpCode,
+  setOtpCode,
+  loading,
+  error,
+  onGoTo,
+  onVerifyOtp,
+}: BaseViewProps & {
+  email: string;
+  otpCode: string;
+  setOtpCode: (v: string) => void;
+  onVerifyOtp: (e: FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onVerifyOtp} className="space-y-5">
+      <div className="space-y-1">
+        <h2 className="text-[22px] font-bold tracking-tight text-ink">
+          Enter your sign-in code
+        </h2>
+        <p className="text-sm text-ink-muted">
+          We sent a 6-digit code to{' '}
+          <span className="font-medium text-ink">{email}</span>.
+        </p>
+      </div>
+
+      <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
+
+      {error && <ErrorBanner message={error} />}
+
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        className="w-full"
+        disabled={loading || otpCode.replace(/\s/g, '').length < 6}
+      >
+        {loading ? 'Verifying…' : 'Verify code →'}
+      </Button>
+
+      <p className="text-center text-xs text-ink-subtle">
+        <button
+          type="button"
+          className="text-ink-muted underline-offset-2 hover:underline"
+          onClick={() => onGoTo('sent')}
+        >
+          ← Use magic link instead
+        </button>
+      </p>
+    </form>
   );
 }
 
@@ -515,10 +662,11 @@ function RecoverySentView({
 
 // ─── Views that display a back button ────────────────────────────────────────
 
-const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'password', 'recovery'];
+const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'otp', 'password', 'recovery'];
 
 function backDestination(view: AuthModalView): AuthModalView {
   if (view === 'email' || view === 'password') return 'landing';
+  if (view === 'otp') return 'sent';
   if (view === 'recovery') return 'password';
   return 'landing';
 }
@@ -531,6 +679,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
   const [view, setView] = useState<AuthModalView>(initialView);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -540,6 +689,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       setView(initialView);
       setEmail('');
       setPassword('');
+      setOtpCode('');
       setLoading(false);
       setError(null);
     }
@@ -605,6 +755,32 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       goTo('sent');
     }
     setLoading(false);
+  }
+
+  async function onVerifyOtp(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    const token = otpCode.trim();
+
+    setLoading(true);
+    setError(null);
+
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: trimmed,
+      token,
+      type: 'email',
+    });
+
+    if (err) {
+      analytics.track('auth_failed', { method: 'otp_code', error: err.message });
+      setError(
+        err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('invalid')
+          ? 'That code is incorrect or has expired. Request a new one.'
+          : err.message,
+      );
+      setLoading(false);
+    }
+    // On success onAuthStateChange fires → status becomes 'authed' → useEffect closes modal.
   }
 
   async function onPassword(e: FormEvent) {
@@ -730,6 +906,17 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
               />
             )}
             {view === 'sent' && <SentView email={email} onGoTo={goTo} />}
+            {view === 'otp' && (
+              <OtpView
+                email={email}
+                otpCode={otpCode}
+                setOtpCode={setOtpCode}
+                loading={loading}
+                error={error}
+                onGoTo={goTo}
+                onVerifyOtp={onVerifyOtp}
+              />
+            )}
             {view === 'password' && (
               <PasswordView
                 email={email}
