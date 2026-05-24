@@ -317,11 +317,11 @@ function SentView({
             className="font-medium text-primary underline-offset-2 hover:underline"
             onClick={() => onGoTo('otp')}
           >
-            Enter the 6-digit code instead →
+            Enter the 8-digit code instead →
           </button>
         </p>
         <p className="mt-1 text-[11px] text-ink-subtle">
-          The same email contains a 6-digit code you can paste here.
+          The same email contains an 8-digit code you can paste here.
         </p>
       </div>
 
@@ -341,7 +341,9 @@ function SentView({
   );
 }
 
-// ─── OTP code input (6 individual digit boxes) ───────────────────────────────
+// ─── OTP code input (8 individual digit boxes) ───────────────────────────────
+
+const OTP_LENGTH = 8;
 
 function OtpCodeInput({
   value,
@@ -352,21 +354,21 @@ function OtpCodeInput({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null, null, null, null]);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(OTP_LENGTH).fill(null));
 
   function handleChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value.replace(/\D/g, '');
     const digit = raw.slice(-1);
-    const arr = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
+    const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
     arr[index] = digit;
     onChange(arr.join(''));
-    if (digit && index < 5) inputRefs.current[index + 1]?.focus();
+    if (digit && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus();
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Backspace') {
       e.preventDefault();
-      const arr = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
+      const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
       if (arr[index]) {
         arr[index] = '';
         onChange(arr.join(''));
@@ -376,7 +378,7 @@ function OtpCodeInput({
     } else if (e.key === 'ArrowLeft' && index > 0) {
       e.preventDefault();
       inputRefs.current[index - 1]?.focus();
-    } else if (e.key === 'ArrowRight' && index < 5) {
+    } else if (e.key === 'ArrowRight' && index < OTP_LENGTH - 1) {
       e.preventDefault();
       inputRefs.current[index + 1]?.focus();
     }
@@ -384,14 +386,14 @@ function OtpCodeInput({
 
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
     onChange(pasted);
-    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
   }
 
   return (
-    <div className="flex justify-center gap-2" onPaste={handlePaste}>
-      {([0, 1, 2, 3, 4, 5] as const).map((i) => (
+    <div className="flex justify-center gap-1.5" onPaste={handlePaste}>
+      {Array.from({ length: OTP_LENGTH }, (_, i) => (
         <input
           key={i}
           ref={(el) => { inputRefs.current[i] = el; }}
@@ -404,10 +406,10 @@ function OtpCodeInput({
           onChange={(e) => handleChange(i, e)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           disabled={disabled}
-          aria-label={`Digit ${i + 1} of 6`}
+          aria-label={`Digit ${i + 1} of ${OTP_LENGTH}`}
           className={cn(
-            'h-14 w-11 rounded-[10px] border bg-card text-center',
-            'text-xl font-bold text-ink tabular-nums',
+            'h-13 w-10 rounded-[10px] border bg-card text-center',
+            'text-lg font-bold text-ink tabular-nums',
             'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40',
             'disabled:cursor-not-allowed disabled:opacity-50',
             value[i] ? 'border-primary/40' : 'border-line',
@@ -439,7 +441,7 @@ function OtpView({
           Enter your sign-in code
         </h2>
         <p className="text-sm text-ink-muted">
-          We sent a 6-digit code to{' '}
+          We sent an 8-digit code to{' '}
           <span className="font-medium text-ink">{email}</span>.
         </p>
       </div>
@@ -453,7 +455,7 @@ function OtpView({
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={loading || otpCode.replace(/\s/g, '').length < 6}
+        disabled={loading || otpCode.replace(/\s/g, '').length < OTP_LENGTH}
       >
         {loading ? 'Verifying…' : 'Verify code →'}
       </Button>
