@@ -10,17 +10,17 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0d0f12;
-    --surface: #141720;
-    --border: rgba(255,255,255,0.08);
-    --text-primary: #f0f2f7;
-    --text-secondary: #8b90a0;
-    --text-muted: #555b6e;
-    --accent: #5b8df6;
-    --accent-soft: rgba(91,141,246,0.12);
-    --success: #34d399;
-    --warning: #f59e0b;
-    --warning-soft: rgba(245,158,11,0.1);
+    --bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --border: #E5E5EA;
+    --text-primary: #1C1C1E;
+    --text-secondary: #6E6E73;
+    --text-muted: #8E8E93;
+    --accent: #1B4FD8;
+    --accent-soft: #EEF2FF;
+    --success: #15803D;
+    --warning: #B45309;
+    --warning-soft: rgba(254,188,46,0.12);
     --font-display: 'DM Serif Display', Georgia, serif;
     --font-body: 'DM Sans', system-ui, sans-serif;
     --font-mono: 'DM Mono', monospace;
@@ -30,7 +30,7 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(13,15,18,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .site-header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(250,250,250,0.95); backdrop-filter: blur(12px); z-index: 100; }
   .logo { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; color: var(--text-primary); }
   .logo span { color: var(--accent); }
   .header-nav { display: flex; gap: 1.5rem; font-size: 0.875rem; }
@@ -50,8 +50,8 @@
 
   .doc-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
   .badge { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; padding: 0.25rem 0.625rem; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
-  .badge-gdpr { background: rgba(52,211,153,0.12); color: var(--success); }
-  .badge-ccpa { background: rgba(91,141,246,0.12); color: var(--accent); }
+  .badge-gdpr { background: rgba(52,199,89,0.1); color: var(--success); }
+  .badge-ccpa { background: var(--accent-soft); color: var(--accent); }
   .badge-todo { background: var(--warning-soft); color: var(--warning); }
   .doc-date { font-size: 0.8125rem; color: var(--text-muted); }
 
@@ -70,11 +70,11 @@
   ul, ol { color: var(--text-secondary); padding-left: 1.25rem; margin-bottom: 1rem; }
   li { margin-bottom: 0.375rem; }
 
-  .info-box { background: var(--accent-soft); border: 1px solid rgba(91,141,246,0.25); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  .info-box { background: var(--accent-soft); border: 1px solid #BED0FF; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
   .info-box p { color: var(--text-primary); margin: 0; font-size: 0.9375rem; }
 
   .permission-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 1.25rem 0; }
-  .permission-table th { text-align: left; padding: 0.625rem 1rem; background: rgba(255,255,255,0.04); color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  .permission-table th { text-align: left; padding: 0.625rem 1rem; background: #F2F2F7; color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
   .permission-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
   .permission-table tr:last-child td { border-bottom: none; }
   .permission-table td:first-child { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); white-space: nowrap; }
@@ -162,10 +162,10 @@
       <h2>02 &nbsp;Data Controller</h2>
       <p><strong>Product name:</strong> SprintBrain</p>
       <p><strong>Data controller:</strong> Alessandro Verdicchio</p>
-      <p><strong>Operating as:</strong> Self-employed individual (autónomo), Spain</p>
-      <p><strong>Registered address:</strong> Ibiza, Balearic Islands, Spain (EU)</p>
+      <p><strong>Operating as:</strong> Self-employed individual (libero professionista), Italy</p>
+      <p><strong>Registered address:</strong> Via San Francesco d'Assisi, 154, Maddaloni (CE), 81024, Italy</p>
       <p><strong>Contact:</strong> <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
-      <p>As the data controller, Alessandro Verdicchio is responsible for the lawful processing of your personal data in compliance with Regulation (EU) 2016/679 (GDPR) and the Spanish Organic Law 3/2018 (LOPDGDD).</p>
+      <p>As the data controller, Alessandro Verdicchio is responsible for the lawful processing of your personal data in compliance with Regulation (EU) 2016/679 (GDPR) and the Italian Legislative Decree 196/2003 (Codice Privacy) as amended by D.Lgs. 101/2018.</p>
     </div>
 
     <!-- 3 -->
@@ -313,7 +313,7 @@
           <p class="right-desc">Request that we limit how we process your data in specific circumstances.</p>
         </div>
       </div>
-      <p>To exercise any of these rights, contact Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. We will respond within 30 days. California residents: we do not sell personal data. EU residents have the right to lodge a complaint with the Spanish data protection authority: <a href="https://www.aepd.es" target="_blank" rel="noopener">Agencia Española de Protección de Datos (AEPD)</a>.</p>
+      <p>To exercise any of these rights, contact Alessandro Verdicchio at <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a>. We will respond within 30 days. California residents: we do not sell personal data. EU residents have the right to lodge a complaint with the Italian data protection authority: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>.</p>
     </div>
 
     <!-- 10 -->
@@ -334,7 +334,7 @@
       <div class="contact-block">
         <p><strong>Alessandro Verdicchio</strong> — Data Controller, SprintBrain</p>
         <p>Email: <a href="mailto:sprintbrainapp@gmail.com">sprintbrainapp@gmail.com</a></p>
-        <p>Address: Ibiza, Balearic Islands, Spain (EU)</p>
+        <p>Address: Via San Francesco d'Assisi, 154, Maddaloni (CE), 81024, Italy</p>
       </div>
     </div>
 

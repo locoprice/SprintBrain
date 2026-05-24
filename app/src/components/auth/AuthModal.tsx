@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   AlertCircle,
@@ -32,57 +32,6 @@ export interface AuthModalProps {
   initialView: AuthModalView;
 }
 
-// ─── Brand icons (inlined SVG — no external deps) ─────────────────────────────
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden="true">
-      <path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <path
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        fill="#EA4335"
-      />
-    </svg>
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 shrink-0"
-      aria-hidden="true"
-      fill="currentColor"
-    >
-      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-    </svg>
-  );
-}
-
-function AppleIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 shrink-0"
-      aria-hidden="true"
-      fill="currentColor"
-    >
-      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11" />
-    </svg>
-  );
-}
-
 // ─── Reusable sub-components ──────────────────────────────────────────────────
 
 function BrandMark() {
@@ -98,15 +47,6 @@ function BrandMark() {
   );
 }
 
-function OrDivider() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="h-px flex-1 bg-line" />
-      <span className="text-xs font-medium text-ink-subtle">or</span>
-      <div className="h-px flex-1 bg-line" />
-    </div>
-  );
-}
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -164,14 +104,7 @@ interface WithPassword {
   setPassword: (v: string) => void;
 }
 
-function LandingView({
-  loading,
-  error,
-  onGoTo,
-  onSocialAuth,
-}: BaseViewProps & {
-  onSocialAuth: (provider: 'google' | 'github' | 'apple') => void;
-}) {
+function LandingView({ loading, error, onGoTo }: BaseViewProps) {
   return (
     <div className="space-y-5">
       <div className="space-y-1">
@@ -180,29 +113,6 @@ function LandingView({
         </h2>
         <p className="text-sm text-ink-muted">Sign up or log in to your account</p>
       </div>
-
-      <div className="space-y-2.5">
-        <SocialButton
-          icon={<GoogleIcon />}
-          label="Continue with Google"
-          onClick={() => onSocialAuth('google')}
-          disabled={loading}
-        />
-        <SocialButton
-          icon={<GitHubIcon />}
-          label="Continue with GitHub"
-          onClick={() => onSocialAuth('github')}
-          disabled={loading}
-        />
-        <SocialButton
-          icon={<AppleIcon />}
-          label="Continue with Apple"
-          onClick={() => onSocialAuth('apple')}
-          disabled={loading}
-        />
-      </div>
-
-      <OrDivider />
 
       <SocialButton
         icon={<Mail className="h-5 w-5 shrink-0" />}
@@ -241,7 +151,7 @@ function EmailView({
           Your email address
         </h2>
         <p className="text-sm text-ink-muted">
-          We'll send you a passwordless sign-in link.
+          We'll email you a sign-in link and a one-time code.
         </p>
       </div>
 
@@ -268,7 +178,7 @@ function EmailView({
         className="w-full"
         disabled={loading || !email.trim()}
       >
-        {loading ? 'Sending…' : 'Send magic link →'}
+        {loading ? 'Sending…' : 'Continue →'}
       </Button>
 
       <p className="text-center text-xs text-ink-subtle">
@@ -286,10 +196,20 @@ function EmailView({
 
 function SentView({
   email,
+  otpCode,
+  setOtpCode,
+  loading,
+  error,
   onGoTo,
+  onVerifyOtp,
 }: {
   email: string;
+  otpCode: string;
+  setOtpCode: (v: string) => void;
+  loading: boolean;
+  error: string | null;
   onGoTo: (v: AuthModalView) => void;
+  onVerifyOtp: (e: FormEvent) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -297,29 +217,130 @@ function SentView({
         <MailCheck className="h-6 w-6" />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         <h2 className="text-[22px] font-bold tracking-tight text-ink">
-          We emailed you a secure sign-in link.
+          Check your email
         </h2>
         <p className="text-sm text-ink-muted">
-          Click the link in the email we sent to{' '}
-          <span className="font-medium text-ink">{email}</span>. It expires in
-          1 hour.
+          Enter the code we sent to{' '}
+          <span className="font-medium text-ink">{email}</span>.
         </p>
       </div>
 
-      <p className="text-xs text-ink-subtle">
-        Wrong email?{' '}
-        <button
-          type="button"
-          className="font-medium text-primary underline-offset-2 hover:underline"
-          onClick={() => onGoTo('email')}
+      <form onSubmit={onVerifyOtp} className="space-y-4">
+        <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
+
+        {error && <ErrorBanner message={error} />}
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          disabled={loading || otpCode.replace(/\s/g, '').length < OTP_LENGTH}
         >
-          Try again
-        </button>
-        {' · '}
-        Not there? Check your spam folder.
-      </p>
+          {loading ? 'Verifying…' : 'Continue →'}
+        </Button>
+      </form>
+
+      <div className="space-y-1.5 text-center text-xs text-ink-subtle">
+        <p>
+          Or{' '}
+          <span className="font-medium text-ink">click the link in the email</span>
+          {' '}to sign in instantly.
+        </p>
+        <p>
+          Wrong email?{' '}
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+            onClick={() => onGoTo('email')}
+          >
+            Try a different address
+          </button>
+          {' · '}
+          Check your spam folder.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── OTP code input (8 individual digit boxes) ───────────────────────────────
+
+const OTP_LENGTH = 8;
+
+function OtpCodeInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(OTP_LENGTH).fill(null));
+
+  function handleChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '');
+    const digit = raw.slice(-1);
+    const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
+    arr[index] = digit;
+    onChange(arr.join(''));
+    if (digit && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus();
+  }
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const arr = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
+      if (arr[index]) {
+        arr[index] = '';
+        onChange(arr.join(''));
+      } else if (index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < OTP_LENGTH - 1) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    onChange(pasted);
+    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+  }
+
+  return (
+    <div className="flex justify-center gap-1.5" onPaste={handlePaste}>
+      {Array.from({ length: OTP_LENGTH }, (_, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          pattern="\d"
+          maxLength={2}
+          autoFocus={i === 0}
+          value={value[i] ?? ''}
+          onChange={(e) => handleChange(i, e)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          disabled={disabled}
+          aria-label={`Digit ${i + 1} of ${OTP_LENGTH}`}
+          className={cn(
+            'h-13 w-10 rounded-[10px] border bg-card text-center',
+            'text-lg font-bold text-ink tabular-nums',
+            'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            value[i] ? 'border-primary/40' : 'border-line',
+          )}
+        />
+      ))}
     </div>
   );
 }
@@ -419,7 +440,7 @@ function PasswordView({
           className="text-ink-muted underline-offset-2 hover:underline"
           onClick={() => onGoTo('landing')}
         >
-          Use Google or magic link
+          Use magic link
         </button>
       </div>
     </form>
@@ -515,10 +536,11 @@ function RecoverySentView({
 
 // ─── Views that display a back button ────────────────────────────────────────
 
-const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'password', 'recovery'];
+const VIEWS_WITH_BACK: AuthModalView[] = ['email', 'sent', 'password', 'recovery'];
 
 function backDestination(view: AuthModalView): AuthModalView {
   if (view === 'email' || view === 'password') return 'landing';
+  if (view === 'sent') return 'email';
   if (view === 'recovery') return 'password';
   return 'landing';
 }
@@ -531,6 +553,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
   const [view, setView] = useState<AuthModalView>(initialView);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -540,6 +563,7 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       setView(initialView);
       setEmail('');
       setPassword('');
+      setOtpCode('');
       setLoading(false);
       setError(null);
     }
@@ -556,25 +580,6 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
   function goTo(next: AuthModalView) {
     setError(null);
     setView(next);
-  }
-
-  async function onSocialAuth(provider: 'google' | 'github' | 'apple') {
-    analytics.track('auth_method_selected', { method: provider });
-    analytics.track('signup_started', { method: provider });
-    setLoading(true);
-    setError(null);
-
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-
-    if (err) {
-      analytics.track('auth_failed', { method: provider, error: err.message });
-      setError(err.message);
-      setLoading(false);
-    }
-    // On success the browser navigates to the OAuth provider — loading stays true.
   }
 
   async function onMagicLink(e: FormEvent) {
@@ -605,6 +610,32 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
       goTo('sent');
     }
     setLoading(false);
+  }
+
+  async function onVerifyOtp(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    const token = otpCode.trim();
+
+    setLoading(true);
+    setError(null);
+
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: trimmed,
+      token,
+      type: 'email',
+    });
+
+    if (err) {
+      analytics.track('auth_failed', { method: 'otp_code', error: err.message });
+      setError(
+        err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('invalid')
+          ? 'That code is incorrect or has expired. Request a new one.'
+          : err.message,
+      );
+      setLoading(false);
+    }
+    // On success onAuthStateChange fires → status becomes 'authed' → useEffect closes modal.
   }
 
   async function onPassword(e: FormEvent) {
@@ -676,9 +707,13 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
 
         <DialogPrimitive.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-full max-w-[440px]',
-            '-translate-x-1/2 -translate-y-1/2',
-            'rounded-[20px] border border-line bg-card p-7 shadow-md',
+            'fixed z-50',
+            // Mobile: stretch to screen edges with 16px gutters, anchored near the top
+            'inset-x-4 top-[8dvh] max-h-[90dvh] overflow-y-auto',
+            // sm+: revert to centered floating card (original desktop behaviour)
+            'sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-[440px]',
+            'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:overflow-visible',
+            'rounded-[20px] border border-line bg-card p-5 sm:p-7 shadow-md',
             'data-[state=open]:animate-fade-in focus:outline-none',
           )}
         >
@@ -716,7 +751,6 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
                 loading={loading}
                 error={error}
                 onGoTo={goTo}
-                onSocialAuth={onSocialAuth}
               />
             )}
             {view === 'email' && (
@@ -729,7 +763,17 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
                 onMagicLink={onMagicLink}
               />
             )}
-            {view === 'sent' && <SentView email={email} onGoTo={goTo} />}
+            {view === 'sent' && (
+              <SentView
+                email={email}
+                otpCode={otpCode}
+                setOtpCode={setOtpCode}
+                loading={loading}
+                error={error}
+                onGoTo={goTo}
+                onVerifyOtp={onVerifyOtp}
+              />
+            )}
             {view === 'password' && (
               <PasswordView
                 email={email}

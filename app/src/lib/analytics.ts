@@ -10,11 +10,7 @@ type AuthEventName =
 
 type EventProperties = Record<string, string | number | boolean | null | undefined>;
 
-function track(event: AuthEventName, properties?: EventProperties): void {
-  if (import.meta.env.DEV) {
-    console.info(`[analytics] ${event}`, properties ?? {});
-    return;
-  }
+function track(_event: AuthEventName, _properties?: EventProperties): void {
   // Future integration: PostHog, Segment, or a Supabase analytics table.
 }
 
