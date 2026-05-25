@@ -99,7 +99,8 @@ const RELEASE_DATE = latestTagged?.date    ?? '';
 // extension/manifest.json) — in dev via middleware, in prod by rewriting the
 // emitted file. The badge can never drift from a release again.
 
-const EXT_VERSION_TOKEN = '{{EXT_VERSION}}';
+const EXT_VERSION_TOKEN  = '{{EXT_VERSION}}';
+const RELEASE_DATE_TOKEN = '{{RELEASE_DATE}}';
 
 function readExtensionVersion(): string {
   try {
@@ -113,11 +114,21 @@ function readExtensionVersion(): string {
   }
 }
 
+function formatReleaseDate(iso: string): string {
+  if (!iso) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [year, month, day] = iso.split('-').map(Number);
+  return `${months[month - 1]} ${day}, ${year}`;
+}
+
 function landingVersionPlugin(): Plugin {
-  const version = readExtensionVersion();
-  const sourceFile = path.resolve(__dirname, 'public/landing/index.html');
-  const distFile = path.resolve(__dirname, 'dist/landing/index.html');
-  const stamp = (html: string): string => html.split(EXT_VERSION_TOKEN).join(version);
+  const version     = readExtensionVersion();
+  const releaseDate = formatReleaseDate(RELEASE_DATE);
+  const sourceFile  = path.resolve(__dirname, 'public/landing/index.html');
+  const distFile    = path.resolve(__dirname, 'dist/landing/index.html');
+  const stamp = (html: string): string =>
+    html.split(EXT_VERSION_TOKEN).join(version)
+        .split(RELEASE_DATE_TOKEN).join(releaseDate);
 
   return {
     name: 'sprintbrain-landing-version',
