@@ -64,7 +64,7 @@ export function AnalyticsPage() {
         />
         <KpiCard
           label="Top trigger"
-          value={`::${summary.top_trigger}`}
+          value={summary.top_trigger.replace(/^:+/, '')}
           icon={Hash}
           hint={`${summary.top_triggers[0]?.count ?? 0} uses`}
         />
