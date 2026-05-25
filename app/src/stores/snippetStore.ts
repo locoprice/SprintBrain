@@ -51,6 +51,8 @@ interface SnippetStore {
   removeSnippet: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a snippet. Optimistic; rolls back on failure. */
   togglePin: (id: string) => Promise<void>;
+  /** Toggle the is_active flag on a snippet. Optimistic; rolls back on failure. */
+  toggleActive: (id: string) => Promise<void>;
   /** Duplicate a snippet. Returns the new row. */
   duplicateSnippet: (id: string) => Promise<SnippetRow>;
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
@@ -270,6 +272,35 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           sn.id === id ? { ...sn, pinned: target.pinned } : sn,
         ),
         error: err instanceof Error ? err.message : 'Failed to toggle pin',
+      }));
+      throw err;
+    }
+  },
+
+  toggleActive: async (id) => {
+    const target = get().snippets.find((s) => s.id === id);
+    if (!target) return;
+    const next = !target.is_active;
+    // Optimistic update so the row dims (or un-dims) immediately.
+    set((s) => ({
+      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_active: next } : sn)),
+    }));
+    try {
+      const row = await snippetsApi.setActive(id, next);
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...row, folder_name: row.folder_name ?? folder?.name ?? null } : sn,
+        ),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback optimistic update on failure.
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...sn, is_active: target.is_active } : sn,
+        ),
+        error: err instanceof Error ? err.message : 'Failed to toggle snippet status',
       }));
       throw err;
     }

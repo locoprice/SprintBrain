@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Trash2, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
+import { SnippetRowActions } from '@/features/snippets/SnippetRowActions';
 import {
   useFilteredSnippets,
   useSnippetStore,
@@ -87,7 +88,6 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
-  const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const shareSnippet = useSnippetStore((s) => s.shareSnippet);
   const unshareSnippet = useSnippetStore((s) => s.unshareSnippet);
   const sharingIds = useSnippetStore((s) => s.sharingIds);
@@ -175,14 +175,6 @@ export function SnippetsTable() {
     );
   }
 
-  async function handleDelete(id: string) {
-    try {
-      await removeSnippet(id);
-    } catch {
-      // Error surfaces via store.error → page-level banner.
-    }
-  }
-
   async function handleShareToggle(e: React.MouseEvent, id: string, currentlyShared: boolean) {
     e.stopPropagation();
     try {
@@ -248,7 +240,7 @@ export function SnippetsTable() {
               <Users className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
             </th>
             <th
-              className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-2 py-3"
+              className="sticky top-0 z-10 w-[88px] border-b border-line bg-bg-alt px-2 py-3"
               aria-label="Actions"
             />
           </tr>
@@ -272,7 +264,11 @@ export function SnippetsTable() {
                   isSelected
                     ? 'bg-primary-light hover:bg-primary-light/80'
                     : 'hover:bg-bg-alt/60',
+                  // Soft-disabled snippets dim to ~50% so users can spot which
+                  // rows are turned off at a glance without losing the data.
+                  !row.is_active && 'opacity-50',
                 )}
+                title={!row.is_active ? 'Disabled — will not expand in the extension' : undefined}
               >
                 {/* Checkbox cell */}
                 <td
@@ -356,19 +352,11 @@ export function SnippetsTable() {
                     </button>
                   )}
                 </td>
-                <td className="px-2 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(row.id);
-                    }}
-                    aria-label={`Delete ${row.name}`}
-                    title={`Delete ${row.name}`}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-ink-subtle opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <td
+                  className="px-2 py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SnippetRowActions snippet={row} />
                 </td>
               </tr>
             );

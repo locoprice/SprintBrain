@@ -48,6 +48,12 @@ export interface Snippet {
   is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean;
+  /**
+   * Soft-disable flag (SNIPPET-DISABLE-001). When false the extension hides
+   * the snippet from the context menu and refuses to expand its trigger; the
+   * dashboard still displays it so it can be re-enabled.
+   */
+  is_active: boolean;
   enable_urgency_timer: boolean;
   timer_duration_ms: number;
   scarcity_count: number;

@@ -77,10 +77,15 @@ var SB_CURRENT_USER_ID = null;
 var DB = {
   loadAll: function() {
     // Show the current user's own snippets plus any shared by teammates.
+    // SNIPPET-DISABLE-001: is_active=eq.true filters out soft-disabled
+    // snippets so they don't appear in the popup picker and don't make it
+    // into chrome.storage.local — which means content.js trigger matching
+    // skips them automatically. The dashboard remains the only surface that
+    // shows disabled snippets (so they can be re-enabled).
     var uid = SB_CURRENT_USER_ID;
     var snipQs = uid
-      ? 'select=*&order=sort_order&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-      : 'select=*&order=sort_order&is_shared=eq.true';
+      ? 'select=*&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
+      : 'select=*&order=sort_order&is_active=eq.true&is_shared=eq.true';
     return Promise.all([
       supaFetch('folders',       'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
       supaFetch('snippets',      'GET', null, snipQs).then(function(r){ return r.json(); }),

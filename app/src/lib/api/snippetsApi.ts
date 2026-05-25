@@ -21,6 +21,8 @@ export interface SnippetsApi {
   deleteSnippet(id: string): Promise<void>;
   /** Toggle pinned flag without touching other fields. */
   setPinned(id: string, pinned: boolean): Promise<SnippetRow>;
+  /** Toggle is_active flag without touching other fields. */
+  setActive(id: string, isActive: boolean): Promise<SnippetRow>;
   /** Insert a copy of an existing snippet with a "(copy)" name suffix. */
   duplicateSnippet(id: string): Promise<SnippetRow>;
   createFolder(payload: FolderFormValues): Promise<Folder>;
@@ -62,6 +64,7 @@ type DbSnippetJoined = {
   is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean | null;
+  is_active: boolean | null;
   enable_urgency_timer: boolean | null;
   timer_duration_ms: number | null;
   scarcity_count: number | null;
@@ -138,6 +141,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     is_shared: row.is_shared ?? false,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
+    is_active: row.is_active ?? true,
     enable_urgency_timer: row.enable_urgency_timer ?? false,
     timer_duration_ms: row.timer_duration_ms ?? 0,
     scarcity_count: row.scarcity_count ?? 0,
@@ -175,7 +179,7 @@ async function readLanguage(
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, is_active, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the
@@ -369,6 +373,19 @@ export const snippetsApi: SnippetsApi = {
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
+  async setActive(id, isActive) {
+    const userId = await currentUserId();
+    const { data, error } = await supabase
+      .from('snippets')
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(SNIPPET_SELECT)
+      .single();
+    if (error) throw error;
+    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
   async duplicateSnippet(id) {
     const userId = await currentUserId();
     // Read the source row first so we copy every column (incl. urgency + pin).
@@ -394,9 +411,11 @@ export const snippetsApi: SnippetsApi = {
       sort_order: Date.now(),
       updated_at: now,
       // A duplicate starts unpinned + unshared so the copy doesn't inherit
-      // distribution state from the source.
+      // distribution state from the source. It does inherit is_active so
+      // cloning a disabled snippet yields a disabled copy (predictable).
       pinned: false,
       is_shared: false,
+      is_active: source.is_active ?? true,
       enable_urgency_timer: source.enable_urgency_timer ?? false,
       timer_duration_ms: source.timer_duration_ms ?? 0,
       scarcity_count: source.scarcity_count ?? 0,
