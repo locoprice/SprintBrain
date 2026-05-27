@@ -48,7 +48,7 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 | `line`       | `#E5E5EA` | Hairline border                              |
 | `ink`        | `#1C1C1E` | Primary text                                 |
 | `ink-muted`  | `#6E6E73` | Secondary text                               |
-| `ink-subtle` | `#8E8E93` | Tertiary text / hints                        |
+| `ink-subtle` | `#6B6B70` | Tertiary text / hints (WCAG AA ≥4.5:1 on `card` / `bg` / `bg-alt`) |
 
 #### Primary (single — Azure)
 
@@ -82,7 +82,7 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 | --------- | --------- | ------------------ |
 | `success` | `#34C759` | Confirmation, deltas (Apple semantic green) |
 | `warning` | `#FEBC2E` | Caution            |
-| `danger`  | `#E74C3C` | Destructive (Apple semantic red) |
+| `danger`  | `#D70015` | Destructive (Apple SF system red — AA-safe as text on `card`) |
 
 #### Radii
 

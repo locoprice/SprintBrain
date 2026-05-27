@@ -162,7 +162,7 @@ export function Sidebar() {
                 >
                   <Briefcase className="h-4 w-4 text-[#8E8E93]" />
                   Investor relations
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
               {RESOURCE_LINKS.bugs && (
@@ -175,7 +175,7 @@ export function Sidebar() {
                 >
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
                   Report a bug
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
               {RESOURCE_LINKS.github && (
@@ -188,17 +188,17 @@ export function Sidebar() {
                 >
                   <Github className="h-4 w-4 text-[#8E8E93]" />
                   GitHub
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
               <span
                 title="Link coming soon"
                 aria-disabled="true"
-                className="flex cursor-default items-center gap-3 px-3 py-2.5 text-sm text-[#636366]"
+                className="flex cursor-default items-center gap-3 px-3 py-2.5 text-sm text-[#9B9BA1]"
               >
-                <Activity className="h-4 w-4 text-[#636366]" />
+                <Activity className="h-4 w-4 text-[#9B9BA1]" />
                 Status
-                <span className="ml-auto rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#636366]">
+                <span className="ml-auto rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#9B9BA1]">
                   Soon
                 </span>
               </span>

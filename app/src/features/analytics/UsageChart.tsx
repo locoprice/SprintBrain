@@ -37,13 +37,13 @@ export function UsageChart({ data }: UsageChartProps) {
               <CartesianGrid stroke="#E5E5EA" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: '#8E8E93' }}
+                tick={{ fontSize: 11, fill: '#6B6B70' }}
                 axisLine={{ stroke: '#E5E5EA' }}
                 tickLine={false}
                 interval={4}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#8E8E93' }}
+                tick={{ fontSize: 11, fill: '#6B6B70' }}
                 axisLine={false}
                 tickLine={false}
                 width={32}
