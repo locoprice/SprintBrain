@@ -66,6 +66,24 @@ export interface SnippetStat {
   used_at: IsoDateTime;
 }
 
+// ── Prompt v2 enum types ──────────────────────────────────────────────────────
+
+export type StrategyType = 'CoT' | 'ToT' | 'Few-shot' | 'One-shot' | 'RAG' | 'Agentic';
+export type ThinkingMode = 'fast' | 'balanced' | 'deep';
+export type PreferredModel = 'claude-opus-4-7' | 'claude-sonnet-4-6' | 'claude-haiku-4-5';
+export type ComplexityLevel = 'simple' | 'medium' | 'complex';
+export type ExecutionType = 'Generate' | 'Analyze' | 'Plan' | 'Critique' | 'Summarize' | 'Transform';
+export type IntentCategory = 'Writing' | 'Coding' | 'Support' | 'SEO' | 'Analysis' | 'Planning' | 'Research' | 'Teaching';
+export type OutputType = 'JSON' | 'Markdown' | 'SOP' | 'Plain';
+
+export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'reasoning' | 'constraints';
+
+export interface PromptBlock {
+  type: PromptBlockType;
+  content: string;
+  enabled: boolean;
+}
+
 export interface Prompt {
   id: Uuid;
   user_id: Uuid;
@@ -73,6 +91,14 @@ export interface Prompt {
   content: string;
   type: 'one-shot' | 'few-shot';
   tags: string[];
+  strategy_type: StrategyType | null;
+  thinking_mode: ThinkingMode | null;
+  preferred_model: PreferredModel | null;
+  complexity_level: ComplexityLevel | null;
+  execution_type: ExecutionType | null;
+  intent_category: IntentCategory | null;
+  output_type: OutputType | null;
+  blocks: PromptBlock[] | null;
   updated_at: IsoDateTime;
   last_used_at: IsoDateTime | null;
 }
