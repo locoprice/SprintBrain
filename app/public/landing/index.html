@@ -146,13 +146,33 @@ img,svg{display:block;max-width:100%}
 .cta .btn-ghost{color:#fff;border-color:rgba(255,255,255,.3)}
 .cta .btn-ghost:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.5)}
 
+/* FOOTER STATEMENT */
+.foot-statement{background:#0d0d0d;padding:clamp(64px,10vw,120px) clamp(24px,6vw,80px) clamp(72px,11vw,140px);overflow:hidden}
+.foot-statement-inner{max-width:1400px;margin:0 auto}
+.foot-statement h2{
+  font-size:clamp(52px,9.5vw,148px);
+  font-weight:800;
+  line-height:1.0;
+  letter-spacing:-0.03em;
+  color:#fff;
+  margin:0;
+  white-space:normal}
+.foot-statement h2 span{color:var(--primary)}
+.foot-statement-sub{
+  margin-top:clamp(20px,3vw,36px);
+  font-size:clamp(15px,1.4vw,19px);
+  color:#6E6E73;
+  font-weight:400;
+  letter-spacing:0}
+
 /* FOOTER */
-footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)}
+footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
 .foot-inner{max-width:var(--max);margin:0 auto;display:flex;
   align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text2)}
-.foot-links{display:flex;gap:20px;font-size:13.5px;color:var(--text3)}
-.foot-links a:hover{color:var(--text)}
+.foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:#6E6E73}
+.foot-links{display:flex;gap:20px;font-size:13.5px;color:#48484A}
+.foot-links a{color:#48484A}
+.foot-links a:hover{color:#fff}
 
 @media (max-width:640px){
   .hero{padding:56px 20px 48px}
@@ -497,7 +517,7 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · {{EXT_VERSION}}</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.49.1</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <div class="hero-ctas">
@@ -892,11 +912,17 @@ LeibTour Team</div>
   </div>
 </section>
 
+<section class="foot-statement">
+  <div class="foot-statement-inner">
+    <h2>Type once.<br><span>Use it everywhere.</span></h2>
+  </div>
+</section>
+
 <footer>
   <div class="foot-inner">
     <div class="foot-brand">
       <div class="brand-logo" style="width:22px;height:22px;font-size:12px">S</div>
-      © SprintBrain · {{EXT_VERSION}} · Updated {{RELEASE_DATE}}
+      © 2026 SprintBrain · v2.49.1 · Updated May 2026
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
