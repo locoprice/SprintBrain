@@ -55,8 +55,7 @@ export function TopTriggersTable({ data }: TopTriggersTableProps) {
               >
                 <td className="px-6 py-3">
                   <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-                    <span className="font-normal opacity-45">::</span>
-                    <span>{row.trigger}</span>
+                    {row.trigger.replace(/^:+/, '')}
                   </code>
                 </td>
                 <td className="px-6 py-3">

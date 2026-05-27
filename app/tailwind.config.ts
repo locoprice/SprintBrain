@@ -56,7 +56,7 @@ const config: Config = {
         lg: '16px',
       },
       maxWidth: {
-        content: '1280px',
+        content: '1600px',
       },
       keyframes: {
         'fade-in': {

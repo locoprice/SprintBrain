@@ -39,6 +39,7 @@ const EMPTY_FORM: SnippetFormValues = {
   name: '',
   trigger: '',
   content: '',
+  bodies: {},
   folder_id: null,
   language: 'EN',
   pinned: false,
@@ -115,10 +116,18 @@ export function NewSnippetDialog() {
     setSubmitError(null);
     setConfirmDelete(false);
     if (editingSnippet) {
+      // Bodies map drives the textarea — start by trusting the snippet's
+      // per-language map, with a fallback so legacy rows (no `bodies` yet)
+      // still surface their existing single body under the active language.
+      const initialBodies: SnippetFormValues['bodies'] = { ...editingSnippet.bodies };
+      if (!initialBodies[editingSnippet.language]) {
+        initialBodies[editingSnippet.language] = editingSnippet.content;
+      }
       setForm({
         name:                 editingSnippet.name,
         trigger:              editingSnippet.triggers[0] ?? '',
-        content:              editingSnippet.content,
+        content:              initialBodies[editingSnippet.language] ?? '',
+        bodies:               initialBodies,
         folder_id:            editingSnippet.folder_id,
         language:             editingSnippet.language,
         pinned:               editingSnippet.pinned,
@@ -139,13 +148,24 @@ export function NewSnippetDialog() {
   function insertAtCursor(value: string) {
     const el = contentRef.current;
     if (!el) {
-      setForm((prev) => ({ ...prev, content: prev.content + value }));
+      setForm((prev) => {
+        const next = prev.content + value;
+        return {
+          ...prev,
+          content: next,
+          bodies: { ...prev.bodies, [prev.language]: next },
+        };
+      });
       return;
     }
     const start = el.selectionStart ?? el.value.length;
     const end   = el.selectionEnd   ?? el.value.length;
     const next  = el.value.slice(0, start) + value + el.value.slice(end);
-    setForm((prev) => ({ ...prev, content: next }));
+    setForm((prev) => ({
+      ...prev,
+      content: next,
+      bodies: { ...prev.bodies, [prev.language]: next },
+    }));
     // Restore cursor right after the inserted text on the next frame.
     requestAnimationFrame(() => {
       el.focus();
@@ -173,6 +193,36 @@ export function NewSnippetDialog() {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  // Typing in the textarea writes to BOTH the active language slot and the
+  // `content` mirror so the rest of the form (validation, submit) stays
+  // consistent without re-reading bodies[language] everywhere.
+  function updateBody(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      content: value,
+      bodies: { ...prev.bodies, [prev.language]: value },
+    }));
+    if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+  }
+
+  // Switching language: snapshot the current textarea into the OLD language's
+  // slot, then load the NEW language's slot into the textarea. Untouched
+  // languages keep whatever they had — no silent overwrites.
+  function changeLanguage(nextLang: SnippetFormValues['language']) {
+    setForm((prev) => {
+      if (prev.language === nextLang) return prev;
+      const snapshot = { ...prev.bodies, [prev.language]: prev.content };
+      return {
+        ...prev,
+        language: nextLang,
+        bodies: snapshot,
+        content: snapshot[nextLang] ?? '',
+      };
+    });
+    if (errors.language) setErrors((prev) => ({ ...prev, language: undefined }));
+    if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -332,7 +382,7 @@ export function NewSnippetDialog() {
                 ref={contentRef}
                 rows={12}
                 value={form.content}
-                onChange={(e) => updateField('content', e.target.value)}
+                onChange={(e) => updateBody(e.target.value)}
                 disabled={saving}
                 className={cn(
                   'w-full resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
@@ -383,25 +433,36 @@ export function NewSnippetDialog() {
                 {LANG_PICKER.map((lang) => {
                   const cfg = LANG_CONFIG[lang];
                   const isActive = form.language === lang;
+                  // Dot shown next to the label when this language already has
+                  // body text saved (and it isn't the one currently being
+                  // edited), so it's visible at a glance which slots are filled.
+                  const hasContent = (form.bodies[lang] ?? '').length > 0;
+                  const showDot = hasContent && !isActive;
                   return (
                     <button
                       key={lang}
                       type="button"
                       disabled={saving}
-                      onClick={() => updateField('language', lang)}
+                      onClick={() => changeLanguage(lang)}
                       style={
                         isActive
                           ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
                           : undefined
                       }
                       className={cn(
-                        'h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
+                        'relative h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
                         isActive
                           ? 'shadow-sm'
                           : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
                       )}
                     >
                       {cfg.label}
+                      {showDot && (
+                        <span
+                          aria-hidden
+                          className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"
+                        />
+                      )}
                     </button>
                   );
                 })}

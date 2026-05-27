@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Folder, Snippet, SnippetRow } from '@/types/database';
+import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
 const EDGE_FN_SHARE = 'notion-snippet-push';
@@ -21,6 +21,8 @@ export interface SnippetsApi {
   deleteSnippet(id: string): Promise<void>;
   /** Toggle pinned flag without touching other fields. */
   setPinned(id: string, pinned: boolean): Promise<SnippetRow>;
+  /** Toggle is_active flag without touching other fields. */
+  setActive(id: string, isActive: boolean): Promise<SnippetRow>;
   /** Insert a copy of an existing snippet with a "(copy)" name suffix. */
   duplicateSnippet(id: string): Promise<SnippetRow>;
   createFolder(payload: FolderFormValues): Promise<Folder>;
@@ -32,6 +34,8 @@ export interface SnippetsApi {
   shareWithNotion(id: string): Promise<{ notion_page_id: string }>;
   /** Move multiple snippets to a folder in a single idempotent request. */
   bulkMoveSnippets(ids: string[], folderId: string | null): Promise<void>;
+  /** Delete multiple snippets in a single request. */
+  bulkDeleteSnippets(ids: string[]): Promise<void>;
 }
 
 type DbFolder = {
@@ -51,6 +55,7 @@ type DbSnippetJoined = {
   title: string;
   shortcut: string;
   body: string;
+  bodies: Record<string, unknown> | null;
   lang: string;
   folder_id: string | null;
   field_cfg: Record<string, unknown> | null;
@@ -59,6 +64,7 @@ type DbSnippetJoined = {
   is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean | null;
+  is_active: boolean | null;
   enable_urgency_timer: boolean | null;
   timer_duration_ms: number | null;
   scarcity_count: number | null;
@@ -71,6 +77,30 @@ type LangTuple = typeof LANGS;
 function normalizeLang(v: string | null | undefined): Snippet['language'] {
   const upper = (v ?? '').toUpperCase() as LangTuple[number];
   return LANGS.includes(upper) ? upper : 'MULTI';
+}
+
+/**
+ * Coerce the raw `bodies` JSONB value into a typed SnippetBodies map. Old rows
+ * that pre-date the per-language migration (or have an empty bodies object)
+ * fall back to `{ [language]: body }` so the dashboard form has something to
+ * show the moment a user opens them.
+ */
+function normalizeBodies(
+  raw: Record<string, unknown> | null,
+  fallbackLang: Snippet['language'],
+  fallbackBody: string,
+): SnippetBodies {
+  const out: SnippetBodies = {};
+  if (raw && typeof raw === 'object') {
+    for (const key of LANGS) {
+      const v = raw[key];
+      if (typeof v === 'string' && v.length > 0) out[key] = v;
+    }
+  }
+  if (Object.keys(out).length === 0 && fallbackBody) {
+    out[fallbackLang] = fallbackBody;
+  }
+  return out;
 }
 
 function dbFolderToFolder(row: DbFolder): Folder {
@@ -90,11 +120,14 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
       ? row.snippet_stats[0].uses
       : 0;
   const body = row.body ?? '';
+  const language = normalizeLang(row.lang);
+  const bodies = normalizeBodies(row.bodies, language, body);
   return {
     id: row.id,
     user_id: row.user_id ?? '',
     name: row.title ?? '',
     content: body,
+    bodies,
     // Schema has a single `shortcut`; dashboard expects an array.
     triggers: row.shortcut ? [row.shortcut] : [],
     // `tags` doesn't exist in the Supabase schema yet.
@@ -104,10 +137,11 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     formula: null,
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
-    language: normalizeLang(row.lang),
+    language,
     is_shared: row.is_shared ?? false,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
+    is_active: row.is_active ?? true,
     enable_urgency_timer: row.enable_urgency_timer ?? false,
     timer_duration_ms: row.timer_duration_ms ?? 0,
     scarcity_count: row.scarcity_count ?? 0,
@@ -124,8 +158,47 @@ async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
+/**
+ * Read just the language tag for one snippet. Used by updateSnippet when the
+ * caller patches `content` or `bodies` without explicitly providing a new
+ * language — we need the existing language to know which slot the active
+ * body belongs to.
+ */
+async function readLanguage(
+  id: string,
+  userId: string,
+): Promise<Snippet['language']> {
+  const { data, error } = await supabase
+    .from('snippets')
+    .select('lang')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single();
+  if (error) throw error;
+  return normalizeLang((data as { lang: string | null } | null)?.lang);
+}
+
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, is_active, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+
+/**
+ * Build the canonical bodies map that gets persisted. Always includes the
+ * active language under its own key (mirrors `body`) and preserves whatever
+ * the form already had for inactive languages.
+ */
+function mergeActiveBody(
+  bodies: SnippetBodies | undefined,
+  language: Snippet['language'],
+  activeBody: string,
+): SnippetBodies {
+  const next: SnippetBodies = { ...(bodies ?? {}) };
+  if (activeBody.length > 0) {
+    next[language] = activeBody;
+  } else {
+    delete next[language];
+  }
+  return next;
+}
 
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
@@ -154,12 +227,14 @@ export const snippetsApi: SnippetsApi = {
     const userId = await currentUserId();
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
+    const bodies = mergeActiveBody(payload.bodies, payload.language, payload.content);
     const insert = {
       id,
       user_id: userId,
       title: payload.name,
       shortcut: payload.trigger,
       body: payload.content,
+      bodies,
       lang: payload.language,
       folder_id: payload.folder_id,
       field_cfg: {},
@@ -187,7 +262,6 @@ export const snippetsApi: SnippetsApi = {
     };
     if (patch.name !== undefined) update['title'] = patch.name;
     if (patch.trigger !== undefined) update['shortcut'] = patch.trigger;
-    if (patch.content !== undefined) update['body'] = patch.content;
     if (patch.language !== undefined) update['lang'] = patch.language;
     if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
     if (patch.pinned !== undefined) update['pinned'] = patch.pinned;
@@ -197,6 +271,20 @@ export const snippetsApi: SnippetsApi = {
     if (patch.timer_duration_ms !== undefined)
       update['timer_duration_ms'] = patch.timer_duration_ms;
     if (patch.scarcity_count !== undefined) update['scarcity_count'] = patch.scarcity_count;
+
+    // Body fields need to update together so the JSONB map, the active
+    // language tag, and the denormalized `body` column never drift.
+    const touchesBody =
+      patch.content !== undefined ||
+      patch.bodies !== undefined ||
+      patch.language !== undefined;
+    if (touchesBody) {
+      const language = patch.language ?? (await readLanguage(id, userId));
+      const activeBody = patch.content ?? '';
+      const merged = mergeActiveBody(patch.bodies, language, activeBody);
+      update['body'] = activeBody;
+      update['bodies'] = merged;
+    }
 
     const { data, error } = await supabase
       .from('snippets')
@@ -285,6 +373,19 @@ export const snippetsApi: SnippetsApi = {
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
+  async setActive(id, isActive) {
+    const userId = await currentUserId();
+    const { data, error } = await supabase
+      .from('snippets')
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(SNIPPET_SELECT)
+      .single();
+    if (error) throw error;
+    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
   async duplicateSnippet(id) {
     const userId = await currentUserId();
     // Read the source row first so we copy every column (incl. urgency + pin).
@@ -303,15 +404,18 @@ export const snippetsApi: SnippetsApi = {
       title: `${source.title} (copy)`,
       shortcut: `${source.shortcut}_copy`,
       body: source.body,
+      bodies: source.bodies ?? {},
       lang: source.lang,
       folder_id: source.folder_id,
       field_cfg: source.field_cfg ?? {},
       sort_order: Date.now(),
       updated_at: now,
       // A duplicate starts unpinned + unshared so the copy doesn't inherit
-      // distribution state from the source.
+      // distribution state from the source. It does inherit is_active so
+      // cloning a disabled snippet yields a disabled copy (predictable).
       pinned: false,
       is_shared: false,
+      is_active: source.is_active ?? true,
       enable_urgency_timer: source.enable_urgency_timer ?? false,
       timer_duration_ms: source.timer_duration_ms ?? 0,
       scarcity_count: source.scarcity_count ?? 0,
@@ -362,6 +466,18 @@ export const snippetsApi: SnippetsApi = {
     const { error } = await supabase
       .from('snippets')
       .update({ folder_id: folderId, updated_at: new Date().toISOString() })
+      .in('id', ids)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  // Delete multiple snippets in one request.
+  async bulkDeleteSnippets(ids) {
+    if (ids.length === 0) return;
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('snippets')
+      .delete()
       .in('id', ids)
       .eq('user_id', userId);
     if (error) throw error;

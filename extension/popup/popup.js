@@ -77,10 +77,15 @@ var SB_CURRENT_USER_ID = null;
 var DB = {
   loadAll: function() {
     // Show the current user's own snippets plus any shared by teammates.
+    // SNIPPET-DISABLE-001: is_active=eq.true filters out soft-disabled
+    // snippets so they don't appear in the popup picker and don't make it
+    // into chrome.storage.local — which means content.js trigger matching
+    // skips them automatically. The dashboard remains the only surface that
+    // shows disabled snippets (so they can be re-enabled).
     var uid = SB_CURRENT_USER_ID;
     var snipQs = uid
-      ? 'select=*&order=sort_order&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-      : 'select=*&order=sort_order&is_shared=eq.true';
+      ? 'select=*&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
+      : 'select=*&order=sort_order&is_active=eq.true&is_shared=eq.true';
     return Promise.all([
       supaFetch('folders',       'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
       supaFetch('snippets',      'GET', null, snipQs).then(function(r){ return r.json(); }),
@@ -880,6 +885,46 @@ var NotionPush = {
   }
 
 };
+
+function applyPopupGreeting(session) {
+  var greetEl = document.getElementById('pop-greet');
+  var nameEl  = document.getElementById('pop-name');
+  if (!greetEl || !nameEl) return;
+
+  var h = new Date().getHours();
+  greetEl.textContent = h >= 5 && h < 12 ? 'Good morning,'
+                      : h >= 12 && h < 18 ? 'Good afternoon,'
+                      : 'Good evening,';
+
+  function setName(n) { if (n) nameEl.textContent = n; }
+
+  // Instant: cached name from a previous session
+  chrome.storage.local.get('sb_display_name', function(d) {
+    if (d && d.sb_display_name) {
+      setName(d.sb_display_name);
+    } else if (session && session.email) {
+      var p = session.email.split('@')[0];
+      setName(p.charAt(0).toUpperCase() + p.slice(1));
+    }
+  });
+
+  // Async: fetch accurate full_name from Supabase and cache it
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) return;
+    fetch(SB_SUPA_URL + '/auth/v1/user', { headers: headers })
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        var meta = j && j.user_metadata ? j.user_metadata : {};
+        var full = (meta.full_name || meta.name || '').trim();
+        var first = full.split(/\s+/)[0];
+        if (first) {
+          setName(first);
+          chrome.storage.local.set({ sb_display_name: first });
+        }
+      })
+      .catch(function() {});
+  });
+}
 
 // BOOT — called once on popup open
 function boot() {
@@ -2107,6 +2152,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
 
   function bootOnce(session) {
     SB_CURRENT_USER_ID = session.user_id;
+    applyPopupGreeting(session);
     var emailLabel = document.getElementById('sb-signed-as');
     if (emailLabel && session.email) emailLabel.textContent = 'Signed in as ' + session.email;
     var signOutBtn = document.getElementById('sb-signout-btn');

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Copy, Pencil, Pin, PinOff, Trash2, UserMinus, Users } from 'lucide-react';
+import { Copy, Pencil, Pin, PinOff, Power, Trash2, UserMinus, Users } from 'lucide-react';
 import type { SnippetRow } from '@/types/database';
 import { cn } from '@/lib/utils';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -20,6 +20,7 @@ const VIEWPORT_PADDING = 8;
 export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMenuProps) {
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
   const togglePin = useSnippetStore((s) => s.togglePin);
+  const toggleActive = useSnippetStore((s) => s.toggleActive);
   const duplicateSnippet = useSnippetStore((s) => s.duplicateSnippet);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const shareSnippet = useSnippetStore((s) => s.shareSnippet);
@@ -86,6 +87,16 @@ export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMen
     }
   }
 
+  async function handleToggleActive() {
+    setWorking(true);
+    try {
+      await toggleActive(snippet.id);
+      onClose();
+    } catch {
+      setWorking(false);
+    }
+  }
+
   async function handleShare() {
     setWorking(true);
     try {
@@ -131,6 +142,12 @@ export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMen
         disabled={working}
       />
       <MenuItem icon={<Copy className="h-3.5 w-3.5" />} label="Duplicate" onClick={handleDuplicate} disabled={working} />
+      <MenuItem
+        icon={<Power className="h-3.5 w-3.5" />}
+        label={snippet.is_active ? 'Disable' : 'Enable'}
+        onClick={handleToggleActive}
+        disabled={working}
+      />
       <MenuItem
         icon={snippet.is_shared ? <UserMinus className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
         label={snippet.is_shared ? 'Unshare from team' : 'Share with team'}

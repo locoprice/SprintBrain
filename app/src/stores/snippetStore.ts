@@ -27,6 +27,8 @@ interface SnippetStore {
   languageFilter: Snippet['language'] | null;
   /** True while a bulk-move network request is in flight. */
   bulkMoving: boolean;
+  /** True while a bulk-delete network request is in flight. */
+  bulkDeleting: boolean;
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
@@ -40,6 +42,8 @@ interface SnippetStore {
   setLanguageFilter: (lang: Snippet['language'] | null) => void;
   /** Move selected snippets to a folder in one network request. Clears selection on success. */
   bulkMoveSnippets: (ids: string[], folderId: string | null) => Promise<void>;
+  /** Delete multiple snippets in one network request. Clears selection on success. */
+  bulkDeleteSnippets: (ids: string[]) => Promise<void>;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
   addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
@@ -47,6 +51,8 @@ interface SnippetStore {
   removeSnippet: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a snippet. Optimistic; rolls back on failure. */
   togglePin: (id: string) => Promise<void>;
+  /** Toggle the is_active flag on a snippet. Optimistic; rolls back on failure. */
+  toggleActive: (id: string) => Promise<void>;
   /** Duplicate a snippet. Returns the new row. */
   duplicateSnippet: (id: string) => Promise<SnippetRow>;
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
@@ -83,6 +89,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   sortDir: 'desc',
   languageFilter: null,
   bulkMoving: false,
+  bulkDeleting: false,
   load: async () => {
     set({ loading: true, error: null });
     try {
@@ -156,6 +163,28 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         snippets: preState,
         bulkMoving: false,
         error: err instanceof Error ? err.message : 'Failed to move snippets',
+      });
+      throw err;
+    }
+  },
+
+  bulkDeleteSnippets: async (ids) => {
+    if (ids.length === 0) return;
+    const preState = get().snippets;
+    // Optimistic removal.
+    set((s) => ({
+      snippets: s.snippets.filter((sn) => !ids.includes(sn.id)),
+      bulkDeleting: true,
+    }));
+    try {
+      await snippetsApi.bulkDeleteSnippets(ids);
+      set({ selectedIds: new Set<string>(), bulkDeleting: false, error: null });
+    } catch (err) {
+      // Rollback optimistic removal on failure.
+      set({
+        snippets: preState,
+        bulkDeleting: false,
+        error: err instanceof Error ? err.message : 'Failed to delete snippets',
       });
       throw err;
     }
@@ -243,6 +272,35 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           sn.id === id ? { ...sn, pinned: target.pinned } : sn,
         ),
         error: err instanceof Error ? err.message : 'Failed to toggle pin',
+      }));
+      throw err;
+    }
+  },
+
+  toggleActive: async (id) => {
+    const target = get().snippets.find((s) => s.id === id);
+    if (!target) return;
+    const next = !target.is_active;
+    // Optimistic update so the row dims (or un-dims) immediately.
+    set((s) => ({
+      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_active: next } : sn)),
+    }));
+    try {
+      const row = await snippetsApi.setActive(id, next);
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...row, folder_name: row.folder_name ?? folder?.name ?? null } : sn,
+        ),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback optimistic update on failure.
+      set((s) => ({
+        snippets: s.snippets.map((sn) =>
+          sn.id === id ? { ...sn, is_active: target.is_active } : sn,
+        ),
+        error: err instanceof Error ? err.message : 'Failed to toggle snippet status',
       }));
       throw err;
     }

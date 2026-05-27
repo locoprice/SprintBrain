@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Loader2, Pin, Search, Trash2, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
+import { SnippetRowActions } from '@/features/snippets/SnippetRowActions';
 import {
   useFilteredSnippets,
   useSnippetStore,
@@ -81,10 +82,12 @@ function SortableColumnHeader({ column, label }: { column: SortColumn; label: st
   );
 }
 
+const PAGE_SIZE_OPTIONS = [10, 25, 100] as const;
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
-  const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const shareSnippet = useSnippetStore((s) => s.shareSnippet);
   const unshareSnippet = useSnippetStore((s) => s.unshareSnippet);
   const sharingIds = useSnippetStore((s) => s.sharingIds);
@@ -99,8 +102,32 @@ export function SnippetsTable() {
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
-  const someSelected = !allSelected && rows.some((r) => selectedIds.has(r.id));
+  // Pagination state
+  const [pageSize, setPageSize] = useState<PageSize>(25);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Read filter state to reset to page 1 whenever the visible set changes
+  const filterQuery = useSnippetStore((s) => s.searchQuery);
+  const filterFolder = useSnippetStore((s) => s.selectedFolderId);
+  const filterLang = useSnippetStore((s) => s.languageFilter);
+  const filterSortBy = useSnippetStore((s) => s.sortBy);
+  const filterSortDir = useSnippetStore((s) => s.sortDir);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterQuery, filterFolder, filterLang, filterSortBy, filterSortDir]);
+
+  // Derived pagination values
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, totalRows);
+  const pageRows = rows.slice(startIdx, endIdx);
+
+  // Selection is scoped to the current page
+  const allSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
+  const someSelected = !allSelected && pageRows.some((r) => selectedIds.has(r.id));
 
   const masterCheckboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -148,14 +175,6 @@ export function SnippetsTable() {
     );
   }
 
-  async function handleDelete(id: string) {
-    try {
-      await removeSnippet(id);
-    } catch {
-      // Error surfaces via store.error → page-level banner.
-    }
-  }
-
   async function handleShareToggle(e: React.MouseEvent, id: string, currentlyShared: boolean) {
     e.stopPropagation();
     try {
@@ -173,7 +192,7 @@ export function SnippetsTable() {
     if (allSelected) {
       clearSelection();
     } else {
-      selectAllSnippets(rows.map((r) => r.id));
+      selectAllSnippets(pageRows.map((r) => r.id));
     }
   }
 
@@ -221,15 +240,15 @@ export function SnippetsTable() {
               <Users className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
             </th>
             <th
-              className="sticky top-0 z-10 w-10 border-b border-line bg-bg-alt px-2 py-3"
+              className="sticky top-0 z-10 w-[88px] border-b border-line bg-bg-alt px-2 py-3"
               aria-label="Actions"
             />
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => {
+          {pageRows.map((row, i) => {
             const trigger = row.triggers[0] ?? '';
-            const isLast = i === rows.length - 1;
+            const isLast = i === pageRows.length - 1;
             const isSelected = selectedIds.has(row.id);
             return (
               <tr
@@ -245,7 +264,11 @@ export function SnippetsTable() {
                   isSelected
                     ? 'bg-primary-light hover:bg-primary-light/80'
                     : 'hover:bg-bg-alt/60',
+                  // Soft-disabled snippets dim to ~50% so users can spot which
+                  // rows are turned off at a glance without losing the data.
+                  !row.is_active && 'opacity-50',
                 )}
+                title={!row.is_active ? 'Disabled — will not expand in the extension' : undefined}
               >
                 {/* Checkbox cell */}
                 <td
@@ -329,28 +352,75 @@ export function SnippetsTable() {
                     </button>
                   )}
                 </td>
-                <td className="px-2 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(row.id);
-                    }}
-                    aria-label={`Delete ${row.name}`}
-                    title={`Delete ${row.name}`}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-ink-subtle opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <td
+                  className="px-2 py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SnippetRowActions snippet={row} />
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <div className="border-t border-line bg-bg-alt px-5 py-2.5 text-xs text-ink-subtle">
-        {rows.length} snippet{rows.length === 1 ? '' : 's'}
-        {query.trim().length > 0 ? ` matching "${query.trim()}"` : ''}
+      {/* Pagination footer — WordPress-style */}
+      <div className="flex items-center justify-between gap-4 border-t border-line bg-bg-alt px-5 py-2.5">
+        {/* Left: range + total */}
+        <span className="text-xs text-ink-subtle tabular-nums">
+          {totalRows === 0 ? '0 snippets' : (
+            <>
+              {startIdx + 1}–{endIdx} of {totalRows} snippet{totalRows === 1 ? '' : 's'}
+              {query.trim().length > 0 ? ` matching "${query.trim()}"` : ''}
+            </>
+          )}
+        </span>
+
+        {/* Center: per-page selector */}
+        <div className="flex items-center gap-1">
+          {PAGE_SIZE_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => { setPageSize(n); setCurrentPage(1); }}
+              className={cn(
+                'min-w-[32px] rounded-[6px] px-2 py-1 text-xs font-medium tabular-nums transition-colors',
+                pageSize === n
+                  ? 'bg-primary text-white'
+                  : 'text-ink-muted hover:bg-line hover:text-ink',
+              )}
+              aria-label={`Show ${n} per page`}
+              aria-pressed={pageSize === n}
+            >
+              {n}
+            </button>
+          ))}
+          <span className="ml-1 text-xs text-ink-subtle">/ page</span>
+        </div>
+
+        {/* Right: prev / page indicator / next */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            aria-label="Previous page"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-ink-muted transition-colors hover:bg-line hover:text-ink disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-xs tabular-nums text-ink-subtle">
+            {safePage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            aria-label="Next page"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-ink-muted transition-colors hover:bg-line hover:text-ink disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {menu !== null && activeMenuSnippet !== null && (

@@ -1,8 +1,9 @@
-import { Bell, CheckCircle2, Command, Search } from 'lucide-react';
+import { CheckCircle2, Command, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserDropdown } from '@/components/layout/UserDropdown';
+import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 
 /**
  * Top bar — design system v1.1.
@@ -49,13 +50,7 @@ export function Topbar() {
 
         <ThemeToggle />
 
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] text-ink-muted hover:bg-bg-alt hover:text-ink"
-        >
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationsDropdown />
 
         <UserDropdown />
       </div>

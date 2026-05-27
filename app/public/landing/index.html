@@ -18,7 +18,11 @@
   --success:#34C759;--r:16px;--r-btn:12px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.04);
   --shadow-md:0 4px 20px rgba(27,79,216,.12),0 1px 3px rgba(0,0,0,.06);
-  --max:1120px
+  --max:1120px;
+  --sb-font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  --sb-mono:'SF Mono','Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace;
+  --sb-iris-light:#8B7CF6;
+  --sb-iris-soft:#B8AEFA
 }
 html{scroll-behavior:smooth}
 body{
@@ -104,6 +108,21 @@ img,svg{display:block;max-width:100%}
   line-height:1.1;margin-bottom:16px}
 .section-head p{font-size:18px;color:var(--text2);max-width:580px;margin:0 auto}
 
+/* TRUSTED BY */
+.trusted{padding:32px 24px 40px;border-bottom:1px solid var(--border);background:var(--card)}
+.trusted-inner{max-width:var(--max);margin:0 auto}
+.trusted-label{display:block;text-align:center;font-size:12px;font-weight:600;
+  color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:28px}
+.trusted-track{overflow:hidden;mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+  -webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.trusted-rail{display:flex;gap:56px;width:max-content;animation:marquee 28s linear infinite}
+.trusted-rail:hover{animation-play-state:paused}
+.trusted-logo{display:flex;align-items:center;height:30px;opacity:.38;
+  transition:opacity .25s;filter:grayscale(1);flex-shrink:0}
+.trusted-logo:hover{opacity:.7}
+.trusted-logo svg{height:22px;width:auto}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
 /* FEATURES */
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
 .feature{background:var(--card);border:1px solid var(--border);
@@ -143,6 +162,320 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
   .nav-link{display:none}
   .demo-body{padding:24px 20px}
 }
+
+/* ── FEATURES v2 — dark editorial grid ──────────────────── */
+.fs-bg{background:#07080A;color:#fff}
+.fs-section{
+  padding:120px 64px 140px;
+  max-width:1440px;
+  margin:0 auto;
+  --fs-accent:var(--sb-iris-light);
+  --fs-accent-soft:var(--sb-iris-soft);
+  --fs-card-bg:#111114;
+  --fs-card-bg-hi:#16161B;
+  --fs-card-bdr:#1F1F26;
+  --fs-card-bdr-hi:#2C2C36;
+  --fs-ink:#FFFFFF;
+  --fs-ink-muted:#8A8A93;
+  --fs-ink-subtle:#5E5E66
+}
+.fs-head{max-width:880px;margin:0 0 72px}
+.fs-eb{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--fs-accent-soft);
+  margin-bottom:28px
+}
+.fs-eb::before{content:"";width:24px;height:1px;background:var(--fs-accent)}
+.fs-title{
+  font-size:64px;line-height:1.02;letter-spacing:-.035em;
+  font-weight:700;color:var(--fs-ink);margin:0 0 24px;
+  text-wrap:balance
+}
+.fs-title em{font-style:normal;color:var(--fs-ink-muted)}
+.fs-sub{font-size:19px;line-height:1.5;color:var(--fs-ink-muted);max-width:620px;margin:0}
+.fs-sub b{color:var(--fs-ink);font-weight:600}
+
+.fs-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+
+.fs-card{
+  grid-column:span 3;
+  background:var(--fs-card-bg);
+  border:1px solid var(--fs-card-bdr);
+  border-radius:24px;
+  padding:36px 36px 28px;
+  display:flex;flex-direction:column;
+  min-height:320px;cursor:pointer;
+  transition:border-color .25s ease,background .25s ease,transform .25s ease
+}
+.fs-card:hover,.fs-card:focus-within{
+  background:var(--fs-card-bg-hi);
+  border-color:var(--fs-card-bdr-hi);
+  transform:translateY(-2px)
+}
+.fs-card:hover .fs-cta,.fs-card:focus-within .fs-cta{
+  background:var(--fs-accent);color:#fff;
+  transform:translate(4px,-4px)
+}
+.fs-card.fs-hero{
+  min-height:380px;
+  background:linear-gradient(180deg,#14141B 0%,#0E0E12 100%)
+}
+.fs-card.fs-hero .fs-card-title{font-size:40px;letter-spacing:-.03em}
+.fs-card.fs-hero .fs-card-body{font-size:16px;max-width:460px}
+
+.fs-card-tag{
+  font-size:12px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fs-ink-subtle);
+  margin-bottom:28px;display:flex;align-items:center;gap:8px
+}
+.fs-dot{width:6px;height:6px;border-radius:50%;background:var(--fs-accent);flex-shrink:0}
+.fs-card-title{
+  font-size:30px;line-height:1.1;letter-spacing:-.025em;
+  font-weight:700;color:var(--fs-ink);margin:0 0 14px
+}
+.fs-card-body{
+  font-size:15px;line-height:1.55;color:var(--fs-ink-muted);
+  margin:0;text-wrap:pretty
+}
+.fs-card-body b{color:var(--fs-ink);font-weight:600}
+.fs-card-body code{
+  font-family:var(--sb-mono);font-size:13px;
+  color:var(--fs-accent-soft);
+  background:rgba(139,124,246,.10);
+  padding:2px 7px;border-radius:6px;
+  border:1px solid rgba(139,124,246,.18);
+  white-space:nowrap
+}
+.fs-cta{
+  margin-top:auto;align-self:flex-end;
+  width:44px;height:44px;border-radius:50%;
+  background:#1C1C22;color:var(--fs-ink);
+  display:grid;place-items:center;
+  border:1px solid var(--fs-card-bdr-hi);
+  transition:background .25s ease,color .25s ease,transform .25s ease
+}
+.fs-cta svg{width:18px;height:18px}
+
+/* demo expansion block */
+.fs-demo{
+  margin:24px 0 0;padding:18px 18px 16px;
+  background:#08080B;border:1px solid #1F1F26;
+  border-radius:14px;font-family:var(--sb-mono);
+  font-size:13px;line-height:1.55;color:var(--fs-ink-muted);
+  max-width:420px
+}
+.fs-typed{
+  color:var(--fs-accent-soft);
+  background:rgba(139,124,246,.12);
+  padding:2px 6px;border-radius:4px
+}
+.fs-arrow{color:var(--fs-ink-subtle);margin:6px 0;font-size:12px}
+.fs-out{color:#DCDCE2;font-family:var(--sb-font);font-size:13.5px}
+.fs-out b{color:#fff;font-weight:600}
+.fs-num{color:var(--fs-accent-soft);font-variant-numeric:tabular-nums}
+
+/* formula table */
+.fs-formula{
+  margin-top:18px;display:grid;
+  grid-template-columns:1fr auto;gap:10px 18px;
+  font-family:var(--sb-mono);font-size:13px;color:var(--fs-ink-muted);
+  padding:16px 18px;background:#08080B;
+  border:1px solid #1F1F26;border-radius:12px;max-width:320px
+}
+.fs-lbl{color:var(--fs-ink-subtle)}
+.fs-val{color:#fff;font-variant-numeric:tabular-nums;text-align:right}
+.fs-val.fs-hi{color:var(--fs-accent-soft)}
+.fs-divider{grid-column:1/-1;height:1px;background:#1F1F26}
+
+@media(max-width:1080px){
+  .fs-grid{grid-template-columns:repeat(2,1fr)}
+  .fs-card,.fs-card.fs-hero{grid-column:span 1}
+  .fs-title{font-size:48px}
+}
+@media(max-width:640px){
+  .fs-section{padding:72px 24px 80px}
+  .fs-grid{grid-template-columns:1fr}
+  .fs-title{font-size:38px}
+  .fs-card-title{font-size:26px}
+}
+
+/* ── PLATFORMS v2 — premium 3-surface section ─────────────── */
+.plat{
+  padding:120px 24px 128px;
+  background:linear-gradient(168deg,#edf2ff 0%,#fafafa 52%,#f0f5ff 100%);
+  position:relative;overflow:hidden}
+.plat-orb{position:absolute;border-radius:50%;pointer-events:none}
+.plat-orb-a{
+  width:900px;height:900px;
+  background:radial-gradient(circle,rgba(27,79,216,.08) 0%,transparent 62%);
+  top:-300px;right:-220px}
+.plat-orb-b{
+  width:600px;height:600px;
+  background:radial-gradient(circle,rgba(27,79,216,.055) 0%,transparent 62%);
+  bottom:-180px;left:-140px}
+.plat-inner{
+  max-width:var(--max);margin:0 auto;
+  position:relative;z-index:1;text-align:center}
+.plat-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(52,199,89,.1);color:#15803d;
+  border:1px solid rgba(52,199,89,.3);
+  padding:6px 16px;border-radius:100px;
+  font-size:13px;font-weight:700;letter-spacing:.01em;margin-bottom:28px}
+.plat-title{
+  font-size:clamp(40px,5.8vw,68px);font-weight:800;
+  letter-spacing:-2.8px;line-height:1.03;
+  margin-bottom:20px;color:var(--text)}
+.plat-title span{
+  background:linear-gradient(125deg,var(--primary) 0%,#4F7FE8 50%,#7FA8F8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.plat-sub{
+  font-size:19px;color:var(--text2);
+  max-width:540px;margin:0 auto 72px;line-height:1.55}
+
+/* ── 3D DEVICE STAGE ─────────────────────────────────────── */
+.plat-stage{
+  perspective:1400px;
+  height:300px;
+  position:relative;
+  margin-bottom:80px;
+  display:flex;align-items:center;justify-content:center}
+.plat-device{
+  position:absolute;background:#fff;
+  border:1px solid rgba(27,79,216,.12);overflow:hidden;
+  box-shadow:0 28px 70px rgba(27,79,216,.16),0 4px 14px rgba(0,0,0,.07)}
+
+/* Dashboard — back layer */
+.plat-device--dash{
+  width:580px;height:206px;border-radius:14px;
+  transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px);
+  animation:platDash 7s ease-in-out infinite}
+@keyframes platDash{
+  0%,100%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(0)}
+  50%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(-13px)}}
+
+/* Extension popup — right, mid-depth */
+.plat-device--popup{
+  width:200px;height:240px;border-radius:12px;
+  right:calc(50% - 374px);
+  transform:rotateX(10deg) rotateY(-7deg) translateZ(28px);
+  animation:platPopup 7s ease-in-out infinite .85s}
+@keyframes platPopup{
+  0%,100%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(0)}
+  50%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(-17px)}}
+
+/* Mobile — left, front */
+.plat-device--mobile{
+  width:110px;height:236px;border-radius:24px;
+  left:calc(50% - 374px);
+  transform:rotateX(8deg) rotateY(8deg) translateZ(86px);
+  animation:platMobile 7s ease-in-out infinite 1.7s}
+@keyframes platMobile{
+  0%,100%{transform:rotateX(8deg) rotateY(8deg) translateZ(86px) translateY(0)}
+  50%{transform:rotateX(8deg) rotateY(8deg) translateZ(86px) translateY(-9px)}}
+
+/* dashboard chrome */
+.pd-topbar{height:32px;background:#F2F2F7;border-bottom:1px solid #E5E5EA;
+  display:flex;align-items:center;padding:0 12px;gap:6px}
+.pd-dot{width:9px;height:9px;border-radius:50%}
+.pd-body{display:flex;height:calc(100% - 32px)}
+.pd-sidebar{width:100px;background:#F7F7FA;border-right:1px solid #E5E5EA;
+  padding:10px 8px;display:flex;flex-direction:column;gap:5px}
+.pd-nav-row{height:22px;border-radius:6px;background:rgba(27,79,216,.08);
+  display:flex;align-items:center;padding:0 7px;gap:5px}
+.pd-nav-row.pd-active{background:var(--primary)}
+.pd-nav-dot{width:7px;height:7px;border-radius:2px;background:rgba(27,79,216,.35)}
+.pd-nav-row.pd-active .pd-nav-dot{background:rgba(255,255,255,.7)}
+.pd-nav-line{flex:1;height:3px;border-radius:2px;background:rgba(27,79,216,.15)}
+.pd-nav-row.pd-active .pd-nav-line{background:rgba(255,255,255,.45)}
+.pd-main{flex:1;padding:10px;display:flex;flex-direction:column;gap:6px}
+.pd-row{height:24px;border-radius:6px;background:#F2F2F7;
+  display:flex;align-items:center;padding:0 10px;gap:8px}
+.pd-tag{width:36px;height:9px;border-radius:3px;background:rgba(27,79,216,.14);flex-shrink:0}
+.pd-tag.pd-hi{background:var(--primary)}
+.pd-bar{height:8px;border-radius:3px;background:#D1D1D6}
+
+/* popup chrome */
+.pp-head{height:44px;background:var(--primary);
+  display:flex;align-items:center;padding:0 14px;gap:9px}
+.pp-logo{width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.22);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#fff;font-family:-apple-system,sans-serif}
+.pp-label{font-size:12px;font-weight:700;color:#fff;letter-spacing:-.2px}
+.pp-body{padding:10px;display:flex;flex-direction:column;gap:6px}
+.pp-row{height:28px;border-radius:7px;background:#F7F7FA;border:1px solid #E5E5EA;
+  display:flex;align-items:center;padding:0 10px;gap:7px}
+.pp-row.pp-active{background:var(--primary-lt);border-color:rgba(27,79,216,.2)}
+.pp-trigger{font-family:ui-monospace,monospace;font-size:10px;
+  color:var(--primary);font-weight:700}
+.pp-name{font-size:10px;color:#8E8E93;flex:1}
+.pp-lang{font-size:9px;font-weight:700;background:rgba(27,79,216,.1);
+  color:var(--primary);padding:1px 5px;border-radius:4px}
+
+/* mobile chrome */
+.pm-notch{height:18px;background:#1C1C1E;
+  display:flex;align-items:center;justify-content:center}
+.pm-pill{width:36px;height:4px;border-radius:3px;background:#333}
+.pm-hero{height:50px;background:linear-gradient(160deg,var(--primary),#1440B0);
+  display:flex;align-items:center;padding:0 10px}
+.pm-brand{font-size:11px;font-weight:800;color:#fff;letter-spacing:-.3px;font-family:-apple-system,sans-serif}
+.pm-body{padding:8px;display:flex;flex-direction:column;gap:5px}
+.pm-row{height:26px;border-radius:8px;background:#F2F2F7;
+  display:flex;align-items:center;padding:0 8px;gap:6px}
+.pm-swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.pm-stripe{height:6px;border-radius:3px;background:#D1D1D6}
+
+/* ── FEATURE CARDS ───────────────────────────────────────── */
+.plat-cards{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:20px;margin-bottom:48px}
+.plat-card{
+  position:relative;background:#fff;
+  border:1px solid rgba(27,79,216,.1);border-radius:20px;
+  padding:32px 28px;text-align:left;
+  cursor:default;will-change:transform;
+  transition:box-shadow .3s ease,border-color .3s ease}
+.plat-card::after{
+  content:"";position:absolute;inset:0;border-radius:20px;
+  opacity:0;pointer-events:none;
+  background:linear-gradient(135deg,rgba(27,79,216,.04) 0%,transparent 60%);
+  transition:opacity .3s ease}
+.plat-card:hover::after{opacity:1}
+.plat-card:hover{
+  box-shadow:0 20px 64px rgba(27,79,216,.14),0 4px 16px rgba(0,0,0,.05);
+  border-color:rgba(27,79,216,.22)}
+.plat-icon{
+  width:52px;height:52px;border-radius:14px;
+  background:var(--primary-lt);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.plat-card h3{
+  font-size:19px;font-weight:700;letter-spacing:-.4px;
+  margin-bottom:10px;color:var(--text)}
+.plat-card p{
+  font-size:14.5px;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.plat-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--primary-lt);color:var(--primary);
+  border:1px solid rgba(27,79,216,.18);
+  padding:5px 12px;border-radius:100px;font-size:12px;font-weight:700}
+.plat-note{
+  font-size:14px;color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
+  gap:14px;letter-spacing:.03em}
+.plat-note::before,.plat-note::after{
+  content:"";flex:1;max-width:140px;height:1px;background:var(--border)}
+
+@media(max-width:920px){
+  .plat-stage{display:none}
+  .plat-sub{margin-bottom:56px}
+  .plat-cards{grid-template-columns:1fr 1fr}
+  .plat-cards .plat-card:last-child{grid-column:span 2}}
+@media(max-width:560px){
+  .plat{padding:80px 20px 96px}
+  .plat-cards{grid-template-columns:1fr}
+  .plat-cards .plat-card:last-child{grid-column:span 1}
+  .plat-sub{font-size:17px;margin-bottom:48px}}
 </style>
 </head>
 <body>
@@ -155,7 +488,8 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
     </a>
     <div class="nav-links">
       <a href="#features" class="nav-link">Features</a>
-      <a href="/mobile/" class="nav-link">Mobile</a>
+      <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
+      <a href="https://app.sprintbrain.com/login" class="nav-link">Sign in</a>
       <a href="#install" class="btn btn-primary btn-sm">Install</a>
     </div>
   </div>
@@ -171,7 +505,7 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
         Get early access
       </a>
-      <a href="/mobile/" class="btn btn-ghost">Open mobile app</a>
+      <a href="https://app.sprintbrain.com/mobile/" class="btn btn-ghost">Open mobile app</a>
     </div>
 
     <div class="demo">
@@ -195,45 +529,354 @@ LeibTour Team</div>
   </div>
 </section>
 
-<section class="section" id="features">
-  <div class="section-inner">
-    <div class="section-head">
-      <div class="section-eyebrow">Features</div>
-      <h2>Six features. No filler.</h2>
-      <p>Replaces TextBlaze, TextExpander, and Magical. Adds the two things they don't do: live formulas and reusable AI prompts.</p>
+<section class="trusted">
+  <div class="trusted-inner">
+    <span class="trusted-label">Trusted by operators at</span>
+    <div class="trusted-track">
+      <div class="trusted-rail">
+
+        <!-- Airbnb -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 102 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <path d="M29.2 25.4c-.5 1.1-1.5 2.1-2.9 2.6-1.3.5-2.7.4-3.9-.3-1-.5-1.7-1.4-2.4-2.5l-.2-.4L16 19.6l-3.8 5.2-.2.4c-.7 1.1-1.4 2-2.4 2.5-1.2.7-2.6.8-3.9.3-1.4-.5-2.4-1.5-2.9-2.6-.6-1.2-.6-2.5 0-3.7l8.8-14.5c.4-.6.9-1 1.5-1.3.6-.3 1.3-.4 2-.4.7 0 1.4.1 2 .4.6.3 1.1.7 1.5 1.3l8.8 14.5c.6 1.2.6 2.5-.2 3.7zm-3.6-2.3L16 7.8 6.4 23.1c-.3.5-.3 1.1 0 1.6.3.5.8.9 1.4 1.1.6.2 1.2.1 1.8-.2.4-.2.7-.6 1-1l4.6-6.3h1.6l4.6 6.3c.3.4.6.8 1 1 .6.3 1.2.4 1.8.2.6-.2 1.1-.6 1.4-1.1.3-.5.3-1.1 0-1.6z"/>
+            <path d="M43.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.9-1 2.2-1.7 3.8-1.7 3.5 0 6 2.8 6 6.5s-2.5 6.5-6 6.5c-1.5 0-2.7-.6-3.6-1.5v5.1c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm5.6 9.8c2.2 0 3.8-1.8 3.8-4.4s-1.6-4.4-3.8-4.4c-2.1 0-3.8 1.8-3.8 4.4s1.7 4.4 3.8 4.4z"/>
+            <path d="M57.2 15.2c0-3.7 2.8-6.5 6.6-6.5s6.6 2.8 6.6 6.5-2.8 6.5-6.6 6.5-6.6-2.8-6.6-6.5zm10.9 0c0-2.6-1.8-4.4-4.3-4.4s-4.3 1.8-4.3 4.4 1.8 4.4 4.3 4.4 4.3-1.8 4.3-4.4z"/>
+            <path d="M73.1 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2 1c.7-1.1 1.9-1.8 3.4-1.8.7 0 1.3.1 1.7.3.4.2.5.6.3 1l-.3.7c-.2.4-.6.5-1 .4-.3-.1-.6-.2-1-.2-1.7 0-2.8 1.2-2.8 3.3v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+            <path d="M82 9.8c0-.5.4-.9.9-.9h.8c.5 0 .9.4.9.9v11.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm.8-5.3c.8 0 1.4.6 1.4 1.4s-.6 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/>
+            <path d="M87.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.8-.9 2.1-1.7 3.7-1.7 3 0 4.7 1.9 4.7 5.1v7.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9v-7c0-2.2-1-3.4-2.9-3.4-1.8 0-3 1.3-3 3.4v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+          </svg>
+        </div>
+
+        <!-- Marriott -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 120 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Marriott</text>
+          </svg>
+        </div>
+
+        <!-- Booking.com -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">Booking.com</text>
+          </svg>
+        </div>
+
+        <!-- Expedia -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 100 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Expedia</text>
+          </svg>
+        </div>
+
+        <!-- Hilton -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 88 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Hilton</text>
+          </svg>
+        </div>
+
+        <!-- TripAdvisor -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">TripAdvisor</text>
+          </svg>
+        </div>
+
+        <!-- Accor -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 82 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Accor</text>
+          </svg>
+        </div>
+
+        <!-- IHG -->
+        <div class="trusted-logo">
+          <svg viewBox="0 0 58 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="0">IHG</text>
+          </svg>
+        </div>
+
+        <!-- === duplicate set for seamless loop === -->
+
+        <div class="trusted-logo">
+          <svg viewBox="0 0 102 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <path d="M29.2 25.4c-.5 1.1-1.5 2.1-2.9 2.6-1.3.5-2.7.4-3.9-.3-1-.5-1.7-1.4-2.4-2.5l-.2-.4L16 19.6l-3.8 5.2-.2.4c-.7 1.1-1.4 2-2.4 2.5-1.2.7-2.6.8-3.9.3-1.4-.5-2.4-1.5-2.9-2.6-.6-1.2-.6-2.5 0-3.7l8.8-14.5c.4-.6.9-1 1.5-1.3.6-.3 1.3-.4 2-.4.7 0 1.4.1 2 .4.6.3 1.1.7 1.5 1.3l8.8 14.5c.6 1.2.6 2.5-.2 3.7zm-3.6-2.3L16 7.8 6.4 23.1c-.3.5-.3 1.1 0 1.6.3.5.8.9 1.4 1.1.6.2 1.2.1 1.8-.2.4-.2.7-.6 1-1l4.6-6.3h1.6l4.6 6.3c.3.4.6.8 1 1 .6.3 1.2.4 1.8.2.6-.2 1.1-.6 1.4-1.1.3-.5.3-1.1 0-1.6z"/>
+            <path d="M43.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.9-1 2.2-1.7 3.8-1.7 3.5 0 6 2.8 6 6.5s-2.5 6.5-6 6.5c-1.5 0-2.7-.6-3.6-1.5v5.1c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm5.6 9.8c2.2 0 3.8-1.8 3.8-4.4s-1.6-4.4-3.8-4.4c-2.1 0-3.8 1.8-3.8 4.4s1.7 4.4 3.8 4.4z"/>
+            <path d="M57.2 15.2c0-3.7 2.8-6.5 6.6-6.5s6.6 2.8 6.6 6.5-2.8 6.5-6.6 6.5-6.6-2.8-6.6-6.5zm10.9 0c0-2.6-1.8-4.4-4.3-4.4s-4.3 1.8-4.3 4.4 1.8 4.4 4.3 4.4 4.3-1.8 4.3-4.4z"/>
+            <path d="M73.1 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2 1c.7-1.1 1.9-1.8 3.4-1.8.7 0 1.3.1 1.7.3.4.2.5.6.3 1l-.3.7c-.2.4-.6.5-1 .4-.3-.1-.6-.2-1-.2-1.7 0-2.8 1.2-2.8 3.3v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+            <path d="M82 9.8c0-.5.4-.9.9-.9h.8c.5 0 .9.4.9.9v11.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8zm.8-5.3c.8 0 1.4.6 1.4 1.4s-.6 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/>
+            <path d="M87.2 9.8c0-.5.4-.9.9-.9h.5c.4 0 .7.2.8.6l.2.9c.8-.9 2.1-1.7 3.7-1.7 3 0 4.7 1.9 4.7 5.1v7.4c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9v-7c0-2.2-1-3.4-2.9-3.4-1.8 0-3 1.3-3 3.4v7c0 .5-.4.9-.9.9h-.8c-.5 0-.9-.4-.9-.9V9.8z"/>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 120 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Marriott</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">Booking.com</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 100 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.5">Expedia</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 88 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Hilton</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 148 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="700" letter-spacing="-0.3">TripAdvisor</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 82 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="-0.3">Accor</text>
+          </svg>
+        </div>
+        <div class="trusted-logo">
+          <svg viewBox="0 0 58 32" fill="#1C1C1E" xmlns="http://www.w3.org/2000/svg">
+            <text x="0" y="24" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" letter-spacing="0">IHG</text>
+          </svg>
+        </div>
+
+      </div>
     </div>
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <h3>Snippets</h3>
-        <p>Trigger a snippet with a short tag like <code>::quoteEN</code>. It expands into a full template. Multi-language support for EN, IT, ES with automatic fallback.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🧮</div>
-        <h3>Formulas</h3>
-        <p>Real math inside your snippets. Totals, discounts, fees, net prices — calculated when the snippet expands. CSP-safe parser, no eval.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🤖</div>
-        <h3>AI Prompt Library</h3>
-        <p>Reusable one-shot and few-shot prompts for ChatGPT, Claude, and any AI tool. Stored next to your snippets, expanded the same way.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">☁️</div>
-        <h3>Cloud Sync</h3>
-        <p>Supabase-backed. Edits on one device show up on the others within a second.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📝</div>
-        <h3>Notion Sync</h3>
-        <p>Optional one-way or two-way sync with a Notion database. Edit snippets where your team already works.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📱</div>
-        <h3>Mobile Access</h3>
-        <p>Browse and copy your snippet library from your phone. No laptop required.</p>
-      </div>
+  </div>
+</section>
+
+<section id="features" class="fs-bg">
+  <div class="fs-section">
+
+    <header class="fs-head">
+      <div class="fs-eb">What's inside</div>
+      <h2 class="fs-title">
+        Everything text expansion should be.
+        <em>Plus the two things it isn't.</em>
+      </h2>
+      <p class="fs-sub">
+        A drop-in replacement for <b>TextBlaze</b>, <b>TextExpander</b>, and <b>Magical</b> — with
+        live formulas and a reusable prompt library on top.
+      </p>
+    </header>
+
+    <div class="fs-grid">
+
+      <!-- 01 · Triggers (hero) -->
+      <article class="fs-card fs-hero">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>01 · Triggers</div>
+        <h3 class="fs-card-title">Type a short tag. Watch a full template appear.</h3>
+        <p class="fs-card-body">
+          <code>::quoteEN</code> expands into a <b>200-word multilingual quote</b>.
+          Works in Gmail, Notion, Slack, your CRM — anywhere you can type.
+        </p>
+        <div class="fs-demo" aria-hidden="true">
+          <span class="fs-typed">::quoteEN</span>
+          <div class="fs-arrow">↓</div>
+          <div class="fs-out">
+            Dear guest,<br>
+            Thank you for your interest. The total for 3 nights is
+            <b><span class="fs-num">€450</span></b> <span style="color:var(--fs-ink-subtle)">(€150/night × 3)</span>,
+            including a <b><span class="fs-num">10%</span></b> early-bird discount.
+          </div>
+        </div>
+        <button class="fs-cta" type="button" aria-label="Learn more about triggers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 02 · Formulas -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>02 · Formulas</div>
+        <h3 class="fs-card-title">Real math, inline.</h3>
+        <p class="fs-card-body">
+          <b>Totals, discounts, fees, net prices</b> — calculated the instant a template expands. CSP-safe parser, no <code>eval</code>.
+        </p>
+        <div class="fs-formula" aria-hidden="true">
+          <span class="fs-lbl">Nights × rate</span><span class="fs-val">€450.00</span>
+          <span class="fs-lbl">Early-bird −10%</span><span class="fs-val">−€45.00</span>
+          <span class="fs-lbl">City tax</span><span class="fs-val">+€7.50</span>
+          <span class="fs-divider"></span>
+          <span class="fs-lbl">Total due</span><span class="fs-val fs-hi">€412.50</span>
+        </div>
+        <button class="fs-cta" type="button" aria-label="Learn more about formulas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 03 · Prompts -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>03 · Prompts</div>
+        <h3 class="fs-card-title">A library of reusable prompts.</h3>
+        <p class="fs-card-body">
+          One-shot and few-shot prompts for <b>ChatGPT</b>, <b>Claude</b>, and any model — stored
+          next to your templates, expanded the same way.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about prompts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 04 · Cloud sync -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>04 · Cloud sync</div>
+        <h3 class="fs-card-title">Every device, under a second.</h3>
+        <p class="fs-card-body">
+          Backed by <b>Supabase</b>. Edit on your laptop, paste on your phone — propagated in
+          <b>&lt; 1&nbsp;s</b>, encrypted at rest, no conflicts.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about cloud sync">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 05 · Notion sync -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>05 · Notion sync</div>
+        <h3 class="fs-card-title">Edit where your team already works.</h3>
+        <p class="fs-card-body">
+          Mirror a <b>Notion database</b> as your library — one-way or two-way. Reviewers comment in
+          Notion; expansions update in the extension within the minute.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about Notion sync">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 06 · Mobile -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>06 · Mobile</div>
+        <h3 class="fs-card-title">Your library, on any phone.</h3>
+        <p class="fs-card-body">
+          Browse, search, and copy from <b>iOS</b> and <b>Android</b> — no laptop required.
+          Same library, same shortcuts, same formulas.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about mobile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
     </div>
+  </div>
+</section>
+
+<section class="plat">
+  <div class="plat-orb plat-orb-a" aria-hidden="true"></div>
+  <div class="plat-orb plat-orb-b" aria-hidden="true"></div>
+  <div class="plat-inner">
+
+    <div class="plat-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+      No app to download
+    </div>
+
+    <h2 class="plat-title">One account.<br><span>Three surfaces.</span></h2>
+    <p class="plat-sub">SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once — your snippets and formulas are everywhere, instantly.</p>
+
+    <!-- 3D floating device stack -->
+    <div class="plat-stage" aria-hidden="true">
+
+      <!-- Dashboard — back layer -->
+      <div class="plat-device plat-device--dash">
+        <div class="pd-topbar">
+          <span class="pd-dot" style="background:#FF5F57"></span>
+          <span class="pd-dot" style="background:#FEBC2E"></span>
+          <span class="pd-dot" style="background:#28C840"></span>
+        </div>
+        <div class="pd-body">
+          <div class="pd-sidebar">
+            <div class="pd-nav-row pd-active"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
+            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
+            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
+            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
+          </div>
+          <div class="pd-main">
+            <div class="pd-row"><span class="pd-tag pd-hi"></span><span class="pd-bar" style="width:60px"></span><span class="pd-bar" style="width:40px;margin-left:auto"></span></div>
+            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:80px"></span><span class="pd-bar" style="width:30px;margin-left:auto"></span></div>
+            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:55px"></span><span class="pd-bar" style="width:46px;margin-left:auto"></span></div>
+            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:70px"></span><span class="pd-bar" style="width:36px;margin-left:auto"></span></div>
+            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:50px"></span><span class="pd-bar" style="width:52px;margin-left:auto"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extension popup — right, mid depth -->
+      <div class="plat-device plat-device--popup">
+        <div class="pp-head">
+          <div class="pp-logo">S</div>
+          <span class="pp-label">SprintBrain</span>
+        </div>
+        <div class="pp-body">
+          <div class="pp-row pp-active"><span class="pp-trigger">::quoteEN</span><span class="pp-lang">EN</span></div>
+          <div class="pp-row"><span class="pp-trigger">::greet</span><span class="pp-name">Greeting</span></div>
+          <div class="pp-row"><span class="pp-trigger">::price3</span><span class="pp-name">Quote</span></div>
+          <div class="pp-row"><span class="pp-trigger">::followup</span><span class="pp-name">Email</span></div>
+          <div class="pp-row"><span class="pp-trigger">::thankyou</span><span class="pp-name">Reply</span></div>
+        </div>
+      </div>
+
+      <!-- Mobile phone — left, front -->
+      <div class="plat-device plat-device--mobile">
+        <div class="pm-notch"><div class="pm-pill"></div></div>
+        <div class="pm-hero"><span class="pm-brand">SprintBrain</span></div>
+        <div class="pm-body">
+          <div class="pm-row"><span class="pm-swatch" style="background:#EEF2FF"></span><span class="pm-stripe" style="width:36px"></span></div>
+          <div class="pm-row"><span class="pm-swatch" style="background:#FFF7ED"></span><span class="pm-stripe" style="width:28px"></span></div>
+          <div class="pm-row"><span class="pm-swatch" style="background:#F0FDF4"></span><span class="pm-stripe" style="width:42px"></span></div>
+          <div class="pm-row"><span class="pm-swatch" style="background:#EEF2FF"></span><span class="pm-stripe" style="width:32px"></span></div>
+          <div class="pm-row"><span class="pm-swatch" style="background:#F5F3FF"></span><span class="pm-stripe" style="width:24px"></span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Feature cards with JS 3D tilt -->
+    <div class="plat-cards">
+
+      <div class="plat-card">
+        <div class="plat-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
+        </div>
+        <h3>Chrome Extension</h3>
+        <p>One-click install from the Chrome Web Store. The popup puts every snippet at your fingertips while you type — in Gmail, Slack, Notion, your CRM, anywhere.</p>
+        <span class="plat-pill">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Ready to install
+        </span>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <h3>Web Dashboard</h3>
+        <p>Manage your full library from any browser. Create folders, write snippets with live formulas, review analytics, and configure Notion sync — nothing to install.</p>
+        <span class="plat-pill">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Lives in your browser
+        </span>
+      </div>
+
+      <div class="plat-card">
+        <div class="plat-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <h3>Mobile Website</h3>
+        <p>Browse, search, and copy snippets on iOS or Android — straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>
+        <span class="plat-pill">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          No download required
+        </span>
+      </div>
+
+    </div>
+
+    <p class="plat-note">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</p>
+
   </div>
 </section>
 
@@ -241,11 +884,11 @@ LeibTour Team</div>
   <h2>Launching on the Chrome Web Store</h2>
   <p>Drop your email. We'll send the install link the day it goes live.</p>
   <div class="hero-ctas">
-    <a href="mailto:support@leibtour.com?subject=SprintBrain%20notify%20me%20at%20launch&body=Hi%20SprintBrain%20team%2C%0A%0APlease%20notify%20me%20when%20SprintBrain%20is%20live%20on%20the%20Chrome%20Web%20Store.%0A%0AThanks!" class="btn btn-primary">
+    <a href="mailto:sprintbrainapp@gmail.com?subject=SprintBrain%20notify%20me%20at%20launch&body=Hi%20SprintBrain%20team%2C%0A%0APlease%20notify%20me%20when%20SprintBrain%20is%20live%20on%20the%20Chrome%20Web%20Store.%0A%0AThanks!" class="btn btn-primary">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       Notify me on launch
     </a>
-    <a href="/mobile/" class="btn btn-ghost">Try the mobile app</a>
+    <a href="https://app.sprintbrain.com/mobile/" class="btn btn-ghost">Try the mobile app</a>
   </div>
 </section>
 
@@ -253,12 +896,12 @@ LeibTour Team</div>
   <div class="foot-inner">
     <div class="foot-brand">
       <div class="brand-logo" style="width:22px;height:22px;font-size:12px">S</div>
-      SprintBrain · {{EXT_VERSION}}
+      © SprintBrain · {{EXT_VERSION}} · Updated {{RELEASE_DATE}}
     </div>
     <div class="foot-links">
-      <a href="/mobile/">Mobile</a>
+      <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
       <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener">GitHub</a>
-      <a href="mailto:support@leibtour.com">Support</a>
+      <a href="mailto:sprintbrainapp@gmail.com">Support</a>
       <a href="/legal/privacy-policy.html">Privacy</a>
       <a href="/legal/terms-and-conditions.html">Terms</a>
       <a href="/legal/cookie-policy.html">Cookies</a>
@@ -266,5 +909,24 @@ LeibTour Team</div>
   </div>
 </footer>
 
+
+<script>
+(function(){
+  var cards=document.querySelectorAll('.plat-card');
+  cards.forEach(function(card){
+    card.addEventListener('mousemove',function(e){
+      var r=card.getBoundingClientRect();
+      var dx=(e.clientX-r.left-r.width/2)/(r.width/2);
+      var dy=(e.clientY-r.top-r.height/2)/(r.height/2);
+      card.style.transition='transform .05s ease';
+      card.style.transform='perspective(800px) rotateY('+dx*8+'deg) rotateX('+(-dy*6)+'deg) translateZ(8px)';
+    });
+    card.addEventListener('mouseleave',function(){
+      card.style.transition='transform .6s cubic-bezier(.23,1,.32,1),box-shadow .3s ease,border-color .3s ease';
+      card.style.transform='';
+    });
+  });
+})();
+</script>
 </body>
 </html>

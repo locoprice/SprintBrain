@@ -22,21 +22,38 @@ export interface Folder {
   updated_at: IsoDateTime;
 }
 
+export type SnippetLanguage = 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
+
+/**
+ * Per-language body slots. Each key holds the body the user typed while that
+ * language pill was active. `content` is a denormalized mirror of
+ * `bodies[language]` so the Chrome extension (which reads `body` directly
+ * from the snippets table) keeps working unchanged.
+ */
+export type SnippetBodies = Partial<Record<SnippetLanguage, string>>;
+
 export interface Snippet {
   id: Uuid;
   user_id: Uuid;
   name: string;
   content: string;
+  bodies: SnippetBodies;
   triggers: string[];
   tags: string[];
   is_formula: boolean;
   formula: string | null;
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
-  language: 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
+  language: SnippetLanguage;
   is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean;
+  /**
+   * Soft-disable flag (SNIPPET-DISABLE-001). When false the extension hides
+   * the snippet from the context menu and refuses to expand its trigger; the
+   * dashboard still displays it so it can be re-enabled.
+   */
+  is_active: boolean;
   enable_urgency_timer: boolean;
   timer_duration_ms: number;
   scarcity_count: number;
@@ -49,6 +66,24 @@ export interface SnippetStat {
   used_at: IsoDateTime;
 }
 
+// ── Prompt v2 enum types ──────────────────────────────────────────────────────
+
+export type StrategyType = 'CoT' | 'ToT' | 'Few-shot' | 'One-shot' | 'RAG' | 'Agentic';
+export type ThinkingMode = 'fast' | 'balanced' | 'deep';
+export type PreferredModel = 'claude-opus-4-7' | 'claude-sonnet-4-6' | 'claude-haiku-4-5';
+export type ComplexityLevel = 'simple' | 'medium' | 'complex';
+export type ExecutionType = 'Generate' | 'Analyze' | 'Plan' | 'Critique' | 'Summarize' | 'Transform';
+export type IntentCategory = 'Writing' | 'Coding' | 'Support' | 'SEO' | 'Analysis' | 'Planning' | 'Research' | 'Teaching';
+export type OutputType = 'JSON' | 'Markdown' | 'SOP' | 'Plain';
+
+export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'reasoning' | 'constraints';
+
+export interface PromptBlock {
+  type: PromptBlockType;
+  content: string;
+  enabled: boolean;
+}
+
 export interface Prompt {
   id: Uuid;
   user_id: Uuid;
@@ -56,6 +91,14 @@ export interface Prompt {
   content: string;
   type: 'one-shot' | 'few-shot';
   tags: string[];
+  strategy_type: StrategyType | null;
+  thinking_mode: ThinkingMode | null;
+  preferred_model: PreferredModel | null;
+  complexity_level: ComplexityLevel | null;
+  execution_type: ExecutionType | null;
+  intent_category: IntentCategory | null;
+  output_type: OutputType | null;
+  blocks: PromptBlock[] | null;
   updated_at: IsoDateTime;
   last_used_at: IsoDateTime | null;
 }
