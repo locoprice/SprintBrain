@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import type { NotionSyncState, Profile } from '@/types/database';
+import type { ActivationKey, NotionSyncState, Profile } from '@/types/database';
+import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 
 // Live reads + writes for the Settings page.
 //
@@ -14,9 +15,19 @@ function isPrefix(v: unknown): v is Prefix {
   return typeof v === 'string' && (PREFIXES as readonly string[]).includes(v);
 }
 
+/** Allowed fields for a profile patch. All keys are optional. */
+export interface ProfilePatch {
+  display_name?: string;
+  shortcut_prefix?: Prefix;
+  trigger_snippet_seq?: string;
+  trigger_prompt_seq?: string;
+  trigger_snippet_key?: ActivationKey;
+  trigger_prompt_key?: ActivationKey;
+}
+
 export interface SettingsApi {
   getProfile(): Promise<Profile>;
-  updateProfile(patch: { display_name?: string; shortcut_prefix?: Prefix }): Promise<Profile>;
+  updateProfile(patch: ProfilePatch): Promise<Profile>;
   updateEmail(newEmail: string): Promise<void>;
   getNotionSync(): Promise<NotionSyncState>;
   updateNotionSettings(patch: { api_key?: string; db_id?: string }): Promise<void>;
@@ -37,14 +48,38 @@ function pickShortcutPrefix(metadata: Record<string, unknown> | undefined): Pref
   return isPrefix(v) ? v : '::';
 }
 
+/** Read a trigger sequence from user_metadata, falling back to a safe default. */
+function pickTriggerSeq(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+  fallback: string,
+): string {
+  const v = metadata?.[key];
+  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : fallback;
+}
+
+/** Read an activation key from user_metadata, defaulting to 'Tab'. */
+function pickActivationKey(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): ActivationKey {
+  const v = metadata?.[key];
+  return v === 'Tab' || v === 'Enter' ? v : 'Tab';
+}
+
 function userToProfile(u: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; created_at?: string }): Profile {
   const email = u.email ?? '';
+  const meta = u.user_metadata;
   return {
     id: u.id,
     email,
-    display_name: pickDisplayName(u.user_metadata, email),
-    shortcut_prefix: pickShortcutPrefix(u.user_metadata),
+    display_name: pickDisplayName(meta, email),
+    shortcut_prefix: pickShortcutPrefix(meta),
     created_at: u.created_at ?? new Date().toISOString(),
+    trigger_snippet_seq: pickTriggerSeq(meta, 'trigger_snippet_seq', DEFAULT_TRIGGER_CONFIG.snippetTrigger),
+    trigger_prompt_seq:  pickTriggerSeq(meta, 'trigger_prompt_seq',  DEFAULT_TRIGGER_CONFIG.promptTrigger),
+    trigger_snippet_key: pickActivationKey(meta, 'trigger_snippet_key'),
+    trigger_prompt_key:  pickActivationKey(meta, 'trigger_prompt_key'),
   };
 }
 
@@ -80,6 +115,10 @@ export const settingsApi: SettingsApi = {
     const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
     if (patch.display_name !== undefined) next['full_name'] = patch.display_name.trim();
     if (patch.shortcut_prefix !== undefined) next['shortcut_prefix'] = patch.shortcut_prefix;
+    if (patch.trigger_snippet_seq !== undefined) next['trigger_snippet_seq'] = patch.trigger_snippet_seq;
+    if (patch.trigger_prompt_seq  !== undefined) next['trigger_prompt_seq']  = patch.trigger_prompt_seq;
+    if (patch.trigger_snippet_key !== undefined) next['trigger_snippet_key'] = patch.trigger_snippet_key;
+    if (patch.trigger_prompt_key  !== undefined) next['trigger_prompt_key']  = patch.trigger_prompt_key;
 
     const { data, error } = await supabase.auth.updateUser({ data: next });
     if (error) throw error;

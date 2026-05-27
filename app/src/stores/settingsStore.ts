@@ -1,9 +1,19 @@
 import { create } from 'zustand';
-import type { NotionSyncState, Profile } from '@/types/database';
+import type { ActivationKey, NotionSyncState, Profile } from '@/types/database';
 import { settingsApi } from '@/lib/api/settingsApi';
 import { supabase } from '@/lib/supabase';
 
 type Prefix = '/' | '::' | ';';
+
+/** Allowed fields for a profile update — must stay in sync with ProfilePatch in settingsApi. */
+interface ProfilePatch {
+  display_name?: string;
+  shortcut_prefix?: Prefix;
+  trigger_snippet_seq?: string;
+  trigger_prompt_seq?: string;
+  trigger_snippet_key?: ActivationKey;
+  trigger_prompt_key?: ActivationKey;
+}
 
 interface SettingsStore {
   profile: Profile | null;
@@ -11,7 +21,7 @@ interface SettingsStore {
   loading: boolean;
   error: string | null;
   load: () => Promise<void>;
-  editProfile: (patch: { display_name?: string; shortcut_prefix?: Prefix }) => Promise<Profile>;
+  editProfile: (patch: ProfilePatch) => Promise<Profile>;
   changeEmail: (newEmail: string) => Promise<void>;
   editNotionSettings: (patch: { api_key?: string; db_id?: string }) => Promise<void>;
 }

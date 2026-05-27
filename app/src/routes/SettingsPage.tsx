@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccountPanel } from '@/features/settings/AccountPanel';
+import { InlineTriggerPanel } from '@/features/settings/InlineTriggerPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -30,8 +31,9 @@ export function SettingsPage() {
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="account">
+        <TabsContent value="account" className="space-y-4">
           <AccountPanel />
+          <InlineTriggerPanel />
         </TabsContent>
         <TabsContent value="notion">
           <NotionSyncPanel />

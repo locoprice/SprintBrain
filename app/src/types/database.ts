@@ -5,12 +5,20 @@
 export type Uuid = string;
 export type IsoDateTime = string;
 
+/** Activation key used to confirm an inline trigger expansion. */
+export type ActivationKey = 'Tab' | 'Enter';
+
 export interface Profile {
   id: Uuid;
   email: string;
   display_name: string;
   shortcut_prefix: '/' | '::' | ';';
   created_at: IsoDateTime;
+  /** Inline trigger sequences — persisted in auth.users.user_metadata. */
+  trigger_snippet_seq: string;
+  trigger_prompt_seq: string;
+  trigger_snippet_key: ActivationKey;
+  trigger_prompt_key: ActivationKey;
 }
 
 export interface Folder {

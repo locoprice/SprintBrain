@@ -22,6 +22,10 @@ export const mockProfile: Profile = {
   display_name: 'Alessandro Verdicchio',
   shortcut_prefix: '::',
   created_at: '2025-12-01T09:00:00Z',
+  trigger_snippet_seq: '::',
+  trigger_prompt_seq: '"""',
+  trigger_snippet_key: 'Tab',
+  trigger_prompt_key: 'Tab',
 };
 
 export const mockFolders: Folder[] = [
