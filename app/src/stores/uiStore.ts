@@ -32,6 +32,11 @@ interface UiStore {
   openEditPrompt: (id: string) => void;
   closeEditPrompt: () => void;
 
+  // Prompt preview modal — shows assembled blocks + copy button
+  promptPreviewId: string | null;
+  openPromptPreview: (id: string) => void;
+  closePromptPreview: () => void;
+
   // Theme preference — persisted to localStorage, applied to <html data-theme>
   theme: ThemePreference;
   setTheme: (pref: ThemePreference) => void;
@@ -57,6 +62,10 @@ export const useUiStore = create<UiStore>((set) => ({
   editPromptId: null,
   openEditPrompt: (id) => set({ editPromptId: id }),
   closeEditPrompt: () => set({ editPromptId: null }),
+
+  promptPreviewId: null,
+  openPromptPreview: (id) => set({ promptPreviewId: id }),
+  closePromptPreview: () => set({ promptPreviewId: null }),
 
   theme: getStoredTheme(),
   setTheme: (pref) => {

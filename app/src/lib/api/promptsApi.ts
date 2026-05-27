@@ -1,12 +1,13 @@
 import { supabase } from '@/lib/supabase';
-import type { Prompt } from '@/types/database';
+import type { Prompt, PromptBlock, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, ExecutionType, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
 
 export interface PromptsApi {
   listPrompts(): Promise<Prompt[]>;
   createPrompt(payload: PromptFormValues): Promise<Prompt>;
-  updatePrompt(id: string, patch: Partial<PromptFormValues>): Promise<Prompt>;
+  updatePrompt(id: string, patch: Partial<PromptFormValues>) : Promise<Prompt>;
   deletePrompt(id: string): Promise<void>;
+  markUsed(id: string): Promise<void>;
 }
 
 type DbPrompt = {
@@ -16,11 +17,24 @@ type DbPrompt = {
   content: string;
   type: 'one-shot' | 'few-shot';
   tags: string[] | null;
+  strategy_type: string | null;
+  thinking_mode: string | null;
+  preferred_model: string | null;
+  complexity_level: string | null;
+  execution_type: string | null;
+  intent_category: string | null;
+  output_type: string | null;
+  blocks: PromptBlock[] | null;
   updated_at: string;
   last_used_at: string | null;
 };
 
-const PROMPT_SELECT = 'id, user_id, name, content, type, tags, updated_at, last_used_at';
+const PROMPT_SELECT = [
+  'id', 'user_id', 'name', 'content', 'type', 'tags',
+  'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
+  'execution_type', 'intent_category', 'output_type', 'blocks',
+  'updated_at', 'last_used_at',
+].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
   return {
@@ -30,6 +44,14 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     content: row.content,
     type: row.type,
     tags: row.tags ?? [],
+    strategy_type: (row.strategy_type as StrategyType) ?? null,
+    thinking_mode: (row.thinking_mode as ThinkingMode) ?? null,
+    preferred_model: (row.preferred_model as PreferredModel) ?? null,
+    complexity_level: (row.complexity_level as ComplexityLevel) ?? null,
+    execution_type: (row.execution_type as ExecutionType) ?? null,
+    intent_category: (row.intent_category as IntentCategory) ?? null,
+    output_type: (row.output_type as OutputType) ?? null,
+    blocks: row.blocks ?? null,
     updated_at: row.updated_at,
     last_used_at: row.last_used_at,
   };
@@ -51,7 +73,7 @@ export const promptsApi: PromptsApi = {
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
     if (error) throw error;
-    return ((data ?? []) as DbPrompt[]).map(dbPromptToPrompt);
+    return ((data ?? []) as unknown as DbPrompt[]).map(dbPromptToPrompt);
   },
 
   async createPrompt(payload) {
@@ -65,12 +87,20 @@ export const promptsApi: PromptsApi = {
         content: payload.content,
         type: payload.type,
         tags: payload.tags,
+        strategy_type: payload.strategy_type ?? null,
+        thinking_mode: payload.thinking_mode ?? null,
+        preferred_model: payload.preferred_model ?? null,
+        complexity_level: payload.complexity_level ?? null,
+        execution_type: payload.execution_type ?? null,
+        intent_category: payload.intent_category ?? null,
+        output_type: payload.output_type ?? null,
+        blocks: payload.blocks ?? null,
         updated_at: now,
       })
       .select(PROMPT_SELECT)
       .single();
     if (error) throw error;
-    return dbPromptToPrompt(data as DbPrompt);
+    return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
   async updatePrompt(id, patch) {
@@ -82,6 +112,14 @@ export const promptsApi: PromptsApi = {
     if (patch.content !== undefined) update['content'] = patch.content;
     if (patch.type !== undefined) update['type'] = patch.type;
     if (patch.tags !== undefined) update['tags'] = patch.tags;
+    if ('strategy_type' in patch) update['strategy_type'] = patch.strategy_type ?? null;
+    if ('thinking_mode' in patch) update['thinking_mode'] = patch.thinking_mode ?? null;
+    if ('preferred_model' in patch) update['preferred_model'] = patch.preferred_model ?? null;
+    if ('complexity_level' in patch) update['complexity_level'] = patch.complexity_level ?? null;
+    if ('execution_type' in patch) update['execution_type'] = patch.execution_type ?? null;
+    if ('intent_category' in patch) update['intent_category'] = patch.intent_category ?? null;
+    if ('output_type' in patch) update['output_type'] = patch.output_type ?? null;
+    if ('blocks' in patch) update['blocks'] = patch.blocks ?? null;
 
     const { data, error } = await supabase
       .from('prompts')
@@ -91,7 +129,7 @@ export const promptsApi: PromptsApi = {
       .select(PROMPT_SELECT)
       .single();
     if (error) throw error;
-    return dbPromptToPrompt(data as DbPrompt);
+    return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
   async deletePrompt(id) {
@@ -99,6 +137,16 @@ export const promptsApi: PromptsApi = {
     const { error } = await supabase
       .from('prompts')
       .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  async markUsed(id) {
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('prompts')
+      .update({ last_used_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', userId);
     if (error) throw error;
