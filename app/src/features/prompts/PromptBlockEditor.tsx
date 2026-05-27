@@ -182,6 +182,7 @@ export function PromptBlockEditor() {
 
   // Form state
   const [name, setName] = useState('');
+  const [promptType, setPromptType] = useState<'one-shot' | 'few-shot'>('one-shot');
   const [blocks, setBlocks] = useState<PromptBlock[]>(DEFAULT_BLOCKS);
   const [tags, setTags] = useState('');
   const [strategyType, setStrategyType] = useState<StrategyType | null>(null);
@@ -212,6 +213,7 @@ export function PromptBlockEditor() {
 
     if (editingPrompt) {
       setName(editingPrompt.name);
+      setPromptType(editingPrompt.type);
       setBlocks(
         editingPrompt.blocks && editingPrompt.blocks.length > 0
           ? editingPrompt.blocks
@@ -231,6 +233,7 @@ export function PromptBlockEditor() {
       setOutputType(editingPrompt.output_type);
     } else {
       setName('');
+      setPromptType('one-shot');
       setBlocks(DEFAULT_BLOCKS);
       setTags('');
       setStrategyType(null);
@@ -260,6 +263,17 @@ export function PromptBlockEditor() {
   useEffect(() => {
     triggerClassify(blocks);
   }, [blocks, triggerClassify]);
+
+  // ESC closes the editor panel
+  useEffect(() => {
+    if (!isOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') close();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   function applyIntentSuggestion() {
     if (!suggestion) return;
@@ -300,7 +314,7 @@ export function PromptBlockEditor() {
     const payload: PromptFormValues = {
       name: name.trim(),
       content: assembled,
-      type: 'one-shot',
+      type: promptType,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       strategy_type: strategyType,
       thinking_mode: thinkingMode,

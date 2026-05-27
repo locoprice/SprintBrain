@@ -4,6 +4,12 @@ import { usePromptStore } from '@/stores/promptStore';
 import { useUiStore } from '@/stores/uiStore';
 import type { Prompt } from '@/types/database';
 
+const MODEL_LABELS: Record<string, string> = {
+  'claude-opus-4-7': 'Opus',
+  'claude-sonnet-4-6': 'Sonnet',
+  'claude-haiku-4-5': 'Haiku',
+};
+
 const STRATEGY_COLORS: Record<string, string> = {
   CoT: 'bg-[#EEF2FF] text-[#1B4FD8]',
   ToT: 'bg-[#F5F3FF] text-[#7C3AED]',
@@ -149,7 +155,10 @@ export function PromptCmdK() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-ink">{prompt.name}</p>
                     <p className="text-xs text-ink-subtle">
-                      {[prompt.intent_category, prompt.preferred_model ? 'Sonnet' : null]
+                      {[
+                        prompt.intent_category,
+                        prompt.preferred_model ? (MODEL_LABELS[prompt.preferred_model] ?? null) : null,
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                     </p>

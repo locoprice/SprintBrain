@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, X } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useUiStore } from '@/stores/uiStore';
@@ -51,38 +51,28 @@ export function PromptPreviewModal() {
 
   return (
     <Dialog open={!!promptPreviewId} onOpenChange={(open) => !open && closePromptPreview()}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden">
+      {/* pr-10 makes room for the built-in DialogContent close button (absolute right-4 top-4) */}
+      <DialogContent className="max-w-2xl overflow-hidden p-0">
         {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-line">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="text-base font-semibold text-ink">
-                {prompt.name}
-              </DialogTitle>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {prompt.strategy_type && (
-                  <Badge variant="primary">{prompt.strategy_type}</Badge>
-                )}
-                {prompt.intent_category && (
-                  <Badge variant="neutral">{prompt.intent_category}</Badge>
-                )}
-                {prompt.preferred_model && (
-                  <Badge variant="outline">
-                    {MODEL_LABELS[prompt.preferred_model] ?? prompt.preferred_model}
-                  </Badge>
-                )}
-                {prompt.thinking_mode && (
-                  <Badge variant="outline">{prompt.thinking_mode}</Badge>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={closePromptPreview}
-              className="shrink-0 rounded-[8px] p-1.5 text-ink-muted transition-colors hover:bg-bg-alt hover:text-ink"
-            >
-              <X className="h-4 w-4" />
-            </button>
+        <DialogHeader className="border-b border-line px-6 pb-4 pt-6 pr-10">
+          <DialogTitle className="text-base font-semibold text-ink">
+            {prompt.name}
+          </DialogTitle>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {prompt.strategy_type && (
+              <Badge variant="primary">{prompt.strategy_type}</Badge>
+            )}
+            {prompt.intent_category && (
+              <Badge variant="neutral">{prompt.intent_category}</Badge>
+            )}
+            {prompt.preferred_model && (
+              <Badge variant="outline">
+                {MODEL_LABELS[prompt.preferred_model] ?? prompt.preferred_model}
+              </Badge>
+            )}
+            {prompt.thinking_mode && (
+              <Badge variant="outline">{prompt.thinking_mode}</Badge>
+            )}
           </div>
         </DialogHeader>
 
