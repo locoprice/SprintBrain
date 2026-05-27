@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Prompt } from '@/types/database';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
-import { assembleBlocks } from '@/lib/intentEngine';
+import { assembleBlocks } from '@/lib/promptUtils';
 
 interface PromptCardProps {
   prompt: Prompt;

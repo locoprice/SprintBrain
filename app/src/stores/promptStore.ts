@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import type {
   Prompt,
@@ -140,7 +141,7 @@ export function useFilteredPrompts(): Prompt[] {
   const prompts = usePromptStore((s) => s.prompts);
   const filters = usePromptStore((s) => s.filters);
 
-  return prompts.filter((p) => {
+  return useMemo(() => prompts.filter((p) => {
     if (filters.type !== 'all' && p.type !== filters.type) return false;
     if (filters.strategy && p.strategy_type !== filters.strategy) return false;
     if (filters.intent && p.intent_category !== filters.intent) return false;
@@ -157,7 +158,7 @@ export function useFilteredPrompts(): Prompt[] {
       if (!inName && !inTags && !inIntent && !inContent) return false;
     }
     return true;
-  });
+  }), [prompts, filters]);
 }
 
 export function useActiveFilterCount(): number {

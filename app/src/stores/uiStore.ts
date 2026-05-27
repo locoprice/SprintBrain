@@ -37,6 +37,16 @@ interface UiStore {
   openPromptPreview: (id: string) => void;
   closePromptPreview: () => void;
 
+  // Draft preview — assembles blocks without requiring a saved prompt (create mode)
+  promptDraftContent: string | null;
+  openPromptDraftPreview: (content: string) => void;
+  closePromptDraftPreview: () => void;
+
+  // Transient toast notification (auto-dismissed by the Toast component)
+  toast: { message: string; type: 'success' | 'error' } | null;
+  showToast: (message: string, type?: 'success' | 'error') => void;
+  clearToast: () => void;
+
   // Theme preference — persisted to localStorage, applied to <html data-theme>
   theme: ThemePreference;
   setTheme: (pref: ThemePreference) => void;
@@ -66,6 +76,14 @@ export const useUiStore = create<UiStore>((set) => ({
   promptPreviewId: null,
   openPromptPreview: (id) => set({ promptPreviewId: id }),
   closePromptPreview: () => set({ promptPreviewId: null }),
+
+  promptDraftContent: null,
+  openPromptDraftPreview: (content) => set({ promptDraftContent: content }),
+  closePromptDraftPreview: () => set({ promptDraftContent: null }),
+
+  toast: null,
+  showToast: (message, type = 'success') => set({ toast: { message, type } }),
+  clearToast: () => set({ toast: null }),
 
   theme: getStoredTheme(),
   setTheme: (pref) => {

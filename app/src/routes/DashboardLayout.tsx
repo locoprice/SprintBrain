@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
+import { Toast } from '@/components/ui/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
 
@@ -75,6 +76,7 @@ export function DashboardLayout() {
         </div>
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      <Toast />
     </div>
   );
 }

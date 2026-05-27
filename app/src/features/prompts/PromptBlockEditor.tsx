@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import { AlertCircle, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
-import { classifyPrompt, assembleBlocks } from '@/lib/intentEngine';
+import { classifyPrompt } from '@/lib/intentEngine';
+import { assembleBlocks } from '@/lib/promptUtils';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -167,6 +168,8 @@ export function PromptBlockEditor() {
   const closeNew = useUiStore((s) => s.closeNewPrompt);
   const closeEdit = useUiStore((s) => s.closeEditPrompt);
   const openPromptPreview = useUiStore((s) => s.openPromptPreview);
+  const openPromptDraftPreview = useUiStore((s) => s.openPromptDraftPreview);
+  const showToast = useUiStore((s) => s.showToast);
 
   const prompts = usePromptStore((s) => s.prompts);
   const addPrompt = usePromptStore((s) => s.addPrompt);
@@ -301,6 +304,11 @@ export function PromptBlockEditor() {
     );
   }
 
+  function handlePreviewDraft() {
+    const assembled = assembleBlocks(blocks);
+    if (assembled) openPromptDraftPreview(assembled);
+  }
+
   async function handleSave() {
     if (!name.trim()) {
       setNameError('Name is required');
@@ -329,9 +337,11 @@ export function PromptBlockEditor() {
     try {
       if (mode === 'edit' && editingPrompt) {
         await editPrompt(editingPrompt.id, payload);
+        showToast('Changes saved');
         closeEdit();
       } else {
         await addPrompt(payload);
+        showToast('Prompt created');
         closeNew();
       }
     } catch (err) {
@@ -365,10 +375,12 @@ export function PromptBlockEditor() {
     }
   }
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#1E1E22] bg-[#0D0D0F] shadow-[-20px_0_60px_rgba(0,0,0,0.35)]">
+    <div
+      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#1E1E22] bg-[#0D0D0F] shadow-[-20px_0_60px_rgba(0,0,0,0.35)] transition-transform duration-200 ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+    >
       {/* ── Top bar ── */}
       <div className="flex shrink-0 items-center justify-between border-b border-[#1E1E22] px-5 py-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -457,6 +469,26 @@ export function PromptBlockEditor() {
             Metadata
           </p>
           <div className="grid grid-cols-2 gap-3">
+            {/* Type toggle */}
+            <div className="col-span-2">
+              <label className="mb-1.5 block text-[10px] text-[#555560]">Type</label>
+              <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#2A2A2E]">
+                {(['one-shot', 'few-shot'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setPromptType(t)}
+                    className={`py-1.5 text-xs font-medium transition-colors ${
+                      promptType === t
+                        ? 'bg-[#1B4FD8] text-white'
+                        : 'bg-[#151518] text-[#6A6A75] hover:text-[#A0A0A8]'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="mb-1 block text-[10px] text-[#555560]">Strategy</label>
               <DarkSelect
@@ -555,6 +587,16 @@ export function PromptBlockEditor() {
             >
               <Zap className="h-3.5 w-3.5" />
               Use
+            </button>
+          )}
+          {mode === 'create' && (
+            <button
+              type="button"
+              onClick={handlePreviewDraft}
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#2A2A2E] px-3 text-sm font-medium text-[#8A8A95] transition-colors hover:border-[#3A3A40] hover:text-[#C0C0C8]"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview
             </button>
           )}
           <div className="flex-1" />

@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
-import { assembleBlocks } from '@/lib/intentEngine';
+import { assembleBlocks } from '@/lib/promptUtils';
 
 const MODEL_LABELS: Record<string, string> = {
   'claude-opus-4-7': 'Opus 4',
@@ -15,6 +15,8 @@ const MODEL_LABELS: Record<string, string> = {
 export function PromptPreviewModal() {
   const promptPreviewId = useUiStore((s) => s.promptPreviewId);
   const closePromptPreview = useUiStore((s) => s.closePromptPreview);
+  const promptDraftContent = useUiStore((s) => s.promptDraftContent);
+  const closePromptDraftPreview = useUiStore((s) => s.closePromptDraftPreview);
   const prompts = usePromptStore((s) => s.prompts);
 
   const [copied, setCopied] = useState(false);
@@ -24,19 +26,30 @@ export function PromptPreviewModal() {
     ? (prompts.find((p) => p.id === promptPreviewId) ?? null)
     : null;
 
+  const isDraftMode = promptPreviewId === null && promptDraftContent !== null;
+  const isOpen = !!prompt || isDraftMode;
+
+  const assembled: string = isDraftMode
+    ? (promptDraftContent ?? '')
+    : prompt
+      ? (prompt.blocks && prompt.blocks.length > 0
+          ? assembleBlocks(prompt.blocks)
+          : prompt.content)
+      : '';
+
   useEffect(() => {
-    if (!prompt) setCopied(false);
+    setCopied(false);
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     };
-  }, [prompt]);
+  }, [prompt, promptDraftContent]);
 
-  if (!prompt) return null;
-
-  const assembled =
-    prompt.blocks && prompt.blocks.length > 0
-      ? assembleBlocks(prompt.blocks)
-      : prompt.content;
+  function handleOpenChange(open: boolean) {
+    if (!open) {
+      if (isDraftMode) closePromptDraftPreview();
+      else closePromptPreview();
+    }
+  }
 
   async function handleCopy() {
     try {
@@ -50,30 +63,32 @@ export function PromptPreviewModal() {
   }
 
   return (
-    <Dialog open={!!promptPreviewId} onOpenChange={(open) => !open && closePromptPreview()}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {/* pr-10 makes room for the built-in DialogContent close button (absolute right-4 top-4) */}
       <DialogContent className="max-w-2xl overflow-hidden p-0">
         {/* Header */}
         <DialogHeader className="border-b border-line px-6 pb-4 pt-6 pr-10">
           <DialogTitle className="text-base font-semibold text-ink">
-            {prompt.name}
+            {isDraftMode ? 'Draft preview' : (prompt?.name ?? '')}
           </DialogTitle>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {prompt.strategy_type && (
-              <Badge variant="primary">{prompt.strategy_type}</Badge>
-            )}
-            {prompt.intent_category && (
-              <Badge variant="neutral">{prompt.intent_category}</Badge>
-            )}
-            {prompt.preferred_model && (
-              <Badge variant="outline">
-                {MODEL_LABELS[prompt.preferred_model] ?? prompt.preferred_model}
-              </Badge>
-            )}
-            {prompt.thinking_mode && (
-              <Badge variant="outline">{prompt.thinking_mode}</Badge>
-            )}
-          </div>
+          {!isDraftMode && prompt && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {prompt.strategy_type && (
+                <Badge variant="primary">{prompt.strategy_type}</Badge>
+              )}
+              {prompt.intent_category && (
+                <Badge variant="neutral">{prompt.intent_category}</Badge>
+              )}
+              {prompt.preferred_model && (
+                <Badge variant="outline">
+                  {MODEL_LABELS[prompt.preferred_model] ?? prompt.preferred_model}
+                </Badge>
+              )}
+              {prompt.thinking_mode && (
+                <Badge variant="outline">{prompt.thinking_mode}</Badge>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         {/* Assembled prompt text */}
@@ -84,7 +99,9 @@ export function PromptPreviewModal() {
             </pre>
           ) : (
             <p className="text-sm italic text-ink-subtle">
-              This prompt has no content yet. Open the editor to add blocks.
+              {isDraftMode
+                ? 'No content yet — enable at least one block and add text.'
+                : 'This prompt has no content yet. Open the editor to add blocks.'}
             </p>
           )}
         </div>
@@ -94,7 +111,7 @@ export function PromptPreviewModal() {
           <p className="text-xs text-ink-subtle">
             {assembled.length > 0
               ? `${assembled.length.toLocaleString()} characters`
-              : 'Empty prompt'}
+              : isDraftMode ? 'Empty draft' : 'Empty prompt'}
           </p>
           <button
             type="button"
