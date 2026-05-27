@@ -92,7 +92,7 @@ function DarkSelect<T extends string>({
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#555560]" />
+      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#85858E]" />
     </div>
   );
 }
@@ -123,7 +123,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
           <div
             className={`h-1.5 w-1.5 rounded-full ${block.enabled ? 'bg-[#1B4FD8]' : 'bg-[#3A3A40]'}`}
           />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#6A6A75]">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#9A9AA5]">
             {BLOCK_LABELS[block.type]}
           </span>
         </div>
@@ -152,7 +152,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
             onChange={(e) => onChange(e.target.value)}
             placeholder={BLOCK_HINTS[block.type]}
             rows={3}
-            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 py-2.5 font-mono text-sm leading-relaxed text-[#D0D0D8] placeholder:text-[#3A3A42] focus:border-[#1B4FD8]/60 focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/20"
+            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 py-2.5 font-mono text-sm leading-relaxed text-[#D0D0D8] placeholder:text-[#85858E] focus:border-[#1B4FD8]/60 focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/20"
           />
         </div>
       )}
@@ -392,7 +392,7 @@ export function PromptBlockEditor() {
               if (nameError) setNameError(null);
             }}
             placeholder="Prompt name…"
-            className="w-full bg-transparent text-sm font-semibold text-[#F0F0F5] placeholder:text-[#3A3A42] focus:outline-none"
+            className="w-full bg-transparent text-sm font-semibold text-[#F0F0F5] placeholder:text-[#85858E] focus:outline-none"
           />
           {nameError && (
             <span className="text-[11px] text-[#FF5F57]">{nameError}</span>
@@ -401,7 +401,7 @@ export function PromptBlockEditor() {
         <button
           type="button"
           onClick={close}
-          className="ml-3 shrink-0 rounded-[8px] p-1.5 text-[#555560] transition-colors hover:bg-[#1A1A1E] hover:text-[#A0A0A8]"
+          className="ml-3 shrink-0 rounded-[8px] p-1.5 text-[#85858E] transition-colors hover:bg-[#1A1A1E] hover:text-[#A0A0A8]"
           aria-label="Close editor"
         >
           <X className="h-4 w-4" />
@@ -416,7 +416,7 @@ export function PromptBlockEditor() {
             Detected <span className="font-semibold text-[#7090E0]">{suggestion.intent}</span>
             {' — '}
             <span className="font-semibold text-[#7090E0]">{suggestion.strategies[0]}</span> recommended
-            <span className="ml-1 text-[#404060]">
+            <span className="ml-1 text-[#85858E]">
               ({Math.round(suggestion.confidence * 100)}% confidence)
             </span>
           </p>
@@ -430,7 +430,7 @@ export function PromptBlockEditor() {
           <button
             type="button"
             onClick={() => setSuggestion(null)}
-            className="shrink-0 text-[#404060] hover:text-[#6A6A75]"
+            className="shrink-0 text-[#85858E] hover:text-[#9A9AA5]"
           >
             <X className="h-3 w-3" />
           </button>
@@ -442,7 +442,7 @@ export function PromptBlockEditor() {
         {/* Blocks */}
         <div>
           <div className="px-5 py-3">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#404048]">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#85858E]">
               Blocks
             </p>
           </div>
@@ -465,13 +465,13 @@ export function PromptBlockEditor() {
 
         {/* Metadata */}
         <div className="border-b border-[#1E1E22] px-5 py-4">
-          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#404048]">
+          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#85858E]">
             Metadata
           </p>
           <div className="grid grid-cols-2 gap-3">
             {/* Type toggle */}
             <div className="col-span-2">
-              <label className="mb-1.5 block text-[10px] text-[#555560]">Type</label>
+              <label className="mb-1.5 block text-[10px] text-[#85858E]">Type</label>
               <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#2A2A2E]">
                 {(['one-shot', 'few-shot'] as const).map((t) => (
                   <button
@@ -481,7 +481,7 @@ export function PromptBlockEditor() {
                     className={`py-1.5 text-xs font-medium transition-colors ${
                       promptType === t
                         ? 'bg-[#1B4FD8] text-white'
-                        : 'bg-[#151518] text-[#6A6A75] hover:text-[#A0A0A8]'
+                        : 'bg-[#151518] text-[#9A9AA5] hover:text-[#A0A0A8]'
                     }`}
                   >
                     {t}
@@ -490,7 +490,7 @@ export function PromptBlockEditor() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Strategy</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Strategy</label>
               <DarkSelect
                 value={strategyType}
                 onChange={setStrategyType}
@@ -499,7 +499,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Model</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Model</label>
               <DarkSelect
                 value={preferredModel}
                 onChange={setPreferredModel}
@@ -508,7 +508,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Intent</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Intent</label>
               <DarkSelect
                 value={intentCategory}
                 onChange={setIntentCategory}
@@ -517,7 +517,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Complexity</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Complexity</label>
               <DarkSelect
                 value={complexityLevel}
                 onChange={setComplexityLevel}
@@ -526,7 +526,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Output type</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Output type</label>
               <DarkSelect
                 value={outputType}
                 onChange={setOutputType}
@@ -535,7 +535,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Thinking mode</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Thinking mode</label>
               <DarkSelect
                 value={thinkingMode}
                 onChange={setThinkingMode}
@@ -544,7 +544,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-[10px] text-[#555560]">Execution type</label>
+              <label className="mb-1 block text-[10px] text-[#85858E]">Execution type</label>
               <DarkSelect
                 value={executionType}
                 onChange={setExecutionType}
@@ -557,7 +557,7 @@ export function PromptBlockEditor() {
 
         {/* Tags */}
         <div className="px-5 py-4">
-          <label className="mb-1.5 block text-[10px] text-[#555560]">
+          <label className="mb-1.5 block text-[10px] text-[#85858E]">
             Tags (comma-separated)
           </label>
           <input
@@ -565,7 +565,7 @@ export function PromptBlockEditor() {
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             placeholder="sales, onboarding, email"
-            className="h-8 w-full rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 text-xs text-[#D0D0D8] placeholder:text-[#3A3A42] focus:border-[#1B4FD8]/60 focus:outline-none"
+            className="h-8 w-full rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 text-xs text-[#D0D0D8] placeholder:text-[#85858E] focus:border-[#1B4FD8]/60 focus:outline-none"
           />
         </div>
       </div>
