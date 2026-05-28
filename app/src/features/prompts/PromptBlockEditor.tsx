@@ -571,7 +571,7 @@ export function PromptBlockEditor() {
       </div>
 
       {/* ── Footer actions ── */}
-      <div className="flex shrink-0 flex-col gap-2 border-t border-[#1E1E22] px-5 py-4">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-[#1E1E22] bg-[#151518] px-5 py-4">
         {submitError && (
           <div className="flex items-center gap-2 rounded-[8px] border border-[#FF5F57]/30 bg-[#FF5F57]/5 px-3 py-2 text-xs text-[#FF5F57]">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
