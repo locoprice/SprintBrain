@@ -119,6 +119,27 @@ export interface NotionSyncState {
   last_error: string | null;
 }
 
+// ── Version history ───────────────────────────────────────────────────────────
+
+/**
+ * One immutable snapshot of a snippet's content (title + body + bodies) saved
+ * by a team member. Rows are append-only; version_number is 1-indexed and
+ * strictly increases per snippet (SNIPPET-REVISIONS-001).
+ */
+export interface SnippetRevision {
+  id: Uuid;
+  snippet_id: Uuid;
+  version_number: number;
+  editor_id: Uuid;
+  /** Denormalized display string (email or display_name) captured at save time. */
+  editor_display: string;
+  title: string;
+  body: string;
+  bodies: SnippetBodies;
+  edit_note: string | null;
+  created_at: IsoDateTime;
+}
+
 // Derived view models used by feature components.
 
 export interface SnippetRow extends Snippet {

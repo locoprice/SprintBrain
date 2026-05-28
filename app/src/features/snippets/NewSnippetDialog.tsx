@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertCircle, Clock, Pin, Plus, Trash2, Users } from 'lucide-react';
+import { AlertCircle, Clock, History, Pin, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -92,9 +92,11 @@ export function NewSnippetDialog() {
 
   const folders      = useSnippetStore((s) => s.folders);
   const snippets     = useSnippetStore((s) => s.snippets);
-  const addSnippet   = useSnippetStore((s) => s.addSnippet);
-  const editSnippet  = useSnippetStore((s) => s.editSnippet);
-  const removeSnippet = useSnippetStore((s) => s.removeSnippet);
+  const addSnippet              = useSnippetStore((s) => s.addSnippet);
+  const editSnippetWithRevision = useSnippetStore((s) => s.editSnippetWithRevision);
+  const removeSnippet           = useSnippetStore((s) => s.removeSnippet);
+
+  const openHistory = useUiStore((s) => s.openHistory);
 
   const editingSnippet = useMemo(
     () => (editId ? snippets.find((s) => s.id === editId) ?? null : null),
@@ -104,6 +106,7 @@ export function NewSnippetDialog() {
   const open = mode === 'edit' ? editingSnippet !== null : newOpen;
 
   const [form, setForm] = useState<SnippetFormValues>(EMPTY_FORM);
+  const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -115,6 +118,7 @@ export function NewSnippetDialog() {
     setErrors({});
     setSubmitError(null);
     setConfirmDelete(false);
+    setEditNote('');
     if (editingSnippet) {
       // Bodies map drives the textarea — start by trusting the snippet's
       // per-language map, with a fallback so legacy rows (no `bodies` yet)
@@ -243,7 +247,13 @@ export function NewSnippetDialog() {
     setSaving(true);
     try {
       if (mode === 'edit' && editingSnippet) {
-        await editSnippet(editingSnippet.id, parsed.data);
+        // Every explicit "Save changes" creates a revision entry so the full
+        // history is preserved. editSnippet is no longer called from the dialog.
+        await editSnippetWithRevision(
+          editingSnippet.id,
+          parsed.data,
+          editNote.trim() || undefined,
+        );
         closeEdit();
       } else {
         await addSnippet(parsed.data);
@@ -416,6 +426,24 @@ export function NewSnippetDialog() {
                 ))}
               </div>
             </div>
+
+            {/* Edit note — only shown in edit mode; recorded in version history */}
+            {mode === 'edit' && (
+              <div>
+                <label htmlFor="snippet-edit-note" className={FIELD_LABEL}>
+                  Edit note{' '}
+                  <span className="font-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder={'What changed? e.g. "Updated checkout wording"'}
+                  disabled={saving}
+                  maxLength={200}
+                />
+              </div>
+            )}
           </div>
 
           {/* ── PANEL DIVIDER ── */}
@@ -551,16 +579,31 @@ export function NewSnippetDialog() {
         {/* ── Footer ── */}
         <div className="shrink-0 px-6 py-4 border-t border-line bg-card flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {mode === 'edit' && (
-              <button
-                type="button"
-                onClick={onDelete}
-                disabled={saving}
-                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-danger/30 bg-danger/5 px-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50 shrink-0"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {confirmDelete ? 'Click again to confirm' : 'Delete'}
-              </button>
+            {mode === 'edit' && editingSnippet && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeEdit();
+                    openHistory(editingSnippet.id);
+                  }}
+                  disabled={saving}
+                  title="View version history"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-card px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-primary-light hover:text-primary hover:border-primary/30 disabled:opacity-50 shrink-0"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  History
+                </button>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={saving}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-danger/30 bg-danger/5 px-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50 shrink-0"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {confirmDelete ? 'Click again to confirm' : 'Delete'}
+                </button>
+              </>
             )}
             {submitError && (
               <div className="flex items-center gap-1.5 text-xs text-danger min-w-0">

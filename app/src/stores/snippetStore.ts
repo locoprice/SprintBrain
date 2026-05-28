@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { Folder, Snippet, SnippetRow } from '@/types/database';
+import type { Folder, Snippet, SnippetRevision, SnippetRow } from '@/types/database';
 import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
+import { revisionsApi } from '@/lib/api/revisionsApi';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -74,6 +75,29 @@ interface SnippetStore {
    * update. Does not set store.error — callers own result feedback.
    */
   importSnippets: (items: SnippetFormValues[]) => Promise<ImportBatchResult>;
+
+  // ── Version history ────────────────────────────────────────────────────────
+  revisions: SnippetRevision[];
+  revisionsSnippetId: string | null;
+  revisionsLoading: boolean;
+  /** Fetch all revisions for a snippet and cache them in the store. */
+  loadRevisions: (snippetId: string) => Promise<void>;
+  /**
+   * Save the snippet's full content via the atomic `save_snippet_with_revision`
+   * RPC, then update the in-memory row. Replaces `editSnippet` in the edit
+   * dialog so every "Save changes" click produces a revision entry.
+   */
+  editSnippetWithRevision: (
+    id: string,
+    patch: SnippetFormValues,
+    editNote?: string,
+  ) => Promise<SnippetRow>;
+  /**
+   * Restore an older revision by re-saving its content as a new version.
+   * The restored snippet gets the revision's title + body + bodies; all other
+   * metadata (shortcut, folder, pinned, etc.) is preserved from the current row.
+   */
+  restoreRevision: (snippetId: string, revision: SnippetRevision) => Promise<void>;
 }
 
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
@@ -81,6 +105,9 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   snippets: [],
   loading: false,
   error: null,
+  revisions: [],
+  revisionsSnippetId: null,
+  revisionsLoading: false,
   selectedFolderId: null,
   searchQuery: '',
   sharingIds: new Set<string>(),
@@ -447,6 +474,125 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     }
 
     return { imported, failed };
+  },
+
+  // ── Version history ──────────────────────────────────────────────────────
+
+  loadRevisions: async (snippetId) => {
+    set({ revisionsLoading: true, revisionsSnippetId: snippetId });
+    try {
+      const revisions = await revisionsApi.listRevisions(snippetId);
+      set({ revisions, revisionsLoading: false });
+    } catch (err) {
+      set({
+        revisionsLoading: false,
+        error: err instanceof Error ? err.message : 'Failed to load version history',
+      });
+    }
+  },
+
+  editSnippetWithRevision: async (id, patch, editNote) => {
+    const snippet = get().snippets.find((s) => s.id === id);
+    if (!snippet) throw new Error('Snippet not found');
+    try {
+      await revisionsApi.saveWithRevision(
+        id,
+        {
+          title: patch.name,
+          shortcut: patch.trigger,
+          body: patch.content,
+          bodies: patch.bodies,
+          lang: patch.language,
+          folder_id: patch.folder_id,
+          pinned: patch.pinned ?? false,
+          is_shared: patch.is_shared ?? false,
+          enable_urgency_timer: patch.enable_urgency_timer ?? false,
+          timer_duration_ms: patch.timer_duration_ms ?? 0,
+          scarcity_count: patch.scarcity_count ?? 0,
+        },
+        editNote,
+      );
+      const folder = patch.folder_id
+        ? get().folders.find((f) => f.id === patch.folder_id)
+        : null;
+      const updatedRow: SnippetRow = {
+        ...snippet,
+        name: patch.name,
+        content: patch.content,
+        bodies: patch.bodies,
+        triggers: [patch.trigger],
+        language: patch.language,
+        folder_id: patch.folder_id,
+        folder_name:
+          patch.folder_id === snippet.folder_id
+            ? snippet.folder_name
+            : (folder?.name ?? null),
+        pinned: patch.pinned ?? false,
+        is_shared: patch.is_shared ?? false,
+        enable_urgency_timer: patch.enable_urgency_timer ?? false,
+        timer_duration_ms: patch.timer_duration_ms ?? 0,
+        scarcity_count: patch.scarcity_count ?? 0,
+        updated_at: new Date().toISOString(),
+      };
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === id ? updatedRow : sn)),
+        // Invalidate the revision cache for this snippet so the next History
+        // panel open always re-fetches rather than showing a stale list.
+        revisions: s.revisionsSnippetId === id ? [] : s.revisions,
+        revisionsSnippetId: s.revisionsSnippetId === id ? null : s.revisionsSnippetId,
+        error: null,
+      }));
+      return updatedRow;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save snippet';
+      set({ error: msg });
+      throw err;
+    }
+  },
+
+  restoreRevision: async (snippetId, revision) => {
+    const snippet = get().snippets.find((s) => s.id === snippetId);
+    if (!snippet) throw new Error('Snippet not found');
+    try {
+      // Re-save the revision's content as a new version, preserving all current
+      // metadata (shortcut, folder, pinned, etc.) unchanged.
+      await revisionsApi.saveWithRevision(
+        snippetId,
+        {
+          title: revision.title,
+          shortcut: snippet.triggers[0] ?? '',
+          body: revision.body,
+          bodies: revision.bodies,
+          lang: snippet.language,
+          folder_id: snippet.folder_id,
+          pinned: snippet.pinned,
+          is_shared: snippet.is_shared,
+          enable_urgency_timer: snippet.enable_urgency_timer,
+          timer_duration_ms: snippet.timer_duration_ms,
+          scarcity_count: snippet.scarcity_count,
+        },
+        `Restored from v${revision.version_number}`,
+      );
+      const restoredRow: SnippetRow = {
+        ...snippet,
+        name: revision.title,
+        content: revision.body,
+        bodies: revision.bodies,
+        updated_at: new Date().toISOString(),
+      };
+      set((s) => ({
+        snippets: s.snippets.map((sn) => (sn.id === snippetId ? restoredRow : sn)),
+        error: null,
+      }));
+      // Refresh the history list so the new "restored" version appears.
+      if (get().revisionsSnippetId === snippetId) {
+        await get().loadRevisions(snippetId);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to restore revision';
+      set({ error: msg });
+      throw err;
+    }
   },
 }));
 

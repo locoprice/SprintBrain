@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Pencil, Power, Settings, Trash2 } from 'lucide-react';
+import { Clock, Copy, Pencil, Power, Settings, Trash2 } from 'lucide-react';
 import type { SnippetRow } from '@/types/database';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -27,6 +27,7 @@ interface SnippetRowActionsProps {
  */
 export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
+  const openHistory = useUiStore((s) => s.openHistory);
   const duplicateSnippet = useSnippetStore((s) => s.duplicateSnippet);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const toggleActive = useSnippetStore((s) => s.toggleActive);
@@ -103,6 +104,11 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
   function handleGearToggle(e: React.MouseEvent) {
     e.stopPropagation();
     setOpen((v) => !v);
+  }
+
+  function handleHistory() {
+    openHistory(snippet.id);
+    setOpen(false);
   }
 
   async function handleClone() {
@@ -185,6 +191,12 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.preventDefault()}
           >
+            <MenuItem
+              icon={<Clock className="h-3.5 w-3.5" />}
+              label="History"
+              onClick={handleHistory}
+              disabled={working}
+            />
             <MenuItem
               icon={<Copy className="h-3.5 w-3.5" />}
               label="Clone"

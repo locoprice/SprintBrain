@@ -1,7 +1,7 @@
 {
   "name": "sprintbrain-dashboard",
   "private": true,
-  "version": "2.53.0",
+  "version": "2.54.0",
   "type": "module",
   "description": "SprintBrain SaaS dashboard (desktop-only). React + Vite + Tailwind + shadcn.",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
@@ -41,6 +42,7 @@
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.59.3",
-    "vite": "^5.4.9"
+    "vite": "^5.4.9",
+    "vitest": "^2.1.0"
   }
 }
