@@ -44,7 +44,7 @@ export function PromptsPage() {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-ink">Prompts</h1>
             <p className="mt-0.5 text-sm text-ink-muted">
-              AI reasoning infrastructure — structured, executable workflows.
+              AI reasoning infrastructure. Structured, executable workflows.
             </p>
           </div>
           <div className="flex items-center gap-2">
