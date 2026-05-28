@@ -148,6 +148,10 @@ function BrandPanel() {
             </li>
           ))}
         </ul>
+
+        <p className="text-[14px] italic text-white/50 leading-relaxed">
+          Stress the model, not yourself.
+        </p>
       </div>
 
       {/* Footer */}
