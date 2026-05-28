@@ -42,8 +42,9 @@ img,svg{display:block;max-width:100%}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;
   letter-spacing:-.3px}
 .brand-logo{width:28px;height:28px;border-radius:7px;background:var(--primary);
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;
-  font-size:15px;letter-spacing:-.5px}
+  display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.brand-logo img{width:22px;height:auto;object-fit:contain;
+  filter:brightness(0) invert(1);pointer-events:none;user-select:none}
 .nav-links{margin-left:auto;display:flex;align-items:center;gap:8px}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
   border-radius:var(--r-btn);transition:color .15s,background .15s}
@@ -522,7 +523,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="brand">
-      <div class="brand-logo">S</div>
+      <div class="brand-logo"><img src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="SprintBrain" draggable="false"></div>
       SprintBrain
     </a>
     <div class="nav-links">
@@ -536,7 +537,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · v2.55.0</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.55.1</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
@@ -976,8 +977,8 @@ LeibTour Team</div>
 <footer>
   <div class="foot-inner">
     <div class="foot-brand">
-      <div class="brand-logo" style="width:22px;height:22px;font-size:12px">S</div>
-      © 2026 SprintBrain · v2.55.0 · Updated May 2026
+      <div class="brand-logo" style="width:22px;height:22px"><img src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="" aria-hidden="true" draggable="false" style="width:14px;height:14px"></div>
+      © 2026 SprintBrain · v2.55.1 · Updated May 2026
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
