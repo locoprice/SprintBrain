@@ -111,7 +111,7 @@ function LandingView({ loading, error, onGoTo }: BaseViewProps) {
         <h2 className="text-[22px] font-bold tracking-tight text-ink">
           Continue to SprintBrain
         </h2>
-        <p className="text-sm text-ink-muted">Sign up or log in to your account</p>
+        <p className="text-sm text-ink-muted">Sign in or create an account</p>
       </div>
 
       <SocialButton
@@ -222,7 +222,7 @@ function SentView({
           Check your email
         </h2>
         <p className="text-sm text-ink-muted">
-          Enter the code we sent to{' '}
+          Enter the 8-digit code we sent to{' '}
           <span className="font-medium text-ink">{email}</span>.
         </p>
       </div>
@@ -462,10 +462,10 @@ function RecoveryView({
     <form onSubmit={onRecovery} className="space-y-5">
       <div className="space-y-1">
         <h2 className="text-[22px] font-bold tracking-tight text-ink">
-          Reset your access
+          Sign in with a link
         </h2>
         <p className="text-sm text-ink-muted">
-          Enter your email and we'll send you a secure sign-in link.
+          Enter your email and we'll send a sign-in link.
         </p>
       </div>
 
@@ -491,7 +491,7 @@ function RecoveryView({
         className="w-full"
         disabled={loading || !email.trim()}
       >
-        {loading ? 'Sending…' : 'Email me a secure access link →'}
+        {loading ? 'Sending…' : 'Send link →'}
       </Button>
     </form>
   );

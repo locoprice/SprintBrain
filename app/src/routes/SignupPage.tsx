@@ -317,7 +317,7 @@ export function SignupPage() {
                   rel="noopener noreferrer"
                   className="underline-offset-2 hover:underline"
                 >
-                  Terms
+                  Terms of Service
                 </a>{' '}
                 and{' '}
                 <a
