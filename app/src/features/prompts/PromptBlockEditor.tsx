@@ -116,7 +116,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
   }, [block.content]);
 
   return (
-    <div className={`border-b border-[#1E1E22] transition-opacity ${block.enabled ? '' : 'opacity-40'}`}>
+    <div className={`border-b border-[#1E1E22] transition-opacity ${block.enabled ? '' : 'opacity-60'}`}>
       {/* Block header */}
       <div className="flex items-center justify-between px-5 py-2.5">
         <div className="flex items-center gap-2">
