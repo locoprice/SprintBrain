@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { classifyPrompt } from '@/lib/intentEngine';
@@ -78,21 +79,90 @@ function DarkSelect<T extends string>({
   options,
   placeholder,
 }: DarkSelectProps<T>) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? null;
+
+  const handleOpen = () => {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!triggerRef.current?.contains(t) && !menuRef.current?.contains(t)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   return (
     <div className="relative">
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange((e.target.value as T) || null)}
-        className="h-8 w-full appearance-none rounded-[8px] border border-[#2A2A2E] bg-[#151518] pl-3 pr-7 text-xs text-[#D0D0D8] focus:border-[#1B4FD8]/60 focus:outline-none"
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : handleOpen())}
+        className="flex h-8 w-full items-center justify-between rounded-[8px] border border-[#2A2A2E] bg-[#151518] pl-3 pr-2.5 text-xs transition-colors hover:border-[#3A3A40] focus:border-[#1B4FD8]/60 focus:outline-none"
       >
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#B0B0BC]" />
+        <span className={value !== null ? 'text-[#D0D0D8]' : 'text-[#5A5A62]'}>
+          {selectedLabel ?? placeholder}
+        </span>
+        <ChevronDown
+          className={`h-3 w-3 shrink-0 text-[#B0B0BC] transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ top: pos.top, left: pos.left, width: pos.width }}
+            className="fixed z-[9999] overflow-hidden rounded-[10px] border border-[#2E2E33] bg-[#1C1C21] p-1 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="flex h-7 w-full items-center justify-between rounded-[6px] px-2.5 text-xs text-[#5A5A62] transition-colors hover:bg-[#252529] hover:text-[#9A9AA5]"
+            >
+              {placeholder}
+              {value === null && <Check className="h-3 w-3 shrink-0 text-[#1B4FD8]" />}
+            </button>
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className="flex h-7 w-full items-center justify-between rounded-[6px] px-2.5 text-xs transition-colors hover:bg-[#252529]"
+              >
+                <span className={value === o.value ? 'font-medium text-[#E0E0E8]' : 'text-[#B8B8C2]'}>
+                  {o.label}
+                </span>
+                {value === o.value && <Check className="h-3 w-3 shrink-0 text-[#1B4FD8]" />}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -12,15 +12,28 @@ export interface ClassificationResult {
   executionType: ExecutionType;
   thinkingMode: ThinkingMode;
   preferredModel: PreferredModel;
-  /** 0–1. Values below LLM_THRESHOLD would route to Layer 2. */
+  /** 0-1. Values below LLM_THRESHOLD would route to Layer 2. */
   confidence: number;
 }
 
 const LLM_THRESHOLD = 0.6;
 
+/** Match weights. Phrases are the strongest, then specific terms, then generic. */
+const PHRASE_WEIGHT = 4;
+const PRIMARY_WEIGHT = 3;
+const SECONDARY_WEIGHT = 1;
+
+/** Score at which absolute signal strength saturates to 1. */
+const STRENGTH_SATURATION = 10;
+
 interface IntentRule {
   intent: IntentCategory;
-  keywords: string[];
+  /** High-signal, specific single-word terms (weight PRIMARY_WEIGHT). */
+  primary: string[];
+  /** Supporting, more generic single-word terms (weight SECONDARY_WEIGHT). */
+  secondary: string[];
+  /** Unambiguous multi-word phrases matched on the raw text (weight PHRASE_WEIGHT). */
+  phrases: string[];
   strategies: StrategyType[];
   executionType: ExecutionType;
   preferredModel: PreferredModel;
@@ -30,11 +43,13 @@ interface IntentRule {
 const INTENT_RULES: IntentRule[] = [
   {
     intent: 'Coding',
-    keywords: [
-      'code', 'debug', 'function', 'bug', 'implement', 'refactor', 'test',
-      'api', 'algorithm', 'typescript', 'javascript', 'python', 'class',
-      'error', 'fix', 'compile', 'syntax', 'component', 'hook', 'async',
+    primary: [
+      'code', 'coding', 'debug', 'function', 'refactor', 'api', 'algorithm',
+      'typescript', 'javascript', 'python', 'compile', 'syntax', 'component',
+      'hook', 'async', 'regex', 'runtime', 'variable', 'exception', 'sql',
     ],
+    secondary: ['bug', 'implement', 'test', 'class', 'error', 'fix', 'deploy', 'build'],
+    phrases: ['pull request', 'unit test', 'type error', 'stack trace', 'code review', 'edge case'],
     strategies: ['CoT', 'ToT'],
     executionType: 'Generate',
     preferredModel: 'claude-opus-4-7',
@@ -42,11 +57,12 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Writing',
-    keywords: [
-      'write', 'blog', 'article', 'email', 'copy', 'essay', 'draft',
-      'content', 'tone', 'formal', 'casual', 'newsletter', 'social', 'post',
-      'prose', 'paragraph', 'sentence', 'story', 'narrative',
+    primary: [
+      'write', 'blog', 'article', 'essay', 'copywriting', 'newsletter',
+      'prose', 'narrative', 'storytelling', 'headline', 'tagline', 'screenplay', 'poem',
     ],
+    secondary: ['email', 'draft', 'content', 'tone', 'formal', 'casual', 'social', 'post', 'paragraph', 'sentence', 'story'],
+    phrases: ['blog post', 'cover letter', 'product description', 'social media'],
     strategies: ['One-shot', 'Few-shot'],
     executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
@@ -54,11 +70,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'SEO',
-    keywords: [
-      'seo', 'keyword', 'meta', 'rank', 'search', 'traffic', 'optimize',
-      'backlink', 'title tag', 'description', 'serp', 'organic', 'index',
-      'crawl', 'sitemap',
-    ],
+    primary: ['seo', 'keyword', 'backlink', 'serp', 'sitemap', 'permalink'],
+    secondary: ['meta', 'rank', 'ranking', 'search', 'traffic', 'optimize', 'organic', 'index', 'crawl'],
+    phrases: ['title tag', 'meta description', 'search engine', 'keyword research', 'on page', 'link building'],
     strategies: ['Few-shot', 'One-shot'],
     executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
@@ -66,11 +80,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Support',
-    keywords: [
-      'support', 'help', 'customer', 'ticket', 'issue', 'complaint',
-      'respond', 'resolution', 'answer', 'faq', 'reply', 'service',
-      'escalate', 'refund', 'satisfaction',
-    ],
+    primary: ['customer', 'ticket', 'complaint', 'refund', 'escalate', 'faq', 'helpdesk'],
+    secondary: ['support', 'help', 'issue', 'respond', 'resolution', 'answer', 'reply', 'service', 'satisfaction', 'apologize'],
+    phrases: ['customer service', 'support ticket', 'help desk', 'angry customer'],
     strategies: ['Few-shot', 'One-shot'],
     executionType: 'Generate',
     preferredModel: 'claude-haiku-4-5',
@@ -78,11 +90,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Analysis',
-    keywords: [
-      'analyze', 'analyse', 'review', 'evaluate', 'assess', 'compare',
-      'critique', 'data', 'report', 'insight', 'metrics', 'performance',
-      'benchmark', 'audit', 'findings',
-    ],
+    primary: ['analyze', 'analyse', 'analysis', 'evaluate', 'assess', 'benchmark', 'audit', 'metrics', 'correlation', 'dataset'],
+    secondary: ['review', 'compare', 'critique', 'data', 'report', 'insight', 'performance', 'findings', 'trend', 'statistics'],
+    phrases: ['root cause', 'data analysis', 'pros and cons', 'swot analysis'],
     strategies: ['CoT', 'RAG'],
     executionType: 'Analyze',
     preferredModel: 'claude-opus-4-7',
@@ -90,11 +100,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Planning',
-    keywords: [
-      'plan', 'roadmap', 'strategy', 'outline', 'steps', 'project',
-      'schedule', 'milestone', 'goal', 'task', 'workflow', 'sprint',
-      'backlog', 'prioritize', 'timeline',
-    ],
+    primary: ['roadmap', 'strategy', 'milestone', 'sprint', 'backlog', 'prioritize', 'timeline', 'gantt', 'okr'],
+    secondary: ['plan', 'outline', 'steps', 'project', 'schedule', 'goal', 'task', 'workflow', 'agenda', 'phases'],
+    phrases: ['project plan', 'action plan', 'go to market', 'step plan'],
     strategies: ['ToT', 'CoT'],
     executionType: 'Plan',
     preferredModel: 'claude-sonnet-4-6',
@@ -102,11 +110,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Research',
-    keywords: [
-      'research', 'find', 'gather', 'collect', 'sources', 'information',
-      'study', 'explore', 'survey', 'literature', 'summarize', 'curate',
-      'compile', 'overview', 'background',
-    ],
+    primary: ['research', 'sources', 'literature', 'survey', 'citation', 'hypothesis', 'methodology', 'bibliography'],
+    secondary: ['find', 'gather', 'collect', 'information', 'study', 'explore', 'compile', 'overview', 'background', 'investigate'],
+    phrases: ['literature review', 'market research', 'gather sources', 'state of the art'],
     strategies: ['RAG', 'Agentic'],
     executionType: 'Summarize',
     preferredModel: 'claude-opus-4-7',
@@ -114,11 +120,9 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: 'Teaching',
-    keywords: [
-      'teach', 'explain', 'tutor', 'lesson', 'course', 'example',
-      'demonstrate', 'simplify', 'understand', 'quiz', 'learn', 'concept',
-      'beginner', 'step by step', 'guide',
-    ],
+    primary: ['teach', 'explain', 'tutor', 'lesson', 'curriculum', 'tutorial', 'quiz', 'flashcard', 'pedagogy'],
+    secondary: ['course', 'example', 'demonstrate', 'simplify', 'understand', 'learn', 'concept', 'beginner', 'guide'],
+    phrases: ['step by step', 'explain like', 'for beginners', 'walk through', 'in simple terms'],
     strategies: ['Few-shot', 'CoT'],
     executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
@@ -127,39 +131,92 @@ const INTENT_RULES: IntentRule[] = [
 ];
 
 /**
- * Layer 1: deterministic keyword classifier.
- * Returns null when no keywords match (confidence = 0).
+ * Lightweight stemmer: collapses common English inflections so that
+ * "functions", "debugging", "planned" reduce to the same root as their
+ * base keyword. Intentionally conservative to limit over-stemming.
+ */
+export function stem(word: string): string {
+  let w = word;
+  if (w.length <= 3) return w;
+
+  if (w.endsWith('ing') && w.length > 5) w = w.slice(0, -3);
+  else if (w.endsWith('ied') && w.length > 4) w = `${w.slice(0, -3)}y`;
+  else if (w.endsWith('ed') && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith('ies') && w.length > 4) w = `${w.slice(0, -3)}y`;
+  else if (w.endsWith('es') && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith('s') && !w.endsWith('ss') && w.length > 3) w = w.slice(0, -1);
+
+  // Collapse a doubled final consonant: planning -> plann -> plan.
+  if (w.length > 3 && /([bcdfghjklmnpqrstvwxz])\1$/.test(w)) w = w.slice(0, -1);
+
+  // Drop a trailing silent 'e' so code/coding and analyze/analyzing unify.
+  if (w.length > 3 && w.endsWith('e')) w = w.slice(0, -1);
+
+  return w;
+}
+
+/** Build the set of raw tokens and their stems from the input text. */
+function buildTokenSet(lower: string): Set<string> {
+  const set = new Set<string>();
+  const tokens = lower.match(/[a-z0-9]+/g) ?? [];
+  for (const t of tokens) {
+    set.add(t);
+    set.add(stem(t));
+  }
+  return set;
+}
+
+/** A single-word keyword matches if its raw or stemmed form is present. */
+function keywordMatches(keyword: string, tokens: Set<string>): boolean {
+  return tokens.has(keyword) || tokens.has(stem(keyword));
+}
+
+function scoreRule(rule: IntentRule, tokens: Set<string>, lower: string): number {
+  let score = 0;
+  for (const phrase of rule.phrases) {
+    if (lower.includes(phrase)) score += PHRASE_WEIGHT;
+  }
+  for (const kw of rule.primary) {
+    if (keywordMatches(kw, tokens)) score += PRIMARY_WEIGHT;
+  }
+  for (const kw of rule.secondary) {
+    if (keywordMatches(kw, tokens)) score += SECONDARY_WEIGHT;
+  }
+  return score;
+}
+
+/**
+ * Layer 1: deterministic token classifier.
+ * Returns null when nothing matches (confidence = 0).
+ *
+ * Confidence blends absolute signal strength with the margin over the
+ * runner-up intent, so a dominant single-intent match scores higher than
+ * an ambiguous near-tie of equal raw strength.
  */
 export function classifyPromptText(text: string): ClassificationResult | null {
   if (!text.trim()) return null;
 
   const lower = text.toLowerCase();
+  const tokens = buildTokenSet(lower);
 
-  let bestRuleIndex = 0;
-  let bestScore = 0;
+  // Stable sort preserves INTENT_RULES order on ties (deterministic).
+  const scored = INTENT_RULES.map((rule) => ({ rule, score: scoreRule(rule, tokens, lower) }))
+    .sort((a, b) => b.score - a.score);
 
-  for (let i = 0; i < INTENT_RULES.length; i++) {
-    const score = INTENT_RULES[i]!.keywords.reduce(
-      (acc, kw) => acc + (lower.includes(kw) ? 1 : 0),
-      0,
-    );
-    if (score > bestScore) {
-      bestScore = score;
-      bestRuleIndex = i;
-    }
-  }
+  const best = scored[0];
+  if (!best || best.score === 0) return null;
 
-  if (bestScore === 0) return null;
-
-  const bestRule = INTENT_RULES[bestRuleIndex]!;
-  const confidence = Math.min(0.35 + bestScore * 0.12, 0.95);
+  const secondScore = scored[1]?.score ?? 0;
+  const strength = Math.min(best.score / STRENGTH_SATURATION, 1);
+  const margin = (best.score - secondScore) / best.score;
+  const confidence = Math.max(0.3, Math.min(0.3 + 0.5 * strength + 0.2 * margin, 0.98));
 
   return {
-    intent: bestRule.intent,
-    strategies: bestRule.strategies,
-    executionType: bestRule.executionType,
-    thinkingMode: bestRule.thinkingMode,
-    preferredModel: bestRule.preferredModel,
+    intent: best.rule.intent,
+    strategies: best.rule.strategies,
+    executionType: best.rule.executionType,
+    thinkingMode: best.rule.thinkingMode,
+    preferredModel: best.rule.preferredModel,
     confidence,
   };
 }

@@ -114,7 +114,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
-      <nav className="flex-1 overflow-y-auto px-3 pt-5 pb-4">
+      <nav className="shrink-0 px-3 pt-5 pb-4">
         <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
           Workspace
         </div>
@@ -134,6 +134,17 @@ export function Sidebar() {
           ))}
         </div>
       </nav>
+
+      {/* LeibTour brand watermark — sits in the empty middle space */}
+      <div className="flex flex-1 items-center justify-center">
+        <img
+          src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="w-24 select-none opacity-[0.10] grayscale"
+        />
+      </div>
 
       {/* User block — click to open menu */}
       <div ref={menuRef} className="relative border-t border-line p-3">
