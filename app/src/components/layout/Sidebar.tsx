@@ -8,8 +8,8 @@ import {
   Bug,
   Github,
   LogOut,
-  MessageSquareText,
   Settings,
+  Sparkles,
   Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -81,8 +81,8 @@ export function Sidebar() {
 
   const PRIMARY: NavItem[] = [
     { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
+    { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/prompts', label: 'Prompts', icon: MessageSquareText, count: promptCount },
   ];
 
   useEffect(() => {
