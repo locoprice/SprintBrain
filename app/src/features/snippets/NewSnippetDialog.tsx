@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertCircle, Clock, History, Pin, Plus, Trash2, Users } from 'lucide-react';
+import { AlertCircle, Clock, History, Pin, Plus, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -44,6 +44,7 @@ const EMPTY_FORM: SnippetFormValues = {
   language: 'EN',
   pinned: false,
   is_shared: false,
+  alternative_queries: [],
   enable_urgency_timer: false,
   timer_duration_ms: 0,
   scarcity_count: 0,
@@ -106,6 +107,7 @@ export function NewSnippetDialog() {
   const open = mode === 'edit' ? editingSnippet !== null : newOpen;
 
   const [form, setForm] = useState<SnippetFormValues>(EMPTY_FORM);
+  const [altQueryDraft, setAltQueryDraft] = useState('');
   const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -119,6 +121,7 @@ export function NewSnippetDialog() {
     setSubmitError(null);
     setConfirmDelete(false);
     setEditNote('');
+    setAltQueryDraft('');
     if (editingSnippet) {
       // Bodies map drives the textarea — start by trusting the snippet's
       // per-language map, with a fallback so legacy rows (no `bodies` yet)
@@ -136,6 +139,7 @@ export function NewSnippetDialog() {
         language:             editingSnippet.language,
         pinned:               editingSnippet.pinned,
         is_shared:            editingSnippet.is_shared,
+        alternative_queries:  editingSnippet.alternative_queries,
         enable_urgency_timer: editingSnippet.enable_urgency_timer,
         timer_duration_ms:    editingSnippet.timer_duration_ms,
         scarcity_count:       editingSnippet.scarcity_count,
@@ -377,6 +381,60 @@ export function NewSnippetDialog() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Alternative Queries */}
+            <div>
+              <label className={FIELD_LABEL}>
+                Alternative queries{' '}
+                <span className="font-normal text-ink-subtle">— synonyms for context matching</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {form.alternative_queries.map((q, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 h-7 rounded-[6px] border border-primary-bdr bg-primary-bg px-2 text-xs font-medium text-primary"
+                  >
+                    {q}
+                    <button
+                      type="button"
+                      disabled={saving}
+                      aria-label={`Remove "${q}"`}
+                      onClick={() =>
+                        updateField(
+                          'alternative_queries',
+                          form.alternative_queries.filter((_, i) => i !== idx),
+                        )
+                      }
+                      className="text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <Input
+                id="snippet-alt-queries"
+                value={altQueryDraft}
+                onChange={(e) => setAltQueryDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    const tag = altQueryDraft.trim().toLowerCase().replace(/,/g, '');
+                    if (tag && !form.alternative_queries.includes(tag)) {
+                      updateField('alternative_queries', [...form.alternative_queries, tag]);
+                    }
+                    setAltQueryDraft('');
+                  } else if (e.key === 'Backspace' && altQueryDraft === '' && form.alternative_queries.length > 0) {
+                    updateField(
+                      'alternative_queries',
+                      form.alternative_queries.slice(0, -1),
+                    );
+                  }
+                }}
+                placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
+                disabled={saving}
+              />
             </div>
 
             {/* Body */}

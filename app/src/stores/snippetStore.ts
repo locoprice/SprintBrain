@@ -506,6 +506,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           folder_id: patch.folder_id,
           pinned: patch.pinned ?? false,
           is_shared: patch.is_shared ?? false,
+          alternative_queries: patch.alternative_queries ?? [],
           enable_urgency_timer: patch.enable_urgency_timer ?? false,
           timer_duration_ms: patch.timer_duration_ms ?? 0,
           scarcity_count: patch.scarcity_count ?? 0,
@@ -529,6 +530,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
             : (folder?.name ?? null),
         pinned: patch.pinned ?? false,
         is_shared: patch.is_shared ?? false,
+        alternative_queries: patch.alternative_queries ?? [],
         enable_urgency_timer: patch.enable_urgency_timer ?? false,
         timer_duration_ms: patch.timer_duration_ms ?? 0,
         scarcity_count: patch.scarcity_count ?? 0,
@@ -612,6 +614,7 @@ export function useFilteredSnippets(): SnippetRow[] {
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;
     if (s.tags.some((t) => t.toLowerCase().includes(query))) return true;
+    if (s.alternative_queries.some((q) => q.toLowerCase().includes(query))) return true;
     return false;
   });
 

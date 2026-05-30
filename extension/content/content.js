@@ -608,6 +608,29 @@ function checkBuf() {
       }
       return;
     }
+    // Also match against alternative_queries (ALTERNATIVE-QUERIES-001).
+    // Normalization: each query is lowercased and trimmed at save time; the
+    // comparison is case-insensitive to handle legacy values.
+    var altQueries = Array.isArray(snippets[i].alternative_queries) ? snippets[i].alternative_queries : [];
+    for (var j = 0; j < altQueries.length; j++) {
+      var aq = (altQueries[j] || '').trim();
+      if (!aq) continue;
+      var aqExpected = aq.indexOf(snippetTrigger) === 0 ? aq : snippetTrigger + aq;
+      if (aqExpected.length <= buf.length && buf.slice(-aqExpected.length).toLowerCase() === aqExpected.toLowerCase()) {
+        buf = '';
+        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+        var aqMatched = snippets[i];
+        var aqVariantsMap = _findLangVariants(aqMatched);
+        if (Object.keys(aqVariantsMap).length > 1) {
+          processing = true;
+          injectLangModal(aqVariantsMap, activeEl, aqExpected.length);
+        } else {
+          handleMatch(activeEl, aqMatched, aqExpected.length);
+        }
+        return;
+      }
+    }
   }
 
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
@@ -1859,8 +1882,13 @@ function _renderPickerItems(query) {
   var q = (query || '').toLowerCase();
   var filtered = q
     ? allItems.filter(function(s) {
-        return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
-               (s.shortcut || '').toLowerCase().indexOf(q) > -1;
+        if ((s.title    || '').toLowerCase().indexOf(q) > -1) return true;
+        if ((s.shortcut || '').toLowerCase().indexOf(q) > -1) return true;
+        var aqs = Array.isArray(s.alternative_queries) ? s.alternative_queries : [];
+        for (var ai = 0; ai < aqs.length; ai++) {
+          if ((aqs[ai] || '').toLowerCase().indexOf(q) > -1) return true;
+        }
+        return false;
       })
     : allItems.slice();
 
