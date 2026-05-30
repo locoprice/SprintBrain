@@ -156,7 +156,8 @@ app/
 ### 4.8 Auth + RLS
 - Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Only `@leibtour.com` emails can sign up (enforced by a `BEFORE INSERT` trigger on `auth.users`).
 - The dashboard uses the Supabase publishable key; the JS client attaches the user's JWT to every request automatically.
-- DB RLS still has permissive `team_*` policies (`qual: true`) needed by the extension's anon-key reads. Until the extension migrates (`AUTH-EXT-001`), every dashboard query explicitly filters `.eq('user_id', currentUserId)` in app code — do NOT remove those filters.
+- **AUTH-EXT-001 shipped (v2.50.0):** All RLS policies are now scoped to the `authenticated` role. `anon` has no table grants and no matching policies — unauthenticated reads are rejected at both layers. The extension uses per-user JWTs for every Supabase call.
+- Dashboard queries keep their `.eq('user_id', currentUserId)` app-level filter as defense-in-depth; this is no longer required for correctness but is good practice and must not be removed.
 
 ### 4.9 Forms
 - Snippet, folder, and prompt forms are wired to Supabase via Zod-validated stores with optimistic updates (SNIPPETS-CRUD-001, PROMPTS-001).
@@ -180,7 +181,7 @@ app/
 ## 6. What NOT to do
 
 - Do not import from extension source files (`extension/`). They share no runtime with the dashboard.
-- Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query until `AUTH-EXT-001` lands and the `team_*` RLS policies come off — without it, every authed user can read every other user's rows.
+- Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query — it is defense-in-depth against accidental policy mis-configuration (AUTH-EXT-001 shipped; RLS is correct, but the app-level filter adds a second layer).
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
 - Do not run `npm install` at the repo root — install only inside `app/`.
@@ -193,7 +194,7 @@ app/
 1. ~~Supabase auth (OTP / magic link) + live reads~~ ✅ shipped AUTH-001.
 2. ~~**SNIPPETS-CRUD-001** — create / edit / delete snippets and folders with Zod validation and optimistic updates.~~ ✅ shipped.
 3. ~~**PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.~~ ✅ shipped.
-4. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies. `ExtensionLinkPage` is the UI entry point.
+4. ~~**AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; tighten RLS policies to `authenticated` role only.~~ ✅ shipped v2.50.0.
 5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
 6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
 7. Dark mode (`uiStore` already has the seam).

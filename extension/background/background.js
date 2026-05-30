@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN BACKGROUND v2.32.0 — Fix: Notion sync no longer overwrites manually-edited snippets ──
+// ── SPRINTBRAIN BACKGROUND v2.50.0 — AUTH-EXT-001: require user JWT for all Supabase reads ──
 importScripts('../auth/auth.js');
 importScripts('../services/notion-sync/notion-sync.js');
 
@@ -89,13 +89,13 @@ chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse)
 function loadData() {
   return new Promise(function(resolve) {
     sbCurrentUserId(function(uid) {
+      // AUTH-EXT-001: all Supabase reads require a user JWT — no unauthenticated fallback.
+      if (!uid) { resolve({ folders: [], snippets: [], stats: [] }); return; }
       // is_active=eq.true filters out soft-disabled snippets (SNIPPET-DISABLE-001):
       // disabled rows must not appear in the right-click context menu and must
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
-      var snipQs = uid
-        ? 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-        : 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&is_shared=eq.true';
+      var snipQs = 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
         supaFetch('snippets', snipQs),
