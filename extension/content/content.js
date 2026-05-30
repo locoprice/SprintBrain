@@ -2210,7 +2210,11 @@ function _resolveSnippetRef(ref) {
 //   Pass 1 — live alternative_queries on each snippet (dynamic, user-configurable).
 //   Pass 2 — hardcoded SELECTION_TRIGGERS legacy fallback for snippets that
 //             pre-date the alternative_queries field or haven't been updated yet.
-// Results from both passes are merged and deduplicated before returning.
+//
+// Both passes share lang-group-aware deduplication: once any variant of a
+// lang group is added to refs, all sibling variants are suppressed in both
+// passes. _dedupByLangBase then collapses the final list to one entry per
+// group so the multi-language modal fires correctly at expansion time.
 function matchSelectionTriggers(selText) {
   if (!selText) return [];
   var lower = selText.toLowerCase();
@@ -2218,7 +2222,16 @@ function matchSelectionTriggers(selText) {
   var toks = lower.split(/[^a-z0-9à-ÿ]+/i);
   for (var t = 0; t < toks.length; t++) { if (toks[t]) tokenSet[toks[t]] = true; }
 
-  var refs = [], seenRef = {};
+  var refs = [], seenId = {}, seenGroup = {};
+
+  function _addToRefs(snip) {
+    if (seenId[snip.id]) return;
+    var lgid = snip.lang_group_id || snip.id;
+    if (seenGroup[lgid]) return; // sibling variant already covers this group
+    seenId[snip.id] = true;
+    seenGroup[lgid] = true;
+    refs.push(snip);
+  }
 
   // Pass 1: live alternative_queries — supersedes the hardcoded map for any
   // snippet that has been assigned at least one alternative query.
@@ -2233,14 +2246,11 @@ function matchSelectionTriggers(selText) {
       if (kw.indexOf(' ') > -1) { if (lower.indexOf(kw) > -1) { hit = true; break; } }
       else if (tokenSet[kw]) { hit = true; break; }
     }
-    if (hit && !seenRef[snip.id]) {
-      seenRef[snip.id] = true;
-      refs.push(snip);
-    }
+    if (hit) _addToRefs(snip);
   }
 
   // Pass 2: hardcoded SELECTION_TRIGGERS legacy fallback.
-  // Only fires for snippetIds not already surfaced in pass 1.
+  // Skipped for any lang group already surfaced in pass 1.
   for (var r = 0; r < SELECTION_TRIGGERS.length; r++) {
     var rule = SELECTION_TRIGGERS[r];
     var rHit = false;
@@ -2251,12 +2261,8 @@ function matchSelectionTriggers(selText) {
     }
     if (!rHit) continue;
     for (var s = 0; s < rule.snippetIds.length; s++) {
-      var id = rule.snippetIds[s];
-      var resolved = _resolveSnippetRef(id);
-      if (resolved && !seenRef[resolved.id]) {
-        seenRef[resolved.id] = true;
-        refs.push(resolved);
-      }
+      var resolved = _resolveSnippetRef(rule.snippetIds[s]);
+      if (resolved) _addToRefs(resolved);
     }
   }
 

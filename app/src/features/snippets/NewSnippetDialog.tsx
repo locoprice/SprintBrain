@@ -440,6 +440,14 @@ export function NewSnippetDialog() {
               <label className={FIELD_LABEL}>
                 Alternative queries{' '}
                 <span className="font-normal text-ink-subtle">— synonyms for context matching</span>
+                {mode === 'edit' && (
+                  <span
+                    className="ml-1.5 font-normal text-ink-subtle"
+                    title="This field is per-language variant. To apply the same queries to EN, IT, ES versions of this snippet, open each variant and save — the extension's language picker will fire automatically once any variant matches."
+                  >
+                    ⓘ per variant
+                  </span>
+                )}
               </label>
 
               {/* Added tags */}
