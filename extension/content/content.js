@@ -2205,6 +2205,12 @@ function _resolveSnippetRef(ref) {
 
 // Pure keyword matcher: returns the resolved, de-duplicated snippet objects
 // whose trigger keywords appear in `selText`.
+//
+// Two-pass approach (ALTERNATIVE-QUERIES-001):
+//   Pass 1 — live alternative_queries on each snippet (dynamic, user-configurable).
+//   Pass 2 — hardcoded SELECTION_TRIGGERS legacy fallback for snippets that
+//             pre-date the alternative_queries field or haven't been updated yet.
+// Results from both passes are merged and deduplicated before returning.
 function matchSelectionTriggers(selText) {
   if (!selText) return [];
   var lower = selText.toLowerCase();
@@ -2213,23 +2219,47 @@ function matchSelectionTriggers(selText) {
   for (var t = 0; t < toks.length; t++) { if (toks[t]) tokenSet[toks[t]] = true; }
 
   var refs = [], seenRef = {};
-  for (var r = 0; r < SELECTION_TRIGGERS.length; r++) {
-    var rule = SELECTION_TRIGGERS[r];
+
+  // Pass 1: live alternative_queries — supersedes the hardcoded map for any
+  // snippet that has been assigned at least one alternative query.
+  for (var i = 0; i < snippets.length; i++) {
+    var snip = snippets[i];
+    var aqs = Array.isArray(snip.alternative_queries) ? snip.alternative_queries : [];
+    if (!aqs.length) continue;
     var hit = false;
-    for (var k = 0; k < rule.keywords.length; k++) {
-      var kw = rule.keywords[k].toLowerCase();
+    for (var qi = 0; qi < aqs.length; qi++) {
+      var kw = (aqs[qi] || '').trim().toLowerCase();
+      if (!kw) continue;
       if (kw.indexOf(' ') > -1) { if (lower.indexOf(kw) > -1) { hit = true; break; } }
       else if (tokenSet[kw]) { hit = true; break; }
     }
-    if (!hit) continue;
-    for (var s = 0; s < rule.snippetIds.length; s++) {
-      var id = rule.snippetIds[s];
-      if (seenRef[id]) continue;
-      seenRef[id] = true;
-      var snip = _resolveSnippetRef(id);
-      if (snip) refs.push(snip);
+    if (hit && !seenRef[snip.id]) {
+      seenRef[snip.id] = true;
+      refs.push(snip);
     }
   }
+
+  // Pass 2: hardcoded SELECTION_TRIGGERS legacy fallback.
+  // Only fires for snippetIds not already surfaced in pass 1.
+  for (var r = 0; r < SELECTION_TRIGGERS.length; r++) {
+    var rule = SELECTION_TRIGGERS[r];
+    var rHit = false;
+    for (var k = 0; k < rule.keywords.length; k++) {
+      var rkw = rule.keywords[k].toLowerCase();
+      if (rkw.indexOf(' ') > -1) { if (lower.indexOf(rkw) > -1) { rHit = true; break; } }
+      else if (tokenSet[rkw]) { rHit = true; break; }
+    }
+    if (!rHit) continue;
+    for (var s = 0; s < rule.snippetIds.length; s++) {
+      var id = rule.snippetIds[s];
+      var resolved = _resolveSnippetRef(id);
+      if (resolved && !seenRef[resolved.id]) {
+        seenRef[resolved.id] = true;
+        refs.push(resolved);
+      }
+    }
+  }
+
   return _dedupByLangBase(refs);
 }
 
