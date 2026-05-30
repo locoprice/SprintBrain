@@ -272,7 +272,7 @@ var selIco       = 'folder';
 var ctxFolderId  = null;
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
 
 function loadTriggerCfg(cb) {
   try {
@@ -282,6 +282,7 @@ function loadTriggerCfg(cb) {
         if (d.triggerCfg.promptTrigger) triggerCfg.promptTrigger = d.triggerCfg.promptTrigger;
         if (d.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = d.triggerCfg.snippetActivationKey;
         if (d.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = d.triggerCfg.promptActivationKey;
+        if (typeof d.triggerCfg.selectionSuggestions === 'boolean') triggerCfg.selectionSuggestions = d.triggerCfg.selectionSuggestions;
       }
       if (cb) cb();
     });
@@ -942,6 +943,14 @@ function boot() {
           var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
           var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
           var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+          var ss = gi('tcfg-sel-suggest');
+          if (ss) {
+            ss.checked = triggerCfg.selectionSuggestions !== false;
+            ss.addEventListener('change', function () {
+              triggerCfg.selectionSuggestions = ss.checked;
+              saveTriggerCfg();
+            });
+          }
     });
 
     loadUserPrefs(function() {
