@@ -526,6 +526,22 @@ html,body{
 .cl-footer strong{color:var(--sb-iris);font-weight:700}
 
 /* ── URGENCY TIMER ── */
+/* ── ALTERNATIVE QUERIES TAG INPUT ── */
+.alt-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;min-height:0}
+.alt-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:var(--sb-fs-10);font-weight:600;
+  color:var(--sb-azure);background:var(--sb-azure-bg);
+  border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);
+  padding:2px 7px 2px 9px;line-height:1.4;
+}
+.alt-tag-x{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:12px;height:12px;cursor:pointer;border-radius:50%;
+  color:var(--sb-azure);opacity:.6;transition:opacity 100ms;
+  font-size:10px;font-style:normal;line-height:1;flex-shrink:0;
+}
+.alt-tag-x:hover{opacity:1}
 .urg-cfg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px;margin-top:4px}
 .urg-cfg-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .urg-cfg-lbl{font-size:11px;font-weight:600;color:var(--sb-ink);display:flex;align-items:center;gap:5px}
@@ -772,6 +788,11 @@ html,body{
         <span class="cmd" data-c="{=A - B}" style="color:var(--sb-lang-fr);border-color:#C4B5FD;background:#F5F3FF">{=formula}</span>
         <span class="cmd" data-c="{if:A > 0}text{endif}" style="color:#0891B2;border-color:#A5F3FC;background:#ECFEFF">{if:cond}</span>
       </div>
+    </div>
+    <div>
+      <div class="lbl">Alternative queries <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--sb-ink-subtle)">— synonyms, press Enter or comma to add</span></div>
+      <div class="alt-tags" id="alt-tags"></div>
+      <input class="einp" id="ealtq" placeholder="e.g. availability, no availability…" autocomplete="off" spellcheck="false">
     </div>
     <div class="urg-cfg">
       <div class="urg-cfg-hdr">
