@@ -76,6 +76,29 @@ const SELECT_CLASS =
   'h-10 w-full rounded-[10px] border border-line bg-card px-3 text-sm text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
 
 /**
+ * Keyword → candidate alternative queries map.
+ * Patterns match against the snippet name + trigger; matching suggestions are
+ * shown as one-click chips below the tag input (auto-suggest feature).
+ */
+const KEYWORD_SUGGESTIONS: Array<{ pattern: RegExp; suggestions: string[] }> = [
+  { pattern: /quote|estimate|preventivo|presup/i,  suggestions: ['quote', 'estimate', 'preventivo'] },
+  { pattern: /avail|disponib/i,                    suggestions: ['availability', 'no availability', 'disponibilità'] },
+  { pattern: /booking|reserv/i,                    suggestions: ['booking', 'reservation', 'prenotazione'] },
+  { pattern: /check.?in|arrival/i,                 suggestions: ['check-in', 'arrival', 'arrivo'] },
+  { pattern: /check.?out|departure/i,              suggestions: ['check-out', 'departure', 'partenza'] },
+  { pattern: /follow.?up/i,                        suggestions: ['follow up', 'follow-up', 'reminder'] },
+  { pattern: /welcome|greet/i,                     suggestions: ['welcome', 'benvenuto', 'bienvenido'] },
+  { pattern: /cancel|withdraw/i,                   suggestions: ['cancellation', 'refund', 'cancel'] },
+  { pattern: /minstay|minimum.stay/i,              suggestions: ['minimum stay', 'min stay', 'soggiorno minimo'] },
+  { pattern: /payment|invoice|receipt/i,           suggestions: ['payment', 'invoice', 'pagamento'] },
+  { pattern: /discount|offer|sale/i,               suggestions: ['discount', 'offer', 'sconto'] },
+  { pattern: /review|feedback/i,                   suggestions: ['review', 'feedback', 'recensione'] },
+  { pattern: /info(rmation)?/i,                    suggestions: ['information', 'details', 'info'] },
+  { pattern: /address|location/i,                  suggestions: ['address', 'location', 'directions'] },
+  { pattern: /urgency|timer|countdown/i,           suggestions: ['urgent', 'limited time', 'last minute'] },
+];
+
+/**
  * The create/edit snippet dialog — two-panel layout (main editor + options sidebar).
  *
  * Open-state is driven by the UI store:
@@ -113,6 +136,35 @@ export function NewSnippetDialog() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Auto-suggestions: derived from snippet name + trigger. Suggestions from
+  // matching keyword rules that haven't been added yet are shown as one-click chips.
+  const suggestedQueries = useMemo<string[]>(() => {
+    const corpus = `${form.name} ${form.trigger}`.toLowerCase();
+    if (!corpus.trim()) return [];
+    const seen = new Set(form.alternative_queries);
+    const out: string[] = [];
+    for (const { pattern, suggestions } of KEYWORD_SUGGESTIONS) {
+      if (pattern.test(corpus)) {
+        for (const s of suggestions) {
+          if (!seen.has(s) && !out.includes(s)) out.push(s);
+        }
+      }
+    }
+    return out.slice(0, 6); // cap at 6 so the UI stays compact
+  }, [form.name, form.trigger, form.alternative_queries]);
+
+  // Conflict detection: flag any tag that matches another snippet's primary trigger.
+  const conflictingQueries = useMemo<Set<string>>(() => {
+    const conflicts = new Set<string>();
+    for (const tag of form.alternative_queries) {
+      const collision = snippets.find(
+        (s) => s.id !== editingSnippet?.id && s.triggers[0]?.toLowerCase() === tag.toLowerCase(),
+      );
+      if (collision) conflicts.add(tag);
+    }
+    return conflicts;
+  }, [form.alternative_queries, snippets, editingSnippet]);
 
   // Reset form whenever the dialog opens (either mode) or the edit target changes.
   useEffect(() => {
@@ -389,30 +441,61 @@ export function NewSnippetDialog() {
                 Alternative queries{' '}
                 <span className="font-normal text-ink-subtle">— synonyms for context matching</span>
               </label>
-              <div className="flex flex-wrap gap-1.5 mb-1.5">
-                {form.alternative_queries.map((q, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1 h-7 rounded-[6px] border border-primary-bdr bg-primary-bg px-2 text-xs font-medium text-primary"
-                  >
-                    {q}
-                    <button
-                      type="button"
-                      disabled={saving}
-                      aria-label={`Remove "${q}"`}
-                      onClick={() =>
-                        updateField(
-                          'alternative_queries',
-                          form.alternative_queries.filter((_, i) => i !== idx),
-                        )
-                      }
-                      className="text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+
+              {/* Added tags */}
+              {form.alternative_queries.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {form.alternative_queries.map((q, idx) => {
+                    const hasConflict = conflictingQueries.has(q);
+                    return (
+                      <span
+                        key={idx}
+                        title={hasConflict ? `"${q}" is already a primary trigger on another snippet` : undefined}
+                        className={cn(
+                          'inline-flex items-center gap-1 h-7 rounded-[6px] border px-2 text-xs font-medium',
+                          hasConflict
+                            ? 'border-warning/60 bg-warning/10 text-warning'
+                            : 'border-primary-bdr bg-primary-bg text-primary',
+                        )}
+                      >
+                        {hasConflict && <AlertCircle className="h-3 w-3 shrink-0" />}
+                        {q}
+                        <button
+                          type="button"
+                          disabled={saving}
+                          aria-label={`Remove "${q}"`}
+                          onClick={() =>
+                            updateField(
+                              'alternative_queries',
+                              form.alternative_queries.filter((_, i) => i !== idx),
+                            )
+                          }
+                          className={cn(
+                            'transition-colors disabled:opacity-50',
+                            hasConflict ? 'text-warning/60 hover:text-warning' : 'text-primary/60 hover:text-primary',
+                          )}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Conflict warning banner */}
+              {conflictingQueries.size > 0 && (
+                <div className="flex items-start gap-1.5 rounded-[8px] border border-warning/40 bg-warning/8 px-2.5 py-2 text-xs text-warning mb-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  <span>
+                    {conflictingQueries.size === 1
+                      ? `"${[...conflictingQueries][0]}" matches another snippet's primary trigger — expansion may be ambiguous.`
+                      : `${conflictingQueries.size} tags conflict with existing primary triggers — expansion may be ambiguous.`}
                   </span>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Text input */}
               <Input
                 id="snippet-alt-queries"
                 value={altQueryDraft}
@@ -435,6 +518,28 @@ export function NewSnippetDialog() {
                 placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
                 disabled={saving}
               />
+
+              {/* Auto-suggestions */}
+              {suggestedQueries.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] font-medium text-ink-subtle shrink-0">Suggested:</span>
+                  {suggestedQueries.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => {
+                        if (!form.alternative_queries.includes(s)) {
+                          updateField('alternative_queries', [...form.alternative_queries, s]);
+                        }
+                      }}
+                      className="inline-flex h-6 items-center rounded-[6px] border border-line bg-bg-alt px-2 text-[11px] text-ink-muted transition-colors hover:border-primary/40 hover:bg-primary-bg hover:text-primary disabled:opacity-50"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Body */}
