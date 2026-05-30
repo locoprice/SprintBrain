@@ -572,6 +572,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           enable_urgency_timer: snippet.enable_urgency_timer,
           timer_duration_ms: snippet.timer_duration_ms,
           scarcity_count: snippet.scarcity_count,
+          alternative_queries: snippet.alternative_queries,
         },
         `Restored from v${revision.version_number}`,
       );

@@ -111,6 +111,9 @@ function coerceItem(raw: Record<string, unknown>): SnippetFormValues | null {
     folder_id: null,
     pinned: raw['pinned'] === true,
     is_shared: false,
+    alternative_queries: Array.isArray(raw['alternative_queries'])
+      ? (raw['alternative_queries'] as string[]).filter((q) => typeof q === 'string')
+      : [],
     enable_urgency_timer: raw['enable_urgency_timer'] === true,
     timer_duration_ms:
       typeof raw['timer_duration_ms'] === 'number' ? raw['timer_duration_ms'] : 0,
