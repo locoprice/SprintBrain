@@ -526,6 +526,22 @@ html,body{
 .cl-footer strong{color:var(--sb-iris);font-weight:700}
 
 /* ── URGENCY TIMER ── */
+/* ── ALTERNATIVE QUERIES TAG INPUT ── */
+.alt-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;min-height:0}
+.alt-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:var(--sb-fs-10);font-weight:600;
+  color:var(--sb-azure);background:var(--sb-azure-bg);
+  border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);
+  padding:2px 7px 2px 9px;line-height:1.4;
+}
+.alt-tag-x{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:12px;height:12px;cursor:pointer;border-radius:50%;
+  color:var(--sb-azure);opacity:.6;transition:opacity 100ms;
+  font-size:10px;font-style:normal;line-height:1;flex-shrink:0;
+}
+.alt-tag-x:hover{opacity:1}
 .urg-cfg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px;margin-top:4px}
 .urg-cfg-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .urg-cfg-lbl{font-size:11px;font-weight:600;color:var(--sb-ink);display:flex;align-items:center;gap:5px}
@@ -708,7 +724,7 @@ html,body{
       <div class="sb-lbl">Folders</div>
       <div class="sb-list" id="folder-list"></div>
       <div class="sb-add" id="btn-new-folder">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New folder
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Folder
       </div>
     </div>
     <div class="main">
@@ -772,6 +788,11 @@ html,body{
         <span class="cmd" data-c="{=A - B}" style="color:var(--sb-lang-fr);border-color:#C4B5FD;background:#F5F3FF">{=formula}</span>
         <span class="cmd" data-c="{if:A > 0}text{endif}" style="color:#0891B2;border-color:#A5F3FC;background:#ECFEFF">{if:cond}</span>
       </div>
+    </div>
+    <div>
+      <div class="lbl">Alternative queries <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--sb-ink-subtle)">— synonyms, press Enter or comma to add</span></div>
+      <div class="alt-tags" id="alt-tags"></div>
+      <input class="einp" id="ealtq" placeholder="e.g. availability, no availability…" autocomplete="off" spellcheck="false">
     </div>
     <div class="urg-cfg">
       <div class="urg-cfg-hdr">
@@ -872,6 +893,17 @@ html,body{
       <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:4px">
         Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">::</strong> in any text field to pick a snippet.<br>
         Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">"""</strong> to pick a prompt template.
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--sb-line)">
+        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);flex:1;display:flex;align-items:center;gap:4px">
+          <span class="ic ic-sm" style="color:var(--sb-iris)"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> Suggest on selection
+        </span>
+        <input type="checkbox" id="tcfg-sel-suggest" checked
+          style="width:16px;height:16px;accent-color:var(--sb-iris);cursor:pointer">
+      </div>
+      <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:4px">
+        Highlight text anywhere and SprintBrain offers matching snippets (e.g. select <strong>preventivo</strong> → quote).
       </div>
     </div>
 

@@ -8,8 +8,8 @@ import {
   Bug,
   Github,
   LogOut,
-  MessageSquareText,
   Settings,
+  Sparkles,
   Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -81,8 +81,8 @@ export function Sidebar() {
 
   const PRIMARY: NavItem[] = [
     { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
+    { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/prompts', label: 'Prompts', icon: MessageSquareText, count: promptCount },
   ];
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
-      <nav className="flex-1 overflow-y-auto px-3 pt-5 pb-4">
+      <nav className="shrink-0 px-3 pt-5 pb-4">
         <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
           Workspace
         </div>
@@ -134,6 +134,17 @@ export function Sidebar() {
           ))}
         </div>
       </nav>
+
+      {/* LeibTour brand watermark — sits in the empty middle space */}
+      <div className="flex flex-1 items-center justify-center">
+        <img
+          src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="w-24 select-none opacity-[0.10] grayscale"
+        />
+      </div>
 
       {/* User block — click to open menu */}
       <div ref={menuRef} className="relative border-t border-line p-3">
@@ -162,7 +173,7 @@ export function Sidebar() {
                 >
                   <Briefcase className="h-4 w-4 text-[#8E8E93]" />
                   Investor relations
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
               {RESOURCE_LINKS.bugs && (
@@ -175,7 +186,7 @@ export function Sidebar() {
                 >
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
                   Report a bug
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
               {RESOURCE_LINKS.github && (
@@ -188,20 +199,22 @@ export function Sidebar() {
                 >
                   <Github className="h-4 w-4 text-[#8E8E93]" />
                   GitHub
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#636366]" />
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
-              <span
-                title="Link coming soon"
-                aria-disabled="true"
-                className="flex cursor-default items-center gap-3 px-3 py-2.5 text-sm text-[#636366]"
-              >
-                <Activity className="h-4 w-4 text-[#636366]" />
-                Status
-                <span className="ml-auto rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#636366]">
-                  Soon
-                </span>
-              </span>
+              {RESOURCE_LINKS.status && (
+                <a
+                  href={RESOURCE_LINKS.status}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Activity className="h-4 w-4 text-[#8E8E93]" />
+                  System status
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
+                </a>
+              )}
             </div>
 
             {/* Sign out */}

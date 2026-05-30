@@ -298,7 +298,7 @@ export function SnippetsTable() {
                         )}
                         <span className="truncate">{row.name}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 pt-0.5">
+                      <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                         {row.is_formula ? (
                           <Badge variant="primary">formula</Badge>
                         ) : null}
@@ -307,6 +307,23 @@ export function SnippetsTable() {
                             {t}
                           </Badge>
                         ))}
+                        {row.alternative_queries.slice(0, 3).map((q) => (
+                          <span
+                            key={q}
+                            title={`Alternative query: ${q}`}
+                            className="inline-block rounded-[4px] border border-primary-bdr bg-primary-bg px-1.5 py-px text-[9px] font-semibold text-primary/80"
+                          >
+                            {q}
+                          </span>
+                        ))}
+                        {row.alternative_queries.length > 3 && (
+                          <span
+                            title={row.alternative_queries.slice(3).join(', ')}
+                            className="inline-block rounded-[4px] bg-bg-alt px-1.5 py-px text-[9px] font-medium text-ink-subtle"
+                          >
+                            +{row.alternative_queries.length - 3}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

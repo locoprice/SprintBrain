@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { classifyPrompt } from '@/lib/intentEngine';
@@ -78,21 +79,90 @@ function DarkSelect<T extends string>({
   options,
   placeholder,
 }: DarkSelectProps<T>) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? null;
+
+  const handleOpen = () => {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!triggerRef.current?.contains(t) && !menuRef.current?.contains(t)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   return (
     <div className="relative">
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange((e.target.value as T) || null)}
-        className="h-8 w-full appearance-none rounded-[8px] border border-[#2A2A2E] bg-[#151518] pl-3 pr-7 text-xs text-[#D0D0D8] focus:border-[#1B4FD8]/60 focus:outline-none"
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : handleOpen())}
+        className="flex h-8 w-full items-center justify-between rounded-[8px] border border-[#26262B] bg-[#0E0E11] pl-3 pr-2.5 text-xs transition-colors hover:border-[#3A3A40] focus:border-[#1B4FD8]/60 focus:outline-none"
       >
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#555560]" />
+        <span className={value !== null ? 'text-[#D6D6DE]' : 'text-[#5A5A62]'}>
+          {selectedLabel ?? placeholder}
+        </span>
+        <ChevronDown
+          className={`h-3 w-3 shrink-0 text-[#83838D] transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ top: pos.top, left: pos.left, width: pos.width }}
+            className="fixed z-[9999] overflow-hidden rounded-[10px] border border-[#2A2A30] bg-[#121215] p-1 shadow-[0_12px_40px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.4)]"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="flex h-7 w-full items-center justify-between rounded-[6px] px-2.5 text-xs text-[#5A5A62] transition-colors hover:bg-[#1C1C20] hover:text-[#9A9AA5]"
+            >
+              {placeholder}
+              {value === null && <Check className="h-3 w-3 shrink-0 text-[#1B4FD8]" />}
+            </button>
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className="flex h-7 w-full items-center justify-between rounded-[6px] px-2.5 text-xs transition-colors hover:bg-[#1C1C20]"
+              >
+                <span className={value === o.value ? 'font-medium text-[#E0E0E8]' : 'text-[#B8B8C2]'}>
+                  {o.label}
+                </span>
+                {value === o.value && <Check className="h-3 w-3 shrink-0 text-[#1B4FD8]" />}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -116,14 +186,14 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
   }, [block.content]);
 
   return (
-    <div className={`border-b border-[#1E1E22] transition-opacity ${block.enabled ? '' : 'opacity-40'}`}>
+    <div className={`border-b border-[#161619] transition-opacity ${block.enabled ? '' : 'opacity-60'}`}>
       {/* Block header */}
       <div className="flex items-center justify-between px-5 py-2.5">
         <div className="flex items-center gap-2">
           <div
             className={`h-1.5 w-1.5 rounded-full ${block.enabled ? 'bg-[#1B4FD8]' : 'bg-[#3A3A40]'}`}
           />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#6A6A75]">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#CACAD4]">
             {BLOCK_LABELS[block.type]}
           </span>
         </div>
@@ -136,8 +206,8 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
           aria-label={block.enabled ? 'Disable block' : 'Enable block'}
         >
           <span
-            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-              block.enabled ? 'translate-x-4' : 'translate-x-0.5'
+            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+              block.enabled ? 'translate-x-4' : 'translate-x-0'
             }`}
           />
         </button>
@@ -152,7 +222,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
             onChange={(e) => onChange(e.target.value)}
             placeholder={BLOCK_HINTS[block.type]}
             rows={3}
-            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 py-2.5 font-mono text-sm leading-relaxed text-[#D0D0D8] placeholder:text-[#3A3A42] focus:border-[#1B4FD8]/60 focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/20"
+            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#26262B] bg-[#0E0E11] px-3 py-2.5 font-mono text-sm leading-relaxed text-[#D6D6DE] placeholder:text-[#50505A] focus:border-[#1B4FD8]/60 focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/20"
           />
         </div>
       )}
@@ -377,12 +447,12 @@ export function PromptBlockEditor() {
 
   return (
     <div
-      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#1E1E22] bg-[#0D0D0F] shadow-[-20px_0_60px_rgba(0,0,0,0.35)] transition-transform duration-200 ${
+      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#161619] bg-[#000000] shadow-[-24px_0_70px_rgba(0,0,0,0.6)] transition-transform duration-200 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
       {/* ── Top bar ── */}
-      <div className="flex shrink-0 items-center justify-between border-b border-[#1E1E22] px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between border-b border-[#161619] px-5 py-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <input
             type="text"
@@ -392,7 +462,7 @@ export function PromptBlockEditor() {
               if (nameError) setNameError(null);
             }}
             placeholder="Prompt name…"
-            className="w-full bg-transparent text-sm font-semibold text-[#F0F0F5] placeholder:text-[#3A3A42] focus:outline-none"
+            className="w-full bg-transparent text-sm font-semibold text-[#F5F5FA] placeholder:text-[#50505A] focus:outline-none"
           />
           {nameError && (
             <span className="text-[11px] text-[#FF5F57]">{nameError}</span>
@@ -401,7 +471,7 @@ export function PromptBlockEditor() {
         <button
           type="button"
           onClick={close}
-          className="ml-3 shrink-0 rounded-[8px] p-1.5 text-[#555560] transition-colors hover:bg-[#1A1A1E] hover:text-[#A0A0A8]"
+          className="ml-3 shrink-0 rounded-[8px] p-1.5 text-[#83838D] transition-colors hover:bg-[#161619] hover:text-[#E0E0E8]"
           aria-label="Close editor"
         >
           <X className="h-4 w-4" />
@@ -410,13 +480,13 @@ export function PromptBlockEditor() {
 
       {/* ── Intent suggestion banner ── */}
       {suggestion && (
-        <div className="flex shrink-0 items-center gap-3 border-b border-[#1E1E22] bg-[#0F1628] px-5 py-2.5">
+        <div className="flex shrink-0 items-center gap-3 border-b border-[#161619] bg-[#0A1020] px-5 py-2.5">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#1B4FD8]" />
           <p className="flex-1 text-xs text-[#6080C8]">
             Detected <span className="font-semibold text-[#7090E0]">{suggestion.intent}</span>
             {' — '}
             <span className="font-semibold text-[#7090E0]">{suggestion.strategies[0]}</span> recommended
-            <span className="ml-1 text-[#404060]">
+            <span className="ml-1 text-[#83838D]">
               ({Math.round(suggestion.confidence * 100)}% confidence)
             </span>
           </p>
@@ -430,7 +500,7 @@ export function PromptBlockEditor() {
           <button
             type="button"
             onClick={() => setSuggestion(null)}
-            className="shrink-0 text-[#404060] hover:text-[#6A6A75]"
+            className="shrink-0 text-[#83838D] hover:text-[#CACAD4]"
           >
             <X className="h-3 w-3" />
           </button>
@@ -442,7 +512,7 @@ export function PromptBlockEditor() {
         {/* Blocks */}
         <div>
           <div className="px-5 py-3">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#404048]">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#83838D]">
               Blocks
             </p>
           </div>
@@ -464,15 +534,15 @@ export function PromptBlockEditor() {
         </div>
 
         {/* Metadata */}
-        <div className="border-b border-[#1E1E22] px-5 py-4">
-          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#404048]">
+        <div className="border-b border-[#161619] px-5 py-4">
+          <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#83838D]">
             Metadata
           </p>
           <div className="grid grid-cols-2 gap-3">
             {/* Type toggle */}
             <div className="col-span-2">
-              <label className="mb-1.5 block text-[10px] text-[#555560]">Type</label>
-              <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#2A2A2E]">
+              <label className="mb-1.5 block text-[10px] text-[#83838D]">Type</label>
+              <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#26262B]">
                 {(['one-shot', 'few-shot'] as const).map((t) => (
                   <button
                     key={t}
@@ -481,7 +551,7 @@ export function PromptBlockEditor() {
                     className={`py-1.5 text-xs font-medium transition-colors ${
                       promptType === t
                         ? 'bg-[#1B4FD8] text-white'
-                        : 'bg-[#151518] text-[#6A6A75] hover:text-[#A0A0A8]'
+                        : 'bg-[#0E0E11] text-[#CACAD4] hover:text-[#A0A0A8]'
                     }`}
                   >
                     {t}
@@ -490,7 +560,7 @@ export function PromptBlockEditor() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Strategy</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Strategy</label>
               <DarkSelect
                 value={strategyType}
                 onChange={setStrategyType}
@@ -499,7 +569,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Model</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Model</label>
               <DarkSelect
                 value={preferredModel}
                 onChange={setPreferredModel}
@@ -508,7 +578,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Intent</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Intent</label>
               <DarkSelect
                 value={intentCategory}
                 onChange={setIntentCategory}
@@ -517,7 +587,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Complexity</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Complexity</label>
               <DarkSelect
                 value={complexityLevel}
                 onChange={setComplexityLevel}
@@ -526,7 +596,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Output type</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Output type</label>
               <DarkSelect
                 value={outputType}
                 onChange={setOutputType}
@@ -535,7 +605,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#555560]">Thinking mode</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Thinking mode</label>
               <DarkSelect
                 value={thinkingMode}
                 onChange={setThinkingMode}
@@ -544,7 +614,7 @@ export function PromptBlockEditor() {
               />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-[10px] text-[#555560]">Execution type</label>
+              <label className="mb-1 block text-[10px] text-[#83838D]">Execution type</label>
               <DarkSelect
                 value={executionType}
                 onChange={setExecutionType}
@@ -557,7 +627,7 @@ export function PromptBlockEditor() {
 
         {/* Tags */}
         <div className="px-5 py-4">
-          <label className="mb-1.5 block text-[10px] text-[#555560]">
+          <label className="mb-1.5 block text-[10px] text-[#83838D]">
             Tags (comma-separated)
           </label>
           <input
@@ -565,13 +635,13 @@ export function PromptBlockEditor() {
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             placeholder="sales, onboarding, email"
-            className="h-8 w-full rounded-[8px] border border-[#2A2A2E] bg-[#151518] px-3 text-xs text-[#D0D0D8] placeholder:text-[#3A3A42] focus:border-[#1B4FD8]/60 focus:outline-none"
+            className="h-8 w-full rounded-[8px] border border-[#26262B] bg-[#0E0E11] px-3 text-xs text-[#D6D6DE] placeholder:text-[#50505A] focus:border-[#1B4FD8]/60 focus:outline-none"
           />
         </div>
       </div>
 
       {/* ── Footer actions ── */}
-      <div className="flex shrink-0 flex-col gap-2 border-t border-[#1E1E22] px-5 py-4">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-[#161619] bg-[#0E0E11] px-5 py-4">
         {submitError && (
           <div className="flex items-center gap-2 rounded-[8px] border border-[#FF5F57]/30 bg-[#FF5F57]/5 px-3 py-2 text-xs text-[#FF5F57]">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -593,7 +663,7 @@ export function PromptBlockEditor() {
             <button
               type="button"
               onClick={handlePreviewDraft}
-              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#2A2A2E] px-3 text-sm font-medium text-[#8A8A95] transition-colors hover:border-[#3A3A40] hover:text-[#C0C0C8]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#26262B] px-3 text-sm font-medium text-[#8A8A95] transition-colors hover:border-[#3A3A40] hover:text-[#C0C0C8]"
             >
               <Eye className="h-3.5 w-3.5" />
               Preview

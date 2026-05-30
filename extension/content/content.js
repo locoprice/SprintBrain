@@ -1,8 +1,12 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.40.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.56.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
 //          deleteChars, leaving the literal ::shortcut in the field)
+// v2.56.0: selection-triggered suggestions — selecting text in any editable
+//          field surfaces keyword-mapped snippets in a floating, selection-
+//          anchored menu; picking one replaces the selection via the existing
+//          expansion pipeline. Toggle: triggerCfg.selectionSuggestions.
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -403,7 +407,7 @@ var DEFAULT_SNIPPETS = [
 // ── STATE ──────────────────────────────────────────────────────────
 var snippets = DEFAULT_SNIPPETS.slice();
 var trigger  = '::';
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 var isPasting = false; // guards against paste events feeding the trigger buffer
 
@@ -415,6 +419,35 @@ var PROMPT_TEMPLATES = [
   { id: 'summarize', title: 'Summarize', body: 'Summarize the following in 2-3 sentences:\n' },
   { id: 'expand', title: 'Expand / elaborate', body: 'Expand on the following with more detail:\n' },
   { id: 'bullet', title: 'Convert to bullets', body: '\u2022 ' }
+];
+
+// ── SELECTION-TRIGGERED SUGGESTIONS (v2.56.0) ─────────────────────
+// When the user SELECTS text in any editable field, the selection is scanned
+// for trigger keywords and the mapped snippet(s) are offered in a floating menu
+// anchored to the selection. Picking one REPLACES the selection through the
+// exact same expansion pipeline as a typed trigger (placeholders, fields,
+// language variants, celebration, undo) — see selectSuggestionItem().
+//
+// Enabled by default; the user can disable it from the popup (the toggle writes
+// triggerCfg.selectionSuggestions=false, mirrored into selectionSuggestEnabled).
+//
+// The map is modular/extensible: add a row to grow coverage. `keywords` are
+// matched case-insensitively — single words match per-token, multi-word entries
+// match as a phrase substring. `snippetIds` are resolved against the LIVE
+// `snippets` array at match time (by id, falling back to shortcut base), so only
+// snippets that actually exist for this user ever surface.
+var selectionSuggestEnabled = true;
+var SELECTION_TRIGGERS = [
+  { keywords: ['preventivo', 'quote', 'quotation', 'presupuesto', 'cotizacion', 'cotización', 'estimate'],
+    snippetIds: ['quoteIT', 'quoteES', 'quoteEN'] },
+  { keywords: ['disponibilita', 'disponibilità', 'availability', 'disponibilidad', 'disponible', 'available'],
+    snippetIds: ['notavail'] },
+  { keywords: ['withdraw', 'ritirare', 'retirar', 'cancel', 'cancelar', 'cancellazione', 'rimborso', 'reembolso', 'refund'],
+    snippetIds: ['withdraw'] },
+  { keywords: ['followup', 'follow up', 'seguimiento', 'novita', 'novità'],
+    snippetIds: ['followup'] },
+  { keywords: ['minstay', 'minimum stay', 'soggiorno minimo', 'estancia minima', 'estancia mínima'],
+    snippetIds: ['minstay'] }
 ];
 
 // ── DEFAULT LANGUAGE PREFERENCE ────────────────────────────────────
@@ -447,6 +480,10 @@ try {
         if (data.triggerCfg.promptTrigger) triggerCfg.promptTrigger = data.triggerCfg.promptTrigger;
         if (data.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = data.triggerCfg.snippetActivationKey;
         if (data.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = data.triggerCfg.promptActivationKey;
+        if (typeof data.triggerCfg.selectionSuggestions === 'boolean') {
+          triggerCfg.selectionSuggestions = data.triggerCfg.selectionSuggestions;
+          selectionSuggestEnabled = data.triggerCfg.selectionSuggestions;
+        }
       }
     } catch(e) {}
   });
@@ -484,6 +521,11 @@ try {
         if (nc.promptTrigger) triggerCfg.promptTrigger = nc.promptTrigger;
         if (nc.snippetActivationKey) triggerCfg.snippetActivationKey = nc.snippetActivationKey;
         if (nc.promptActivationKey) triggerCfg.promptActivationKey = nc.promptActivationKey;
+        if (typeof nc.selectionSuggestions === 'boolean') {
+          triggerCfg.selectionSuggestions = nc.selectionSuggestions;
+          selectionSuggestEnabled = nc.selectionSuggestions;
+          if (!selectionSuggestEnabled) closeSelSuggest();
+        }
       }
     } catch(e) {}
   });
@@ -565,6 +607,29 @@ function checkBuf() {
         handleMatch(activeEl, matched, expected.length);
       }
       return;
+    }
+    // Also match against alternative_queries (ALTERNATIVE-QUERIES-001).
+    // Normalization: each query is lowercased and trimmed at save time; the
+    // comparison is case-insensitive to handle legacy values.
+    var altQueries = Array.isArray(snippets[i].alternative_queries) ? snippets[i].alternative_queries : [];
+    for (var j = 0; j < altQueries.length; j++) {
+      var aq = (altQueries[j] || '').trim();
+      if (!aq) continue;
+      var aqExpected = aq.indexOf(snippetTrigger) === 0 ? aq : snippetTrigger + aq;
+      if (aqExpected.length <= buf.length && buf.slice(-aqExpected.length).toLowerCase() === aqExpected.toLowerCase()) {
+        buf = '';
+        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
+        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+        var aqMatched = snippets[i];
+        var aqVariantsMap = _findLangVariants(aqMatched);
+        if (Object.keys(aqVariantsMap).length > 1) {
+          processing = true;
+          injectLangModal(aqVariantsMap, activeEl, aqExpected.length);
+        } else {
+          handleMatch(activeEl, aqMatched, aqExpected.length);
+        }
+        return;
+      }
     }
   }
 
@@ -1817,8 +1882,13 @@ function _renderPickerItems(query) {
   var q = (query || '').toLowerCase();
   var filtered = q
     ? allItems.filter(function(s) {
-        return (s.title    || '').toLowerCase().indexOf(q) > -1 ||
-               (s.shortcut || '').toLowerCase().indexOf(q) > -1;
+        if ((s.title    || '').toLowerCase().indexOf(q) > -1) return true;
+        if ((s.shortcut || '').toLowerCase().indexOf(q) > -1) return true;
+        var aqs = Array.isArray(s.alternative_queries) ? s.alternative_queries : [];
+        for (var ai = 0; ai < aqs.length; ai++) {
+          if ((aqs[ai] || '').toLowerCase().indexOf(q) > -1) return true;
+        }
+        return false;
       })
     : allItems.slice();
 
@@ -2101,25 +2171,425 @@ function updateTriggerPickerHighlight() {
   }
 }
 
+// ── SELECTION-TRIGGERED SUGGESTION MENU ───────────────────────────
+// A floating, selection-anchored menu that surfaces snippets mapped to
+// keywords found inside the user's current selection. Distinct state from the
+// typed-trigger picker (showTriggerPicker) because the behaviour differs: this
+// menu has no live-typed filter and, on pick, REPLACES the selection rather than
+// deleting a trigger sequence behind the caret.
+var selSuggestEl     = null;   // the floating menu element (null when closed)
+var selSuggestItems  = [];     // snippet objects currently shown
+var selSuggestIdx    = 0;      // keyboard-highlighted row
+var selSuggestTarget = null;   // editable host the selection lives in
+var selSuggestTimer  = null;   // 200ms debounce timer (per ticket)
+var SEL_SUGGEST_DEBOUNCE_MS = 200;
+var SEL_SUGGEST_MAX_LEN     = 300;  // ignore very large selections (perf)
+
+// Resolve a configured snippetId to a LIVE snippet object. Matches by `id`
+// first (default snippets), then by shortcut base stripped of its trigger
+// prefix (Supabase-synced snippets keep shortcuts like "/quoteEN"). Returns
+// null when no current snippet matches, so retired mappings simply don't show.
+function _resolveSnippetRef(ref) {
+  var needle = String(ref || '').toLowerCase();
+  if (!needle) return null;
+  var i;
+  for (i = 0; i < snippets.length; i++) {
+    if ((snippets[i].id || '').toLowerCase() === needle) return snippets[i];
+  }
+  for (i = 0; i < snippets.length; i++) {
+    var sc = (snippets[i].shortcut || '').toLowerCase().replace(/^[^a-z0-9]+/, '');
+    if (sc === needle) return snippets[i];
+  }
+  return null;
+}
+
+// Pure keyword matcher: returns the resolved, de-duplicated snippet objects
+// whose trigger keywords appear in `selText`.
+//
+// Two-pass approach (ALTERNATIVE-QUERIES-001):
+//   Pass 1 — live alternative_queries on each snippet (dynamic, user-configurable).
+//   Pass 2 — hardcoded SELECTION_TRIGGERS legacy fallback for snippets that
+//             pre-date the alternative_queries field or haven't been updated yet.
+//
+// Both passes share lang-group-aware deduplication: once any variant of a
+// lang group is added to refs, all sibling variants are suppressed in both
+// passes. _dedupByLangBase then collapses the final list to one entry per
+// group so the multi-language modal fires correctly at expansion time.
+function matchSelectionTriggers(selText) {
+  if (!selText) return [];
+  var lower = selText.toLowerCase();
+  var tokenSet = {};
+  var toks = lower.split(/[^a-z0-9à-ÿ]+/i);
+  for (var t = 0; t < toks.length; t++) { if (toks[t]) tokenSet[toks[t]] = true; }
+
+  var refs = [], seenId = {}, seenGroup = {};
+
+  function _addToRefs(snip) {
+    if (seenId[snip.id]) return;
+    var lgid = snip.lang_group_id || snip.id;
+    if (seenGroup[lgid]) return; // sibling variant already covers this group
+    seenId[snip.id] = true;
+    seenGroup[lgid] = true;
+    refs.push(snip);
+  }
+
+  // Pass 1: live alternative_queries — supersedes the hardcoded map for any
+  // snippet that has been assigned at least one alternative query.
+  for (var i = 0; i < snippets.length; i++) {
+    var snip = snippets[i];
+    var aqs = Array.isArray(snip.alternative_queries) ? snip.alternative_queries : [];
+    if (!aqs.length) continue;
+    var hit = false;
+    for (var qi = 0; qi < aqs.length; qi++) {
+      var kw = (aqs[qi] || '').trim().toLowerCase();
+      if (!kw) continue;
+      if (kw.indexOf(' ') > -1) { if (lower.indexOf(kw) > -1) { hit = true; break; } }
+      else if (tokenSet[kw]) { hit = true; break; }
+    }
+    if (hit) _addToRefs(snip);
+  }
+
+  // Pass 2: hardcoded SELECTION_TRIGGERS legacy fallback.
+  // Skipped for any lang group already surfaced in pass 1.
+  for (var r = 0; r < SELECTION_TRIGGERS.length; r++) {
+    var rule = SELECTION_TRIGGERS[r];
+    var rHit = false;
+    for (var k = 0; k < rule.keywords.length; k++) {
+      var rkw = rule.keywords[k].toLowerCase();
+      if (rkw.indexOf(' ') > -1) { if (lower.indexOf(rkw) > -1) { rHit = true; break; } }
+      else if (tokenSet[rkw]) { rHit = true; break; }
+    }
+    if (!rHit) continue;
+    for (var s = 0; s < rule.snippetIds.length; s++) {
+      var resolved = _resolveSnippetRef(rule.snippetIds[s]);
+      if (resolved) _addToRefs(resolved);
+    }
+  }
+
+  return _dedupByLangBase(refs);
+}
+
+// Collapse sibling language variants (quoteEN/quoteES/quoteIT) into a single
+// row — the language picker modal handles the per-language choice on insert.
+function _dedupByLangBase(list) {
+  var seen = {}, out = [];
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i];
+    var base = (s.shortcut || s.id || '').replace(LANG_SUFFIX_RE, '');
+    var gid  = s.lang_group_id || null;
+    var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
+    if (seen[key] !== undefined) {
+      if (!LANG_SUFFIX_RE.test(s.shortcut || '')) out[seen[key]] = s;
+      continue;
+    }
+    seen[key] = out.length;
+    out.push(s);
+  }
+  return out;
+}
+
+// Is `node` inside one of our own injected UI surfaces? Used to ignore
+// selections made within the menus/overlays themselves.
+function _isInsideSbUi(node) {
+  var ids = { 'sb-overlay':1, 'sb-celebrate':1, 'sb-trigger-picker':1,
+              'sb-sel-suggest':1, 'sb-modal-host':1, 'sb-lang-modal-host':1 };
+  var n = node;
+  while (n) {
+    if (n.id && ids[n.id]) return true;
+    n = n.parentNode || n.host;
+  }
+  return false;
+}
+
+// Climb to the editable host (input/textarea/contenteditable) containing `node`.
+function _selEditableHost(node) {
+  var n = node;
+  for (var i = 0; n && i < 10; i++) {
+    if (n.nodeType === 1) {
+      if (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA') return n;
+      var a = n.getAttribute && n.getAttribute('contenteditable');
+      if (n.isContentEditable || a === 'true' || a === '') return n;
+    }
+    n = n.parentNode || n.host;
+  }
+  return null;
+}
+
+// Pixel coords of the selection's bounding rect (bottom-left), for anchoring.
+function _getSelectionRectCoords(el) {
+  try {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      var rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (rect && (rect.width > 0 || rect.height > 0)) {
+        return { x: rect.left, y: rect.bottom, top: rect.top };
+      }
+    }
+  } catch (e) {}
+  var er = (el && el.getBoundingClientRect) ? el.getBoundingClientRect() : { left: 8, bottom: 40, top: 20 };
+  return { x: er.left, y: er.bottom, top: er.top };
+}
+
+// Place a fixed-position floating menu near `coords`, clamped to the viewport,
+// flipping above the anchor when there isn't room below.
+function _positionFloatingMenu(div, coords, maxW) {
+  var w = maxW || 310;
+  var left = Math.max(4, Math.min(coords.x, window.innerWidth - w));
+  var top  = coords.y + 6;
+  var spaceBelow = window.innerHeight - top - 20;
+  if (spaceBelow < 120) {
+    top = Math.max(4, (coords.top != null ? coords.top : coords.y) - 6 - 300);
+    spaceBelow = 300;
+  }
+  div.style.left      = left + 'px';
+  div.style.top       = top  + 'px';
+  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+}
+
+function showSelectionSuggestions(el, matches) {
+  closeSelSuggest();
+  if (!matches || !matches.length) return;
+  selSuggestTarget = el;
+  selSuggestItems  = matches;
+  selSuggestIdx    = 0;
+
+  var div = document.createElement('div');
+  div.id = 'sb-sel-suggest';
+  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+
+  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  header += '<span>✨ Suggested snippets</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Enter to insert</span>';
+  header += '</div>';
+  header += '<div class="sb-ss-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  div.innerHTML = header;
+
+  _positionFloatingMenu(div, _getSelectionRectCoords(el), 310);
+  document.body.appendChild(div);
+  selSuggestEl = div;
+  _renderSelSuggestItems();
+}
+
+function _renderSelSuggestItems() {
+  if (!selSuggestEl) return;
+  var itemsEl = selSuggestEl.querySelector('.sb-ss-items');
+  if (!itemsEl) return;
+  var h = '';
+  for (var i = 0; i < selSuggestItems.length; i++) {
+    var item = selSuggestItems[i];
+    var sc = item.shortcut
+      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      : '';
+    h += '<div class="sb-ss-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
+      + (i === selSuggestIdx ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
+      + xesc(item.title || item.shortcut || 'Snippet') + sc
+      + '</div>';
+  }
+  itemsEl.innerHTML = h;
+
+  itemsEl.querySelectorAll('.sb-ss-item').forEach(function(itemEl) {
+    function onPick(e) {
+      // preventDefault keeps focus + the live selection on the host field, so
+      // _selectionToDeleteSpan() can still read/collapse it on insert.
+      e.preventDefault();
+      var now = Date.now();
+      if (onPick._last && now - onPick._last < 400) return;
+      onPick._last = now;
+      selectSuggestionItem(parseInt(itemEl.dataset.idx, 10));
+    }
+    itemEl.addEventListener('mousedown', onPick);
+    itemEl.addEventListener('touchstart', onPick, { passive: false });
+    itemEl.addEventListener('mouseenter', function() {
+      selSuggestIdx = parseInt(itemEl.dataset.idx, 10);
+      _updateSelSuggestHighlight();
+    });
+  });
+}
+
+function _updateSelSuggestHighlight() {
+  if (!selSuggestEl) return;
+  var items = selSuggestEl.querySelectorAll('.sb-ss-item');
+  for (var i = 0; i < items.length; i++) {
+    items[i].style.background = i === selSuggestIdx ? '#fdf6e8' : '';
+    items[i].style.color      = i === selSuggestIdx ? '#BA7517' : '#1c1c1a';
+  }
+  if (items[selSuggestIdx]) items[selSuggestIdx].scrollIntoView({ block: 'nearest' });
+}
+
+// Convert the live selection into the (caret-collapsed-at-end + backward-delete
+// length) state the typed-trigger path produces, so handleMatch() can reuse the
+// exact deletion+insertion pipeline. Returns the delete length, or null if the
+// selection is gone/empty. MUST run while the selection is still live.
+function _selectionToDeleteSpan(el) {
+  if (!el) return null;
+  var isCE = el.isContentEditable || (el.getAttribute &&
+    (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''));
+  try {
+    if (isCE) {
+      var sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+      var txt = sel.toString();
+      sel.collapseToEnd();                       // caret now at end of selection
+      var len = txt.replace(/\r?\n/g, '').length; // newlines aren't text-node chars
+      return len > 0 ? len : null;
+    }
+    if (el.selectionStart == null || el.selectionEnd == null) return null;
+    var span = el.selectionEnd - el.selectionStart;
+    if (span <= 0) return null;
+    el.setSelectionRange(el.selectionEnd, el.selectionEnd); // collapse to end
+    return span;
+  } catch (e) { return null; }
+}
+
+function selectSuggestionItem(idx) {
+  if (idx < 0 || idx >= selSuggestItems.length) return;
+  var item = selSuggestItems[idx];
+  var el   = selSuggestTarget;
+  // Capture/collapse the selection BEFORE closing the menu or opening any modal
+  // (a modal steals focus and would wipe the selection).
+  var span = _selectionToDeleteSpan(el);
+  closeSelSuggest();
+  if (!el || span == null) return;
+
+  // Multi-language snippet → language picker first (same flow as the typed
+  // trigger). injectLangModal re-enters handleMatch with the delete span.
+  var variantsMap = _findLangVariants(item);
+  if (Object.keys(variantsMap).length > 1) {
+    processing = true;
+    injectLangModal(variantsMap, el, span);
+  } else {
+    handleMatch(el, item, span);
+  }
+}
+
+function closeSelSuggest() {
+  if (selSuggestEl) { selSuggestEl.remove(); selSuggestEl = null; }
+  selSuggestItems  = [];
+  selSuggestIdx    = 0;
+  selSuggestTarget = null;
+}
+
+function handleSelSuggestKey(e) {
+  if (!selSuggestEl) return false;
+  var count = selSuggestItems.length;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selSuggestIdx = Math.min(selSuggestIdx + 1, count - 1);
+    _updateSelSuggestHighlight();
+    return true;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selSuggestIdx = Math.max(selSuggestIdx - 1, 0);
+    _updateSelSuggestHighlight();
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    if (count > 0) { e.preventDefault(); selectSuggestionItem(selSuggestIdx); return true; }
+    closeSelSuggest();
+    return false;
+  }
+  if (e.key === 'Escape') { e.preventDefault(); closeSelSuggest(); return true; }
+  return false;
+}
+
+// Debounced evaluation of the current selection. Reads the selection from the
+// focused form control (input/textarea) or the document selection (CE), then
+// shows/hides the menu accordingly.
+function evaluateSelectionForSuggest() {
+  if (!selectionSuggestEnabled) { closeSelSuggest(); return; }
+  // Don't compete with an in-progress expansion / open SprintBrain UI.
+  if (processing || overlayEl || triggerPickerEl || triggerPending) return;
+
+  var el = null, text = '';
+  var ae = document.activeElement;
+
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) {
+    if (ae.tagName === 'INPUT') {
+      var ty = (ae.type || 'text').toLowerCase();
+      if (['text', 'search', 'url', 'email', 'tel', ''].indexOf(ty) === -1) { closeSelSuggest(); return; }
+    }
+    if (ae.selectionStart != null && ae.selectionEnd != null && ae.selectionEnd > ae.selectionStart) {
+      el = ae;
+      text = ae.value.substring(ae.selectionStart, ae.selectionEnd);
+    }
+  } else {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      var host = _selEditableHost(sel.getRangeAt(0).startContainer);
+      if (host && !_isInsideSbUi(host)) { el = host; text = sel.toString(); }
+    }
+  }
+
+  if (!el || !text) { closeSelSuggest(); return; }
+  text = text.replace(/^\s+|\s+$/g, '');
+  if (!text || text.length > SEL_SUGGEST_MAX_LEN) { closeSelSuggest(); return; }
+
+  var matches = matchSelectionTriggers(text);
+  if (!matches.length) { closeSelSuggest(); return; }
+
+  showSelectionSuggestions(el, matches);
+}
+
+function scheduleSelectionEval() {
+  if (!selectionSuggestEnabled) return;
+  if (selSuggestTimer) clearTimeout(selSuggestTimer);
+  selSuggestTimer = setTimeout(evaluateSelectionForSuggest, SEL_SUGGEST_DEBOUNCE_MS);
+}
+
+// mouseup/keyup cover selection in form controls (where `selectionchange` is
+// inconsistent across Chrome versions); selectionchange covers contenteditable
+// and keyboard/programmatic changes. All funnel through one debounced path.
+document.addEventListener('mouseup', scheduleSelectionEval, true);
+document.addEventListener('keyup', function(e) {
+  // Only react to selection-affecting keys to avoid needless work on every key.
+  if (e.shiftKey || e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+      e.key === 'ArrowUp' || e.key === 'ArrowDown' || (e.ctrlKey || e.metaKey)) {
+    scheduleSelectionEval();
+  }
+}, true);
+document.addEventListener('selectionchange', function() {
+  var sel = window.getSelection();
+  // Collapsed/empty selection closes the menu immediately (no debounce) so it
+  // disappears the instant the user deselects.
+  if (selSuggestEl && (!sel || sel.isCollapsed)) {
+    var ae = document.activeElement;
+    var formSel = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') &&
+      ae.selectionStart != null && ae.selectionEnd > ae.selectionStart;
+    if (!formSel) closeSelSuggest();
+  }
+  scheduleSelectionEval();
+});
+
 // Close picker on outside click/tap or page scroll
 document.addEventListener('mousedown', function(e) {
   if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
     setTimeout(function() { closeTriggerPicker(); }, 100);
+  }
+  if (selSuggestEl && !selSuggestEl.contains(e.target)) {
+    closeSelSuggest();
   }
 });
 document.addEventListener('touchstart', function(e) {
   if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
     setTimeout(function() { closeTriggerPicker(); }, 100);
   }
+  if (selSuggestEl && !selSuggestEl.contains(e.target)) {
+    closeSelSuggest();
+  }
 }, {passive: true});
 document.addEventListener('scroll', function(e) {
   if (triggerPickerEl && triggerPickerEl.contains(e.target)) return;
   closeTriggerPicker();
+  if (!(selSuggestEl && selSuggestEl.contains(e.target))) closeSelSuggest();
 }, true);
 
 // ── KEYBOARD LISTENER ──────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
-  // Handle trigger picker keys first
+  // Handle the selection-suggestion menu first (arrow/enter/tab/esc nav)
+  if (selSuggestEl && handleSelSuggestKey(e)) return;
+
+  // Handle trigger picker keys next
   if (triggerPickerEl && handleTriggerPickerKey(e)) return;
 
   // Skip if overlay open

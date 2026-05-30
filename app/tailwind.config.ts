@@ -28,7 +28,7 @@ const config: Config = {
         },
         success: '#34C759',
         warning: '#FEBC2E',
-        danger: '#FF5F57',
+        danger: '#D70015',
       },
       fontFamily: {
         sans: [

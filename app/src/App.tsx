@@ -5,6 +5,7 @@ import { AnalyticsPage } from '@/routes/AnalyticsPage';
 import { PromptsPage } from '@/routes/PromptsPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 import { LoginPage } from '@/routes/LoginPage';
+import { SignupPage } from '@/routes/SignupPage';
 import { AuthCallback } from '@/routes/AuthCallback';
 import { ExtensionLinkPage } from '@/routes/ExtensionLinkPage';
 import { AuthGate } from '@/components/auth/AuthGate';
@@ -24,6 +25,7 @@ export function App() {
         <AuthModalProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<DesktopGate />} />
           </Routes>
@@ -38,6 +40,7 @@ export function App() {
         <Routes>
           {/* Public auth routes — no AuthGate, no DashboardLayout */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Protected, but renders standalone — no DashboardLayout chrome. */}

@@ -41,9 +41,9 @@ img,svg{display:block;max-width:100%}
   display:flex;align-items:center;gap:24px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;
   letter-spacing:-.3px}
-.brand-logo{width:28px;height:28px;border-radius:7px;background:var(--primary);
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;
-  font-size:15px;letter-spacing:-.5px}
+.brand-logo{display:flex;align-items:center;flex-shrink:0}
+.brand-logo img{height:28px;width:auto;display:block;
+  pointer-events:none;user-select:none;flex-shrink:0}
 .nav-links{margin-left:auto;display:flex;align-items:center;gap:8px}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
   border-radius:var(--r-btn);transition:color .15s,background .15s}
@@ -76,7 +76,9 @@ img,svg{display:block;max-width:100%}
 .hero h1 span{background:linear-gradient(135deg,var(--primary) 0%,#4F7FE8 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{font-size:clamp(17px,2vw,20px);color:var(--text2);
-  max-width:620px;margin:0 auto 36px;line-height:1.5}
+  max-width:620px;margin:0 auto 12px;line-height:1.5}
+.hero p.hero-slogan{font-size:clamp(15px,1.4vw,18px);font-style:italic;color:var(--text2);
+  text-align:center;margin:0 auto 36px;max-width:520px;opacity:.9;letter-spacing:.01em}
 .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
 
 /* DEMO */
@@ -146,13 +148,33 @@ img,svg{display:block;max-width:100%}
 .cta .btn-ghost{color:#fff;border-color:rgba(255,255,255,.3)}
 .cta .btn-ghost:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.5)}
 
+/* FOOTER STATEMENT */
+.foot-statement{background:#0d0d0d;padding:clamp(64px,10vw,120px) clamp(24px,6vw,80px) clamp(72px,11vw,140px);overflow:hidden}
+.foot-statement-inner{max-width:1400px;margin:0 auto}
+.foot-statement h2{
+  font-size:clamp(52px,9.5vw,148px);
+  font-weight:800;
+  line-height:1.0;
+  letter-spacing:-0.03em;
+  color:#fff;
+  margin:0;
+  white-space:normal}
+.foot-statement h2 span{color:var(--primary)}
+.foot-statement-sub{
+  margin-top:clamp(20px,3vw,36px);
+  font-size:clamp(15px,1.4vw,19px);
+  color:#6E6E73;
+  font-weight:400;
+  letter-spacing:0}
+
 /* FOOTER */
-footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)}
+footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
 .foot-inner{max-width:var(--max);margin:0 auto;display:flex;
   align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text2)}
-.foot-links{display:flex;gap:20px;font-size:13.5px;color:var(--text3)}
-.foot-links a:hover{color:var(--text)}
+.foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:#6E6E73}
+.foot-links{display:flex;gap:20px;font-size:13.5px;color:#48484A}
+.foot-links a{color:#48484A}
+.foot-links a:hover{color:#fff}
 
 @media (max-width:640px){
   .hero{padding:56px 20px 48px}
@@ -476,6 +498,23 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
   .plat-cards{grid-template-columns:1fr}
   .plat-cards .plat-card:last-child{grid-column:span 1}
   .plat-sub{font-size:17px;margin-bottom:48px}}
+
+/* PARTNERS */
+.partners{padding:56px 24px;background:var(--card);border-top:1px solid var(--border)}
+.partners-inner{max-width:var(--max);margin:0 auto;text-align:center}
+.partners-label{display:block;font-size:12px;font-weight:600;color:var(--text3);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:36px}
+.partners-logos{display:flex;justify-content:center;align-items:center;
+  flex-wrap:wrap;gap:52px}
+.partner-logo{display:flex;align-items:center;
+  filter:grayscale(1);opacity:.5;
+  transition:filter .3s ease,opacity .3s ease,transform .2s ease}
+.partner-logo:hover{filter:grayscale(0);opacity:1;transform:translateY(-2px)}
+.partner-logo svg{height:38px;width:auto;overflow:visible}
+@media(max-width:640px){
+  .partners{padding:44px 20px}
+  .partners-logos{gap:36px}
+  .partner-logo svg{height:30px}}
 </style>
 </head>
 <body>
@@ -483,25 +522,26 @@ footer{padding:40px 24px;border-top:1px solid var(--border);background:var(--bg)
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="brand">
-      <div class="brand-logo">S</div>
+      <div class="brand-logo"><img src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="SprintBrain" draggable="false"></div>
       SprintBrain
     </a>
     <div class="nav-links">
       <a href="#features" class="nav-link">Features</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
       <a href="https://app.sprintbrain.com/login" class="nav-link">Sign in</a>
-      <a href="#install" class="btn btn-primary btn-sm">Install</a>
+      <a href="https://app.sprintbrain.com/signup" class="btn btn-primary btn-sm">Sign up</a>
     </div>
   </div>
 </nav>
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · {{EXT_VERSION}}</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.56.0</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
+    <p class="hero-slogan">Stress the model, not yourself.</p>
     <div class="hero-ctas">
-      <a href="#install" class="btn btn-primary">
+      <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
         Get early access
       </a>
@@ -880,6 +920,41 @@ LeibTour Team</div>
   </div>
 </section>
 
+<section class="partners">
+  <div class="partners-inner">
+    <span class="partners-label">Used daily by</span>
+    <div class="partners-logos">
+
+      <!-- WeRoad -->
+      <div class="partner-logo" title="WeRoad">
+        <svg viewBox="0 0 160 40" height="38" xmlns="http://www.w3.org/2000/svg" aria-label="WeRoad" role="img">
+          <circle cx="20" cy="20" r="18.5" fill="#1C1C1E"/>
+          <text x="20" y="18.5" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="10" font-weight="800" fill="#ffffff">WE</text>
+          <text x="20" y="30" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="7" font-weight="900" fill="#E01A4F" letter-spacing="1.2">ROAD</text>
+          <text x="50" y="27" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="20" font-weight="700" fill="#1C1C1E" letter-spacing="-0.4">WeRoad</text>
+        </svg>
+      </div>
+
+      <!-- LeibTour -->
+      <div class="partner-logo" title="LeibTour">
+        <svg viewBox="0 0 140 40" height="38" xmlns="http://www.w3.org/2000/svg" aria-label="LeibTour" role="img">
+          <text x="0" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" fill="#1C1C1E">l.eib</text>
+          <text x="60" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" fill="#E87B3A">Tour</text>
+        </svg>
+      </div>
+
+      <!-- Locoprice -->
+      <div class="partner-logo" title="Locoprice">
+        <svg viewBox="0 0 140 40" height="38" xmlns="http://www.w3.org/2000/svg" aria-label="Locoprice" role="img">
+          <text x="0" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" fill="#1C1C1E">loco</text>
+          <text x="54" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="22" font-weight="700" fill="#CC2222">price</text>
+        </svg>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <section class="cta" id="install">
   <h2>Launching on the Chrome Web Store</h2>
   <p>Drop your email. We'll send the install link the day it goes live.</p>
@@ -892,11 +967,17 @@ LeibTour Team</div>
   </div>
 </section>
 
+<section class="foot-statement">
+  <div class="foot-statement-inner">
+    <h2>Type once.<br><span>Use it everywhere.</span></h2>
+  </div>
+</section>
+
 <footer>
   <div class="foot-inner">
     <div class="foot-brand">
-      <div class="brand-logo" style="width:22px;height:22px;font-size:12px">S</div>
-      © SprintBrain · {{EXT_VERSION}} · Updated {{RELEASE_DATE}}
+      <div class="brand-logo"><img src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="" aria-hidden="true" draggable="false" style="height:20px;width:auto"></div>
+      © 2026 SprintBrain · v2.56.0 · Updated May 2026
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
@@ -905,6 +986,7 @@ LeibTour Team</div>
       <a href="/legal/privacy-policy.html">Privacy</a>
       <a href="/legal/terms-and-conditions.html">Terms</a>
       <a href="/legal/cookie-policy.html">Cookies</a>
+      <a href="https://sprintbrain.instatus.com/" target="_blank" rel="noopener">Status</a>
     </div>
   </div>
 </footer>

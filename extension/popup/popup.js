@@ -272,7 +272,7 @@ var selIco       = 'folder';
 var ctxFolderId  = null;
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab' };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
 
 function loadTriggerCfg(cb) {
   try {
@@ -282,6 +282,7 @@ function loadTriggerCfg(cb) {
         if (d.triggerCfg.promptTrigger) triggerCfg.promptTrigger = d.triggerCfg.promptTrigger;
         if (d.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = d.triggerCfg.snippetActivationKey;
         if (d.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = d.triggerCfg.promptActivationKey;
+        if (typeof d.triggerCfg.selectionSuggestions === 'boolean') triggerCfg.selectionSuggestions = d.triggerCfg.selectionSuggestions;
       }
       if (cb) cb();
     });
@@ -942,6 +943,14 @@ function boot() {
           var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
           var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
           var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+          var ss = gi('tcfg-sel-suggest');
+          if (ss) {
+            ss.checked = triggerCfg.selectionSuggestions !== false;
+            ss.addEventListener('change', function () {
+              triggerCfg.selectionSuggestions = ss.checked;
+              saveTriggerCfg();
+            });
+          }
     });
 
     loadUserPrefs(function() {
@@ -1305,6 +1314,46 @@ function buildFolderOpts(current){
 }
 
 function _s(id,prop,val){ var e=gi(id); if(e) e[prop]=val; }
+
+// ── ALTERNATIVE QUERIES TAG INPUT ─────────────────────────────────────────
+var _altQueries = []; // current tags for the open edit form
+
+function _renderAltTags() {
+  var container = gi('alt-tags');
+  if (!container) return;
+  container.innerHTML = '';
+  for (var i = 0; i < _altQueries.length; i++) {
+    (function(idx, tag) {
+      var span = document.createElement('span');
+      span.className = 'alt-tag';
+      span.textContent = tag;
+      var x = document.createElement('i');
+      x.className = 'alt-tag-x';
+      x.innerHTML = '&#x2715;';
+      x.title = 'Remove';
+      x.addEventListener('click', function() {
+        _altQueries.splice(idx, 1);
+        _renderAltTags();
+      });
+      span.appendChild(x);
+      container.appendChild(span);
+    })(i, _altQueries[i]);
+  }
+  var inp = gi('ealtq');
+  if (inp) inp.placeholder = _altQueries.length ? 'Add another…' : 'e.g. availability, no availability…';
+}
+
+function _commitAltDraft() {
+  var inp = gi('ealtq');
+  if (!inp) return;
+  var raw = inp.value.replace(/,/g, '').trim().toLowerCase();
+  if (raw && _altQueries.indexOf(raw) === -1) {
+    _altQueries.push(raw);
+    _renderAltTags();
+  }
+  inp.value = '';
+}
+
 function openEd(id){
   editId=id||null;
   var s=id?findSnip(id):null;
@@ -1325,6 +1374,10 @@ function openEd(id){
   _s('eurg-dur','value',urgDur);
   _s('eurg-sc','value',urgSc);
   var uf=gi('urg-fields'); if(uf) uf.style.display = urgOn ? '' : 'none';
+  // Alternative queries
+  _altQueries = (s && Array.isArray(s.alternative_queries)) ? s.alternative_queries.slice() : [];
+  _renderAltTags();
+  var aq = gi('ealtq'); if (aq) aq.value = '';
   // Share toggle
   var shareOn = s ? !!s.is_shared : false;
   var es=gi('eshare'); if(es) es.checked = shareOn;
@@ -1353,6 +1406,9 @@ function doSave(){
   var urgDurMs = Math.max(1, parseInt(gi('eurg-dur').value) || 30) * 60000;
   var urgSc = Math.max(0, parseInt(gi('eurg-sc').value) || 0);
   var shareEnabled = !!(gi('eshare') && gi('eshare').checked);
+  // Commit any unsaved draft tag before saving
+  _commitAltDraft();
+  var altQueries = _altQueries.slice();
 
   // Capture current textarea into the active language buffer
   edLangBuf[edLangActive] = body;
@@ -1362,6 +1418,7 @@ function doSave(){
   if(isNew){
     toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
       enable_urgency_timer:urgEnabled,timer_duration_ms:urgDurMs,scarcity_count:urgSc,
+      alternative_queries:altQueries,
       manually_edited:true,stats:{uses:0,fills:0,lastUsed:null}};
     toSave.lang_group_id=toSave.id;
     snips.unshift(toSave);
@@ -1388,6 +1445,7 @@ function doSave(){
       toSave.enable_urgency_timer=urgEnabled;
       toSave.timer_duration_ms=urgDurMs;
       toSave.scarcity_count=urgSc;
+      toSave.alternative_queries=altQueries;
       toSave.manually_edited=true;
     } else {
       // No variant exists yet for this language — create one
@@ -1397,7 +1455,7 @@ function doSave(){
         folder:folder, fieldCfg:JSON.parse(JSON.stringify(anchorSnip.fieldCfg||{})),
         lang_group_id:anchorGid, sort_order:snips.length+1,
         enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
-        scarcity_count:urgSc, notion_page_id:null,
+        scarcity_count:urgSc, alternative_queries:altQueries, notion_page_id:null,
         manually_edited:true, stats:{uses:0,fills:0,lastUsed:null}
       };
       snips.push(toSave);
@@ -1411,6 +1469,7 @@ function doSave(){
       anchorSnip.enable_urgency_timer=urgEnabled;
       anchorSnip.timer_duration_ms=urgDurMs;
       anchorSnip.scarcity_count=urgSc;
+      anchorSnip.alternative_queries=altQueries;
       anchorSnip.manually_edited=true;
       DB.upsertSnippet(anchorSnip);
     }
@@ -1455,6 +1514,7 @@ function doSave(){
       existing.enable_urgency_timer = urgEnabled;
       existing.timer_duration_ms = urgDurMs;
       existing.scarcity_count = urgSc;
+      existing.alternative_queries = altQueries;
       existing.manually_edited = true;
       DB.upsertSnippet(existing);
     } else {
@@ -1468,7 +1528,7 @@ function doSave(){
         fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
         lang_group_id: gid, sort_order: snips.length + 1,
         enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
-        scarcity_count: urgSc, manually_edited: true,
+        scarcity_count: urgSc, alternative_queries: altQueries, manually_edited: true,
         stats: { uses: 0, fills: 0, lastUsed: null }
       };
       snips.push(ns);
@@ -1767,6 +1827,18 @@ on('brel','click',   function(){
 on('sq','input',    function(e){ renderList(e.target.value); });
 on('ewrd','input',  updateSprev);
 on('ebdy','keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();doSave();} });
+on('ealtq','keydown',function(e){
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    _commitAltDraft();
+  } else if(e.key==='Backspace' && (gi('ealtq').value||'')==='') {
+    if(_altQueries.length){ _altQueries.pop(); _renderAltTags(); }
+  }
+});
+on('ealtq','input',function(e){
+  var v=e.target.value;
+  if(v.indexOf(',')!==-1){ _commitAltDraft(); }
+});
 on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
 on('eshare','change', function(){ var es=gi('eshare'); if(es) _updateShareSub(es.checked); });
 var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });

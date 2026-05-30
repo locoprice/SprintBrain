@@ -42,6 +42,11 @@ interface UiStore {
   openPromptDraftPreview: (content: string) => void;
   closePromptDraftPreview: () => void;
 
+  // Version history panel — opened by clicking History on any snippet row
+  historySnippetId: string | null;
+  openHistory: (id: string) => void;
+  closeHistory: () => void;
+
   // Transient toast notification (auto-dismissed by the Toast component)
   toast: { message: string; type: 'success' | 'error' } | null;
   showToast: (message: string, type?: 'success' | 'error') => void;
@@ -80,6 +85,10 @@ export const useUiStore = create<UiStore>((set) => ({
   promptDraftContent: null,
   openPromptDraftPreview: (content) => set({ promptDraftContent: content }),
   closePromptDraftPreview: () => set({ promptDraftContent: null }),
+
+  historySnippetId: null,
+  openHistory: (id) => set({ historySnippetId: id }),
+  closeHistory: () => set({ historySnippetId: null }),
 
   toast: null,
   showToast: (message, type = 'success') => set({ toast: { message, type } }),

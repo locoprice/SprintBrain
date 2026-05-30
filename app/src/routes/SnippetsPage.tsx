@@ -8,6 +8,7 @@ import { ImportExportButtons, type ImportResult } from '@/features/snippets/Impo
 import { NewSnippetDialog } from '@/features/snippets/NewSnippetDialog';
 import { SnippetFolderTree } from '@/features/snippets/SnippetFolderTree';
 import { SnippetsTable } from '@/features/snippets/SnippetsTable';
+import { VersionHistoryPanel } from '@/features/snippets/VersionHistoryPanel';
 import { useSnippetStore } from '@/stores/snippetStore';
 
 export function SnippetsPage() {
@@ -51,6 +52,7 @@ export function SnippetsPage() {
 
   return (
     <>
+      <VersionHistoryPanel />
       <PageHeader
         title="Snippets"
         description="Triggers, formulas, and templates synced across every device."

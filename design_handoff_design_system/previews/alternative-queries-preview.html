@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SprintBrain — Alternative Queries Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:      #1B4FD8;
+    --primary-dark: #1440B0;
+    --primary-light:#3D6FE8;
+    --primary-bg:   #EEF2FF;
+    --primary-bdr:  #BED0FF;
+    --primary-glow: rgba(27,79,216,.14);
+    --bg:           #FAFAFA;
+    --bg-alt:       #F2F2F7;
+    --card:         #FFFFFF;
+    --line:         #E5E5EA;
+    --ink:          #1C1C1E;
+    --ink-muted:    #6E6E73;
+    --ink-subtle:   #6B6B70;
+    --danger:       #D70015;
+    --warning-bg:   #FFFBEB;
+    --warning-bdr:  #FDE68A;
+    --warning-text: #92400E;
+    --r-in:  10px;
+    --r-card: 16px;
+    --r-pill: 9999px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    min-height: 100vh;
+  }
+
+  /* Dialog shell */
+  .dialog {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: 0 20px 60px rgba(0,0,0,.14), 0 4px 20px rgba(27,79,216,.08);
+    width: 820px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .dialog-header {
+    padding: 24px 28px 0;
+  }
+  .dialog-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .dialog-desc {
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  /* Two-column layout */
+  .dialog-body {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 0;
+    padding: 20px 28px 28px;
+  }
+  .main-col {
+    padding-right: 24px;
+    border-right: 1px solid var(--line);
+  }
+  .side-col {
+    padding-left: 24px;
+  }
+
+  /* Field + label */
+  .field { margin-bottom: 16px; }
+  .label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .inp {
+    display: block;
+    width: 100%;
+    height: 38px;
+    border-radius: var(--r-in);
+    border: 1px solid var(--line);
+    background: var(--card);
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .inp:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+  textarea.inp {
+    height: 96px;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.55;
+  }
+
+  /* ── Alternative Queries block ── */
+  .alt-block {
+    margin-bottom: 16px;
+  }
+  .label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .label-hint {
+    font-size: 10px;
+    color: var(--ink-subtle);
+    font-style: italic;
+  }
+
+  /* Tag pills */
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--r-pill);
+    padding: 3px 10px 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--primary-bdr);
+    background: var(--primary-bg);
+    color: var(--primary);
+    line-height: 1;
+  }
+  .tag.conflict {
+    border-color: #FDE68A;
+    background: #FFFBEB;
+    color: #92400E;
+  }
+  .tag-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(27,79,216,.12);
+    color: var(--primary);
+    font-size: 9px;
+    cursor: pointer;
+    margin-left: 2px;
+  }
+  .tag.conflict .tag-x {
+    background: rgba(146,64,14,.12);
+    color: #92400E;
+  }
+  .conflict-icon {
+    font-size: 11px;
+  }
+
+  /* Conflict warning */
+  .conflict-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--warning-bdr);
+    background: var(--warning-bg);
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    color: var(--warning-text);
+    line-height: 1.45;
+  }
+  .conflict-banner-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Tag input */
+  .tag-input-wrap {
+    position: relative;
+  }
+  .tag-inp {
+    display: block;
+    width: 100%;
+    height: 36px;
+    border-radius: var(--r-in);
+    border: 1px solid var(--line);
+    background: var(--card);
+    padding: 0 12px;
+    font-size: 12.5px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .tag-inp:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+  .tag-inp::placeholder { color: var(--ink-subtle); }
+
+  /* Suggestions */
+  .suggestions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+  }
+  .sug-label {
+    font-size: 10.5px;
+    color: var(--ink-subtle);
+    align-self: center;
+    margin-right: 2px;
+  }
+  .sug-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    border: 1px dashed var(--primary-bdr);
+    background: transparent;
+    color: var(--primary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .sug-chip:hover {
+    background: var(--primary-bg);
+  }
+  .sug-plus { font-size: 10px; opacity: .7; }
+
+  /* Per-variant note (edit mode) */
+  .variant-note {
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--ink-subtle);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .variant-note-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--ink-subtle);
+    font-size: 9px;
+    color: var(--ink-subtle);
+    flex-shrink: 0;
+  }
+
+  /* Sidebar */
+  .section-head {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-subtle);
+    margin-bottom: 10px;
+    margin-top: 18px;
+  }
+  .section-head:first-child { margin-top: 0; }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .toggle-label { font-size: 12.5px; color: var(--ink); }
+  .toggle-sub { font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
+  .toggle {
+    width: 36px; height: 20px;
+    border-radius: var(--r-pill);
+    background: var(--line);
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .toggle.on { background: var(--primary); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: left .15s;
+  }
+  .toggle.on::after { left: 18px; }
+
+  /* Quick Insert chips */
+  .qi-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+  .qi-chip {
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--primary-bdr);
+    background: var(--primary-bg);
+    color: var(--primary);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  /* Footer buttons */
+  .dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 28px 24px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-muted);
+    border: 1px solid var(--line);
+  }
+  .btn-ghost:hover { background: var(--bg-alt); }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--primary-dark); }
+
+  /* ── SnippetsTable row preview ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 40px 0 12px;
+  }
+  .table-preview {
+    background: var(--card);
+    border-radius: var(--r-card);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    width: 820px;
+    max-width: 100%;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    align-items: start;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    gap: 12px;
+  }
+  .table-row:last-child { border-bottom: none; }
+  .table-head {
+    background: var(--bg-alt);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-subtle);
+    padding: 8px 16px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .cell-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+  .cell-sub { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .cell-pill {
+    font-size: 10.5px;
+    padding: 1px 7px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--primary-bdr);
+    background: var(--primary-bg);
+    color: rgba(27,79,216,.8);
+    font-weight: 500;
+  }
+  .cell-pill.overflow {
+    background: var(--bg-alt);
+    border-color: var(--line);
+    color: var(--ink-subtle);
+  }
+  .cell-trigger {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--primary);
+    background: var(--primary-bg);
+    border: 1px solid var(--primary-bdr);
+    border-radius: 5px;
+    padding: 2px 7px;
+    display: inline-block;
+  }
+  .cell-lang {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-note {
+    font-size: 11px;
+    color: var(--ink-subtle);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<div>
+
+  <!-- ── Dialog preview ── -->
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-subtle);margin-bottom:10px;">
+    New Snippet Dialog — Alternative Queries field
+  </div>
+
+  <div class="dialog">
+    <div class="dialog-header">
+      <div class="dialog-title">Edit snippet</div>
+      <div class="dialog-desc">Update the snippet details — changes are versioned automatically.</div>
+    </div>
+
+    <div class="dialog-body">
+      <!-- Main column -->
+      <div class="main-col">
+
+        <!-- Name -->
+        <div class="field">
+          <label class="label">Name</label>
+          <input class="inp" value="Welcome message — Check-in" readonly>
+        </div>
+
+        <!-- Trigger / Folder row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div class="field" style="margin:0">
+            <label class="label">Shortcut trigger</label>
+            <input class="inp" value="::wlc" style="font-family:'SF Mono',monospace;" readonly>
+          </div>
+          <div class="field" style="margin:0">
+            <label class="label">Folder</label>
+            <select class="inp" style="height:38px;cursor:pointer;">
+              <option>Guest Communication</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ━━━━━ ALTERNATIVE QUERIES ━━━━━ -->
+        <div class="alt-block">
+          <div class="label-row">
+            <label class="label" style="margin:0">Alternative queries <span style="font-weight:400;font-style:italic;color:var(--ink-subtle)">(AI search + selection trigger)</span></label>
+            <span class="label-hint">per variant ⓘ</span>
+          </div>
+
+          <!-- Existing tags — one conflict shown -->
+          <div class="tags-row">
+            <span class="tag">
+              welcome
+              <span class="tag-x">✕</span>
+            </span>
+            <span class="tag">
+              benvenuto
+              <span class="tag-x">✕</span>
+            </span>
+            <span class="tag">
+              bienvenido
+              <span class="tag-x">✕</span>
+            </span>
+            <span class="tag conflict">
+              <span class="conflict-icon">⚠</span>
+              check-in
+              <span class="tag-x">✕</span>
+            </span>
+            <span class="tag">
+              arrivo
+              <span class="tag-x">✕</span>
+            </span>
+          </div>
+
+          <!-- Conflict warning banner -->
+          <div class="conflict-banner">
+            <span class="conflict-banner-icon">⚠</span>
+            <span><strong>Conflict:</strong> "check-in" matches the primary trigger of another snippet. The extension will prefer that snippet's trigger — consider renaming to avoid ambiguity.</span>
+          </div>
+
+          <!-- Tag input -->
+          <div class="tag-input-wrap">
+            <input class="tag-inp" placeholder="Type a query and press Enter or comma…" value="">
+          </div>
+
+          <!-- Auto-suggest chips -->
+          <div class="suggestions-row">
+            <span class="sug-label">Suggested:</span>
+            <span class="sug-chip"><span class="sug-plus">+</span> arrival</span>
+            <span class="sug-chip"><span class="sug-plus">+</span> check-in time</span>
+            <span class="sug-chip"><span class="sug-plus">+</span> greet guest</span>
+          </div>
+
+          <!-- Per-variant note (edit mode) -->
+          <div class="variant-note">
+            <span class="variant-note-icon">i</span>
+            Alternative queries are saved per language variant. Switch tabs above to set them for EN / IT / ES.
+          </div>
+        </div>
+        <!-- ━━━━━ END ALTERNATIVE QUERIES ━━━━━ -->
+
+        <!-- Body -->
+        <div class="field">
+          <label class="label">Body</label>
+          <div class="qi-row">
+            <span class="qi-chip">guest_name</span>
+            <span class="qi-chip">property_name</span>
+            <span class="qi-chip">checkin_date</span>
+            <span class="qi-chip">checkout_date</span>
+            <span class="qi-chip">{=formula}</span>
+          </div>
+          <textarea class="inp">Dear {guest_name}, welcome to {property_name}! Your check-in is on {checkin_date}. We look forward to hosting you. 🏡</textarea>
+        </div>
+
+      </div><!-- /main-col -->
+
+      <!-- Sidebar -->
+      <div class="side-col">
+        <div class="section-head">Language</div>
+        <div style="display:flex;gap:6px;margin-bottom:16px;">
+          <span style="padding:4px 10px;border-radius:var(--r-pill);background:var(--primary);color:white;font-size:12px;font-weight:600;cursor:pointer;">EN</span>
+          <span style="padding:4px 10px;border-radius:var(--r-pill);background:var(--bg-alt);color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;">IT</span>
+          <span style="padding:4px 10px;border-radius:var(--r-pill);background:var(--bg-alt);color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;">ES</span>
+          <span style="padding:4px 10px;border-radius:var(--r-pill);background:var(--bg-alt);color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;">Multi</span>
+        </div>
+
+        <div class="section-head">Options</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Pinned</div>
+            <div class="toggle-sub">Always on top</div>
+          </div>
+          <div class="toggle"></div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Shared</div>
+            <div class="toggle-sub">Visible to team</div>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+
+        <div class="section-head" style="margin-top:16px;">Urgency timer</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable timer</div>
+            <div class="toggle-sub">Counts down on send</div>
+          </div>
+          <div class="toggle"></div>
+        </div>
+
+        <div style="margin-top:20px;padding:12px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--primary-bdr);">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);margin-bottom:6px;">How alternative queries work</div>
+          <div style="font-size:11px;color:#374151;line-height:1.55;">
+            Add keywords or phrases guests might say. The extension uses these to:<br><br>
+            • <strong>Match text selection</strong> — highlight text in any tab, right-click → SprintBrain suggests matching snippets.<br><br>
+            • <strong>Power AI search</strong> — filter results by natural-language intent, not just trigger shortcode.
+          </div>
+        </div>
+      </div><!-- /side-col -->
+    </div><!-- /dialog-body -->
+
+    <div class="dialog-footer">
+      <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger);margin-right:auto;">Delete</button>
+      <button class="btn btn-ghost">History</button>
+      <button class="btn btn-ghost">Cancel</button>
+      <button class="btn btn-primary">Save changes</button>
+    </div>
+  </div><!-- /dialog -->
+
+  <!-- ── SnippetsTable row preview ── -->
+  <div class="section-title">SnippetsTable — alt query chips in the Name cell</div>
+  <div class="table-preview">
+    <div class="table-head">
+      <span>Name</span>
+      <span>Trigger</span>
+      <span>Language</span>
+      <span>Folder</span>
+    </div>
+
+    <!-- Row 1: snippet with 3 alt queries -->
+    <div class="table-row">
+      <div>
+        <div class="cell-name">Welcome message — Check-in</div>
+        <div class="cell-sub">
+          <span class="cell-pill">welcome</span>
+          <span class="cell-pill">benvenuto</span>
+          <span class="cell-pill">bienvenido</span>
+          <span class="cell-pill overflow" title="arrivo, check-in">+2</span>
+        </div>
+      </div>
+      <div><span class="cell-trigger">::wlc</span></div>
+      <div>
+        <span class="cell-lang" style="background:#EEF2FF;color:#1B4FD8;border:1px solid #BED0FF;font-size:11px;">EN</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-muted);">Guest Communication</div>
+    </div>
+
+    <!-- Row 2: snippet with no alt queries -->
+    <div class="table-row">
+      <div>
+        <div class="cell-name">Minimum stay policy</div>
+        <div class="badge-note" style="color:var(--ink-subtle);font-size:11px;font-style:italic;">no alternative queries</div>
+      </div>
+      <div><span class="cell-trigger">::min</span></div>
+      <div>
+        <span class="cell-lang" style="background:#F0FDF4;color:#15803D;border:1px solid #86EFAC;font-size:11px;">IT</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-muted);">Policies</div>
+    </div>
+
+    <!-- Row 3: snippet with 1 alt query -->
+    <div class="table-row">
+      <div>
+        <div class="cell-name">Cancellation notice</div>
+        <div class="cell-sub">
+          <span class="cell-pill">cancellation</span>
+          <span class="cell-pill">refund</span>
+          <span class="cell-pill">cancel</span>
+        </div>
+      </div>
+      <div><span class="cell-trigger">::cnl</span></div>
+      <div>
+        <span class="cell-lang" style="background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74;font-size:11px;">ES</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-muted);">Policies</div>
+    </div>
+
+  </div><!-- /table-preview -->
+
+  <div style="margin-top:14px;font-size:11px;color:var(--ink-subtle);">
+    Preview generated 2026-05-30 — matches shipped code on branch <code style="background:var(--bg-alt);padding:1px 5px;border-radius:4px;">claude/gracious-einstein-6lEK8</code>
+  </div>
+
+</div>
+</body>
+</html>

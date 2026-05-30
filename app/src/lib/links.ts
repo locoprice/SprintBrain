@@ -12,5 +12,5 @@ export const RESOURCE_LINKS: Record<
   investors: 'https://form.jotform.com/locoprice/investors',
   bugs: 'https://form.jotform.com/locoprice/accuracy',
   github: 'https://github.com/locoprice/SprintBrain/issues',
-  status: null,
+  status: 'https://sprintbrain.instatus.com/',
 };
