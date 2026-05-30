@@ -65,6 +65,7 @@ export interface SaveRevisionParams {
   folder_id: string | null;
   pinned: boolean;
   is_shared: boolean;
+  alternative_queries: string[];
   enable_urgency_timer: boolean;
   timer_duration_ms: number;
   scarcity_count: number;
@@ -113,6 +114,7 @@ export const revisionsApi: RevisionsApi = {
       p_enable_urgency_timer: params.enable_urgency_timer,
       p_timer_duration_ms: params.timer_duration_ms,
       p_scarcity_count: params.scarcity_count,
+      p_alternative_queries: params.alternative_queries,
       p_editor_display: editorDisplay,
       p_edit_note: editNote ?? null,
     });

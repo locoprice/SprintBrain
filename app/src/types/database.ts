@@ -62,6 +62,8 @@ export interface Snippet {
    * dashboard still displays it so it can be re-enabled.
    */
   is_active: boolean;
+  /** Keyword synonyms for context-based snippet matching (ALTERNATIVE-QUERIES-001). */
+  alternative_queries: string[];
   enable_urgency_timer: boolean;
   timer_duration_ms: number;
   scarcity_count: number;

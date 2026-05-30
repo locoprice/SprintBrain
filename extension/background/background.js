@@ -94,8 +94,8 @@ function loadData() {
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
       var snipQs = uid
-        ? 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-        : 'select=id,title,shortcut,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&is_shared=eq.true';
+        ? 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
+        : 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&is_shared=eq.true';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
         supaFetch('snippets', snipQs),

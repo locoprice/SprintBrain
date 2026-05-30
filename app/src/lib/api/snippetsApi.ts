@@ -65,6 +65,7 @@ type DbSnippetJoined = {
   notion_page_id: string | null;
   pinned: boolean | null;
   is_active: boolean | null;
+  alternative_queries: string[] | null;
   enable_urgency_timer: boolean | null;
   timer_duration_ms: number | null;
   scarcity_count: number | null;
@@ -142,6 +143,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     is_active: row.is_active ?? true,
+    alternative_queries: Array.isArray(row.alternative_queries) ? row.alternative_queries : [],
     enable_urgency_timer: row.enable_urgency_timer ?? false,
     timer_duration_ms: row.timer_duration_ms ?? 0,
     scarcity_count: row.scarcity_count ?? 0,
@@ -179,7 +181,7 @@ async function readLanguage(
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, is_active, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the
@@ -242,6 +244,7 @@ export const snippetsApi: SnippetsApi = {
       updated_at: now,
       pinned: payload.pinned ?? false,
       is_shared: payload.is_shared ?? false,
+      alternative_queries: payload.alternative_queries ?? [],
       enable_urgency_timer: payload.enable_urgency_timer ?? false,
       timer_duration_ms: payload.timer_duration_ms ?? 0,
       scarcity_count: payload.scarcity_count ?? 0,
@@ -266,6 +269,7 @@ export const snippetsApi: SnippetsApi = {
     if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
     if (patch.pinned !== undefined) update['pinned'] = patch.pinned;
     if (patch.is_shared !== undefined) update['is_shared'] = patch.is_shared;
+    if (patch.alternative_queries !== undefined) update['alternative_queries'] = patch.alternative_queries;
     if (patch.enable_urgency_timer !== undefined)
       update['enable_urgency_timer'] = patch.enable_urgency_timer;
     if (patch.timer_duration_ms !== undefined)
@@ -416,6 +420,7 @@ export const snippetsApi: SnippetsApi = {
       pinned: false,
       is_shared: false,
       is_active: source.is_active ?? true,
+      alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
       enable_urgency_timer: source.enable_urgency_timer ?? false,
       timer_duration_ms: source.timer_duration_ms ?? 0,
       scarcity_count: source.scarcity_count ?? 0,
