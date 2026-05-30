@@ -56,6 +56,7 @@ const MOCK_SNIPPET: SnippetRow = {
   enable_urgency_timer: false,
   timer_duration_ms: 0,
   scarcity_count: 0,
+  alternative_queries: [],
   updated_at: '2026-01-01T00:00:00Z',
   folder_name: null,
   usage_count: 0,
@@ -86,6 +87,7 @@ const PATCH: SnippetFormValues = {
   enable_urgency_timer: false,
   timer_duration_ms: 0,
   scarcity_count: 0,
+  alternative_queries: [],
 };
 
 beforeEach(() => {
