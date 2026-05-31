@@ -117,4 +117,4 @@ Core system working, UX and advanced features in progress
 
 ## 👤 Author
 
-Alessandro – SprintBrain Project
+Alessandro Verdicchio – SprintBrain Project // Valentina Pirrone Senior Project manager
