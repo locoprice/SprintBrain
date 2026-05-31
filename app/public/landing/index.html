@@ -499,6 +499,70 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .plat-cards .plat-card:last-child{grid-column:span 1}
   .plat-sub{font-size:17px;margin-bottom:48px}}
 
+/* ── FEATURE MODAL ───────────────────────────────────────── */
+.fm-backdrop{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  opacity:0;visibility:hidden;
+  transition:opacity .22s ease,visibility .22s ease}
+.fm-backdrop.fm-open{opacity:1;visibility:visible}
+.fm-dialog{
+  position:relative;
+  background:#111114;
+  border:1px solid #2C2C36;
+  border-radius:24px;
+  padding:40px 44px 36px;
+  max-width:560px;width:100%;
+  transform:translateY(16px) scale(.97);
+  transition:transform .25s cubic-bezier(.23,1,.32,1);
+  box-shadow:0 32px 80px rgba(0,0,0,.6),0 2px 8px rgba(0,0,0,.4)}
+.fm-backdrop.fm-open .fm-dialog{transform:translateY(0) scale(1)}
+.fm-tag{
+  font-size:11px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:#5E5E66;
+  margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.fm-tag-dot{width:5px;height:5px;border-radius:50%;background:var(--sb-iris-light);flex-shrink:0}
+.fm-title{
+  font-size:26px;line-height:1.15;letter-spacing:-.025em;
+  font-weight:700;color:#fff;margin:0 0 14px}
+.fm-body{
+  font-size:15px;line-height:1.65;color:#8A8A93;
+  margin:0 0 20px;text-wrap:pretty}
+.fm-body b{color:#fff;font-weight:600}
+.fm-body code{
+  font-family:var(--sb-mono);font-size:13px;
+  color:var(--sb-iris-soft);
+  background:rgba(139,124,246,.10);
+  padding:2px 7px;border-radius:6px;
+  border:1px solid rgba(139,124,246,.18);white-space:nowrap}
+.fm-detail{
+  background:#08080B;border:1px solid #1F1F26;border-radius:14px;
+  padding:18px 20px;font-size:13.5px;line-height:1.6;
+  color:#8A8A93;margin-bottom:24px}
+.fm-detail strong{color:#DCDCE2;font-weight:600;display:block;margin-bottom:6px}
+.fm-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fm-cta-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;
+  background:var(--sb-iris-light);color:#fff;border:none;
+  cursor:pointer;font-family:inherit;
+  transition:background .15s,transform .1s}
+.fm-cta-btn:hover{background:var(--sb-iris-soft);transform:translateY(-1px)}
+.fm-close{
+  position:absolute;top:20px;right:20px;
+  width:32px;height:32px;border-radius:8px;
+  background:#1C1C22;border:1px solid #2C2C36;
+  color:#5E5E66;cursor:pointer;
+  display:grid;place-items:center;
+  transition:background .15s,color .15s}
+.fm-close:hover{background:#252530;color:#fff}
+@media(max-width:600px){
+  .fm-dialog{padding:28px 24px 24px}
+  .fm-title{font-size:22px}}
+
 /* PARTNERS */
 .partners{padding:56px 24px;background:var(--card);border-top:1px solid var(--border)}
 .partners-inner{max-width:var(--max);margin:0 auto;text-align:center}
@@ -536,7 +600,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · v2.56.3</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.56.4</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
@@ -1010,7 +1074,7 @@ LeibTour Team</div>
   <div class="foot-inner">
     <div class="foot-brand">
       <div class="brand-logo"><img src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="" aria-hidden="true" draggable="false" style="height:20px;width:auto"></div>
-      © 2026 SprintBrain · v2.56.3 · Updated May 2026
+      © 2026 SprintBrain · v2.56.4 · Updated May 2026
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
@@ -1025,7 +1089,99 @@ LeibTour Team</div>
 </footer>
 
 
+<!-- Feature modal -->
+<div class="fm-backdrop" id="fm-backdrop" role="dialog" aria-modal="true" aria-labelledby="fm-title" aria-hidden="true">
+  <div class="fm-dialog">
+    <button class="fm-close" id="fm-close" aria-label="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="fm-tag"><span class="fm-tag-dot" aria-hidden="true"></span><span id="fm-tag-label"></span></div>
+    <h2 class="fm-title" id="fm-title"></h2>
+    <p class="fm-body" id="fm-body"></p>
+    <div class="fm-detail" id="fm-detail"></div>
+    <div class="fm-cta-row">
+      <a href="https://app.sprintbrain.com/signup" class="fm-cta-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        Get early access
+      </a>
+    </div>
+  </div>
+</div>
+
 <script>
+(function(){
+  var MODAL_DATA=[
+    {
+      tag:'01 · Triggers',
+      title:'Type a short tag. Watch a full template appear.',
+      body:'Any shortcut prefixed with <code>::</code> triggers an instant expansion — inside <b>Gmail</b>, <b>Notion</b>, <b>Slack</b>, your CRM, or any web app where you type. No clipboard juggling, no copy-paste.',
+      detail:'<strong>How it works</strong>Type <code>::quoteEN</code> and press Space or Tab. SprintBrain replaces the tag with the full template in under 50&nbsp;ms — field-level, no page reload, no extension overlay visible to anyone else.'
+    },
+    {
+      tag:'02 · Formulas',
+      title:'Real math, inline.',
+      body:'Embed live calculations directly in your templates using <code>{{NIGHTS * RATE}}</code> syntax. Values are resolved the moment the snippet expands — a <b>CSP-safe custom parser</b>, zero <code>eval</code>, zero risk.',
+      detail:'<strong>Supported operations</strong>Addition, subtraction, multiplication, division, percentage discounts, rounding, and conditional expressions. Works with named fields like <code>{{NIGHTS}}</code> that you fill in at expansion time.'
+    },
+    {
+      tag:'03 · Prompts',
+      title:'A library of reusable prompts.',
+      body:'Store your best <b>one-shot and few-shot prompts</b> next to your templates and expand them the same way — into <b>ChatGPT</b>, <b>Claude</b>, Gemini, or any model UI. No more re-writing the same instruction from scratch.',
+      detail:'<strong>Why it matters</strong>Consistent prompt phrasing produces consistent model output. Centralising your prompt library means the whole team gets the same quality baseline — and you can version it like any other snippet.'
+    },
+    {
+      tag:'04 · Cloud sync',
+      title:'Every device, under a second.',
+      body:'Your snippet library lives in <b>Supabase</b> — edit on your laptop, paste on your phone within <b>&lt;&nbsp;1&nbsp;s</b>. Encrypted at rest. No manual export/import, no conflicts, no stale copies.',
+      detail:'<strong>Reliability</strong>Supabase Realtime pushes changes to all connected clients as soon as you save. Offline edits queue locally and sync the moment connectivity returns.'
+    },
+    {
+      tag:'05 · Notion sync',
+      title:'Edit where your team already works.',
+      body:'Connect a <b>Notion database</b> as the source of truth for your library. Reviewers comment in Notion; SprintBrain pulls the updates into the extension within the minute — <b>one-way or two-way</b>.',
+      detail:'<strong>Setup</strong>Paste your Notion integration token and database ID in Settings → Notion Sync. SprintBrain maps columns to snippet fields automatically and runs incremental pulls on a timer.'
+    },
+    {
+      tag:'06 · Mobile',
+      title:'Your library, on any phone.',
+      body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet — same library, same formulas.',
+      detail:'<strong>Progressive Web App</strong>Add it to your home screen for instant launch. Works offline for read access. Tap any snippet to copy the expanded text straight to your clipboard.'
+    }
+  ];
+
+  var backdrop=document.getElementById('fm-backdrop');
+  var closeBtn=document.getElementById('fm-close');
+  var tagEl=document.getElementById('fm-tag-label');
+  var titleEl=document.getElementById('fm-title');
+  var bodyEl=document.getElementById('fm-body');
+  var detailEl=document.getElementById('fm-detail');
+
+  function openModal(idx){
+    var d=MODAL_DATA[idx];
+    tagEl.textContent=d.tag;
+    titleEl.textContent=d.title;
+    bodyEl.innerHTML=d.body;
+    detailEl.innerHTML=d.detail;
+    backdrop.classList.add('fm-open');
+    backdrop.setAttribute('aria-hidden','false');
+    closeBtn.focus();
+  }
+
+  function closeModal(){
+    backdrop.classList.remove('fm-open');
+    backdrop.setAttribute('aria-hidden','true');
+  }
+
+  closeBtn.addEventListener('click',closeModal);
+  backdrop.addEventListener('click',function(e){if(e.target===backdrop)closeModal();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+  var ctaBtns=document.querySelectorAll('.fs-cta');
+  ctaBtns.forEach(function(btn,i){
+    btn.addEventListener('click',function(){openModal(i);});
+  });
+})();
+
 (function(){
   var cards=document.querySelectorAll('.plat-card');
   cards.forEach(function(card){
