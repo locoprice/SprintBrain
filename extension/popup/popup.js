@@ -112,6 +112,7 @@ var DB = {
             manually_edited: s.manually_edited || false,
             ai_generated: s.ai_generated || false,
             pinned: s.pinned || false,
+            is_shared: s.is_shared || false,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -933,8 +934,8 @@ function boot() {
 
     loadTrigger(function () {
           var tp = gi('tp');
-        if (tp) tp.textContent = trig;
-          var he = gi('hint-ex'); if (he) he.textContent = trig + 'quoteEN';
+        if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
+          var he = gi('hint-ex'); if (he) he.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
           var sp = gi('spfx'); if (sp) sp.textContent = trig;
     });
 
@@ -1158,8 +1159,8 @@ function _runNotionSync(cb, force) {
 // UI REFRESH
 function groupCount(arr){ var seen={}; var n=0; for(var i=0;i<arr.length;i++){ var gid=arr[i].lang_group_id||arr[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
 function refreshUI(){
-  var tp=gi('tp'); if(tp) tp.textContent=trig;
-  var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';
+  var tp=gi('tp'); if(tp) tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
+  var he=gi('hint-ex'); if(he) he.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
   var gc=groupCount(snips);
   var st=gi('st'); if(st) st.textContent='\u25CF '+gc+' snippet'+(gc!==1?'s':'');
   renderFolders();
@@ -2079,8 +2080,8 @@ on('tcfg-snip','change', function(e){
   if(old!==v){
     for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=v+sc.slice(old.length); snips[i].manually_edited=true; DB.upsertSnippet(snips[i]); } }
     trig=v; saveTrigger();
-    var tp=gi('tp'); if(tp) tp.textContent=trig;
-    var he=gi('hint-ex'); if(he) he.textContent=trig+'quoteEN';
+    var tp=gi('tp'); if(tp) tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
+    var he=gi('hint-ex'); if(he) he.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
     var sp=gi('spfx'); if(sp) sp.textContent=trig;
     gi('ctrig').value=v; syncTG(v);
     refreshUI();
