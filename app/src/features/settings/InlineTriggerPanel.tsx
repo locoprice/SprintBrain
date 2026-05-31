@@ -11,6 +11,11 @@ import {
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { ActivationKey } from '@/types/database';
 
+// ── Types & constants ─────────────────────────────────────────────────────────
+
+type Prefix = '/' | '::' | ';';
+const PREFIXES: Prefix[] = ['/', '::', ';'];
+
 // ── Field-level save status ───────────────────────────────────────────────────
 
 type FieldStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -42,6 +47,10 @@ export function InlineTriggerPanel() {
   const editProfile = useSettingsStore((s) => s.editProfile);
 
   // Local field state — hydrated from profile, held locally during editing.
+  const [prefix, setPrefix] = useState<Prefix>(
+    profile?.shortcut_prefix ?? '::',
+  );
+  const [prefixStatus, setPrefixStatus] = useState<FieldStatus>('idle');
   const [snippetSeq, setSnippetSeq] = useState<SeqFieldState>(
     makeSeq(profile?.trigger_snippet_seq ?? DEFAULT_TRIGGER_CONFIG.snippetTrigger),
   );
@@ -58,12 +67,14 @@ export function InlineTriggerPanel() {
   // Timers for auto-resetting "Saved" status after 2 s.
   // Use `number | null` explicitly — browser setTimeout returns number, and
   // @types/node is in scope in this project which would otherwise infer Timeout.
+  const prefixTimer  = useRef<number | null>(null);
   const snippetTimer = useRef<number | null>(null);
   const promptTimer  = useRef<number | null>(null);
 
   // Re-hydrate whenever the profile changes (e.g. on initial load or external update).
   useEffect(() => {
     if (!profile) return;
+    setPrefix(profile.shortcut_prefix);
     setSnippetSeq(makeSeq(profile.trigger_snippet_seq));
     setPromptSeq(makeSeq(profile.trigger_prompt_seq));
     setSnippetKey(profile.trigger_snippet_key);
@@ -75,9 +86,11 @@ export function InlineTriggerPanel() {
   // cleanup reads .current at teardown time — the react-hooks/exhaustive-deps
   // rule flags direct `ref.current` access inside cleanup closures.
   useEffect(() => {
+    const prfxRef = prefixTimer;
     const snipRef = snippetTimer;
     const prmtRef = promptTimer;
     return () => {
+      if (prfxRef.current !== null) window.clearTimeout(prfxRef.current);
       if (snipRef.current !== null) window.clearTimeout(snipRef.current);
       if (prmtRef.current !== null) window.clearTimeout(prmtRef.current);
     };
@@ -97,6 +110,23 @@ export function InlineTriggerPanel() {
   }
 
   // ── Save handlers (auto-save on blur / change) ────────────────────────────
+
+  async function handlePrefixChange(p: Prefix) {
+    setPrefix(p);
+    if (p === profile?.shortcut_prefix) return;
+    setPrefixStatus('saving');
+    try {
+      await editProfile({ shortcut_prefix: p });
+      setPrefixStatus('saved');
+      if (prefixTimer.current !== null) window.clearTimeout(prefixTimer.current);
+      prefixTimer.current = window.setTimeout(() => {
+        setPrefixStatus('idle');
+        prefixTimer.current = null;
+      }, 2000);
+    } catch {
+      setPrefixStatus('error');
+    }
+  }
 
   async function saveSnippetSeq(raw: string) {
     const value = raw.trim();
@@ -195,13 +225,56 @@ export function InlineTriggerPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inline Trigger Sequences</CardTitle>
+        <CardTitle>Triggers &amp; Prefix</CardTitle>
         <CardDescription>
-          Key combinations that activate snippet or prompt insertion in any text field.
+          Shortcut prefix, trigger sequences, and activation keys for snippet and prompt expansion.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
+        {/* ── Shortcut prefix ── */}
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-ink-muted">Shortcut prefix</label>
+            <p className="mt-1 text-xs text-ink-subtle">
+              The character(s) you type before a snippet name for direct expansion.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-[10px] border border-line bg-bg-alt p-1">
+              {PREFIXES.map((p) => {
+                const isActive = prefix === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handlePrefixChange(p)}
+                    disabled={disabled}
+                    className={cn(
+                      'h-8 min-w-[3rem] rounded-[8px] font-mono text-sm font-semibold transition-colors',
+                      isActive
+                        ? 'bg-card text-ink shadow-sm'
+                        : 'text-ink-muted hover:text-ink',
+                      disabled && 'cursor-not-allowed opacity-60',
+                    )}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <SeqStatusBadge status={prefixStatus} />
+          </div>
+          <p className="text-xs text-ink-subtle leading-relaxed">
+            Activate snippets two ways — type the prefix directly before a shortcut name (e.g.{' '}
+            <code className="font-mono font-semibold text-primary">::hello</code>) for instant
+            expansion, or open the picker by typing a trigger sequence or pressing the activation
+            key configured below.
+          </p>
+        </div>
+
+        <hr className="border-line" />
+
         {/* ── Snippet trigger ── */}
         <TriggerRow
           label="Snippet"

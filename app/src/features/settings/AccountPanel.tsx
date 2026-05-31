@@ -3,11 +3,8 @@ import { AlertCircle, Check, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settingsStore';
 
-type Prefix = '/' | '::' | ';';
-const PREFIXES: Prefix[] = ['/', '::', ';'];
 const NAME_MAX = 80;
 
 export function AccountPanel() {
@@ -16,7 +13,6 @@ export function AccountPanel() {
   const changeEmail = useSettingsStore((s) => s.changeEmail);
 
   const [displayName, setDisplayName] = useState('');
-  const [prefix, setPrefix] = useState<Prefix>('::');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -32,7 +28,6 @@ export function AccountPanel() {
   useEffect(() => {
     if (!profile) return;
     setDisplayName(profile.display_name);
-    setPrefix(profile.shortcut_prefix);
   }, [profile]);
 
   // Briefly show "Saved" after a successful write.
@@ -44,7 +39,7 @@ export function AccountPanel() {
 
   const dirty =
     profile !== null &&
-    (displayName.trim() !== profile.display_name || prefix !== profile.shortcut_prefix);
+    displayName.trim() !== profile.display_name;
 
   const trimmed = displayName.trim();
   const nameInvalid = trimmed.length === 0 || trimmed.length > NAME_MAX;
@@ -54,7 +49,7 @@ export function AccountPanel() {
     setSaving(true);
     setErrorMsg(null);
     try {
-      await editProfile({ display_name: trimmed, shortcut_prefix: prefix });
+      await editProfile({ display_name: trimmed });
       setSavedAt(Date.now());
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Save failed');
@@ -66,7 +61,6 @@ export function AccountPanel() {
   function onCancel() {
     if (!profile) return;
     setDisplayName(profile.display_name);
-    setPrefix(profile.shortcut_prefix);
     setErrorMsg(null);
   }
 
@@ -110,7 +104,7 @@ export function AccountPanel() {
       <CardHeader>
         <CardTitle>Account</CardTitle>
         <CardDescription>
-          Profile and trigger preferences synced across every device.
+          Display name and email synced across every device.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -204,35 +198,6 @@ export function AccountPanel() {
             </div>
           </div>
         )}
-
-        <div>
-          <div className="text-xs font-medium text-ink-muted">Shortcut prefix</div>
-          <p className="mt-1 text-xs text-ink-subtle">
-            Type this prefix before any trigger to expand a snippet.
-          </p>
-          <div className="mt-3 inline-flex rounded-[12px] border border-line bg-bg-alt p-1">
-            {PREFIXES.map((p) => {
-              const isActive = prefix === p;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPrefix(p)}
-                  disabled={saving || profile === null}
-                  className={cn(
-                    'h-8 min-w-[3rem] rounded-[10px] font-mono text-sm font-semibold transition-colors',
-                    isActive
-                      ? 'bg-card text-ink shadow-sm'
-                      : 'text-ink-muted hover:text-ink',
-                    (saving || profile === null) && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  {p}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {errorMsg && (
           <div className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
