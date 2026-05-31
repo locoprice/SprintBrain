@@ -2362,7 +2362,9 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
   var subEl   = document.getElementById('sb-auth-sub');
   var primary = document.getElementById('sb-auth-primary');
   var backEl  = document.getElementById('sb-auth-back');
-  var msgEl   = document.getElementById('sb-auth-msg');
+  var msgEl      = document.getElementById('sb-auth-msg');
+  var rememberEl = document.getElementById('sb-auth-remember');
+  var rememberRow = document.getElementById('sb-auth-remember-row');
   if (!gate || !primary) return;
 
   var state = 'email'; // 'email' | 'code'
@@ -2400,6 +2402,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       emailEl.style.display = '';
       codeEl.style.display = 'none';
       backEl.style.display = 'none';
+      if (rememberRow) rememberRow.style.display = 'flex';
       primary.textContent = 'Send code';
       subEl.textContent = "Enter your work email — we'll send a one-time code.";
       setTimeout(function() { emailEl.focus(); }, 30);
@@ -2407,6 +2410,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       emailEl.style.display = 'none';
       codeEl.style.display = '';
       backEl.style.display = '';
+      if (rememberRow) rememberRow.style.display = 'none';
       primary.textContent = 'Verify';
       subEl.textContent = 'Enter the code sent to ' + pendingEmail + '.';
       setTimeout(function() { codeEl.focus(); }, 30);
@@ -2473,7 +2477,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       primary.disabled = true;
       primary.textContent = 'Verifying…';
       if (!pendingEmail) { setMsg('Session lost — request a new code'); state = 'email'; renderState(); return; }
-      sbVerifyOtp(pendingEmail, code, function(err, session) {
+      sbVerifyOtp(pendingEmail, code, rememberEl ? rememberEl.checked : true, function(err, session) {
         primary.disabled = false;
         primary.textContent = 'Verify';
         if (err || !session) { setMsg(err || 'Invalid code'); return; }
@@ -2521,6 +2525,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
     if (area !== 'local' || !changes.sb_session) return;
     var next = changes.sb_session.newValue;
     if (next && next.access_token && !booted) {
+      chrome.storage.local.set({ sb_remember_until: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 });
       hideGate();
       bootOnce(next);
     }

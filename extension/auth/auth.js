@@ -29,7 +29,7 @@ function sbSetSession(s, cb) {
 
 function sbClearSession(cb) {
   _sbRefreshing = null;
-  chrome.storage.local.remove('sb_session', function() {
+  chrome.storage.local.remove(['sb_session', 'sb_remember_until'], function() {
     if (cb) cb();
     try {
       chrome.runtime.sendMessage({ type: 'auth_changed' });
@@ -56,7 +56,8 @@ function sbRequestOtp(email, cb) {
 }
 
 // POST /auth/v1/verify — exchanges (email, OTP code) for tokens.
-function sbVerifyOtp(email, token, cb) {
+// rememberMe: true → store 30-day expiry; false → expire with access token (no auto-refresh).
+function sbVerifyOtp(email, token, rememberMe, cb) {
   fetch(SB_SUPA_URL + '/auth/v1/verify', {
     method: 'POST',
     headers: { 'apikey': SB_SUPA_ANON_KEY, 'Content-Type': 'application/json' },
@@ -77,15 +78,31 @@ function sbVerifyOtp(email, token, cb) {
         user_id: j.user && j.user.id ? j.user.id : null,
         email: (j.user && j.user.email) || email
       };
+      var rememberUntil = rememberMe !== false
+        ? Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
+        : 0;
+      chrome.storage.local.set({ sb_remember_until: rememberUntil });
       sbSetSession(session, function() { cb(null, session); });
     });
   }).catch(function(e) { cb(e.message || 'Network error', null); });
 }
 
 // POST /auth/v1/token?grant_type=refresh_token — rotates the access_token.
+// Skips refresh and rejects if the user's remember-me window has closed.
 function sbRefreshToken(cb) {
   if (_sbRefreshing) { _sbRefreshing.then(function(s){ cb(null, s); }, function(e){ cb(e, null); }); return; }
   _sbRefreshing = new Promise(function(resolve, reject) {
+    chrome.storage.local.get('sb_remember_until', function(d) {
+      var until = d.sb_remember_until;
+      var now = Math.floor(Date.now() / 1000);
+      // until === 0: user explicitly declined remember-me; until < now: 30-day window expired
+      if (until !== undefined && (until === 0 || until < now)) {
+        reject(new Error('session_expired'));
+        return;
+      }
+      doRefresh();
+    });
+    function doRefresh() {
     sbGetSession(function(s) {
       if (!s || !s.refresh_token) { reject(new Error('no_session')); return; }
       fetch(SB_SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
@@ -111,6 +128,7 @@ function sbRefreshToken(cb) {
         });
       }).catch(function(e) { reject(e); });
     });
+    }
   });
   _sbRefreshing.then(
     function(s) { _sbRefreshing = null; cb(null, s); },
