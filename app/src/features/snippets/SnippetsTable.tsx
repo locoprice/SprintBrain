@@ -240,7 +240,7 @@ export function SnippetsTable() {
               <Users className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
             </th>
             <th
-              className="sticky top-0 z-10 w-[88px] border-b border-line bg-bg-alt px-2 py-3"
+              className="sticky top-0 z-10 w-[96px] border-b border-line bg-bg-alt pl-2 pr-4 py-3"
               aria-label="Actions"
             />
           </tr>
@@ -370,7 +370,7 @@ export function SnippetsTable() {
                   )}
                 </td>
                 <td
-                  className="px-2 py-3"
+                  className="pl-2 pr-4 py-3"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <SnippetRowActions snippet={row} />
