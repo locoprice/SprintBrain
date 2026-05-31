@@ -103,7 +103,7 @@ html,body{
 }
 
 /* ── BODY ── */
-.body{display:flex;height:420px}
+.body{display:flex;height:380px}
 
 /* ── SIDEBAR ── */
 .sb{
@@ -654,6 +654,83 @@ html,body{
 .sb-auth-link:hover{color:var(--sb-iris)}
 .sb-auth-msg{margin-top:14px;font-size:12px;color:var(--sb-danger);max-width:320px;text-align:center;min-height:1em}
 .sb-auth-msg.ok{color:var(--sb-ok)}
+
+/* ── MODE BAR ─────────────────────────────────────────────────── */
+.mode-bar{
+  display:flex;padding:0 16px;background:var(--sb-bg);
+  border-bottom:1px solid var(--sb-line);flex-shrink:0;
+}
+.mode-tab{
+  flex:1;padding:8px 0 9px;font-size:var(--sb-fs-13);font-weight:500;
+  color:var(--sb-ink-muted);background:transparent;border:none;
+  border-bottom:2px solid transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all var(--sb-dur-base);font-family:inherit;margin-bottom:-1px;
+}
+.mode-tab:hover{color:var(--sb-ink);background:var(--sb-bg-muted)}
+.mode-tab.on{color:var(--sb-azure);font-weight:600;border-bottom-color:var(--sb-azure)}
+.mode-ico{font-size:10px;font-weight:700;opacity:.55;font-family:var(--sb-mono);letter-spacing:-1px}
+.mode-tab.on .mode-ico{opacity:1}
+.mc{
+  font-size:var(--sb-fs-10);background:var(--sb-bg-muted);color:var(--sb-ink-subtle);
+  border-radius:var(--sb-r-pill);padding:1px 7px;font-weight:500;font-variant-numeric:tabular-nums;
+}
+.mode-tab.on .mc{background:var(--sb-azure-bg);color:var(--sb-azure)}
+
+/* ── PROMPT MODE — search row accent override ──────────────────── */
+.srow.pmode .tpill{color:var(--sb-lang-multi);background:var(--sb-lang-multi-bg);border-color:#DDD6FE}
+.srow.pmode .sinp:focus{border-color:var(--sb-lang-multi);box-shadow:0 0 0 3px rgba(124,58,237,.10)}
+
+/* ── PROMPT TRIGGER HINT TAG ───────────────────────────────────── */
+.ptrig{
+  display:inline-block;font-family:var(--sb-mono);font-size:var(--sb-fs-11);font-weight:600;
+  color:var(--sb-lang-multi);background:var(--sb-lang-multi-bg);border:1px solid #DDD6FE;
+  border-radius:var(--sb-r-pill);padding:2px 8px;
+}
+.ptrig .isc-pfx{opacity:.45;font-weight:400}
+
+/* ── PROMPT LIST ────────────────────────────────────────────────── */
+.p-main{flex:1;display:none;flex-direction:column;overflow:hidden}
+.p-main.on{display:flex}
+.p-list{flex:1;overflow-y:auto}
+.p-item{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;
+  border-bottom:1px solid var(--sb-line);cursor:pointer;
+  transition:background 100ms;position:relative;
+}
+.p-item:hover{background:var(--sb-bg-alt)}
+.p-item.ctx-open{background:var(--sb-bg-alt)}
+.p-body{flex:1;min-width:0}
+.p-name{
+  font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px;
+}
+.p-meta{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.p-badge{
+  font-size:var(--sb-fs-10);font-weight:700;padding:2px 6px;border-radius:var(--sb-r-xs);
+  text-transform:uppercase;letter-spacing:.3px;flex-shrink:0;
+}
+.p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
+.p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+.p-tagpill{
+  font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-muted);
+  border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:1px 6px;font-weight:500;
+}
+.p-empty{padding:32px 16px;text-align:center;color:var(--sb-ink-subtle);font-size:var(--sb-fs-13);line-height:1.7}
+
+/* ── PROMPT EDITOR TAG CHIPS ────────────────────────────────────── */
+.ptag-item{
+  display:inline-flex;align-items:center;gap:4px;font-size:var(--sb-fs-10);font-weight:600;
+  color:var(--sb-lang-multi);background:var(--sb-lang-multi-bg);border:1px solid #DDD6FE;
+  border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4;
+}
+.ptag-x{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:12px;height:12px;cursor:pointer;border-radius:50%;
+  color:var(--sb-lang-multi);opacity:.6;transition:opacity 100ms;
+  font-size:10px;font-style:normal;line-height:1;flex-shrink:0;
+}
+.ptag-x:hover{opacity:1}
 </style>
 </head>
 <body data-sb-surface="extension">
@@ -712,6 +789,19 @@ html,body{
       </button>
     </div>
   </div>
+  <!-- ═══ MODE BAR ═══ -->
+  <div class="mode-bar">
+    <button class="mode-tab on" data-mode="snippets" id="mtab-snip">
+      <span class="mode-ico">::</span>
+      Snippets
+      <span class="mc" id="mct-snip">0</span>
+    </button>
+    <button class="mode-tab" data-mode="prompts" id="mtab-prmpt">
+      <span class="mode-ico">"""</span>
+      Prompts
+      <span class="mc" id="mct-prmpt">0</span>
+    </button>
+  </div>
   <div class="srow">
     <div class="search-wrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -720,16 +810,20 @@ html,body{
     <div class="tpill" id="tp">::</div>
   </div>
   <div class="body">
-    <div class="sb">
+    <div class="sb" id="snip-sb">
       <div class="sb-lbl">Folders</div>
       <div class="sb-list" id="folder-list"></div>
       <div class="sb-add" id="btn-new-folder">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Folder
       </div>
     </div>
-    <div class="main">
+    <div class="main" id="snip-main">
       <div class="hint">Type <strong id="hint-ex" class="sb-code-token">::quoteEN</strong> &middot; right-click for options</div>
       <div class="list" id="list"></div>
+    </div>
+    <div class="p-main" id="prompt-main">
+      <div class="hint">Click to copy &middot; type <strong class="ptrig" id="ptrig-hint"><span class="isc-pfx">"""</span>name</strong> in any field</div>
+      <div class="p-list" id="plist"></div>
     </div>
   </div>
   <div class="lfoot">
@@ -830,6 +924,42 @@ html,body{
     </button>
     <button class="bsec" id="bcan">Cancel</button>
     <button class="bdel" id="bdel" style="display:none">Delete</button>
+  </div>
+</div>
+
+<!-- ═══ PROMPT EDITOR ═══ -->
+<div id="pane-ed-prompt" class="pane">
+  <div class="hdr">
+    <button class="hdr-btn" id="bbed-p">
+      <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
+    </button>
+    <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)" id="edhdr-p">New Prompt</span>
+    <span class="saveok" id="sok-p">Saved</span>
+  </div>
+  <div class="escroll">
+    <div><div class="lbl">Name</div><input class="einp" id="ptit" placeholder="e.g. Product pitch email"></div>
+    <div class="row2">
+      <div style="flex:1"><div class="lbl">Type</div>
+        <select class="esel" id="ptyp"><option value="one-shot">One-shot</option><option value="few-shot">Few-shot</option></select></div>
+      <div style="flex:2"><div class="lbl">Category</div>
+        <input class="einp" id="pcat" placeholder="e.g. sales, support…" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div>
+      <div class="lbl">Tags <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--sb-ink-subtle)">— press Enter or comma to add</span></div>
+      <div class="alt-tags" id="ptags-wrap"></div>
+      <input class="einp" id="ptag-inp" placeholder="e.g. sales, email, b2b…" autocomplete="off" spellcheck="false">
+    </div>
+    <div>
+      <div class="lbl">Prompt content &mdash; use {variable} for dynamic fields</div>
+      <textarea class="eta" id="pbdy" style="min-height:150px" placeholder="You are a helpful assistant.&#10;&#10;Task: {task}&#10;Context: {context}&#10;Output: {output_format}"></textarea>
+    </div>
+  </div>
+  <div class="efoot">
+    <button class="bsave" id="bsav-p">
+      <span class="ic ic-sm"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Save
+    </button>
+    <button class="bsec" id="bcan-p">Cancel</button>
+    <button class="bdel" id="bdel-p" style="display:none">Delete</button>
   </div>
 </div>
 
