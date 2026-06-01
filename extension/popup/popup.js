@@ -191,19 +191,6 @@ var DB = {
     return supaFetch('prompts', 'GET', null, qs)
       .then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
-  },
-
-  upsertPrompt: function(p) {
-    supaFetch('prompts', 'POST', {
-      id: p.id, user_id: SB_CURRENT_USER_ID, name: p.name, content: p.content || '',
-      type: p.type || 'one-shot', tags: p.tags || [],
-      intent_category: p.intent_category || ''
-    }).catch(function(e) { console.error('[SprintBrain] upsertPrompt:', e); });
-  },
-
-  deletePrompt: function(id) {
-    supaFetch('prompts', 'DELETE', null, 'id=eq.' + id)
-      .catch(function(e) { console.error('[SprintBrain] deletePrompt:', e); });
   }
 };
 
@@ -288,8 +275,6 @@ var folders      = [];
 var prompts      = [];
 var trig         = '::';
 var editId       = null;
-var editPromptId = null;
-var _promptTags  = [];
 var pendT        = '::';
 var selFolder    = 'ALL';
 var ctxId        = null;
@@ -1345,7 +1330,7 @@ function renderPrompts(q) {
   }
   if (ct) ct.textContent = prompts.length;
   if (!filtered.length) {
-    el.innerHTML = '<div class="p-empty">'+(q?'No prompts match &ldquo;'+esc(q)+'&rdquo;':'No prompts yet.<br>Click <strong>+ New Prompt</strong> to create one.')+'</div>';
+    el.innerHTML = '<div class="p-empty">'+(q?'No prompts match &ldquo;'+esc(q)+'&rdquo;':'No prompts yet.<br>Create and edit prompts in the <strong>dashboard</strong>.')+'</div>';
     return;
   }
   var h = '';
@@ -1360,15 +1345,12 @@ function renderPrompts(q) {
       + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</div>'
       + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+tags+'</div>'
       + '</div>'
-      + '<button class="iedit" data-peid="'+esc(p.id)+'">Edit</button>'
-      + '<button class="idots" data-pdots="'+esc(p.id)+'" title="More actions">⋯</button>'
+      + '<button class="iedit" title="Copy prompt to clipboard">Copy</button>'
       + '</div>';
   });
   el.innerHTML = h;
   el.querySelectorAll('.p-item').forEach(function(row) {
-    row.addEventListener('click', function(e) {
-      if (e.target.dataset.peid) { openPromptEd(e.target.dataset.peid); return; }
-      if (e.target.dataset.pdots) { e.stopPropagation(); return; }
+    row.addEventListener('click', function() {
       var p = findPrompt(row.dataset.pid); if (!p) return;
       try { navigator.clipboard.writeText(p.content||''); } catch(_) {}
       var nm = gi('pname-'+row.dataset.pid);
@@ -1404,7 +1386,8 @@ function setMode(m) {
     if (sq) sq.placeholder = 'Search prompts…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
     if (pTrigHint) pTrigHint.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
-    if (bnew2) bnew2.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Prompt';
+    // Prompts are authored only in the dashboard — no create/edit in the popup.
+    if (bnew2) bnew2.style.display = 'none';
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
@@ -1413,7 +1396,7 @@ function setMode(m) {
     if (pMain) pMain.className = 'p-main';
     if (sq) sq.placeholder = 'Search snippets or /shortcut…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-    if (bnew2) bnew2.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Snippet';
+    if (bnew2) { bnew2.style.display = ''; bnew2.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Snippet'; }
     renderList(sq ? sq.value : '');
   }
 }
@@ -1682,75 +1665,6 @@ function shake(id){
   setTimeout(function(){ el.style.borderColor=''; el.style.background=''; },900);
 }
 
-// ── PROMPT EDITOR ──────────────────────────────────────────────────
-function openPromptEd(id) {
-  var p = id ? findPrompt(id) : null;
-  editPromptId = id || null;
-  var hdr = gi('edhdr-p'); if (hdr) hdr.textContent = p ? (p.name || 'Edit Prompt') : 'New Prompt';
-  var ptit = gi('ptit');   if (ptit) ptit.value = p ? (p.name || '') : '';
-  var ptyp = gi('ptyp');   if (ptyp) ptyp.value = p ? (p.type || 'one-shot') : 'one-shot';
-  var pcat = gi('pcat');   if (pcat) pcat.value = p ? (p.intent_category || '') : '';
-  var pbdy = gi('pbdy');   if (pbdy) pbdy.value = p ? (p.content || '') : '';
-  var bdel = gi('bdel-p'); if (bdel) bdel.style.display = p ? '' : 'none';
-  _promptTags = p && p.tags ? p.tags.slice() : [];
-  _renderPromptTags();
-  show('pane-ed-prompt');
-  setTimeout(function(){ var e=gi('ptit'); if(e) e.focus(); }, 80);
-}
-
-function _renderPromptTags() {
-  var el = gi('ptags-wrap'); if (!el) return;
-  el.innerHTML = _promptTags.map(function(t, i) {
-    return '<span class="ptag-item">'+esc(t)+'<i class="ptag-x" data-ti="'+i+'">&times;</i></span>';
-  }).join('');
-  el.querySelectorAll('.ptag-x').forEach(function(x) {
-    x.addEventListener('click', function() {
-      _promptTags.splice(+x.dataset.ti, 1);
-      _renderPromptTags();
-    });
-  });
-}
-
-function _commitPromptTag() {
-  var inp = gi('ptag-inp'); if (!inp) return;
-  var v = (inp.value || '').replace(/,/g,'').trim();
-  if (v && _promptTags.indexOf(v) === -1) { _promptTags.push(v); }
-  inp.value = '';
-  _renderPromptTags();
-}
-
-function savePromptEd() {
-  var name = ((gi('ptit')||{}).value || '').trim();
-  if (!name) { shake('ptit'); return; }
-  var p = {
-    id:              editPromptId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p-'+Date.now()),
-    name:            name,
-    type:            (gi('ptyp')||{}).value || 'one-shot',
-    intent_category: ((gi('pcat')||{}).value || '').trim(),
-    content:         (gi('pbdy')||{}).value || '',
-    tags:            _promptTags.slice()
-  };
-  if (!editPromptId) {
-    prompts.unshift(p);
-  } else {
-    for (var i = 0; i < prompts.length; i++) {
-      if (prompts[i].id === editPromptId) { prompts[i] = p; break; }
-    }
-  }
-  DB.upsertPrompt(p);
-  var sok = gi('sok-p');
-  if (sok) { sok.className = 'saveok on'; setTimeout(function(){ sok.className = 'saveok'; }, 2000); }
-  setTimeout(function(){ show('pane-list'); setMode('prompts'); }, 700);
-}
-
-function deletePromptFromEd() {
-  if (!editPromptId || !confirm('Delete this prompt?')) return;
-  DB.deletePrompt(editPromptId);
-  prompts = prompts.filter(function(p) { return p.id !== editPromptId; });
-  show('pane-list');
-  setMode('prompts');
-}
-
 function insertCmd(cmd){
   var ta=gi('ebdy'); var s=ta.selectionStart,e=ta.selectionEnd;
   ta.value=ta.value.substring(0,s)+cmd+ta.value.substring(e);
@@ -1997,8 +1911,8 @@ function applyTrig(){
 
 // WIRE EVENTS
 function on(id,ev,fn){ var e=gi(id); if(e) e.addEventListener(ev,fn); }
-on('bnew','click',  function(){ if(activeMode==='prompts') openPromptEd(null); else openEd(null); });
-on('bnew2','click', function(){ if(activeMode==='prompts') openPromptEd(null); else openEd(null); });
+on('bnew','click',  function(){ if(activeMode!=='prompts') openEd(null); });
+on('bnew2','click', function(){ if(activeMode!=='prompts') openEd(null); });
 on('btn-new-folder','click', function(){ openFolderModal(null); });
 on('bbed','click',   function(){ show('pane-list'); refreshUI(); });
 on('bcan','click',   function(){ show('pane-list'); refreshUI(); });
@@ -2043,18 +1957,6 @@ on('eshare','change', function(){ var es=gi('eshare'); if(es) _updateShareSub(es
 document.querySelectorAll('.mode-tab').forEach(function(tab){
   tab.addEventListener('click', function(){ setMode(tab.dataset.mode); });
 });
-
-// Prompt editor
-on('bbed-p', 'click', function(){ show('pane-list'); setMode('prompts'); });
-on('bsav-p', 'click', savePromptEd);
-on('bcan-p', 'click', function(){ show('pane-list'); setMode('prompts'); });
-on('bdel-p', 'click', deletePromptFromEd);
-on('pbdy',   'keydown', function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();savePromptEd();} });
-on('ptag-inp','keydown',function(e){
-  if(e.key==='Enter'||e.key===','){e.preventDefault();_commitPromptTag();}
-  else if(e.key==='Backspace'&&!(gi('ptag-inp').value)){if(_promptTags.length){_promptTags.pop();_renderPromptTags();}}
-});
-on('ptag-inp','input',function(e){ if(e.target.value.indexOf(',')!==-1) _commitPromptTag(); });
 
 var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
 document.querySelectorAll('.topt').forEach(function(opt){

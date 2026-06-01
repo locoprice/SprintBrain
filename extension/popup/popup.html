@@ -931,42 +931,6 @@ html,body{
   </div>
 </div>
 
-<!-- ═══ PROMPT EDITOR ═══ -->
-<div id="pane-ed-prompt" class="pane">
-  <div class="hdr">
-    <button class="hdr-btn" id="bbed-p">
-      <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
-    </button>
-    <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)" id="edhdr-p">New Prompt</span>
-    <span class="saveok" id="sok-p">Saved</span>
-  </div>
-  <div class="escroll">
-    <div><div class="lbl">Name</div><input class="einp" id="ptit" placeholder="e.g. Product pitch email"></div>
-    <div class="row2">
-      <div style="flex:1"><div class="lbl">Type</div>
-        <select class="esel" id="ptyp"><option value="one-shot">One-shot</option><option value="few-shot">Few-shot</option></select></div>
-      <div style="flex:2"><div class="lbl">Category</div>
-        <input class="einp" id="pcat" placeholder="e.g. sales, support…" autocomplete="off" spellcheck="false"></div>
-    </div>
-    <div>
-      <div class="lbl">Tags <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--sb-ink-subtle)">— press Enter or comma to add</span></div>
-      <div class="alt-tags" id="ptags-wrap"></div>
-      <input class="einp" id="ptag-inp" placeholder="e.g. sales, email, b2b…" autocomplete="off" spellcheck="false">
-    </div>
-    <div>
-      <div class="lbl">Prompt content &mdash; use {variable} for dynamic fields</div>
-      <textarea class="eta" id="pbdy" style="min-height:150px" placeholder="You are a helpful assistant.&#10;&#10;Task: {task}&#10;Context: {context}&#10;Output: {output_format}"></textarea>
-    </div>
-  </div>
-  <div class="efoot">
-    <button class="bsave" id="bsav-p">
-      <span class="ic ic-sm"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Save
-    </button>
-    <button class="bsec" id="bcan-p">Cancel</button>
-    <button class="bdel" id="bdel-p" style="display:none">Delete</button>
-  </div>
-</div>
-
 <!-- ═══ SETTINGS ═══ -->
 <div id="pane-cfg" class="pane">
   <div class="hdr">
