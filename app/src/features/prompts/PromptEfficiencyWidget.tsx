@@ -21,10 +21,10 @@ function scoreLabel(pct: number): string {
 const RING_RADIUS = 20;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-interface ScoreRingProps { pct: number; score: number }
+// color is pre-computed by the parent to avoid redundant scoreColor() calls.
+interface ScoreRingProps { pct: number; score: number; color: string }
 
-function ScoreRing({ pct, score }: ScoreRingProps) {
-  const color = scoreColor(pct);
+function ScoreRing({ pct, score, color }: ScoreRingProps) {
   const offset = RING_CIRCUMFERENCE * (1 - pct / 100);
 
   return (
@@ -109,11 +109,26 @@ export interface PromptEfficiencyWidgetProps {
 export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidgetProps) {
   const [expanded, setExpanded] = useState(true);
   const { score, pct, criteria } = result;
+  // Compute once here and pass as a prop to ScoreRing to avoid a redundant call.
   const color = scoreColor(pct);
   const failingCount = criteria.filter((c) => !c.passed).length;
 
   return (
     <div className="border-b border-[#161619]">
+      {/*
+        Dedicated live region outside the button — screen readers announce score
+        changes here. Placing role="status" inside a <button> causes it to be
+        ignored by most AT.
+      */}
+      <span
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {`Prompt efficiency: ${score} out of 10. ${scoreLabel(pct)}.`}
+      </span>
+
       {/* ── Collapsible header ── */}
       <button
         type="button"
@@ -126,18 +141,16 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
           Efficiency Score
         </span>
 
-        {/* Live score badge — announced to screen readers on change */}
+        {/* Visual score badge — screen readers use the sr-only live region above. */}
         <span
           className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
           style={{ color, backgroundColor: `${color}1A` }}
-          role="status"
-          aria-live="polite"
-          aria-label={`Prompt efficiency: ${score} out of 10`}
+          aria-hidden="true"
         >
           {score}/10
         </span>
 
-        {/* Pending suggestions summary */}
+        {/* Pending suggestions summary when collapsed */}
         {failingCount > 0 && !expanded && (
           <span className="text-[10px] text-[#5A5A62]">
             · {failingCount} suggestion{failingCount !== 1 ? 's' : ''}
@@ -151,36 +164,42 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
         </span>
       </button>
 
-      {/* ── Expanded body ── */}
-      {expanded && (
-        <div id="prompt-efficiency-panel" className="px-5 pb-4">
-          {/* Score summary */}
-          <div className="mb-4 flex items-center gap-4">
-            <ScoreRing pct={pct} score={score} />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-[#E0E0E8]">{scoreLabel(pct)}</p>
-              <p className="text-xs text-[#83838D]">
-                {pct}%
-                {' · '}
-                {failingCount === 0
-                  ? 'All criteria met'
-                  : `${failingCount} criterion${failingCount !== 1 ? 'a' : ''} need${failingCount === 1 ? 's' : ''} attention`}
-              </p>
-            </div>
+      {/*
+        Panel is always in the DOM so aria-controls always has a valid target.
+        The HTML hidden attribute removes it from both layout and the a11y tree
+        when collapsed, without breaking the aria-controls reference.
+      */}
+      <div
+        id="prompt-efficiency-panel"
+        hidden={!expanded}
+        className="px-5 pb-4"
+      >
+        {/* Score summary */}
+        <div className="mb-4 flex items-center gap-4">
+          <ScoreRing pct={pct} score={score} color={color} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[#E0E0E8]">{scoreLabel(pct)}</p>
+            <p className="text-xs text-[#83838D]">
+              {pct}%
+              {' · '}
+              {failingCount === 0
+                ? 'All criteria met'
+                : `${failingCount} criterion${failingCount !== 1 ? 'a' : ''} need${failingCount === 1 ? 's' : ''} attention`}
+            </p>
           </div>
-
-          {/* Criteria list */}
-          <ul
-            className="space-y-1.5"
-            role="list"
-            aria-label="Prompt evaluation criteria"
-          >
-            {criteria.map((c) => (
-              <CriterionRow key={c.id} criterion={c} onApply={onApply} />
-            ))}
-          </ul>
         </div>
-      )}
+
+        {/* Criteria list */}
+        <ul
+          className="space-y-1.5"
+          role="list"
+          aria-label="Prompt evaluation criteria"
+        >
+          {criteria.map((c) => (
+            <CriterionRow key={c.id} criterion={c} onApply={onApply} />
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

@@ -66,6 +66,11 @@ const EXECUTION_TYPES: ExecutionType[] = ['Generate', 'Analyze', 'Plan', 'Critiq
 const INTENT_CATEGORIES: IntentCategory[] = ['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching'];
 const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
 
+// Block types that map to EvalCriterion IDs for the efficiency widget.
+const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
+  'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
+];
+
 // ── Dark select helper ─────────────────────────────────────────────────────────
 
 interface DarkSelectProps<T extends string> {
@@ -388,10 +393,6 @@ export function PromptBlockEditor() {
     { blocks, strategyType, preferredModel, outputType },
     isOpen,
   );
-
-  const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
-    'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
-  ];
 
   function handleApplySuggestion(criterionId: string) {
     const asBlockType = BLOCK_CRITERION_TYPES.find((t) => t === criterionId);

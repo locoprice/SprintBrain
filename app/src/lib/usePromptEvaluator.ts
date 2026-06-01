@@ -47,7 +47,7 @@ function blockCriterion(
     passed,
     // Suggestion chip only makes sense when the block is disabled; if it's
     // enabled-but-empty the user just needs to fill in content.
-    suggestionLabel: !passed && !enabled ? `Enable ${label.toLowerCase()}` : undefined,
+    suggestionLabel: !passed && !enabled ? `Enable ${type} block` : undefined,
   };
 }
 
