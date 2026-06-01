@@ -8,6 +8,8 @@ export interface PromptBenchmark {
   percentile: number;
   /** Number of other prompts the percentile was computed against. */
   corpusSize: number;
+  /** When set, the percentile is scoped to prompts of this intent (e.g. "Coding"). */
+  scopeLabel?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -184,7 +186,8 @@ export function PromptEfficiencyWidget({ result, onApply, benchmark }: PromptEff
         {`Prompt efficiency: ${formatScore(score)} out of 10. ${scoreLabel(pct)}. `
           + `${attentionCount} of ${criteria.length} criteria need attention.`
           + (benchmark
-            ? ` Stronger than ${benchmark.percentile}% of your ${benchmark.corpusSize} prompts.`
+            ? ` Stronger than ${benchmark.percentile}% of your ${benchmark.corpusSize}`
+              + `${benchmark.scopeLabel ? ` ${benchmark.scopeLabel}` : ''} prompts.`
             : '')}
       </span>
 
@@ -251,7 +254,8 @@ export function PromptEfficiencyWidget({ result, onApply, benchmark }: PromptEff
             <p className="text-[11px] text-[#9A9AA5]">
               Stronger than{' '}
               <span className="font-semibold text-[#D6D6DE]">{benchmark.percentile}%</span>
-              {' '}of your {benchmark.corpusSize} prompts
+              {' '}of your {benchmark.corpusSize}
+              {benchmark.scopeLabel ? ` ${benchmark.scopeLabel}` : ''} prompts
             </p>
           </div>
         )}

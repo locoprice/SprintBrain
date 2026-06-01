@@ -10,7 +10,7 @@ import {
   evaluatePrompt,
   promptToEvaluatorInput,
   percentRank,
-  MIN_BENCHMARK_CORPUS,
+  selectBenchmarkCohort,
 } from '@/lib/usePromptEvaluator';
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import type {
@@ -400,23 +400,27 @@ export function PromptBlockEditor() {
     isOpen,
   );
 
-  // Corpus benchmark — score every other prompt once, then rank the live draft.
-  const corpusScores = useMemo(() => {
-    const others = prompts.filter((p) => p.id !== editingPrompt?.id);
-    if (others.length < MIN_BENCHMARK_CORPUS) return null;
-    return {
-      scores: others.map((p) => evaluatePrompt(promptToEvaluatorInput(p)).score),
-      corpusSize: others.length,
-    };
-  }, [prompts, editingPrompt?.id]);
+  // Corpus benchmark — prefer a same-intent cohort, else the whole library.
+  // The cohort + its scores depend only on the library and intent, so they are
+  // memoised separately from the per-keystroke percentile.
+  const cohort = useMemo(
+    () => selectBenchmarkCohort(prompts, editingPrompt?.id ?? null, intentCategory),
+    [prompts, editingPrompt?.id, intentCategory],
+  );
+
+  const cohortScores = useMemo(
+    () => cohort?.prompts.map((p) => evaluatePrompt(promptToEvaluatorInput(p)).score) ?? null,
+    [cohort],
+  );
 
   const benchmark = useMemo(() => {
-    if (!corpusScores || !evalResult) return null;
+    if (!cohort || !cohortScores || !evalResult) return null;
     return {
-      percentile: percentRank(corpusScores.scores, evalResult.score),
-      corpusSize: corpusScores.corpusSize,
+      percentile: percentRank(cohortScores, evalResult.score),
+      corpusSize: cohort.prompts.length,
+      scopeLabel: cohort.scopeLabel,
     };
-  }, [corpusScores, evalResult]);
+  }, [cohort, cohortScores, evalResult]);
 
   function handleApplySuggestion(criterionId: string) {
     const asBlockType = BLOCK_CRITERION_TYPES.find((t) => t === criterionId);

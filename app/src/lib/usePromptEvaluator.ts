@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Prompt, PromptBlock, PromptBlockType, StrategyType, PreferredModel, OutputType } from '@/types/database';
+import type {
+  Prompt,
+  PromptBlock,
+  PromptBlockType,
+  StrategyType,
+  PreferredModel,
+  OutputType,
+  IntentCategory,
+} from '@/types/database';
 import { assembleBlocks } from '@/lib/promptUtils';
 
 // ── Public types ───────────────────────────────────────────────────────────────
@@ -293,6 +301,32 @@ export function promptToEvaluatorInput(prompt: Prompt): EvaluatorInput {
     preferredModel: prompt.preferred_model,
     outputType: prompt.output_type,
   };
+}
+
+/** A set of prompts to benchmark against, plus an optional intent scope label. */
+export interface BenchmarkCohort {
+  prompts: Prompt[];
+  /** When set, the cohort is scoped to this intent (e.g. "Coding"). */
+  scopeLabel?: string;
+}
+
+/**
+ * Chooses which prompts to benchmark the draft against. Prefers a same-intent
+ * cohort when it's large enough to be meaningful (more relevant comparison),
+ * otherwise falls back to the whole library. Returns null when neither cohort
+ * reaches `MIN_BENCHMARK_CORPUS`. The current prompt is always excluded.
+ */
+export function selectBenchmarkCohort(
+  prompts: Prompt[],
+  currentId: string | null,
+  intent: IntentCategory | null,
+): BenchmarkCohort | null {
+  const others = prompts.filter((p) => p.id !== currentId);
+  const sameIntent = intent ? others.filter((p) => p.intent_category === intent) : [];
+  const useIntent = intent !== null && sameIntent.length >= MIN_BENCHMARK_CORPUS;
+  const list = useIntent ? sameIntent : others;
+  if (list.length < MIN_BENCHMARK_CORPUS) return null;
+  return { prompts: list, scopeLabel: useIntent ? intent : undefined };
 }
 
 /**

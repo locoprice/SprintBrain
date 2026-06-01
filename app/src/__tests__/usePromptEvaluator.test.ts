@@ -4,9 +4,11 @@ import {
   computeEvalKey,
   percentRank,
   promptToEvaluatorInput,
+  selectBenchmarkCohort,
+  MIN_BENCHMARK_CORPUS,
   type EvaluatorInput,
 } from '../lib/usePromptEvaluator';
-import type { Prompt, PromptBlock, PromptBlockType } from '../types/database';
+import type { IntentCategory, Prompt, PromptBlock, PromptBlockType } from '../types/database';
 
 // ── Builders ────────────────────────────────────────────────────────────────────
 
@@ -318,5 +320,64 @@ describe('promptToEvaluatorInput', () => {
     });
     const r = evaluatePrompt(strong);
     expect(r.pct).toBeGreaterThan(0);
+  });
+});
+
+describe('selectBenchmarkCohort', () => {
+  const row = (id: string, intent: IntentCategory | null): Prompt => ({
+    id,
+    user_id: 'u1',
+    name: id,
+    content: 'x',
+    type: 'one-shot',
+    tags: [],
+    blocks: null,
+    strategy_type: null,
+    thinking_mode: null,
+    preferred_model: null,
+    complexity_level: null,
+    execution_type: null,
+    intent_category: intent,
+    output_type: null,
+    updated_at: '2026-01-01T00:00:00.000Z',
+    last_used_at: null,
+  });
+
+  function many(n: number, intent: IntentCategory | null, prefix = 'p'): Prompt[] {
+    return Array.from({ length: n }, (_, i) => row(`${prefix}${i}`, intent));
+  }
+
+  it('returns null below the minimum corpus size', () => {
+    expect(selectBenchmarkCohort(many(MIN_BENCHMARK_CORPUS - 1, null), null, null)).toBeNull();
+  });
+
+  it('excludes the current prompt from the cohort', () => {
+    const prompts = [row('self', null), ...many(MIN_BENCHMARK_CORPUS, null)];
+    const cohort = selectBenchmarkCohort(prompts, 'self', null);
+    expect(cohort).not.toBeNull();
+    expect(cohort!.prompts.some((p) => p.id === 'self')).toBe(false);
+  });
+
+  it('falls back to the whole library (no scope) when no intent is given', () => {
+    const cohort = selectBenchmarkCohort(many(MIN_BENCHMARK_CORPUS, 'Coding'), null, null);
+    expect(cohort).not.toBeNull();
+    expect(cohort!.scopeLabel).toBeUndefined();
+  });
+
+  it('uses a same-intent cohort when it is large enough', () => {
+    const prompts = [...many(MIN_BENCHMARK_CORPUS, 'Coding', 'c'), ...many(3, 'Writing', 'w')];
+    const cohort = selectBenchmarkCohort(prompts, null, 'Coding');
+    expect(cohort!.scopeLabel).toBe('Coding');
+    expect(cohort!.prompts).toHaveLength(MIN_BENCHMARK_CORPUS);
+    expect(cohort!.prompts.every((p) => p.intent_category === 'Coding')).toBe(true);
+  });
+
+  it('falls back to the whole library when the same-intent cohort is too small', () => {
+    // Only 2 Coding prompts, but plenty overall.
+    const prompts = [...many(2, 'Coding', 'c'), ...many(MIN_BENCHMARK_CORPUS, 'Writing', 'w')];
+    const cohort = selectBenchmarkCohort(prompts, null, 'Coding');
+    expect(cohort).not.toBeNull();
+    expect(cohort!.scopeLabel).toBeUndefined();
+    expect(cohort!.prompts.length).toBeGreaterThan(MIN_BENCHMARK_CORPUS);
   });
 });
