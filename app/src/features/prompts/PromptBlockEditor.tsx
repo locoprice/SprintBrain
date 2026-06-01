@@ -5,6 +5,14 @@ import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
+import {
+  usePromptEvaluator,
+  evaluatePrompt,
+  promptToEvaluatorInput,
+  percentRank,
+  selectBenchmarkCohort,
+} from '@/lib/usePromptEvaluator';
+import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -63,6 +71,11 @@ const COMPLEXITIES: ComplexityLevel[] = ['simple', 'medium', 'complex'];
 const EXECUTION_TYPES: ExecutionType[] = ['Generate', 'Analyze', 'Plan', 'Critique', 'Summarize', 'Transform'];
 const INTENT_CATEGORIES: IntentCategory[] = ['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching'];
 const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
+
+// Block types that map to EvalCriterion IDs for the efficiency widget.
+const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
+  'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
+];
 
 // ── Dark select helper ─────────────────────────────────────────────────────────
 
@@ -374,6 +387,52 @@ export function PromptBlockEditor() {
     );
   }
 
+  function enableBlock(type: PromptBlockType) {
+    setBlocks((prev) =>
+      prev.map((b) => (b.type === type ? { ...b, enabled: true } : b)),
+    );
+  }
+
+  // ── Prompt efficiency evaluation ─────────────────────────────────────────────
+
+  const evalResult = usePromptEvaluator(
+    { blocks, strategyType, preferredModel, outputType },
+    isOpen,
+  );
+
+  // Corpus benchmark — prefer a same-intent cohort, else the whole library.
+  // The cohort + its scores depend only on the library and intent, so they are
+  // memoised separately from the per-keystroke percentile.
+  const cohort = useMemo(
+    () => selectBenchmarkCohort(prompts, editingPrompt?.id ?? null, intentCategory),
+    [prompts, editingPrompt?.id, intentCategory],
+  );
+
+  const cohortScores = useMemo(
+    () => cohort?.prompts.map((p) => evaluatePrompt(promptToEvaluatorInput(p)).score) ?? null,
+    [cohort],
+  );
+
+  const benchmark = useMemo(() => {
+    if (!cohort || !cohortScores || !evalResult) return null;
+    return {
+      percentile: percentRank(cohortScores, evalResult.score),
+      corpusSize: cohort.prompts.length,
+      scopeLabel: cohort.scopeLabel,
+    };
+  }, [cohort, cohortScores, evalResult]);
+
+  function handleApplySuggestion(criterionId: string) {
+    const asBlockType = BLOCK_CRITERION_TYPES.find((t) => t === criterionId);
+    if (asBlockType) {
+      enableBlock(asBlockType);
+      return;
+    }
+    if (criterionId === 'output_format') { setOutputType('Plain'); return; }
+    if (criterionId === 'strategy') { setStrategyType('One-shot'); return; }
+    if (criterionId === 'model') { setPreferredModel('claude-sonnet-4-6'); return; }
+  }
+
   function handlePreviewDraft() {
     const assembled = assembleBlocks(blocks);
     if (assembled) openPromptDraftPreview(assembled);
@@ -532,6 +591,15 @@ export function PromptBlockEditor() {
             );
           })}
         </div>
+
+        {/* Efficiency score widget */}
+        {evalResult && (
+          <PromptEfficiencyWidget
+            result={evalResult}
+            onApply={handleApplySuggestion}
+            benchmark={benchmark}
+          />
+        )}
 
         {/* Metadata */}
         <div className="border-b border-[#161619] px-5 py-4">

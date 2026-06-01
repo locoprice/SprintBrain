@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Efficiency Widget — SprintBrain</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0A0A0D;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    color: #D6D6DE;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 44px;
+  }
+
+  .page-header { text-align: center; }
+  .page-header h1 { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #5A5A62; margin-bottom: 6px; font-family: 'SF Mono','Menlo',monospace; }
+  .page-header p  { font-size: 11px; color: #3A3A42; }
+
+  .panels { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .panel-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .panel-label { font-family: 'SF Mono','Menlo',monospace; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #3A3A42; text-align: center; }
+
+  .editor { width: 360px; background: #000; border: 1px solid #1A1A1E; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 4px 16px rgba(0,0,0,.5); }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #161619; }
+  .prompt-name { font-size: 13px; font-weight: 600; color: #F5F5FA; }
+  .close-btn { width: 26px; height: 26px; border-radius: 8px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #83838D; }
+  .close-btn:hover { background: #161619; color: #E0E0E8; }
+
+  .section-hdr { padding: 12px 20px 10px; font-family: 'SF Mono','Menlo',monospace; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #83838D; border-bottom: 1px solid #161619; }
+
+  .block-stub { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid #111114; }
+  .block-stub-left { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.on  { background: #1B4FD8; }
+  .dot.off { background: #3A3A40; }
+  .block-name { font-family: 'SF Mono','Menlo',monospace; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #CACAD4; }
+  .toggle { width: 32px; height: 18px; border-radius: 9px; border: none; cursor: pointer; position: relative; }
+  .toggle.on  { background: #1B4FD8; }
+  .toggle.off { background: #2A2A2E; }
+  .toggle-knob { position: absolute; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .toggle.on  .toggle-knob { left: 16px; }
+  .toggle.off .toggle-knob { left: 2px; }
+
+  .widget { border-bottom: 1px solid #161619; }
+  .widget-hdr { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; }
+  .widget-hdr:hover { background: #0A0A0F; }
+  .widget-hdr-title { font-family: 'SF Mono','Menlo',monospace; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #83838D; }
+  .score-badge { border-radius: 9999px; padding: 2px 8px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.4; }
+  .chevron { margin-left: auto; color: #5A5A62; }
+  .chevron svg { width: 14px; height: 14px; display: block; }
+
+  .widget-body { padding: 0 20px 16px; }
+  .score-summary { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .ring-wrap { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-score { font-size: 14px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ring-denom { font-size: 9px; color: #5A5A62; line-height: 1; margin-top: 1px; }
+  .score-text-label { font-size: 13px; font-weight: 600; color: #E0E0E8; margin-bottom: 3px; }
+  .score-text-sub   { font-size: 11px; color: #83838D; }
+
+  .criteria { list-style: none; margin: 0 -4px; }
+  .crit-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .crit-toggle { display: flex; flex: 1; align-items: center; gap: 8px; padding: 2px 4px; border: none; background: transparent; cursor: pointer; border-radius: 6px; text-align: left; }
+  .crit-toggle:hover { background: #0E0E13; }
+  .crit-icon { width: 14px; height: 14px; flex-shrink: 0; }
+  .crit-label { flex: 1; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crit-label.pass { color: #83838D; }
+  .crit-label.attn { color: #D6D6DE; }
+  .crit-caret { width: 12px; height: 12px; flex-shrink: 0; color: #4A4A52; }
+  .chip { flex-shrink: 0; border: 1px solid #26262B; background: #0E0E11; border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 500; color: #6080C8; cursor: pointer; white-space: nowrap; }
+  .chip:hover { background: #0A1020; border-color: rgba(27,79,216,.4); color: #1B4FD8; }
+  .hairline { margin-left: 22px; height: 1px; background: #111114; }
+
+  /* expanded "why this score" detail */
+  .detail { padding: 4px 4px 6px 22px; }
+  .detail-rationale { font-size: 11px; line-height: 1.5; color: #9A9AA5; }
+  .detail-desc { margin-top: 2px; font-size: 10px; line-height: 1.5; color: #5A5A62; }
+  .detail-example { margin-top: 6px; border: 1px solid #1A1A1E; background: #0A0A0D; border-radius: 6px; padding: 6px 10px; font-family: 'SF Mono','Menlo',monospace; font-size: 10px; line-height: 1.5; color: #8A8A95; }
+  .detail-example .eg { margin-right: 4px; color: #4A4A52; }
+
+  .hint { margin-top: 12px; font-size: 10px; line-height: 1.5; color: #4A4A52; }
+
+  .metadata-stub { padding: 14px 20px; border-bottom: 1px solid #161619; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .meta-item label { display: block; font-size: 10px; color: #83838D; margin-bottom: 4px; }
+  .meta-select { height: 30px; width: 100%; border-radius: 8px; border: 1px solid #26262B; background: #0E0E11; padding: 0 10px; font-size: 11px; color: #5A5A62; display: flex; align-items: center; justify-content: space-between; }
+  .meta-select.filled { color: #D6D6DE; }
+
+  .footer { padding: 14px 20px; border-top: 1px solid #161619; background: #0E0E11; display: flex; justify-content: flex-end; gap: 8px; }
+  .btn-save { height: 34px; padding: 0 16px; border-radius: 10px; border: none; background: #1B4FD8; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save:hover { background: #1440B0; }
+
+  .caption { font-size: 11px; color: #3A3A44; text-align: center; max-width: 360px; line-height: 1.5; }
+
+  .c-warn { color: #FEBC2E; } .c-primary { color: #1B4FD8; } .c-success { color: #34C759; }
+  .bg-warn { background: rgba(254,188,46,.10); } .bg-primary { background: rgba(27,79,216,.10); } .bg-success { background: rgba(52,199,89,.10); }
+  .icon-check { color: #34C759; } .icon-warn { color: #FEBC2E; } .icon-x { color: #FF5F57; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>SprintBrain · Prompt Efficiency Widget — weighted &amp; graded</h1>
+  <p>Pass / partial / fail with partial credit, decimal score, and expandable “why this score”</p>
+</div>
+
+<div class="panels">
+
+  <!-- ─────────────── PANEL A: 3.0/10, with one expanded detail ── -->
+  <div class="panel-wrap">
+    <div class="panel-label">Needs improvement · 3.0/10</div>
+    <div class="editor">
+      <div class="topbar">
+        <div class="prompt-name">New prompt</div>
+        <button class="close-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="section-hdr">Blocks</div>
+      <div class="block-stub"><div class="block-stub-left"><div class="dot on"></div><span class="block-name">Role</span></div><button class="toggle on"><div class="toggle-knob"></div></button></div>
+      <div class="block-stub" style="opacity:.55"><div class="block-stub-left"><div class="dot off"></div><span class="block-name">Objective</span></div><button class="toggle off"><div class="toggle-knob"></div></button></div>
+
+      <div class="widget">
+        <button class="widget-hdr">
+          <span class="widget-hdr-title">Efficiency Score</span>
+          <span class="score-badge c-warn bg-warn">3.0/10</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
+        </button>
+        <div class="widget-body">
+          <div class="score-summary">
+            <div class="ring-wrap">
+              <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#1C1C20" stroke-width="4" stroke-dasharray="125.66" stroke-dashoffset="0"/>
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#FEBC2E" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="87.96"/>
+              </svg>
+              <div class="ring-center"><span class="ring-score c-warn">3.0</span><span class="ring-denom">/10</span></div>
+            </div>
+            <div><div class="score-text-label">Needs improvement</div><div class="score-text-sub">30% · 8 of 10 need attention</div></div>
+          </div>
+
+          <ul class="criteria">
+            <!-- pass -->
+            <li>
+              <div class="crit-row">
+                <button class="crit-toggle">
+                  <svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                  <span class="crit-label pass">Role defined</span>
+                  <svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="hairline"></div>
+            </li>
+            <!-- fail (disabled) with chip + EXPANDED detail -->
+            <li>
+              <div class="crit-row">
+                <button class="crit-toggle">
+                  <svg class="crit-icon icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span class="crit-label attn">Clear objective</span>
+                  <svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="chip">+ Enable objective block</button>
+              </div>
+              <div class="detail">
+                <p class="detail-rationale">The objective block is off — start with a clear action verb (Write, Analyze, Generate…).</p>
+                <p class="detail-desc">The task or goal is clearly stated in the Objective block.</p>
+                <p class="detail-example"><span class="eg">e.g.</span>Write a 150-word product announcement email for a new feature.</p>
+              </div>
+              <div class="hairline"></div>
+            </li>
+            <!-- partial (amber) -->
+            <li>
+              <div class="crit-row">
+                <button class="crit-toggle">
+                  <svg class="crit-icon icon-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span class="crit-label attn">Context provided</span>
+                  <svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="hairline"></div>
+            </li>
+            <li>
+              <div class="crit-row">
+                <button class="crit-toggle">
+                  <svg class="crit-icon icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span class="crit-label attn">Strategy selected</span>
+                  <svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <button class="chip">+ Apply One-shot</button>
+              </div>
+              <div class="hairline"></div>
+            </li>
+            <li>
+              <div class="crit-row">
+                <button class="crit-toggle">
+                  <svg class="crit-icon icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span class="crit-label attn">Sufficient depth</span>
+                  <svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </li>
+          </ul>
+          <p class="hint">Click any item to see why it scored that way and a concrete example.</p>
+        </div>
+      </div>
+
+      <div class="metadata-stub"><div class="meta-grid">
+        <div class="meta-item"><label>Strategy</label><div class="meta-select">None <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+        <div class="meta-item"><label>Model</label><div class="meta-select filled">Sonnet 4 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+      </div></div>
+      <div class="footer"><button class="btn-save">Create prompt</button></div>
+    </div>
+    <p class="caption">Amber = below 50%. Second row shown expanded — rationale + example. Note the amber “partial” icon on Context.</p>
+  </div>
+
+  <!-- ─────────────── PANEL B: 6.5/10 ── -->
+  <div class="panel-wrap">
+    <div class="panel-label">Good · 6.5/10</div>
+    <div class="editor">
+      <div class="topbar">
+        <div class="prompt-name">Customer reply template</div>
+        <button class="close-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="section-hdr">Blocks</div>
+      <div class="block-stub"><div class="block-stub-left"><div class="dot on"></div><span class="block-name">Role</span></div><button class="toggle on"><div class="toggle-knob"></div></button></div>
+      <div class="block-stub"><div class="block-stub-left"><div class="dot on"></div><span class="block-name">Objective</span></div><button class="toggle on"><div class="toggle-knob"></div></button></div>
+
+      <div class="widget">
+        <button class="widget-hdr">
+          <span class="widget-hdr-title">Efficiency Score</span>
+          <span class="score-badge c-primary bg-primary">6.5/10</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
+        </button>
+        <div class="widget-body">
+          <div class="score-summary">
+            <div class="ring-wrap">
+              <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#1C1C20" stroke-width="4" stroke-dasharray="125.66" stroke-dashoffset="0"/>
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#1B4FD8" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="43.98"/>
+              </svg>
+              <div class="ring-center"><span class="ring-score c-primary">6.5</span><span class="ring-denom">/10</span></div>
+            </div>
+            <div><div class="score-text-label">Good</div><div class="score-text-sub">65% · 3 of 10 need attention</div></div>
+          </div>
+          <ul class="criteria">
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Role defined</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Clear objective</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="crit-label attn">Constraints defined</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="crit-label attn">Examples included</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button><button class="chip">+ Enable examples block</button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="crit-label attn">Model selected</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button><button class="chip">+ Use Sonnet 4</button></div></li>
+          </ul>
+          <p class="hint">Click any item to see why it scored that way and a concrete example.</p>
+        </div>
+      </div>
+
+      <div class="metadata-stub"><div class="meta-grid">
+        <div class="meta-item"><label>Strategy</label><div class="meta-select filled">Few-shot <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+        <div class="meta-item"><label>Model</label><div class="meta-select">None <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+      </div></div>
+      <div class="footer"><button class="btn-save">Save changes</button></div>
+    </div>
+    <p class="caption">Blue = 50–79%. Constraints earns partial credit (amber) — present but weak.</p>
+  </div>
+
+  <!-- ─────────────── PANEL C: 9.6/10 ── -->
+  <div class="panel-wrap">
+    <div class="panel-label">Excellent · 9.6/10</div>
+    <div class="editor">
+      <div class="topbar">
+        <div class="prompt-name">SEO blog post generator</div>
+        <button class="close-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="section-hdr">Blocks</div>
+      <div class="block-stub"><div class="block-stub-left"><div class="dot on"></div><span class="block-name">Role</span></div><button class="toggle on"><div class="toggle-knob"></div></button></div>
+      <div class="block-stub"><div class="block-stub-left"><div class="dot on"></div><span class="block-name">Objective</span></div><button class="toggle on"><div class="toggle-knob"></div></button></div>
+
+      <div class="widget">
+        <button class="widget-hdr">
+          <span class="widget-hdr-title">Efficiency Score</span>
+          <span class="score-badge c-success bg-success">9.6/10</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
+        </button>
+        <div class="widget-body">
+          <div class="score-summary">
+            <div class="ring-wrap">
+              <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#1C1C20" stroke-width="4" stroke-dasharray="125.66" stroke-dashoffset="0"/>
+                <circle cx="28" cy="28" r="20" fill="none" stroke="#34C759" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="5.03"/>
+              </svg>
+              <div class="ring-center"><span class="ring-score c-success">9.6</span><span class="ring-denom">/10</span></div>
+            </div>
+            <div><div class="score-text-label">Excellent</div><div class="score-text-sub">96% · 1 of 10 need attention</div></div>
+          </div>
+          <ul class="criteria">
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Role defined</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Clear objective</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Constraints defined</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="crit-label attn">Examples included</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div><div class="hairline"></div></li>
+            <li><div class="crit-row"><button class="crit-toggle"><svg class="crit-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg><span class="crit-label pass">Model selected</span><svg class="crit-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></button></div></li>
+          </ul>
+          <p class="hint">Click any item to see why it scored that way and a concrete example.</p>
+        </div>
+      </div>
+
+      <div class="metadata-stub"><div class="meta-grid">
+        <div class="meta-item"><label>Strategy</label><div class="meta-select filled">Few-shot <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+        <div class="meta-item"><label>Model</label><div class="meta-select filled">Sonnet 4 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
+      </div></div>
+      <div class="footer"><button class="btn-save">Save changes</button></div>
+    </div>
+    <p class="caption">Green = 80%+. One amber partial keeps it at 9.6 rather than a misleading 10.</p>
+  </div>
+
+</div>
+
+<!-- Status + token legend -->
+<div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg> Pass · full credit</div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FEBC2E" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Partial · 0.6 credit</div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF5F57" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Fail · zero credit</div>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:-24px;">
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><div style="width:10px;height:10px;border-radius:50%;background:#FEBC2E;"></div> &lt;50% · #FEBC2E</div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><div style="width:10px;height:10px;border-radius:50%;background:#1B4FD8;"></div> 50–79% · #1B4FD8</div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#5A5A62;"><div style="width:10px;height:10px;border-radius:50%;background:#34C759;"></div> ≥80% · #34C759</div>
+</div>
+
+</body>
+</html>
