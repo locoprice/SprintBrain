@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
-import type { EvalCriterion, EvalResult } from '@/lib/usePromptEvaluator';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
+import type { CriterionStatus, EvalCriterion, EvalResult } from '@/lib/usePromptEvaluator';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +14,11 @@ function scoreLabel(pct: number): string {
   if (pct >= 80) return 'Excellent';
   if (pct >= 50) return 'Good';
   return 'Needs improvement';
+}
+
+/** One-decimal display without a trailing ".0" (e.g. 7 not 7.0, but 7.3 kept). */
+function formatScore(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1);
 }
 
 // ── Circular score ring ────────────────────────────────────────────────────────
@@ -48,7 +53,7 @@ function ScoreRing({ pct, score, color }: ScoreRingProps) {
       {/* Centre label */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-sm font-bold leading-none tabular-nums" style={{ color }}>
-          {score}
+          {formatScore(score)}
         </span>
         <span className="text-[9px] leading-none text-[#5A5A62]">/10</span>
       </div>
@@ -56,45 +61,90 @@ function ScoreRing({ pct, score, color }: ScoreRingProps) {
   );
 }
 
-// ── Criterion row ──────────────────────────────────────────────────────────────
+// ── Status icon ────────────────────────────────────────────────────────────────
+
+function StatusIcon({ status }: { status: CriterionStatus }) {
+  if (status === 'pass') {
+    return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#34C759]" aria-hidden="true" />;
+  }
+  if (status === 'partial') {
+    return <AlertCircle className="h-3.5 w-3.5 shrink-0 text-[#FEBC2E]" aria-hidden="true" />;
+  }
+  return <XCircle className="h-3.5 w-3.5 shrink-0 text-[#FF5F57]" aria-hidden="true" />;
+}
+
+const STATUS_WORD: Record<CriterionStatus, string> = {
+  pass: 'passed',
+  partial: 'needs improvement',
+  fail: 'not met',
+};
+
+// ── Criterion row (expandable "why this score") ─────────────────────────────────
 
 interface CriterionRowProps {
   criterion: EvalCriterion;
+  index: number;
+  total: number;
   onApply: (id: string) => void;
 }
 
-function CriterionRow({ criterion, onApply }: CriterionRowProps) {
-  const { id, label, passed, suggestionLabel, description } = criterion;
+function CriterionRow({ criterion, index, total, onApply }: CriterionRowProps) {
+  const { id, label, status, suggestionLabel, description, rationale, example } = criterion;
+  const [open, setOpen] = useState(false);
+  const detailId = `crit-detail-${id}`;
+  const labelColor = status === 'pass' ? 'text-[#83838D]' : 'text-[#D6D6DE]';
 
   return (
-    <li className="flex items-center gap-2">
-      {passed ? (
-        <CheckCircle2
-          className="h-3.5 w-3.5 shrink-0 text-[#34C759]"
-          aria-hidden="true"
-        />
-      ) : (
-        <XCircle
-          className="h-3.5 w-3.5 shrink-0 text-[#FF5F57]"
-          aria-hidden="true"
-        />
-      )}
-      <span
-        title={description}
-        className={`flex-1 truncate text-xs ${passed ? 'text-[#83838D]' : 'text-[#D6D6DE]'}`}
-        aria-label={`${label}: ${passed ? 'passed' : 'not met'}`}
-      >
-        {label}
-      </span>
-      {!passed && suggestionLabel && (
+    <li className="rounded-[6px]">
+      <div className="flex items-center gap-2">
+        {/* Expand toggle — reveals rationale + example */}
         <button
           type="button"
-          onClick={() => onApply(id)}
-          className="shrink-0 rounded-[6px] border border-[#26262B] bg-[#0E0E11] px-2 py-0.5 text-[10px] font-medium text-[#6080C8] transition-colors hover:border-[#1B4FD8]/40 hover:bg-[#0A1020] hover:text-[#1B4FD8] focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/30"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-2 rounded-[6px] py-0.5 text-left transition-colors hover:bg-[#0E0E13] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#1B4FD8]/40"
+          aria-expanded={open}
+          aria-controls={detailId}
         >
-          + {suggestionLabel}
+          <StatusIcon status={status} />
+          <span
+            className={`flex-1 truncate text-xs ${labelColor}`}
+            aria-label={`${label}: ${STATUS_WORD[status]}`}
+          >
+            {label}
+          </span>
+          {open
+            ? <ChevronUp className="h-3 w-3 shrink-0 text-[#4A4A52]" aria-hidden="true" />
+            : <ChevronDown className="h-3 w-3 shrink-0 text-[#4A4A52]" aria-hidden="true" />}
         </button>
-      )}
+
+        {/* One-click auto-fix (block enable / metadata default) */}
+        {suggestionLabel && (
+          <button
+            type="button"
+            onClick={() => onApply(id)}
+            className="shrink-0 rounded-[6px] border border-[#26262B] bg-[#0E0E11] px-2 py-0.5 text-[10px] font-medium text-[#6080C8] transition-colors hover:border-[#1B4FD8]/40 hover:bg-[#0A1020] hover:text-[#1B4FD8] focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/30"
+          >
+            + {suggestionLabel}
+          </button>
+        )}
+      </div>
+
+      {/* Rationale + concrete example */}
+      <div id={detailId} hidden={!open} className="pb-1.5 pl-[22px] pr-1 pt-1">
+        <p className="text-[11px] leading-relaxed text-[#9A9AA5]">{rationale}</p>
+        {description && (
+          <p className="mt-0.5 text-[10px] leading-relaxed text-[#5A5A62]">{description}</p>
+        )}
+        {example && (
+          <p className="mt-1.5 rounded-[6px] border border-[#1A1A1E] bg-[#0A0A0D] px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-[#8A8A95]">
+            <span className="mr-1 select-none text-[#4A4A52]">e.g.</span>
+            {example}
+          </p>
+        )}
+      </div>
+
+      {/* Decorative hairline between rows (not after the last) */}
+      {index < total - 1 && <div className="ml-[22px] h-px bg-[#111114]" />}
     </li>
   );
 }
@@ -111,7 +161,7 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
   const { score, pct, criteria } = result;
   // Compute once here and pass as a prop to ScoreRing to avoid a redundant call.
   const color = scoreColor(pct);
-  const failingCount = criteria.filter((c) => !c.passed).length;
+  const attentionCount = criteria.filter((c) => c.status !== 'pass').length;
 
   return (
     <div className="border-b border-[#161619]">
@@ -120,13 +170,9 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
         changes here. Placing role="status" inside a <button> causes it to be
         ignored by most AT.
       */}
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
-        {`Prompt efficiency: ${score} out of 10. ${scoreLabel(pct)}.`}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {`Prompt efficiency: ${formatScore(score)} out of 10. ${scoreLabel(pct)}. `
+          + `${attentionCount} of ${criteria.length} criteria need attention.`}
       </span>
 
       {/* ── Collapsible header ── */}
@@ -147,13 +193,13 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
           style={{ color, backgroundColor: `${color}1A` }}
           aria-hidden="true"
         >
-          {score}/10
+          {formatScore(score)}/10
         </span>
 
-        {/* Pending suggestions summary when collapsed */}
-        {failingCount > 0 && !expanded && (
+        {/* Pending-work summary when collapsed */}
+        {attentionCount > 0 && !expanded && (
           <span className="text-[10px] text-[#5A5A62]">
-            · {failingCount} suggestion{failingCount !== 1 ? 's' : ''}
+            · {attentionCount} to improve
           </span>
         )}
 
@@ -166,14 +212,10 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
 
       {/*
         Panel is always in the DOM so aria-controls always has a valid target.
-        The HTML hidden attribute removes it from both layout and the a11y tree
-        when collapsed, without breaking the aria-controls reference.
+        The HTML hidden attribute removes it from layout and the a11y tree when
+        collapsed, without breaking the aria-controls reference.
       */}
-      <div
-        id="prompt-efficiency-panel"
-        hidden={!expanded}
-        className="px-5 pb-4"
-      >
+      <div id="prompt-efficiency-panel" hidden={!expanded} className="px-5 pb-4">
         {/* Score summary */}
         <div className="mb-4 flex items-center gap-4">
           <ScoreRing pct={pct} score={score} color={color} />
@@ -182,23 +224,23 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
             <p className="text-xs text-[#83838D]">
               {pct}%
               {' · '}
-              {failingCount === 0
+              {attentionCount === 0
                 ? 'All criteria met'
-                : `${failingCount} criterion${failingCount !== 1 ? 'a' : ''} need${failingCount === 1 ? 's' : ''} attention`}
+                : `${attentionCount} of ${criteria.length} need attention`}
             </p>
           </div>
         </div>
 
         {/* Criteria list */}
-        <ul
-          className="space-y-1.5"
-          role="list"
-          aria-label="Prompt evaluation criteria"
-        >
-          {criteria.map((c) => (
-            <CriterionRow key={c.id} criterion={c} onApply={onApply} />
+        <ul className="-mx-1" role="list" aria-label="Prompt evaluation criteria">
+          {criteria.map((c, i) => (
+            <CriterionRow key={c.id} criterion={c} index={i} total={criteria.length} onApply={onApply} />
           ))}
         </ul>
+
+        <p className="mt-3 text-[10px] leading-relaxed text-[#4A4A52]">
+          Click any item to see why it scored that way and a concrete example.
+        </p>
       </div>
     </div>
   );
