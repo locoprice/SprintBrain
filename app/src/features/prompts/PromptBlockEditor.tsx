@@ -5,7 +5,13 @@ import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
-import { usePromptEvaluator } from '@/lib/usePromptEvaluator';
+import {
+  usePromptEvaluator,
+  evaluatePrompt,
+  promptToEvaluatorInput,
+  percentRank,
+  MIN_BENCHMARK_CORPUS,
+} from '@/lib/usePromptEvaluator';
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import type {
   PromptBlock,
@@ -394,6 +400,24 @@ export function PromptBlockEditor() {
     isOpen,
   );
 
+  // Corpus benchmark — score every other prompt once, then rank the live draft.
+  const corpusScores = useMemo(() => {
+    const others = prompts.filter((p) => p.id !== editingPrompt?.id);
+    if (others.length < MIN_BENCHMARK_CORPUS) return null;
+    return {
+      scores: others.map((p) => evaluatePrompt(promptToEvaluatorInput(p)).score),
+      corpusSize: others.length,
+    };
+  }, [prompts, editingPrompt?.id]);
+
+  const benchmark = useMemo(() => {
+    if (!corpusScores || !evalResult) return null;
+    return {
+      percentile: percentRank(corpusScores.scores, evalResult.score),
+      corpusSize: corpusScores.corpusSize,
+    };
+  }, [corpusScores, evalResult]);
+
   function handleApplySuggestion(criterionId: string) {
     const asBlockType = BLOCK_CRITERION_TYPES.find((t) => t === criterionId);
     if (asBlockType) {
@@ -569,6 +593,7 @@ export function PromptBlockEditor() {
           <PromptEfficiencyWidget
             result={evalResult}
             onApply={handleApplySuggestion}
+            benchmark={benchmark}
           />
         )}
 

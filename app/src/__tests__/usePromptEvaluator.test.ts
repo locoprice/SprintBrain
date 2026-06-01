@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluatePrompt,
   computeEvalKey,
+  percentRank,
+  promptToEvaluatorInput,
   type EvaluatorInput,
 } from '../lib/usePromptEvaluator';
-import type { PromptBlock, PromptBlockType } from '../types/database';
+import type { Prompt, PromptBlock, PromptBlockType } from '../types/database';
 
 // ── Builders ────────────────────────────────────────────────────────────────────
 
@@ -229,5 +231,92 @@ describe('computeEvalKey — memoisation', () => {
     const a = computeEvalKey(input({ strategyType: null }));
     const b = computeEvalKey(input({ strategyType: 'CoT' }));
     expect(a).not.toBe(b);
+  });
+});
+
+// ── Corpus benchmark ─────────────────────────────────────────────────────────────
+
+describe('percentRank', () => {
+  it('returns 0 for an empty corpus', () => {
+    expect(percentRank([], 7)).toBe(0);
+  });
+
+  it('ranks a top score near 100', () => {
+    expect(percentRank([1, 2, 3, 4], 9)).toBe(100);
+  });
+
+  it('ranks a bottom score near 0', () => {
+    expect(percentRank([5, 6, 7, 8], 1)).toBe(0);
+  });
+
+  it('counts ties as half (whole corpus tied → 50)', () => {
+    expect(percentRank([5, 5, 5, 5], 5)).toBe(50);
+  });
+
+  it('computes the standard mid-rank for a mixed corpus', () => {
+    // below: 2 (1,2) · equal: 1 (5) · n: 4 → (2 + 0.5)/4 = 62.5 → 63
+    expect(percentRank([1, 2, 5, 9], 5)).toBe(63);
+  });
+});
+
+describe('promptToEvaluatorInput', () => {
+  const baseRow: Prompt = {
+    id: 'p1',
+    user_id: 'u1',
+    name: 'Test',
+    content: '',
+    type: 'one-shot',
+    tags: [],
+    blocks: null,
+    strategy_type: null,
+    thinking_mode: null,
+    preferred_model: null,
+    complexity_level: null,
+    execution_type: null,
+    intent_category: null,
+    output_type: null,
+    updated_at: '2026-01-01T00:00:00.000Z',
+    last_used_at: null,
+  };
+
+  it('uses structured blocks when present', () => {
+    const blocks: PromptBlock[] = [{ type: 'role', content: 'You are an expert.', enabled: true }];
+    const result = promptToEvaluatorInput({ ...baseRow, blocks });
+    expect(result.blocks).toBe(blocks);
+  });
+
+  it('falls back to flat content as a single objective block', () => {
+    const result = promptToEvaluatorInput({ ...baseRow, content: 'Write something useful.', blocks: null });
+    expect(result.blocks).toHaveLength(1);
+    const block = result.blocks[0]!;
+    expect(block.type).toBe('objective');
+    expect(block.enabled).toBe(true);
+    expect(block.content).toBe('Write something useful.');
+  });
+
+  it('disables the fallback block when content is empty', () => {
+    const result = promptToEvaluatorInput({ ...baseRow, content: '   ', blocks: null });
+    expect(result.blocks[0]!.enabled).toBe(false);
+  });
+
+  it('carries metadata through for scoring', () => {
+    const result = promptToEvaluatorInput({
+      ...baseRow,
+      strategy_type: 'CoT',
+      preferred_model: 'claude-opus-4-7',
+      output_type: 'JSON',
+    });
+    expect(result.strategyType).toBe('CoT');
+    expect(result.preferredModel).toBe('claude-opus-4-7');
+    expect(result.outputType).toBe('JSON');
+  });
+
+  it('produces input that scores deterministically via evaluatePrompt', () => {
+    const strong = promptToEvaluatorInput({
+      ...baseRow,
+      content: 'Write a detailed onboarding email for new Pro-plan users with a friendly tone.',
+    });
+    const r = evaluatePrompt(strong);
+    expect(r.pct).toBeGreaterThan(0);
   });
 });

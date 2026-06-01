@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, TrendingUp, XCircle } from 'lucide-react';
 import type { CriterionStatus, EvalCriterion, EvalResult } from '@/lib/usePromptEvaluator';
+
+/** Percentile of this prompt against the user's existing prompt corpus. */
+export interface PromptBenchmark {
+  /** 0–100: % of the corpus this prompt scores higher than. */
+  percentile: number;
+  /** Number of other prompts the percentile was computed against. */
+  corpusSize: number;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -154,9 +162,11 @@ function CriterionRow({ criterion, index, total, onApply }: CriterionRowProps) {
 export interface PromptEfficiencyWidgetProps {
   result: EvalResult;
   onApply: (criterionId: string) => void;
+  /** Optional corpus benchmark; hidden when the library is too small to be meaningful. */
+  benchmark?: PromptBenchmark | null;
 }
 
-export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidgetProps) {
+export function PromptEfficiencyWidget({ result, onApply, benchmark }: PromptEfficiencyWidgetProps) {
   const [expanded, setExpanded] = useState(true);
   const { score, pct, criteria } = result;
   // Compute once here and pass as a prop to ScoreRing to avoid a redundant call.
@@ -172,7 +182,10 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
       */}
       <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {`Prompt efficiency: ${formatScore(score)} out of 10. ${scoreLabel(pct)}. `
-          + `${attentionCount} of ${criteria.length} criteria need attention.`}
+          + `${attentionCount} of ${criteria.length} criteria need attention.`
+          + (benchmark
+            ? ` Stronger than ${benchmark.percentile}% of your ${benchmark.corpusSize} prompts.`
+            : '')}
       </span>
 
       {/* ── Collapsible header ── */}
@@ -230,6 +243,18 @@ export function PromptEfficiencyWidget({ result, onApply }: PromptEfficiencyWidg
             </p>
           </div>
         </div>
+
+        {/* Corpus benchmark — percentile against the user's existing prompts */}
+        {benchmark && (
+          <div className="mb-3 flex items-center gap-2 rounded-[8px] border border-[#161619] bg-[#0A0A0D] px-3 py-2">
+            <TrendingUp className="h-3.5 w-3.5 shrink-0 text-[#1B4FD8]" aria-hidden="true" />
+            <p className="text-[11px] text-[#9A9AA5]">
+              Stronger than{' '}
+              <span className="font-semibold text-[#D6D6DE]">{benchmark.percentile}%</span>
+              {' '}of your {benchmark.corpusSize} prompts
+            </p>
+          </div>
+        )}
 
         {/* Criteria list */}
         <ul className="-mx-1" role="list" aria-label="Prompt evaluation criteria">

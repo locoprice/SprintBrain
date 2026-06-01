@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PromptBlock, PromptBlockType, StrategyType, PreferredModel, OutputType } from '@/types/database';
+import type { Prompt, PromptBlock, PromptBlockType, StrategyType, PreferredModel, OutputType } from '@/types/database';
 import { assembleBlocks } from '@/lib/promptUtils';
 
 // ── Public types ───────────────────────────────────────────────────────────────
@@ -268,6 +268,47 @@ export function evaluatePrompt(input: EvaluatorInput): EvalResult {
   const score = Math.round(ratio * 100) / 10; // 0–10, one decimal
 
   return { score, pct, criteria };
+}
+
+// ── Corpus benchmark ─────────────────────────────────────────────────────────
+
+/** Minimum corpus size before a percentile is meaningful enough to show. */
+export const MIN_BENCHMARK_CORPUS = 5;
+
+/**
+ * Maps a persisted prompt row to evaluator input so its score can be computed
+ * the same way as the live draft. Legacy rows without structured blocks fall
+ * back to their flat `content` as a single objective block — mirroring how the
+ * editor hydrates them.
+ */
+export function promptToEvaluatorInput(prompt: Prompt): EvaluatorInput {
+  const blocks: PromptBlock[] =
+    prompt.blocks && prompt.blocks.length > 0
+      ? prompt.blocks
+      : [{ type: 'objective', content: prompt.content, enabled: !!prompt.content.trim() }];
+
+  return {
+    blocks,
+    strategyType: prompt.strategy_type,
+    preferredModel: prompt.preferred_model,
+    outputType: prompt.output_type,
+  };
+}
+
+/**
+ * Percentile rank of `score` within `corpus` (0–100, integer). Ties count as
+ * half, the standard "percent rank" convention, so a prompt that beats every
+ * other lands near 100 and one tied with the whole corpus lands near 50.
+ */
+export function percentRank(corpus: number[], score: number): number {
+  if (corpus.length === 0) return 0;
+  let below = 0;
+  let equal = 0;
+  for (const v of corpus) {
+    if (v < score) below += 1;
+    else if (v === score) equal += 1;
+  }
+  return Math.round(((below + 0.5 * equal) / corpus.length) * 100);
 }
 
 /** Stable hash of the inputs that affect the score — used to skip redundant work. */
