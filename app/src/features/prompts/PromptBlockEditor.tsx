@@ -5,6 +5,8 @@ import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
+import { usePromptEvaluator } from '@/lib/usePromptEvaluator';
+import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -374,6 +376,34 @@ export function PromptBlockEditor() {
     );
   }
 
+  function enableBlock(type: PromptBlockType) {
+    setBlocks((prev) =>
+      prev.map((b) => (b.type === type ? { ...b, enabled: true } : b)),
+    );
+  }
+
+  // ── Prompt efficiency evaluation ─────────────────────────────────────────────
+
+  const evalResult = usePromptEvaluator(
+    { blocks, strategyType, preferredModel, outputType },
+    isOpen,
+  );
+
+  const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
+    'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
+  ];
+
+  function handleApplySuggestion(criterionId: string) {
+    const asBlockType = BLOCK_CRITERION_TYPES.find((t) => t === criterionId);
+    if (asBlockType) {
+      enableBlock(asBlockType);
+      return;
+    }
+    if (criterionId === 'output_format') { setOutputType('Plain'); return; }
+    if (criterionId === 'strategy') { setStrategyType('One-shot'); return; }
+    if (criterionId === 'model') { setPreferredModel('claude-sonnet-4-6'); return; }
+  }
+
   function handlePreviewDraft() {
     const assembled = assembleBlocks(blocks);
     if (assembled) openPromptDraftPreview(assembled);
@@ -532,6 +562,14 @@ export function PromptBlockEditor() {
             );
           })}
         </div>
+
+        {/* Efficiency score widget */}
+        {evalResult && (
+          <PromptEfficiencyWidget
+            result={evalResult}
+            onApply={handleApplySuggestion}
+          />
+        )}
 
         {/* Metadata */}
         <div className="border-b border-[#161619] px-5 py-4">
