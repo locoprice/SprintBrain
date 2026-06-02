@@ -446,6 +446,11 @@ function syncSnippets(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.57.0', date:'2026-06-01', label:'feat: roomier popup + one-click Dashboard link',
+    changes:[
+      {type:'new', text:'Popup window is now larger — wider columns and a taller list so snippet titles, folder names and language badges have more breathing room and more rows show at a glance'},
+      {type:'new', text:'New "Dashboard" button in the popup header opens app.sprintbrain.com in a browser tab, and focuses the existing tab if the dashboard is already open'}
+    ]},
   { version:'v2.40.0', date:'2026-05-19', label:'fix: snippet expansion — trigger no longer survives celebration on contenteditable fields',
     changes:[
       {type:'fix', text:'For CE fields (Gmail, Slack, Notion, etc.), the trigger text (e.g. ::time) now deletes atomically before the celebration modal appears, so focus changes during the 5-second window no longer leave ::shortcut in the field'},
@@ -1803,6 +1808,25 @@ function applyTrig(){
   show('pane-list'); refreshUI();
 }
 
+// Dashboard link — opens the SprintBrain web app in a browser tab.
+// Reuses an already-open dashboard tab (focuses it) instead of stacking duplicates,
+// mirroring the context-menu behaviour in background.js.
+var SB_DASHBOARD_HOME_URL = 'https://app.sprintbrain.com/';
+function openDashboard(){
+  try {
+    chrome.tabs.query({ url: SB_DASHBOARD_HOME_URL + '*' }, function(tabs){
+      if (tabs && tabs.length) {
+        chrome.tabs.update(tabs[0].id, { active: true });
+        if (tabs[0].windowId != null) chrome.windows.update(tabs[0].windowId, { focused: true });
+      } else {
+        chrome.tabs.create({ url: SB_DASHBOARD_HOME_URL });
+      }
+    });
+  } catch(e) {
+    try { chrome.tabs.create({ url: SB_DASHBOARD_HOME_URL }); } catch(e2) { window.open(SB_DASHBOARD_HOME_URL, '_blank'); }
+  }
+}
+
 // WIRE EVENTS
 function on(id,ev,fn){ var e=gi(id); if(e) e.addEventListener(ev,fn); }
 on('bnew','click',   function(){ openEd(null); });
@@ -1813,6 +1837,7 @@ on('bcan','click',   function(){ show('pane-list'); refreshUI(); });
 on('bsav','click',   doSave);
 on('bdel','click',   doDel);
 on('bcfg','click',        openCfg);
+on('bdash','click',       openDashboard);
 on('bbcfg','click',       function(){ show('pane-list'); refreshUI(); });
 on('bcct','click',        function(){ show('pane-list'); refreshUI(); });
 on('bappt','click',       applyTrig);

@@ -7,7 +7,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 
 html,body{
-  width:600px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
+  width:700px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
   color:var(--sb-ink);background:var(--sb-bg);
   overflow-x:hidden;user-select:none;line-height:1.5;
 }
@@ -103,7 +103,7 @@ html,body{
 }
 
 /* ── BODY ── */
-.body{display:flex;height:420px}
+.body{display:flex;height:470px}
 
 /* ── SIDEBAR ── */
 .sb{
@@ -272,7 +272,7 @@ html,body{
 .pane{display:none}.pane.on{display:flex;flex-direction:column}
 
 /* ── EDITOR ── */
-.escroll{padding:16px;display:flex;flex-direction:column;gap:12px;height:420px;overflow-y:auto}
+.escroll{padding:16px;display:flex;flex-direction:column;gap:12px;height:470px;overflow-y:auto}
 .lbl{
   font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);
   text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;
@@ -704,6 +704,9 @@ html,body{
     </div>
     <span id="st" class="pop-count">0 snippets</span>
     <div class="hdr-r">
+      <button class="hdr-btn" id="bdash" title="Open dashboard — app.sprintbrain.com">
+        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Dashboard
+      </button>
       <button class="hdr-btn" id="bcfg" title="Settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -841,7 +844,7 @@ html,body{
     </button>
     <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)">Settings</span>
   </div>
-  <div style="padding:16px;overflow-y:auto;height:420px">
+  <div style="padding:16px;overflow-y:auto;height:470px">
     <div class="lbl" style="margin-bottom:8px">Trigger character</div>
     <div class="tgrid">
       <div class="topt" data-t=";;"><span class="tk">;;</span><span class="td">Zero conflicts</span></div>
@@ -1022,7 +1025,7 @@ html,body{
 <!-- ═══ VERSION BAR ═══ -->
 <div class="ver-bar">
   <button class="ver-btn" id="ver-btn"></button>
-  <span class="dt">2026-05-09</span>
+  <span class="dt">2026-06-01</span>
 </div>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->
