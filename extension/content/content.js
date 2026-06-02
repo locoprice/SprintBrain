@@ -1716,47 +1716,47 @@ function showCelebration(text, onConfirm, onUndo) {
   var canUndo    = typeof onUndo === 'function';
   var undoRowHtml = canUndo
     ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
-        '<button id="sb-cel-undo" style="flex-shrink:0;padding:5px 12px;background:transparent;border:1.5px solid #e8c97a;border-radius:7px;font-size:12px;font-weight:600;color:#BA7517;cursor:pointer;font-family:inherit">&#8617; Undo</button>' +
-        '<div style="flex:1;height:3px;background:#f0efec;border-radius:99px;overflow:hidden">' +
-          '<div id="sb-cel-bar" style="height:100%;background:#e8c97a;border-radius:99px;width:100%"></div>' +
+        '<button id="sb-cel-undo" style="flex-shrink:0;padding:5px 12px;background:transparent;border:1.5px solid #BED0FF;border-radius:7px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;font-family:inherit">&#8617; Undo</button>' +
+        '<div style="flex:1;height:3px;background:#E4E4E7;border-radius:99px;overflow:hidden">' +
+          '<div id="sb-cel-bar" style="height:100%;background:#1B4FD8;border-radius:99px;width:100%"></div>' +
         '</div>' +
-        '<span id="sb-cel-cd" style="flex-shrink:0;font-size:10px;color:#a8a59f;min-width:12px;text-align:right">5</span>' +
+        '<span id="sb-cel-cd" style="flex-shrink:0;font-size:10px;color:#A1A1AA;min-width:12px;text-align:right">5</span>' +
       '</div>'
     : '';
 
   card.innerHTML =
     '<div style="font-size:46px;line-height:1;margin-bottom:9px">'+msg.e+'</div>'+
-    '<div style="font-size:19px;font-weight:700;color:#1c1c1a;margin-bottom:5px">'+msg.h+'</div>'+
-    '<div style="font-size:12px;color:#6e6c67;margin-bottom:14px">'+msg.s+'</div>'+
-    '<div style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#fdf6e8,#fef9c3);border:2px solid #e8c97a;border-radius:14px;padding:10px 20px;margin-bottom:14px">'+
-      '<span style="font-size:30px;font-weight:800;color:#BA7517">'+secs+'</span>'+
-      '<span><span style="font-size:12px;font-weight:700;color:#BA7517;display:block">seconds saved</span>'+
-      '<span style="font-size:10px;color:#a8a59f;display:block">vs typing from scratch</span></span>'+
+    '<div style="font-size:19px;font-weight:700;color:#18181B;margin-bottom:5px">'+msg.h+'</div>'+
+    '<div style="font-size:12px;color:#52525B;margin-bottom:14px">'+msg.s+'</div>'+
+    '<div style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#EEF2FF,#E0EAFF);border:2px solid #BED0FF;border-radius:14px;padding:10px 20px;margin-bottom:14px">'+
+      '<span style="font-size:30px;font-weight:800;color:#1B4FD8">'+secs+'</span>'+
+      '<span><span style="font-size:12px;font-weight:700;color:#1B4FD8;display:block">seconds saved</span>'+
+      '<span style="font-size:10px;color:#A1A1AA;display:block">vs typing from scratch</span></span>'+
     '</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:10px">'+
-      '<div style="flex:1;background:#eef4fb;border:1.5px solid #9bc4e4;border-radius:12px;padding:9px 6px;text-align:center">'+
+      '<div style="flex:1;background:#EEF2FF;border:1.5px solid #BED0FF;border-radius:12px;padding:9px 6px;text-align:center">'+
         '<div style="font-size:16px">🧑</div>'+
-        '<div style="font-size:8px;font-weight:700;color:#3a8fc4;text-transform:uppercase;letter-spacing:.08em;margin:2px 0">Human</div>'+
-        '<div style="font-size:22px;font-weight:800;color:#3a8fc4">'+humanW+'</div>'+
-        '<div style="font-size:9px;color:#a8a59f">words</div>'+
+        '<div style="font-size:8px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;margin:2px 0">Human</div>'+
+        '<div style="font-size:22px;font-weight:800;color:#1B4FD8">'+humanW+'</div>'+
+        '<div style="font-size:9px;color:#A1A1AA">words</div>'+
       '</div>'+
       '<div style="flex:1;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:12px;padding:9px 6px;text-align:center">'+
         '<div style="font-size:16px">🤖</div>'+
         '<div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin:2px 0">Machine</div>'+
         '<div style="font-size:22px;font-weight:800;color:#7c3aed">'+machineW+'</div>'+
-        '<div style="font-size:9px;color:#a8a59f">words</div>'+
+        '<div style="font-size:9px;color:#A1A1AA">words</div>'+
       '</div>'+
     '</div>'+
-    '<div style="width:100%;height:6px;background:#f5f4f0;border-radius:20px;overflow:hidden;display:flex;margin-bottom:4px">'+
-      '<div style="width:'+humPct+'%;background:#4a9eca;border-radius:20px 0 0 20px"></div>'+
+    '<div style="width:100%;height:6px;background:#F4F4F5;border-radius:20px;overflow:hidden;display:flex;margin-bottom:4px">'+
+      '<div style="width:'+humPct+'%;background:#1B4FD8;border-radius:20px 0 0 20px"></div>'+
       '<div style="width:'+machPct+'%;background:#7c3aed"></div>'+
     '</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:10px;color:#a8a59f;margin-bottom:14px">'+
+    '<div style="display:flex;justify-content:space-between;font-size:10px;color:#A1A1AA;margin-bottom:14px">'+
       '<span>'+humPct+'% you</span><span>'+machPct+'% Sprintbrain \ud83e\udd16</span>'+
     '</div>'+
-    '<button id="sb-cel-ok" style="padding:9px 20px;background:#BA7517;border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;width:100%">Paste it now! \ud83d\udccb</button>'+
+    '<button id="sb-cel-ok" style="padding:9px 20px;background:#1B4FD8;border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;width:100%">Paste it now! \ud83d\udccb</button>'+
     undoRowHtml+
-    '<div id="sb-cel-skip" style="margin-top:8px;font-size:11px;color:#a8a59f;cursor:pointer">dismiss</div>';
+    '<div id="sb-cel-skip" style="margin-top:8px;font-size:11px;color:#A1A1AA;cursor:pointer">dismiss</div>';
 
   document.body.appendChild(bd);
   document.body.appendChild(card);
@@ -1875,6 +1875,20 @@ function _getCaretCoords(el) {
   return { x: elRect.left, y: elRect.bottom };
 }
 
+// Render a shortcut as the canonical `.sctag`: dim the leading trigger prefix
+// (e.g. "::") to 0.45 opacity, body at full weight, azure mono — matches the
+// harmonized mockup's shortcut-tag pattern.
+function _scTag(sc) {
+  var s = String(sc == null ? '' : sc);
+  var m = s.match(/^([^0-9A-Za-z]+)([\s\S]*)$/);
+  var pfx  = xesc(m ? m[1] : '');
+  var body = xesc(m ? m[2] : s);
+  return '<span style="margin-left:auto;flex:0 0 auto;font-family:\'SF Mono\',\'Cascadia Code\',\'JetBrains Mono\',ui-monospace,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#1B4FD8;letter-spacing:.2px;white-space:nowrap">'
+    + (pfx ? '<span style="opacity:.45;font-weight:400">' + pfx + '</span>' : '')
+    + body
+    + '</span>';
+}
+
 // Re-render picker items filtered by query string
 function _renderPickerItems(query) {
   if (!triggerPickerEl) return;
@@ -1920,15 +1934,15 @@ function _renderPickerItems(query) {
   for (var i = 0; i < triggerPickerFiltered.length; i++) {
     var item = triggerPickerFiltered[i];
     var sc = triggerPickerMode === 'snippet' && item.shortcut
-      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      ? _scTag(item.shortcut)
       : '';
-    h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
-      + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-      + xesc(item.title) + sc
+    h += '<div class="sb-tp-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
+      + (i === 0 ? 'background:#EEF2FF;' : '') + '">'
+      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title) + '</span>' + sc
       + '</div>';
   }
   if (!triggerPickerFiltered.length) {
-    h = '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No matches</div>';
+    h = '<div style="padding:16px 12px;font-size:13px;color:#A1A1AA;text-align:center">No matches</div>';
   }
   itemsEl.innerHTML = h;
   triggerPickerIdx = 0;
@@ -1962,28 +1976,28 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
 
   var div = document.createElement('div');
   div.id = 'sb-trigger-picker';
-  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
-  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
   header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
-  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Tab / Enter to insert</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Tab / Enter to insert</span>';
   header += '</div>';
-  header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  header += '<div class="sb-tp-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';
   div.innerHTML = header;
 
   // Position at caret, keep inside viewport
   var coords = _getCaretCoords(el);
-  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 360));
   var top  = coords.y + 4;
   var spaceBelow = window.innerHeight - top - 20;
-  if (spaceBelow < 120) {
+  if (spaceBelow < 160) {
     // Flip above cursor
-    top = Math.max(4, coords.y - 4 - 300);
-    spaceBelow = 300;
+    top = Math.max(4, coords.y - 4 - 320);
+    spaceBelow = 320;
   }
   div.style.left      = left + 'px';
   div.style.top       = top  + 'px';
-  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  div.style.maxHeight = Math.min(380, Math.max(160, spaceBelow)) + 'px';
 
   document.body.appendChild(div);
   triggerPickerEl = div;
@@ -2163,8 +2177,7 @@ function updateTriggerPickerHighlight() {
   if (!triggerPickerEl) return;
   var items = triggerPickerEl.querySelectorAll('.sb-tp-item');
   for (var i = 0; i < items.length; i++) {
-    items[i].style.background = i === triggerPickerIdx ? '#fdf6e8' : '';
-    items[i].style.color      = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.background = i === triggerPickerIdx ? '#EEF2FF' : '';
   }
   if (items[triggerPickerIdx]) {
     items[triggerPickerIdx].scrollIntoView({ block: 'nearest' });
@@ -2333,17 +2346,17 @@ function _getSelectionRectCoords(el) {
 // Place a fixed-position floating menu near `coords`, clamped to the viewport,
 // flipping above the anchor when there isn't room below.
 function _positionFloatingMenu(div, coords, maxW) {
-  var w = maxW || 310;
+  var w = maxW || 360;
   var left = Math.max(4, Math.min(coords.x, window.innerWidth - w));
   var top  = coords.y + 6;
   var spaceBelow = window.innerHeight - top - 20;
-  if (spaceBelow < 120) {
-    top = Math.max(4, (coords.top != null ? coords.top : coords.y) - 6 - 300);
-    spaceBelow = 300;
+  if (spaceBelow < 160) {
+    top = Math.max(4, (coords.top != null ? coords.top : coords.y) - 6 - 320);
+    spaceBelow = 320;
   }
   div.style.left      = left + 'px';
   div.style.top       = top  + 'px';
-  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  div.style.maxHeight = Math.min(380, Math.max(160, spaceBelow)) + 'px';
 }
 
 function showSelectionSuggestions(el, matches) {
@@ -2355,16 +2368,16 @@ function showSelectionSuggestions(el, matches) {
 
   var div = document.createElement('div');
   div.id = 'sb-sel-suggest';
-  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
-  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
   header += '<span>✨ Suggested snippets</span>';
-  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Enter to insert</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Enter to insert</span>';
   header += '</div>';
-  header += '<div class="sb-ss-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  header += '<div class="sb-ss-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';
   div.innerHTML = header;
 
-  _positionFloatingMenu(div, _getSelectionRectCoords(el), 310);
+  _positionFloatingMenu(div, _getSelectionRectCoords(el), 360);
   document.body.appendChild(div);
   selSuggestEl = div;
   _renderSelSuggestItems();
@@ -2378,11 +2391,11 @@ function _renderSelSuggestItems() {
   for (var i = 0; i < selSuggestItems.length; i++) {
     var item = selSuggestItems[i];
     var sc = item.shortcut
-      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      ? _scTag(item.shortcut)
       : '';
-    h += '<div class="sb-ss-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
-      + (i === selSuggestIdx ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-      + xesc(item.title || item.shortcut || 'Snippet') + sc
+    h += '<div class="sb-ss-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
+      + (i === selSuggestIdx ? 'background:#EEF2FF;' : '') + '">'
+      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title || item.shortcut || 'Snippet') + '</span>' + sc
       + '</div>';
   }
   itemsEl.innerHTML = h;
@@ -2410,8 +2423,7 @@ function _updateSelSuggestHighlight() {
   if (!selSuggestEl) return;
   var items = selSuggestEl.querySelectorAll('.sb-ss-item');
   for (var i = 0; i < items.length; i++) {
-    items[i].style.background = i === selSuggestIdx ? '#fdf6e8' : '';
-    items[i].style.color      = i === selSuggestIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.background = i === selSuggestIdx ? '#EEF2FF' : '';
   }
   if (items[selSuggestIdx]) items[selSuggestIdx].scrollIntoView({ block: 'nearest' });
 }
@@ -2713,25 +2725,26 @@ document.addEventListener('input', function(e) {
   var s = document.createElement('style');
   s.id = 'sb-styles';
   s.textContent =
-    '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;color:#1c1c1a;}' +
-    '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fdf6e8;border-bottom:1px solid #e8c97a;}' +
-    '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#BA7517;}' +
-    '#sb-overlay .sb-title{font-size:11px;color:#6e6c67;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#a8a59f;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
-    '#sb-overlay .sb-close:hover{color:#1c1c1a;}' +
+    '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
+    '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #E4E4E7;}' +
+    '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#1B4FD8;}' +
+    '#sb-overlay .sb-title{font-size:11px;color:#52525B;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#A1A1AA;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
+    '#sb-overlay .sb-close:hover{color:#18181B;}' +
     '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
-    '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
-    '#sb-overlay .sb-inp{background:#f5f4f0;border:1px solid #e8e5e0;border-radius:5px;padding:7px 10px;font-size:16px;color:#1c1c1a;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;}' +
-    '#sb-overlay .sb-inp:focus{border-color:#e8c97a;background:#fffbf0;}' +
-    '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#c2410c;border-color:#fed7aa;background:#fff7ed;}' +
-    '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23BA7517"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
-    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#f5f4f0;border:1px solid #e8e5e0;border-radius:6px;font-size:11px;color:#6e6c67;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
-    '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #e8e5e0;display:flex;align-items:center;gap:8px;background:#fafaf8;}' +
-    '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
-    '#sb-overlay .sb-insert:hover{background:#d4880f;}' +
-    '#sb-overlay .sb-tip{font-size:10px;color:#a8a59f;}' +
-    '#sb-trigger-picker .sb-tp-item{touch-action:manipulation;}' +
+    '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
+    '#sb-overlay .sb-inp{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:7px 10px;font-size:16px;color:#18181B;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;transition:border-color .15s,box-shadow .15s;}' +
+    '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
+    '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +
+    '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%231B4FD8"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
+    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
+    '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:8px;background:#FAFAFA;}' +
+    '#sb-overlay .sb-insert{padding:8px 18px;background:#1B4FD8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
+    '#sb-overlay .sb-insert:hover{background:#1440B0;}' +
+    '#sb-overlay .sb-tip{font-size:10px;color:#A1A1AA;}' +
+    '#sb-trigger-picker .sb-tp-item,#sb-sel-suggest .sb-ss-item{touch-action:manipulation;border-radius:8px;transition:background .12s ease;}' +
+    '#sb-trigger-picker .sb-tp-item:hover,#sb-sel-suggest .sb-ss-item:hover{background:#F4F4F5;}' +
     '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}' +
     '@keyframes sbUrgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 14px 3px rgba(217,57,0,.15)}}' +
     '@keyframes sbScBlink{0%,100%{opacity:1}50%{opacity:.3}}';
