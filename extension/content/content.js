@@ -1875,6 +1875,20 @@ function _getCaretCoords(el) {
   return { x: elRect.left, y: elRect.bottom };
 }
 
+// Render a shortcut as the canonical `.sctag`: dim the leading trigger prefix
+// (e.g. "::") to 0.45 opacity, body at full weight, azure mono — matches the
+// harmonized mockup's shortcut-tag pattern.
+function _scTag(sc) {
+  var s = String(sc == null ? '' : sc);
+  var m = s.match(/^([^0-9A-Za-z]+)([\s\S]*)$/);
+  var pfx  = xesc(m ? m[1] : '');
+  var body = xesc(m ? m[2] : s);
+  return '<span style="margin-left:auto;flex:0 0 auto;font-family:\'SF Mono\',\'Cascadia Code\',\'JetBrains Mono\',ui-monospace,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#1B4FD8;letter-spacing:.2px;white-space:nowrap">'
+    + (pfx ? '<span style="opacity:.45;font-weight:400">' + pfx + '</span>' : '')
+    + body
+    + '</span>';
+}
+
 // Re-render picker items filtered by query string
 function _renderPickerItems(query) {
   if (!triggerPickerEl) return;
@@ -1920,15 +1934,15 @@ function _renderPickerItems(query) {
   for (var i = 0; i < triggerPickerFiltered.length; i++) {
     var item = triggerPickerFiltered[i];
     var sc = triggerPickerMode === 'snippet' && item.shortcut
-      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      ? _scTag(item.shortcut)
       : '';
-    h += '<div class="sb-tp-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
-      + (i === 0 ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-      + xesc(item.title) + sc
+    h += '<div class="sb-tp-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
+      + (i === 0 ? 'background:#EEF2FF;' : '') + '">'
+      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title) + '</span>' + sc
       + '</div>';
   }
   if (!triggerPickerFiltered.length) {
-    h = '<div style="padding:10px;font-size:11px;color:#a8a59f;text-align:center">No matches</div>';
+    h = '<div style="padding:16px 12px;font-size:13px;color:#A1A1AA;text-align:center">No matches</div>';
   }
   itemsEl.innerHTML = h;
   triggerPickerIdx = 0;
@@ -1962,28 +1976,28 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
 
   var div = document.createElement('div');
   div.id = 'sb-trigger-picker';
-  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
-  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
   header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
-  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Tab / Enter to insert</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Tab / Enter to insert</span>';
   header += '</div>';
-  header += '<div class="sb-tp-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  header += '<div class="sb-tp-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';
   div.innerHTML = header;
 
   // Position at caret, keep inside viewport
   var coords = _getCaretCoords(el);
-  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 310));
+  var left = Math.max(4, Math.min(coords.x, window.innerWidth - 360));
   var top  = coords.y + 4;
   var spaceBelow = window.innerHeight - top - 20;
-  if (spaceBelow < 120) {
+  if (spaceBelow < 160) {
     // Flip above cursor
-    top = Math.max(4, coords.y - 4 - 300);
-    spaceBelow = 300;
+    top = Math.max(4, coords.y - 4 - 320);
+    spaceBelow = 320;
   }
   div.style.left      = left + 'px';
   div.style.top       = top  + 'px';
-  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  div.style.maxHeight = Math.min(380, Math.max(160, spaceBelow)) + 'px';
 
   document.body.appendChild(div);
   triggerPickerEl = div;
@@ -2163,8 +2177,7 @@ function updateTriggerPickerHighlight() {
   if (!triggerPickerEl) return;
   var items = triggerPickerEl.querySelectorAll('.sb-tp-item');
   for (var i = 0; i < items.length; i++) {
-    items[i].style.background = i === triggerPickerIdx ? '#fdf6e8' : '';
-    items[i].style.color      = i === triggerPickerIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.background = i === triggerPickerIdx ? '#EEF2FF' : '';
   }
   if (items[triggerPickerIdx]) {
     items[triggerPickerIdx].scrollIntoView({ block: 'nearest' });
@@ -2333,17 +2346,17 @@ function _getSelectionRectCoords(el) {
 // Place a fixed-position floating menu near `coords`, clamped to the viewport,
 // flipping above the anchor when there isn't room below.
 function _positionFloatingMenu(div, coords, maxW) {
-  var w = maxW || 310;
+  var w = maxW || 360;
   var left = Math.max(4, Math.min(coords.x, window.innerWidth - w));
   var top  = coords.y + 6;
   var spaceBelow = window.innerHeight - top - 20;
-  if (spaceBelow < 120) {
-    top = Math.max(4, (coords.top != null ? coords.top : coords.y) - 6 - 300);
-    spaceBelow = 300;
+  if (spaceBelow < 160) {
+    top = Math.max(4, (coords.top != null ? coords.top : coords.y) - 6 - 320);
+    spaceBelow = 320;
   }
   div.style.left      = left + 'px';
   div.style.top       = top  + 'px';
-  div.style.maxHeight = Math.min(320, Math.max(120, spaceBelow)) + 'px';
+  div.style.maxHeight = Math.min(380, Math.max(160, spaceBelow)) + 'px';
 }
 
 function showSelectionSuggestions(el, matches) {
@@ -2355,16 +2368,16 @@ function showSelectionSuggestions(el, matches) {
 
   var div = document.createElement('div');
   div.id = 'sb-sel-suggest';
-  div.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #e8e5e0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:220px;max-width:300px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
-  var header = '<div style="padding:5px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a8a59f;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;gap:6px">';
+  var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
   header += '<span>✨ Suggested snippets</span>';
-  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#c4c1bc">Enter to insert</span>';
+  header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Enter to insert</span>';
   header += '</div>';
-  header += '<div class="sb-ss-items" style="overflow-y:auto;overscroll-behavior:contain;max-height:280px;"></div>';
+  header += '<div class="sb-ss-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';
   div.innerHTML = header;
 
-  _positionFloatingMenu(div, _getSelectionRectCoords(el), 310);
+  _positionFloatingMenu(div, _getSelectionRectCoords(el), 360);
   document.body.appendChild(div);
   selSuggestEl = div;
   _renderSelSuggestItems();
@@ -2378,11 +2391,11 @@ function _renderSelSuggestItems() {
   for (var i = 0; i < selSuggestItems.length; i++) {
     var item = selSuggestItems[i];
     var sc = item.shortcut
-      ? '<span style="font-size:10px;color:#a8a59f;margin-left:auto;font-family:monospace">' + xesc(item.shortcut) + '</span>'
+      ? _scTag(item.shortcut)
       : '';
-    h += '<div class="sb-ss-item" data-idx="' + i + '" style="padding:7px 10px;cursor:pointer;font-size:12px;color:#1c1c1a;display:flex;align-items:center;gap:8px;'
-      + (i === selSuggestIdx ? 'background:#fdf6e8;color:#BA7517;' : '') + '">'
-      + xesc(item.title || item.shortcut || 'Snippet') + sc
+    h += '<div class="sb-ss-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
+      + (i === selSuggestIdx ? 'background:#EEF2FF;' : '') + '">'
+      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title || item.shortcut || 'Snippet') + '</span>' + sc
       + '</div>';
   }
   itemsEl.innerHTML = h;
@@ -2410,8 +2423,7 @@ function _updateSelSuggestHighlight() {
   if (!selSuggestEl) return;
   var items = selSuggestEl.querySelectorAll('.sb-ss-item');
   for (var i = 0; i < items.length; i++) {
-    items[i].style.background = i === selSuggestIdx ? '#fdf6e8' : '';
-    items[i].style.color      = i === selSuggestIdx ? '#BA7517' : '#1c1c1a';
+    items[i].style.background = i === selSuggestIdx ? '#EEF2FF' : '';
   }
   if (items[selSuggestIdx]) items[selSuggestIdx].scrollIntoView({ block: 'nearest' });
 }
@@ -2731,7 +2743,8 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-insert{padding:8px 18px;background:#BA7517;border:none;border-radius:6px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
     '#sb-overlay .sb-insert:hover{background:#d4880f;}' +
     '#sb-overlay .sb-tip{font-size:10px;color:#a8a59f;}' +
-    '#sb-trigger-picker .sb-tp-item{touch-action:manipulation;}' +
+    '#sb-trigger-picker .sb-tp-item,#sb-sel-suggest .sb-ss-item{touch-action:manipulation;border-radius:8px;transition:background .12s ease;}' +
+    '#sb-trigger-picker .sb-tp-item:hover,#sb-sel-suggest .sb-ss-item:hover{background:#F4F4F5;}' +
     '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}' +
     '@keyframes sbUrgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 14px 3px rgba(217,57,0,.15)}}' +
     '@keyframes sbScBlink{0%,100%{opacity:1}50%{opacity:.3}}';
