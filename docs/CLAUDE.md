@@ -77,7 +77,7 @@ extension/                              # Chrome MV3 source root (no build step)
 ├── content/
 │   └── content.js                     # Keystroke buffer, formula engine, overlay UI
 ├── popup/
-│   ├── popup.html                     # Popup UI (600×420px fixed)
+│   ├── popup.html                     # Popup UI (700×470px fixed)
 │   └── popup.js                       # CRUD controller, Supabase DB wrapper
 ├── auth/
 │   └── auth.js                        # Supabase OTP + session (importScripts'd by bg)

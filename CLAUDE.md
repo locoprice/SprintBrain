@@ -361,7 +361,7 @@ SprintBrain/
 │   ├── manifest.json                  # v2.37.0 — permissions, icons, entry points
 │   ├── background/background.js       # Service worker: context menus, sync triggers
 │   ├── content/content.js             # Keystroke buffer, formula engine, overlay
-│   ├── popup/popup.html + popup.js    # Extension popup UI (600×420px)
+│   ├── popup/popup.html + popup.js    # Extension popup UI (700×470px)
 │   ├── auth/auth.js                   # Supabase OTP + session management
 │   ├── services/notion-sync/          # Notion incremental sync engine
 │   ├── overlay/overlay.css            # Field input overlay styles
