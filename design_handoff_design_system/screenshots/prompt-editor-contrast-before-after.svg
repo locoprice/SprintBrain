@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="560" viewBox="0 0 980 560" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <!-- page -->
+  <rect width="980" height="560" fill="#33333B"/>
+
+  <!-- title -->
+  <text x="24" y="36" fill="#F2F2F6" font-size="19" font-weight="700">Create-prompt editor — field/background contrast fix</text>
+  <text x="24" y="58" fill="#C6C6CE" font-size="13">Same layout, two palettes. The fields below are the dropdowns + reasoning box from the screenshot.</text>
+
+  <!-- captions -->
+  <text x="24"  y="80" fill="#D38A86" font-size="13" font-weight="700" letter-spacing="1">BEFORE — current</text>
+  <text x="526" y="80" fill="#5FD08A" font-size="13" font-weight="700" letter-spacing="1">AFTER — improved</text>
+
+  <!-- ============================ BEFORE PANEL ============================ -->
+  <rect x="24" y="90" width="430" height="410" rx="16" fill="#000000" stroke="#161619" stroke-width="1"/>
+  <text x="48" y="126" fill="#83838D" font-size="11" font-family="ui-monospace, Menlo, monospace" letter-spacing="2.5">METADATA</text>
+
+  <!-- Strategy -->
+  <text x="48" y="156" fill="#83838D" font-size="10">Strategy</text>
+  <rect x="48" y="164" width="182" height="36" rx="8" fill="#0E0E11" stroke="#26262B" stroke-width="1"/>
+  <text x="62" y="187" fill="#5A5A62" font-size="12">None</text>
+  <polyline points="210,179 214,183 218,179" fill="none" stroke="#83838D" stroke-width="1.5"/>
+  <!-- Model -->
+  <text x="248" y="156" fill="#83838D" font-size="10">Model</text>
+  <rect x="248" y="164" width="182" height="36" rx="8" fill="#0E0E11" stroke="#26262B" stroke-width="1"/>
+  <text x="262" y="187" fill="#5A5A62" font-size="12">None</text>
+  <polyline points="410,179 414,183 418,179" fill="none" stroke="#83838D" stroke-width="1.5"/>
+  <!-- Intent -->
+  <text x="48" y="224" fill="#83838D" font-size="10">Intent</text>
+  <rect x="48" y="232" width="182" height="36" rx="8" fill="#0E0E11" stroke="#26262B" stroke-width="1"/>
+  <text x="62" y="255" fill="#5A5A62" font-size="12">None</text>
+  <polyline points="210,247 214,251 218,247" fill="none" stroke="#83838D" stroke-width="1.5"/>
+  <!-- Complexity -->
+  <text x="248" y="224" fill="#83838D" font-size="10">Complexity</text>
+  <rect x="248" y="232" width="182" height="36" rx="8" fill="#0E0E11" stroke="#26262B" stroke-width="1"/>
+  <text x="262" y="255" fill="#5A5A62" font-size="12">None</text>
+  <polyline points="410,247 414,251 418,247" fill="none" stroke="#83838D" stroke-width="1.5"/>
+  <!-- Reasoning -->
+  <text x="48" y="292" fill="#83838D" font-size="10">Reasoning</text>
+  <rect x="48" y="300" width="382" height="130" rx="8" fill="#0E0E11" stroke="#26262B" stroke-width="1"/>
+  <text x="62" y="326" fill="#50505A" font-size="12" font-family="ui-monospace, Menlo, monospace">Instruct the thinking approach. e.g.</text>
+  <text x="62" y="344" fill="#50505A" font-size="12" font-family="ui-monospace, Menlo, monospace">"Think step by step…"</text>
+
+  <text x="24" y="524" fill="#C29A98" font-size="12">Fields sink into the background — borders &amp; surfaces nearly invisible.</text>
+
+  <!-- ============================ AFTER PANEL ============================ -->
+  <rect x="526" y="90" width="430" height="410" rx="16" fill="#0B0B0E" stroke="#222227" stroke-width="1"/>
+  <text x="550" y="126" fill="#9C9CA6" font-size="11" font-family="ui-monospace, Menlo, monospace" letter-spacing="2.5">METADATA</text>
+
+  <!-- Strategy (focused) -->
+  <text x="550" y="156" fill="#9C9CA6" font-size="10">Strategy</text>
+  <rect x="547" y="161" width="188" height="42" rx="10" fill="none" stroke="#3D6FE8" stroke-width="4" opacity="0.25"/>
+  <rect x="550" y="164" width="182" height="36" rx="8" fill="#1C1C22" stroke="#3D6FE8" stroke-width="1.5"/>
+  <text x="564" y="187" fill="#8A8A94" font-size="12">None</text>
+  <polyline points="712,179 716,183 720,179" fill="none" stroke="#9C9CA6" stroke-width="1.5"/>
+  <!-- Model (selected value) -->
+  <text x="750" y="156" fill="#9C9CA6" font-size="10">Model</text>
+  <rect x="750" y="164" width="182" height="36" rx="8" fill="#1C1C22" stroke="#34343C" stroke-width="1"/>
+  <text x="764" y="187" fill="#D6D6DE" font-size="12">Sonnet 4</text>
+  <polyline points="912,179 916,183 920,179" fill="none" stroke="#9C9CA6" stroke-width="1.5"/>
+  <!-- Intent -->
+  <text x="550" y="224" fill="#9C9CA6" font-size="10">Intent</text>
+  <rect x="550" y="232" width="182" height="36" rx="8" fill="#1C1C22" stroke="#34343C" stroke-width="1"/>
+  <text x="564" y="255" fill="#8A8A94" font-size="12">None</text>
+  <polyline points="712,247 716,251 720,247" fill="none" stroke="#9C9CA6" stroke-width="1.5"/>
+  <!-- Complexity -->
+  <text x="750" y="224" fill="#9C9CA6" font-size="10">Complexity</text>
+  <rect x="750" y="232" width="182" height="36" rx="8" fill="#1C1C22" stroke="#34343C" stroke-width="1"/>
+  <text x="764" y="255" fill="#8A8A94" font-size="12">None</text>
+  <polyline points="912,247 916,251 920,247" fill="none" stroke="#9C9CA6" stroke-width="1.5"/>
+  <!-- Reasoning -->
+  <text x="550" y="292" fill="#9C9CA6" font-size="10">Reasoning</text>
+  <rect x="550" y="300" width="382" height="130" rx="8" fill="#1C1C22" stroke="#34343C" stroke-width="1"/>
+  <text x="564" y="326" fill="#7A7A85" font-size="12" font-family="ui-monospace, Menlo, monospace">Instruct the thinking approach. e.g.</text>
+  <text x="564" y="344" fill="#7A7A85" font-size="12" font-family="ui-monospace, Menlo, monospace">"Think step by step…"</text>
+
+  <text x="526" y="524" fill="#8FBF9E" font-size="12">Raised surface + visible border + readable label/placeholder. Blue = focus.</text>
+</svg>
