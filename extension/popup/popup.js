@@ -456,13 +456,34 @@ function syncSnippets(){
   }catch(e){ console.error('syncSnippets:',e); }
 }
 
+// Push the dashboard Prompt List to chrome.storage.local so the content
+// script's """ picker can merge it with its built-in Base Prompts. Mirrors
+// syncSnippets(); maps the public.prompts row shape to the picker's item shape
+// (name -> title, content -> body, tags -> alternative_queries for search).
+function syncPrompts(){
+  try{
+    var mapped = (prompts||[]).map(function(p){
+      return {
+        id: p.id,
+        title: p.name || 'Untitled',
+        body: p.content || '',
+        alternative_queries: Array.isArray(p.tags) ? p.tags : []
+      };
+    });
+    chrome.storage.local.set({sb_prompts:mapped}, function(){
+      if(chrome.runtime.lastError) console.error('syncPrompts local:', chrome.runtime.lastError.message);
+    });
+  }catch(e){ console.error('syncPrompts:',e); }
+}
+
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
-  { version:'v2.57.0', date:'2026-06-01', label:'feat: roomier popup + one-click Dashboard link',
+  { version:'v2.57.0', date:'2026-06-03', label:'feat: roomier popup + one-click Dashboard link + dashboard prompts in the """ picker',
     changes:[
       {type:'new', text:'Popup window is now larger — wider columns and a taller list so snippet titles, folder names and language badges have more breathing room and more rows show at a glance'},
-      {type:'new', text:'New "Dashboard" button in the popup header opens app.sprintbrain.com in a browser tab, and focuses the existing tab if the dashboard is already open'}
+      {type:'new', text:'New "Dashboard" button in the popup header opens app.sprintbrain.com in a browser tab, and focuses the existing tab if the dashboard is already open'},
+      {type:'new', text:'The """ prompt picker now lists your saved dashboard prompts ("Prompt List") alongside the built-in Base Prompts — add a prompt in the dashboard and it shows up in any text field; the picker also works now even before you have any snippets'}
     ]},
   { version:'v2.40.0', date:'2026-05-19', label:'fix: snippet expansion — trigger no longer survives celebration on contenteditable fields',
     changes:[
@@ -990,6 +1011,7 @@ function boot() {
         DEFAULT_FOLDERS.forEach(function (f) { DB.upsertFolder(f); });
       }
       syncSnippets();
+      syncPrompts();
       refreshUI();
     });
 
@@ -1954,6 +1976,7 @@ on('brel','click', function(){
     prompts=prmData;
     if(data&&data.snippets&&data.snippets.length>0){ snips=data.snippets; if(data.folders&&data.folders.length>0) folders=data.folders; }
     syncSnippets();
+    syncPrompts();
     refreshUI();
   });
 });
