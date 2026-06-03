@@ -316,7 +316,7 @@ export function SignupPage() {
               <p className="text-center text-[11px] text-ink-subtle">
                 By continuing you agree to our{' '}
                 <a
-                  href="https://www.sprintbrain.com/legal/terms-and-conditions.html"
+                  href="https://sprintbrain.com/legal/terms-and-conditions.html"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline-offset-2 hover:underline"
@@ -325,7 +325,7 @@ export function SignupPage() {
                 </a>{' '}
                 and{' '}
                 <a
-                  href="https://www.sprintbrain.com/legal/privacy-policy.html"
+                  href="https://sprintbrain.com/legal/privacy-policy.html"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline-offset-2 hover:underline"

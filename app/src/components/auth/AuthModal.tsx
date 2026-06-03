@@ -804,14 +804,18 @@ export function AuthModal({ isOpen, onClose, initialView }: AuthModalProps) {
           <p className="mt-6 text-center text-[11px] text-ink-subtle">
             By continuing, you agree to our{' '}
             <a
-              href="/landing/#terms"
+              href="https://sprintbrain.com/legal/terms-and-conditions.html"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline-offset-2 hover:underline"
             >
               Terms of Service
             </a>{' '}
             and{' '}
             <a
-              href="/landing/#privacy"
+              href="https://sprintbrain.com/legal/privacy-policy.html"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline-offset-2 hover:underline"
             >
               Privacy Policy
