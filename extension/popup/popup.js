@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.40.0 — fix(expansion): atomically delete trigger before celebration on CE fields to prevent ::shortcut surviving after Paste
+// SPRINTBRAIN POPUP v2.57.0 — feat: sync dashboard Prompt List to storage.local for the """ picker (syncPrompts)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;

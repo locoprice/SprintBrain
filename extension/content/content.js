@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.56.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.57.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
@@ -7,6 +7,9 @@
 //          field surfaces keyword-mapped snippets in a floating, selection-
 //          anchored menu; picking one replaces the selection via the existing
 //          expansion pipeline. Toggle: triggerCfg.selectionSuggestions.
+// v2.57.0: """ prompt picker merges built-in Base Prompts with the dashboard
+//          Prompt List (storage.local.sb_prompts), separated by a "My prompt
+//          base" divider; checkBuf no longer gated on snippets.length.
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
