@@ -938,17 +938,17 @@ function handleMatch(el, snip, scLen) {
         var modSnip = {};
         for (var k in snip) modSnip[k] = snip[k];
         modSnip.body = newBody;
-        _proceedInsert(el, modSnip, fieldSnapshot);
+        _proceedInsert(el, modSnip, fieldSnapshot, scLen);
       }, function() {
         processing = false;
       });
     } else {
-      _proceedInsert(el, snip, fieldSnapshot);
+      _proceedInsert(el, snip, fieldSnapshot, scLen);
     }
   });
 }
 
-function _proceedInsert(el, snip, fieldSnapshot) {
+function _proceedInsert(el, snip, fieldSnapshot, scLen) {
   var fields = extractFields(snip.body);
   if (!fields.length) {
     if (isUrgExpired(snip)) { processing = false; return; }
@@ -995,7 +995,7 @@ function _proceedInsert(el, snip, fieldSnapshot) {
       );
     }
   } else {
-    showOverlay(el, snip, fields, function() { processing = false; });
+    showOverlay(el, snip, fields, scLen || 0, function() { processing = false; });
   }
 }
 
@@ -1312,8 +1312,15 @@ function isUrgExpired(snip) {
 // ── OVERLAY ────────────────────────────────────────────────────────
 var overlayEl  = null;
 var overlayDone = null;
+// Trigger/filter length the field overlay must strip from the target field at
+// insert time. On contenteditable hosts deleteChars only SETS a selection over
+// the trigger (it never deletes), and opening the overlay steals focus and wipes
+// that selection — so the trigger survives until doInsert removes it here. 0 for
+// textarea/input (trigger already stripped) and for the selection-suggest path.
+var overlayTriggerLen = 0;
 
-function showOverlay(targetEl, snip, fields, done) {
+function showOverlay(targetEl, snip, fields, scLen, done) {
+  overlayTriggerLen = scLen || 0;
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -1472,7 +1479,22 @@ function doInsert(targetEl, snip) {
   var text = resolveBody(snip.body, vals);
   var fillCount = Object.keys(vals).length;
   closeOverlay();
-  if (targetEl) {
+  if (!targetEl) return;
+  var isCE = targetEl.isContentEditable || (targetEl.getAttribute &&
+    (targetEl.getAttribute('contenteditable') === 'true' || targetEl.getAttribute('contenteditable') === ''));
+  if (isCE && overlayTriggerLen > 0) {
+    // CE field overlay: the trigger was never actually deleted (deleteChars only
+    // set a selection at match time, which this overlay's focus then wiped).
+    // Re-select the trigger and replace it atomically while the selection is live
+    // — exactly how the no-field CE path inserts. Without this the literal
+    // ::trigger survives and nothing is inserted.
+    deleteChars(targetEl, overlayTriggerLen, function() {
+      insertText(targetEl, text);
+      showCelebration(text);
+      logEvent(snip, fillCount);
+    });
+  } else {
+    // Textarea/input (trigger already stripped) and the selection-suggest path.
     targetEl.focus();
     setTimeout(function() {
       insertText(targetEl, text);
@@ -2076,7 +2098,7 @@ function selectTriggerItem(idx) {
           );
         }
       } else {
-        showOverlay(el, item, fields, function() { processing = false; });
+        showOverlay(el, item, fields, dLen, function() { processing = false; });
       }
     } else {
       insertText(el, item.body || '');
@@ -2800,7 +2822,7 @@ function _proceedContextInsert(el, snip) {
     processing = false;
   } else {
     processing = true;
-    showOverlay(el, snip, fields, function() { processing = false; });
+    showOverlay(el, snip, fields, 0, function() { processing = false; });
   }
 }
 
