@@ -543,14 +543,6 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   padding:18px 20px;font-size:13.5px;line-height:1.6;
   color:#8A8A93;margin-bottom:24px}
 .fm-detail strong{color:#DCDCE2;font-weight:600;display:block;margin-bottom:6px}
-.fm-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.fm-cta-btn{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;
-  background:var(--sb-iris-light);color:#fff;border:none;
-  cursor:pointer;font-family:inherit;
-  transition:background .15s,transform .1s}
-.fm-cta-btn:hover{background:var(--sb-iris-soft);transform:translateY(-1px)}
 .fm-close{
   position:absolute;top:20px;right:20px;
   width:32px;height:32px;border-radius:8px;
@@ -600,7 +592,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · v2.56.12</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.56.13</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
@@ -1036,7 +1028,7 @@ LeibTour Team</div>
 <footer>
   <div class="foot-inner">
     <div class="foot-brand">
-      © 2026 SprintBrain · v2.56.12 · Updated May 2026
+      © <span id="foot-year">2026</span> SprintBrain · v2.56.13 · Updated <span id="foot-updated">May 2026</span>
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
@@ -1061,12 +1053,6 @@ LeibTour Team</div>
     <h2 class="fm-title" id="fm-title"></h2>
     <p class="fm-body" id="fm-body"></p>
     <div class="fm-detail" id="fm-detail"></div>
-    <div class="fm-cta-row">
-      <a href="https://app.sprintbrain.com/signup" class="fm-cta-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        Get early access
-      </a>
-    </div>
   </div>
 </div>
 
@@ -1159,6 +1145,16 @@ LeibTour Team</div>
       card.style.transform='';
     });
   });
+})();
+
+(function(){
+  var yearEl=document.getElementById('foot-year');
+  if(yearEl)yearEl.textContent=String(new Date().getFullYear());
+  var el=document.getElementById('foot-updated');
+  if(!el)return;
+  var d=new Date(document.lastModified);
+  if(isNaN(d.getTime()))return;
+  el.textContent=d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
 })();
 </script>
 </body>
