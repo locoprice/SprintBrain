@@ -559,8 +559,10 @@ function checkBuf() {
   // normalization). ZWSP/ZWNJ/ZWJ/BOM/soft-hyphen are removed; NBSP is folded
   // to a regular space so the trigger sequence isn't broken by an invisible
   // char between the two colons. \uXXXX escapes — invisible literal chars in
-  // regex are fragile across editors and diffs.
-  var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ');
+  // regex are fragile across editors and diffs. Curly "smart quotes" are
+  // folded to straight quotes so the prompt trigger (""") still matches in
+  // editors that auto-substitute quotes (Word, macOS smart-quotes, etc.).
+  var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ').replace(/[\u201C\u201D]/g, '"');
   if (sanitized !== buf) buf = sanitized;
 
   // Snippet matching contract (v2.24.0):
@@ -645,14 +647,17 @@ function checkBuf() {
       if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
       return;
     }
-    // Check configurable prompt trigger (e.g. """) — same debounced pattern
+    // Prompt trigger (e.g. """): unlike snippets there is no shortcut to type,
+    // so the bare trigger opens the picker immediately (slash-command style)
+    // showing all prompts; the picker's own key handler filters as the user
+    // types. The snippet trigger keeps its debounced pending behaviour because
+    // snippets expand via a full ::shortcut, not a menu.
     var promptSeq = triggerCfg.promptTrigger || '"""';
     if (buf.length >= promptSeq.length && buf.slice(-promptSeq.length) === promptSeq) {
       if (buf.length > promptSeq.length && buf[buf.length - promptSeq.length - 1] === promptSeq[0]) return;
-      triggerPending = true;
-      triggerPendingMode = 'prompt';
-      triggerAffix = '';
-      if (triggerDebounceTimer) clearTimeout(triggerDebounceTimer);
+      if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+      buf = '';
+      showTriggerPicker(activeEl, 'prompt', promptSeq.length, '');
       return;
     }
   } else {
