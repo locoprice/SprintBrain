@@ -75,7 +75,10 @@ export const snippetFormSchema = z.object({
     .string()
     .min(1, 'Trigger is required')
     .max(60, 'Trigger must be 60 characters or fewer')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, hyphens, and underscores only'),
+    .regex(
+      /^[!/:;]*[a-zA-Z0-9_-]+$/,
+      'An optional prefix (:: / ; !) followed by letters, numbers, hyphens, and underscores',
+    ),
   content: z.string().min(1, 'Content is required'),
   bodies: snippetBodiesSchema,
   folder_id: z.string().uuid().nullable(),
