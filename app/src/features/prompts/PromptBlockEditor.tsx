@@ -233,7 +233,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
           <div
             className={`h-1.5 w-1.5 rounded-full ${block.enabled ? 'bg-[#1B4FD8]' : 'bg-[#48484F]'}`}
           />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#CACAD4]">
+          <span className="font-mono text-[12px] font-semibold uppercase tracking-widest text-[#CACAD4]">
             {BLOCK_LABELS[block.type]}
           </span>
         </div>
@@ -262,7 +262,7 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
             onChange={(e) => onChange(e.target.value)}
             placeholder={BLOCK_HINTS[block.type]}
             rows={3}
-            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#34343C] bg-[#1C1C22] px-3 py-2.5 font-mono text-sm leading-relaxed text-[#D6D6DE] placeholder:text-[#7A7A85] focus:border-[#3D6FE8] focus:outline-none focus:ring-1 focus:ring-[#3D6FE8]/25"
+            className="w-full resize-none overflow-hidden rounded-[8px] border border-[#34343C] bg-[#1C1C22] px-3 py-2.5 font-mono text-[15px] leading-relaxed text-[#D6D6DE] placeholder:text-[#7A7A85] focus:border-[#3D6FE8] focus:outline-none focus:ring-1 focus:ring-[#3D6FE8]/25"
           />
         </div>
       )}

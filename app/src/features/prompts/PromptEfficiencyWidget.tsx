@@ -117,7 +117,7 @@ function CriterionRow({ criterion, index, total, onApply }: CriterionRowProps) {
         >
           <StatusIcon status={status} />
           <span
-            className={`flex-1 truncate text-xs ${labelColor}`}
+            className={`flex-1 truncate text-[13px] ${labelColor}`}
             aria-label={`${label}: ${STATUS_WORD[status]}`}
           >
             {label}
@@ -141,7 +141,7 @@ function CriterionRow({ criterion, index, total, onApply }: CriterionRowProps) {
 
       {/* Rationale + concrete example */}
       <div id={detailId} hidden={!open} className="pb-1.5 pl-[22px] pr-1 pt-1">
-        <p className="text-[11px] leading-relaxed text-[#9A9AA5]">{rationale}</p>
+        <p className="text-xs leading-relaxed text-[#9A9AA5]">{rationale}</p>
         {description && (
           <p className="mt-0.5 text-[10px] leading-relaxed text-[#5A5A62]">{description}</p>
         )}
