@@ -612,11 +612,13 @@ html,body{
 }
 .ver-bar .dt{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono)}
 .ver-dash-link{
-  font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);text-decoration:none;
-  display:flex;align-items:center;gap:3px;transition:color 120ms;
+  font-size:var(--sb-fs-11);font-weight:700;color:#fff;text-decoration:none;
+  background:var(--sb-iris);border-radius:var(--sb-r-pill);
+  padding:4px 12px;display:flex;align-items:center;gap:5px;
+  transition:background var(--sb-dur-base);letter-spacing:.01em;
 }
-.ver-dash-link:hover{color:var(--sb-iris)}
-.ver-dash-link svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ver-dash-link:hover{background:var(--sb-iris-dark)}
+.ver-dash-link svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:5px}
