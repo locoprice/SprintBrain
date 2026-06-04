@@ -77,6 +77,33 @@ const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
   'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
 ];
 
+// One-click sample that scores highly — lets a new user see what "good" looks
+// like before writing their own (mirrors a Load Example onboarding affordance).
+interface ExamplePrompt {
+  name: string;
+  blocks: PromptBlock[];
+  strategyType: StrategyType;
+  preferredModel: PreferredModel;
+  outputType: OutputType;
+  intentCategory: IntentCategory;
+}
+
+const EXAMPLE_PROMPT: ExamplePrompt = {
+  name: 'Product announcement email',
+  blocks: [
+    { type: 'role', content: 'You are a senior B2B copywriter with deep SaaS experience.', enabled: true },
+    { type: 'objective', content: 'Write a 150-word product announcement email for the new analytics feature.', enabled: true },
+    { type: 'context', content: 'The audience is existing Pro-plan customers; the tone is friendly but concise.', enabled: true },
+    { type: 'examples', content: 'Input: "new dashboard" → Output: "Meet your new dashboard…"', enabled: true },
+    { type: 'reasoning', content: 'Think step by step, then double-check the result before producing the final copy.', enabled: true },
+    { type: 'constraints', content: 'Keep it under 150 words. Do not use jargon. Avoid emojis.', enabled: true },
+  ],
+  strategyType: 'One-shot',
+  preferredModel: 'claude-sonnet-4-6',
+  outputType: 'Markdown',
+  intentCategory: 'Writing',
+};
+
 // ── Dark select helper ─────────────────────────────────────────────────────────
 
 interface DarkSelectProps<T extends string> {
@@ -393,6 +420,18 @@ export function PromptBlockEditor() {
     );
   }
 
+  // Enables a block (if off) and appends a line on its own row — used by the
+  // signal-criterion auto-fixes that can't be satisfied by a metadata default.
+  function appendToBlock(type: PromptBlockType, line: string) {
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.type !== type) return b;
+        const trimmed = b.content.trim();
+        return { ...b, enabled: true, content: trimmed ? `${trimmed}\n${line}` : line };
+      }),
+    );
+  }
+
   // ── Prompt efficiency evaluation ─────────────────────────────────────────────
 
   const evalResult = usePromptEvaluator(
@@ -428,9 +467,28 @@ export function PromptBlockEditor() {
       enableBlock(asBlockType);
       return;
     }
+    if (criterionId === 'audience') {
+      appendToBlock('context', 'Audience: [who this is for and their expertise level].');
+      return;
+    }
+    if (criterionId === 'refinement') {
+      appendToBlock('reasoning', 'Double-check the result and flag anything you are unsure about.');
+      return;
+    }
     if (criterionId === 'output_format') { setOutputType('Plain'); return; }
     if (criterionId === 'strategy') { setStrategyType('One-shot'); return; }
     if (criterionId === 'model') { setPreferredModel('claude-sonnet-4-6'); return; }
+  }
+
+  function loadExample() {
+    setName(EXAMPLE_PROMPT.name);
+    setPromptType('one-shot');
+    setBlocks(EXAMPLE_PROMPT.blocks.map((b) => ({ ...b })));
+    setStrategyType(EXAMPLE_PROMPT.strategyType);
+    setPreferredModel(EXAMPLE_PROMPT.preferredModel);
+    setOutputType(EXAMPLE_PROMPT.outputType);
+    setIntentCategory(EXAMPLE_PROMPT.intentCategory);
+    if (nameError) setNameError(null);
   }
 
   function handlePreviewDraft() {
@@ -570,10 +628,20 @@ export function PromptBlockEditor() {
       <div className="flex-1 overflow-y-auto">
         {/* Blocks */}
         <div>
-          <div className="px-5 py-3">
+          <div className="flex items-center justify-between px-5 py-3">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#9C9CA6]">
               Blocks
             </p>
+            {mode === 'create' && (
+              <button
+                type="button"
+                onClick={loadExample}
+                className="inline-flex items-center gap-1 rounded-[6px] border border-[#26262B] bg-[#0E0E11] px-2 py-0.5 text-[10px] font-medium text-[#6080C8] transition-colors hover:border-[#1B4FD8]/40 hover:bg-[#0A1020] hover:text-[#1B4FD8] focus:outline-none focus:ring-1 focus:ring-[#1B4FD8]/30"
+              >
+                <Sparkles className="h-3 w-3" />
+                Load example
+              </button>
+            )}
           </div>
           {BLOCK_ORDER.map((type) => {
             const block = blocks.find((b) => b.type === type) ?? {

@@ -44,7 +44,7 @@ function strongInput(): EvaluatorInput {
       role: 'You are a senior B2B copywriter with deep SaaS experience.',
       objective: 'Write a 150-word product announcement email for the new analytics feature.',
       context: 'The audience is existing Pro-plan customers; the tone is friendly but concise.',
-      reasoning: 'Think step by step, then produce the final copy.',
+      reasoning: 'Think step by step, then double-check the result before producing the final copy.',
       constraints: 'Keep it under 150 words. Do not use jargon. Avoid emojis.',
       examples: 'Input: "new dashboard" → Output: "Meet your new dashboard…"',
     }),
@@ -80,9 +80,9 @@ describe('evaluatePrompt — score range', () => {
     }
   });
 
-  it('always produces exactly 10 criteria', () => {
-    expect(evaluatePrompt(input()).criteria).toHaveLength(10);
-    expect(evaluatePrompt(strongInput()).criteria).toHaveLength(10);
+  it('always produces exactly 12 criteria', () => {
+    expect(evaluatePrompt(input()).criteria).toHaveLength(12);
+    expect(evaluatePrompt(strongInput()).criteria).toHaveLength(12);
   });
 
   it('derives score as one-decimal of pct/10', () => {
@@ -207,6 +207,48 @@ describe('evaluatePrompt — depth', () => {
 
   it('passes depth on a long assembled prompt', () => {
     expect(r1(evaluatePrompt(strongInput()), 'depth').status).toBe('pass');
+  });
+});
+
+// ── Signal criteria (audience + refinement) ──────────────────────────────────────
+
+describe('evaluatePrompt — audience criterion', () => {
+  it('fails when no audience is named', () => {
+    const r = r1(evaluatePrompt(input({ blocks: buildBlocks({ objective: 'Write a launch email.' }) })), 'audience');
+    expect(r.status).toBe('fail');
+    expect(r.suggestionLabel).toBe('Name the audience');
+  });
+
+  it('passes when an audience is named in any block', () => {
+    const r = r1(evaluatePrompt(input({
+      blocks: buildBlocks({ context: 'The audience is non-technical hospitality managers.' }),
+    })), 'audience');
+    expect(r.status).toBe('pass');
+    expect(r.value).toBe(1);
+    expect(r.suggestionLabel).toBeUndefined();
+  });
+});
+
+describe('evaluatePrompt — refinement criterion', () => {
+  it('fails when no self-check step is requested', () => {
+    const r = r1(evaluatePrompt(input({ blocks: buildBlocks({ reasoning: 'Think step by step.' }) })), 'refinement');
+    expect(r.status).toBe('fail');
+    expect(r.suggestionLabel).toBe('Add self-check');
+  });
+
+  it('passes when the prompt asks the model to verify its work', () => {
+    const r = r1(evaluatePrompt(input({
+      blocks: buildBlocks({ reasoning: 'Reason it out, then double-check the answer.' }),
+    })), 'refinement');
+    expect(r.status).toBe('pass');
+    expect(r.value).toBe(1);
+  });
+
+  it('passes on an "if unsure" uncertainty cue', () => {
+    const r = r1(evaluatePrompt(input({
+      blocks: buildBlocks({ constraints: 'If unsure, say so rather than guessing.' }),
+    })), 'refinement');
+    expect(r.status).toBe('pass');
   });
 });
 

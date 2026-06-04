@@ -205,6 +205,52 @@ function metadataCriterion(
   };
 }
 
+// ── Best-practice signal criteria (scan the whole assembled prompt) ────────────
+
+/**
+ * Self-check / verification language (scorecard "Iteration & Refinement").
+ * A prompt that asks the model to verify its work or admit uncertainty
+ * produces fewer confident mistakes.
+ */
+const REFINEMENT_SIGNAL =
+  /\b(check your|double[-\s]?check|verify|review your|proofread|sanity[-\s]?check|make sure|if (?:you'?re |you are )?(?:unsure|uncertain|not sure)|if in doubt|flag (?:any|anything)|ask (?:for )?clarif|don'?t (?:assume|guess))\b/i;
+
+/**
+ * Audience / reading-level language (scorecard "Clear Audience Specification").
+ * Naming who the response is for lets the model pitch tone and depth correctly.
+ */
+const AUDIENCE_SIGNAL =
+  /\b(audience|readers?|readership|reading level|written for|aimed at|tailored (?:for|to)|for (?:beginners?|experts?|executives?|developers?|engineers?|students?|customers?|a beginner|an expert|non[-\s]?technical|a \w+ audience)|explain (?:it |this )?to|5[-\s]?year[-\s]?old|layperson|laypeople|layman)\b/i;
+
+/**
+ * Grades a holistic best-practice that can be expressed in any block, by
+ * scanning the assembled prompt for a quality signal. Pass/fail (no partial):
+ * the practice is either present in the prompt or it isn't.
+ */
+function signalCriterion(
+  id: string,
+  label: string,
+  description: string,
+  weight: number,
+  assembled: string,
+  signal: RegExp,
+  passRationale: string,
+  failRationale: string,
+  example: string,
+  suggestionLabel: string,
+): EvalCriterion {
+  if (signal.test(assembled)) {
+    return { id, label, description, weight, status: 'pass', value: 1, rationale: passRationale };
+  }
+  return {
+    id, label, description, weight,
+    status: 'fail', value: 0,
+    rationale: failRationale,
+    example,
+    suggestionLabel,
+  };
+}
+
 function depthCriterion(assembledLength: number): EvalCriterion {
   const base = {
     id: 'depth',
@@ -245,6 +291,24 @@ export function evaluatePrompt(input: EvaluatorInput): EvalResult {
 
   const criteria: EvalCriterion[] = [
     ...BLOCK_SPECS.map((spec) => gradeBlock(blocks, spec)),
+    signalCriterion(
+      'audience', 'Audience specified',
+      'The target audience or reading level is named so the model pitches tone and depth correctly.',
+      0.75, assembled, AUDIENCE_SIGNAL,
+      'An audience or reading level is named.',
+      'No audience named — tell the model who the response is for.',
+      'e.g. "Write for non-technical hospitality managers." or "Explain it to a beginner."',
+      'Name the audience',
+    ),
+    signalCriterion(
+      'refinement', 'Self-check requested',
+      'The prompt asks the model to verify its work or flag uncertainty, reducing confident mistakes.',
+      0.75, assembled, REFINEMENT_SIGNAL,
+      'A verification or self-check step is requested.',
+      'No self-check step — ask the model to verify its answer or flag what it is unsure about.',
+      'e.g. "Double-check the result and flag anything you are unsure about."',
+      'Add self-check',
+    ),
     metadataCriterion(
       'output_format', 'Output format set',
       'The expected output type (JSON, Markdown, etc.) is specified.',
