@@ -134,7 +134,7 @@ function BrandPanel() {
             everywhere.
           </h2>
           <p className="text-[15px] leading-relaxed text-white/70">
-            The text-expansion tool built for operators who type the same things every day.
+            the f1rts and the only prompt expander.
           </p>
         </div>
 
