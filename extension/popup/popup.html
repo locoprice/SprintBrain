@@ -611,6 +611,12 @@ html,body{
   display:flex;align-items:center;justify-content:space-between;
 }
 .ver-bar .dt{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono)}
+.ver-dash-link{
+  font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);text-decoration:none;
+  display:flex;align-items:center;gap:3px;transition:color 120ms;
+}
+.ver-dash-link:hover{color:var(--sb-iris)}
+.ver-dash-link svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:5px}
@@ -1120,6 +1126,10 @@ html,body{
 <!-- ═══ VERSION BAR ═══ -->
 <div class="ver-bar">
   <button class="ver-btn" id="ver-btn"></button>
+  <a class="ver-dash-link" href="https://app.sprintbrain.com/" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Surf the dashboard
+  </a>
   <span class="dt">2026-05-09</span>
 </div>
 
