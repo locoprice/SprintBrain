@@ -138,7 +138,7 @@ var DB = {
     });
   },
   deleteSnippet: function(id) {
-    supaFetch('snippets', 'DELETE', null, 'id=eq.' + id).catch(function(e) {
+    SBPopupSync.performSnippetDelete(supaFetch, id, function(e) {
       console.error('deleteSnippet:', e);
       try { showToast('Delete failed — please retry'); } catch (_) {}
     });
@@ -1158,7 +1158,7 @@ function _runNotionSync(cb, force) {
 
                     if (toDelete.length > 0) {
                       toDelete.forEach(function(id) {
-                        snips = snips.filter(function(s) { return s.id !== id; });
+                        snips = SBPopupSync.removeSnippetFromList(snips, id);
                       });
                       _saveLocalCache();
                       toDelete.forEach(function(id) { DB.deleteSnippet(id); });
@@ -1680,7 +1680,7 @@ function doDel(){
   var _delSnip = findSnip(editId);
   if(_delSnip && _delSnip.notion_page_id) NotionPush.archive(_delSnip.notion_page_id);
   DB.deleteSnippet(editId);
-  snips=snips.filter(function(s){ return s.id!==editId; });
+  snips=SBPopupSync.removeSnippetFromList(snips, editId);
   syncSnippets();
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
   show('pane-list'); refreshUI();
@@ -1854,7 +1854,7 @@ var ctxDup=gi('ctx-duplicate'); if(ctxDup) ctxDup.addEventListener('click',funct
 var ctxRen=gi('ctx-rename'); if(ctxRen) ctxRen.addEventListener('click',function(){ closeCtxMenu(); startInlineRename(ctxId); });
 var ctxDel=gi('ctx-delete'); if(ctxDel) ctxDel.addEventListener('click',function(){
   if(!ctxId||!confirm('Delete this snippet?')) return;
-  DB.deleteSnippet(ctxId); snips=snips.filter(function(s){ return s.id!==ctxId; });
+  DB.deleteSnippet(ctxId); snips=SBPopupSync.removeSnippetFromList(snips, ctxId);
   syncSnippets(); refreshUI(); closeCtxMenu();
 });
 

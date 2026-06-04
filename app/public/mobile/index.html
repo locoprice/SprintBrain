@@ -728,6 +728,7 @@ body{
 
 <div id="sb-toast" role="status" aria-live="polite"></div>
 
+<script src="sync-deletion.js"></script>
 <script>
 var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -1547,13 +1548,11 @@ function newId(){
 }
 
 function deleteSnippet(s){
-  fetch(SUPA+'/rest/v1/snippets?id=eq.'+encodeURIComponent(s.id)+'&user_id=eq.'+encodeURIComponent(USER_ID),{
-    method:'DELETE',
-    headers:authHeaders()
-  }).then(function(r){
-    if(handle401(r))throw new Error('401');
-    if(!r.ok)throw new Error('delete failed');
-    allSnips=allSnips.filter(function(x){return x.id!==s.id;});
+  SBMobileSync.performSnippetDelete({
+    fetch:function(u,o){return fetch(u,o);},
+    supaUrl:SUPA, userId:USER_ID, headers:authHeaders(), handle401:handle401, list:allSnips
+  },s).then(function(newList){
+    allSnips=newList;
     try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
     closeBottomSheet();
     renderFolderChips();

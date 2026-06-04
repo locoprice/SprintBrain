@@ -275,30 +275,163 @@ describe('shared backend contract', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CROSS-SURFACE PARITY GUARD — pop-up and mobile share the same hard-delete
-// contract. They are global-scope vanilla JS (not importable into Vitest), so
-// we assert their delete path at the source level. This catches any surface
-// drifting to a soft-delete (e.g. a `deleted_at` flag), which would silently
-// break synchronization with the hard-deleting dashboard.
+// POP-UP — the extension's delete helper, executed for real.
+//
+// The Chrome pop-up's delete logic is extracted into
+// extension/popup/sync-deletion.js (a plain <script> that also exports via
+// CommonJS). We require it directly through Node (bypassing Vite's module
+// graph, since it lives outside the app/ root) and run it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('cross-surface parity · pop-up + mobile hard-delete snippets', () => {
-  const popupSrc = readFileSync(
+interface PopupSync {
+  snippetDeleteQuery(id: string): string;
+  removeSnippetFromList<T extends { id: string }>(list: T[], id: string): T[];
+  performSnippetDelete(
+    supaFetch: (table: string, method: string, body: unknown, qs: string) => Promise<unknown>,
+    id: string,
+    onError?: (e: unknown) => void,
+  ): Promise<unknown>;
+}
+
+interface MobileSync {
+  snippetDeleteQuery(id: string, userId: string): string;
+  removeSnippetFromList<T extends { id: string }>(list: T[], id: string): T[];
+  performSnippetDelete(
+    deps: {
+      fetch: (url: string, opts: { method: string; headers: unknown }) => Promise<{ ok: boolean }>;
+      supaUrl: string;
+      userId: string;
+      headers: unknown;
+      handle401?: (r: { ok: boolean }) => boolean;
+      list: { id: string }[];
+    },
+    snip: { id: string },
+  ): Promise<{ id: string }[]>;
+}
+
+// Load a plain-script CommonJS helper (the surfaces' sync-deletion.js) without
+// going through Vite's module graph — Vitest would otherwise transform files
+// under its root and mangle the `module.exports` assignment. Evaluating the
+// source in a fresh module scope is location-independent and deterministic.
+function loadHelper<T>(path: string): T {
+  const src = readFileSync(path, 'utf8');
+  const mod = { exports: {} as unknown };
+  const run = new Function('module', 'exports', src) as (
+    m: typeof mod,
+    e: unknown,
+  ) => void;
+  run(mod, mod.exports);
+  return mod.exports as T;
+}
+
+const popupSync = loadHelper<PopupSync>(
+  resolve(process.cwd(), '..', 'extension', 'popup', 'sync-deletion.js'),
+);
+const mobileSync = loadHelper<MobileSync>(
+  resolve(process.cwd(), 'public', 'mobile', 'sync-deletion.js'),
+);
+
+describe('pop-up · snippet deletion (live helper)', () => {
+  it('builds a hard-delete query scoped to one row', () => {
+    expect(popupSync.snippetDeleteQuery('snip-A')).toBe('id=eq.snip-A');
+  });
+
+  it('removes the deleted snippet from the local cache list', () => {
+    const next = popupSync.removeSnippetFromList([{ id: 'snip-A' }, { id: 'snip-B' }], 'snip-A');
+    expect(next.map((s) => s.id)).toEqual(['snip-B']);
+  });
+
+  it('issues a DELETE on the snippets table via supaFetch', async () => {
+    const supaFetch = vi.fn().mockResolvedValue({ ok: true });
+    await popupSync.performSnippetDelete(supaFetch, 'snip-A');
+    expect(supaFetch).toHaveBeenCalledWith('snippets', 'DELETE', null, 'id=eq.snip-A');
+  });
+
+  it('reports backend failure through onError instead of throwing', async () => {
+    const supaFetch = vi.fn().mockRejectedValue(new Error('offline'));
+    const onError = vi.fn();
+    await popupSync.performSnippetDelete(supaFetch, 'snip-A', onError);
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE — the companion's delete control flow, executed for real.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('mobile · snippet deletion (live helper)', () => {
+  const baseDeps = {
+    supaUrl: 'https://db.example',
+    userId: 'user-1',
+    headers: { apikey: 'k' },
+    handle401: () => false,
+    list: [{ id: 'snip-A' }, { id: 'snip-B' }],
+  };
+
+  it('builds a hard-delete query scoped by id AND user_id', () => {
+    expect(mobileSync.snippetDeleteQuery('snip-A', 'user-1')).toBe(
+      'id=eq.snip-A&user_id=eq.user-1',
+    );
+  });
+
+  it('DELETEs the snippet and resolves with the pruned list on success', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    const next = await mobileSync.performSnippetDelete(
+      { ...baseDeps, fetch: fetchMock },
+      { id: 'snip-A' },
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://db.example/rest/v1/snippets?id=eq.snip-A&user_id=eq.user-1',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+    expect(next.map((s) => s.id)).toEqual(['snip-B']);
+  });
+
+  it('rejects without mutating the list when the backend responds non-OK', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+    const list = [{ id: 'snip-A' }, { id: 'snip-B' }];
+    await expect(
+      mobileSync.performSnippetDelete({ ...baseDeps, fetch: fetchMock, list }, { id: 'snip-A' }),
+    ).rejects.toThrow('delete failed');
+    expect(list.map((s) => s.id)).toEqual(['snip-A', 'snip-B']);
+  });
+
+  it('rejects with 401 when the session handler claims the response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    await expect(
+      mobileSync.performSnippetDelete(
+        { ...baseDeps, fetch: fetchMock, handle401: () => true },
+        { id: 'snip-A' },
+      ),
+    ).rejects.toThrow('401');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WIRING GUARD — the executed helpers above are only meaningful if production
+// actually calls them. Assert each surface delegates to its sync helper (and
+// loads it), so no surface can quietly re-inline a divergent delete path.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('cross-surface wiring guard', () => {
+  const popupJs = readFileSync(
     resolve(process.cwd(), '..', 'extension', 'popup', 'popup.js'),
     'utf8',
   );
-  const mobileSrc = readFileSync(
-    resolve(process.cwd(), 'public', 'mobile', 'index.html'),
+  const popupHtml = readFileSync(
+    resolve(process.cwd(), '..', 'extension', 'popup', 'popup.html'),
     'utf8',
   );
+  const mobileHtml = readFileSync(resolve(process.cwd(), 'public', 'mobile', 'index.html'), 'utf8');
 
-  it('pop-up deletes via a DELETE on the snippets table scoped by id', () => {
-    expect(popupSrc).toMatch(/supaFetch\(\s*['"]snippets['"]\s*,\s*['"]DELETE['"]/);
-    expect(popupSrc).toMatch(/['"]id=eq\.['"]\s*\+\s*id/);
+  it('pop-up delegates deletion to SBPopupSync and loads the helper', () => {
+    expect(popupJs).toMatch(/SBPopupSync\.performSnippetDelete/);
+    expect(popupJs).toMatch(/SBPopupSync\.removeSnippetFromList/);
+    expect(popupHtml).toMatch(/<script src="sync-deletion\.js">/);
   });
 
-  it('mobile deletes via a DELETE on the snippets table scoped by id', () => {
-    expect(mobileSrc).toMatch(/\/rest\/v1\/snippets\?id=eq\./);
-    expect(mobileSrc).toMatch(/method\s*:\s*['"]DELETE['"]/);
+  it('mobile delegates deletion to SBMobileSync and loads the helper', () => {
+    expect(mobileHtml).toMatch(/SBMobileSync\.performSnippetDelete/);
+    expect(mobileHtml).toMatch(/<script src="sync-deletion\.js">/);
   });
 });
