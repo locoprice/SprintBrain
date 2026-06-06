@@ -267,6 +267,16 @@ body{
   -webkit-tap-highlight-color:transparent;transition:transform .12s
 }
 .mtab-fab:active{transform:scale(.92)}
+.mtab-brand{
+  width:50px;height:50px;border-radius:9999px;
+  background:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);margin:0 4px;flex-shrink:0;
+  pointer-events:none;user-select:none
+}
+.mtab-brand-img{
+  width:32px;height:32px;object-fit:contain;display:block;
+  pointer-events:none;-webkit-user-drag:none
+}
 
 /* ── DETAIL VIEW ─────────────────────────────── */
 #view-detail .hdr{
@@ -592,7 +602,9 @@ body{
   <nav class="mtab" aria-label="Primary">
     <button class="mtab-item on" type="button" aria-label="Home" aria-current="page">⌂</button>
     <button class="mtab-item" type="button" aria-label="Search">🔍</button>
-    <button class="mtab-fab" type="button" aria-label="New">+</button>
+    <div class="mtab-brand" aria-hidden="true">
+      <img class="mtab-brand-img" src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="SprintBrain" draggable="false">
+    </div>
     <button class="mtab-item" type="button" aria-label="Analytics">📊</button>
     <button class="mtab-item" type="button" aria-label="Profile">👤</button>
   </nav>
@@ -1984,8 +1996,6 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     var srch=document.getElementById('srch');
     srch.scrollIntoView({behavior:'smooth',block:'center'});
     setTimeout(function(){srch.focus();},300);
-  }else if(lbl==='New'){
-    openNewSnippetModal();
   }else if(lbl==='Analytics'){
     showToast('Analytics coming soon');
   }else if(lbl==='Profile'){
