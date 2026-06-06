@@ -99,6 +99,10 @@ body{
   font-size:11px;font-weight:700;color:var(--primary);letter-spacing:.2px;
   background:var(--primary-lt);padding:2px 7px;border-radius:4px
 }
+.mpage-footer-date{
+  font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--text3);letter-spacing:.2px
+}
 
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2}
@@ -578,8 +582,9 @@ body{
   <div class="mpage-footer">
     <div class="mpage-footer-badge">
       <span class="mpage-footer-dot" aria-hidden="true"></span>
-<span class="mpage-footer-ver">{{APP_VERSION}}</span>
+      <span class="mpage-footer-ver">{{APP_VERSION}}</span>
     </div>
+    <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
   </div>
 
   <!-- iOS home indicator + floating tab bar -->

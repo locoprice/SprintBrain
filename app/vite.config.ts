@@ -99,8 +99,9 @@ const RELEASE_DATE = latestTagged?.date    ?? '';
 // extension/manifest.json) — in dev via middleware, in prod by rewriting the
 // emitted file. The badge can never drift from a release again.
 
-const EXT_VERSION_TOKEN  = '{{EXT_VERSION}}';
-const RELEASE_DATE_TOKEN = '{{RELEASE_DATE}}';
+const EXT_VERSION_TOKEN    = '{{EXT_VERSION}}';
+const RELEASE_DATE_TOKEN   = '{{RELEASE_DATE}}';
+const RELEASE_MONTH_TOKEN  = '{{RELEASE_MONTH}}';
 
 function readExtensionVersion(): string {
   try {
@@ -121,14 +122,23 @@ function formatReleaseDate(iso: string): string {
   return `${months[month - 1]} ${day}, ${year}`;
 }
 
+function formatReleaseMonth(iso: string): string {
+  if (!iso) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [year, month] = iso.split('-').map(Number);
+  return `${months[month - 1]} ${year}`;
+}
+
 function landingVersionPlugin(): Plugin {
-  const version     = readExtensionVersion();
-  const releaseDate = formatReleaseDate(RELEASE_DATE);
-  const sourceFile  = path.resolve(__dirname, 'public/landing/index.html');
-  const distFile    = path.resolve(__dirname, 'dist/landing/index.html');
+  const version      = readExtensionVersion();
+  const releaseDate  = formatReleaseDate(RELEASE_DATE);
+  const releaseMonth = formatReleaseMonth(RELEASE_DATE);
+  const sourceFile   = path.resolve(__dirname, 'public/landing/index.html');
+  const distFile     = path.resolve(__dirname, 'dist/landing/index.html');
   const stamp = (html: string): string =>
     html.split(EXT_VERSION_TOKEN).join(version)
-        .split(RELEASE_DATE_TOKEN).join(releaseDate);
+        .split(RELEASE_DATE_TOKEN).join(releaseDate)
+        .split(RELEASE_MONTH_TOKEN).join(releaseMonth);
 
   return {
     name: 'sprintbrain-landing-version',
@@ -170,11 +180,13 @@ function landingVersionPlugin(): Plugin {
 const APP_VERSION_TOKEN = '{{APP_VERSION}}';
 
 function mobileVersionPlugin(): Plugin {
-  const version    = APP_VERSION;
-  const sourceFile = path.resolve(__dirname, 'public/mobile/index.html');
-  const distFile   = path.resolve(__dirname, 'dist/mobile/index.html');
+  const version      = APP_VERSION;
+  const releaseMonth = formatReleaseMonth(RELEASE_DATE);
+  const sourceFile   = path.resolve(__dirname, 'public/mobile/index.html');
+  const distFile     = path.resolve(__dirname, 'dist/mobile/index.html');
   const stamp = (html: string): string =>
-    html.split(APP_VERSION_TOKEN).join(version);
+    html.split(APP_VERSION_TOKEN).join(version)
+        .split(RELEASE_MONTH_TOKEN).join(releaseMonth);
 
   return {
     name: 'sprintbrain-mobile-version',
