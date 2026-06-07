@@ -1,7 +1,9 @@
 # Phase B — B6 Soak Watch & Go/No-Go
 
-**Status:** SOAKING. Started **2026-06-07** (B5 applied). Earliest B6 go: **2026-06-21** (14-day window).
-**Owner sign-off required before B6** (column drop is irreversible). See `PHASE_B_PLAN.md` §2/§4.
+**Status:** SOAKING. Started **2026-06-07** (B5 applied). Target B6 go: **on/after 2026-06-21**
+(2-week window confirmed by owner). **Owner sign-off still required before B6** (column drop is
+irreversible). Notion-push behavior decided — **Option 2 (decouple)**, see §4. EF change is **not
+pre-built** (built as part of the B6 batch). See `PHASE_B_PLAN.md` §2/§4.
 
 This is the gate between the **expand+migrate** work already in production (B0–B5) and the
 **contract** step (B6). B6 does two one-way things:
@@ -39,7 +41,7 @@ until B6, and both are load-bearing during the soak:
 | C3 | **No new orphan-shared snippets:** `is_shared = true` count has not grown beyond the 35 recorded in `phase_b_share_migration` (or each new one was consciously handled — see §4). | §3 Check C | count == 35, or each delta triaged |
 | C4 | **Extension fully migrated:** no client still depends on the `is_shared` column. All active members run the permission-aware extension (calls `/rpc/accessible_snippets`); REST logs show no `is_shared` filter from app traffic. | §3 Check D + version adoption | no `is_shared` REST hits |
 | C5 | **Advisor clean:** security + performance advisors report no new findings attributable to Phase B objects. | `get_advisors` (security, performance) | no new |
-| C6 | **Notion EF decision made** (§4) and, if it requires a code change, that change is ready to ship **in the same B6 batch**. | review + sign-off | decided |
+| C6 | **Notion push behavior** decided, and its code change shipped **in the same B6 batch**. | review + sign-off | ✅ decided 2026-06-07 → Option 2 (decouple); code lands with B6 |
 | C7 | **Pre-drop snapshot taken** of `snippets` (or a full project backup point noted) immediately before the column drop. | §5 step 1 | snapshot id recorded |
 
 Any FAIL ⇒ stay in soak, fix or decide, re-check. Do not drop the column.
@@ -94,9 +96,11 @@ SELECT
   (SELECT count(*) FROM snippets
      WHERE is_shared = true
        AND id NOT IN (SELECT snippet_id FROM phase_b_share_migration)) AS new_since_b4;
--- EXPECT: new_since_b4 = 0. Any new_since_b4 row = a Notion push (or manual toggle) that is
--- is_shared=true but NOT team-visible post-B5. List & triage them (move to shared folder or
--- accept owner-only) before B6:
+-- INTERPRETATION (post Option-2 decision): a new_since_b4 row is a Notion push that set
+-- is_shared=true but is owner-only post-B5 — this is now EXPECTED, not a bug. With "decouple",
+-- sharing is a deliberate dashboard action, so these snippets are correctly private until shared.
+-- No per-row triage needed; we only COUNT them so B6 knows how many stale is_shared=true flags
+-- it will clear when it drops the column. To list them if curious:
 -- SELECT id, title, user_id, folder_id, organization_id FROM snippets
 --   WHERE is_shared = true AND id NOT IN (SELECT snippet_id FROM phase_b_share_migration);
 ```
@@ -116,24 +120,30 @@ or the `app.*` functions.
 
 ---
 
-## 4. Open decision — Notion push after B5 (blocks C6)
+## 4. Notion push after B5 — DECIDED: Option 2 (decouple)
 
 **Problem:** `notion-snippet-push` flips `is_shared = true` but does not place the snippet in
 `leibtour_team_shared`. Post-B5 that is a no-op for visibility, so **pushing a snippet to Notion no
-longer shares it with the team** — a silent regression of the old "push → everyone sees it" flow.
+longer shares it with the team** — a silent change from the old "push → everyone sees it" flow.
 
-**Options for B6 (pick one):**
-1. **File on push.** EF also sets `folder_id = 'leibtour_team_shared'` + `organization_id = <leibtour>`
-   (mirrors B4) and stops writing `is_shared`. Preserves the old "push shares it" behavior via folder
-   ACL. Lowest surprise; recommended unless we want push to stop implying team-share.
-2. **Decouple.** EF only writes `notion_page_id` (drops `is_shared` entirely); team-sharing becomes an
-   explicit dashboard action (FolderShareModal). Cleaner model, but changes user expectations — needs a
-   note to the team.
-3. **Org-scope Notion** (the deferred §7.3 adjacency): per-org Notion DB + ownership. Larger scope;
-   only fold into B6 if we're doing it now, otherwise defer and pick option 1 or 2.
+**Decision (owner, 2026-06-07): Option 2 — decouple.** Sending a snippet to Notion will **not**
+imply team-sharing. Sharing with the team becomes a **deliberate action** on the dashboard
+(FolderShareModal). This is the intended model going forward, not a regression to fix.
 
-Whichever we choose, the EF change ships **in the same batch as the column drop** so there is never a
-window where the EF writes a column that no longer exists.
+**What this means concretely:**
+- **In the B6 batch:** `notion-snippet-push` stops writing `is_shared` entirely — it only writes
+  `notion_page_id`. No folder filing on push.
+- **During the soak (now → B6):** the EF still writes `is_shared = true`, which is harmlessly
+  owner-only post-B5. Those rows are *expected* (see §3 Check C) and the column drop clears the flag.
+- **Team communication needed:** tell the LeibTour team that "push to Notion" no longer auto-shares —
+  to share a snippet with everyone, file it in / share its folder on the dashboard. Capture this in the
+  release note that ships with B6.
+
+Options not taken: **1 (file-on-push)** — keeps the old auto-share habit, rejected in favor of explicit
+sharing; **3 (org-scoped Notion)** — larger scope, remains deferred (`PHASE_B_PLAN.md` §7.3).
+
+The EF change ships **in the same batch as the column drop** so there is never a window where the EF
+writes a column that no longer exists. It is intentionally **not pre-built** (owner: "later is fine").
 
 ---
 
@@ -141,8 +151,9 @@ window where the EF writes a column that no longer exists.
 
 1. **Snapshot** — note a Supabase backup/restore point (or `CREATE TABLE snippets_pre_b6_backup AS
    TABLE snippets;`) and record its id here (C7).
-2. **EF first** — deploy the `notion-snippet-push` change (per §4 decision) so nothing writes
-   `is_shared` anymore. Verify a test push succeeds and (option 1) lands in the shared folder.
+2. **EF first** — deploy the `notion-snippet-push` change (§4 Option 2: write only `notion_page_id`,
+   stop writing `is_shared`). Verify a test push succeeds and the snippet stays owner-only (sharing is
+   now the separate dashboard action). Include the team release note from §4.
 3. **Drop the column** — one migration `*_phase_b_b6_drop_is_shared.sql`:
    `ALTER TABLE snippets DROP COLUMN is_shared;` Apply via MCP **and** commit the file; update the
    migrations README + `PHASE_B_PLAN.md` Status (B6 done).
@@ -164,3 +175,4 @@ reason for this soak: we spend cheap, reversible time now to avoid an expensive,
 | Date | Checks run | Result | Notes |
 |---|---|---|---|
 | 2026-06-07 | (B5 applied) | — | Soak started. Baseline: 35 shared snippets migrated (B4), parity verified at apply time. |
+| 2026-06-07 | decisions recorded | — | Owner: 2-week window (target go ≥ 2026-06-21); Notion push = Option 2 (decouple); EF change not pre-built (lands with B6). |
