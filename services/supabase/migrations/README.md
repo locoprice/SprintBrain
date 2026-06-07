@@ -18,7 +18,7 @@ timestamps so they sort in execution order.
 | `20260607040000_phase_b_b5_retire_is_shared_read.sql` | ✅ applied 2026-06-07 | Phase B · B5: drop the `is_shared = true` global-read branch from the snippets SELECT policy (closes the cross-tenant leak). Column kept until B6. |
 | `20260607050000_phase_b_b3_org_member_directory.sql` | ✅ applied 2026-06-07 | Phase B · B3 support: guarded `org_member_directory()` RPC so the FolderShareModal can resolve teammate identity (co-members only). |
 
-> **Deferred to a future release (B6):** drop the `snippets.is_shared` column and update `notion-snippet-push` to stop writing it. Irreversible (column drop) — gate behind a soak + explicit sign-off; see `docs/PHASE_B_PLAN.md` §2/§4.
+> **Deferred to a future release (B6):** drop the `snippets.is_shared` column and update `notion-snippet-push` to stop writing it. Irreversible (column drop) — gate behind a soak + explicit sign-off. The soak watch, exit criteria, runnable monitoring checks, and the B6 runbook live in `docs/PHASE_B_SOAK.md` (see also `docs/PHASE_B_PLAN.md` §2/§4).
 >
 > **Note:** `20260528000000_snippet_revisions.sql` is retained only as a historical record. It is **broken** (`uuid REFERENCES` a `text` PK) and must not be applied — `20260607000000_phase_b_b0_snippet_revisions.sql` is the corrected, applied version.
 

@@ -5,7 +5,8 @@ column + Notion EF update) intentionally deferred behind a soak (§2). All DB st
 verified live with simulated-user RLS checks + the security advisor; dashboard gates
 (lint/typecheck/build/test) and extension checks (`node --check`, version, snippets) are green.
 See `services/supabase/migrations/README.md` for the applied migration list and §7 below for
-the resolved open decisions.
+the resolved open decisions. **B6 is gated by `docs/PHASE_B_SOAK.md`** — the soak watch, exit
+criteria, runnable monitoring checks, and the open Notion-push decision live there.
 **Prereq:** Phase A foundation (applied 2026-06-06; see `ENTERPRISE_ARCHITECTURE.md` + `project_enterprise_buildout`).
 **Goal:** Replace the all-or-nothing `snippets.is_shared` boolean with **folder-level View/Edit/Owner
 sharing** enforced by RLS, across dashboard **and** extension, without breaking existing use.
