@@ -37,7 +37,9 @@ export const snippetSchema = z.object({
   is_formula: z.boolean(),
   formula: z.string().nullable(),
   variables: z.record(z.unknown()),
-  folder_id: z.string().uuid().nullable(),
+  // Folder ids are TEXT in the schema (legacy client-generated + org folders),
+  // not necessarily UUIDs — don't over-constrain.
+  folder_id: z.string().nullable(),
   language: languageEnum,
   updated_at: z.string(),
 });
@@ -81,7 +83,8 @@ export const snippetFormSchema = z.object({
     ),
   content: z.string().min(1, 'Content is required'),
   bodies: snippetBodiesSchema,
-  folder_id: z.string().uuid().nullable(),
+  // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
+  folder_id: z.string().nullable(),
   language: languageEnum,
   pinned: z.boolean().default(false),
   is_shared: z.boolean().default(false),

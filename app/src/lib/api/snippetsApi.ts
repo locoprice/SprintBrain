@@ -205,22 +205,23 @@ function mergeActiveBody(
 
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
-    const userId = await currentUserId();
+    // No `.eq('user_id')` filter: RLS returns the user's own folders plus any
+    // org folders shared with them (Phase B). Personal-only users are unaffected.
     const { data, error } = await supabase
       .from('folders')
       .select(FOLDER_SELECT)
-      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
     return (data ?? []).map(dbFolderToFolder);
   },
 
   async listSnippets() {
-    const userId = await currentUserId();
+    // No `.eq('user_id')` filter: RLS returns the user's own snippets plus any
+    // that live in a folder shared with them (Phase B). Personal-only users see
+    // exactly what they did before.
     const { data, error } = await supabase
       .from('snippets')
       .select(SNIPPET_SELECT)
-      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
     return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);

@@ -156,7 +156,7 @@ app/
 ### 4.8 Auth + RLS
 - Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Only `@leibtour.com` emails can sign up (enforced by a `BEFORE INSERT` trigger on `auth.users`).
 - The dashboard uses the Supabase publishable key; the JS client attaches the user's JWT to every request automatically.
-- DB RLS is the primary security layer and is active on every public table: every command is gated by `auth.uid() = user_id` (snippets `SELECT` also allows `is_shared = true`). The extension authenticates per-user via JWT (`extension/auth/auth.js`), so `auth.uid()` resolves on both surfaces — **AUTH-EXT-001 is shipped; no permissive `team_*` policies exist.** The `.eq('user_id', …)` filters still present in `lib/api` are now redundant defense-in-depth; they also scope dashboard reads to the user's own rows, which team sharing (Phase 2) will revisit.
+- DB RLS is the primary security layer and is active on every public table. Personal rows are gated by `auth.uid() = user_id`; **Phase B** adds an org branch on snippets/folders/prompts — `organization_id IS NOT NULL AND folder_id IS NOT NULL AND app.can_read_folder(folder_id)` for reads (and `app.can_write_folder` for writes) — resolved by recursion-safe `app.*` SECURITY DEFINER functions. The legacy `is_shared = true` global read **was retired (B5)**; the column is kept until B6. The extension authenticates per-user via JWT (`extension/auth/auth.js`), so `auth.uid()` resolves on both surfaces — **AUTH-EXT-001 is shipped; no permissive `team_*` policies exist.**
 
 ### 4.9 Forms
 - Snippet, folder, and prompt forms are wired to Supabase via Zod-validated stores with optimistic updates (SNIPPETS-CRUD-001, PROMPTS-001).
@@ -180,7 +180,7 @@ app/
 ## 6. What NOT to do
 
 - Do not import from extension source files (`extension/`). They share no runtime with the dashboard.
-- The `.eq('user_id', currentUserId)` filters in `lib/api` are redundant with RLS (which already enforces per-user isolation on every table), but they also decide which rows the dashboard surfaces. Don't drop them ad-hoc — adjusting them is part of the team-sharing work, so shared rows appear intentionally rather than by accident.
+- The `.eq('user_id', currentUserId)` filters in `lib/api` are redundant with RLS (which already enforces per-user isolation on every table), but they also decide which rows the dashboard surfaces. **Phase B** intentionally dropped them from `snippetsApi.listSnippets` / `listFolders` so folders shared with the user (and their snippets) surface via RLS. The remaining write/patch helpers keep `.eq('user_id')` as an owner scope — don't drop those ad-hoc.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
 - Do not run `npm install` at the repo root — install only inside `app/`.
