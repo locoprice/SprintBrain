@@ -6,12 +6,13 @@ const EDGE_FN_SHARE = 'notion-snippet-push';
 
 // Live Supabase reads + writes for snippets + folders, scoped to the authed user.
 //
-// Why we filter explicitly by user_id in app code instead of relying on RLS:
-// the DB still has permissive `team_*` policies (qual: true) needed by the
-// extension's anon-key queries. PERMISSIVE policies combine with OR, so the
-// per-user `auth.uid() = user_id` policies provide no isolation yet. When the
-// extension migrates to user JWTs (AUTH-EXT-001), the team_* policies come
-// off and RLS alone is sufficient. Until then, every query is .eq'd below.
+// RLS is the security layer: every public table enforces `auth.uid() = user_id`
+// (snippets SELECT also allows `is_shared = true`), and the extension now
+// authenticates per-user via JWT (AUTH-EXT-001 shipped), so isolation holds on
+// both surfaces. The explicit `.eq('user_id', …)` filters below are therefore
+// redundant for isolation — they remain as defense-in-depth and, for now, scope
+// dashboard reads to the user's own rows. Team sharing (folder-level View/Edit)
+// will revisit them so shared rows surface intentionally.
 
 export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;

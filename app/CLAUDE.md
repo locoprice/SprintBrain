@@ -1,7 +1,7 @@
 # app/CLAUDE.md — SprintBrain Dashboard (React)
 
-**Document Version**: 2.3
-**Last Updated**: 2026-05-16
+**Document Version**: 2.4
+**Last Updated**: 2026-06-06
 **Project**: SprintBrain SaaS Dashboard (app/)
 **Purpose**: AI development reference for the React dashboard. The Chrome extension lives in `extension/` and follows a different stack — see `../docs/CLAUDE.md` for that codebase.
 
@@ -156,7 +156,7 @@ app/
 ### 4.8 Auth + RLS
 - Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Only `@leibtour.com` emails can sign up (enforced by a `BEFORE INSERT` trigger on `auth.users`).
 - The dashboard uses the Supabase publishable key; the JS client attaches the user's JWT to every request automatically.
-- DB RLS still has permissive `team_*` policies (`qual: true`) needed by the extension's anon-key reads. Until the extension migrates (`AUTH-EXT-001`), every dashboard query explicitly filters `.eq('user_id', currentUserId)` in app code — do NOT remove those filters.
+- DB RLS is the primary security layer and is active on every public table: every command is gated by `auth.uid() = user_id` (snippets `SELECT` also allows `is_shared = true`). The extension authenticates per-user via JWT (`extension/auth/auth.js`), so `auth.uid()` resolves on both surfaces — **AUTH-EXT-001 is shipped; no permissive `team_*` policies exist.** The `.eq('user_id', …)` filters still present in `lib/api` are now redundant defense-in-depth; they also scope dashboard reads to the user's own rows, which team sharing (Phase 2) will revisit.
 
 ### 4.9 Forms
 - Snippet, folder, and prompt forms are wired to Supabase via Zod-validated stores with optimistic updates (SNIPPETS-CRUD-001, PROMPTS-001).
@@ -180,7 +180,7 @@ app/
 ## 6. What NOT to do
 
 - Do not import from extension source files (`extension/`). They share no runtime with the dashboard.
-- Do not remove the `.eq('user_id', currentUserId)` filter from any Supabase query until `AUTH-EXT-001` lands and the `team_*` RLS policies come off — without it, every authed user can read every other user's rows.
+- The `.eq('user_id', currentUserId)` filters in `lib/api` are redundant with RLS (which already enforces per-user isolation on every table), but they also decide which rows the dashboard surfaces. Don't drop them ad-hoc — adjusting them is part of the team-sharing work, so shared rows appear intentionally rather than by accident.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
 - Do not run `npm install` at the repo root — install only inside `app/`.
@@ -193,7 +193,7 @@ app/
 1. ~~Supabase auth (OTP / magic link) + live reads~~ ✅ shipped AUTH-001.
 2. ~~**SNIPPETS-CRUD-001** — create / edit / delete snippets and folders with Zod validation and optimistic updates.~~ ✅ shipped.
 3. ~~**PROMPTS-001** — create `public.prompts` table + RLS; replace `promptsApi` mock with live reads.~~ ✅ shipped.
-4. **AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies. `ExtensionLinkPage` is the UI entry point.
+4. ~~**AUTH-EXT-001** — migrate the Chrome extension from the anon key to per-user JWTs; drop the permissive `team_*` RLS policies.~~ ✅ shipped — extension authenticates via per-user JWT (`extension/auth/auth.js`); RLS enforces `auth.uid() = user_id` on every table. `ExtensionLinkPage` is the session-handoff entry point.
 5. **ANALYTICS-001** — add `public.snippet_events` time-series table; extension + dashboard log one row per trigger; replace `analyticsApi` mock with grouped aggregates.
 6. **NOTION-SYNC-DASH-001** — trigger Notion sync from the dashboard + show sync history.
 7. Dark mode (`uiStore` already has the seam).
