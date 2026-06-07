@@ -8,6 +8,9 @@ timestamps so they sort in execution order.
 | File | Status | Notes |
 |---|---|---|
 | `20260421120000_auth_domain_allowlist.sql` | ✅ applied 2026-04-21 | Rejects signups outside `@leibtour.com` |
+| `20260606000000_harden_save_snippet_rpc.sql` | ✅ applied 2026-06-06 | Revokes anon/PUBLIC `EXECUTE` on `save_snippet_with_revision` (closes unauthenticated write path to shared snippets); pins `set_updated_at` search_path |
+| `20260606010000_phase_a_org_foundation_schema.sql` | ✅ applied 2026-06-06 | Enterprise Phase A: org/team/membership/invitation/folder-permission/default-folder/member-property tables; nullable `organization_id` on folders/snippets/prompts (+`folder_id` on prompts). Additive — existing RLS untouched. |
+| `20260606020000_phase_a_org_access_and_rls.sql` | ✅ applied 2026-06-06 | Enterprise Phase A: recursion-safe `app.*` access functions (SECURITY DEFINER, unexposed schema) + RLS policies for the new tables. |
 
 ## Deferred (manual run in Supabase SQL editor)
 
