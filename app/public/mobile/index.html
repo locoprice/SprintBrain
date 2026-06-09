@@ -551,7 +551,6 @@ body{
   <!-- Floating quick-action grid (overlaps hero) -->
   <div class="mqa">
     <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="new" aria-label="New snippet"><span class="mqa-ico">＋</span><span class="mqa-lbl">New</span></button>
       <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico a1">🤖</span><span class="mqa-lbl">Prompts</span></button>
       <button class="mqa-tile" type="button" data-qa="sync" aria-label="Sync"><span class="mqa-ico a2">↻</span><span class="mqa-lbl">Sync</span></button>
       <button class="mqa-tile" type="button" data-qa="folders" aria-label="Folders"><span class="mqa-ico a3">📁</span><span class="mqa-lbl">Folders</span></button>
@@ -1589,7 +1588,7 @@ function deleteSnippet(s){
 }
 
 /* ── EDIT MODAL ─────────────────────────────────── */
-var editSnip=null, editOriginal=null, editFolderId=null, isNewSnippet=false;
+var editSnip=null, editOriginal=null, editFolderId=null;
 
 function renderEditFolderRow(){
   var f=getFolderById(editFolderId);
@@ -1605,7 +1604,6 @@ function renderEditFolderRow(){
 }
 
 function openEditModal(s){
-  isNewSnippet=false;
   editSnip=s;
   editOriginal={
     title:s.title||'',shortcut:s.shortcut||'',body:s.body||'',
@@ -1624,21 +1622,6 @@ function openEditModal(s){
   saveBtn.disabled=false;
   document.getElementById('sb-edit-modal').classList.remove('sb-hidden');
 }
-function openNewSnippetModal(){
-  isNewSnippet=true;
-  editSnip={id:null};
-  editOriginal={title:'',shortcut:'',body:'',folder_id:null};
-  editFolderId=null;
-  document.getElementById('sb-edit-title').value='';
-  document.getElementById('sb-edit-shortcut').value='';
-  document.getElementById('sb-edit-body').value='';
-  document.getElementById('sb-edit-err').textContent='';
-  renderEditFolderRow();
-  document.getElementById('sb-modal-title-text').textContent='New Snippet';
-  var saveBtn=document.getElementById('sb-modal-save');
-  saveBtn.textContent='Create';saveBtn.classList.remove('saved');saveBtn.disabled=false;
-  document.getElementById('sb-edit-modal').classList.remove('sb-hidden');
-}
 function isDirty(){
   if(!editOriginal)return false;
   return document.getElementById('sb-edit-title').value!==editOriginal.title
@@ -1655,7 +1638,6 @@ function forceCloseBottomSheet(){
   sheetSnip=null;
 }
 function closeEditModal(){
-  isNewSnippet=false;
   document.getElementById('sb-modal-title-text').textContent='Edit Snippet';
   document.getElementById('sb-edit-modal').classList.add('sb-hidden');
   editSnip=null;editOriginal=null;editFolderId=null;
@@ -1857,40 +1839,9 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
   if(!body.trim()){err.textContent='Body is required';return;}
   err.textContent='';
   var btn=this;
-  btn.disabled=true;btn.textContent=isNewSnippet?'Creating…':'Saving…';
+  btn.disabled=true;btn.textContent='Saving…';
 
-  if(isNewSnippet){
-    fetch(SUPA+'/rest/v1/snippets',{
-      method:'POST',
-      headers:authHeaders({
-        'Content-Type':'application/json',
-        'Prefer':'return=representation'
-      }),
-      body:JSON.stringify({title:title,shortcut:shortcut,body:body,
-        folder_id:folderId,user_id:USER_ID})
-    })
-    .then(function(r){
-      if(handle401(r))throw new Error('401');
-      if(!r.ok)throw new Error('create failed');
-      return r.json();
-    })
-    .then(function(rows){
-      var newRow=(Array.isArray(rows)&&rows[0])?rows[0]:
-        {id:String(Date.now()),title:title,shortcut:shortcut,body:body,
-          folder_id:folderId,user_id:USER_ID};
-      allSnips.unshift(newRow);
-      try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
-      btn.textContent='✓ Created';btn.classList.add('saved');
-      renderFolderChips();renderList();
-      setTimeout(closeEditModal,2000);
-    })
-    .catch(function(){
-      err.textContent='Create failed. Please try again.';
-      btn.disabled=false;btn.textContent='Create';
-      btn.classList.remove('saved');
-    });
-  }else{
-    // Optimistic update — apply locally first, roll back on error
+  // Optimistic update — apply locally first, roll back on error
     var idx=allSnips.findIndex(function(x){return x.id===editSnip.id;});
     var prevRow=idx>-1?Object.assign({},allSnips[idx]):null;
     if(idx>-1){
@@ -1928,7 +1879,6 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
       btn.disabled=false;btn.textContent='Save';
       btn.classList.remove('saved');
     });
-  }
 });
 
 /* ── LOGOUT BUTTON ──────────────────────────────── */
