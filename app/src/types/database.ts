@@ -53,7 +53,6 @@ export interface Snippet {
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
   language: SnippetLanguage;
-  is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean;
   /**
@@ -167,4 +166,41 @@ export interface AnalyticsSummary {
   top_trigger: string;
   daily_usage: UsagePoint[];
   top_triggers: TopTrigger[];
+}
+
+// ── Organizations & folder permissions (Phase B — folder sharing) ─────────────
+
+/** RBAC role within an organization. Gates management actions. */
+export type OrgRole = 'admin' | 'manager' | 'member';
+
+/** Folder ACL level. Gates asset access; assets inherit from their folder. */
+export type PermissionLevel = 'view' | 'edit' | 'owner';
+
+/** What a folder permission is granted to. */
+export type PrincipalType = 'user' | 'team' | 'organization';
+
+/** The active organization plus the signed-in user's role within it. */
+export interface OrganizationSummary {
+  id: Uuid;
+  name: string;
+  slug: string | null;
+  myRole: OrgRole;
+}
+
+/** A teammate, resolved via the `org_member_directory` RPC. */
+export interface OrgMember {
+  user_id: Uuid;
+  email: string;
+  display_name: string;
+  role: OrgRole;
+}
+
+/** A single grant row from `folder_permissions`. */
+export interface FolderPermission {
+  id: Uuid;
+  folder_id: string;
+  principal_type: PrincipalType;
+  principal_id: Uuid;
+  level: PermissionLevel;
+  created_at: IsoDateTime;
 }

@@ -17,15 +17,23 @@ if (extVersion !== webVersion) {
   fail("Version mismatch -> extension: " + extVersion + ", web: " + webVersion);
 }
 
-// Landing page is hand-stamped (not all surfaces go through Vite's landingVersionPlugin),
-// so the literal "vX.Y.Z" strings must stay in sync with manifest.json.
+// Landing version surfaces: the hero eyebrow is hand-stamped with the literal
+// "vX.Y.Z" (must stay in sync with manifest.json), while the footer uses the
+// {{EXT_VERSION}} placeholder that Vite's landingVersionPlugin replaces at build.
+// Verify both: the hand-stamp is current AND the placeholder is present so the
+// build can fill it in.
 const landing = fs.readFileSync('app/public/landing/index.html', 'utf8');
 const stamp = 'v' + extVersion;
-const stampCount = landing.split(stamp).length - 1;
-if (stampCount < 2) {
+if (!landing.includes(stamp)) {
   fail(
-    "Landing page is out of sync -> expected '" + stamp +
-    "' in hero + footer of app/public/landing/index.html (found " + stampCount + ")"
+    "Landing hero is out of sync -> expected '" + stamp +
+    "' in app/public/landing/index.html",
+  );
+}
+if (!landing.includes('{{EXT_VERSION}}')) {
+  fail(
+    "Landing footer is missing the {{EXT_VERSION}} placeholder in " +
+    "app/public/landing/index.html (the landingVersionPlugin fills it at build)",
   );
 }
 

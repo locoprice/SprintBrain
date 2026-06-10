@@ -85,20 +85,24 @@ chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse)
 });
 
 // ── LOAD SNIPPETS + FOLDERS + STATS FROM SUPABASE ─────────────────
-// Shows the current user's own snippets plus any shared by teammates.
+// Shows the current user's own snippets plus any in a folder shared with them.
+//
+// Phase B: snippet visibility is now folder-level (View/Edit/Owner), not the
+// legacy global `is_shared` flag. The accessible_snippets() RPC (SECURITY
+// DEFINER, STABLE) returns personal + folder-readable rows in one call; PostgREST
+// lets us project/filter/order the result set just like a table. Folders ride on
+// their own RLS (own + org-readable), so shared folders surface automatically.
 function loadData() {
   return new Promise(function(resolve) {
-    sbCurrentUserId(function(uid) {
+    sbCurrentUserId(function() {
       // is_active=eq.true filters out soft-disabled snippets (SNIPPET-DISABLE-001):
       // disabled rows must not appear in the right-click context menu and must
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
-      var snipQs = uid
-        ? 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-        : 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&order=sort_order&is_active=eq.true&is_shared=eq.true';
+      var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&is_active=eq.true&order=sort_order';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
-        supaFetch('snippets', snipQs),
+        supaFetch('rpc/accessible_snippets', snipQs),
         supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
       ]).then(function(res) {
         resolve({

@@ -64,7 +64,6 @@ export interface SaveRevisionParams {
   lang: string;
   folder_id: string | null;
   pinned: boolean;
-  is_shared: boolean;
   alternative_queries: string[];
   enable_urgency_timer: boolean;
   timer_duration_ms: number;
@@ -110,7 +109,6 @@ export const revisionsApi: RevisionsApi = {
       p_lang: params.lang,
       p_folder_id: params.folder_id,
       p_pinned: params.pinned,
-      p_is_shared: params.is_shared,
       p_enable_urgency_timer: params.enable_urgency_timer,
       p_timer_duration_ms: params.timer_duration_ms,
       p_scarcity_count: params.scarcity_count,

@@ -1,6 +1,15 @@
 # Phase B — Folder Sharing · Explore → Plan
 
-**Status:** PLAN ONLY — awaiting review. No implementation has begun. No DB or code changes.
+**Status:** ✅ **COMPLETE (B0–B6).** B0–B5 applied to production 2026-06-07; **B6 executed
+2026-06-10** (owner-authorized early, ahead of the original soak window — see
+`docs/PHASE_B_SOAK.md` §7 for the execution log): `snippets.is_shared` dropped,
+`save_snippet_with_revision` rebuilt without `p_is_shared`, `notion-snippet-push` v3 decoupled
+(writes only `notion_page_id`), and every client surface migrated (E1 v2.60.0, E3 v2.61.0 —
+per-snippet sharing replaced by folder ACL + a separate "Push to Notion" action). All DB steps
+verified live with simulated-user RLS checks + the security advisor; dashboard gates
+(lint/typecheck/build/test) and extension checks (`node --check`, version, snippets) are green.
+See `services/supabase/migrations/README.md` for the applied migration list and §7 below for
+the resolved open decisions.
 **Prereq:** Phase A foundation (applied 2026-06-06; see `ENTERPRISE_ARCHITECTURE.md` + `project_enterprise_buildout`).
 **Goal:** Replace the all-or-nothing `snippets.is_shared` boolean with **folder-level View/Edit/Owner
 sharing** enforced by RLS, across dashboard **and** extension, without breaking existing use.
@@ -126,10 +135,19 @@ The extension reads snippets via **raw REST**, not supabase-js, so it can't reus
 
 ---
 
-## 7. OPEN DECISIONS before Phase B starts
-1. **`snippet_revisions`**: apply the missing table (restore version history) or formally retire the RPC/feature?
-2. **LeibTour org membership** (the B1 backfill): which accounts, who is admin? (Deferred from Phase A.)
-3. **Notion sync**: org-scope now (per-org DB/creds) or keep single-DB through Phase B and scope later?
-4. **Extension reads**: `SECURITY DEFINER` RPC (recommended) vs. a permission-aware view?
+## 7. OPEN DECISIONS — RESOLVED (2026-06-07)
+1. **`snippet_revisions`**: **APPLIED** (B0), rebuilt with **TEXT** `snippet_id` — the original
+   `20260528000000` migration was unappliable (`uuid REFERENCES` a `text` PK), which is why the
+   feature never worked in prod (and would have failed for the 108/139 non-uuid legacy snippet ids
+   regardless). The save RPC's guard moved from `is_shared = TRUE` → `app.can_write_folder`.
+2. **LeibTour org membership** (B1): created org **LeibTour**; `locopricesl@gmail.com` +
+   `sprintbrainapp@gmail.com` = **admin** (the two accounts that own the shared snippets),
+   `b2b@leibtour.com` = **member**. Pure data — adjust by editing `organization_members`.
+3. **Notion sync**: **kept single-DB through Phase B** (org-scoping deferred — lowest risk). The
+   per-snippet Notion push still works; team *visibility* is now folder-based, not `is_shared`.
+4. **Extension reads**: **`SECURITY DEFINER` RPC** `public.accessible_snippets()` (B2) — the
+   extension's `loadData()` now calls `/rpc/accessible_snippets` instead of filtering
+   `is_shared.eq.true`; folders ride on their own org-aware RLS.
 
-> No work proceeds until this plan is reviewed and these decisions are made.
+> Implemented across DB (B0–B5) + dashboard (FolderShareModal, permission/org services, relaxed
+> reads) + extension (permission-aware read). B6 remains deferred (see Status header).

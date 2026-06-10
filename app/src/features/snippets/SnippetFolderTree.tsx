@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Folders, Pencil, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Folder } from '@/types/database';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { FolderDialog } from '@/features/snippets/FolderDialog';
 import { FolderContextMenu } from '@/features/snippets/FolderContextMenu';
+import { FolderShareModal } from '@/features/org/FolderShareModal';
 
 interface MenuState {
   folderId: string;
@@ -19,6 +21,7 @@ export function SnippetFolderTree() {
   const setSelected = useSnippetStore((s) => s.setSelectedFolder);
   const openFolderDialog = useUiStore((s) => s.openFolderDialog);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [shareFolder, setShareFolder] = useState<Folder | null>(null);
 
   const activeMenuFolder =
     menu !== null ? folders.find((f) => f.id === menu.folderId) ?? null : null;
@@ -117,8 +120,11 @@ export function SnippetFolderTree() {
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(null)}
+          onShare={(f) => setShareFolder(f)}
         />
       )}
+
+      <FolderShareModal folder={shareFolder} onClose={() => setShareFolder(null)} />
     </aside>
   );
 }

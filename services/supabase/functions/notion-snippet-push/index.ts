@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
     .from('snippets')
     .select('id, title, shortcut, body, lang, notion_page_id, folders(name)')
     .eq('id', snippetId)
-    .eq('user_id', user.id) // ownership check — cannot share another user's snippet
+    .eq('user_id', user.id) // ownership check — cannot push another user's snippet
     .single();
 
   if (fetchError || !snippet) {
@@ -186,10 +186,12 @@ Deno.serve(async (req: Request) => {
     notionPageId = page.id;
   }
 
-  // ── Write notion_page_id + is_shared back to Supabase ────────────
+  // ── Write notion_page_id back to Supabase ────────────────────────
+  // Phase B (B6): the push only links the Notion page. Team visibility is
+  // folder-level (RLS folder ACL) and is never changed from here.
   const { error: updateError } = await serviceClient
     .from('snippets')
-    .update({ notion_page_id: notionPageId, is_shared: true })
+    .update({ notion_page_id: notionPageId })
     .eq('id', snippetId)
     .eq('user_id', user.id);
 

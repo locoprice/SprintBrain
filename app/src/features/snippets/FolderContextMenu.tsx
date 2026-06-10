@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Pencil, Smile, Trash2 } from 'lucide-react';
+import { Pencil, Share2, Smile, Trash2 } from 'lucide-react';
 import type { Folder } from '@/types/database';
 import { cn } from '@/lib/utils';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -12,12 +12,14 @@ interface FolderContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
+  /** Open the folder-sharing modal for this folder. */
+  onShare: (folder: Folder) => void;
 }
 
 const MIN_WIDTH = 224;
 const VIEWPORT_PADDING = 8;
 
-export function FolderContextMenu({ folder, x, y, onClose }: FolderContextMenuProps) {
+export function FolderContextMenu({ folder, x, y, onClose, onShare }: FolderContextMenuProps) {
   const openFolderDialog = useUiStore((s) => s.openFolderDialog);
   const removeFolder = useSnippetStore((s) => s.removeFolder);
 
@@ -70,6 +72,11 @@ export function FolderContextMenu({ folder, x, y, onClose }: FolderContextMenuPr
     onClose();
   }
 
+  function handleShare() {
+    onShare(folder);
+    onClose();
+  }
+
   async function handleDelete() {
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -100,6 +107,7 @@ export function FolderContextMenu({ folder, x, y, onClose }: FolderContextMenuPr
     >
       <MenuItem icon={<Pencil className="h-3.5 w-3.5" />} label="Rename" onClick={handleRename} />
       <MenuItem icon={<Smile className="h-3.5 w-3.5" />} label="Change icon" onClick={handleChangeIcon} />
+      <MenuItem icon={<Share2 className="h-3.5 w-3.5" />} label="Share with team…" onClick={handleShare} />
       <MenuItem
         icon={<Trash2 className="h-3.5 w-3.5" />}
         label={confirmDelete ? 'Click again to confirm' : 'Delete folder'}
