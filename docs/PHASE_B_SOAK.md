@@ -38,25 +38,23 @@ to `is_shared` that the B0–B5 work was assumed to have migrated but did not. A
 `is_shared = true`, masking the regression. Each is an open code change, tracked here because two of
 them must land **before the column drop**:
 
-- **E1 — extension popup never migrated (blocks B6).** `background.js` reads `accessible_snippets()`
-  (correct), but `popup.js:87-88` still queries `or=(user_id.eq.<uid>,is_shared.eq.true)`, and that
-  popup query writes the `chrome.storage.local` snippet cache (`popup.js:448`) that `content.js` uses
-  for `;;` trigger expansion. Net today: a folder-shared snippet (`is_shared = false`) shows in the
-  right-click menu but **not** in the popup picker and **not** on `;;`-expansion. At B6 the popup's
-  querystring becomes a PostgREST **400** → popup loads nothing. → migrate `DB.loadAll` to
-  `/rpc/accessible_snippets`.
+- **E1 — extension popup never migrated. ✅ FIXED 2026-06-08 (v2.60.0).** `popup.js DB.loadAll` now
+  reads `/rpc/accessible_snippets` (same source as `background.js`), so folder-shared snippets appear
+  in the popup picker and on `;;`-expansion, and the popup no longer queries `is_shared` (won't 400 on
+  the column drop). The *writer* side (the per-snippet share toggle) is still E3, below.
 - **E3 — popup share toggle + save RPC still write the column (blocks B6).** `popup.js` keeps the
   per-snippet `eshare` toggle / `setShared` / `shareWithTeamNotion` (≈lines 159-180, 1619-1634, 2002),
   and `save_snippet_with_revision` still takes `p_is_shared` and writes it (B0 migration). Post-B5 the
   toggle grants no visibility (wrong under Option 2); post-B6 every such PATCH/RPC call **400s** on the
   dropped column. → remove/replace the popup toggle **and** rebuild the save RPC without `p_is_shared`
   (ripples to the dashboard `revisionsApi` caller), in the B6 batch.
-- **E2 — cascade stops at newly-added assets (precedes *use*, not the drop).** `permissionsApi` stamps
-  `organization_id` only at share time; `snippetsApi.createSnippet` / move-to-folder never set it and
-  no trigger derives it from the folder. A snippet created in / moved into an already-shared folder
-  stays `organization_id = NULL` → invisible to grantees (the org read branch requires it NOT NULL).
-  Fix = the F1/F2 `BEFORE INSERT/UPDATE` org-stamping + immutability trigger, tracked with the security
-  findings. Does **not** block the column drop, but **must precede real use** of folder sharing.
+- **E2 — cascade stopped at newly-added assets. ✅ FIXED 2026-06-08** by
+  `20260608000000_phase_b_f1f2_tenancy_triggers.sql` (with F1/F2): a `BEFORE` trigger derives an
+  asset's `organization_id` from its folder on every write (and cascades on folder-org change), so
+  anything created in / moved into a shared folder is now auto-stamped and visible to grantees. The
+  same migration backfilled the 20 live "Team Shared" snippets that were stuck at `organization_id =
+  NULL` (they are now team-visible) and made `user_id` immutable + gated out-of-org moves to
+  owner/admin (closing the F1 ownership-steal). Verified live with simulated-user tests.
 
 ---
 
@@ -67,7 +65,7 @@ them must land **before the column drop**:
 | C1 | **Parity invariant holds:** every migrated snippet is still folder-readable by every LeibTour member. | §3 Check A | 0 rows |
 | C2 | **No cross-tenant leak:** a non-member authenticated user sees none of the org's snippets via `accessible_snippets()` or a direct `SELECT`. | §3 Check B (simulated user) | own-only |
 | C3 | **No new orphan-shared snippets:** `is_shared = true` count has not grown beyond the 35 recorded in `phase_b_share_migration` (or each new one was consciously handled — see §4). | §3 Check C | count == 35, or each delta triaged |
-| C4 | **Extension popup read migrated (E1):** `DB.loadAll` (`popup.js`) calls `/rpc/accessible_snippets`, not the legacy `is_shared` filter — so the popup picker + `;;` expansion show folder-shared snippets and won't 400 on the column drop. All active members run that build; REST logs show no `is_shared` filter from app traffic. | §3 Check D + code change (E1) | popup migrated; no `is_shared` REST reads |
+| C4 | **Extension popup read migrated (E1):** ✅ code shipped v2.60.0 — `DB.loadAll` (`popup.js`) calls `/rpc/accessible_snippets`, not the legacy `is_shared` filter. **Remaining:** all active members run ≥ v2.60.0; REST logs show no `is_shared` filter from app traffic. | §3 Check D + code (E1 ✅) | code ✅; adoption pending |
 | C5 | **Advisor clean:** security + performance advisors report no new findings attributable to Phase B objects. | `get_advisors` (security, performance) | no new |
 | C6 | **Notion push behavior** decided, and its code change shipped **in the same B6 batch**. | review + sign-off | ✅ decided 2026-06-07 → Option 2 (decouple); code lands with B6 |
 | C7 | **Pre-drop snapshot taken** of `snippets` (or a full project backup point noted) immediately before the column drop. | §5 step 1 | snapshot id recorded |
@@ -202,10 +200,11 @@ or it 400s live traffic. Code first, EF, then the irreversible DDL.
    `check-version` / `check-snippets` green; version bumped in parity.
 6. **Sign-off** — record who approved and the date.
 
-> **Separate from B6, but before folder sharing is used for real:** ship the F1/F2/E2 org-stamping +
-> immutability trigger (so newly-added assets inherit the folder's `organization_id` and `user_id` /
-> `organization_id` can't be rewritten by an Edit grantee). Not a column-drop blocker; tracked with
-> the security review.
+> **F1/F2/E2 org-stamping + immutability trigger — ✅ shipped 2026-06-08**
+> (`20260608000000_phase_b_f1f2_tenancy_triggers.sql`, applied + verified live). Newly-added assets
+> inherit the folder's `organization_id`; `user_id` is immutable; only owner/admin may move an asset
+> out of its org. This unblocks real folder-sharing use (it was a "before use," not a column-drop,
+> gate).
 
 ## 6. Rollback note
 
@@ -222,3 +221,4 @@ reason for this soak: we spend cheap, reversible time now to avoid an expensive,
 | 2026-06-07 | (B5 applied) | — | Soak started. Baseline: 35 shared snippets migrated (B4), parity verified at apply time. |
 | 2026-06-07 | decisions recorded | — | Owner: 2-week window (target go ≥ 2026-06-21); Notion push = Option 2 (decouple); EF change not pre-built (lands with B6). |
 | 2026-06-08 | deep client-side review | 3 defects | E1 popup read + E3 popup toggle/save-RPC still on `is_shared` → both now gate B6 (C4 upgraded, C8 added, §5 runbook resequenced). E2 org-stamping gap noted (precedes feature use, not the drop). No new leak; all fail closed. |
+| 2026-06-08 | F1/F2/E2 trigger applied + verified; E1 popup fix (v2.60.0) | PASS | `20260608000000` applied to prod: org auto-stamp + cascade + user_id immutable + out-of-org move gated; backfilled 26 rows (20 Team-Shared now team-visible, 6 orphans cleaned). 4 simulated-user tests PASS; security advisor no new findings. Popup `DB.loadAll` → `accessible_snippets()`. **Remaining B6 gates: C4 adoption (members on ≥ v2.60.0) + C8 (E3 writer-side, in the B6 batch).** |

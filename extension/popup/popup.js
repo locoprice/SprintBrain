@@ -82,14 +82,17 @@ var DB = {
     // into chrome.storage.local — which means content.js trigger matching
     // skips them automatically. The dashboard remains the only surface that
     // shows disabled snippets (so they can be re-enabled).
-    var uid = SB_CURRENT_USER_ID;
-    var snipQs = uid
-      ? 'select=*&order=sort_order&is_active=eq.true&or=(user_id.eq.' + uid + ',is_shared.eq.true)'
-      : 'select=*&order=sort_order&is_active=eq.true&is_shared=eq.true';
+    // Phase B: snippet visibility is folder-level (View/Edit/Owner), not the
+    // legacy global is_shared flag. accessible_snippets() (SECURITY DEFINER,
+    // STABLE) returns personal + folder-readable rows in one call; PostgREST
+    // lets us project/filter/order the function result like a table. This keeps
+    // the popup picker, the right-click menu, and ;;-expansion on the SAME
+    // source (background.js already reads this RPC).
+    var snipQs = 'select=*&order=sort_order&is_active=eq.true';
     return Promise.all([
-      supaFetch('folders',       'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
-      supaFetch('snippets',      'GET', null, snipQs).then(function(r){ return r.json(); }),
-      supaFetch('snippet_stats', 'GET', null, 'select=*').then(function(r){ return r.json(); })
+      supaFetch('folders',                 'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
+      supaFetch('rpc/accessible_snippets', 'GET', null, snipQs).then(function(r){ return r.json(); }),
+      supaFetch('snippet_stats',           'GET', null, 'select=*').then(function(r){ return r.json(); })
     ]).then(function(res) {
       var folders  = Array.isArray(res[0]) ? res[0] : [];
       var snippets = Array.isArray(res[1]) ? res[1] : [];
