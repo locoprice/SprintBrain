@@ -1,9 +1,10 @@
 # Phase B — B6 Soak Watch & Go/No-Go
 
-**Status:** SOAKING. Started **2026-06-07** (B5 applied). Target B6 go: **on/after 2026-06-21**
-(2-week window confirmed by owner). **Owner sign-off still required before B6** (column drop is
-irreversible). Notion-push behavior decided — **Option 2 (decouple)**, see §4. EF change is **not
-pre-built** (built as part of the B6 batch). See `PHASE_B_PLAN.md` §2/§4.
+**Status:** ✅ **B6 EXECUTED 2026-06-10** — owner authorized early execution on 2026-06-10
+(explicit confirmation in-session, superseding the original ≥ 2026-06-21 target; launch-driven).
+The column is dropped, the EF is decoupled (v3), and all clients are off `is_shared`
+(v2.61.0). This document is retained as the execution record. Original soak plan below,
+with the execution log in §7.
 
 This is the gate between the **expand+migrate** work already in production (B0–B5) and the
 **contract** step (B6). B6 does two one-way things:
@@ -42,12 +43,12 @@ them must land **before the column drop**:
   reads `/rpc/accessible_snippets` (same source as `background.js`), so folder-shared snippets appear
   in the popup picker and on `;;`-expansion, and the popup no longer queries `is_shared` (won't 400 on
   the column drop). The *writer* side (the per-snippet share toggle) is still E3, below.
-- **E3 — popup share toggle + save RPC still write the column (blocks B6).** `popup.js` keeps the
-  per-snippet `eshare` toggle / `setShared` / `shareWithTeamNotion` (≈lines 159-180, 1619-1634, 2002),
-  and `save_snippet_with_revision` still takes `p_is_shared` and writes it (B0 migration). Post-B5 the
-  toggle grants no visibility (wrong under Option 2); post-B6 every such PATCH/RPC call **400s** on the
-  dropped column. → remove/replace the popup toggle **and** rebuild the save RPC without `p_is_shared`
-  (ripples to the dashboard `revisionsApi` caller), in the B6 batch.
+- **E3 — popup share toggle + save RPC wrote the column. ✅ FIXED 2026-06-10 (v2.61.0, B6 batch).**
+  The popup per-snippet share toggle is removed (`eshare` UI, `setShared`, `shareWithTeamNotion`,
+  `_updateShareSub`); `save_snippet_with_revision` was rebuilt without `p_is_shared` (old signature
+  dropped) and the dashboard `revisionsApi` caller updated. The dashboard's per-snippet "Share with
+  team" affordances (table toggle, context-menu item, dialog checkbox) were replaced by the decoupled
+  **"Push to Notion"** action per the §4 Option-2 decision; sharing is folder-level only.
 - **E2 — cascade stopped at newly-added assets. ✅ FIXED 2026-06-08** by
   `20260608000000_phase_b_f1f2_tenancy_triggers.sql` (with F1/F2): a `BEFORE` trigger derives an
   asset's `organization_id` from its folder on every write (and cascades on folder-org change), so
@@ -222,3 +223,4 @@ reason for this soak: we spend cheap, reversible time now to avoid an expensive,
 | 2026-06-07 | decisions recorded | — | Owner: 2-week window (target go ≥ 2026-06-21); Notion push = Option 2 (decouple); EF change not pre-built (lands with B6). |
 | 2026-06-08 | deep client-side review | 3 defects | E1 popup read + E3 popup toggle/save-RPC still on `is_shared` → both now gate B6 (C4 upgraded, C8 added, §5 runbook resequenced). E2 org-stamping gap noted (precedes feature use, not the drop). No new leak; all fail closed. |
 | 2026-06-08 | F1/F2/E2 trigger applied + verified; E1 popup fix (v2.60.0) | PASS | `20260608000000` applied to prod: org auto-stamp + cascade + user_id immutable + out-of-org move gated; backfilled 26 rows (20 Team-Shared now team-visible, 6 orphans cleaned). 4 simulated-user tests PASS; security advisor no new findings. Popup `DB.loadAll` → `accessible_snippets()`. **Remaining B6 gates: C4 adoption (members on ≥ v2.60.0) + C8 (E3 writer-side, in the B6 batch).** |
+| 2026-06-10 | **B6 EXECUTED** (owner-authorized early; explicit in-session confirmation) | PASS | Order: (1) E3 client batch shipped v2.61.0 — popup toggle removed, dashboard per-snippet share → decoupled "Push to Notion", `revisionsApi` off `p_is_shared`; app lint/typecheck/build/test (113) + extension gates green. (2) `notion-snippet-push` **v3 deployed** — writes only `notion_page_id`. (3) `20260609000000` applied — RPC rebuilt without `p_is_shared` (anon revoked, ACL verified), `is_shared` column **dropped**. Post-drop: zero `is_shared` refs in any DB object; simulated-user RPC save + `accessible_snippets()` PASS; **Check B PASS** (non-member sees 0 direct / 0 via RPC); advisors unchanged vs baseline. **Check A: 29/35** in Team Shared — the 6 deltas are the owner's own folderless rows already cleaned-to-personal in the 06-08 backfill (owner moved them out post-B4; 4× DISCOUNT dupes + 2× NO DISPONIBILITÀ) — intentional, not a leak. **C7 caveat:** no ad-hoc pre-drop table snapshot was created; recovery relies on Supabase platform backups + the B4 audit mapping. C4 adoption note: members must update to ≥ v2.60.0 (store build ships with launch); old v2.59 popups 400 until then. |

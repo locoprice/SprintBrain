@@ -115,7 +115,6 @@ var DB = {
             manually_edited: s.manually_edited || false,
             ai_generated: s.ai_generated || false,
             pinned: s.pinned || false,
-            is_shared: s.is_shared || false,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -159,33 +158,6 @@ var DB = {
       snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
     }).catch(function(e) { console.error('updateStats:', e); });
   },
-  // Flip is_shared for a single snippet (used for unsharing).
-  setShared: function(snippetId, isShared) {
-    if (!SB_CURRENT_USER_ID) return Promise.reject(new Error('not_authed'));
-    return supaFetch(
-      'snippets', 'PATCH',
-      { is_shared: isShared },
-      'id=eq.' + snippetId + '&user_id=eq.' + SB_CURRENT_USER_ID
-    ).then(function(r) {
-      if (!r.ok) throw new Error('setShared_failed_http_' + r.status);
-    });
-  },
-
-  // Call the Edge Function to push the snippet to the shared team Notion DB.
-  // On success, updates snippet.is_shared and snippet.notion_page_id in memory.
-  shareWithTeamNotion: function(snippet, cb) {
-    callEdgeFunction('notion-snippet-push', { snippet_id: snippet.id }, function(err, data) {
-      if (err || !data || !data.ok) {
-        if (cb) cb(err || new Error('notion_push_failed'));
-        return;
-      }
-      snippet.is_shared = true;
-      if (data.notion_page_id) snippet.notion_page_id = data.notion_page_id;
-      DB.upsertSnippet(snippet);
-      if (cb) cb(null, data.notion_page_id);
-    });
-  },
-
   loadPrompts: function() {
     var uid = SB_CURRENT_USER_ID;
     var qs = uid
@@ -1432,14 +1404,6 @@ function setMode(m) {
 }
 
 // EDITOR
-function _updateShareSub(isShared) {
-  var sub = gi('eshare-sub');
-  if (!sub) return;
-  sub.textContent = isShared
-    ? 'Shared with team — visible on Notion'
-    : 'Visible to teammates via Notion';
-}
-
 function buildFolderOpts(current){
   var h='<option value="">— No folder —</option>';
   for(var i=0;i<folders.length;i++){
@@ -1514,10 +1478,6 @@ function openEd(id){
   _altQueries = (s && Array.isArray(s.alternative_queries)) ? s.alternative_queries.slice() : [];
   _renderAltTags();
   var aq = gi('ealtq'); if (aq) aq.value = '';
-  // Share toggle
-  var shareOn = s ? !!s.is_shared : false;
-  var es=gi('eshare'); if(es) es.checked = shareOn;
-  _updateShareSub(shareOn);
   var sk=gi('sok'); if(sk) sk.className='saveok';
   initEditorLangTabs(s);
   updateSprev();
@@ -1541,7 +1501,6 @@ function doSave(){
   var urgEnabled = gi('eurg').checked;
   var urgDurMs = Math.max(1, parseInt(gi('eurg-dur').value) || 30) * 60000;
   var urgSc = Math.max(0, parseInt(gi('eurg-sc').value) || 0);
-  var shareEnabled = !!(gi('eshare') && gi('eshare').checked);
   // Commit any unsaved draft tag before saving
   _commitAltDraft();
   var altQueries = _altQueries.slice();
@@ -1617,25 +1576,6 @@ function doSave(){
     DB.updateStats(toSave.id,0,0,null);
   }
   NotionPush.push(toSave);
-
-  // Handle team share toggle change
-  var wasShared = !!(toSave.is_shared);
-  if (shareEnabled && !wasShared) {
-    // User just turned sharing ON — push to team Notion DB via Edge Function
-    DB.shareWithTeamNotion(toSave, function(err) {
-      if (err) console.error('[SprintBrain] shareWithTeamNotion failed:', err.message);
-    });
-  } else if (!shareEnabled && wasShared) {
-    // User just turned sharing OFF — unshare in Supabase (Notion page kept as history)
-    DB.setShared(toSave.id, false).then(function() {
-      toSave.is_shared = false;
-    }).catch(function(err) {
-      console.error('[SprintBrain] setShared(false) failed:', err.message);
-    });
-  } else if (shareEnabled) {
-    // Already shared; just ensure the flag is set in memory
-    toSave.is_shared = true;
-  }
 
   // Save all other language variant buffers
   var gid = toSave.lang_group_id || toSave.id;
@@ -2002,7 +1942,6 @@ on('ealtq','input',function(e){
   if(v.indexOf(',')!==-1){ _commitAltDraft(); }
 });
 on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
-on('eshare','change', function(){ var es=gi('eshare'); if(es) _updateShareSub(es.checked); });
 
 // Mode tabs
 document.querySelectorAll('.mode-tab').forEach(function(tab){

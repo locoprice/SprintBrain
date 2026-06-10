@@ -53,7 +53,6 @@ export interface Snippet {
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
   language: SnippetLanguage;
-  is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean;
   /**

@@ -110,7 +110,6 @@ function coerceItem(raw: Record<string, unknown>): SnippetFormValues | null {
     language,
     folder_id: null,
     pinned: raw['pinned'] === true,
-    is_shared: false,
     alternative_queries: Array.isArray(raw['alternative_queries'])
       ? (raw['alternative_queries'] as string[]).filter((q) => typeof q === 'string')
       : [],

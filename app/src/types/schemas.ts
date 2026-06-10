@@ -87,7 +87,6 @@ export const snippetFormSchema = z.object({
   folder_id: z.string().nullable(),
   language: languageEnum,
   pinned: z.boolean().default(false),
-  is_shared: z.boolean().default(false),
   alternative_queries: z.array(z.string()).default([]),
   enable_urgency_timer: z.boolean().default(false),
   timer_duration_ms: z.number().int().nonnegative().default(0),

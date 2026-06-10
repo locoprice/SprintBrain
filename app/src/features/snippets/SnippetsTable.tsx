@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
@@ -88,9 +88,8 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
   const loading = useSnippetStore((s) => s.loading);
-  const shareSnippet = useSnippetStore((s) => s.shareSnippet);
-  const unshareSnippet = useSnippetStore((s) => s.unshareSnippet);
-  const sharingIds = useSnippetStore((s) => s.sharingIds);
+  const pushSnippetToNotion = useSnippetStore((s) => s.pushSnippetToNotion);
+  const notionPushingIds = useSnippetStore((s) => s.notionPushingIds);
   const query = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
@@ -175,14 +174,10 @@ export function SnippetsTable() {
     );
   }
 
-  async function handleShareToggle(e: React.MouseEvent, id: string, currentlyShared: boolean) {
+  async function handleNotionPush(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     try {
-      if (currentlyShared) {
-        await unshareSnippet(id);
-      } else {
-        await shareSnippet(id);
-      }
+      await pushSnippetToNotion(id);
     } catch {
       // Error surfaces via store.error → page-level banner.
     }
@@ -235,9 +230,9 @@ export function SnippetsTable() {
             </th>
             <th
               className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center"
-              title="Share this snippet with the team via Notion"
+              title="Push this snippet to the team Notion database"
             >
-              <Users className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
+              <Send className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
             </th>
             <th
               className="sticky top-0 z-10 w-[96px] border-b border-line bg-bg-alt pl-2 pr-4 py-3"
@@ -342,30 +337,30 @@ export function SnippetsTable() {
                   {row.usage_count.toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  {sharingIds.has(row.id) ? (
+                  {notionPushingIds.has(row.id) ? (
                     <Loader2 className="mx-auto h-4 w-4 animate-spin text-ink-subtle" />
                   ) : (
                     <button
                       type="button"
-                      onClick={(e) => void handleShareToggle(e, row.id, row.is_shared)}
+                      onClick={(e) => void handleNotionPush(e, row.id)}
                       aria-label={
-                        row.is_shared
-                          ? `Unshare ${row.name} from team`
-                          : `Share ${row.name} with team`
+                        row.notion_page_id
+                          ? `Update ${row.name} in Notion`
+                          : `Push ${row.name} to Notion`
                       }
                       title={
-                        row.is_shared
-                          ? 'Shared with team — click to unshare'
-                          : 'Share with team via Notion'
+                        row.notion_page_id
+                          ? 'In the team Notion DB — click to update'
+                          : 'Push to the team Notion DB'
                       }
                       className={
                         'inline-flex h-8 w-8 items-center justify-center rounded-[8px] transition-colors ' +
-                        (row.is_shared
-                          ? 'bg-primary-light text-primary hover:bg-danger/10 hover:text-danger'
+                        (row.notion_page_id
+                          ? 'bg-primary-light text-primary hover:bg-primary-light/70'
                           : 'text-ink-subtle opacity-0 hover:bg-primary-light hover:text-primary focus-visible:opacity-100 group-hover:opacity-100')
                       }
                     >
-                      <Users className="h-4 w-4" />
+                      <Send className="h-4 w-4" />
                     </button>
                   )}
                 </td>

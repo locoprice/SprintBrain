@@ -1,12 +1,15 @@
 # Phase B — Folder Sharing · Explore → Plan
 
-**Status:** IMPLEMENTED (B0–B5) — applied to production 2026-06-07. B6 (drop `is_shared`
-column + Notion EF update) intentionally deferred behind a soak (§2). All DB steps were
+**Status:** ✅ **COMPLETE (B0–B6).** B0–B5 applied to production 2026-06-07; **B6 executed
+2026-06-10** (owner-authorized early, ahead of the original soak window — see
+`docs/PHASE_B_SOAK.md` §7 for the execution log): `snippets.is_shared` dropped,
+`save_snippet_with_revision` rebuilt without `p_is_shared`, `notion-snippet-push` v3 decoupled
+(writes only `notion_page_id`), and every client surface migrated (E1 v2.60.0, E3 v2.61.0 —
+per-snippet sharing replaced by folder ACL + a separate "Push to Notion" action). All DB steps
 verified live with simulated-user RLS checks + the security advisor; dashboard gates
 (lint/typecheck/build/test) and extension checks (`node --check`, version, snippets) are green.
 See `services/supabase/migrations/README.md` for the applied migration list and §7 below for
-the resolved open decisions. **B6 is gated by `docs/PHASE_B_SOAK.md`** — the soak watch, exit
-criteria, runnable monitoring checks, and the open Notion-push decision live there.
+the resolved open decisions.
 **Prereq:** Phase A foundation (applied 2026-06-06; see `ENTERPRISE_ARCHITECTURE.md` + `project_enterprise_buildout`).
 **Goal:** Replace the all-or-nothing `snippets.is_shared` boolean with **folder-level View/Edit/Owner
 sharing** enforced by RLS, across dashboard **and** extension, without breaking existing use.

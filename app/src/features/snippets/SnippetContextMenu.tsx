@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Copy, Pencil, Pin, PinOff, Power, Trash2, UserMinus, Users } from 'lucide-react';
+import { Copy, Pencil, Pin, PinOff, Power, Send, Trash2 } from 'lucide-react';
 import type { SnippetRow } from '@/types/database';
 import { cn } from '@/lib/utils';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -23,8 +23,7 @@ export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMen
   const toggleActive = useSnippetStore((s) => s.toggleActive);
   const duplicateSnippet = useSnippetStore((s) => s.duplicateSnippet);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
-  const shareSnippet = useSnippetStore((s) => s.shareSnippet);
-  const unshareSnippet = useSnippetStore((s) => s.unshareSnippet);
+  const pushSnippetToNotion = useSnippetStore((s) => s.pushSnippetToNotion);
 
   const ref = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState({ x, y });
@@ -97,11 +96,10 @@ export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMen
     }
   }
 
-  async function handleShare() {
+  async function handleNotionPush() {
     setWorking(true);
     try {
-      if (snippet.is_shared) await unshareSnippet(snippet.id);
-      else await shareSnippet(snippet.id);
+      await pushSnippetToNotion(snippet.id);
       onClose();
     } catch {
       setWorking(false);
@@ -149,9 +147,9 @@ export function SnippetContextMenu({ snippet, x, y, onClose }: SnippetContextMen
         disabled={working}
       />
       <MenuItem
-        icon={snippet.is_shared ? <UserMinus className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
-        label={snippet.is_shared ? 'Unshare from team' : 'Share with team'}
-        onClick={handleShare}
+        icon={<Send className="h-3.5 w-3.5" />}
+        label={snippet.notion_page_id ? 'Update in Notion' : 'Push to Notion'}
+        onClick={handleNotionPush}
         disabled={working}
       />
       <div className="my-1 h-px bg-line" />

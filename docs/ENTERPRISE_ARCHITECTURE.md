@@ -51,7 +51,7 @@ near-term value (foundation + folder sharing) and defers the rest.
 | Table | Rows | Ownership | Notes |
 |---|---|---|---|
 | `folders` | 3 | `user_id` (uuid) | `id` is **text**; cols: name, ico, sort_order, timestamps. No description/visibility/org. |
-| `snippets` | 139 | `user_id` (uuid) | `id` **text**; `folder_id` text FK→folders (nullable); `is_shared` bool; `notion_page_id` unique. |
+| `snippets` | 139 | `user_id` (uuid) | `id` **text**; `folder_id` text FK→folders (nullable); ~~`is_shared` bool~~ (dropped in Phase B · B6, 2026-06-10); `notion_page_id` unique. |
 | `prompts` | 3 | `user_id` (uuid) | `id` **uuid**; **no `folder_id`** — not foldered today. |
 | `snippet_stats` | 53 | `user_id` | PK `snippet_id`. |
 | `snippet_events` | 793 | `user_id` (nullable) | append-only analytics. |
@@ -61,8 +61,11 @@ near-term value (foundation + folder sharing) and defers the rest.
 - **RLS is already correct and tight** per-user on every table (`auth.uid() = user_id`; snippets
   SELECT additionally allows `is_shared = true`). The extension authenticates per-user via JWT
   (`extension/auth/auth.js`). There are **no** permissive `team_*` policies. (AUTH-EXT-001 is shipped.)
+  *(Superseded by Phase B: the `is_shared` read branch was retired in B5 and the column dropped in
+  B6; org access is folder-ACL via the `app.*` functions.)*
 - **Sharing today** = `is_shared` boolean → readable by every authenticated user. Single tenant,
   so "everyone" = LeibTour. **This does not survive multi-tenancy** (see §8, R2).
+  *(Resolved: Phase B replaced this with folder-level View/Edit/Owner permissions; R2 is closed.)*
 - **Notion sync** = single shared team Notion DB + per-user credentials in `auth.users.user_metadata`.
   Tenant-blind (see §8, R5).
 
@@ -228,8 +231,8 @@ alter table prompts  add column folder_id text references folders(id);   -- prom
 `organization_id IS NULL` ⇒ personal asset (current behavior, unchanged).
 `organization_id = X` ⇒ org asset, access governed by folder permissions within org X.
 
-**Deprecate `snippets.is_shared`** — replaced by folder ACL. Keep the column through the
-migration window (set false everywhere once data is moved), then drop it (§7).
+**Deprecate `snippets.is_shared`** — ✅ done: replaced by folder ACL through the Phase B
+migration window (B4 data move → B5 policy retirement → B6 column drop, 2026-06-10).
 
 ---
 
