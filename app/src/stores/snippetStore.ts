@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import type { Folder, Snippet, SnippetRevision, SnippetRow } from '@/types/database';
+import type { Folder, FolderShareInfo, Snippet, SnippetRevision, SnippetRow } from '@/types/database';
 import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
+import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
+import { buildFolderShares } from '@/lib/folderShares';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -15,6 +17,8 @@ export interface ImportBatchResult {
 interface SnippetStore {
   folders: Folder[];
   snippets: SnippetRow[];
+  /** Per-folder sharing status (shared/team) for the folder-tree badges. Folders absent from the map are private. */
+  folderShares: Map<string, FolderShareInfo>;
   loading: boolean;
   error: string | null;
   selectedFolderId: string | null; // null = "All"
@@ -100,6 +104,7 @@ interface SnippetStore {
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
   folders: [],
   snippets: [],
+  folderShares: new Map<string, FolderShareInfo>(),
   loading: false,
   error: null,
   revisions: [],
@@ -116,6 +121,14 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   bulkDeleting: false,
   load: async () => {
     set({ loading: true, error: null });
+    // Folder share-status powers the tree badges. Fetched in parallel but kept
+    // strictly NON-FATAL: a grants failure must never block the folder list
+    // (that fragility is exactly what produced the "Failed to load snippets"
+    // regression). On any error we fall back to "no badges".
+    const sharesPromise = permissionsApi
+      .listAllGrants()
+      .then(buildFolderShares)
+      .catch(() => new Map<string, FolderShareInfo>());
     try {
       const [folders, snippets] = await Promise.all([
         snippetsApi.listFolders(),
@@ -128,6 +141,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         error: err instanceof Error ? err.message : 'Failed to load snippets',
       });
     }
+    set({ folderShares: await sharesPromise });
   },
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
   setSearchQuery: (q) => set({ searchQuery: q }),

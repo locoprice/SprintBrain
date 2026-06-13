@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Folders, Pencil, Plus } from 'lucide-react';
+import { Folders, Globe, Pencil, Plus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Folder } from '@/types/database';
+import type { Folder, FolderShareInfo } from '@/types/database';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { FolderDialog } from '@/features/snippets/FolderDialog';
@@ -16,6 +16,7 @@ interface MenuState {
 
 export function SnippetFolderTree() {
   const folders = useSnippetStore((s) => s.folders);
+  const folderShares = useSnippetStore((s) => s.folderShares);
   const snippets = useSnippetStore((s) => s.snippets);
   const selected = useSnippetStore((s) => s.selectedFolderId);
   const setSelected = useSnippetStore((s) => s.setSelectedFolder);
@@ -70,6 +71,7 @@ export function SnippetFolderTree() {
       {folders.map((f) => {
         const isActive = selected === f.id;
         const count = counts.get(f.id) ?? 0;
+        const share = folderShares.get(f.id) ?? null;
         return (
           <div
             key={f.id}
@@ -93,6 +95,7 @@ export function SnippetFolderTree() {
               <span className="flex min-w-0 items-center gap-2">
                 <span className="text-base leading-none">{f.icon}</span>
                 <span className="truncate">{f.name}</span>
+                {share && <FolderShareBadge info={share} />}
               </span>
               <span className="ml-2 shrink-0 text-xs text-ink-subtle">{count}</span>
             </button>
@@ -126,5 +129,34 @@ export function SnippetFolderTree() {
 
       <FolderShareModal folder={shareFolder} onClose={() => setShareFolder(null)} />
     </aside>
+  );
+}
+
+/**
+ * At-a-glance sharing indicator next to a folder name (Drive-style):
+ *   - team   → azure globe, "available to everyone on the team"
+ *   - shared → muted people icon, "shared with N specific teammates"
+ * Private folders render no badge. Tooltip carries the detail on hover.
+ */
+function FolderShareBadge({ info }: { info: FolderShareInfo }) {
+  if (info.scope === 'team') {
+    return (
+      <span
+        title="Available to all team members"
+        aria-label="Shared with the whole team"
+        className="shrink-0 text-primary"
+      >
+        <Globe className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  const label =
+    info.memberCount === 1
+      ? 'Shared with 1 teammate'
+      : `Shared with ${info.memberCount} teammates`;
+  return (
+    <span title={label} aria-label={label} className="shrink-0 text-ink-subtle">
+      <Users className="h-3.5 w-3.5" />
+    </span>
   );
 }

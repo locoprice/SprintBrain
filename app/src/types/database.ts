@@ -204,3 +204,13 @@ export interface FolderPermission {
   level: PermissionLevel;
   created_at: IsoDateTime;
 }
+
+/** Derived sharing status for a folder, computed from its `folder_permissions`. */
+export type FolderShareScope = 'private' | 'shared' | 'team';
+
+/** Per-folder sharing summary that drives the folder-tree badges. */
+export interface FolderShareInfo {
+  scope: FolderShareScope;
+  /** Distinct user/team grantees — drives the "Shared with N" tooltip. 0 for team-wide. */
+  memberCount: number;
+}

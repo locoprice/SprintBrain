@@ -26,6 +26,12 @@ export interface PermissionsApi {
   /** All grants on a folder (visible to anyone who can read the folder). */
   listGrants(folderId: string): Promise<FolderPermission[]>;
   /**
+   * Every grant on every folder the signed-in user can read. Powers the
+   * folder-tree share badges in one round-trip (RLS scopes the rows to folders
+   * the user owns or has been granted, so no folder filter is needed).
+   */
+  listAllGrants(): Promise<FolderPermission[]>;
+  /**
    * Share a folder with a principal at a level. Moves the folder + its assets
    * into `orgId` if they are still personal, then upserts the grant.
    */
@@ -81,6 +87,14 @@ export const permissionsApi: PermissionsApi = {
       .select(GRANT_SELECT)
       .eq('folder_id', folderId)
       .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as FolderPermission[];
+  },
+
+  async listAllGrants() {
+    const { data, error } = await supabase
+      .from('folder_permissions')
+      .select(GRANT_SELECT);
     if (error) throw error;
     return (data ?? []) as FolderPermission[];
   },
