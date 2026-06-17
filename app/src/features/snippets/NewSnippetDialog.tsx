@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertCircle, Clock, History, Pin, Plus, Trash2, Users, X } from 'lucide-react';
+import { AlertCircle, Clock, History, Pin, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,7 +43,6 @@ const EMPTY_FORM: SnippetFormValues = {
   folder_id: null,
   language: 'EN',
   pinned: false,
-  is_shared: false,
   alternative_queries: [],
   enable_urgency_timer: false,
   timer_duration_ms: 0,
@@ -190,7 +189,6 @@ export function NewSnippetDialog() {
         folder_id:            editingSnippet.folder_id,
         language:             editingSnippet.language,
         pinned:               editingSnippet.pinned,
-        is_shared:            editingSnippet.is_shared,
         alternative_queries:  editingSnippet.alternative_queries,
         enable_urgency_timer: editingSnippet.enable_urgency_timer,
         timer_duration_ms:    editingSnippet.timer_duration_ms,
@@ -723,16 +721,6 @@ export function NewSnippetDialog() {
                   </div>
                 </div>
               )}
-
-              <OptionToggle
-                id="snippet-share"
-                icon={<Users className="h-3.5 w-3.5" />}
-                title="Share with team"
-                description="Visible via Notion"
-                checked={form.is_shared}
-                onChange={(v) => updateField('is_shared', v)}
-                disabled={saving}
-              />
 
               <OptionToggle
                 id="snippet-pin"

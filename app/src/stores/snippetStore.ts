@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import type { Folder, Snippet, SnippetRevision, SnippetRow } from '@/types/database';
+import type { Folder, FolderShareInfo, Snippet, SnippetRevision, SnippetRow } from '@/types/database';
 import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
+import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
+import { buildFolderShares } from '@/lib/folderShares';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -15,12 +17,14 @@ export interface ImportBatchResult {
 interface SnippetStore {
   folders: Folder[];
   snippets: SnippetRow[];
+  /** Per-folder sharing status (shared/team) for the folder-tree badges. Folders absent from the map are private. */
+  folderShares: Map<string, FolderShareInfo>;
   loading: boolean;
   error: string | null;
   selectedFolderId: string | null; // null = "All"
   searchQuery: string;
-  /** Set of snippet IDs currently awaiting a share/unshare operation. */
-  sharingIds: Set<string>;
+  /** Set of snippet IDs currently awaiting a Notion push. */
+  notionPushingIds: Set<string>;
   /** IDs of rows checked in the bulk-selection column. */
   selectedIds: Set<string>;
   sortBy: SortColumn;
@@ -60,15 +64,12 @@ interface SnippetStore {
   editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
   /**
-   * Push snippet to the shared team Notion DB via Edge Function.
-   * Optimistically sets is_shared=true; rolls back on failure.
+   * Push (or re-push) a snippet to the shared team Notion DB via Edge
+   * Function. Idempotent: updates the existing Notion page when one is
+   * already linked. Team visibility is folder-level — this only syndicates
+   * content to Notion.
    */
-  shareSnippet: (id: string) => Promise<void>;
-  /**
-   * Unshare a snippet: sets is_shared=false in Supabase.
-   * The Notion page is intentionally preserved as team knowledge history.
-   */
-  unshareSnippet: (id: string) => Promise<void>;
+  pushSnippetToNotion: (id: string) => Promise<void>;
   /**
    * Bulk-create snippets from an import payload. Creates each snippet
    * individually and appends all successful rows to the store in one
@@ -103,6 +104,7 @@ interface SnippetStore {
 export const useSnippetStore = create<SnippetStore>((set, get) => ({
   folders: [],
   snippets: [],
+  folderShares: new Map<string, FolderShareInfo>(),
   loading: false,
   error: null,
   revisions: [],
@@ -110,7 +112,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   revisionsLoading: false,
   selectedFolderId: null,
   searchQuery: '',
-  sharingIds: new Set<string>(),
+  notionPushingIds: new Set<string>(),
   selectedIds: new Set<string>(),
   sortBy: 'updated_at',
   sortDir: 'desc',
@@ -119,6 +121,14 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   bulkDeleting: false,
   load: async () => {
     set({ loading: true, error: null });
+    // Folder share-status powers the tree badges. Fetched in parallel but kept
+    // strictly NON-FATAL: a grants failure must never block the folder list
+    // (that fragility is exactly what produced the "Failed to load snippets"
+    // regression). On any error we fall back to "no badges".
+    const sharesPromise = permissionsApi
+      .listAllGrants()
+      .then(buildFolderShares)
+      .catch(() => new Map<string, FolderShareInfo>());
     try {
       const [folders, snippets] = await Promise.all([
         snippetsApi.listFolders(),
@@ -131,6 +141,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         error: err instanceof Error ? err.message : 'Failed to load snippets',
       });
     }
+    set({ folderShares: await sharesPromise });
   },
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
   setSearchQuery: (q) => set({ searchQuery: q }),
@@ -402,52 +413,24 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     }
   },
 
-  shareSnippet: async (id) => {
-    // Optimistic update: flip is_shared immediately so the toggle feels instant.
-    set((s) => ({
-      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: true } : sn)),
-      sharingIds: new Set([...s.sharingIds, id]),
-    }));
+  pushSnippetToNotion: async (id) => {
+    // The spinner (notionPushingIds) is the user feedback; nothing to update
+    // optimistically because the push only links a Notion page.
+    set((s) => ({ notionPushingIds: new Set([...s.notionPushingIds, id]) }));
     try {
-      const { notion_page_id } = await snippetsApi.shareWithNotion(id);
+      const { notion_page_id } = await snippetsApi.pushToNotion(id);
       // Persist the notion_page_id returned by the Edge Function.
       set((s) => ({
         snippets: s.snippets.map((sn) =>
-          sn.id === id ? { ...sn, is_shared: true, notion_page_id } : sn,
+          sn.id === id ? { ...sn, notion_page_id } : sn,
         ),
-        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
+        notionPushingIds: new Set([...s.notionPushingIds].filter((x) => x !== id)),
         error: null,
       }));
     } catch (err) {
-      // Rollback optimistic update on failure.
       set((s) => ({
-        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: false } : sn)),
-        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
-        error: err instanceof Error ? err.message : 'Failed to share snippet',
-      }));
-      throw err;
-    }
-  },
-
-  unshareSnippet: async (id) => {
-    // Optimistic update.
-    set((s) => ({
-      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: false } : sn)),
-      sharingIds: new Set([...s.sharingIds, id]),
-    }));
-    try {
-      const updated = await snippetsApi.setShared(id, false);
-      set((s) => ({
-        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, ...updated } : sn)),
-        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
-        error: null,
-      }));
-    } catch (err) {
-      // Rollback optimistic update on failure.
-      set((s) => ({
-        snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, is_shared: true } : sn)),
-        sharingIds: new Set([...s.sharingIds].filter((x) => x !== id)),
-        error: err instanceof Error ? err.message : 'Failed to unshare snippet',
+        notionPushingIds: new Set([...s.notionPushingIds].filter((x) => x !== id)),
+        error: err instanceof Error ? err.message : 'Failed to push snippet to Notion',
       }));
       throw err;
     }
@@ -505,7 +488,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           lang: patch.language,
           folder_id: patch.folder_id,
           pinned: patch.pinned ?? false,
-          is_shared: patch.is_shared ?? false,
           alternative_queries: patch.alternative_queries ?? [],
           enable_urgency_timer: patch.enable_urgency_timer ?? false,
           timer_duration_ms: patch.timer_duration_ms ?? 0,
@@ -529,7 +511,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
             ? snippet.folder_name
             : (folder?.name ?? null),
         pinned: patch.pinned ?? false,
-        is_shared: patch.is_shared ?? false,
         alternative_queries: patch.alternative_queries ?? [],
         enable_urgency_timer: patch.enable_urgency_timer ?? false,
         timer_duration_ms: patch.timer_duration_ms ?? 0,
@@ -568,7 +549,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           lang: snippet.language,
           folder_id: snippet.folder_id,
           pinned: snippet.pinned,
-          is_shared: snippet.is_shared,
           enable_urgency_timer: snippet.enable_urgency_timer,
           timer_duration_ms: snippet.timer_duration_ms,
           scarcity_count: snippet.scarcity_count,

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1B4FD8">
 <title>SprintBrain — Text expansion with formulas</title>
-<meta name="description" content="Chrome extension that expands snippets, runs formulas inside them, and syncs across your devices. Built for operators who type the same things every day.">
+<meta name="description" content="Chrome extension that expands snippets, runs formulas inside them, and shares folders with your team. Synced across Chrome, web, and mobile for operators who type the same things every day.">
 <link rel="icon" type="image/png" sizes="128x128" href="/icon128.png">
 <link rel="icon" type="image/png" sizes="48x48" href="/icon48.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icon16.png">
@@ -246,6 +246,36 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 .fs-card.fs-hero .fs-card-title{font-size:40px;letter-spacing:-.03em}
 .fs-card.fs-hero .fs-card-body{font-size:16px;max-width:460px}
 
+/* wide card — full-width feature band (Team folders) */
+.fs-card.fs-wide{
+  grid-column:span 6;
+  flex-direction:row;
+  align-items:stretch;
+  gap:40px;min-height:300px
+}
+.fs-wide-main{display:flex;flex-direction:column;flex:1 1 0;min-width:0}
+.fs-wide-main .fs-card-body{max-width:520px}
+.fs-share{
+  flex:0 0 320px;align-self:center;
+  background:#08080B;border:1px solid #1F1F26;border-radius:14px;
+  padding:18px;display:flex;flex-direction:column;gap:10px
+}
+.fs-share-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:#111114;
+  border:1px solid #1F1F26;border-radius:10px
+}
+.fs-share-row svg{width:16px;height:16px;flex-shrink:0;color:var(--fs-accent-soft)}
+.fs-share-name{flex:1;min-width:0;font-family:var(--sb-font);font-size:13px;
+  color:#DCDCE2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-share-scope{font-family:var(--sb-font);font-size:11px;color:var(--fs-ink-subtle);white-space:nowrap}
+.fs-share-levels{display:flex;gap:8px;margin-top:4px}
+.fs-share-lv{
+  flex:1;text-align:center;font-family:var(--sb-font);font-size:12px;font-weight:600;
+  padding:6px 0;border-radius:8px;border:1px solid #1F1F26;color:var(--fs-ink-muted)
+}
+.fs-share-lv-on{border-color:var(--fs-accent);color:var(--fs-accent-soft);background:rgba(139,124,246,.10)}
+
 .fs-card-tag{
   font-size:12px;font-weight:600;letter-spacing:.06em;
   text-transform:uppercase;color:var(--fs-ink-subtle);
@@ -313,11 +343,14 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 @media(max-width:1080px){
   .fs-grid{grid-template-columns:repeat(2,1fr)}
   .fs-card,.fs-card.fs-hero{grid-column:span 1}
+  .fs-card.fs-wide{grid-column:span 2;flex-direction:column}
+  .fs-share{flex-basis:auto;align-self:stretch}
   .fs-title{font-size:48px}
 }
 @media(max-width:640px){
   .fs-section{padding:72px 24px 80px}
   .fs-grid{grid-template-columns:1fr}
+  .fs-card.fs-wide{grid-column:span 1}
   .fs-title{font-size:38px}
   .fs-card-title{font-size:26px}
 }
@@ -543,14 +576,6 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   padding:18px 20px;font-size:13.5px;line-height:1.6;
   color:#8A8A93;margin-bottom:24px}
 .fm-detail strong{color:#DCDCE2;font-weight:600;display:block;margin-bottom:6px}
-.fm-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.fm-cta-btn{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;
-  background:var(--sb-iris-light);color:#fff;border:none;
-  cursor:pointer;font-family:inherit;
-  transition:background .15s,transform .1s}
-.fm-cta-btn:hover{background:var(--sb-iris-soft);transform:translateY(-1px)}
 .fm-close{
   position:absolute;top:20px;right:20px;
   width:32px;height:32px;border-radius:8px;
@@ -600,7 +625,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · v2.56.12</div>
+    <div class="hero-eyebrow">Chrome Extension · v2.62.2</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
@@ -876,6 +901,39 @@ LeibTour Team</div>
         </button>
       </article>
 
+      <!-- 07 · Team folders (full-width) -->
+      <article class="fs-card fs-wide">
+        <div class="fs-wide-main">
+          <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>07 · Team folders</div>
+          <h3 class="fs-card-title">Share a folder. Your team types from it.</h3>
+          <p class="fs-card-body">
+            Share a folder with the <b>whole team</b> or <b>specific teammates</b> — at
+            <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. Every snippet, formula, and prompt
+            inside it shows up in their dashboard and extension the moment you share.
+          </p>
+          <button class="fs-cta" type="button" aria-label="Learn more about team folders">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div class="fs-share" aria-hidden="true">
+          <div class="fs-share-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="fs-share-name">Booking quotes</span>
+            <span class="fs-share-scope">Whole team</span>
+          </div>
+          <div class="fs-share-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="fs-share-name">Email templates</span>
+            <span class="fs-share-scope">3 teammates</span>
+          </div>
+          <div class="fs-share-levels">
+            <span class="fs-share-lv">View</span>
+            <span class="fs-share-lv fs-share-lv-on">Edit</span>
+            <span class="fs-share-lv">Owner</span>
+          </div>
+        </div>
+      </article>
+
     </div>
   </div>
 </section>
@@ -970,7 +1028,7 @@ LeibTour Team</div>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         </div>
         <h3>Web Dashboard</h3>
-        <p>Manage your full library from any browser. Create folders, write snippets with live formulas, review analytics, and configure Notion sync — nothing to install.</p>
+        <p>Manage your full library from any browser. Create folders, write snippets with live formulas, share folders with your team, review analytics, and configure Notion sync — nothing to install.</p>
         <span class="plat-pill">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
           Lives in your browser
@@ -1036,7 +1094,7 @@ LeibTour Team</div>
 <footer>
   <div class="foot-inner">
     <div class="foot-brand">
-      © 2026 SprintBrain · v2.56.12 · Updated May 2026
+      © <span id="foot-year">2026</span> SprintBrain · {{EXT_VERSION}} · Updated {{RELEASE_MONTH}}
     </div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
@@ -1061,12 +1119,6 @@ LeibTour Team</div>
     <h2 class="fm-title" id="fm-title"></h2>
     <p class="fm-body" id="fm-body"></p>
     <div class="fm-detail" id="fm-detail"></div>
-    <div class="fm-cta-row">
-      <a href="https://app.sprintbrain.com/signup" class="fm-cta-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        Get early access
-      </a>
-    </div>
   </div>
 </div>
 
@@ -1108,6 +1160,12 @@ LeibTour Team</div>
       title:'Your library, on any phone.',
       body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet — same library, same formulas.',
       detail:'<strong>Progressive Web App</strong>Add it to your home screen for instant launch. Works offline for read access. Tap any snippet to copy the expanded text straight to your clipboard.'
+    },
+    {
+      tag:'07 · Team folders',
+      title:'Share a folder. Your team types from it.',
+      body:'Right-click any folder and <b>Share with team</b> — pick the <b>whole team</b> or <b>specific teammates</b>, each at <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. The folder is the boundary: every snippet, formula, and prompt inside it inherits the access you grant.',
+      detail:'<strong>One place to manage it</strong>Sharing is managed in the dashboard; shared folders appear for every teammate in the extension and web library automatically, enforced server-side by row-level security. A globe marks team-wide folders; a people icon marks folders shared with named teammates — private folders stay private.'
     }
   ];
 
@@ -1159,6 +1217,16 @@ LeibTour Team</div>
       card.style.transform='';
     });
   });
+})();
+
+(function(){
+  var yearEl=document.getElementById('foot-year');
+  if(yearEl)yearEl.textContent=String(new Date().getFullYear());
+  var el=document.getElementById('foot-updated');
+  if(!el)return;
+  var d=new Date(document.lastModified);
+  if(isNaN(d.getTime()))return;
+  el.textContent=d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
 })();
 </script>
 </body>

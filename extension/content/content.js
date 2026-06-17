@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.56.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.57.0 ────────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
@@ -7,6 +7,9 @@
 //          field surfaces keyword-mapped snippets in a floating, selection-
 //          anchored menu; picking one replaces the selection via the existing
 //          expansion pipeline. Toggle: triggerCfg.selectionSuggestions.
+// v2.57.0: """ prompt picker merges built-in Base Prompts with the dashboard
+//          Prompt List (storage.local.sb_prompts), separated by a "My prompt
+//          base" divider; checkBuf no longer gated on snippets.length.
 
 // ── ANALYTICS-001: fire-and-forget per-trigger event ──────────────
 function logEvent(snip, fieldsFilled) {
@@ -412,7 +415,15 @@ var lastInputTime = 0; // debounce: prevents keydown + input event double-fire o
 var isPasting = false; // guards against paste events feeding the trigger buffer
 
 // ── PROMPT TEMPLATES ──────────────────────────────────────────────
-var PROMPT_TEMPLATES = [
+// The """ picker draws from two merged sources:
+//   - BASE_PROMPTS: built-in defaults ("Base Prompts"), always available even
+//     offline / before sign-in. Future Notion "Base Prompts" sync target.
+//   - userPrompts: the user's dashboard "Prompt List", synced from
+//     public.prompts -> chrome.storage.local.sb_prompts by the popup
+//     (mirrors how snippets reach the content script).
+// promptTemplates() lists Base Prompts first, then the dashboard Prompt List; a
+// dashboard prompt whose title matches a base one overrides it in place.
+var BASE_PROMPTS = [
   { id: 'formal', title: 'Formal tone', body: 'Please rewrite in a formal, professional tone:\n' },
   { id: 'casual', title: 'Casual tone', body: 'Rewrite this in a friendly, casual tone:\n' },
   { id: 'translate', title: 'Translate', body: 'Translate the following text to {language}:\n' },
@@ -420,6 +431,29 @@ var PROMPT_TEMPLATES = [
   { id: 'expand', title: 'Expand / elaborate', body: 'Expand on the following with more detail:\n' },
   { id: 'bullet', title: 'Convert to bullets', body: '\u2022 ' }
 ];
+var userPrompts = []; // dashboard Prompt List (chrome.storage.local.sb_prompts)
+
+// Each item is tagged with _group ('base' | 'list') so the picker can draw a
+// single divider at the base->dashboard boundary. Items are shallow copies so
+// BASE_PROMPTS / userPrompts are never mutated.
+function promptTemplates() {
+  var merged = BASE_PROMPTS.map(function(p) { return Object.assign({}, p, { _group: 'base' }); });
+  if (!userPrompts.length) return merged;
+  var idxByTitle = {};
+  for (var i = 0; i < merged.length; i++) {
+    idxByTitle[(merged[i].title || '').toLowerCase()] = i;
+  }
+  for (var j = 0; j < userPrompts.length; j++) {
+    var p = userPrompts[j];
+    var key = (p.title || '').toLowerCase();
+    if (key && idxByTitle[key] !== undefined) {
+      merged[idxByTitle[key]] = Object.assign({}, p, { _group: 'base' }); // override keeps the base slot
+    } else {
+      merged.push(Object.assign({}, p, { _group: 'list' }));
+    }
+  }
+  return merged;
+}
 
 // ── SELECTION-TRIGGERED SUGGESTIONS (v2.56.0) ─────────────────────
 // When the user SELECTS text in any editable field, the selection is scanned
@@ -509,10 +543,17 @@ try {
     } catch(e) {}
   });
 
+  chrome.storage.local.get('sb_prompts', function(data) {
+    try {
+      if (data && Array.isArray(data.sb_prompts)) userPrompts = data.sb_prompts;
+    } catch(e) {}
+  });
+
   chrome.storage.onChanged.addListener(function(changes, areaName) {
     try {
       // Snippets only fire from local (areaName === 'local'); small settings from sync.
       if (changes.snippets && changes.snippets.newValue) snippets = changes.snippets.newValue;
+      if (changes.sb_prompts && Array.isArray(changes.sb_prompts.newValue)) userPrompts = changes.sb_prompts.newValue;
       if (changes.trigger  && changes.trigger.newValue)  trigger  = changes.trigger.newValue;
       if (changes.sb_default_lang && changes.sb_default_lang.newValue) defaultLang = changes.sb_default_lang.newValue;
       if (changes.triggerCfg && changes.triggerCfg.newValue) {
@@ -552,7 +593,10 @@ function addKey(k) {
 }
 
 function checkBuf() {
-  if (processing || !snippets.length) return;
+  // Not gated on snippets.length: the """ prompt picker (Base Prompts +
+  // dashboard Prompt List) must open even when the user has no snippets. The
+  // snippet-matching loop below simply no-ops on an empty list.
+  if (processing) return;
 
   // Strip invisible artifacts that Gmail's rich-text contenteditable can
   // splice into the keystroke stream (smart-compose, autocorrect, paste
@@ -1919,7 +1963,7 @@ function _scTag(sc) {
 // Re-render picker items filtered by query string
 function _renderPickerItems(query) {
   if (!triggerPickerEl) return;
-  var allItems = triggerPickerMode === 'snippet' ? snippets : PROMPT_TEMPLATES;
+  var allItems = triggerPickerMode === 'snippet' ? snippets : promptTemplates();
   var q = (query || '').toLowerCase();
   var filtered = q
     ? allItems.filter(function(s) {
@@ -1960,6 +2004,11 @@ function _renderPickerItems(query) {
   var h = '';
   for (var i = 0; i < triggerPickerFiltered.length; i++) {
     var item = triggerPickerFiltered[i];
+    // Divider at the base->dashboard boundary. Non-selectable (not .sb-tp-item),
+    // so it never enters nav/highlight/click — those query .sb-tp-item only.
+    if (i > 0 && item._group === 'list' && triggerPickerFiltered[i - 1]._group === 'base') {
+      h += '<div class="sb-tp-sep" style="margin:5px 4px 2px;padding:7px 8px 3px;border-top:1px solid #E4E4E7;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;">My prompt base</div>';
+    }
     var sc = triggerPickerMode === 'snippet' && item.shortcut
       ? _scTag(item.shortcut)
       : '';

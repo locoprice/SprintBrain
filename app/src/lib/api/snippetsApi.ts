@@ -6,12 +6,12 @@ const EDGE_FN_SHARE = 'notion-snippet-push';
 
 // Live Supabase reads + writes for snippets + folders, scoped to the authed user.
 //
-// Why we filter explicitly by user_id in app code instead of relying on RLS:
-// the DB still has permissive `team_*` policies (qual: true) needed by the
-// extension's anon-key queries. PERMISSIVE policies combine with OR, so the
-// per-user `auth.uid() = user_id` policies provide no isolation yet. When the
-// extension migrates to user JWTs (AUTH-EXT-001), the team_* policies come
-// off and RLS alone is sufficient. Until then, every query is .eq'd below.
+// RLS is the security layer: personal rows are gated by `auth.uid() = user_id`,
+// and Phase B adds the org-folder branch (`app.can_read_folder` /
+// `app.can_write_folder`) for assets in shared folders. The legacy per-snippet
+// `is_shared` flag is fully retired (B6 — column dropped); team visibility is
+// folder-level only. The explicit `.eq('user_id', …)` filters on the write
+// helpers below remain as an owner scope (defense-in-depth).
 
 export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;
@@ -28,10 +28,8 @@ export interface SnippetsApi {
   createFolder(payload: FolderFormValues): Promise<Folder>;
   updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
   deleteFolder(id: string): Promise<void>;
-  /** Mark a snippet shared/unshared without touching Notion. */
-  setShared(id: string, isShared: boolean): Promise<SnippetRow>;
-  /** Push snippet to the team Notion DB via Edge Function, sets is_shared=true. */
-  shareWithNotion(id: string): Promise<{ notion_page_id: string }>;
+  /** Push snippet to the team Notion DB via Edge Function; writes notion_page_id back. */
+  pushToNotion(id: string): Promise<{ notion_page_id: string }>;
   /** Move multiple snippets to a folder in a single idempotent request. */
   bulkMoveSnippets(ids: string[], folderId: string | null): Promise<void>;
   /** Delete multiple snippets in a single request. */
@@ -61,7 +59,6 @@ type DbSnippetJoined = {
   field_cfg: Record<string, unknown> | null;
   sort_order: number;
   updated_at: string;
-  is_shared: boolean;
   notion_page_id: string | null;
   pinned: boolean | null;
   is_active: boolean | null;
@@ -139,7 +136,6 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
     language,
-    is_shared: row.is_shared ?? false,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     is_active: row.is_active ?? true,
@@ -181,7 +177,7 @@ async function readLanguage(
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, is_shared, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the
@@ -204,22 +200,23 @@ function mergeActiveBody(
 
 export const snippetsApi: SnippetsApi = {
   async listFolders() {
-    const userId = await currentUserId();
+    // No `.eq('user_id')` filter: RLS returns the user's own folders plus any
+    // org folders shared with them (Phase B). Personal-only users are unaffected.
     const { data, error } = await supabase
       .from('folders')
       .select(FOLDER_SELECT)
-      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
     return (data ?? []).map(dbFolderToFolder);
   },
 
   async listSnippets() {
-    const userId = await currentUserId();
+    // No `.eq('user_id')` filter: RLS returns the user's own snippets plus any
+    // that live in a folder shared with them (Phase B). Personal-only users see
+    // exactly what they did before.
     const { data, error } = await supabase
       .from('snippets')
       .select(SNIPPET_SELECT)
-      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
     if (error) throw error;
     return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
@@ -243,7 +240,6 @@ export const snippetsApi: SnippetsApi = {
       sort_order: Date.now(),
       updated_at: now,
       pinned: payload.pinned ?? false,
-      is_shared: payload.is_shared ?? false,
       alternative_queries: payload.alternative_queries ?? [],
       enable_urgency_timer: payload.enable_urgency_timer ?? false,
       timer_duration_ms: payload.timer_duration_ms ?? 0,
@@ -268,7 +264,6 @@ export const snippetsApi: SnippetsApi = {
     if (patch.language !== undefined) update['lang'] = patch.language;
     if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
     if (patch.pinned !== undefined) update['pinned'] = patch.pinned;
-    if (patch.is_shared !== undefined) update['is_shared'] = patch.is_shared;
     if (patch.alternative_queries !== undefined) update['alternative_queries'] = patch.alternative_queries;
     if (patch.enable_urgency_timer !== undefined)
       update['enable_urgency_timer'] = patch.enable_urgency_timer;
@@ -414,11 +409,10 @@ export const snippetsApi: SnippetsApi = {
       field_cfg: source.field_cfg ?? {},
       sort_order: Date.now(),
       updated_at: now,
-      // A duplicate starts unpinned + unshared so the copy doesn't inherit
-      // distribution state from the source. It does inherit is_active so
-      // cloning a disabled snippet yields a disabled copy (predictable).
+      // A duplicate starts unpinned so the copy doesn't inherit distribution
+      // state from the source. It does inherit is_active so cloning a
+      // disabled snippet yields a disabled copy (predictable).
       pinned: false,
-      is_shared: false,
       is_active: source.is_active ?? true,
       alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
       enable_urgency_timer: source.enable_urgency_timer ?? false,
@@ -434,25 +428,11 @@ export const snippetsApi: SnippetsApi = {
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
-  // Flip is_shared for a single snippet without touching Notion.
-  // Used for unsharing (is_shared → false) and direct DB corrections.
-  async setShared(id, isShared) {
-    const userId = await currentUserId();
-    const { data, error } = await supabase
-      .from('snippets')
-      .update({ is_shared: isShared, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select(SNIPPET_SELECT)
-      .single();
-    if (error) throw error;
-    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
-  },
-
   // Call the Edge Function to push the snippet to the shared team Notion DB.
-  // The EF sets is_shared=true and writes notion_page_id back to the DB.
-  // Returns the Notion page ID on success.
-  async shareWithNotion(id) {
+  // The EF writes notion_page_id back to the DB (idempotent upsert). Team
+  // visibility is folder-level (Phase B) — pushing to Notion does not change
+  // who can see the snippet in the app.
+  async pushToNotion(id) {
     const { data, error } = await supabase.functions.invoke<{
       ok: boolean;
       notion_page_id: string;

@@ -99,8 +99,9 @@ const RELEASE_DATE = latestTagged?.date    ?? '';
 // extension/manifest.json) — in dev via middleware, in prod by rewriting the
 // emitted file. The badge can never drift from a release again.
 
-const EXT_VERSION_TOKEN  = '{{EXT_VERSION}}';
-const RELEASE_DATE_TOKEN = '{{RELEASE_DATE}}';
+const EXT_VERSION_TOKEN    = '{{EXT_VERSION}}';
+const RELEASE_DATE_TOKEN   = '{{RELEASE_DATE}}';
+const RELEASE_MONTH_TOKEN  = '{{RELEASE_MONTH}}';
 
 function readExtensionVersion(): string {
   try {
@@ -121,14 +122,23 @@ function formatReleaseDate(iso: string): string {
   return `${months[month - 1]} ${day}, ${year}`;
 }
 
+function formatReleaseMonth(iso: string): string {
+  if (!iso) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [year, month] = iso.split('-').map(Number);
+  return `${months[month - 1]} ${year}`;
+}
+
 function landingVersionPlugin(): Plugin {
-  const version     = readExtensionVersion();
-  const releaseDate = formatReleaseDate(RELEASE_DATE);
-  const sourceFile  = path.resolve(__dirname, 'public/landing/index.html');
-  const distFile    = path.resolve(__dirname, 'dist/landing/index.html');
+  const version      = readExtensionVersion();
+  const releaseDate  = formatReleaseDate(RELEASE_DATE);
+  const releaseMonth = formatReleaseMonth(RELEASE_DATE);
+  const sourceFile   = path.resolve(__dirname, 'public/landing/index.html');
+  const distFile     = path.resolve(__dirname, 'dist/landing/index.html');
   const stamp = (html: string): string =>
     html.split(EXT_VERSION_TOKEN).join(version)
-        .split(RELEASE_DATE_TOKEN).join(releaseDate);
+        .split(RELEASE_DATE_TOKEN).join(releaseDate)
+        .split(RELEASE_MONTH_TOKEN).join(releaseMonth);
 
   return {
     name: 'sprintbrain-landing-version',
@@ -163,8 +173,56 @@ function landingVersionPlugin(): Plugin {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
+// ── Mobile page version stamp ────────────────────────────────────────────────
+// Same pattern as landingVersionPlugin: replaces {{APP_VERSION}} in the static
+// mobile HTML with the app version derived from git tags at build time.
+
+const APP_VERSION_TOKEN = '{{APP_VERSION}}';
+
+function mobileVersionPlugin(): Plugin {
+  const version      = APP_VERSION;
+  const releaseMonth = formatReleaseMonth(RELEASE_DATE);
+  const sourceFile   = path.resolve(__dirname, 'public/mobile/index.html');
+  const distFile     = path.resolve(__dirname, 'dist/mobile/index.html');
+  const stamp = (html: string): string =>
+    html.split(APP_VERSION_TOKEN).join(version)
+        .split(RELEASE_MONTH_TOKEN).join(releaseMonth);
+
+  return {
+    name: 'sprintbrain-mobile-version',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? '').split('?')[0];
+        if (
+          pathname === '/mobile' ||
+          pathname === '/mobile/' ||
+          pathname === '/mobile/index.html'
+        ) {
+          try {
+            const html = stamp(fs.readFileSync(sourceFile, 'utf-8'));
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(html);
+            return;
+          } catch {
+            // Fall through to Vite's default static handling.
+          }
+        }
+        next();
+      });
+    },
+    closeBundle() {
+      try {
+        fs.writeFileSync(distFile, stamp(fs.readFileSync(distFile, 'utf-8')));
+      } catch {
+        // Mobile page absent from this build — nothing to stamp.
+      }
+    },
+  };
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default defineConfig({
-  plugins: [react(), landingVersionPlugin()],
+  plugins: [react(), landingVersionPlugin(), mobileVersionPlugin()],
   define: {
     // Injected at build time — components read these as plain constants.
     __APP_CHANGELOG__:    JSON.stringify(CHANGELOG),

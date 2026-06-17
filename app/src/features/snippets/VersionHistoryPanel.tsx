@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ChevronDown, ChevronRight, Clock, Loader2, RotateCcw, Users, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Loader2, RotateCcw, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -293,12 +293,6 @@ export function VersionHistoryPanel() {
           </div>
           <DialogDescription>
             Every save creates a new version. Click a version to see what changed, or restore it.
-            {snippet?.is_shared && (
-              <span className="ml-1.5 inline-flex items-center gap-1 text-primary">
-                <Users className="h-3 w-3" />
-                Team shared
-              </span>
-            )}
           </DialogDescription>
         </DialogHeader>
 

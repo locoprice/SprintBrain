@@ -37,7 +37,9 @@ export const snippetSchema = z.object({
   is_formula: z.boolean(),
   formula: z.string().nullable(),
   variables: z.record(z.unknown()),
-  folder_id: z.string().uuid().nullable(),
+  // Folder ids are TEXT in the schema (legacy client-generated + org folders),
+  // not necessarily UUIDs — don't over-constrain.
+  folder_id: z.string().nullable(),
   language: languageEnum,
   updated_at: z.string(),
 });
@@ -75,13 +77,16 @@ export const snippetFormSchema = z.object({
     .string()
     .min(1, 'Trigger is required')
     .max(60, 'Trigger must be 60 characters or fewer')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, hyphens, and underscores only'),
+    .regex(
+      /^[!/:;]*[a-zA-Z0-9_-]+$/,
+      'An optional prefix (:: / ; !) followed by letters, numbers, hyphens, and underscores',
+    ),
   content: z.string().min(1, 'Content is required'),
   bodies: snippetBodiesSchema,
-  folder_id: z.string().uuid().nullable(),
+  // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
+  folder_id: z.string().nullable(),
   language: languageEnum,
   pinned: z.boolean().default(false),
-  is_shared: z.boolean().default(false),
   alternative_queries: z.array(z.string()).default([]),
   enable_urgency_timer: z.boolean().default(false),
   timer_duration_ms: z.number().int().nonnegative().default(0),
