@@ -62,7 +62,9 @@ img,svg{display:block;max-width:100%}
 .btn-sm{padding:8px 14px;font-size:13.5px}
 
 /* HERO */
-.hero{padding:88px 24px 72px;position:relative;overflow:hidden}
+.hero{
+  padding:88px 24px 72px;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse 80% 52% at 50% -8%,rgba(27,79,216,.07) 0%,var(--bg) 68%)}
 .hero-inner{max-width:var(--max);margin:0 auto;text-align:center;position:relative}
 .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
   background:var(--primary-lt);color:var(--primary);
@@ -71,20 +73,33 @@ img,svg{display:block;max-width:100%}
 .hero-eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;
   background:var(--primary);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.hero h1{font-size:clamp(40px,6vw,72px);font-weight:800;letter-spacing:-2px;
+.hero h1{font-size:clamp(40px,6vw,72px);font-weight:800;letter-spacing:-2.5px;
   line-height:1.05;margin-bottom:20px;color:var(--text)}
-.hero h1 span{background:linear-gradient(135deg,var(--primary) 0%,#4F7FE8 100%);
+.hero h1 span{background:linear-gradient(135deg,var(--primary) 0%,#5B82F0 60%,#7FA8F8 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{font-size:clamp(17px,2vw,20px);color:var(--text2);
-  max-width:620px;margin:0 auto 12px;line-height:1.5}
-.hero p.hero-slogan{font-size:clamp(15px,1.4vw,18px);font-style:italic;color:var(--text2);
-  text-align:center;margin:0 auto 36px;max-width:520px;opacity:.9;letter-spacing:.01em}
+  max-width:620px;margin:0 auto 12px;line-height:1.55}
+.hero p.hero-slogan{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:clamp(14px,1.3vw,16px);font-style:italic;font-weight:500;
+  color:var(--text3);text-align:center;margin:4px auto 28px;
+  padding-left:12px;border-left:2px solid var(--primary);
+  letter-spacing:.01em;opacity:1}
+.hero-proof{
+  display:flex;align-items:center;justify-content:center;
+  gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.hero-proof-item{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12.5px;font-weight:500;color:var(--text2)}
+.hero-proof-item svg{color:var(--primary);flex-shrink:0}
+.hero-proof-sep{width:3px;height:3px;border-radius:50%;background:var(--border)}
 .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
 
 /* DEMO */
 .demo{max-width:780px;margin:0 auto;background:var(--card);
-  border-radius:var(--r);box-shadow:var(--shadow-md);overflow:hidden;
-  border:1px solid var(--border)}
+  border-radius:var(--r);
+  box-shadow:0 8px 32px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06);
+  overflow:hidden;border:1px solid var(--border)}
 .demo-bar{background:var(--bg-alt);padding:12px 16px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;gap:8px}
 .demo-dot{width:11px;height:11px;border-radius:50%}
@@ -178,11 +193,23 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 @media (max-width:640px){
   .hero{padding:56px 20px 48px}
+  .hero h1{letter-spacing:-1.5px}
+  .hero p.hero-slogan{text-align:left;margin-left:0;margin-right:0;max-width:none}
+  .hero-ctas{flex-direction:column;align-items:center;gap:16px}
+  .hero-ctas .btn-primary{width:100%;justify-content:center;height:52px;font-size:16px}
+  .hero-ctas .btn-ghost{
+    border:none;background:transparent;padding:0;
+    font-size:14px;font-weight:500;color:var(--text2);box-shadow:none;
+    text-decoration:underline;text-decoration-color:var(--border);
+    text-underline-offset:3px}
+  .hero-ctas .btn-ghost:hover{background:transparent;transform:none;color:var(--text)}
+  .hero-proof{gap:12px}
   .section{padding:64px 20px}
   .cta{padding:64px 20px}
   .nav-inner{padding:12px 16px;gap:12px}
   .nav-link{display:none}
   .demo-body{padding:24px 20px}
+  .demo{margin-top:0;box-shadow:0 4px 20px rgba(27,79,216,.10),0 1px 4px rgba(0,0,0,.06)}
 }
 
 /* ── FEATURES v2 — dark editorial grid ──────────────────── */
@@ -588,22 +615,89 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .fm-dialog{padding:28px 24px 24px}
   .fm-title{font-size:22px}}
 
-/* PARTNERS */
-.partners{padding:56px 24px;background:var(--card);border-top:1px solid var(--border)}
-.partners-inner{max-width:var(--max);margin:0 auto;text-align:center}
-.partners-label{display:block;font-size:12px;font-weight:600;color:var(--text3);
-  text-transform:uppercase;letter-spacing:1px;margin-bottom:36px}
-.partners-logos{display:flex;justify-content:center;align-items:center;
-  flex-wrap:wrap;gap:52px}
-.partner-logo{display:flex;align-items:center;
-  filter:grayscale(1);opacity:.5;
-  transition:filter .3s ease,opacity .3s ease,transform .2s ease}
-.partner-logo:hover{filter:grayscale(0);opacity:1;transform:translateY(-2px)}
-.partner-logo svg{height:38px;width:auto;overflow:visible}
-@media(max-width:640px){
-  .partners{padding:44px 20px}
-  .partners-logos{gap:36px}
-  .partner-logo svg{height:30px}}
+/* ── PARTNER SPOTLIGHT ─────────────────────────────────────── */
+.ps{
+  padding:100px 24px 112px;
+  background:var(--bg);
+  border-top:1px solid var(--border);
+  position:relative;overflow:hidden}
+.ps::before,.ps::after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none}
+.ps::before{
+  width:640px;height:640px;
+  background:radial-gradient(circle,rgba(27,79,216,.055) 0%,transparent 64%);
+  top:-200px;right:-160px}
+.ps::after{
+  width:480px;height:480px;
+  background:radial-gradient(circle,rgba(27,79,216,.04) 0%,transparent 64%);
+  bottom:-160px;left:-120px}
+.ps-inner{max-width:var(--max);margin:0 auto;position:relative;z-index:1}
+.ps-head{text-align:center;margin-bottom:60px}
+.ps-eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:12px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--primary);margin-bottom:16px}
+.ps-eyebrow::before,.ps-eyebrow::after{
+  content:"";width:20px;height:1px;background:var(--primary);opacity:.4}
+.ps-head h2{
+  font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-1.4px;
+  line-height:1.08;color:var(--text);margin-bottom:14px}
+.ps-head p{
+  font-size:17px;color:var(--text2);max-width:480px;
+  margin:0 auto;line-height:1.55}
+.ps-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.ps-card{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:36px 36px 32px;display:flex;flex-direction:column;
+  position:relative;cursor:default;will-change:transform;overflow:hidden;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.ps-card::after{
+  content:"";position:absolute;inset:0;border-radius:20px;
+  background:linear-gradient(135deg,rgba(27,79,216,.03) 0%,transparent 55%);
+  opacity:0;pointer-events:none;transition:opacity .25s ease}
+.ps-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(27,79,216,.18)}
+.ps-card:hover::after{opacity:1}
+.ps-logo-wrap{height:40px;display:flex;align-items:center;margin-bottom:24px}
+.ps-logo-wrap img{height:34px;width:auto;display:block}
+.ps-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--primary-lt);color:var(--primary);
+  border:1px solid rgba(27,79,216,.14);
+  padding:4px 12px;border-radius:100px;
+  font-size:12px;font-weight:700;letter-spacing:.02em;
+  margin-bottom:18px;width:fit-content}
+.ps-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--primary);flex-shrink:0}
+.ps-name{
+  font-size:22px;font-weight:800;letter-spacing:-.4px;
+  color:var(--text);margin-bottom:10px;line-height:1.15}
+.ps-desc{font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:24px}
+.ps-highlight{
+  display:flex;align-items:flex-start;gap:12px;
+  background:var(--bg-alt);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;margin-bottom:28px;flex:1}
+.ps-highlight-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:var(--primary-lt);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px}
+.ps-highlight-label{
+  display:block;font-size:11px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.ps-highlight-value{
+  display:block;font-size:14px;font-weight:600;color:var(--text);line-height:1.4}
+.ps-link{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13.5px;font-weight:600;color:var(--primary);
+  text-decoration:none;margin-top:auto;opacity:.8;
+  transition:opacity .15s,gap .15s}
+.ps-link:hover{opacity:1;gap:10px}
+.ps-link:hover svg{transform:translateX(2px)}
+.ps-link svg{flex-shrink:0;transition:transform .15s}
+@media(max-width:720px){
+  .ps{padding:72px 20px 80px}
+  .ps-grid{grid-template-columns:1fr;gap:16px}
+  .ps-card{padding:28px 24px 26px}
+  .ps-head{margin-bottom:44px}}
 </style>
 </head>
 <body>
@@ -629,6 +723,22 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
+    <div class="hero-proof">
+      <span class="hero-proof-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        No credit card required
+      </span>
+      <span class="hero-proof-sep" aria-hidden="true"></span>
+      <span class="hero-proof-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Works in Gmail, Notion &amp; Slack
+      </span>
+      <span class="hero-proof-sep" aria-hidden="true"></span>
+      <span class="hero-proof-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Set up in 2 minutes
+      </span>
+    </div>
     <div class="hero-ctas">
       <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
@@ -1054,22 +1164,71 @@ LeibTour Team</div>
   </div>
 </section>
 
-<section class="partners">
-  <div class="partners-inner">
-    <span class="partners-label">Used daily by</span>
-    <div class="partners-logos">
+<section class="ps">
+  <div class="ps-inner">
+
+    <header class="ps-head">
+      <div class="ps-eyebrow">Partner Stories</div>
+      <h2>Where SprintBrain runs every day.</h2>
+      <p>Real hospitality operators delivering faster guest communications and sharper pricing — without switching tools.</p>
+    </header>
+
+    <div class="ps-grid">
 
       <!-- LeibTour -->
-      <div class="partner-logo" title="LeibTour">
-        <img src="leibtour-logo.png" alt="LeibTour" style="height:38px;width:auto;filter:brightness(0)">
-      </div>
+      <article class="ps-card">
+        <div class="ps-logo-wrap">
+          <img src="leibtour-logo.png" alt="LeibTour">
+        </div>
+        <div class="ps-badge">
+          <span class="ps-badge-dot" aria-hidden="true"></span>
+          Vacation Rental Operator
+        </div>
+        <h3 class="ps-name">LeibTour</h3>
+        <p class="ps-desc">Ibiza's destination management company, handling vacation rentals and hospitality services since 2005. Guest communications — pricing quotes, check-in details, follow-ups — go out in three languages, every day, without switching apps.</p>
+        <div class="ps-highlight">
+          <div class="ps-highlight-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <span class="ps-highlight-label">Key use case</span>
+            <span class="ps-highlight-value">Multilingual guest communications in EN, ES &amp; IT — expanded in under a second</span>
+          </div>
+        </div>
+        <a href="https://leibtour.com" class="ps-link" target="_blank" rel="noopener">
+          leibtour.com
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </article>
 
       <!-- Locoprice -->
-      <div class="partner-logo" title="Locoprice">
-        <img src="locoprice-logo.png" alt="Locoprice" style="height:38px;width:auto;filter:brightness(0)">
-      </div>
+      <article class="ps-card">
+        <div class="ps-logo-wrap">
+          <img src="locoprice-logo.png" alt="Locoprice">
+        </div>
+        <div class="ps-badge">
+          <span class="ps-badge-dot" aria-hidden="true"></span>
+          B2B Travel Platform
+        </div>
+        <h3 class="ps-name">Locoprice</h3>
+        <p class="ps-desc">A professional B2B travel network giving agents access to exclusive, wholesale hotel rates unavailable on public OTAs. SprintBrain handles the high volume of quote requests and booking confirmations — consistently branded, every time.</p>
+        <div class="ps-highlight">
+          <div class="ps-highlight-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div>
+            <span class="ps-highlight-label">Key use case</span>
+            <span class="ps-highlight-value">Pricing quotes with live formula calculations — zero manual recalculation</span>
+          </div>
+        </div>
+        <a href="https://locoprice.com" class="ps-link" target="_blank" rel="noopener">
+          locoprice.com
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </article>
 
     </div>
+
   </div>
 </section>
 
