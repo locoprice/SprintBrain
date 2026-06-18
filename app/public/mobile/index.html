@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.38.0 — Design System v1.1 (harmonized) -->
+<!-- SprintBrain Mobile v2.62.5 — Design System v1.1 (harmonized) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -513,6 +513,48 @@ body{
   pointer-events:none;white-space:nowrap;z-index:10010
 }
 #sb-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── PROMPTS VIEW ─────────────────────────────── */
+#prompt-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+#prompt-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
+.prompt-card{
+  background:var(--card);border-radius:var(--r-card);
+  padding:14px;display:flex;align-items:flex-start;gap:12px;
+  box-shadow:var(--shadow-sm);cursor:pointer;border:none;width:100%;text-align:left;
+  font-family:inherit;-webkit-tap-highlight-color:transparent;
+  transition:transform .1s,opacity .1s
+}
+.prompt-card:active{transform:scale(.98);opacity:.85}
+.prompt-icon{
+  width:44px;height:44px;border-radius:13px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  background:var(--primary-lt);color:var(--primary)
+}
+.prompt-info{flex:1;min-width:0}
+.prompt-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt-preview{font-size:13px;color:var(--text2);margin-top:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;line-height:1.5}
+.prompt-meta{display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap}
+.pstrat{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;
+  border:1px solid transparent;display:inline-block;font-family:var(--mono)}
+.pstrat-CoT{background:#EEF2FF;color:#1B4FD8;border-color:#BED0FF}
+.pstrat-ToT{background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE}
+.pstrat-Few-shot{background:#F0FDF4;color:#15803D;border-color:#BBF7D0}
+.pstrat-One-shot{background:#FFF7ED;color:#C2410C;border-color:#FED7AA}
+.pstrat-RAG{background:#FFF1F2;color:#BE123C;border-color:#FECDD3}
+.pstrat-Agentic{background:#0A0A0B;color:#F5F5F5;border-color:#2A2A2E}
+.pintent{font-size:10px;font-weight:600;color:var(--text2);background:var(--bg-alt);
+  padding:2px 7px;border-radius:5px}
+/* Sharing status icons */
+.share-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:5px;flex-shrink:0
+}
+.share-private{background:#F2F2F7;color:#8E8E93}
+.share-folder{background:var(--primary-lt);color:var(--primary)}
 </style>
 </head>
 <body>
@@ -645,6 +687,30 @@ body{
       <span id="cico">📋</span>
       <span id="clbl">Copy to clipboard</span>
     </button>
+  </div>
+</div>
+
+<!-- PROMPTS VIEW -->
+<div id="view-prompts" class="view">
+  <div class="hdr" style="flex-shrink:0">
+    <button class="back-btn" id="prompts-back-btn">
+      <svg width="9" height="16" viewBox="0 0 9 16" fill="none">
+        <path d="M8 1L1 8L8 15" stroke="white" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="det-title-wrap">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-.3px">Prompts</span>
+      <span id="prompts-count" style="font-size:11px;font-weight:500;color:rgba(255,255,255,.78)"></span>
+    </div>
+  </div>
+  <div id="prompt-body">
+    <div class="search-bar">
+      <input id="prompt-srch" type="search" placeholder="Search prompts…"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div id="prompt-list"></div>
   </div>
 </div>
 
@@ -1007,6 +1073,14 @@ function resolveBody(body,vals){
 /* ── STATE ─────────────────────────────────────── */
 var allSnips=[], allFolders=[], curSnip=null, curLang='ALL', curFolder='ALL', curSearch='';
 
+/* ── SHARING STATUS SVGs ────────────────────────── */
+var LOCK_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+var TEAM_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+
+/* ── PROMPTS STATE ──────────────────────────────── */
+var allPrompts=[], promptSearch='';
+var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pstrat-Few-shot','One-shot':'pstrat-One-shot','RAG':'pstrat-RAG','Agentic':'pstrat-Agentic'};
+
 /* ── LOAD ───────────────────────────────────────── */
 function loadSnips(){
   // Only read cache when it belongs to the current user. Avoids briefly
@@ -1120,6 +1194,88 @@ function getFolderById(id){
   }
   return null;
 }
+/* ── SHARING BADGE ──────────────────────────────── */
+function sharingBadge(item){
+  if(item.folder_id){
+    return '<span class="share-badge share-folder" title="In folder">'+TEAM_SVG+'</span>';
+  }
+  return '<span class="share-badge share-private" title="Private">'+LOCK_SVG+'</span>';
+}
+
+/* ── PROMPTS ────────────────────────────────────── */
+function loadPrompts(){
+  var url=SUPA+'/rest/v1/prompts?select=id,name,content,type,tags,strategy_type,intent_category,output_type,folder_id,updated_at,last_used_at'
+    +'&user_id=eq.'+encodeURIComponent(USER_ID)+'&order=updated_at.desc';
+  fetch(url,{headers:authHeaders()})
+    .then(function(r){if(handle401(r))throw new Error('401');return r.json();})
+    .then(function(data){
+      if(!Array.isArray(data))throw new Error('bad');
+      allPrompts=data;
+      renderPromptList();
+    })
+    .catch(function(){
+      if(!allPrompts.length){
+        document.getElementById('prompt-list').innerHTML=
+          '<div class="empty"><div class="emo">😕</div><p>Could not load prompts</p></div>';
+      }
+    });
+}
+function renderPromptList(){
+  var el=document.getElementById('prompt-list');
+  var q=promptSearch.toLowerCase();
+  var filtered=allPrompts.filter(function(p){
+    if(!q)return true;
+    return (p.name||'').toLowerCase().indexOf(q)>-1
+      ||(p.content||'').toLowerCase().indexOf(q)>-1
+      ||(p.intent_category||'').toLowerCase().indexOf(q)>-1;
+  });
+  var cnt=document.getElementById('prompts-count');
+  if(cnt)cnt.textContent=allPrompts.length+' prompt'+(allPrompts.length!==1?'s':'');
+  if(!filtered.length){
+    el.innerHTML='<div class="empty"><div class="emo">'+(q?'🔍':'🤖')+'</div><p>'
+      +(q?'No prompts match':'No prompts yet')+'</p></div>';
+    return;
+  }
+  el.innerHTML=filtered.map(function(p){
+    var stratCls=p.strategy_type?(PROMPT_STRATEGY_CLASS[p.strategy_type]||''):'';
+    var stratBadge=p.strategy_type&&stratCls
+      ?'<span class="pstrat '+stratCls+'">'+esc(p.strategy_type)+'</span>':'';
+    var intentBadge=p.intent_category
+      ?'<span class="pintent">'+esc(p.intent_category)+'</span>':'';
+    var share=sharingBadge(p);
+    var preview=(p.content||'').replace(/^##\s+\w+\n/gm,'').trim().slice(0,120);
+    if((p.content||'').replace(/^##\s+\w+\n/gm,'').trim().length>120)preview+='…';
+    return '<button type="button" class="prompt-card" data-pid="'+esc(p.id)+'">'
+      +'<div class="prompt-icon">🧠</div>'
+      +'<div class="prompt-info">'
+        +'<div class="prompt-name">'+esc(p.name)+'</div>'
+        +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
+        +'<div class="prompt-meta">'+stratBadge+intentBadge+share+'</div>'
+      +'</div>'
+    +'</button>';
+  }).join('');
+  el.querySelectorAll('.prompt-card').forEach(function(card){
+    card.addEventListener('click',function(){
+      var pid=this.getAttribute('data-pid');
+      var p=allPrompts.find(function(x){return x.id===pid;});
+      if(!p)return;
+      copyText(p.content||'',function(){showToast('Prompt copied ✓');});
+    });
+  });
+}
+function showPrompts(){
+  history.pushState({prompts:true},'');
+  document.getElementById('view-list').classList.remove('active');
+  document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-prompts').classList.add('active');
+  if(!allPrompts.length)loadPrompts();
+  else renderPromptList();
+}
+function hidePrompts(){
+  document.getElementById('view-prompts').classList.remove('active');
+  document.getElementById('view-list').classList.add('active');
+}
+
 function renderFolderChips(){
   var el=document.getElementById('ftabs');
   if(!el)return;
@@ -1216,6 +1372,7 @@ function renderList(){
           +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
           +pills
           +fbadge
+          +sharingBadge(active)
         +'</div>'
       +'</div>'
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(active.id)+'" aria-label="More actions">⋮</button>'
@@ -1458,6 +1615,8 @@ document.getElementById('back-btn').addEventListener('click',function(){
 window.addEventListener('popstate',function(){
   if(document.getElementById('view-detail').classList.contains('active')){
     document.getElementById('back-btn').click();
+  }else if(document.getElementById('view-prompts').classList.contains('active')){
+    hidePrompts();
   }
 });
 
@@ -1881,6 +2040,20 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
     });
 });
 
+/* ── QUICK ACTIONS ──────────────────────────────── */
+document.querySelector('[data-qa="prompts"]').addEventListener('click',showPrompts);
+document.getElementById('prompts-back-btn').addEventListener('click',function(){
+  if(document.getElementById('view-prompts').classList.contains('active'))hidePrompts();
+});
+(function(){
+  var pst;
+  document.getElementById('prompt-srch').addEventListener('input',function(){
+    clearTimeout(pst);
+    var v=this.value;
+    pst=setTimeout(function(){promptSearch=v;renderPromptList();},150);
+  });
+})();
+
 /* ── LOGOUT BUTTON ──────────────────────────────── */
 (function(){
   var btn=document.getElementById('logout-btn');
@@ -1939,6 +2112,8 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     document.querySelectorAll('.lang-pill').forEach(function(x){
       x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
     });
+    document.getElementById('view-prompts').classList.remove('active');
+    document.getElementById('view-list').classList.add('active');
     renderFolderChips();renderList();
     var vl=document.getElementById('view-list');
     if(vl)vl.scrollTo({top:0,behavior:'smooth'});

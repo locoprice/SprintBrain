@@ -61,13 +61,6 @@ const DEFAULT_BLOCKS: PromptBlock[] = [
 ];
 
 const STRATEGIES: StrategyType[] = ['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic'];
-const THINKING_MODES: ThinkingMode[] = ['fast', 'balanced', 'deep'];
-const MODELS: { value: PreferredModel; label: string }[] = [
-  { value: 'claude-opus-4-7', label: 'Opus 4' },
-  { value: 'claude-sonnet-4-6', label: 'Sonnet 4' },
-  { value: 'claude-haiku-4-5', label: 'Haiku 4' },
-];
-const COMPLEXITIES: ComplexityLevel[] = ['simple', 'medium', 'complex'];
 const EXECUTION_TYPES: ExecutionType[] = ['Generate', 'Analyze', 'Plan', 'Critique', 'Summarize', 'Transform'];
 const INTENT_CATEGORIES: IntentCategory[] = ['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching'];
 const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
@@ -705,15 +698,6 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#9C9CA6]">Model</label>
-              <DarkSelect
-                value={preferredModel}
-                onChange={setPreferredModel}
-                options={MODELS}
-                placeholder="None"
-              />
-            </div>
-            <div>
               <label className="mb-1 block text-[10px] text-[#9C9CA6]">Intent</label>
               <DarkSelect
                 value={intentCategory}
@@ -723,29 +707,11 @@ export function PromptBlockEditor() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-[#9C9CA6]">Complexity</label>
-              <DarkSelect
-                value={complexityLevel}
-                onChange={setComplexityLevel}
-                options={COMPLEXITIES.map((c) => ({ value: c, label: c }))}
-                placeholder="None"
-              />
-            </div>
-            <div>
               <label className="mb-1 block text-[10px] text-[#9C9CA6]">Output type</label>
               <DarkSelect
                 value={outputType}
                 onChange={setOutputType}
                 options={OUTPUT_TYPES.map((o) => ({ value: o, label: o }))}
-                placeholder="None"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] text-[#9C9CA6]">Thinking mode</label>
-              <DarkSelect
-                value={thinkingMode}
-                onChange={setThinkingMode}
-                options={THINKING_MODES.map((t) => ({ value: t, label: t }))}
                 placeholder="None"
               />
             </div>
