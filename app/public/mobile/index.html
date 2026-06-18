@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.62.5 — Design System v1.1 (harmonized) -->
+<!-- SprintBrain Mobile v2.62.7 — Design System v1.1 (harmonized) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -555,6 +555,63 @@ body{
 }
 .share-private{background:#F2F2F7;color:#8E8E93}
 .share-folder{background:var(--primary-lt);color:var(--primary)}
+.share-team{background:#F0FDF4;color:#15803D}
+
+/* ── PROMPTS: sticky search + clear + result counter ── */
+#prompt-body .search-bar{
+  position:sticky;top:0;z-index:6;
+  background:var(--bg-alt);padding-bottom:6px
+}
+.psearch-wrap{position:relative}
+.psearch-clear{
+  position:absolute;top:50%;right:8px;transform:translateY(-50%);
+  width:30px;height:30px;border:none;background:none;cursor:pointer;
+  color:var(--text3);font-size:15px;line-height:1;border-radius:50%;
+  display:none;align-items:center;justify-content:center;padding:0;
+  -webkit-tap-highlight-color:transparent;transition:background .15s
+}
+.psearch-clear:active{background:rgba(0,0,0,.06)}
+.psearch-wrap.has-text .psearch-clear{display:flex}
+.psearch-wrap.has-text input{padding-right:40px}
+.psearch-meta{
+  padding:0 16px 8px;font-size:12px;font-weight:600;color:var(--text3);
+  position:sticky;top:54px;z-index:6;background:var(--bg-alt);display:none
+}
+
+/* ── PROMPT CARD: menu + last-used footer ── */
+.prompt-card{position:relative;padding-right:48px}
+.prompt-out{font-size:10px;font-weight:600;color:var(--text2);
+  background:var(--bg-alt);padding:2px 7px;border-radius:5px;
+  border:1px solid var(--border)}
+.prompt-foot{display:flex;align-items:center;margin-top:7px}
+.prompt-when{font-size:11px;font-weight:500;color:var(--text3)}
+.prompt-menu{
+  position:absolute;top:8px;right:6px;
+  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  background:none;border:none;cursor:pointer;
+  color:var(--text3);font-size:22px;font-weight:700;line-height:1;
+  padding:0;border-radius:50%;-webkit-tap-highlight-color:transparent;
+  transition:background .15s;user-select:none
+}
+.prompt-menu:active{background:rgba(0,0,0,.06)}
+.prompt-menu:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+
+/* ── EMPTY-STATE SUGGESTIONS ── */
+.empty-sug{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.empty-sug-lbl{width:100%;font-size:12px;color:var(--text3);margin-bottom:2px}
+.empty-sug-chip{
+  border:1px solid var(--border);background:var(--card);border-radius:9999px;
+  padding:6px 14px;font-size:13px;font-weight:600;color:var(--primary);
+  cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;
+  min-height:34px;transition:transform .1s
+}
+.empty-sug-chip:active{transform:scale(.96)}
+
+/* ── PROMPTS: 2-column grid on medium devices ── */
+@media (min-width:600px){
+  #prompt-list{display:grid;grid-template-columns:repeat(2,1fr);
+    align-items:start;gap:12px}
+}
 </style>
 </head>
 <body>
@@ -707,9 +764,13 @@ body{
   </div>
   <div id="prompt-body">
     <div class="search-bar">
-      <input id="prompt-srch" type="search" placeholder="Search prompts…"
-        autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="psearch-wrap" id="prompt-srch-wrap">
+        <input id="prompt-srch" type="search" placeholder="Search prompts…"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
+      </div>
     </div>
+    <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
   </div>
 </div>
@@ -725,6 +786,22 @@ body{
     <ul class="sb-sheet-actions">
       <li data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
       <li data-action="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PROMPT BOTTOM SHEET (3-dot menu) -->
+<div id="sb-prompt-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-prompt-sheet-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-prompt-sheet-title"></div>
+    <ul class="sb-sheet-actions">
+      <li data-paction="copy" data-action="use"><span class="sb-sheet-act-i">📋</span> Copy to clipboard</li>
+      <li data-paction="duplicate"><span class="sb-sheet-act-i">⧉</span> Duplicate</li>
+      <li data-paction="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
     </ul>
   </div>
 </div>
@@ -1080,6 +1157,12 @@ var TEAM_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke
 /* ── PROMPTS STATE ──────────────────────────────── */
 var allPrompts=[], promptSearch='';
 var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pstrat-Few-shot','One-shot':'pstrat-One-shot','RAG':'pstrat-RAG','Agentic':'pstrat-Agentic'};
+/* Full column set — kept in parity with the desktop promptsApi so Duplicate
+   round-trips every field (blocks, thinking_mode, etc.) without data loss. */
+var PROMPT_SELECT='id,name,content,type,tags,strategy_type,thinking_mode,preferred_model,'
+  +'complexity_level,execution_type,intent_category,output_type,blocks,folder_id,'
+  +'organization_id,created_at,updated_at,last_used_at';
+var FOLDER_SHARED_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
 /* ── LOAD ───────────────────────────────────────── */
 function loadSnips(){
@@ -1204,7 +1287,7 @@ function sharingBadge(item){
 
 /* ── PROMPTS ────────────────────────────────────── */
 function loadPrompts(){
-  var url=SUPA+'/rest/v1/prompts?select=id,name,content,type,tags,strategy_type,intent_category,output_type,folder_id,updated_at,last_used_at'
+  var url=SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT
     +'&user_id=eq.'+encodeURIComponent(USER_ID)+'&order=updated_at.desc';
   fetch(url,{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();})
@@ -1220,48 +1303,231 @@ function loadPrompts(){
       }
     });
 }
+/* Relative "time ago" — vanilla equivalent of date-fns formatDistanceToNow. */
+function timeAgo(iso){
+  if(!iso)return '';
+  var t=new Date(iso).getTime();
+  if(isNaN(t))return '';
+  var s=Math.floor((Date.now()-t)/1000);
+  if(s<0)s=0;
+  if(s<60)return 'just now';
+  var m=Math.floor(s/60); if(m<60)return m+' min'+(m>1?'s':'')+' ago';
+  var h=Math.floor(m/60); if(h<24)return h+' hour'+(h>1?'s':'')+' ago';
+  var d=Math.floor(h/24); if(d<30)return d+' day'+(d>1?'s':'')+' ago';
+  var mo=Math.floor(d/30); if(mo<12)return mo+' month'+(mo>1?'s':'')+' ago';
+  var y=Math.floor(mo/12); return y+' year'+(y>1?'s':'')+' ago';
+}
+/* Ownership badge for prompts. Today every prompt is private (no team/folder
+   prompts exist), but the helper honors organization_id / folder_id if ever set
+   so the UI stays correct without a future rewrite. */
+function promptShareBadge(p){
+  if(p.organization_id){
+    return '<span class="share-badge share-team" title="Team">'+TEAM_SVG+'</span>';
+  }
+  if(p.folder_id){
+    return '<span class="share-badge share-folder" title="Shared folder">'+FOLDER_SHARED_SVG+'</span>';
+  }
+  return '<span class="share-badge share-private" title="Private">'+LOCK_SVG+'</span>';
+}
+function filterPrompts(q){
+  if(!q)return allPrompts.slice();
+  return allPrompts.filter(function(p){
+    if((p.name||'').toLowerCase().indexOf(q)>-1)return true;
+    if((p.content||'').toLowerCase().indexOf(q)>-1)return true;
+    if((p.intent_category||'').toLowerCase().indexOf(q)>-1)return true;
+    if(Array.isArray(p.tags)&&p.tags.some(function(t){return String(t).toLowerCase().indexOf(q)>-1;}))return true;
+    return false;
+  });
+}
+function promptCategories(){
+  var cats=[],i;
+  for(i=0;i<allPrompts.length;i++){
+    var c=allPrompts[i].intent_category;
+    if(c&&cats.indexOf(c)<0)cats.push(c);
+  }
+  return cats;
+}
 function renderPromptList(){
   var el=document.getElementById('prompt-list');
   var q=promptSearch.toLowerCase();
-  var filtered=allPrompts.filter(function(p){
-    if(!q)return true;
-    return (p.name||'').toLowerCase().indexOf(q)>-1
-      ||(p.content||'').toLowerCase().indexOf(q)>-1
-      ||(p.intent_category||'').toLowerCase().indexOf(q)>-1;
-  });
+  var total=allPrompts.length;
+  var filtered=filterPrompts(q);
+
+  // Header count (always total) + live result counter (only while searching).
   var cnt=document.getElementById('prompts-count');
-  if(cnt)cnt.textContent=allPrompts.length+' prompt'+(allPrompts.length!==1?'s':'');
+  if(cnt)cnt.textContent=total+' prompt'+(total!==1?'s':'');
+  var meta=document.getElementById('prompt-srch-meta');
+  if(meta){
+    if(q){
+      meta.textContent=filtered.length+' of '+total+' result'+(filtered.length!==1?'s':'');
+      meta.style.display='';
+    }else{
+      meta.style.display='none';
+    }
+  }
+
   if(!filtered.length){
-    el.innerHTML='<div class="empty"><div class="emo">'+(q?'🔍':'🤖')+'</div><p>'
-      +(q?'No prompts match':'No prompts yet')+'</p></div>';
+    if(q){
+      var cats=promptCategories();
+      var sug='';
+      if(cats.length){
+        sug='<div class="empty-sug"><span class="empty-sug-lbl">Browse by category</span>'
+          +cats.slice(0,6).map(function(c){
+            return '<button type="button" class="empty-sug-chip" data-sug="'+esc(c)+'">'+esc(c)+'</button>';
+          }).join('')+'</div>';
+      }
+      el.innerHTML='<div class="empty"><div class="emo">🔍</div>'
+        +'<p>No prompts match "'+esc(promptSearch)+'"</p>'+sug+'</div>';
+      el.querySelectorAll('.empty-sug-chip').forEach(function(chip){
+        chip.addEventListener('click',function(){
+          var term=this.getAttribute('data-sug')||'';
+          var input=document.getElementById('prompt-srch');
+          if(input)input.value=term;
+          promptSearch=term;
+          syncPromptClear();
+          renderPromptList();
+        });
+      });
+    }else{
+      el.innerHTML='<div class="empty"><div class="emo">🤖</div><p>No prompts yet</p></div>';
+    }
     return;
   }
+
   el.innerHTML=filtered.map(function(p){
     var stratCls=p.strategy_type?(PROMPT_STRATEGY_CLASS[p.strategy_type]||''):'';
     var stratBadge=p.strategy_type&&stratCls
       ?'<span class="pstrat '+stratCls+'">'+esc(p.strategy_type)+'</span>':'';
     var intentBadge=p.intent_category
       ?'<span class="pintent">'+esc(p.intent_category)+'</span>':'';
-    var share=sharingBadge(p);
-    var preview=(p.content||'').replace(/^##\s+\w+\n/gm,'').trim().slice(0,120);
-    if((p.content||'').replace(/^##\s+\w+\n/gm,'').trim().length>120)preview+='…';
-    return '<button type="button" class="prompt-card" data-pid="'+esc(p.id)+'">'
+    var outBadge=p.output_type
+      ?'<span class="prompt-out">'+esc(p.output_type)+'</span>':'';
+    var share=promptShareBadge(p);
+    var cleaned=(p.content||'').replace(/^##\s+\w+\n/gm,'').trim();
+    var preview=cleaned.slice(0,120);
+    if(cleaned.length>120)preview+='…';
+    var when=p.last_used_at?('Used '+timeAgo(p.last_used_at)):'Never used';
+    return '<div class="prompt-card" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
       +'<div class="prompt-icon">🧠</div>'
       +'<div class="prompt-info">'
         +'<div class="prompt-name">'+esc(p.name)+'</div>'
         +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
-        +'<div class="prompt-meta">'+stratBadge+intentBadge+share+'</div>'
+        +'<div class="prompt-meta">'+stratBadge+intentBadge+outBadge+share+'</div>'
+        +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
       +'</div>'
-    +'</button>';
+      +'<button type="button" class="prompt-menu" data-menu-pid="'+esc(p.id)+'" aria-label="More actions">⋮</button>'
+    +'</div>';
   }).join('');
+
   el.querySelectorAll('.prompt-card').forEach(function(card){
-    card.addEventListener('click',function(){
-      var pid=this.getAttribute('data-pid');
-      var p=allPrompts.find(function(x){return x.id===pid;});
-      if(!p)return;
-      copyText(p.content||'',function(){showToast('Prompt copied ✓');});
+    card.addEventListener('click',function(e){
+      if(e.target.closest('.prompt-menu'))return;
+      var p=findPrompt(this.getAttribute('data-pid'));
+      if(p)promptCopy(p);
+    });
+    card.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();
+        var p=findPrompt(this.getAttribute('data-pid'));
+        if(p)promptCopy(p);
+      }
     });
   });
+  el.querySelectorAll('.prompt-menu').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      openPromptSheet(this.getAttribute('data-menu-pid'));
+    });
+  });
+}
+function findPrompt(id){
+  return allPrompts.find(function(x){return x.id===id;});
+}
+function syncPromptClear(){
+  var wrap=document.getElementById('prompt-srch-wrap');
+  var input=document.getElementById('prompt-srch');
+  if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+}
+function promptCopy(p){
+  copyText(p.content||'',function(){showToast('Prompt copied ✓');});
+  promptMarkUsed(p);
+}
+/* Mirrors desktop promptsApi.markUsed — fire-and-forget PATCH on the owner row. */
+function promptMarkUsed(p){
+  var now=new Date().toISOString();
+  p.last_used_at=now;
+  fetch(SUPA+'/rest/v1/prompts?id=eq.'+encodeURIComponent(p.id)
+      +'&user_id=eq.'+encodeURIComponent(USER_ID),
+    {method:'PATCH',headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+     body:JSON.stringify({last_used_at:now})})
+    .then(function(r){handle401(r);})
+    .catch(function(){});
+}
+
+/* ── PROMPT BOTTOM SHEET ─────────────────────────── */
+var sheetPrompt=null;
+function openPromptSheet(pid){
+  var p=findPrompt(pid);
+  if(!p)return;
+  sheetPrompt=p;
+  document.getElementById('sb-prompt-sheet-title').textContent=p.name||'Prompt';
+  var sh=document.getElementById('sb-prompt-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+}
+function closePromptSheet(){
+  var sh=document.getElementById('sb-prompt-sheet');
+  if(!sh)return;
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  setTimeout(function(){sh.classList.add('sb-hidden');sheetPrompt=null;},300);
+}
+function duplicatePrompt(p){
+  var now=new Date().toISOString();
+  var row={
+    user_id:USER_ID,
+    name:(p.name||'Prompt')+' (copy)',
+    content:p.content||'',
+    type:p.type||'one-shot',
+    tags:Array.isArray(p.tags)?p.tags:[],
+    strategy_type:p.strategy_type||null,
+    thinking_mode:p.thinking_mode||null,
+    preferred_model:p.preferred_model||null,
+    complexity_level:p.complexity_level||null,
+    execution_type:p.execution_type||null,
+    intent_category:p.intent_category||null,
+    output_type:p.output_type||null,
+    blocks:p.blocks||null,
+    updated_at:now
+  };
+  fetch(SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT,
+    {method:'POST',headers:authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
+     body:JSON.stringify(row)})
+    .then(function(r){if(handle401(r))throw new Error('401');if(!r.ok)throw new Error('dup');return r.json();})
+    .then(function(data){
+      var created=Array.isArray(data)?data[0]:data;
+      if(created)allPrompts.unshift(created);
+      closePromptSheet();
+      renderPromptList();
+      showToast('Prompt duplicated ✓');
+    })
+    .catch(function(){closePromptSheet();showToast('Could not duplicate');});
+}
+function deletePromptRow(p){
+  fetch(SUPA+'/rest/v1/prompts?id=eq.'+encodeURIComponent(p.id)
+      +'&user_id=eq.'+encodeURIComponent(USER_ID),
+    {method:'DELETE',headers:authHeaders({'Prefer':'return=minimal'})})
+    .then(function(r){
+      if(handle401(r))throw new Error('401');
+      if(!r.ok)throw new Error('del');
+      allPrompts=allPrompts.filter(function(x){return x.id!==p.id;});
+      closePromptSheet();
+      renderPromptList();
+      showToast('Prompt deleted');
+    })
+    .catch(function(){closePromptSheet();showToast('Could not delete');});
 }
 function showPrompts(){
   history.pushState({prompts:true},'');
@@ -1272,6 +1538,7 @@ function showPrompts(){
   else renderPromptList();
 }
 function hidePrompts(){
+  closePromptSheet();
   document.getElementById('view-prompts').classList.remove('active');
   document.getElementById('view-list').classList.add('active');
 }
@@ -1613,6 +1880,10 @@ document.getElementById('back-btn').addEventListener('click',function(){
   document.getElementById('view-list').classList.add('active');
 });
 window.addEventListener('popstate',function(){
+  var pSheet=document.getElementById('sb-prompt-sheet');
+  if(pSheet&&!pSheet.classList.contains('sb-hidden')){
+    closePromptSheet();
+  }
   if(document.getElementById('view-detail').classList.contains('active')){
     document.getElementById('back-btn').click();
   }else if(document.getElementById('view-prompts').classList.contains('active')){
@@ -2047,10 +2318,58 @@ document.getElementById('prompts-back-btn').addEventListener('click',function(){
 });
 (function(){
   var pst;
-  document.getElementById('prompt-srch').addEventListener('input',function(){
+  var input=document.getElementById('prompt-srch');
+  input.addEventListener('input',function(){
     clearTimeout(pst);
     var v=this.value;
+    syncPromptClear();
     pst=setTimeout(function(){promptSearch=v;renderPromptList();},150);
+  });
+  var clearBtn=document.getElementById('prompt-srch-clear');
+  if(clearBtn){
+    clearBtn.addEventListener('click',function(){
+      input.value='';
+      promptSearch='';
+      syncPromptClear();
+      renderPromptList();
+      input.focus();
+    });
+  }
+})();
+
+/* Reusable drag-to-dismiss for a bottom sheet (single implementation for new sheets). */
+function setupSheetDrag(sheetEl,closeFn){
+  if(!sheetEl)return;
+  var area=sheetEl.querySelector('.sb-sheet-handle-area');
+  var panel=sheetEl.querySelector('.sb-sheet-panel');
+  if(!area||!panel)return;
+  var startY=null,delta=0,dragging=false;
+  function onStart(e){startY=(e.touches?e.touches[0].clientY:e.clientY);delta=0;dragging=true;panel.style.transition='none';}
+  function onMove(e){if(!dragging)return;var y=(e.touches?e.touches[0].clientY:e.clientY);delta=y-startY;if(delta<0)delta=0;panel.style.transform='translateY('+delta+'px)';}
+  function onEnd(){if(!dragging)return;dragging=false;panel.style.transition='';panel.style.transform='';if(delta>80)closeFn();startY=null;delta=0;}
+  area.addEventListener('touchstart',onStart,{passive:true});
+  area.addEventListener('touchmove',onMove,{passive:true});
+  area.addEventListener('touchend',onEnd);
+  area.addEventListener('touchcancel',onEnd);
+  area.addEventListener('mousedown',onStart);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+}
+
+/* Prompt sheet: backdrop, drag, and action wiring. */
+(function(){
+  var sheet=document.getElementById('sb-prompt-sheet');
+  if(!sheet)return;
+  sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',closePromptSheet);
+  setupSheetDrag(sheet,closePromptSheet);
+  sheet.querySelector('.sb-sheet-actions').addEventListener('click',function(e){
+    var li=e.target.closest('li[data-paction]');
+    if(!li||!sheetPrompt)return;
+    var act=li.getAttribute('data-paction');
+    var p=sheetPrompt;
+    if(act==='copy'){promptCopy(p);closePromptSheet();}
+    else if(act==='duplicate'){duplicatePrompt(p);}
+    else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
   });
 })();
 
