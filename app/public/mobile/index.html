@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.62.7 — Design System v1.1 (harmonized) -->
+<!-- SprintBrain Mobile v2.62.8 — Design System v1.1 (harmonized) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -557,6 +557,9 @@ body{
 .share-folder{background:var(--primary-lt);color:var(--primary)}
 .share-team{background:#F0FDF4;color:#15803D}
 
+/* ── PROMPTS: fixed gradient hero (mirrors snippets home) ── */
+#view-prompts .mhero{flex-shrink:0;padding-bottom:22px}
+
 /* ── PROMPTS: sticky search + clear + result counter ── */
 #prompt-body .search-bar{
   position:sticky;top:0;z-index:6;
@@ -749,17 +752,23 @@ body{
 
 <!-- PROMPTS VIEW -->
 <div id="view-prompts" class="view">
-  <div class="hdr" style="flex-shrink:0">
-    <button class="back-btn" id="prompts-back-btn">
-      <svg width="9" height="16" viewBox="0 0 9 16" fill="none">
-        <path d="M8 1L1 8L8 15" stroke="white" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Back
-    </button>
-    <div class="det-title-wrap">
-      <span style="font-size:16px;font-weight:700;letter-spacing:-.3px">Prompts</span>
-      <span id="prompts-count" style="font-size:11px;font-weight:500;color:rgba(255,255,255,.78)"></span>
+  <!-- Gradient hero (mirrors the snippets home so the header stays visible) -->
+  <div class="mhero">
+    <div class="mhello">
+      <div>
+        <div class="mgreet">Welcome</div>
+        <div class="mname" id="prompts-hero-name">SprintBrain</div>
+      </div>
+      <button class="hdr-btn" id="prompts-back-btn" aria-label="Back to snippets" title="Back to snippets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+    </div>
+    <div class="mstatbig">
+      <span id="prompts-count">0</span>
+      <span class="mstatbig-unit">prompts</span>
     </div>
   </div>
   <div id="prompt-body">
@@ -1355,7 +1364,7 @@ function renderPromptList(){
 
   // Header count (always total) + live result counter (only while searching).
   var cnt=document.getElementById('prompts-count');
-  if(cnt)cnt.textContent=total+' prompt'+(total!==1?'s':'');
+  if(cnt)cnt.textContent=String(total);
   var meta=document.getElementById('prompt-srch-meta');
   if(meta){
     if(q){
@@ -2461,12 +2470,15 @@ function applyHeroName(){
     first=e.split('@')[0];
     if(first)first=first.charAt(0).toUpperCase()+first.slice(1);
   }
-  if(first)document.getElementById('hero-name').textContent=first;
+  if(first){
+    var hn=document.getElementById('hero-name'); if(hn)hn.textContent=first;
+    var phn=document.getElementById('prompts-hero-name'); if(phn)phn.textContent=first;
+  }
   var h=new Date().getHours();
   var greet=h>=5&&h<12?'Good morning,'
            :h>=12&&h<18?'Good afternoon,'
            :'Good evening,';
-  document.querySelector('.mgreet').textContent=greet;
+  document.querySelectorAll('.mgreet').forEach(function(g){g.textContent=greet;});
 }
 if(requireAuth()){applyHeroName();loadSnips();}
 </script>
