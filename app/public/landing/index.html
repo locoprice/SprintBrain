@@ -712,7 +712,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Chrome Extension · v2.62.5</div>
+    <div class="hero-eyebrow">Chrome Extension · {{EXT_VERSION}}</div>
     <h1>Type once.<br><span>Use it everywhere.</span></h1>
     <p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>
     <p class="hero-slogan">Stress the model, not yourself.</p>
@@ -1360,15 +1360,21 @@ LeibTour Team</div>
 (function(){
   var yearEl=document.getElementById('foot-year');
   if(yearEl)yearEl.textContent=String(new Date().getFullYear());
-  // The {{EXT_VERSION}} / {{RELEASE_MONTH}} tokens are replaced at build time
-  // (Vite landingVersionPlugin → Netlify). If the page is served unstamped
-  // (e.g. a raw static preview), strip the leftover segments so the literal
-  // braces never reach a visitor. The version has no drift-free runtime
-  // source, so the unstamped segment is removed rather than guessed.
-  ['foot-ver','foot-updated'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el&&el.textContent.indexOf('{{')>-1&&el.parentNode)el.parentNode.removeChild(el);
-  });
+  // {{EXT_VERSION}} / {{RELEASE_MONTH}} are stamped at build time (Vite → Netlify).
+  // Fallbacks activate only on unstamped static serves.
+  var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var now=new Date();
+  // Version: read from the stamped hero eyebrow; hardcoded constant only if unstamped.
+  var eyebrow=document.querySelector('.hero-eyebrow');
+  var eyebrowText=eyebrow?eyebrow.textContent:'';
+  var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.62.10';
+  // Month: always current date — production has the stamped release month; previews show today.
+  var FALLBACK_MONTH=MONTHS[now.getMonth()]+' '+now.getFullYear();
+  var verEl=document.getElementById('foot-ver');
+  if(verEl&&verEl.textContent.indexOf('{{')>-1)verEl.textContent=' · '+FALLBACK_VERSION;
+  var updEl=document.getElementById('foot-updated');
+  if(updEl&&updEl.textContent.indexOf('{{')>-1)updEl.textContent=' · Updated '+FALLBACK_MONTH;
 })();
 </script>
 </body>
