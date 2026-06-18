@@ -16,7 +16,12 @@ function formatDate(isoDate) {
   return `${MONTHS[month - 1]} ${day}, ${year}`;
 }
 
-function getReleaseDate() {
+function formatMonth(isoDate) {
+  const [year, month] = isoDate.split('-').map(Number);
+  return `${MONTHS[month - 1]} ${year}`;
+}
+
+function getReleaseIso() {
   try {
     const repoRoot = path.resolve(__dirname, '..');
     const raw = execSync(
@@ -28,13 +33,15 @@ function getReleaseDate() {
       if (sep === -1) continue;
       const subject = line.slice(0, sep);
       const date = line.slice(sep + 1).trim();
-      if (/[—\-–]\s*v\d+[\d.]*\s*$/.test(subject)) return formatDate(date);
+      if (/[—\-–]\s*v\d+[\d.]*\s*$/.test(subject)) return date;
     }
   } catch {}
   return '';
 }
 
-const RELEASE_DATE = getReleaseDate();
+const RELEASE_ISO   = getReleaseIso();
+const RELEASE_DATE  = RELEASE_ISO ? formatDate(RELEASE_ISO) : '';
+const RELEASE_MONTH = RELEASE_ISO ? formatMonth(RELEASE_ISO) : '';
 
 const MIME = {
   '.html':  'text/html; charset=utf-8',
@@ -52,7 +59,8 @@ const MIME = {
 function stamp(html) {
   return html
     .replace(/\{\{EXT_VERSION\}\}/g, EXT_VERSION)
-    .replace(/\{\{RELEASE_DATE\}\}/g, RELEASE_DATE);
+    .replace(/\{\{RELEASE_DATE\}\}/g, RELEASE_DATE)
+    .replace(/\{\{RELEASE_MONTH\}\}/g, RELEASE_MONTH);
 }
 
 http.createServer((req, res) => {
