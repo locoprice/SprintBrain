@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/routes/DashboardLayout';
 import { SnippetsPage } from '@/routes/SnippetsPage';
 import { AnalyticsPage } from '@/routes/AnalyticsPage';
 import { PromptsPage } from '@/routes/PromptsPage';
+import { TeamPage } from '@/routes/TeamPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 import { LoginPage } from '@/routes/LoginPage';
 import { SignupPage } from '@/routes/SignupPage';
@@ -64,6 +65,7 @@ export function App() {
             <Route index element={<SnippetsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/prompts" element={<PromptsPage />} />
+            <Route path="/team" element={<TeamPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

@@ -11,6 +11,7 @@ import {
   Settings,
   Sparkles,
   Type,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RESOURCE_LINKS } from '@/lib/links';
@@ -70,6 +71,7 @@ export function Sidebar() {
   const signOut = useAuthStore((s) => s.signOut);
   const snippetCount = useSnippetStore((s) => s.snippets.length);
   const promptCount = usePromptStore((s) => s.prompts.length);
+  const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +84,7 @@ export function Sidebar() {
   const PRIMARY: NavItem[] = [
     { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
     { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
+    { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
