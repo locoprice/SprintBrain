@@ -143,15 +143,24 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
               type="button"
               onClick={handleNotionPush}
               disabled={pushing}
-              title={prompt.notion_page_id ? 'Update in Notion' : 'Push to Notion'}
-              className="inline-flex h-7 items-center gap-1.5 rounded-[8px] border border-line bg-card px-2.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              title={
+                prompt.notion_page_id
+                  ? 'In the team Notion DB — click to update'
+                  : 'Push to the team Notion DB'
+              }
+              className={
+                'inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ' +
+                (prompt.notion_page_id
+                  ? 'border-primary-light bg-primary-light text-primary hover:bg-primary-light/70'
+                  : 'border-line bg-card text-ink-muted hover:border-primary/40 hover:text-primary')
+              }
             >
               {pushing ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <Send className="h-3 w-3" />
               )}
-              {prompt.notion_page_id ? 'Update' : 'Sync'}
+              {prompt.notion_page_id ? 'Synced' : 'Sync'}
             </button>
             <button
               type="button"
