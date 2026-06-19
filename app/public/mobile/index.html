@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SprintBrain Mobile v2.38.0 — Design System v1.1 (harmonized) -->
+<!-- SprintBrain Mobile v2.63.0 — Design System v1.1 (harmonized) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -513,6 +513,98 @@ body{
   pointer-events:none;white-space:nowrap;z-index:10010
 }
 #sb-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── ANALYTICS VIEW ──────────────────────────────── */
+#view-analytics{overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.an-hdr{
+  background:linear-gradient(160deg,#1B4FD8 0%,#1440B0 100%);color:#fff;
+  padding:calc(16px + env(safe-area-inset-top)) 20px 22px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  position:relative;overflow:hidden
+}
+.an-hdr::after{content:"";position:absolute;right:-30px;top:-30px;width:160px;height:160px;
+  background:radial-gradient(circle,rgba(255,255,255,.14),transparent 60%);pointer-events:none}
+.an-hdr-left{position:relative;z-index:1}
+.an-hdr-sup{font-size:12px;font-weight:500;opacity:.78;letter-spacing:.1px}
+.an-hdr-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:2px}
+.an-hdr-sub{font-size:12px;opacity:.82;margin-top:4px;font-weight:500}
+.an-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 16px 4px}
+.an-kpi{background:var(--card);border-radius:var(--r-card);padding:16px;
+  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:4px;
+  border-left:3px solid transparent}
+/* Refresh button spin animation */
+@keyframes an-spin{to{transform:rotate(360deg)}}
+#an-refresh-btn.spinning svg{animation:an-spin .7s linear infinite}
+.an-kpi.a-primary{border-left-color:var(--primary)}
+.an-kpi.a-orange{border-left-color:#C2410C}
+.an-kpi.a-green{border-left-color:var(--success)}
+.an-kpi.a-purple{border-left-color:#7C3AED}
+.an-kpi-val{font-size:34px;font-weight:800;letter-spacing:-1.2px;color:var(--text);
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.an-kpi-lbl{font-size:12px;font-weight:600;color:var(--text2);margin-top:2px}
+.an-kpi-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;
+  border-radius:4px;margin-top:4px;letter-spacing:.2px}
+.an-kpi-tag.good{background:#F0FDF4;color:#15803D}
+.an-kpi-tag.warn{background:#FFF7ED;color:#C2410C}
+.an-sec{padding:8px 16px 2px}
+.an-sec-hdr{font-size:18px;font-weight:800;letter-spacing:-.5px;color:var(--text);
+  padding:12px 0 8px}
+.an-card{background:var(--card);border-radius:var(--r-card);
+  padding:0 16px;box-shadow:var(--shadow-sm);overflow:hidden}
+.an-lang-row{display:flex;align-items:center;gap:10px;padding:12px 0;
+  border-bottom:1px solid var(--bg-alt)}
+.an-lang-row:last-child{border-bottom:none}
+.an-lang-pill{min-width:46px;flex-shrink:0}
+.an-lang-bar-wrap{flex:1;height:7px;background:var(--bg-alt);border-radius:4px;overflow:hidden}
+.an-lang-bar{height:100%;border-radius:4px;transition:width .5s ease}
+.an-lang-count{font-size:13px;font-weight:700;color:var(--text);
+  min-width:26px;text-align:right;flex-shrink:0}
+.an-lang-pct{font-size:11px;color:var(--text3);min-width:32px;text-align:right;flex-shrink:0}
+.an-folder-row{display:flex;align-items:center;gap:10px;padding:12px 0;
+  border-bottom:1px solid var(--bg-alt)}
+.an-folder-row:last-child{border-bottom:none}
+.an-folder-rank{font-size:11px;font-weight:800;color:var(--text3);
+  min-width:18px;text-align:center;flex-shrink:0}
+.an-folder-ico{font-size:20px;line-height:1;flex-shrink:0}
+.an-folder-info{flex:1;min-width:0}
+.an-folder-name{font-size:14px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an-folder-bar-wrap{height:4px;background:var(--bg-alt);border-radius:2px;
+  margin-top:5px;overflow:hidden}
+.an-folder-bar{height:100%;background:var(--primary);border-radius:2px;
+  transition:width .5s ease}
+.an-folder-cnt{font-size:14px;font-weight:700;color:var(--primary);flex-shrink:0}
+.an-health-row{display:flex;flex-direction:column;gap:7px;padding:12px 0;
+  border-bottom:1px solid var(--bg-alt)}
+.an-health-row:last-child{border-bottom:none}
+.an-health-top{display:flex;justify-content:space-between;align-items:center}
+.an-health-lbl{font-size:13px;font-weight:600;color:var(--text)}
+.an-health-pct{font-size:14px;font-weight:800;color:var(--primary)}
+.an-health-pct.h-warn{color:#C2410C}
+.an-health-pct.h-ok{color:var(--success)}
+.an-health-bar-wrap{height:6px;background:var(--bg-alt);border-radius:3px;overflow:hidden}
+.an-health-bar{height:100%;border-radius:3px;background:var(--primary);
+  transition:width .5s ease}
+.an-health-bar.h-warn{background:#C2410C}
+.an-health-bar.h-ok{background:var(--success)}
+.an-recent-item{display:flex;align-items:center;gap:12px;padding:12px 0;
+  border-bottom:1px solid var(--bg-alt);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .1s}
+.an-recent-item:last-child{border-bottom:none}
+.an-recent-item:active{background:var(--bg-alt);
+  margin:0 -16px;padding-left:16px;padding-right:16px}
+.an-recent-ico{width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:var(--primary-lt);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:19px}
+.an-recent-info{flex:1;min-width:0}
+.an-recent-title{font-size:14px;font-weight:700;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.an-recent-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.an-recent-date{font-size:11px;color:var(--text3)}
+.an-empty-sec{padding:24px 0;text-align:center;color:var(--text2);font-size:13px}
+/* Detail view hides the global tab bar */
+.sb-detail-view .mtab,.sb-detail-view .mtab-indicator{display:none !important}
 </style>
 </head>
 <body>
@@ -590,25 +682,6 @@ body{
     <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
   </div>
 
-  <!-- iOS home indicator + floating tab bar -->
-  <div class="mtab-indicator" aria-hidden="true"></div>
-  <nav class="mtab" aria-label="Primary">
-    <button class="mtab-item on" type="button" aria-label="Home" aria-current="page">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg>
-    </button>
-    <button class="mtab-item" type="button" aria-label="Search">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
-    </button>
-    <div class="mtab-brand" aria-hidden="true">
-      <img class="mtab-brand-img" src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="SprintBrain" draggable="false">
-    </div>
-    <button class="mtab-item" type="button" aria-label="Analytics">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>
-    </button>
-    <button class="mtab-item" type="button" aria-label="Profile">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-    </button>
-  </nav>
 </div>
 
 <!-- DETAIL -->
@@ -647,6 +720,104 @@ body{
     </button>
   </div>
 </div>
+
+<!-- ANALYTICS -->
+<div id="view-analytics" class="view">
+
+  <!-- Header -->
+  <div class="an-hdr">
+    <div class="an-hdr-left">
+      <div class="an-hdr-sup">Library overview</div>
+      <div class="an-hdr-title">Analytics</div>
+      <div class="an-hdr-sub" id="an-hdr-sub">Loading…</div>
+    </div>
+    <button class="hdr-btn" id="an-refresh-btn" aria-label="Refresh analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+        <path d="M3 21v-5h5"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="an-kpi-grid">
+    <div class="an-kpi a-primary">
+      <div class="an-kpi-val" id="an-total">—</div>
+      <div class="an-kpi-lbl">Total snippets</div>
+    </div>
+    <div class="an-kpi a-green">
+      <div class="an-kpi-val" id="an-folders-cnt">—</div>
+      <div class="an-kpi-lbl">Active folders</div>
+    </div>
+    <div class="an-kpi a-orange">
+      <div class="an-kpi-val" id="an-interactive">—</div>
+      <div class="an-kpi-lbl">Interactive templates</div>
+      <span class="an-kpi-tag good" id="an-interactive-pct" style="display:none"></span>
+    </div>
+    <div class="an-kpi a-purple">
+      <div class="an-kpi-val" id="an-noshortcut">—</div>
+      <div class="an-kpi-lbl">Missing shortcuts</div>
+      <span class="an-kpi-tag warn" id="an-noshortcut-tag" style="display:none">Assign some!</span>
+    </div>
+  </div>
+
+  <!-- By Language -->
+  <div class="an-sec">
+    <div class="an-sec-hdr">By Language</div>
+    <div class="an-card"><div id="an-lang-list"></div></div>
+  </div>
+
+  <!-- Top Folders -->
+  <div class="an-sec">
+    <div class="an-sec-hdr">Top Folders</div>
+    <div class="an-card"><div id="an-folder-list"></div></div>
+  </div>
+
+  <!-- Library Health -->
+  <div class="an-sec">
+    <div class="an-sec-hdr">Library Health</div>
+    <div class="an-card"><div id="an-health-list"></div></div>
+  </div>
+
+  <!-- Recently Modified -->
+  <div class="an-sec">
+    <div class="an-sec-hdr">Recently Modified</div>
+    <div class="an-card"><div id="an-recent-list"></div></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="mpage-footer" style="padding-top:24px">
+    <div class="mpage-footer-badge">
+      <span class="mpage-footer-dot" aria-hidden="true"></span>
+      <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+    </div>
+    <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
+  </div>
+
+</div>
+
+<!-- GLOBAL FLOATING TAB BAR (position:fixed — visible across list + analytics views) -->
+<div class="mtab-indicator" aria-hidden="true"></div>
+<nav class="mtab" aria-label="Primary">
+  <button class="mtab-item on" type="button" aria-label="Home" aria-current="page">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg>
+  </button>
+  <button class="mtab-item" type="button" aria-label="Search">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+  </button>
+  <div class="mtab-brand" aria-hidden="true">
+    <img class="mtab-brand-img" src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo" alt="SprintBrain" draggable="false">
+  </div>
+  <button class="mtab-item" type="button" aria-label="Analytics">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>
+  </button>
+  <button class="mtab-item" type="button" aria-label="Profile">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+  </button>
+</nav>
 
 <!-- BOTTOM SHEET (long-press / 3-dot menu) -->
 <div id="sb-bottom-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
@@ -1006,6 +1177,8 @@ function resolveBody(body,vals){
 
 /* ── STATE ─────────────────────────────────────── */
 var allSnips=[], allFolders=[], curSnip=null, curLang='ALL', curFolder='ALL', curSearch='';
+var curView='list';   // 'list' | 'analytics'
+var prevView='list';  // view we came from before entering detail
 
 /* ── LOAD ───────────────────────────────────────── */
 function loadSnips(){
@@ -1017,7 +1190,11 @@ function loadSnips(){
       var c=JSON.parse(localStorage.getItem('sb_mob_cache')||'null');
       var fc=JSON.parse(localStorage.getItem('sb_mob_folders')||'null');
       if(fc&&fc.length)allFolders=fc;
-      if(c&&c.length){allSnips=c;showList();renderFolderChips();renderList();}
+      if(c&&c.length){
+        allSnips=c;
+        if(curView==='analytics'){renderFolderChips();renderList();renderAnalytics();}
+        else{showList();renderFolderChips();renderList();}
+      }
     }else{
       clearLocalCaches();
     }
@@ -1042,25 +1219,52 @@ function loadSnips(){
       localStorage.setItem('sb_mob_folders',JSON.stringify(allFolders));
       localStorage.setItem('sb_mob_uid',USER_ID);
     }catch(e){}
-    showList();renderFolderChips();renderList();
+    if(curView==='analytics'){renderFolderChips();renderList();renderAnalytics();}
+    else{showList();renderFolderChips();renderList();}
   })
   .catch(function(){
-    if(!allSnips.length){showList();renderFolderChips();renderList();}
+    if(!allSnips.length){
+      if(curView==='analytics')renderAnalytics();
+      else{showList();renderFolderChips();renderList();}
+    }
   });
 }
 
 /* ── VIEWS ──────────────────────────────────────── */
 function showList(){
+  curView='list';
+  document.body.classList.remove('sb-detail-view');
   document.getElementById('loading').style.display='none';
   document.getElementById('view-list').classList.add('active');
   document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-analytics').classList.remove('active');
+  document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');x.removeAttribute('aria-current');});
+  var homeBtn=document.querySelector('.mtab-item[aria-label="Home"]');
+  if(homeBtn){homeBtn.classList.add('on');homeBtn.setAttribute('aria-current','page');}
 }
 function openDetail(snip){
+  prevView=curView;
   history.pushState({det:true},'');
   curSnip=snip;
   document.getElementById('view-list').classList.remove('active');
+  document.getElementById('view-analytics').classList.remove('active');
   document.getElementById('view-detail').classList.add('active');
+  document.body.classList.add('sb-detail-view');
   renderDetail(snip);
+}
+function showAnalyticsView(){
+  curView='analytics';
+  document.body.classList.remove('sb-detail-view');
+  document.getElementById('loading').style.display='none';
+  document.getElementById('view-list').classList.remove('active');
+  document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-analytics').classList.add('active');
+  document.querySelectorAll('.mtab-item').forEach(function(x){
+    x.classList.remove('on');x.removeAttribute('aria-current');
+  });
+  var anlBtn=document.querySelector('.mtab-item[aria-label="Analytics"]');
+  if(anlBtn){anlBtn.classList.add('on');anlBtn.setAttribute('aria-current','page');}
+  renderAnalytics();
 }
 
 /* ── LIST RENDER ────────────────────────────────── */
@@ -1453,7 +1657,16 @@ document.getElementById('srch').addEventListener('input',function(){
 document.getElementById('back-btn').addEventListener('click',function(){
   curSnip=null;
   document.getElementById('view-detail').classList.remove('active');
-  document.getElementById('view-list').classList.add('active');
+  document.body.classList.remove('sb-detail-view');
+  if(prevView==='analytics'){
+    showAnalyticsView();
+  }else{
+    document.getElementById('view-list').classList.add('active');
+    curView='list';
+    document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');x.removeAttribute('aria-current');});
+    var homeBtn=document.querySelector('.mtab-item[aria-label="Home"]');
+    if(homeBtn){homeBtn.classList.add('on');homeBtn.setAttribute('aria-current','page');}
+  }
 });
 window.addEventListener('popstate',function(){
   if(document.getElementById('view-detail').classList.contains('active')){
@@ -1935,6 +2148,11 @@ document.querySelector('.mtab').addEventListener('click',function(e){
   var lbl=btn.getAttribute('aria-label');
   if(lbl==='Home'){
     curSearch='';curFolder='ALL';curLang='ALL';
+    curView='list';
+    document.body.classList.remove('sb-detail-view');
+    document.getElementById('view-analytics').classList.remove('active');
+    document.getElementById('view-detail').classList.remove('active');
+    document.getElementById('view-list').classList.add('active');
     var si=document.getElementById('srch');if(si)si.value='';
     document.querySelectorAll('.lang-pill').forEach(function(x){
       x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
@@ -1944,15 +2162,216 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     if(vl)vl.scrollTo({top:0,behavior:'smooth'});
     document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');});
     btn.classList.add('on');
+    btn.setAttribute('aria-current','page');
   }else if(lbl==='Search'){
+    if(curView!=='list'){
+      curView='list';
+      document.getElementById('view-analytics').classList.remove('active');
+      document.getElementById('view-list').classList.add('active');
+      // Restore Home as the visually active tab when switching to list via Search
+      document.querySelectorAll('.mtab-item').forEach(function(x){
+        x.classList.remove('on');x.removeAttribute('aria-current');
+      });
+      var hb=document.querySelector('.mtab-item[aria-label="Home"]');
+      if(hb){hb.classList.add('on');hb.setAttribute('aria-current','page');}
+    }
     var srch=document.getElementById('srch');
     srch.scrollIntoView({behavior:'smooth',block:'center'});
     setTimeout(function(){srch.focus();},300);
   }else if(lbl==='Analytics'){
-    showToast('Analytics coming soon');
+    showAnalyticsView();
   }else if(lbl==='Profile'){
     openProfileSheet();
   }
+});
+
+/* ── ANALYTICS ──────────────────────────────────── */
+var LANG_COLORS={EN:'#1B4FD8',IT:'#15803D',ES:'#C2410C',MULTI:'#7C3AED'};
+var LANG_LABELS={EN:'🇬🇧 EN',IT:'🇮🇹 IT',ES:'🇪🇸 ES',MULTI:'🌍 Multi'};
+
+function relativeTime(iso){
+  if(!iso)return '';
+  var diff=Date.now()-new Date(iso).getTime();
+  if(diff<0)diff=0;
+  var m=Math.floor(diff/60000);
+  if(m<2)return 'just now';
+  if(m<60)return m+'m ago';
+  var h=Math.floor(diff/3600000);
+  if(h<24)return h+'h ago';
+  var d=Math.floor(diff/86400000);
+  if(d<30)return d+'d ago';
+  var mo=Math.floor(d/30);
+  if(mo<12)return mo+'mo ago';
+  return Math.floor(mo/12)+'y ago';
+}
+
+function renderAnalytics(){
+  var total=allSnips.length;
+  var folderCnt=allFolders.length;
+
+  if(!total&&!folderCnt){
+    document.getElementById('an-hdr-sub').textContent='No snippets yet';
+    document.getElementById('an-total').textContent='0';
+    document.getElementById('an-folders-cnt').textContent='0';
+    document.getElementById('an-interactive').textContent='0';
+    document.getElementById('an-noshortcut').textContent='0';
+    document.getElementById('an-interactive-pct').style.display='none';
+    document.getElementById('an-noshortcut-tag').style.display='none';
+    document.getElementById('an-lang-list').innerHTML='<div class="an-empty-sec">No data yet</div>';
+    document.getElementById('an-folder-list').innerHTML='<div class="an-empty-sec">No folders yet</div>';
+    document.getElementById('an-health-list').innerHTML='<div class="an-empty-sec">No data yet</div>';
+    document.getElementById('an-recent-list').innerHTML='<div class="an-empty-sec">No snippets yet</div>';
+    return;
+  }
+
+  /* ── header subtitle ── */
+  var oneWeekMs=7*86400000;
+  var now=Date.now();
+  var updatedThisWeek=allSnips.filter(function(s){
+    return s.updated_at&&(now-new Date(s.updated_at).getTime())<oneWeekMs;
+  }).length;
+  var sub=total+' snippet'+(total!==1?'s':'');
+  if(updatedThisWeek>0)sub+=' · '+updatedThisWeek+' updated this week';
+  document.getElementById('an-hdr-sub').textContent=sub;
+
+  /* ── KPI cards ── */
+  var withFields=allSnips.filter(function(s){return extractFields(s.body||'').length>0;}).length;
+  var withShortcut=allSnips.filter(function(s){return !!(s.shortcut||'').trim();}).length;
+  var withFolder=allSnips.filter(function(s){return !!s.folder_id;}).length;
+  var noShortcut=total-withShortcut;
+
+  document.getElementById('an-total').textContent=total;
+  document.getElementById('an-folders-cnt').textContent=folderCnt;
+  document.getElementById('an-interactive').textContent=withFields;
+
+  var iPct=document.getElementById('an-interactive-pct');
+  if(total>0){
+    iPct.textContent=Math.round(withFields/total*100)+'% of library';
+    iPct.style.display='';
+  }else{
+    iPct.style.display='none';
+  }
+
+  document.getElementById('an-noshortcut').textContent=noShortcut;
+  var nsTag=document.getElementById('an-noshortcut-tag');
+  nsTag.style.display=noShortcut>0?'':'none';
+
+  /* ── language breakdown ── */
+  var langCounts={EN:0,IT:0,ES:0,MULTI:0};
+  allSnips.forEach(function(s){
+    var l=s.lang||'EN';
+    if(Object.prototype.hasOwnProperty.call(langCounts,l))langCounts[l]++;
+    else langCounts['MULTI']++;
+  });
+  var maxLang=Math.max(langCounts.EN,langCounts.IT,langCounts.ES,langCounts.MULTI,1);
+  document.getElementById('an-lang-list').innerHTML=
+    ['EN','IT','ES','MULTI'].map(function(l){
+      var cnt=langCounts[l];
+      var barW=Math.round(cnt/maxLang*100);
+      var pct=total>0?Math.round(cnt/total*100):0;
+      return '<div class="an-lang-row">'
+        +'<span class="lbadge l'+l+' an-lang-pill">'+esc(LANG_LABELS[l])+'</span>'
+        +'<div class="an-lang-bar-wrap">'
+          +'<div class="an-lang-bar" style="width:'+barW+'%;background:'+LANG_COLORS[l]+'"></div>'
+        +'</div>'
+        +'<span class="an-lang-count">'+cnt+'</span>'
+        +'<span class="an-lang-pct">'+pct+'%</span>'
+      +'</div>';
+    }).join('');
+
+  /* ── top folders ── */
+  var fSnipCnt={};
+  allSnips.forEach(function(s){
+    if(s.folder_id)fSnipCnt[s.folder_id]=(fSnipCnt[s.folder_id]||0)+1;
+  });
+  var topFolders=allFolders
+    .map(function(f){return{f:f,cnt:fSnipCnt[f.id]||0};})
+    .filter(function(x){return x.cnt>0;})
+    .sort(function(a,b){return b.cnt-a.cnt;})
+    .slice(0,5);
+  var maxFCnt=topFolders.length?topFolders[0].cnt:1;
+  document.getElementById('an-folder-list').innerHTML=topFolders.length
+    ?topFolders.map(function(x,i){
+        var barW=Math.round(x.cnt/maxFCnt*100);
+        return '<div class="an-folder-row">'
+          +'<span class="an-folder-rank">#'+(i+1)+'</span>'
+          +'<span class="an-folder-ico">'+folderIcon(x.f)+'</span>'
+          +'<div class="an-folder-info">'
+            +'<div class="an-folder-name">'+esc(x.f.name||'Folder')+'</div>'
+            +'<div class="an-folder-bar-wrap">'
+              +'<div class="an-folder-bar" style="width:'+barW+'%"></div>'
+            +'</div>'
+          +'</div>'
+          +'<span class="an-folder-cnt">'+x.cnt+'</span>'
+        +'</div>';
+      }).join('')
+    :'<div class="an-empty-sec">Assign snippets to folders to see rankings</div>';
+
+  /* ── library health ── */
+  var healthRows=[
+    {label:'Have a shortcut',val:withShortcut},
+    {label:'Assigned to a folder',val:withFolder},
+    {label:'Interactive (have fields)',val:withFields}
+  ];
+  document.getElementById('an-health-list').innerHTML=healthRows.map(function(h){
+    var pct=total>0?Math.round(h.val/total*100):0;
+    var cls=pct>=80?'h-ok':pct>=50?'':'h-warn';
+    return '<div class="an-health-row">'
+      +'<div class="an-health-top">'
+        +'<span class="an-health-lbl">'+esc(h.label)+'</span>'
+        +'<span class="an-health-pct '+cls+'">'+pct+'%</span>'
+      +'</div>'
+      +'<div class="an-health-bar-wrap">'
+        +'<div class="an-health-bar '+cls+'" style="width:'+pct+'%"></div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+
+  /* ── recently modified ── */
+  var recent=allSnips.slice().sort(function(a,b){
+    var ta=a.updated_at?new Date(a.updated_at).getTime():0;
+    var tb=b.updated_at?new Date(b.updated_at).getTime():0;
+    return tb-ta;
+  }).slice(0,6);
+  var recentEl=document.getElementById('an-recent-list');
+  recentEl.innerHTML=recent.length
+    ?recent.map(function(s){
+        var rel=relativeTime(s.updated_at);
+        var langBadge='<span class="lbadge l'+esc(s.lang||'EN')+'" style="font-size:9px;padding:1px 5px">'+esc(s.lang||'EN')+'</span>';
+        return '<div class="an-recent-item" data-snip-id="'+esc(s.id)+'" role="button" tabindex="0" aria-label="'+esc(s.title||s.id)+'">'
+          +'<div class="an-recent-ico">'+getIcon(s)+'</div>'
+          +'<div class="an-recent-info">'
+            +'<div class="an-recent-title">'+esc(s.title||s.id)+'</div>'
+            +'<div class="an-recent-meta">'
+              +(rel?'<span class="an-recent-date">'+esc(rel)+'</span>':'')
+              +langBadge
+            +'</div>'
+          +'</div>'
+        +'</div>';
+      }).join('')
+    :'<div class="an-empty-sec">No snippets yet</div>';
+
+  recentEl.querySelectorAll('.an-recent-item').forEach(function(el){
+    function activate(){
+      var id=this.getAttribute('data-snip-id');
+      var s=allSnips.find(function(x){return x.id===id;});
+      if(s)openDetail(s);
+    }
+    el.addEventListener('click',activate);
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();activate.call(this);}
+    });
+  });
+}
+
+document.getElementById('an-refresh-btn').addEventListener('click',function(){
+  var btn=this;
+  btn.classList.add('spinning');
+  btn.disabled=true;
+  loadSnips();
+  // Stop spinning once the network response lands (give it at least 600ms so
+  // the animation is visible even when cache resolves immediately)
+  setTimeout(function(){btn.classList.remove('spinning');btn.disabled=false;},600);
 });
 
 /* ── INIT ───────────────────────────────────────── */
