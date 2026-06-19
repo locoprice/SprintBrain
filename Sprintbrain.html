@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SprintBrain — Snippet Engine v2.62.12</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:   #5c6bc0;
+      --brand-d: #3949ab;
+      --bg:      #f4f5f9;
+      --surface: #ffffff;
+      --border:  #e0e2ed;
+      --text:    #1a1a2e;
+      --muted:   #6b7280;
+      --success: #10b981;
+      --mono:    'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--brand);
+      letter-spacing: -0.5px;
+    }
+    header .version {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 8px;
+    }
+
+    /* ── Main layout ────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      gap: 16px;
+    }
+    @media (max-width: 800px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ── Panels ─────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-header .badge {
+      background: var(--brand);
+      color: #fff;
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ── Template editor ────────────────────────────────── */
+    #template-panel { grid-column: 1; grid-row: 1 / 3; }
+    #template {
+      width: 100%;
+      height: 520px;
+      border: none;
+      resize: vertical;
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+      background: #fafbfc;
+      outline: none;
+    }
+
+    /* ── Fields form ────────────────────────────────────── */
+    #fields-panel {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    #fields-form {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-row label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .field-row input,
+    .field-row select {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 11px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+    }
+    .field-row input:focus,
+    .field-row select:focus { border-color: var(--brand); }
+    .no-fields {
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── Output panel ───────────────────────────────────── */
+    #output-panel {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    #output {
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+      min-height: 200px;
+      background: #fafbfc;
+    }
+    #output.empty { color: var(--muted); font-style: italic; }
+
+    /* ── Toolbar ────────────────────────────────────────── */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-ghost { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Syntax reference ───────────────────────────────── */
+    #syntax-panel {
+      grid-column: 1 / 3;
+      grid-row: 3;
+    }
+    .syntax-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+    .syntax-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .syntax-item code {
+      display: block;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--brand);
+      margin-bottom: 4px;
+    }
+    .syntax-item p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Copy toast ─────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--text);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      opacity: 0;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">⚡ SprintBrain</span>
+  <span class="version">Formula Engine v2.62.12</span>
+</header>
+
+<main>
+  <!-- Template editor -->
+  <div class="panel" id="template-panel">
+    <div class="panel-header">
+      Snippet Template
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btn-load-demo">Load demo</button>
+        <button class="btn btn-ghost" id="btn-clear">Clear</button>
+      </div>
+    </div>
+    <textarea id="template" spellcheck="false" placeholder="Paste your snippet body here. Supports:
+  {{VARIABLE_NAME}}           — user input placeholder
+  {{= YOUR_PRICE * 0.985 }}   — calculated formula
+  {formtext: name=VAR}        — text field
+  {formdate: name=VAR}        — date field
+  {formmenu: A,B,C; name=VAR} — dropdown
+  {time: DD/MM/YYYY HH:mm}    — current date/time
+  {if: VAR = &quot;value&quot;}...{elseif: ...}...{else}...{endif}"></textarea>
+  </div>
+
+  <!-- Variable fields -->
+  <div class="panel" id="fields-panel">
+    <div class="panel-header">
+      Variables
+      <span class="badge" id="field-count">0 fields</span>
+    </div>
+    <div id="fields-form"><p class="no-fields">No variables detected yet. Start typing a template.</p></div>
+  </div>
+
+  <!-- Resolved output -->
+  <div class="panel" id="output-panel">
+    <div class="panel-header">
+      Resolved Output
+      <div class="toolbar">
+        <button class="btn btn-primary" id="btn-copy">Copy</button>
+      </div>
+    </div>
+    <div id="output" class="empty">Output appears here as you type.</div>
+  </div>
+
+  <!-- Syntax reference -->
+  <div class="panel" id="syntax-panel">
+    <div class="panel-header">Syntax Reference</div>
+    <div class="syntax-grid">
+      <div class="syntax-item"><code>{{YOUR_PRICE}}</code><p>User input placeholder. Shown as a form field.</p></div>
+      <div class="syntax-item"><code>{{= YOUR_PRICE * 0.985 }}</code><p>Evaluated math formula. Result shown inline (2 dp).</p></div>
+      <div class="syntax-item"><code>{{= round(OTA_PRICE * 0.015) }}</code><p>Built-in functions: round, floor, ceil, abs, min, max.</p></div>
+      <div class="syntax-item"><code>{formtext: name=VAR; default=x}</code><p>Text input with optional default value.</p></div>
+      <div class="syntax-item"><code>{formdate: name=VAR}</code><p>Date picker input.</p></div>
+      <div class="syntax-item"><code>{formmenu: A,B,C; name=VAR}</code><p>Dropdown menu — comma-separated options.</p></div>
+      <div class="syntax-item"><code>{time: DD/MM/YYYY HH:mm}</code><p>Current date/time formatted inline.</p></div>
+      <div class="syntax-item"><code>{if: VAR = "value"}...{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
+      <div class="syntax-item"><code>{if: ...}...{elseif: ...}...{else}...{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
+      <div class="syntax-item"><code>{= EXPR}</code><p>Legacy single-brace formula syntax (also supported).</p></div>
+      <div class="syntax-item"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
+      <div class="syntax-item"><code>**bold** [blue]text[/blue]</code><p>Inline formatting — bold and color tags.</p></div>
+    </div>
+  </div>
+</main>
+
+<div id="toast">Copied to clipboard!</div>
+
+<!-- Formula Engine (standalone, no Chrome API deps) -->
+<script src="extension/formula-engine.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  var FE = window.SBFormulaEngine;
+  var templateEl = document.getElementById('template');
+  var fieldsForm = document.getElementById('fields-form');
+  var outputEl   = document.getElementById('output');
+  var fieldCount = document.getElementById('field-count');
+
+  var DEMO_TEMPLATE =
+'📋 QUOTATION — {time: DD/MM/YYYY} at {time: HH:mm}\n' +
+'Valid for 3 hours.\n\n' +
+'Check-in:  {formdate: name=CHECKIN}\n' +
+'Check-out: {formdate: name=CHECKOUT}\n' +
+'Rate Plan: {formmenu: NOT Refundable,Refundable,Flexible; name=RATE_PLAN}\n\n' +
+'★ Your Price:   {formtext: name=YOUR_PRICE}€\n' +
+'★ OTA Price:    {formtext: name=OTA_PRICE}€\n\n' +
+'── Payment Options ──────────────────────────\n' +
+'Bank Transfer:  {{= YOUR_PRICE * 0.975}}€   ❤️  (save 2.5%)\n' +
+'Card (+3%):     {{= YOUR_PRICE * 1.03}}€\n\n' +
+'── Savings vs OTA ───────────────────────────\n' +
+'Direct saving:  {{= OTA_PRICE - YOUR_PRICE}}€\n' +
+'OTA commission: ~{{= round(OTA_PRICE * 0.015)}}€  (est. 1.5%)\n' +
+'Total benefit:  {{= OTA_PRICE - YOUR_PRICE + round(YOUR_PRICE * 0.015)}}€\n\n' +
+'── Cancellation Policy ──────────────────────\n' +
+'{if: RATE_PLAN = "NOT Refundable"}\n' +
+'⚠️  NON-REFUNDABLE — Lower price, no cancellation.\n' +
+'    Full payment required at confirmation.\n' +
+'{elseif: RATE_PLAN = "Refundable"}\n' +
+'✅  FREE CANCELLATION up to 7 days before arrival.\n' +
+'    Full refund if cancelled in time.\n' +
+'{else}\n' +
+'📋  Standard cancellation policy applies.\n' +
+'    See leibtour.com/policy for full terms.\n' +
+'{endif}\n\n' +
+'📎 Full terms → leibtour.com/policy\n' +
+'❓ FAQ → leibtour.com/faqs/booking-process';
+
+  // ── Field registry ─────────────────────────────────────────────
+  // Stores field definitions: key → {type, opts, default}
+  var fieldDefs = {};
+
+  function getFieldDefs(body) {
+    var defs = {};
+    // From {formtext/date/menu:} tokens
+    var dynCfg = FE.buildFormFieldCfg(body);
+    for (var k in dynCfg) defs[k] = dynCfg[k];
+    // From {{VARNAME}} placeholders (not already covered by form tokens)
+    var placeholders = FE.parsePlaceholders(body);
+    for (var p = 0; p < placeholders.length; p++) {
+      var ph = placeholders[p];
+      if (!defs[ph]) defs[ph] = { type: 'text', default: '' };
+    }
+    // From {VARNAME} single-brace fields
+    var singleFields = FE.extractFields(body);
+    for (var s = 0; s < singleFields.length; s++) {
+      var sf = singleFields[s];
+      if (!defs[sf]) defs[sf] = { type: 'text', default: '' };
+    }
+    return defs;
+  }
+
+  function buildFieldsForm(defs) {
+    var keys = Object.keys(defs);
+    fieldCount.textContent = keys.length + (keys.length === 1 ? ' field' : ' fields');
+    if (!keys.length) {
+      fieldsForm.innerHTML = '<p class="no-fields">No variables detected yet.</p>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var def = defs[key];
+      var label = key.replace(/_/g, ' ');
+      var inp;
+      if (def.type === 'dd') {
+        var opts = (def.opts || '').split('\n').filter(Boolean);
+        var optHtml = opts.map(function(o) {
+          return '<option value="' + esc(o) + '">' + esc(o) + '</option>';
+        }).join('');
+        inp = '<select data-key="' + esc(key) + '">' + optHtml + '</select>';
+      } else if (def.type === 'date') {
+        inp = '<input type="date" data-key="' + esc(key) + '" value="' + esc(def.default || '') + '">';
+      } else if (def.type === 'time') {
+        inp = '<input type="time" data-key="' + esc(key) + '" value="' + esc(def.default || '') + '">';
+      } else {
+        inp = '<input type="text" data-key="' + esc(key) + '" placeholder="' + esc(label) + '" value="' + esc(def.default || '') + '">';
+      }
+      html += '<div class="field-row"><label>' + esc(label) + '</label>' + inp + '</div>';
+    }
+    fieldsForm.innerHTML = html;
+
+    // Attach live listeners
+    var inputs = fieldsForm.querySelectorAll('input, select');
+    for (var j = 0; j < inputs.length; j++) {
+      inputs[j].addEventListener('input',  updateOutput);
+      inputs[j].addEventListener('change', updateOutput);
+    }
+  }
+
+  function getVals() {
+    var vals = {};
+    var inputs = fieldsForm.querySelectorAll('[data-key]');
+    for (var i = 0; i < inputs.length; i++) {
+      vals[inputs[i].dataset.key] = inputs[i].value;
+    }
+    return vals;
+  }
+
+  function updateOutput() {
+    var body = templateEl.value;
+    if (!body.trim()) {
+      outputEl.textContent = 'Output appears here as you type.';
+      outputEl.className = 'empty';
+      return;
+    }
+    var vals = getVals();
+    // First pass: interpolate double-brace {{VARNAME}} placeholders
+    var resolved = FE.interpolateSnippet(body, vals);
+    // Second pass: resolve all other tokens (formulas, conditions, time, etc.)
+    var output = FE.resolveBody(resolved, vals);
+    outputEl.textContent = output || '';
+    outputEl.className = output ? '' : 'empty';
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Template changes → rebuild fields + update output ───────────
+  var rebuildTimer;
+  templateEl.addEventListener('input', function() {
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(function() {
+      var body = templateEl.value;
+      var newDefs = getFieldDefs(body);
+
+      // Preserve existing input values when rebuilding (don't wipe what the user typed)
+      var existingVals = getVals();
+      fieldDefs = newDefs;
+      buildFieldsForm(newDefs);
+
+      // Restore values for fields that survived the rebuild
+      var inputs = fieldsForm.querySelectorAll('[data-key]');
+      for (var i = 0; i < inputs.length; i++) {
+        var key = inputs[i].dataset.key;
+        if (existingVals[key] !== undefined) inputs[i].value = existingVals[key];
+      }
+
+      updateOutput();
+    }, 150);
+  });
+
+  // ── Buttons ───────────────────────────────────────────────────────
+  document.getElementById('btn-load-demo').addEventListener('click', function() {
+    templateEl.value = DEMO_TEMPLATE;
+    templateEl.dispatchEvent(new Event('input'));
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', function() {
+    templateEl.value = '';
+    templateEl.dispatchEvent(new Event('input'));
+  });
+
+  document.getElementById('btn-copy').addEventListener('click', function() {
+    var text = outputEl.textContent;
+    if (!text || outputEl.classList.contains('empty')) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showToast).catch(function() { legacyCopy(text); });
+    } else {
+      legacyCopy(text);
+    }
+  });
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast();
+  }
+
+  var toastTimer;
+  function showToast() {
+    var t = document.getElementById('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 1800);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  buildFieldsForm({});
+  updateOutput();
+
+})();
+</script>
+</body>
+</html>

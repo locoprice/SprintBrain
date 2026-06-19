@@ -1,4 +1,4 @@
-// ── SPRINTBRAIN CONTENT SCRIPT v2.57.0 ────────────────────────────
+// ── SPRINTBRAIN CONTENT SCRIPT v2.62.12 ───────────────────────────
 // Configurable dual triggers + confetti celebration + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
@@ -169,6 +169,45 @@ function evalFormula(expr, vals) {
   } catch(e) { return null; }
 }
 
+// Evaluates a condition expression that may include string comparisons.
+// Handles: VAR = "string", VAR != "string", VAR == "string", VAR <> "string".
+// Falls back to numeric evalFormula for arithmetic conditions (e.g. COUNT > 2).
+function evalCondition(expr, vals) {
+  var e = String(expr).replace(/^\s+|\s+$/g, '');
+  // VAR (=|==|!=|<>) "string" or 'string'
+  var sm = /^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|<>|=)\s*["']([^"']*)["']$/.exec(e);
+  if (sm) {
+    var lhs = String(vals[sm[1]] !== undefined && vals[sm[1]] !== null ? vals[sm[1]] : '');
+    var op = sm[2], rhs = sm[3];
+    var eq = lhs.toLowerCase() === rhs.toLowerCase();
+    return (op === '=' || op === '==') ? (eq ? 1 : 0) : (eq ? 0 : 1);
+  }
+  // "string" (=|==|!=|<>) VAR (reverse order)
+  sm = /^["']([^'"]*)['"]\s*(==|!=|<>|=)\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(e);
+  if (sm) {
+    var rhs2 = sm[1], op2 = sm[2];
+    var lhs2 = String(vals[sm[3]] !== undefined && vals[sm[3]] !== null ? vals[sm[3]] : '');
+    var eq2 = lhs2.toLowerCase() === rhs2.toLowerCase();
+    return (op2 === '=' || op2 === '==') ? (eq2 ? 1 : 0) : (eq2 ? 0 : 1);
+  }
+  return evalFormula(e, vals);
+}
+
+// Splits the raw content between {if: COND} and {endif} into branches.
+// Returns [{cond: String|null, body: String}] where cond===null is the {else} branch.
+function _splitIfBranches(firstCond, inner) {
+  var branches = [], currentCond = firstCond, lastIdx = 0;
+  var re = /\{(else(?:if:[^}]*)?)\}/g, m;
+  while ((m = re.exec(inner)) !== null) {
+    branches.push({ cond: currentCond, body: inner.slice(lastIdx, m.index) });
+    var tag = m[1].replace(/^\s+|\s+$/g, '');
+    currentCond = (tag === 'else') ? null : tag.slice(7).replace(/^\s+|\s+$/g, '');
+    lastIdx = m.index + m[0].length;
+  }
+  branches.push({ cond: currentCond, body: inner.slice(lastIdx) });
+  return branches;
+}
+
 /**
  * CSP-safe recursive descent parser for math expressions.
  * Supports: +, -, *, /, parentheses, decimals, negation,
@@ -255,9 +294,25 @@ function resolveBody(body, vals) {
   var out = '', i = 0;
   while (i < body.length) {
     if (body[i] === '{') {
+      // ── Double-brace: {{= EXPR}} or {{VARNAME}} ──────────────────────
+      if (body[i+1] === '{') {
+        var cll = body.indexOf('}}', i+2);
+        if (cll === -1) { out += body[i++]; continue; }
+        var dtok = body.slice(i+2, cll).replace(/^\s+|\s+$/g, '');
+        if (dtok.charAt(0) === '=') {
+          var dfv = evalFormula(dtok.slice(1).replace(/^\s+|\s+$/g, ''), vals);
+          out += dfv !== null ? String(dfv) : '';
+        } else {
+          var dval = vals[dtok];
+          out += (dval !== undefined && dval !== null) ? String(dval) : '{{' + dtok + '}}';
+        }
+        i = cll + 2; continue;
+      }
+      // ── Single-brace: {TOKEN} ─────────────────────────────────────────
       var cl = body.indexOf('}', i);
       if (cl === -1) { out += body[i++]; continue; }
       var tok = body.slice(i+1, cl).replace(/^\s+|\s+$/g, '');
+      // {var: NAME = EXPR}
       if (tok.slice(0, 4) === 'var:') {
         var vdecl = tok.slice(4).replace(/^\s+|\s+$/g, '');
         var veq = vdecl.indexOf('=');
@@ -275,28 +330,49 @@ function resolveBody(body, vals) {
         }
         i = cl + 1; continue;
       }
+      // {= EXPRESSION} — single-brace formula (legacy syntax)
       if (tok.charAt(0) === '=') {
         var fv = evalFormula(tok.slice(1), vals);
         out += fv !== null ? String(fv) : '';
         i = cl+1; continue;
       }
+      // {time: FORMAT}
       if (tok.slice(0,5).toLowerCase() === 'time:') {
         out += sbParseTimeToken(tok.slice(5), vals);
         i = cl+1; continue;
       }
+      // {formtext: name=VAR} / {formdate: name=VAR} / {formmenu: opts; name=VAR}
+      var tokLow = tok.toLowerCase();
+      if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
+        var formRest = tok.slice(9);
+        var fNameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(formRest);
+        var fKey = fNameM ? fNameM[1] : '';
+        out += String(fKey && vals[fKey] !== undefined ? vals[fKey] : '');
+        i = cl+1; continue;
+      }
+      // {if: COND} ... {elseif: COND} ... {else} ... {endif}
       if (tok.slice(0,3) === 'if:') {
         var cond = tok.slice(3).replace(/^\s+|\s+$/g, '');
         var ei = '{endif}', eidx = body.indexOf(ei, cl+1);
-        var inner = eidx !== -1 ? body.slice(cl+1, eidx) : '';
-        var cr = false;
-        try {
-          var condResult = evalFormula(cond, vals);
-          cr = condResult !== null && condResult !== 0;
-        } catch(e) {}
-        if (cr) out += resolveBody(inner, vals);
+        var fullInner = eidx !== -1 ? body.slice(cl+1, eidx) : '';
+        var branches = _splitIfBranches(cond, fullInner);
+        for (var bi = 0; bi < branches.length; bi++) {
+          var br = branches[bi];
+          var brOk = false;
+          if (br.cond === null) {
+            brOk = true;
+          } else {
+            try { var cr = evalCondition(br.cond, vals); brOk = cr !== null && cr !== 0; } catch(e) {}
+          }
+          if (brOk) { out += resolveBody(br.body, vals); break; }
+        }
         i = eidx !== -1 ? eidx + ei.length : cl+1; continue;
       }
-      if (tok === 'endif') { i = cl+1; continue; }
+      // Orphaned {elseif:}, {else}, {endif} — skip (consumed by {if:} handler)
+      if (tok === 'endif' || tok === 'else' || tok.slice(0,7).toLowerCase() === 'elseif:') {
+        i = cl+1; continue;
+      }
+      // {VARNAME} — plain variable substitution
       var fval = vals[tok];
       out += (fval !== undefined && fval !== null) ? String(fval) : '';
       i = cl+1;
@@ -312,15 +388,56 @@ function extractFields(body) {
   var vars = [], re = /\{([^}]+)\}/g, m;
   while ((m = re.exec(body)) !== null) {
     var t = m[1].replace(/^\s+|\s+$/g, '');
-    if (t.charAt(0) !== '=' && t !== 'endif' &&
-        t.slice(0,3) !== 'if:' && t.slice(0,4) !== 'var:' &&
-        t.slice(0,5).toLowerCase() !== 'time:') {
-      var dup = false;
-      for (var i = 0; i < vars.length; i++) { if (vars[i] === t) { dup = true; break; } }
-      if (!dup) vars.push(t);
+    // Skip control/formula tokens; '{' prefix = inner half of a {{...}} double-brace token
+    if (t.charAt(0) === '=' || t.charAt(0) === '{' ||
+        t === 'endif' || t === 'else' ||
+        t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
+        t.slice(0,7).toLowerCase() === 'elseif:' ||
+        t.slice(0,5).toLowerCase() === 'time:') continue;
+    // {formtext:}, {formdate:}, {formmenu:} → extract name= as field key
+    var tokLow = t.toLowerCase();
+    var fieldKey = t;
+    if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
+      var fNm = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(t.slice(9));
+      if (!fNm) continue;
+      fieldKey = fNm[1];
     }
+    var dup = false;
+    for (var ix = 0; ix < vars.length; ix++) { if (vars[ix] === fieldKey) { dup = true; break; } }
+    if (!dup) vars.push(fieldKey);
   }
   return vars;
+}
+
+// Builds a fieldCfg map from {formtext:}, {formdate:}, {formmenu:} tokens.
+// The result is merged with snip.fieldCfg (explicit config wins) before showOverlay.
+function buildFormFieldCfg(body) {
+  var cfg = {}, re = /\{([^}]+)\}/g, m;
+  while ((m = re.exec(body)) !== null) {
+    var t = m[1].replace(/^\s+|\s+$/g, '');
+    var tokLow = t.toLowerCase();
+    var prefix = null;
+    if (tokLow.slice(0,9) === 'formtext:') prefix = 'formtext';
+    else if (tokLow.slice(0,9) === 'formdate:') prefix = 'formdate';
+    else if (tokLow.slice(0,9) === 'formmenu:') prefix = 'formmenu';
+    if (!prefix) continue;
+    var rest = t.slice(9);
+    var nameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(rest);
+    if (!nameM) continue;
+    var key = nameM[1];
+    if (cfg[key]) continue;
+    var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(rest);
+    var defVal = defM ? defM[1].replace(/^\s+|\s+$/g, '') : '';
+    if (prefix === 'formdate') {
+      cfg[key] = { type: 'date', default: defVal };
+    } else if (prefix === 'formmenu') {
+      var optStr = rest.split(';')[0].replace(/^\s+|\s+$/g, '');
+      cfg[key] = { type: 'dd', opts: optStr.split(',').map(function(o){ return o.replace(/^\s+|\s+$/g, ''); }).join('\n') };
+    } else {
+      cfg[key] = { type: 'text', default: defVal };
+    }
+  }
+  return cfg;
 }
 
 // ── DOUBLE-BRACE PLACEHOLDER ENGINE ──────────────────────────────
@@ -1044,7 +1161,14 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
       );
     }
   } else {
-    showOverlay(el, snip, fields, scLen || 0, function() { processing = false; });
+    // Merge dynamic fieldCfg from {formtext/date/menu:} tokens with any explicit snip.fieldCfg.
+    // Explicit snip.fieldCfg wins on conflict, so hand-configured fields are never overridden.
+    var dynCfg = buildFormFieldCfg(snip.body);
+    var hasDyn = Object.keys(dynCfg).length > 0;
+    var effSnip = hasDyn
+      ? Object.assign({}, snip, { fieldCfg: Object.assign({}, dynCfg, snip.fieldCfg || {}) })
+      : snip;
+    showOverlay(el, effSnip, fields, scLen || 0, function() { processing = false; });
   }
 }
 
