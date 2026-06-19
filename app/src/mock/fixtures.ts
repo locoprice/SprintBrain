@@ -458,6 +458,7 @@ const NULL_PROMPT_META = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  notion_page_id: null,
 } as const;
 
 export const mockPrompts: Prompt[] = [

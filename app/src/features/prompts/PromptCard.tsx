@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Brain, Zap } from 'lucide-react';
+import { Brain, Loader2, Send, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Prompt } from '@/types/database';
@@ -55,6 +55,9 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const openEditPrompt = useUiStore((s) => s.openEditPrompt);
   const openPromptPreview = useUiStore((s) => s.openPromptPreview);
   const markUsed = usePromptStore((s) => s.markUsed);
+  const pushPromptToNotion = usePromptStore((s) => s.pushPromptToNotion);
+  const notionPushingIds = usePromptStore((s) => s.notionPushingIds);
+  const pushing = notionPushingIds.has(prompt.id);
 
   const preview = getPreviewText(prompt);
   const strategyColor = prompt.strategy_type
@@ -73,6 +76,11 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     e.stopPropagation();
     markUsed(prompt.id);
     openPromptPreview(prompt.id);
+  }
+
+  function handleNotionPush(e: React.MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    void pushPromptToNotion(prompt.id);
   }
 
   return (
@@ -130,14 +138,30 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
         {/* Footer */}
         <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
           <span className="text-xs text-ink-subtle">{lastUsed}</span>
-          <button
-            type="button"
-            onClick={handleUse}
-            className="inline-flex h-7 items-center gap-1.5 rounded-[8px] bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <Zap className="h-3 w-3" />
-            Use
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleNotionPush}
+              disabled={pushing}
+              title={prompt.notion_page_id ? 'Update in Notion' : 'Push to Notion'}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[8px] border border-line bg-card px-2.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pushing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
+              {prompt.notion_page_id ? 'Update' : 'Sync'}
+            </button>
+            <button
+              type="button"
+              onClick={handleUse}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[8px] bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <Zap className="h-3 w-3" />
+              Use
+            </button>
+          </div>
         </div>
       </CardContent>
     </Card>

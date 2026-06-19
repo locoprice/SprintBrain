@@ -319,6 +319,7 @@ describe('promptToEvaluatorInput', () => {
     execution_type: null,
     intent_category: null,
     output_type: null,
+    notion_page_id: null,
     updated_at: '2026-01-01T00:00:00.000Z',
     last_used_at: null,
   };
@@ -381,6 +382,7 @@ describe('selectBenchmarkCohort', () => {
     execution_type: null,
     intent_category: intent,
     output_type: null,
+    notion_page_id: null,
     updated_at: '2026-01-01T00:00:00.000Z',
     last_used_at: null,
   });

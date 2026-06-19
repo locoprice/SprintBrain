@@ -108,6 +108,7 @@ export interface Prompt {
   intent_category: IntentCategory | null;
   output_type: OutputType | null;
   blocks: PromptBlock[] | null;
+  notion_page_id: string | null;
   updated_at: IsoDateTime;
   last_used_at: IsoDateTime | null;
 }

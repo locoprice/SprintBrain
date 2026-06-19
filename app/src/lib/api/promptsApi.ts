@@ -8,7 +8,11 @@ export interface PromptsApi {
   updatePrompt(id: string, patch: Partial<PromptFormValues>) : Promise<Prompt>;
   deletePrompt(id: string): Promise<void>;
   markUsed(id: string): Promise<void>;
+  /** Push prompt to the team Notion DB via Edge Function; writes notion_page_id back. */
+  pushToNotion(id: string): Promise<{ notion_page_id: string }>;
 }
+
+const EDGE_FN_PROMPT_PUSH = 'notion-prompt-push';
 
 type DbPrompt = {
   id: string;
@@ -25,6 +29,7 @@ type DbPrompt = {
   intent_category: string | null;
   output_type: string | null;
   blocks: PromptBlock[] | null;
+  notion_page_id: string | null;
   updated_at: string;
   last_used_at: string | null;
 };
@@ -33,7 +38,7 @@ const PROMPT_SELECT = [
   'id', 'user_id', 'name', 'content', 'type', 'tags',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
-  'updated_at', 'last_used_at',
+  'notion_page_id', 'updated_at', 'last_used_at',
 ].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
@@ -52,6 +57,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     intent_category: (row.intent_category as IntentCategory) ?? null,
     output_type: (row.output_type as OutputType) ?? null,
     blocks: row.blocks ?? null,
+    notion_page_id: row.notion_page_id ?? null,
     updated_at: row.updated_at,
     last_used_at: row.last_used_at,
   };
@@ -150,5 +156,17 @@ export const promptsApi: PromptsApi = {
       .eq('id', id)
       .eq('user_id', userId);
     if (error) throw error;
+  },
+
+  async pushToNotion(id) {
+    const { data, error } = await supabase.functions.invoke<{
+      ok: boolean;
+      notion_page_id: string;
+    }>(EDGE_FN_PROMPT_PUSH, { body: { prompt_id: id } });
+    if (error) throw error;
+    if (!data?.ok || !data.notion_page_id) {
+      throw new Error('notion-prompt-push returned unexpected response');
+    }
+    return { notion_page_id: data.notion_page_id };
   },
 };

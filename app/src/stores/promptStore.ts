@@ -43,6 +43,8 @@ interface PromptStore {
   error: string | null;
   filters: PromptFilters;
   cmdKOpen: boolean;
+  /** Set of prompt IDs currently awaiting a Notion push. */
+  notionPushingIds: Set<string>;
   load: () => Promise<void>;
   setFilters: (patch: Partial<PromptFilters>) => void;
   resetFilters: () => void;
@@ -51,6 +53,11 @@ interface PromptStore {
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
   removePrompt: (id: string) => Promise<void>;
   markUsed: (id: string) => void;
+  /**
+   * Push (or re-push) a prompt to the shared team Notion DB via Edge Function.
+   * Idempotent: updates the existing Notion page when one is already linked.
+   */
+  pushPromptToNotion: (id: string) => Promise<void>;
   // Legacy compat — reads/writes filters.type
   filter: PromptFilter;
   setFilter: (f: PromptFilter) => void;
@@ -62,6 +69,7 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   error: null,
   filters: DEFAULT_FILTERS,
   cmdKOpen: false,
+  notionPushingIds: new Set<string>(),
 
   // Legacy shim
   get filter() {
@@ -134,6 +142,24 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
         p.id === id ? { ...p, last_used_at: now } : p,
       ),
     }));
+  },
+
+  pushPromptToNotion: async (id) => {
+    set((s) => ({ notionPushingIds: new Set([...s.notionPushingIds, id]) }));
+    try {
+      const { notion_page_id } = await promptsApi.pushToNotion(id);
+      set((s) => ({
+        prompts: s.prompts.map((p) => (p.id === id ? { ...p, notion_page_id } : p)),
+        notionPushingIds: new Set([...s.notionPushingIds].filter((x) => x !== id)),
+        error: null,
+      }));
+    } catch (err) {
+      set((s) => ({
+        notionPushingIds: new Set([...s.notionPushingIds].filter((x) => x !== id)),
+        error: err instanceof Error ? err.message : 'Failed to push prompt to Notion',
+      }));
+      throw err;
+    }
   },
 }));
 

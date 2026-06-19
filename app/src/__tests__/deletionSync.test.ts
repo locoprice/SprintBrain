@@ -125,6 +125,7 @@ const PROMPT_A: Prompt = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  notion_page_id: null,
   updated_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
 };
