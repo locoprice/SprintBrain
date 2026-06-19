@@ -83,16 +83,18 @@ app/
 │   │   │   └── AuthGate.tsx   # Route guard (redirects unauthenticated users)
 │   │   └── shared/            # KpiCard + other cross-feature widgets
 │   ├── features/
-│   │   ├── snippets/          # SnippetFolderTree, SnippetsTable, NewSnippetDialog,
-│   │   │                      #   FolderDialog, FolderContextMenu
+│   │   ├── snippets/          # SnippetFolderTree (adapter), SnippetsTable, NewSnippetDialog
+│   │   ├── org/               # Shared folder UI: FolderTree, FolderDialog,
+│   │   │                      #   FolderContextMenu, FolderShareModal (snippets + prompts)
 │   │   ├── analytics/         # UsageChart, TopTriggersTable
-│   │   ├── prompts/           # PromptCard, PromptDialog
+│   │   ├── prompts/           # PromptCard, PromptDialog, PromptFolderTree (adapter)
 │   │   └── settings/          # NotionSyncPanel, AccountPanel, IntegrationsPanel
 │   ├── stores/                # Zustand: snippet, prompt, analytics, settings, auth, ui
 │   ├── lib/
 │   │   ├── api/               # Service layer (live Supabase + mock stubs)
 │   │   │   ├── snippetsApi.ts # LIVE CRUD
 │   │   │   ├── promptsApi.ts  # LIVE CRUD
+│   │   │   ├── foldersApi.ts  # LIVE folder CRUD (shared by snippets + prompts)
 │   │   │   ├── settingsApi.ts # LIVE reads + Notion config
 │   │   │   └── analyticsApi.ts  # MOCK (pending snippet_events — ANALYTICS-001)
 │   │   ├── supabase.ts        # Supabase JS client (publishable key)

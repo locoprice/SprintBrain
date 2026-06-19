@@ -38,6 +38,7 @@ const BASE_PROMPT: Prompt = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  folder_id: null,
   notion_page_id: null,
   updated_at: '2026-06-19T00:00:00Z',
   last_used_at: null,
@@ -64,6 +65,7 @@ const CREATE_PAYLOAD = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  folder_id: null,
 };
 
 describe('Prompt lifecycle — create → sync → modify → delete', () => {

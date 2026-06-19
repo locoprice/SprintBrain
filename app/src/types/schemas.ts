@@ -123,6 +123,8 @@ export const promptFormSchema = z.object({
       }),
     )
     .nullable(),
+  // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
+  folder_id: z.string().nullable(),
 });
 
 export type PromptFormValues = z.infer<typeof promptFormSchema>;

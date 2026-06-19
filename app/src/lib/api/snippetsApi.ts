@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { foldersApi } from '@/lib/api/foldersApi';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
@@ -35,17 +36,6 @@ export interface SnippetsApi {
   /** Delete multiple snippets in a single request. */
   bulkDeleteSnippets(ids: string[]): Promise<void>;
 }
-
-type DbFolder = {
-  id: string;
-  user_id: string | null;
-  name: string;
-  ico: string;
-  sort_order: number;
-  updated_at: string;
-};
-
-const FOLDER_SELECT = 'id, user_id, name, ico, sort_order, updated_at';
 
 type DbSnippetJoined = {
   id: string;
@@ -99,17 +89,6 @@ function normalizeBodies(
     out[fallbackLang] = fallbackBody;
   }
   return out;
-}
-
-function dbFolderToFolder(row: DbFolder): Folder {
-  return {
-    id: row.id,
-    user_id: row.user_id ?? '',
-    name: row.name,
-    icon: row.ico,
-    sort_order: row.sort_order,
-    updated_at: row.updated_at,
-  };
 }
 
 function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
@@ -199,15 +178,11 @@ function mergeActiveBody(
 }
 
 export const snippetsApi: SnippetsApi = {
-  async listFolders() {
-    // No `.eq('user_id')` filter: RLS returns the user's own folders plus any
-    // org folders shared with them (Phase B). Personal-only users are unaffected.
-    const { data, error } = await supabase
-      .from('folders')
-      .select(FOLDER_SELECT)
-      .order('sort_order', { ascending: true });
-    if (error) throw error;
-    return (data ?? []).map(dbFolderToFolder);
+  // Folder CRUD lives in the shared foldersApi (folders are generic containers
+  // for both snippets and prompts). These delegate so existing callers + tests
+  // that depend on snippetsApi keep working unchanged.
+  listFolders() {
+    return foldersApi.listFolders();
   },
 
   async listSnippets() {
@@ -306,57 +281,16 @@ export const snippetsApi: SnippetsApi = {
     if (error) throw error;
   },
 
-  async createFolder(payload) {
-    const userId = await currentUserId();
-    const id = crypto.randomUUID();
-    const { data, error } = await supabase
-      .from('folders')
-      .insert({
-        id,
-        user_id: userId,
-        name: payload.name,
-        ico: payload.icon,
-        sort_order: Date.now(),
-      })
-      .select(FOLDER_SELECT)
-      .single();
-    if (error) throw error;
-    return dbFolderToFolder(data as DbFolder);
+  createFolder(payload) {
+    return foldersApi.createFolder(payload);
   },
 
-  async updateFolder(id, patch) {
-    const userId = await currentUserId();
-    const update: Record<string, unknown> = {};
-    if (patch.name !== undefined) update['name'] = patch.name;
-    if (patch.icon !== undefined) update['ico'] = patch.icon;
-
-    const { data, error } = await supabase
-      .from('folders')
-      .update(update)
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select(FOLDER_SELECT)
-      .single();
-    if (error) throw error;
-    return dbFolderToFolder(data as DbFolder);
+  updateFolder(id, patch) {
+    return foldersApi.updateFolder(id, patch);
   },
 
-  async deleteFolder(id) {
-    const userId = await currentUserId();
-    // Reassign snippets in this folder to "no folder" first, so nothing orphans.
-    const { error: reassignError } = await supabase
-      .from('snippets')
-      .update({ folder_id: null })
-      .eq('folder_id', id)
-      .eq('user_id', userId);
-    if (reassignError) throw reassignError;
-
-    const { error } = await supabase
-      .from('folders')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
-    if (error) throw error;
+  deleteFolder(id) {
+    return foldersApi.deleteFolder(id);
   },
 
   async setPinned(id, pinned) {

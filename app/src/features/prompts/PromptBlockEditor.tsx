@@ -275,6 +275,7 @@ export function PromptBlockEditor() {
   const showToast = useUiStore((s) => s.showToast);
 
   const prompts = usePromptStore((s) => s.prompts);
+  const folders = usePromptStore((s) => s.folders);
   const addPrompt = usePromptStore((s) => s.addPrompt);
   const editPrompt = usePromptStore((s) => s.editPrompt);
   const removePrompt = usePromptStore((s) => s.removePrompt);
@@ -298,6 +299,7 @@ export function PromptBlockEditor() {
   const [executionType, setExecutionType] = useState<ExecutionType | null>(null);
   const [intentCategory, setIntentCategory] = useState<IntentCategory | null>(null);
   const [outputType, setOutputType] = useState<OutputType | null>(null);
+  const [folderId, setFolderId] = useState<string | null>(null);
 
   // Intent suggestion
   const [suggestion, setSuggestion] = useState<ClassificationResult | null>(null);
@@ -337,6 +339,7 @@ export function PromptBlockEditor() {
       setExecutionType(editingPrompt.execution_type);
       setIntentCategory(editingPrompt.intent_category);
       setOutputType(editingPrompt.output_type);
+      setFolderId(editingPrompt.folder_id);
     } else {
       setName('');
       setPromptType('one-shot');
@@ -349,6 +352,7 @@ export function PromptBlockEditor() {
       setExecutionType(null);
       setIntentCategory(null);
       setOutputType(null);
+      setFolderId(null);
     }
   }, [isOpen, editingPrompt]);
 
@@ -512,6 +516,7 @@ export function PromptBlockEditor() {
       intent_category: intentCategory,
       output_type: outputType,
       blocks,
+      folder_id: folderId,
     };
 
     try {
@@ -722,6 +727,15 @@ export function PromptBlockEditor() {
                 onChange={setExecutionType}
                 options={EXECUTION_TYPES.map((e) => ({ value: e, label: e }))}
                 placeholder="None"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-[10px] text-[#9C9CA6]">Folder</label>
+              <DarkSelect
+                value={folderId}
+                onChange={setFolderId}
+                options={folders.map((f) => ({ value: f.id, label: `${f.icon} ${f.name}` }))}
+                placeholder="No folder"
               />
             </div>
           </div>

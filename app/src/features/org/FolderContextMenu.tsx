@@ -4,8 +4,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { Pencil, Share2, Smile, Trash2 } from 'lucide-react';
 import type { Folder } from '@/types/database';
 import { cn } from '@/lib/utils';
-import { useSnippetStore } from '@/stores/snippetStore';
-import { useUiStore } from '@/stores/uiStore';
 
 interface FolderContextMenuProps {
   folder: Folder;
@@ -14,15 +12,24 @@ interface FolderContextMenuProps {
   onClose: () => void;
   /** Open the folder-sharing modal for this folder. */
   onShare: (folder: Folder) => void;
+  /** Open the rename / change-icon dialog for this folder. */
+  onEdit: (folder: Folder) => void;
+  /** Delete this folder (its items drop back to "no folder"). */
+  onDelete: (id: string) => Promise<void>;
 }
 
 const MIN_WIDTH = 224;
 const VIEWPORT_PADDING = 8;
 
-export function FolderContextMenu({ folder, x, y, onClose, onShare }: FolderContextMenuProps) {
-  const openFolderDialog = useUiStore((s) => s.openFolderDialog);
-  const removeFolder = useSnippetStore((s) => s.removeFolder);
-
+export function FolderContextMenu({
+  folder,
+  x,
+  y,
+  onClose,
+  onShare,
+  onEdit,
+  onDelete,
+}: FolderContextMenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState({ x, y });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -62,13 +69,8 @@ export function FolderContextMenu({ folder, x, y, onClose, onShare }: FolderCont
     };
   }, [onClose]);
 
-  function handleRename() {
-    openFolderDialog(folder.id);
-    onClose();
-  }
-
-  function handleChangeIcon() {
-    openFolderDialog(folder.id);
+  function handleEdit() {
+    onEdit(folder);
     onClose();
   }
 
@@ -84,7 +86,7 @@ export function FolderContextMenu({ folder, x, y, onClose, onShare }: FolderCont
     }
     setWorking(true);
     try {
-      await removeFolder(folder.id);
+      await onDelete(folder.id);
       onClose();
     } catch {
       setWorking(false);
@@ -105,8 +107,8 @@ export function FolderContextMenu({ folder, x, y, onClose, onShare }: FolderCont
       style={{ left: pos.x, top: pos.y, minWidth: MIN_WIDTH }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <MenuItem icon={<Pencil className="h-3.5 w-3.5" />} label="Rename" onClick={handleRename} />
-      <MenuItem icon={<Smile className="h-3.5 w-3.5" />} label="Change icon" onClick={handleChangeIcon} />
+      <MenuItem icon={<Pencil className="h-3.5 w-3.5" />} label="Rename" onClick={handleEdit} />
+      <MenuItem icon={<Smile className="h-3.5 w-3.5" />} label="Change icon" onClick={handleEdit} />
       <MenuItem icon={<Share2 className="h-3.5 w-3.5" />} label="Share with team…" onClick={handleShare} />
       <MenuItem
         icon={<Trash2 className="h-3.5 w-3.5" />}
@@ -142,9 +144,7 @@ function MenuItem({ icon, label, onClick, disabled, danger }: MenuItemProps) {
       className={cn(
         'flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[13px] text-left transition-colors',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        danger
-          ? 'text-danger hover:bg-danger/10'
-          : 'text-ink hover:bg-bg-alt',
+        danger ? 'text-danger hover:bg-danger/10' : 'text-ink hover:bg-bg-alt',
       )}
     >
       <span className={cn('shrink-0', danger ? 'text-danger' : 'text-ink-subtle')}>{icon}</span>

@@ -13,12 +13,16 @@ import type { Folder, FolderPermission, PermissionLevel } from '@/types/database
 import { permissionsApi, type ShareTarget } from '@/lib/api/permissionsApi';
 import { useOrgStore } from '@/stores/orgStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useSnippetStore } from '@/stores/snippetStore';
 
 interface FolderShareModalProps {
   /** The folder being shared. `null` keeps the dialog closed. */
   folder: Folder | null;
   onClose: () => void;
+  /**
+   * Called after a grant is added or revoked so the host surface can refresh
+   * its items (snippets or prompts) — sharing may move them into the org.
+   */
+  onShared?: () => void | Promise<void>;
 }
 
 const LEVEL_LABEL: Record<PermissionLevel, string> = {
@@ -34,13 +38,12 @@ const LEVEL_HELP: Record<PermissionLevel, string> = {
 
 const WHOLE_TEAM = '__org__';
 
-export function FolderShareModal({ folder, onClose }: FolderShareModalProps) {
+export function FolderShareModal({ folder, onClose, onShared }: FolderShareModalProps) {
   const activeOrg = useOrgStore((s) => s.activeOrg);
   const members = useOrgStore((s) => s.members);
   const orgLoading = useOrgStore((s) => s.loading);
   const loadOrg = useOrgStore((s) => s.load);
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
-  const reloadSnippets = useSnippetStore((s) => s.load);
 
   const [grants, setGrants] = useState<FolderPermission[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
@@ -123,8 +126,8 @@ export function FolderShareModal({ folder, onClose }: FolderShareModalProps) {
       await permissionsApi.shareFolder(folder.id, activeOrg.id, target);
       await refreshGrants();
       // The folder + its assets may have just moved into the org — refresh the
-      // tree so shared rows surface immediately.
-      await reloadSnippets();
+      // host surface so shared rows surface immediately.
+      await onShared?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to share folder');
     } finally {
@@ -147,7 +150,7 @@ export function FolderShareModal({ folder, onClose }: FolderShareModalProps) {
     try {
       await permissionsApi.revokeGrant(grantId);
       await refreshGrants();
-      await reloadSnippets();
+      await onShared?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove access');
     }
@@ -162,7 +165,7 @@ export function FolderShareModal({ folder, onClose }: FolderShareModalProps) {
             Share “{folder?.name ?? ''}”
           </DialogTitle>
           <DialogDescription>
-            Everyone you share this folder with can use the snippets inside it.
+            Everyone you share this folder with can use everything inside it.
           </DialogDescription>
         </DialogHeader>
 

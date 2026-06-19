@@ -458,6 +458,7 @@ const NULL_PROMPT_META = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  folder_id: null,
   notion_page_id: null,
 } as const;
 

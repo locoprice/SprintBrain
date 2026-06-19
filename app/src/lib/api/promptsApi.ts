@@ -29,6 +29,7 @@ type DbPrompt = {
   intent_category: string | null;
   output_type: string | null;
   blocks: PromptBlock[] | null;
+  folder_id: string | null;
   notion_page_id: string | null;
   updated_at: string;
   last_used_at: string | null;
@@ -38,7 +39,7 @@ const PROMPT_SELECT = [
   'id', 'user_id', 'name', 'content', 'type', 'tags',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
-  'notion_page_id', 'updated_at', 'last_used_at',
+  'folder_id', 'notion_page_id', 'updated_at', 'last_used_at',
 ].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
@@ -57,6 +58,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     intent_category: (row.intent_category as IntentCategory) ?? null,
     output_type: (row.output_type as OutputType) ?? null,
     blocks: row.blocks ?? null,
+    folder_id: row.folder_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
     updated_at: row.updated_at,
     last_used_at: row.last_used_at,
@@ -72,11 +74,12 @@ async function currentUserId(): Promise<string> {
 
 export const promptsApi: PromptsApi = {
   async listPrompts() {
-    const userId = await currentUserId();
+    // No `.eq('user_id')` filter: RLS returns the user's own prompts plus any
+    // that live in a folder shared with them (Phase B). Personal-only users see
+    // exactly what they did before. Mirrors snippetsApi.listSnippets.
     const { data, error } = await supabase
       .from('prompts')
       .select(PROMPT_SELECT)
-      .eq('user_id', userId)
       .order('updated_at', { ascending: false });
     if (error) throw error;
     return ((data ?? []) as unknown as DbPrompt[]).map(dbPromptToPrompt);
@@ -101,6 +104,7 @@ export const promptsApi: PromptsApi = {
         intent_category: payload.intent_category ?? null,
         output_type: payload.output_type ?? null,
         blocks: payload.blocks ?? null,
+        folder_id: payload.folder_id ?? null,
         updated_at: now,
       })
       .select(PROMPT_SELECT)
@@ -126,6 +130,7 @@ export const promptsApi: PromptsApi = {
     if ('intent_category' in patch) update['intent_category'] = patch.intent_category ?? null;
     if ('output_type' in patch) update['output_type'] = patch.output_type ?? null;
     if ('blocks' in patch) update['blocks'] = patch.blocks ?? null;
+    if ('folder_id' in patch) update['folder_id'] = patch.folder_id ?? null;
 
     const { data, error } = await supabase
       .from('prompts')

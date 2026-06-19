@@ -10,8 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useSnippetStore } from '@/stores/snippetStore';
-import { useUiStore } from '@/stores/uiStore';
+import type { Folder } from '@/types/database';
 import { folderFormSchema, type FolderFormValues } from '@/types/schemas';
 
 const ICON_OPTIONS = ['🏠', '🌍', '🏢', '📋', '📊', '💬', '✈️', '🔧', '📝', '⭐'];
@@ -23,33 +22,48 @@ const DEFAULT_FORM: FolderFormValues = {
 
 type FieldErrors = Partial<Record<keyof FolderFormValues, string>>;
 
+/** Open target: 'new' → create, a folder id → edit, null → closed. */
+export type FolderDialogTarget = 'new' | string | null;
+
+interface FolderDialogProps {
+  target: FolderDialogTarget;
+  onClose: () => void;
+  folders: Folder[];
+  addFolder: (payload: FolderFormValues) => Promise<Folder>;
+  editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
+  removeFolder: (id: string) => Promise<void>;
+  /** Items (snippets or prompts) currently inside the given folder. */
+  countFor: (folderId: string) => number;
+  /** Singular noun for copy, e.g. "snippet" / "prompt". */
+  itemNoun: string;
+  /** "All …" destination label items move to on delete, e.g. "All prompts". */
+  allLabel: string;
+}
+
 /**
- * Create/edit folder dialog. Driven by `uiStore.folderDialogId`:
- *   - 'new'  → create mode
- *   - uuid   → edit mode (form populated from store)
- *   - null   → closed
+ * Create/edit folder dialog. Store-agnostic: the host passes the folder list and
+ * the add/edit/remove actions (snippet store or prompt store), so the same
+ * dialog drives both surfaces.
  */
-export function FolderDialog() {
-  const dialogId = useUiStore((s) => s.folderDialogId);
-  const closeDialog = useUiStore((s) => s.closeFolderDialog);
-
-  const folders = useSnippetStore((s) => s.folders);
-  const snippets = useSnippetStore((s) => s.snippets);
-  const addFolder = useSnippetStore((s) => s.addFolder);
-  const editFolder = useSnippetStore((s) => s.editFolder);
-  const removeFolder = useSnippetStore((s) => s.removeFolder);
-
-  const isEdit = dialogId !== null && dialogId !== 'new';
+export function FolderDialog({
+  target,
+  onClose,
+  folders,
+  addFolder,
+  editFolder,
+  removeFolder,
+  countFor,
+  itemNoun,
+  allLabel,
+}: FolderDialogProps) {
+  const isEdit = target !== null && target !== 'new';
   const editingFolder = useMemo(
-    () => (isEdit && dialogId ? folders.find((f) => f.id === dialogId) ?? null : null),
-    [isEdit, dialogId, folders],
+    () => (isEdit && target ? folders.find((f) => f.id === target) ?? null : null),
+    [isEdit, target, folders],
   );
-  const open = dialogId !== null;
+  const open = target !== null;
 
-  const affectedSnippetCount = useMemo(() => {
-    if (!editingFolder) return 0;
-    return snippets.filter((s) => s.folder_id === editingFolder.id).length;
-  }, [editingFolder, snippets]);
+  const affectedCount = editingFolder ? countFor(editingFolder.id) : 0;
 
   const [form, setForm] = useState<FolderFormValues>(DEFAULT_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -71,15 +85,12 @@ export function FolderDialog() {
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
-      if (!next) closeDialog();
+      if (!next) onClose();
     },
-    [closeDialog],
+    [onClose],
   );
 
-  function updateField<K extends keyof FolderFormValues>(
-    key: K,
-    value: FolderFormValues[K],
-  ) {
+  function updateField<K extends keyof FolderFormValues>(key: K, value: FolderFormValues[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
@@ -106,7 +117,7 @@ export function FolderDialog() {
       } else {
         await addFolder(parsed.data);
       }
-      closeDialog();
+      onClose();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -124,7 +135,7 @@ export function FolderDialog() {
     setSubmitError(null);
     try {
       await removeFolder(editingFolder.id);
-      closeDialog();
+      onClose();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Delete failed');
       setConfirmDelete(false);
@@ -141,7 +152,7 @@ export function FolderDialog() {
           <DialogDescription>
             {editingFolder
               ? 'Rename the folder or pick a different icon.'
-              : 'Group related snippets under one label.'}
+              : `Group related ${itemNoun}s under one label.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -174,9 +185,7 @@ export function FolderDialog() {
                     disabled={saving}
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-[12px] border text-lg transition-colors',
-                      active
-                        ? 'border-primary bg-primary-light'
-                        : 'border-line bg-card hover:bg-bg-alt',
+                      active ? 'border-primary bg-primary-light' : 'border-line bg-card hover:bg-bg-alt',
                     )}
                     aria-pressed={active}
                   >
@@ -188,10 +197,10 @@ export function FolderDialog() {
             {errors.icon && <span className="text-xs text-danger">{errors.icon}</span>}
           </div>
 
-          {editingFolder && affectedSnippetCount > 0 && confirmDelete && (
+          {editingFolder && affectedCount > 0 && confirmDelete && (
             <div className="rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
-              {affectedSnippetCount} snippet{affectedSnippetCount === 1 ? '' : 's'} will
-              move to “All snippets”. Click again to confirm.
+              {affectedCount} {itemNoun}
+              {affectedCount === 1 ? '' : 's'} will move to “{allLabel}”. Click again to confirm.
             </div>
           )}
 
@@ -217,20 +226,11 @@ export function FolderDialog() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => closeDialog()}
-                disabled={saving}
-              >
+              <Button type="button" variant="ghost" onClick={() => onClose()} disabled={saving}>
                 Cancel
               </Button>
               <Button type="submit" variant="primary" disabled={saving}>
-                {saving
-                  ? 'Saving…'
-                  : editingFolder
-                  ? 'Save changes'
-                  : 'Create folder'}
+                {saving ? 'Saving…' : editingFolder ? 'Save changes' : 'Create folder'}
               </Button>
             </div>
           </div>

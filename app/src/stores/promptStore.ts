@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import type {
   Prompt,
+  Folder,
+  FolderShareInfo,
   StrategyType,
   PreferredModel,
   ComplexityLevel,
@@ -10,7 +12,10 @@ import type {
   OutputType,
 } from '@/types/database';
 import { promptsApi } from '@/lib/api/promptsApi';
-import type { PromptFormValues } from '@/types/schemas';
+import { foldersApi } from '@/lib/api/foldersApi';
+import { permissionsApi } from '@/lib/api/permissionsApi';
+import { buildFolderShares } from '@/lib/folderShares';
+import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
 export interface PromptFilters {
   type: 'all' | 'one-shot' | 'few-shot';
@@ -45,14 +50,27 @@ interface PromptStore {
   cmdKOpen: boolean;
   /** Set of prompt IDs currently awaiting a Notion push. */
   notionPushingIds: Set<string>;
+  /** Folders (shared with snippets) for grouping prompts + team sharing. */
+  folders: Folder[];
+  /** Per-folder sharing status (shared/team) for the folder-tree badges. */
+  folderShares: Map<string, FolderShareInfo>;
+  /** Selected folder filter; null = "All prompts". */
+  selectedFolderId: string | null;
   load: () => Promise<void>;
   setFilters: (patch: Partial<PromptFilters>) => void;
   resetFilters: () => void;
   setCmdKOpen: (open: boolean) => void;
+  setSelectedFolder: (id: string | null) => void;
   addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
   removePrompt: (id: string) => Promise<void>;
   markUsed: (id: string) => void;
+  /** Create a folder and add it to the store. */
+  addFolder: (payload: FolderFormValues) => Promise<Folder>;
+  /** Rename / change icon of a folder. */
+  editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
+  /** Delete a folder; its prompts drop back to "no folder". */
+  removeFolder: (id: string) => Promise<void>;
   /**
    * Push (or re-push) a prompt to the shared team Notion DB via Edge Function.
    * Idempotent: updates the existing Notion page when one is already linked.
@@ -70,6 +88,9 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   filters: DEFAULT_FILTERS,
   cmdKOpen: false,
   notionPushingIds: new Set<string>(),
+  folders: [],
+  folderShares: new Map<string, FolderShareInfo>(),
+  selectedFolderId: null,
 
   // Legacy shim
   get filter() {
@@ -79,15 +100,26 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
 
   load: async () => {
     set({ loading: true, error: null });
+    // Folder share-status powers the tree badges. Fetched in parallel but kept
+    // strictly NON-FATAL: a grants failure must never block the prompt list.
+    // Mirrors snippetStore.load.
+    const sharesPromise = permissionsApi
+      .listAllGrants()
+      .then(buildFolderShares)
+      .catch(() => new Map<string, FolderShareInfo>());
     try {
-      const prompts = await promptsApi.listPrompts();
-      set({ prompts, loading: false });
+      const [folders, prompts] = await Promise.all([
+        foldersApi.listFolders(),
+        promptsApi.listPrompts(),
+      ]);
+      set({ folders, prompts, loading: false });
     } catch (err) {
       set({
         loading: false,
         error: err instanceof Error ? err.message : 'Failed to load prompts',
       });
     }
+    set({ folderShares: await sharesPromise });
   },
 
   setFilters: (patch) =>
@@ -96,6 +128,8 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   resetFilters: () => set({ filters: DEFAULT_FILTERS }),
 
   setCmdKOpen: (open) => set({ cmdKOpen: open }),
+
+  setSelectedFolder: (id) => set({ selectedFolderId: id }),
 
   addPrompt: async (payload) => {
     try {
@@ -134,6 +168,51 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
     }
   },
 
+  addFolder: async (payload) => {
+    try {
+      const folder = await foldersApi.createFolder(payload);
+      set((s) => ({ folders: [...s.folders, folder], error: null }));
+      return folder;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to create folder' });
+      throw err;
+    }
+  },
+
+  editFolder: async (id, patch) => {
+    try {
+      const folder = await foldersApi.updateFolder(id, patch);
+      set((s) => ({
+        folders: s.folders.map((f) => (f.id === id ? folder : f)),
+        error: null,
+      }));
+      return folder;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update folder' });
+      throw err;
+    }
+  },
+
+  removeFolder: async (id) => {
+    try {
+      await foldersApi.deleteFolder(id);
+      set((s) => ({
+        folders: s.folders.filter((f) => f.id !== id),
+        // Mirror the server-side reassignment: prompts in this folder drop back
+        // to "no folder" in memory.
+        prompts: s.prompts.map((p) =>
+          p.folder_id === id ? { ...p, folder_id: null } : p,
+        ),
+        // Clear the folder selection if it was the one we just removed.
+        selectedFolderId: s.selectedFolderId === id ? null : s.selectedFolderId,
+        error: null,
+      }));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete folder' });
+      throw err;
+    }
+  },
+
   markUsed: (id) => {
     void promptsApi.markUsed(id);
     const now = new Date().toISOString();
@@ -166,8 +245,10 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
 export function useFilteredPrompts(): Prompt[] {
   const prompts = usePromptStore((s) => s.prompts);
   const filters = usePromptStore((s) => s.filters);
+  const selectedFolderId = usePromptStore((s) => s.selectedFolderId);
 
   return useMemo(() => prompts.filter((p) => {
+    if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
     if (filters.type !== 'all' && p.type !== filters.type) return false;
     if (filters.strategy && p.strategy_type !== filters.strategy) return false;
     if (filters.intent && p.intent_category !== filters.intent) return false;
@@ -184,7 +265,7 @@ export function useFilteredPrompts(): Prompt[] {
       if (!inName && !inTags && !inIntent && !inContent) return false;
     }
     return true;
-  }), [prompts, filters]);
+  }), [prompts, filters, selectedFolderId]);
 }
 
 export function useActiveFilterCount(): number {
