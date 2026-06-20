@@ -14,3 +14,6 @@ Thumbs.db
 
 # Claude Code local config — never commit
 .claude/
+
+# Extension build artifacts (sprintbrain_vX.Y.Z.zip from packaging)
+*.zip
