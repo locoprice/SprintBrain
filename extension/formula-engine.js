@@ -14,7 +14,8 @@
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
 //
 // Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max()
-// String comparison in conditions: VAR = "value", VAR != "value"
+// Comparisons in conditions: VAR = "value" / VAR != "value" (string);
+//   >, <, >=, <=, ==, != (numeric, operands evaluated as formulas)
 // No eval() or Function() — CSP-safe recursive descent parser throughout.
 // ─────────────────────────────────────────────────────────────────
 
@@ -233,6 +234,22 @@
       var lhs2 = String(vals[sm[3]] !== undefined && vals[sm[3]] !== null ? vals[sm[3]] : '');
       var eq2 = lhs2.toLowerCase() === rhs2.toLowerCase();
       return (op2 === '=' || op2 === '==') ? (eq2 ? 1 : 0) : (eq2 ? 0 : 1);
+    }
+    // Numeric comparison: LHS (>|<|>=|<=|==|!=) RHS, operands evaluated numerically.
+    // Quoted string-equality is handled above; this fires for unquoted comparisons
+    // that previously fell through to safeEval and returned NaN (e.g. {if: PRICE > 0}).
+    var cm = /^(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/.exec(e);
+    if (cm) {
+      var lv = evalFormula(cm[1], vals), rv = evalFormula(cm[3], vals);
+      if (lv === null || rv === null) return 0;
+      switch (cm[2]) {
+        case '>=': return lv >= rv ? 1 : 0;
+        case '<=': return lv <= rv ? 1 : 0;
+        case '>':  return lv >  rv ? 1 : 0;
+        case '<':  return lv <  rv ? 1 : 0;
+        case '==': return lv === rv ? 1 : 0;
+        case '!=': return lv !== rv ? 1 : 0;
+      }
     }
     return evalFormula(e, vals);
   }

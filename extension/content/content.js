@@ -190,6 +190,22 @@ function evalCondition(expr, vals) {
     var eq2 = lhs2.toLowerCase() === rhs2.toLowerCase();
     return (op2 === '=' || op2 === '==') ? (eq2 ? 1 : 0) : (eq2 ? 0 : 1);
   }
+  // Numeric comparison: LHS (>|<|>=|<=|==|!=) RHS, operands evaluated numerically.
+  // Quoted string-equality is handled above; this fires for unquoted comparisons
+  // that previously fell through to safeEval and returned NaN (e.g. {if: PRICE > 0}).
+  var cm = /^(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/.exec(e);
+  if (cm) {
+    var lv = evalFormula(cm[1], vals), rv = evalFormula(cm[3], vals);
+    if (lv === null || rv === null) return 0;
+    switch (cm[2]) {
+      case '>=': return lv >= rv ? 1 : 0;
+      case '<=': return lv <= rv ? 1 : 0;
+      case '>':  return lv >  rv ? 1 : 0;
+      case '<':  return lv <  rv ? 1 : 0;
+      case '==': return lv === rv ? 1 : 0;
+      case '!=': return lv !== rv ? 1 : 0;
+    }
+  }
   return evalFormula(e, vals);
 }
 
