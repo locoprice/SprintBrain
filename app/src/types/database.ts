@@ -53,6 +53,12 @@ export interface Snippet {
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
   language: SnippetLanguage;
+  /**
+   * Curated cross-language grouping key (nullable in DB). Variants that share
+   * it are one logical snippet. The extension and mobile app group on this; the
+   * dashboard honors it first, then falls back to the base trigger when absent.
+   */
+  lang_group_id?: string | null;
   notion_page_id: string | null;
   pinned: boolean;
   /**

@@ -41,6 +41,8 @@ interface SnippetStore {
   toggleSelectSnippet: (id: string) => void;
   /** Replace the current selection with the provided ids. */
   selectAllSnippets: (ids: string[]) => void;
+  /** Add or remove a batch of ids from the selection in one update (group rows). */
+  setSnippetsSelected: (ids: string[], selected: boolean) => void;
   clearSelection: () => void;
   /** Switch sort column; toggles direction when the same column is clicked twice. */
   setSortBy: (col: SortColumn) => void;
@@ -159,6 +161,17 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     }),
 
   selectAllSnippets: (ids) => set({ selectedIds: new Set(ids) }),
+
+  setSnippetsSelected: (ids, selected) =>
+    set((s) => {
+      const next = new Set(s.selectedIds);
+      if (selected) {
+        for (const id of ids) next.add(id);
+      } else {
+        for (const id of ids) next.delete(id);
+      }
+      return { selectedIds: next };
+    }),
 
   clearSelection: () => set({ selectedIds: new Set<string>() }),
 

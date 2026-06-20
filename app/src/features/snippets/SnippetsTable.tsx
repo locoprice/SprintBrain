@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,12 @@ import {
 import type { SortColumn } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import type { Snippet, SnippetRow } from '@/types/database';
+import {
+  baseSnippetName,
+  groupSnippetsByLanguage,
+  resolveActiveVariant,
+  type SnippetGroup,
+} from '@/lib/snippetGrouping';
 import { cn } from '@/lib/utils';
 
 interface MenuState {
@@ -47,6 +53,50 @@ function LangPill({ lang }: { lang: Snippet['language'] }) {
     >
       {LANG_LABEL[lang]}
     </span>
+  );
+}
+
+/**
+ * Language switcher for a grouped row. Renders one clickable pill per available
+ * language; the active pill is highlighted with a ring. Clicking switches which
+ * variant the row displays (name stays put — only the per-language metadata and
+ * edit target change). Clicks are isolated so they never open the edit dialog.
+ */
+function LangSwitcher({
+  group,
+  activeId,
+  onSelect,
+}: {
+  group: SnippetGroup;
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {group.languages.map((lang) => {
+        const variant = group.byLang.get(lang);
+        if (variant === undefined) return null;
+        const isActive = variant.id === activeId;
+        return (
+          <button
+            key={lang}
+            type="button"
+            onClick={() => onSelect(variant.id)}
+            aria-pressed={isActive}
+            title={`Show ${LANG_LABEL[lang]} version`}
+            className={cn(
+              'rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-all',
+              LANG_STYLE[lang],
+              isActive
+                ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-card'
+                : 'opacity-50 hover:opacity-100',
+            )}
+          >
+            {LANG_LABEL[lang]}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -87,6 +137,8 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export function SnippetsTable() {
   const rows = useFilteredSnippets();
+  // Collapse translated variants (sharing a base trigger) into one row each.
+  const groups = useMemo(() => groupSnippetsByLanguage(rows), [rows]);
   const loading = useSnippetStore((s) => s.loading);
   const pushSnippetToNotion = useSnippetStore((s) => s.pushSnippetToNotion);
   const notionPushingIds = useSnippetStore((s) => s.notionPushingIds);
@@ -95,11 +147,13 @@ export function SnippetsTable() {
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
   const setLanguageFilter = useSnippetStore((s) => s.setLanguageFilter);
   const selectedIds = useSnippetStore((s) => s.selectedIds);
-  const toggleSelectSnippet = useSnippetStore((s) => s.toggleSelectSnippet);
-  const selectAllSnippets = useSnippetStore((s) => s.selectAllSnippets);
-  const clearSelection = useSnippetStore((s) => s.clearSelection);
+  const setSnippetsSelected = useSnippetStore((s) => s.setSnippetsSelected);
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
   const [menu, setMenu] = useState<MenuState | null>(null);
+
+  // Active language variant per group key — drives which variant's metadata and
+  // edit target a grouped row shows. Defaults (no entry) resolve to EN/master.
+  const [activeByKey, setActiveByKey] = useState<Record<string, string>>({});
 
   // Pagination state
   const [pageSize, setPageSize] = useState<PageSize>(25);
@@ -116,17 +170,21 @@ export function SnippetsTable() {
     setCurrentPage(1);
   }, [filterQuery, filterFolder, filterLang, filterSortBy, filterSortDir]);
 
-  // Derived pagination values
-  const totalRows = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  // Derived pagination values — paginate over groups, not raw rows.
+  const totalGroups = groups.length;
+  const totalPages = Math.max(1, Math.ceil(totalGroups / pageSize));
   const safePage = Math.min(currentPage, totalPages);
   const startIdx = (safePage - 1) * pageSize;
-  const endIdx = Math.min(startIdx + pageSize, totalRows);
-  const pageRows = rows.slice(startIdx, endIdx);
+  const endIdx = Math.min(startIdx + pageSize, totalGroups);
+  const pageGroups = groups.slice(startIdx, endIdx);
 
-  // Selection is scoped to the current page
-  const allSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
-  const someSelected = !allSelected && pageRows.some((r) => selectedIds.has(r.id));
+  // Selection operates on the underlying snippet rows. Checking a grouped row
+  // selects every language variant it represents, so bulk move/delete act on
+  // the whole snippet. Scoped to the current page.
+  const pageVariantIds = pageGroups.flatMap((g) => g.variants.map((v) => v.id));
+  const allSelected =
+    pageVariantIds.length > 0 && pageVariantIds.every((id) => selectedIds.has(id));
+  const someSelected = !allSelected && pageVariantIds.some((id) => selectedIds.has(id));
 
   const masterCheckboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -184,11 +242,7 @@ export function SnippetsTable() {
   }
 
   function handleMasterChange() {
-    if (allSelected) {
-      clearSelection();
-    } else {
-      selectAllSnippets(pageRows.map((r) => r.id));
-    }
+    setSnippetsSelected(pageVariantIds, !allSelected);
   }
 
   // `overflow-clip` (Chromium 90+ / Safari 16+ / Firefox 102+) clips visually
@@ -241,13 +295,21 @@ export function SnippetsTable() {
           </tr>
         </thead>
         <tbody>
-          {pageRows.map((row, i) => {
+          {pageGroups.map((group, i) => {
+            // The active variant supplies every per-language column (shortcut,
+            // lang, folder, updated, usage) and is the edit / push / action
+            // target. The displayed name comes from the master and stays put
+            // when the user switches language.
+            const row = resolveActiveVariant(group, activeByKey[group.key]);
             const trigger = row.triggers[0] ?? '';
-            const isLast = i === pageRows.length - 1;
-            const isSelected = selectedIds.has(row.id);
+            const isLast = i === pageGroups.length - 1;
+            const multiLang = group.languages.length > 1;
+            const displayName = multiLang ? baseSnippetName(group.master.name) : group.master.name;
+            const variantIds = group.variants.map((v) => v.id);
+            const isSelected = variantIds.every((id) => selectedIds.has(id));
             return (
               <tr
-                key={row.id}
+                key={group.key}
                 onClick={() => openEditSnippet(row.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -265,7 +327,7 @@ export function SnippetsTable() {
                 )}
                 title={!row.is_active ? 'Disabled — will not expand in the extension' : undefined}
               >
-                {/* Checkbox cell */}
+                {/* Checkbox cell — selects all language variants in the group */}
                 <td
                   className="px-3 py-3"
                   onClick={(e) => e.stopPropagation()}
@@ -273,8 +335,8 @@ export function SnippetsTable() {
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => toggleSelectSnippet(row.id)}
-                    aria-label={`Select ${row.name}`}
+                    onChange={() => setSnippetsSelected(variantIds, !isSelected)}
+                    aria-label={`Select ${displayName}`}
                     className="h-4 w-4 cursor-pointer rounded accent-primary"
                   />
                 </td>
@@ -291,7 +353,7 @@ export function SnippetsTable() {
                             aria-label="Pinned"
                           />
                         )}
-                        <span className="truncate">{row.name}</span>
+                        <span className="truncate">{displayName}</span>
                       </div>
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                         {row.is_formula ? (
@@ -327,7 +389,17 @@ export function SnippetsTable() {
                   <ShortcutTag trigger={trigger} />
                 </td>
                 <td className="px-5 py-3">
-                  <LangPill lang={row.language} />
+                  {multiLang ? (
+                    <LangSwitcher
+                      group={group}
+                      activeId={row.id}
+                      onSelect={(id) =>
+                        setActiveByKey((prev) => ({ ...prev, [group.key]: id }))
+                      }
+                    />
+                  ) : (
+                    <LangPill lang={row.language} />
+                  )}
                 </td>
                 <td className="px-5 py-3 text-ink-muted">{row.folder_name ?? '—'}</td>
                 <td className="px-5 py-3 text-ink-muted">
@@ -345,8 +417,8 @@ export function SnippetsTable() {
                       onClick={(e) => void handleNotionPush(e, row.id)}
                       aria-label={
                         row.notion_page_id
-                          ? `Update ${row.name} in Notion`
-                          : `Push ${row.name} to Notion`
+                          ? `Update ${displayName} in Notion`
+                          : `Push ${displayName} to Notion`
                       }
                       title={
                         row.notion_page_id
@@ -379,9 +451,9 @@ export function SnippetsTable() {
       <div className="flex items-center justify-between gap-4 border-t border-line bg-bg-alt px-5 py-2.5">
         {/* Left: range + total */}
         <span className="text-xs text-ink-subtle tabular-nums">
-          {totalRows === 0 ? '0 snippets' : (
+          {totalGroups === 0 ? '0 snippets' : (
             <>
-              {startIdx + 1}–{endIdx} of {totalRows} snippet{totalRows === 1 ? '' : 's'}
+              {startIdx + 1}–{endIdx} of {totalGroups} snippet{totalGroups === 1 ? '' : 's'}
               {query.trim().length > 0 ? ` matching "${query.trim()}"` : ''}
             </>
           )}
