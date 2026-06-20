@@ -55,8 +55,10 @@ export interface Snippet {
   language: SnippetLanguage;
   /**
    * Curated cross-language grouping key (nullable in DB). Variants that share
-   * it are one logical snippet. The extension and mobile app group on this; the
-   * dashboard honors it first, then falls back to the base trigger when absent.
+   * it are one logical snippet. The extension and mobile app group on this key;
+   * the dashboard table currently groups by base trigger only (snippetGrouping.ts)
+   * and does not read this field — honoring it for full cross-surface parity is a
+   * tracked follow-up.
    */
   lang_group_id?: string | null;
   notion_page_id: string | null;
