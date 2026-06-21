@@ -13,7 +13,7 @@ import type { FolderPermission, PermissionLevel, PrincipalType } from '@/types/d
 //   - folder_permissions writes require folder owner / org-admin
 //     (app.folder_level(folder_id) = 'owner').
 
-const GRANT_SELECT = 'id, folder_id, principal_type, principal_id, level, created_at';
+const GRANT_SELECT = 'id, folder_id, principal_type, principal_id, level, created_at, granted_by';
 
 export interface ShareTarget {
   principalType: PrincipalType;

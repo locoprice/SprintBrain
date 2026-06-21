@@ -14,8 +14,8 @@ import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown
 export function Topbar() {
   const notionSync = useSettingsStore((s) => s.notionSync);
   const lastSyncLabel = notionSync?.last_sync_at
-    ? `Synced ${formatDistanceToNow(new Date(notionSync.last_sync_at), { addSuffix: true })}`
-    : 'Never synced';
+    ? `Notion · synced ${formatDistanceToNow(new Date(notionSync.last_sync_at), { addSuffix: true })}`
+    : 'Notion · never synced';
 
   return (
     <header className="flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-card px-6">
@@ -42,8 +42,11 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        {/* Sync status pill */}
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+        {/* Notion mirror status pill — distinct from team sharing */}
+        <div
+          title="Status of the optional Notion mirror. Team sharing is separate — share a folder from the Team page."
+          className="inline-flex items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-medium text-success"
+        >
           <CheckCircle2 className="h-3.5 w-3.5" />
           {lastSyncLabel}
         </div>

@@ -284,7 +284,7 @@ export function SnippetsTable() {
             </th>
             <th
               className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center"
-              title="Push this snippet to the team Notion database"
+              title="Mirror snippets to your Notion database (not team sharing)"
             >
               <Send className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
             </th>
@@ -422,8 +422,8 @@ export function SnippetsTable() {
                       }
                       title={
                         row.notion_page_id
-                          ? 'In the team Notion DB — click to update'
-                          : 'Push to the team Notion DB'
+                          ? 'Mirrored to your Notion database — click to update (not team sharing)'
+                          : 'Mirror to your Notion database (not team sharing)'
                       }
                       className={
                         'inline-flex h-8 w-8 items-center justify-center rounded-[8px] transition-colors ' +

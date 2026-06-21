@@ -145,8 +145,8 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
               disabled={pushing}
               title={
                 prompt.notion_page_id
-                  ? 'In the team Notion DB — click to update'
-                  : 'Push to the team Notion DB'
+                  ? 'Mirrored to your Notion database — click to update (not team sharing)'
+                  : 'Mirror to your Notion database (not team sharing)'
               }
               className={
                 'inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ' +

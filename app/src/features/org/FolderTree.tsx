@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folders, Globe, Pencil, Plus, Users } from 'lucide-react';
+import { Folders, Globe, Pencil, Plus, Share2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Folder, FolderShareInfo } from '@/types/database';
 import type { FolderFormValues } from '@/types/schemas';
@@ -129,18 +129,32 @@ export function FolderTree({
               </span>
               <span className="ml-2 shrink-0 text-xs text-ink-subtle">{count}</span>
             </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDialogTarget(f.id);
-              }}
-              aria-label={`Edit ${f.name}`}
-              title={`Edit ${f.name}`}
-              className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle opacity-0 transition-opacity hover:bg-card hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
-            >
-              <Pencil className="h-3 w-3" />
-            </button>
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 bg-inherit opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareFolder(f);
+                }}
+                aria-label={`Share ${f.name} with team`}
+                title={`Share ${f.name} with team`}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-primary"
+              >
+                <Share2 className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDialogTarget(f.id);
+                }}
+                aria-label={`Edit ${f.name}`}
+                title={`Edit ${f.name}`}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         );
       })}

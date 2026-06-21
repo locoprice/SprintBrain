@@ -1,17 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FileText, Globe, Share2, Sparkles, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FileText, Globe, Search, Share2, Sparkles, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { FolderShareModal } from '@/features/org/FolderShareModal';
+import { TeamSharingGuide } from '@/features/org/TeamSharingGuide';
+import { Avatar } from '@/components/shared/Avatar';
+import { AvatarStack, type StackMember } from '@/components/shared/AvatarStack';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
-import type { Folder, FolderShareInfo } from '@/types/database';
+import { useOrgStore } from '@/stores/orgStore';
+import { useAuthStore } from '@/stores/authStore';
+import { permissionsApi } from '@/lib/api/permissionsApi';
+import type { Folder, FolderPermission, FolderShareScope, OrgMember } from '@/types/database';
+
+/** Resolved creator identity for a shared item. */
+interface CreatorInfo {
+  name: string | null;
+  email: string | null;
+  isYou: boolean;
+  /** Human label for tooltips, e.g. "Maria" or "you". */
+  label: string;
+}
 
 /**
- * Team hub — a read-at-a-glance view of every folder shared with the team,
- * with the snippets and prompts inside each. Sharing itself stays folder-level
- * (Phase B org ACL); this page aggregates what's already shared and reuses the
- * existing FolderShareModal to manage access. No new sharing model is introduced.
+ * Team hub — the home of SprintBrain's core feature. Shows your team roster,
+ * everything shared (split by "by you" vs "with you"), who has access to each
+ * folder, and a search across all shared snippets + prompts. Sharing itself
+ * stays folder-level (Phase B org ACL) and is managed through FolderShareModal.
  */
 export function TeamPage() {
   const folders = useSnippetStore((s) => s.folders);
@@ -22,17 +37,52 @@ export function TeamPage() {
   const prompts = usePromptStore((s) => s.prompts);
   const loadPrompts = usePromptStore((s) => s.load);
 
-  const [shareFolder, setShareFolder] = useState<Folder | null>(null);
+  const members = useOrgStore((s) => s.members);
+  const activeOrg = useOrgStore((s) => s.activeOrg);
+  const loadOrg = useOrgStore((s) => s.load);
 
-  // Both stores own a load() that fetches folders + folderShares + their assets.
-  // Fetch whichever hasn't been visited yet so the hub works on a cold open.
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+
+  const [shareFolder, setShareFolder] = useState<Folder | null>(null);
+  const [grantsByFolder, setGrantsByFolder] = useState<Map<string, FolderPermission[]>>(new Map());
+  const [query, setQuery] = useState('');
+
+  // Per-folder grants drive the "who has access" faces. Non-fatal: a failure
+  // degrades to scope-only badges (the store's folderShares stays authoritative).
+  const loadGrants = useCallback(() => {
+    permissionsApi
+      .listAllGrants()
+      .then((rows) => {
+        const map = new Map<string, FolderPermission[]>();
+        for (const g of rows) {
+          const arr = map.get(g.folder_id) ?? [];
+          arr.push(g);
+          map.set(g.folder_id, arr);
+        }
+        setGrantsByFolder(map);
+      })
+      .catch(() => setGrantsByFolder(new Map()));
+  }, []);
+
+  // Cold-open hydration: fetch whichever sources haven't been visited yet.
   useEffect(() => {
     if (snippets.length === 0 && folders.length === 0) void loadSnippets();
   }, [loadSnippets, snippets.length, folders.length]);
-
   useEffect(() => {
     if (prompts.length === 0) void loadPrompts();
   }, [loadPrompts, prompts.length]);
+  useEffect(() => {
+    void loadOrg();
+  }, [loadOrg]);
+  useEffect(() => {
+    loadGrants();
+  }, [loadGrants]);
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, OrgMember>();
+    for (const m of members) map.set(m.user_id, m);
+    return map;
+  }, [members]);
 
   const sharedFolders = useMemo(
     () =>
@@ -42,103 +92,149 @@ export function TeamPage() {
     [folders, folderShares],
   );
 
+  const q = query.trim().toLowerCase();
+
+  const folderMatches = useCallback(
+    (folder: Folder): boolean => {
+      if (q === '') return true;
+      if (folder.name.toLowerCase().includes(q)) return true;
+      const hitSnip = snippets.some(
+        (s) =>
+          s.folder_id === folder.id &&
+          (s.name.toLowerCase().includes(q) || (s.triggers[0] ?? '').toLowerCase().includes(q)),
+      );
+      const hitPrompt = prompts.some(
+        (p) => p.folder_id === folder.id && p.name.toLowerCase().includes(q),
+      );
+      return hitSnip || hitPrompt;
+    },
+    [q, snippets, prompts],
+  );
+
+  const mine = sharedFolders.filter((f) => f.user_id === currentUserId && folderMatches(f));
+  const withMe = sharedFolders.filter((f) => f.user_id !== currentUserId && folderMatches(f));
+
   function reload() {
     void loadSnippets();
     void loadPrompts();
+    loadGrants();
+  }
+
+  function accessFaces(folder: Folder): StackMember[] {
+    const grants = grantsByFolder.get(folder.id) ?? [];
+    const map = new Map<string, StackMember>();
+    if (folder.user_id) {
+      const owner = memberById.get(folder.user_id);
+      map.set(folder.user_id, {
+        id: folder.user_id,
+        name: owner?.display_name ?? null,
+        email: owner?.email ?? null,
+        highlight: folder.user_id === currentUserId,
+      });
+    }
+    for (const g of grants) {
+      if (g.principal_type !== 'user') continue;
+      const m = memberById.get(g.principal_id);
+      map.set(g.principal_id, {
+        id: g.principal_id,
+        name: m?.display_name ?? null,
+        email: m?.email ?? null,
+        highlight: g.principal_id === currentUserId,
+      });
+    }
+    return Array.from(map.values());
+  }
+
+  const canManage = useCallback(
+    (folder: Folder) => folder.user_id === currentUserId || activeOrg?.myRole === 'admin',
+    [currentUserId, activeOrg],
+  );
+
+  // Resolve an item's creator (its user_id is the original author — sharing only
+  // stamps organization_id, never reassigns ownership).
+  const resolveCreator = useCallback(
+    (userId: string): CreatorInfo => {
+      const isYou = userId === currentUserId;
+      const m = memberById.get(userId);
+      return {
+        name: m?.display_name ?? null,
+        email: m?.email ?? null,
+        isYou,
+        label: isYou ? 'you' : m ? m.display_name || m.email : 'a teammate',
+      };
+    },
+    [memberById, currentUserId],
+  );
+
+  const hasShared = sharedFolders.length > 0;
+
+  function renderCard(folder: Folder) {
+    const scope = folderShares.get(folder.id)?.scope ?? 'shared';
+    return (
+      <SharedFolderCard
+        key={folder.id}
+        folder={folder}
+        scope={scope}
+        faces={accessFaces(folder)}
+        snippets={snippets.filter((s) => s.folder_id === folder.id)}
+        prompts={prompts.filter((p) => p.folder_id === folder.id)}
+        query={q}
+        canManage={canManage(folder)}
+        onManage={() => setShareFolder(folder)}
+        resolveCreator={resolveCreator}
+      />
+    );
   }
 
   return (
     <>
       <PageHeader
         title="Team"
-        description="Snippets and prompts shared across your team, grouped by folder."
+        description="Your team, everything you share, and who can use it — in one place."
       />
 
-      {sharedFolders.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Nothing shared with the team yet"
-          description="Share a folder from Snippets or Prompts (right-click a folder → “Share with team…”) to make its contents available here."
-        />
-      ) : (
-        <div className="flex flex-col gap-4">
-          {sharedFolders.map((folder) => {
-            const share = folderShares.get(folder.id) ?? null;
-            const folderSnippets = snippets.filter((s) => s.folder_id === folder.id);
-            const folderPrompts = prompts.filter((p) => p.folder_id === folder.id);
-            return (
-              <section
-                key={folder.id}
-                className="rounded-[16px] border border-line bg-card p-5"
-              >
-                {/* Folder header */}
-                <div className="flex items-center gap-3 border-b border-line pb-3">
-                  <span className="text-lg leading-none">{folder.icon}</span>
-                  <h2 className="text-sm font-semibold text-ink">{folder.name}</h2>
-                  {share && <ShareBadge info={share} />}
-                  <button
-                    type="button"
-                    onClick={() => setShareFolder(folder)}
-                    className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-line bg-card px-3 text-xs font-medium text-ink-muted transition-colors hover:border-primary/40 hover:text-primary"
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                    Manage sharing
-                  </button>
-                </div>
+      <div className="flex flex-col gap-4">
+        {members.length > 0 && <TeamRoster members={members} currentUserId={currentUserId} />}
 
-                {/* Two columns: snippets + prompts */}
-                <div className="grid grid-cols-2 gap-6 pt-4">
-                  <AssetColumn
-                    icon={<FileText className="h-3.5 w-3.5" />}
-                    label="Snippets"
-                    count={folderSnippets.length}
-                  >
-                    {folderSnippets.length === 0 ? (
-                      <EmptyRow text="No snippets in this folder" />
-                    ) : (
-                      folderSnippets.map((s) => (
-                        <div
-                          key={s.id}
-                          className="flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 hover:bg-bg-alt"
-                        >
-                          <span className="truncate text-sm text-ink">{s.name}</span>
-                          {s.triggers[0] && (
-                            <span className="shrink-0 rounded-full border border-primary/20 bg-primary-light px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
-                              {s.triggers[0]}
-                            </span>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </AssetColumn>
+        {!hasShared ? (
+          <TeamSharingGuide />
+        ) : (
+          <>
+            {/* Search */}
+            <div className="relative max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search shared snippets and prompts…"
+                className="h-10 w-full rounded-[10px] border border-line bg-card pl-9 pr-3 text-sm text-ink placeholder:text-ink-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
 
-                  <AssetColumn
-                    icon={<Sparkles className="h-3.5 w-3.5" />}
-                    label="Prompts"
-                    count={folderPrompts.length}
-                  >
-                    {folderPrompts.length === 0 ? (
-                      <EmptyRow text="No prompts in this folder" />
-                    ) : (
-                      folderPrompts.map((p) => (
-                        <div
-                          key={p.id}
-                          className="flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 hover:bg-bg-alt"
-                        >
-                          <span className="truncate text-sm text-ink">{p.name}</span>
-                          <span className="shrink-0 rounded-full bg-bg-alt px-2 py-0.5 text-[11px] font-medium text-ink-subtle">
-                            {p.type}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </AssetColumn>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
+            {mine.length === 0 && withMe.length === 0 ? (
+              <EmptyState
+                icon={Search}
+                title="No shared items match your search"
+                description="Try a different name or trigger."
+              />
+            ) : (
+              <>
+                {mine.length > 0 && (
+                  <Section title="Shared by you" count={mine.length}>
+                    {mine.map(renderCard)}
+                  </Section>
+                )}
+                {withMe.length > 0 && (
+                  <Section title="Shared with you" count={withMe.length}>
+                    {withMe.map(renderCard)}
+                  </Section>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
 
       <FolderShareModal
         folder={shareFolder}
@@ -146,6 +242,194 @@ export function TeamPage() {
         onShared={reload}
       />
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function TeamRoster({
+  members,
+  currentUserId,
+}: {
+  members: OrgMember[];
+  currentUserId: string | null;
+}) {
+  return (
+    <section className="rounded-[16px] border border-line bg-card p-5">
+      <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+        <Users className="h-3.5 w-3.5" />
+        Your team · {members.length} {members.length === 1 ? 'person' : 'people'}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {members.map((m) => {
+          const isYou = m.user_id === currentUserId;
+          const name = m.display_name || m.email;
+          return (
+            <div
+              key={m.user_id}
+              className="flex items-center gap-2 rounded-full border border-line bg-bg-alt/60 py-1 pl-1 pr-3"
+            >
+              <Avatar name={m.display_name} email={m.email} highlight={isYou} size="sm" />
+              <span className="flex flex-col leading-tight">
+                <span className="text-xs font-medium text-ink">{isYou ? `${name} (you)` : name}</span>
+                <span className="text-[10px] uppercase tracking-wide text-ink-subtle">{m.role}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+        {title}
+        <span className="text-ink-subtle/70">· {count}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+interface SharedFolderCardProps {
+  folder: Folder;
+  scope: FolderShareScope;
+  faces: StackMember[];
+  snippets: { id: string; name: string; triggers: string[]; user_id: string }[];
+  prompts: { id: string; name: string; type: string; user_id: string }[];
+  query: string;
+  canManage: boolean;
+  onManage: () => void;
+  resolveCreator: (userId: string) => CreatorInfo;
+}
+
+/** Always-visible creator face for a shared item; hover reveals the exact name. */
+function CreatorAvatar({ info }: { info: CreatorInfo }) {
+  return (
+    <Avatar
+      name={info.name}
+      email={info.email}
+      highlight={info.isYou}
+      size="xs"
+      title={`Created by ${info.label}`}
+    />
+  );
+}
+
+function SharedFolderCard({
+  folder,
+  scope,
+  faces,
+  snippets,
+  prompts,
+  query,
+  canManage,
+  onManage,
+  resolveCreator,
+}: SharedFolderCardProps) {
+  const nameHit = query !== '' && folder.name.toLowerCase().includes(query);
+  const matchSnip = (s: { name: string; triggers: string[] }) =>
+    s.name.toLowerCase().includes(query) || (s.triggers[0] ?? '').toLowerCase().includes(query);
+  const matchPrompt = (p: { name: string }) => p.name.toLowerCase().includes(query);
+
+  // When the folder matched only by its name, show all its items; otherwise
+  // narrow to the items that matched the query.
+  const showAll = query === '' || nameHit;
+  const visibleSnippets = showAll ? snippets : snippets.filter(matchSnip);
+  const visiblePrompts = showAll ? prompts : prompts.filter(matchPrompt);
+
+  return (
+    <section className="rounded-[16px] border border-line bg-card p-5">
+      {/* Folder header */}
+      <div className="flex items-center gap-3 border-b border-line pb-3">
+        <span className="text-lg leading-none">{folder.icon}</span>
+        <h2 className="truncate text-sm font-semibold text-ink">{folder.name}</h2>
+
+        {scope === 'team' ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <Globe className="h-3 w-3" />
+            Whole team
+          </span>
+        ) : (
+          faces.length > 0 && <AvatarStack members={faces} className="shrink-0" />
+        )}
+
+        <button
+          type="button"
+          onClick={onManage}
+          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-line bg-card px-3 text-xs font-medium text-ink-muted transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          {canManage ? 'Manage sharing' : 'View access'}
+        </button>
+      </div>
+
+      {/* Two columns: snippets + prompts */}
+      <div className="grid grid-cols-2 gap-6 pt-4">
+        <AssetColumn
+          icon={<FileText className="h-3.5 w-3.5" />}
+          label="Snippets"
+          count={visibleSnippets.length}
+        >
+          {visibleSnippets.length === 0 ? (
+            <EmptyRow text="No snippets" />
+          ) : (
+            visibleSnippets.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 hover:bg-bg-alt"
+              >
+                <span className="truncate text-sm text-ink">{s.name}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <CreatorAvatar info={resolveCreator(s.user_id)} />
+                  {s.triggers[0] && (
+                    <span className="rounded-full border border-primary/20 bg-primary-light px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                      {s.triggers[0]}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))
+          )}
+        </AssetColumn>
+
+        <AssetColumn
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+          label="Prompts"
+          count={visiblePrompts.length}
+        >
+          {visiblePrompts.length === 0 ? (
+            <EmptyRow text="No prompts" />
+          ) : (
+            visiblePrompts.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 hover:bg-bg-alt"
+              >
+                <span className="truncate text-sm text-ink">{p.name}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <CreatorAvatar info={resolveCreator(p.user_id)} />
+                  <span className="rounded-full bg-bg-alt px-2 py-0.5 text-[11px] font-medium text-ink-subtle">
+                    {p.type}
+                  </span>
+                </span>
+              </div>
+            ))
+          )}
+        </AssetColumn>
+      </div>
+    </section>
   );
 }
 
@@ -171,24 +455,4 @@ function AssetColumn({ icon, label, count, children }: AssetColumnProps) {
 
 function EmptyRow({ text }: { text: string }) {
   return <p className="px-2 py-1.5 text-sm italic text-ink-subtle">{text}</p>;
-}
-
-/** Inline folder share badge (team-wide globe, or shared-with-N people). */
-function ShareBadge({ info }: { info: FolderShareInfo }) {
-  if (info.scope === 'team') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-semibold text-primary">
-        <Globe className="h-3 w-3" />
-        Whole team
-      </span>
-    );
-  }
-  const label =
-    info.memberCount === 1 ? 'Shared with 1' : `Shared with ${info.memberCount}`;
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-bg-alt px-2 py-0.5 text-[11px] font-medium text-ink-muted">
-      <Users className="h-3 w-3" />
-      {label}
-    </span>
-  );
 }

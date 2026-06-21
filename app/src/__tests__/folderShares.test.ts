@@ -12,6 +12,7 @@ function grant(p: Partial<FolderPermission> = {}): FolderPermission {
     principal_id: `p${seq}`,
     level: 'view',
     created_at: '2026-06-13T00:00:00Z',
+    granted_by: null,
     ...p,
   };
 }

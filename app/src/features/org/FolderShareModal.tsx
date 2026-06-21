@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Loader2, Share2, Trash2, Users } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { Check, Globe, Loader2, Search, Share2, Trash2, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -8,8 +9,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Avatar } from '@/components/shared/Avatar';
 import { cn } from '@/lib/utils';
-import type { Folder, FolderPermission, PermissionLevel } from '@/types/database';
+import type { Folder, FolderPermission, OrgMember, PermissionLevel } from '@/types/database';
 import { permissionsApi, type ShareTarget } from '@/lib/api/permissionsApi';
 import { useOrgStore } from '@/stores/orgStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -26,13 +28,13 @@ interface FolderShareModalProps {
 }
 
 const LEVEL_LABEL: Record<PermissionLevel, string> = {
-  view: 'View',
-  edit: 'Edit',
-  owner: 'Owner',
+  view: 'Can use',
+  edit: 'Can edit',
+  owner: 'Full control',
 };
 const LEVEL_HELP: Record<PermissionLevel, string> = {
-  view: 'Can use snippets in this folder',
-  edit: 'Can use and modify snippets',
+  view: 'Can use everything in this folder',
+  edit: 'Can use and edit the items inside',
   owner: 'Full control, including sharing',
 };
 
@@ -49,8 +51,10 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
   const [grantsLoading, setGrantsLoading] = useState(false);
   const [principal, setPrincipal] = useState<string>(WHOLE_TEAM);
   const [level, setLevel] = useState<PermissionLevel>('view');
+  const [query, setQuery] = useState('');
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [justShared, setJustShared] = useState<string | null>(null);
 
   const open = folder !== null;
 
@@ -65,6 +69,8 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
     let cancelled = false;
     setGrantsLoading(true);
     setError(null);
+    setJustShared(null);
+    setQuery('');
     permissionsApi
       .listGrants(folder.id)
       .then((rows) => {
@@ -81,9 +87,9 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
     };
   }, [folder]);
 
-  const memberEmail = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const m of members) map.set(m.user_id, m.display_name || m.email);
+  const memberById = useMemo(() => {
+    const map = new Map<string, OrgMember>();
+    for (const m of members) map.set(m.user_id, m);
     return map;
   }, [members]);
 
@@ -99,13 +105,37 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
   }, [principal]);
 
   const canManage =
-    !!folder &&
-    (folder.user_id === currentUserId || activeOrg?.myRole === 'admin');
+    !!folder && (folder.user_id === currentUserId || activeOrg?.myRole === 'admin');
+
+  const selectableMembers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return members
+      .filter((m) => m.user_id !== currentUserId)
+      .filter(
+        (m) =>
+          q === '' ||
+          m.display_name.toLowerCase().includes(q) ||
+          m.email.toLowerCase().includes(q),
+      );
+  }, [members, currentUserId, query]);
+
+  function nameFor(userId: string): string {
+    if (userId === currentUserId) return 'You';
+    const m = memberById.get(userId);
+    return m ? m.display_name || m.email : 'A teammate';
+  }
 
   function principalLabel(g: FolderPermission): string {
-    if (g.principal_type === 'organization') return `Whole team${activeOrg ? ` · ${activeOrg.name}` : ''}`;
+    if (g.principal_type === 'organization')
+      return `Whole team${activeOrg ? ` · ${activeOrg.name}` : ''}`;
     if (g.principal_type === 'team') return 'A team';
-    return memberEmail.get(g.principal_id) ?? 'A teammate';
+    return nameFor(g.principal_id);
+  }
+
+  function provenance(g: FolderPermission): string {
+    const when = formatDistanceToNow(new Date(g.created_at), { addSuffix: true });
+    if (g.granted_by) return `Shared by ${nameFor(g.granted_by)} · ${when}`;
+    return `Shared ${when}`;
   }
 
   async function refreshGrants() {
@@ -122,9 +152,11 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
         : { principalType: 'user', principalId: principal, level };
     setWorking(true);
     setError(null);
+    setJustShared(null);
     try {
       await permissionsApi.shareFolder(folder.id, activeOrg.id, target);
       await refreshGrants();
+      setJustShared(principal === WHOLE_TEAM ? `Whole team · ${activeOrg.name}` : nameFor(principal));
       // The folder + its assets may have just moved into the org — refresh the
       // host surface so shared rows surface immediately.
       await onShared?.();
@@ -165,7 +197,7 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
             Share “{folder?.name ?? ''}”
           </DialogTitle>
           <DialogDescription>
-            Everyone you share this folder with can use everything inside it.
+            Everyone you add can use everything inside this folder — instantly, in their extension.
           </DialogDescription>
         </DialogHeader>
 
@@ -175,34 +207,58 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
           </div>
         ) : !activeOrg ? (
           <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-5 text-sm text-ink-muted">
-            You’re not part of a team yet. Folder sharing becomes available once
-            you belong to an organization.
+            You’re not part of a team yet. Folder sharing becomes available once you belong to an
+            organization.
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {/* New grant row */}
+            {/* Add people */}
             {canManage ? (
-              <div className="flex flex-col gap-3 rounded-[12px] border border-line bg-bg-alt/60 p-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-                    Share with
-                  </span>
-                  <select
-                    value={principal}
-                    onChange={(e) => setPrincipal(e.target.value)}
-                    className="h-9 rounded-[8px] border border-line bg-card px-2.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                  >
-                    <option value={WHOLE_TEAM}>Whole team · {activeOrg.name}</option>
-                    {members
-                      .filter((m) => m.user_id !== currentUserId)
-                      .map((m) => (
-                        <option key={m.user_id} value={m.user_id}>
-                          {m.display_name || m.email}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+              <div className="flex flex-col gap-3 rounded-[12px] border border-line bg-bg-alt/50 p-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle" />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search teammates…"
+                    className="h-9 w-full rounded-[8px] border border-line bg-card pl-8 pr-2.5 text-sm text-ink placeholder:text-ink-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  />
+                </div>
 
+                {/* Principal list: whole team pinned, then teammates */}
+                <div className="flex max-h-52 flex-col gap-1 overflow-y-auto">
+                  <PrincipalRow
+                    selected={principal === WHOLE_TEAM}
+                    onSelect={() => setPrincipal(WHOLE_TEAM)}
+                    avatar={
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+                        <Globe className="h-3.5 w-3.5" />
+                      </span>
+                    }
+                    title={`Whole team · ${activeOrg.name}`}
+                    subtitle="Everyone in your organization"
+                  />
+                  {selectableMembers.map((m) => (
+                    <PrincipalRow
+                      key={m.user_id}
+                      selected={principal === m.user_id}
+                      onSelect={() => setPrincipal(m.user_id)}
+                      avatar={<Avatar name={m.display_name} email={m.email} size="sm" />}
+                      title={m.display_name || m.email}
+                      subtitle={m.email}
+                      badge={m.role !== 'member' ? m.role : undefined}
+                    />
+                  ))}
+                  {selectableMembers.length === 0 && query.trim() !== '' && (
+                    <p className="px-2 py-3 text-center text-xs text-ink-subtle">
+                      No teammates match “{query.trim()}”.
+                    </p>
+                  )}
+                </div>
+
+                {/* Access level */}
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
                     Access level
@@ -229,13 +285,16 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
                 </div>
 
                 <Button size="sm" onClick={() => void handleShare()} disabled={working}>
-                  {working ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Share2 className="h-4 w-4" />
-                  )}
+                  {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
                   Share
                 </Button>
+
+                {justShared && !error && (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-success">
+                    <Check className="h-3.5 w-3.5" />
+                    Shared with {justShared}. It’s in their extension now.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-3 text-xs text-ink-muted">
@@ -243,10 +302,10 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
               </div>
             )}
 
-            {/* Existing grants */}
+            {/* People with access */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-                Shared with
+                People with access
               </span>
               {grantsLoading ? (
                 <div className="flex items-center gap-2 py-3 text-sm text-ink-muted">
@@ -263,9 +322,22 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
                       key={g.id}
                       className="flex items-center justify-between gap-2 rounded-[10px] border border-line px-3 py-2"
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        <span className="truncate text-sm text-ink">{principalLabel(g)}</span>
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        {g.principal_type === 'organization' ? (
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+                            <Globe className="h-3.5 w-3.5" />
+                          </span>
+                        ) : (
+                          <Avatar
+                            name={nameFor(g.principal_id)}
+                            highlight={g.principal_id === currentUserId}
+                            size="sm"
+                          />
+                        )}
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm text-ink">{principalLabel(g)}</span>
+                          <span className="truncate text-[11px] text-ink-subtle">{provenance(g)}</span>
+                        </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
                         {canManage ? (
@@ -314,5 +386,41 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface PrincipalRowProps {
+  selected: boolean;
+  onSelect: () => void;
+  avatar: React.ReactNode;
+  title: string;
+  subtitle: string;
+  badge?: string;
+}
+
+function PrincipalRow({ selected, onSelect, avatar, title, subtitle, badge }: PrincipalRowProps) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex items-center gap-2.5 rounded-[8px] border px-2 py-1.5 text-left transition-colors',
+        selected ? 'border-primary bg-primary-light/60' : 'border-transparent hover:bg-bg-alt',
+      )}
+    >
+      {avatar}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-medium text-ink">{title}</span>
+          {badge && (
+            <span className="shrink-0 rounded-full bg-bg-alt px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className="truncate text-[11px] text-ink-subtle">{subtitle}</span>
+      </span>
+      {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+    </button>
   );
 }

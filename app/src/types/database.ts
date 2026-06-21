@@ -213,6 +213,8 @@ export interface FolderPermission {
   principal_id: Uuid;
   level: PermissionLevel;
   created_at: IsoDateTime;
+  /** The user who created the grant. Null on legacy grants predating the column. */
+  granted_by: Uuid | null;
 }
 
 /** Derived sharing status for a folder, computed from its `folder_permissions`. */
