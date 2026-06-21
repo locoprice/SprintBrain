@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SprintBrain — Snippet Engine v2.62.12</title>
+  <title>SprintBrain — Snippet Engine v2.64.0</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -225,6 +225,17 @@
       color: var(--muted);
     }
 
+    /* ── Team Sync bar ──────────────────────────────────── */
+    .team-sync-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+    .team-sync-st { font-size: 11px; font-weight: 600; }
+    .team-sync-st.ok  { color: #16A34A; }
+    .team-sync-st.err { color: #DC2626; }
+
     /* ── Copy toast ─────────────────────────────────────── */
     #toast {
       position: fixed;
@@ -248,7 +259,11 @@
 
 <header>
   <span class="logo">⚡ SprintBrain</span>
-  <span class="version">Formula Engine v2.62.12</span>
+  <span class="version">Formula Engine v2.64.0</span>
+  <div class="team-sync-bar">
+    <span id="team-sync-st" class="team-sync-st"></span>
+    <button class="btn btn-ghost" id="btn-team-sync">Sync with Team</button>
+  </div>
 </header>
 
 <main>
@@ -513,6 +528,76 @@
   buildFieldsForm({});
   updateOutput();
 
+})();
+</script>
+<!-- Team Sync — reads the Supabase session written by the dashboard (supabase-js
+     stores it in localStorage) and PATCHes personal snippets + prompts into the
+     team-shared folder, identical logic to the extension's doTeamSync(). -->
+<script>
+(function() {
+  'use strict';
+
+  var SUPA_URL    = 'https://eyowustlbqujaimaxggt.supabase.co';
+  var SUPA_ANON   = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
+  var SESSION_KEY = 'sb-eyowustlbqujaimaxggt-auth-token';
+  var TEAM_FOLDER = 'leibtour_team_shared';
+
+  function getSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      return s && s.access_token ? s : null;
+    } catch(e) { return null; }
+  }
+
+  function sbPatch(table, body, qs, token) {
+    return fetch(SUPA_URL + '/rest/v1/' + table + (qs ? '?' + qs : ''), {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPA_ANON,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+  }
+
+  var btn = document.getElementById('btn-team-sync');
+  var st  = document.getElementById('team-sync-st');
+
+  btn.addEventListener('click', function() {
+    var session = getSession();
+    if (!session || !session.user) {
+      st.textContent = 'Sign in to the dashboard first.';
+      st.className = 'team-sync-st err';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
+    if (st) { st.textContent = ''; st.className = 'team-sync-st'; }
+
+    var uid    = session.user.id;
+    var filter = 'user_id=eq.' + uid + '&organization_id=is.null';
+
+    Promise.all([
+      sbPatch('snippets', { folder_id: TEAM_FOLDER }, filter, session.access_token),
+      sbPatch('prompts',  { folder_id: TEAM_FOLDER }, filter, session.access_token)
+    ]).then(function(results) {
+      for (var i = 0; i < results.length; i++) {
+        if (!results[i].ok) throw new Error('HTTP ' + results[i].status);
+      }
+      if (st) { st.textContent = 'Synced ✓'; st.className = 'team-sync-st ok'; }
+    }).catch(function(err) {
+      console.error('[SprintBrain] team sync:', err.message || err);
+      if (st) { st.textContent = 'Sync failed.'; st.className = 'team-sync-st err'; }
+    }).then(function() {
+      btn.disabled = false;
+      btn.textContent = 'Sync with Team';
+    });
+  });
 })();
 </script>
 </body>
