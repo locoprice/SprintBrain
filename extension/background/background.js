@@ -264,29 +264,36 @@ function buildContextMenus(data) {
       });
     }
 
-    // ── 2. FOLDERS (multi-snippet = submenu; single-snippet = flattened at root) ──
-    var singletonSnips = [];
-    var foldersWithMulti = [];
+    // ── 2. FOLDERS — every folder with snippets is its own submenu ──
+    // Single-snippet folders are no longer flattened to the root: showing each
+    // folder consistently means a folder created in the dashboard is always
+    // visible here, and the menu reads the same way every time.
+    var foldersWithSnips = [];
     folders.forEach(function(f) {
       var fSnips = byFolder[f.id] || [];
       if (fSnips.length === 0) return;
-      if (fSnips.length === 1) {
-        singletonSnips.push(fSnips[0]);
-      } else {
-        foldersWithMulti.push({ folder: f, snips: sortForMenu(fSnips) });
-      }
+      foldersWithSnips.push({ folder: f, snips: sortForMenu(fSnips) });
+    });
+    // Stable folder order: sort_order first, then name.
+    foldersWithSnips.sort(function(a, b) {
+      var sa = (a.folder.sort_order == null) ? 1e9 : a.folder.sort_order;
+      var sb = (b.folder.sort_order == null) ? 1e9 : b.folder.sort_order;
+      if (sa !== sb) return sa - sb;
+      var na = (a.folder.name || '').toLowerCase();
+      var nb = (b.folder.name || '').toLowerCase();
+      return na === nb ? 0 : (na < nb ? -1 : 1);
     });
 
-    var showingFoldersOrSingletons = foldersWithMulti.length > 0 || singletonSnips.length > 0;
-    if (recent.length > 0 && showingFoldersOrSingletons) addSep('sb-root');
+    var showingFolders = foldersWithSnips.length > 0;
+    if (recent.length > 0 && showingFolders) addSep('sb-root');
 
-    foldersWithMulti.forEach(function(entry) {
+    foldersWithSnips.forEach(function(entry) {
       var f = entry.folder;
       var folderIco = (f.ico && /\p{Extended_Pictographic}/u.test(f.ico)) ? f.ico : '\uD83D\uDCC2'; // 📂
       chrome.contextMenus.create({
         id: 'sb-folder-' + f.id,
         parentId: 'sb-root',
-        title: folderIco + '  ' + (f.name || 'Folder'),
+        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.snips.length + ')',
         contexts: ['editable']
       });
       entry.snips.forEach(function(s) {
@@ -299,20 +306,10 @@ function buildContextMenus(data) {
       });
     });
 
-    // Flattened single-snippet folders — at root, after multi-folders
-    sortForMenu(singletonSnips).forEach(function(s) {
-      chrome.contextMenus.create({
-        id: 'sb-snip-' + s.id,
-        parentId: 'sb-root',
-        title: snippetLabel(s),
-        contexts: ['editable']
-      });
-    });
-
     // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
     if (noFolder.length > 0) {
       var sortedNoFolder = sortForMenu(noFolder);
-      if (showingFoldersOrSingletons || recent.length > 0) addSep('sb-root');
+      if (showingFolders || recent.length > 0) addSep('sb-root');
 
       if (sortedNoFolder.length >= 4) {
         chrome.contextMenus.create({
@@ -463,7 +460,34 @@ chrome.runtime.onStartup.addListener(function() {
 // ── ALARM LISTENER — fires every 5 minutes ──────────────────────
 chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name !== 'sb_sync_alarm') return;
+  // Refresh the context menu from Supabase so snippets/folders created on the
+  // dashboard show up without needing to open the popup, then run Notion sync.
+  forceRefreshMenus();
   _alarmSync();
+});
+
+// ── MENU FRESHNESS — keep the right-click menu in sync with the dashboard ──
+// The dashboard writes snippets and folders straight to Supabase; the service
+// worker gets no push for those edits. Rebuild the menu when the user changes
+// tab or refocuses the browser (e.g. switching from the dashboard back to Gmail
+// to expand a snippet), throttled so we don't refetch on every flick between
+// tabs. The 5-minute alarm above is the periodic backstop.
+var MENU_REFRESH_MIN_MS = 10000;
+function forceRefreshMenus() {
+  chrome.storage.local.set({ sb_menu_last_refresh: Date.now() });
+  initMenus();
+}
+function maybeRefreshMenus() {
+  chrome.storage.local.get('sb_menu_last_refresh', function(d) {
+    var last = (d && d.sb_menu_last_refresh) ? d.sb_menu_last_refresh : 0;
+    if (Date.now() - last < MENU_REFRESH_MIN_MS) return;
+    forceRefreshMenus();
+  });
+}
+chrome.tabs.onActivated.addListener(function() { maybeRefreshMenus(); });
+chrome.windows.onFocusChanged.addListener(function(winId) {
+  if (winId === chrome.windows.WINDOW_ID_NONE) return; // focus left the browser
+  maybeRefreshMenus();
 });
 // Message handler from popup
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
