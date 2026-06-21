@@ -1,6 +1,6 @@
 // ── SPRINTBRAIN FORMULA ENGINE v2.62.12 ───────────────────────────
 // Standalone module — no Chrome API dependencies.
-// Shared by the Chrome extension content script (inlined) and Sprintbrain.html.
+// Shared by the Chrome extension content script (loaded via the manifest) and Sprintbrain.html.
 //
 // Supported syntax:
 //   {{VARIABLE_NAME}}          — placeholder (filled by user)
