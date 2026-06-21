@@ -446,6 +446,23 @@ function _findLangVariants(item) {
       }
     }
   }
+  // Dashboard single-row model: per-language content lives in the item's `bodies`
+  // map rather than across sibling rows. Expand it into language-keyed views that
+  // share the same row but carry each language's body, so the picker can offer
+  // every translation and handleMatch inserts the right one.
+  if (Object.keys(map).length <= 1 && item.bodies && typeof item.bodies === 'object') {
+    var bmap = {};
+    Object.keys(item.bodies).forEach(function (l) {
+      var txt = item.bodies[l];
+      if (typeof txt !== 'string' || !txt.trim()) return;
+      var view = {};
+      for (var k in item) view[k] = item[k];
+      view.lang = l;
+      view.body = txt;
+      bmap[l] = view;
+    });
+    if (Object.keys(bmap).length > 1) map = bmap;
+  }
   return map;
 }
 

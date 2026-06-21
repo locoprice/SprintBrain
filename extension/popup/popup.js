@@ -106,6 +106,7 @@ var DB = {
           return {
             id: s.id, title: s.title, shortcut: s.shortcut || '',
             body: s.body || '', lang: s.lang || 'EN',
+            bodies: (s.bodies && typeof s.bodies === 'object') ? s.bodies : {},
             folder: s.folder_id || '', fieldCfg: s.field_cfg || {}, lang_group_id: s.lang_group_id || s.id,
             sort_order: s.sort_order || 0,
             enable_urgency_timer: s.enable_urgency_timer || false,
@@ -125,6 +126,7 @@ var DB = {
     supaFetch('snippets', 'POST', {
       id: s.id, user_id: SB_CURRENT_USER_ID, title: s.title, shortcut: s.shortcut || '',
       body: s.body || '', lang: s.lang || 'EN',
+      bodies: (s.bodies && typeof s.bodies === 'object') ? s.bodies : {},
       folder_id: s.folder || null, field_cfg: s.fieldCfg || {}, lang_group_id: s.lang_group_id || s.id,
       sort_order: s.sort_order || 0,
       enable_urgency_timer: s.enable_urgency_timer || false,
@@ -1285,7 +1287,7 @@ function renderList(q){
       +'<div style="display:flex;gap:4px;margin-top:2px">'+usesBadge+fillsBadge+pillsHtml+'</div>'
       +'</div>'
       +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc((s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''))+'</span>'
-      +'<span class="lb '+esc(s.lang||'EN')+'">'+esc(s.lang||'EN')+'</span>'
+      +(function(){ var el2 = bodyLangs(s).length>1 ? 'MULTI' : (s.lang||'EN'); return '<span class="lb '+esc(el2)+'">'+esc(el2)+'</span>'; })()
       +'<button class="iedit" data-eid="'+s.id+'">Edit</button>'
       +'<button class="idots" data-dots="'+s.id+'" title="More actions">\u22EF</button>'
       +'</div>';
@@ -1510,108 +1512,131 @@ function doSave(){
   var lang = edLangActive;
 
   var isNew=!editId, variantIsNew=false, toSave;
+
+  // Canonical bodies map for the single-row (dashboard) model: every language
+  // the user has authored non-empty content for, keyed by language code. Mirrors
+  // app/src/lib/api/snippetsApi.ts mergeActiveBody() so both surfaces agree.
+  function buildBodies(){
+    var out = {};
+    LANGS.forEach(function(l){
+      var t = edLangBuf[l];
+      if(typeof t === 'string' && t.trim()) out[l] = t;
+    });
+    return out;
+  }
+
   if(isNew){
-    toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
+    toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,bodies:buildBodies(),folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
       enable_urgency_timer:urgEnabled,timer_duration_ms:urgDurMs,scarcity_count:urgSc,
       alternative_queries:altQueries,
       manually_edited:true,stats:{uses:0,fills:0,lastUsed:null}};
     toSave.lang_group_id=toSave.id;
     snips.unshift(toSave);
+    DB.upsertSnippet(toSave);
+    syncSnippets();
+    DB.updateStats(toSave.id,0,0,null);
+    NotionPush.push(toSave);
   } else {
-    // Resolve the anchor snippet and the correct save target for the active language.
-    // editId always points to the snippet that was opened — it may be a different language
-    // than the one currently active in the editor.
     var anchorSnip = findSnip(editId);
     if (!anchorSnip) {
       showToast('Save failed — snippet not found. Please close and reopen the popup, then try again.');
       return;
     }
     var anchorGid = anchorSnip.lang_group_id || anchorSnip.id;
-    // Find the existing variant for edLangActive within this lang group
-    for(var i=0;i<snips.length;i++){
-      if((snips[i].lang_group_id||snips[i].id)===anchorGid && snips[i].lang===lang){
-        toSave=snips[i]; break;
-      }
-    }
-    if(toSave){
-      // Update the language-correct variant
-      toSave.title=title; toSave.shortcut=sc; toSave.body=body;
-      toSave.folder=folder;
-      toSave.enable_urgency_timer=urgEnabled;
-      toSave.timer_duration_ms=urgDurMs;
-      toSave.scarcity_count=urgSc;
-      toSave.alternative_queries=altQueries;
+    var realSiblings = snips.filter(function(s){ return (s.lang_group_id||s.id)===anchorGid; });
+
+    if(realSiblings.length <= 1){
+      // Single-row model (dashboard-authored or extension single-row): persist
+      // every language on this one row's bodies map and mirror the active
+      // language into the denormalized body/lang columns. No sibling rows are
+      // created, so the dashboard and the extension stay on the same shape.
+      toSave = anchorSnip;
+      toSave.title=title; toSave.shortcut=sc; toSave.body=body; toSave.lang=lang;
+      toSave.bodies=buildBodies(); toSave.folder=folder;
+      toSave.enable_urgency_timer=urgEnabled; toSave.timer_duration_ms=urgDurMs;
+      toSave.scarcity_count=urgSc; toSave.alternative_queries=altQueries;
       toSave.manually_edited=true;
+      DB.upsertSnippet(toSave);
+      syncSnippets();
+      NotionPush.push(toSave);
     } else {
-      // No variant exists yet for this language — create one
-      variantIsNew=true;
-      toSave={
-        id:uid(), title:title, shortcut:sc, body:body, lang:lang,
-        folder:folder, fieldCfg:JSON.parse(JSON.stringify(anchorSnip.fieldCfg||{})),
-        lang_group_id:anchorGid, sort_order:snips.length+1,
-        enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
-        scarcity_count:urgSc, alternative_queries:altQueries, notion_page_id:null,
-        manually_edited:true, stats:{uses:0,fills:0,lastUsed:null}
-      };
-      snips.push(toSave);
-      // Keep edLangVariants in sync so the LANGS loop below won't double-create
-      edLangVariants[lang] = toSave;
-    }
-    // Propagate shared metadata changes (title, folder, urgency) to the anchor
-    // when the anchor is a different variant than the one being saved
-    if(anchorSnip !== toSave){
-      anchorSnip.title=title; anchorSnip.folder=folder;
-      anchorSnip.enable_urgency_timer=urgEnabled;
-      anchorSnip.timer_duration_ms=urgDurMs;
-      anchorSnip.scarcity_count=urgSc;
-      anchorSnip.alternative_queries=altQueries;
-      anchorSnip.manually_edited=true;
-      DB.upsertSnippet(anchorSnip);
+      // Legacy multi-row model: one Supabase row per language sharing a
+      // lang_group_id. Preserve the historical per-row save so existing data
+      // isn't orphaned or duplicated.
+      for(var i=0;i<snips.length;i++){
+        if((snips[i].lang_group_id||snips[i].id)===anchorGid && snips[i].lang===lang){
+          toSave=snips[i]; break;
+        }
+      }
+      if(toSave){
+        toSave.title=title; toSave.shortcut=sc; toSave.body=body;
+        toSave.folder=folder;
+        toSave.enable_urgency_timer=urgEnabled;
+        toSave.timer_duration_ms=urgDurMs;
+        toSave.scarcity_count=urgSc;
+        toSave.alternative_queries=altQueries;
+        toSave.manually_edited=true;
+      } else {
+        variantIsNew=true;
+        toSave={
+          id:uid(), title:title, shortcut:sc, body:body, lang:lang,
+          folder:folder, fieldCfg:JSON.parse(JSON.stringify(anchorSnip.fieldCfg||{})),
+          lang_group_id:anchorGid, sort_order:snips.length+1,
+          enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
+          scarcity_count:urgSc, alternative_queries:altQueries, notion_page_id:null,
+          manually_edited:true, stats:{uses:0,fills:0,lastUsed:null}
+        };
+        snips.push(toSave);
+        edLangVariants[lang] = toSave;
+      }
+      if(anchorSnip !== toSave){
+        anchorSnip.title=title; anchorSnip.folder=folder;
+        anchorSnip.enable_urgency_timer=urgEnabled;
+        anchorSnip.timer_duration_ms=urgDurMs;
+        anchorSnip.scarcity_count=urgSc;
+        anchorSnip.alternative_queries=altQueries;
+        anchorSnip.manually_edited=true;
+        DB.upsertSnippet(anchorSnip);
+      }
+      DB.upsertSnippet(toSave);
+      syncSnippets();
+      if(variantIsNew) DB.updateStats(toSave.id,0,0,null);
+      NotionPush.push(toSave);
+      var gid = toSave.lang_group_id || toSave.id;
+      LANGS.forEach(function(l) {
+        if (l === lang) return; // already saved above
+        if (edLangBuf[l] === undefined) return; // never touched
+        var existing = edLangVariants[l];
+        if (existing) {
+          existing.body = edLangBuf[l];
+          existing.folder = folder;
+          existing.enable_urgency_timer = urgEnabled;
+          existing.timer_duration_ms = urgDurMs;
+          existing.scarcity_count = urgSc;
+          existing.alternative_queries = altQueries;
+          existing.manually_edited = true;
+          DB.upsertSnippet(existing);
+        } else {
+          var baseTitle = title.replace(/\s*(EN|ES|IT|FR)$/, '');
+          var baseWord = word.replace(/(EN|ES|IT|FR)$/, '');
+          var ns = {
+            id: uid(), title: baseTitle + ' ' + l,
+            shortcut: trig + baseWord + l,
+            body: edLangBuf[l], lang: l, folder: folder,
+            fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
+            lang_group_id: gid, sort_order: snips.length + 1,
+            enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
+            scarcity_count: urgSc, alternative_queries: altQueries, manually_edited: true,
+            stats: { uses: 0, fills: 0, lastUsed: null }
+          };
+          snips.push(ns);
+          DB.upsertSnippet(ns);
+          DB.updateStats(ns.id, 0, 0, null);
+        }
+      });
     }
   }
   if(!toSave) return;
-  DB.upsertSnippet(toSave);
-  syncSnippets();
-  if(isNew || variantIsNew) {
-    DB.updateStats(toSave.id,0,0,null);
-  }
-  NotionPush.push(toSave);
-
-  // Save all other language variant buffers
-  var gid = toSave.lang_group_id || toSave.id;
-  LANGS.forEach(function(l) {
-    if (l === lang) return; // already saved above
-    if (edLangBuf[l] === undefined) return; // never touched
-    var existing = edLangVariants[l];
-    if (existing) {
-      // Update existing variant body
-      existing.body = edLangBuf[l];
-      existing.folder = folder;
-      existing.enable_urgency_timer = urgEnabled;
-      existing.timer_duration_ms = urgDurMs;
-      existing.scarcity_count = urgSc;
-      existing.alternative_queries = altQueries;
-      existing.manually_edited = true;
-      DB.upsertSnippet(existing);
-    } else {
-      // Create new variant
-      var baseTitle = title.replace(/\s*(EN|ES|IT|FR)$/, '');
-      var baseWord = word.replace(/(EN|ES|IT|FR)$/, '');
-      var ns = {
-        id: uid(), title: baseTitle + ' ' + l,
-        shortcut: trig + baseWord + l,
-        body: edLangBuf[l], lang: l, folder: folder,
-        fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
-        lang_group_id: gid, sort_order: snips.length + 1,
-        enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
-        scarcity_count: urgSc, alternative_queries: altQueries, manually_edited: true,
-        stats: { uses: 0, fills: 0, lastUsed: null }
-      };
-      snips.push(ns);
-      DB.upsertSnippet(ns);
-      DB.updateStats(ns.id, 0, 0, null);
-    }
-  });
   // Refresh context menus in background
   try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
   gi('sok').className='saveok on';
@@ -2001,11 +2026,40 @@ function groupSnips(arr) {
 var LNAMES = {EN:'English',ES:'Español',IT:'Italiano',FR:'Français'};
 var LANGS = ['EN','ES','IT','FR'];
 
+// Languages embedded in a single row's `bodies` map (dashboard model). Returns
+// lang -> a synthetic variant view backed by the same row, with `body` set to
+// the per-language content so the editor tabs, language picker and expansion
+// can treat it like a standalone variant. Empty strings are ignored.
+function bodyVariants(snip){
+  var out = {};
+  var b = snip && snip.bodies;
+  if(!b || typeof b !== 'object') return out;
+  LANGS.forEach(function(l){
+    var txt = b[l];
+    if(typeof txt !== 'string' || !txt.trim()) return;
+    var view = {}; for(var k in snip) view[k] = snip[k];
+    view.lang = l; view.body = txt;
+    out[l] = view;
+  });
+  return out;
+}
+
+// Non-empty languages a single row carries in its `bodies` map.
+function bodyLangs(snip){
+  var b = snip && snip.bodies;
+  if(!b || typeof b !== 'object') return [];
+  return LANGS.filter(function(l){ return typeof b[l] === 'string' && b[l].trim(); });
+}
+
 function findVariants(snip){
   if(!snip) return {};
   var gid = snip.lang_group_id || snip.id;
   var v = {};
   snips.forEach(function(s){ if((s.lang_group_id||s.id)===gid) v[s.lang]=s; });
+  // Dashboard single-row model: surface languages embedded in the bodies map.
+  // Real sibling rows (legacy lang_group_id model) take precedence when both exist.
+  var emb = bodyVariants(snip);
+  Object.keys(emb).forEach(function(l){ if(!v[l]) v[l] = emb[l]; });
   return v;
 }
 
@@ -2090,8 +2144,13 @@ function initEditorLangTabs(snip) {
       if (edLangVariants[l]) edLangBuf[l] = edLangVariants[l].body || '';
     });
   }
-  // Set current snippet body into its lang buffer
-  if (snip) edLangBuf[edLangActive] = snip.body || '';
+  // Set current snippet body into its lang buffer. Prefer the per-language entry
+  // in the bodies map (dashboard model) so the active tab isn't overwritten by a
+  // stale denormalized `body` column.
+  if (snip) {
+    var ab = snip.bodies || {};
+    edLangBuf[edLangActive] = (typeof ab[edLangActive] === 'string') ? ab[edLangActive] : (snip.body || '');
+  }
   refreshLangTabs();
 }
 
