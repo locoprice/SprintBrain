@@ -161,12 +161,10 @@ var DB = {
     }).catch(function(e) { console.error('updateStats:', e); });
   },
   loadPrompts: function() {
-    var uid = SB_CURRENT_USER_ID;
-    var qs = uid
-      ? 'select=id,name,content,type,tags,intent_category,last_used_at&order=updated_at.desc&user_id=eq.' + uid
-      : 'select=id,name,content,type,tags,intent_category,last_used_at&order=updated_at.desc';
-    return supaFetch('prompts', 'GET', null, qs)
-      .then(function(r) { return r.ok ? r.json() : []; })
+    // No user_id filter — RLS handles both personal and org-shared prompts.
+    return supaFetch('prompts', 'GET', null,
+      'select=id,name,content,type,tags,intent_category,last_used_at&order=updated_at.desc'
+    ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
 };
@@ -456,6 +454,12 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.64.0', date:'2026-06-21', label:'fix: Team Sync restored — shared snippets & prompts now visible to all team members',
+    changes:[
+      {type:'fix', text:'Team Sync button restored in Settings — moves personal snippets and prompts into the team-shared folder via the Phase B folder ACL, so all org members can see them through accessible_snippets()'},
+      {type:'fix', text:'DB.loadPrompts() no longer filters by user_id — RLS now returns both personal and org-shared prompts in a single query'},
+      {type:'fix', text:'Supabase migration adds leibtour@gmail.com to LeibTour org (admin) — was omitted from B1, blocking visible-to-team resolution via can_read_folder()'}
+    ]},
   { version:'v2.57.0', date:'2026-06-03', label:'feat: roomier popup + one-click Dashboard link + dashboard prompts in the """ picker',
     changes:[
       {type:'new', text:'Popup window is now larger — wider columns and a taller list so snippet titles, folder names and language badges have more breathing room and more rows show at a glance'},
@@ -1887,7 +1891,75 @@ var icoPicker=document.getElementById('ico-picker'); if(icoPicker) icoPicker.add
 });
 
 // SETTINGS
-function openCfg(){ pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); show('pane-cfg'); }
+function openCfg(){
+  pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); show('pane-cfg');
+  chrome.storage.local.get('sb_team_sync_ts', function(d) {
+    var ts = gi('sb-team-sync-ts');
+    if (ts) ts.textContent = d && d.sb_team_sync_ts ? 'Last sync: ' + _timeAgo(d.sb_team_sync_ts) : '';
+  });
+}
+
+// Moves personal snippets and prompts into the team-shared folder so all org
+// members can see them via accessible_snippets() / the prompts RLS org branch.
+// The enforce_asset_tenancy trigger derives organization_id from the folder —
+// setting folder_id is the only correct path; patching organization_id directly
+// would be overwritten by the trigger.
+function doTeamSync() {
+  var btn = gi('sb-team-sync-btn');
+  var st  = gi('sb-team-sync-st');
+  var ts  = gi('sb-team-sync-ts');
+
+  if (!SB_CURRENT_USER_ID) {
+    if (st) { st.textContent = 'Not signed in.'; st.style.color = '#DC2626'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  if (st)  { st.textContent = ''; }
+
+  // Verify org membership — organizations table is only visible to members via RLS.
+  supaFetch('organizations', 'GET', null, 'select=id&slug=eq.leibtour')
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(orgs) {
+      if (!orgs || !orgs.length) {
+        if (st)  { st.textContent = 'Not in a team org.'; st.style.color = '#DC2626'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
+        return;
+      }
+
+      var uid = SB_CURRENT_USER_ID;
+      var filter = 'user_id=eq.' + uid + '&organization_id=is.null';
+
+      return Promise.all([
+        supaFetch('snippets', 'PATCH', { folder_id: 'leibtour_team_shared' }, filter),
+        supaFetch('prompts',  'PATCH', { folder_id: 'leibtour_team_shared' }, filter)
+      ]).then(function(results) {
+        for (var i = 0; i < results.length; i++) {
+          if (!results[i].ok) throw new Error('HTTP ' + results[i].status);
+        }
+
+        var now = new Date().toISOString();
+        chrome.storage.local.set({ sb_team_sync_ts: now });
+
+        // Mirror folder change in the in-memory snippet array so the UI
+        // reflects the new location without a full reload.
+        for (var j = 0; j < snips.length; j++) {
+          if (!snips[j].organization_id) snips[j].folder_id = 'leibtour_team_shared';
+        }
+
+        if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
+        if (st)  { st.textContent = 'Synced ✓'; st.style.color = '#16A34A'; }
+        if (ts)  { ts.textContent = 'Last sync: just now'; }
+        showToast('Snippets synced with team');
+        refreshUI();
+      });
+    })
+    .catch(function(err) {
+      console.error('[SprintBrain] doTeamSync:', err.message || err);
+      if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
+      if (st)  { st.textContent = 'Sync failed.'; st.style.color = '#DC2626'; }
+    });
+}
 function syncTG(t){ document.querySelectorAll('.topt').forEach(function(el){ el.className='topt'+(el.dataset.t===t?' on':''); }); }
 function updateWarn(t){ var w=gi('wbox'); if(t==='/'){ w.innerHTML='<strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>::</strong> instead.'; w.className='warn on'; }else if(/^[a-zA-Z0-9]$/.test(t)){ w.innerHTML='Single alphanumeric triggers may cause false positives.'; w.className='warn on'; }else{ w.className='warn'; } }
 function updateInfo(t){ gi('itrig').textContent=t; gi('iex').textContent=t+'quoteEN'; }
@@ -1937,6 +2009,7 @@ on('bdash','click',       openDashboard);
 on('bbcfg','click',       function(){ show('pane-list'); refreshUI(); });
 on('bcct','click',        function(){ show('pane-list'); refreshUI(); });
 on('bappt','click',       applyTrig);
+on('sb-team-sync-btn','click', doTeamSync);
 on('brel','click', function(){
   var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(results){
