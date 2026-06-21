@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SprintBrain — Codebase Audit Report</title>
+<style>
+  :root{
+    --ink:#18181B; --muted:#52525B; --faint:#A1A1AA; --line:#E4E4E7;
+    --bg:#FAFAFA; --card:#fff; --primary:#1B4FD8; --primary-soft:#EEF2FF;
+    --crit:#B42318; --crit-bg:#FEF3F2; --crit-bd:#FDA29B;
+    --high:#B54708; --high-bg:#FFFAEB; --high-bd:#FEC84B;
+    --med:#854D0E; --med-bg:#FEFCE8; --med-bd:#FDE047;
+    --low:#155E75; --low-bg:#ECFEFF; --low-bd:#67E8F9;
+    --info:#3F3F46; --info-bg:#F4F4F5; --info-bd:#D4D4D8;
+    --ok:#15803D; --ok-bg:#F0FDF4; --ok-bd:#86EFAC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+    line-height:1.55;font-size:15px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px;}
+  header.top{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:32px;}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:0 0 6px;}
+  .sub{color:var(--muted);font-size:14px;}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:16px;font-size:13px;color:var(--muted);}
+  .meta b{color:var(--ink);font-weight:600;}
+  h2{font-size:20px;font-weight:700;margin:40px 0 14px;letter-spacing:-.3px;}
+  h2 .em{color:var(--faint);font-weight:600;font-size:14px;margin-left:8px;}
+  .gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0;}
+  .gate{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .gate .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:700;}
+  .gate .v{font-size:15px;font-weight:700;margin-top:3px;display:flex;align-items:center;gap:6px;}
+  .pass{color:var(--ok);} .warn{color:var(--high);}
+  .summary-table{width:100%;border-collapse:collapse;margin:16px 0;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px;}
+  .summary-table th{background:var(--info-bg);text-align:left;padding:10px 14px;font-size:11px;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--line);}
+  .summary-table td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .summary-table tr:last-child td{border-bottom:none;}
+  .summary-table a{color:var(--primary);text-decoration:none;font-weight:600;}
+  .badge{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.04em;padding:3px 9px;border-radius:99px;white-space:nowrap;border:1px solid;}
+  .b-crit{color:var(--crit);background:var(--crit-bg);border-color:var(--crit-bd);}
+  .b-high{color:var(--high);background:var(--high-bg);border-color:var(--high-bd);}
+  .b-med{color:var(--med);background:var(--med-bg);border-color:var(--med-bd);}
+  .b-low{color:var(--low);background:var(--low-bg);border-color:var(--low-bd);}
+  .b-info{color:var(--info);background:var(--info-bg);border-color:var(--info-bd);}
+  .finding{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:16px 0;
+    border-left:5px solid var(--line);}
+  .finding.crit{border-left-color:var(--crit-bd);}
+  .finding.high{border-left-color:var(--high-bd);}
+  .finding.med{border-left-color:var(--med-bd);}
+  .finding.low{border-left-color:var(--low-bd);}
+  .finding.info{border-left-color:var(--info-bd);}
+  .finding h3{margin:0 0 4px;font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .fid{font-size:12px;font-weight:800;color:var(--faint);font-family:ui-monospace,Menlo,monospace;}
+  .loc{font-size:12.5px;color:var(--muted);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    margin:6px 0 12px;}
+  .loc code{background:var(--info-bg);padding:1px 6px;border-radius:5px;border:1px solid var(--line);}
+  .finding p{margin:8px 0;}
+  .lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);
+    margin-top:12px;margin-bottom:2px;}
+  pre{background:#1a1a2e;color:#e6e6f0;border-radius:10px;padding:13px 15px;overflow-x:auto;
+    font-size:12.5px;line-height:1.5;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;margin:8px 0;}
+  pre .c{color:#7c7c9c;}
+  .fix{background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:10px;padding:12px 15px;margin-top:12px;font-size:14px;}
+  .fix b{color:var(--ok);}
+  .note{font-size:13px;color:var(--muted);font-style:italic;}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--faint);}
+  .pill-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  code.inl{background:var(--info-bg);padding:1px 6px;border-radius:5px;border:1px solid var(--line);
+    font-family:ui-monospace,Menlo,monospace;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>SprintBrain — Codebase Audit Report</h1>
+  <div class="sub">Static + dynamic review of the monorepo: Chrome extension (vanilla JS), React/TS dashboard, Supabase edge functions &amp; migrations. Findings ranked most&nbsp;→&nbsp;least severe.</div>
+  <div class="meta">
+    <span><b>Date:</b> 2026-06-21</span>
+    <span><b>Version:</b> 2.63.10</span>
+    <span><b>Branch:</b> claude/codebase-audit-report-mkxnyu</span>
+    <span><b>Source files reviewed:</b> 127 JS/TS + 28 SQL migrations</span>
+  </div>
+</header>
+
+<h2>Build &amp; verification gates <span class="em">all green at time of audit</span></h2>
+<div class="gates">
+  <div class="gate"><div class="k">eslint</div><div class="v pass">✔ clean</div></div>
+  <div class="gate"><div class="k">tsc typecheck</div><div class="v pass">✔ clean</div></div>
+  <div class="gate"><div class="k">vitest</div><div class="v pass">✔ 148 / 148</div></div>
+  <div class="gate"><div class="k">vite build</div><div class="v warn">⚠ chunk size</div></div>
+  <div class="gate"><div class="k">check-version</div><div class="v pass">✔ 2.63.10</div></div>
+  <div class="gate"><div class="k">check-snippets</div><div class="v pass">✔ 8/8</div></div>
+  <div class="gate"><div class="k">check-icons</div><div class="v pass">✔ valid</div></div>
+  <div class="gate"><div class="k">node --check ×7</div><div class="v pass">✔ parse</div></div>
+</div>
+<p class="note">The codebase is in genuinely good shape: linting/typing/tests pass, content is HTML-escaped before DOM insertion (no XSS found in the popup or content script), the Notion edge function validates the caller's JWT and re-checks row ownership, and RLS is the security layer on every table. The findings below are real but none is a critical/exploitable hole — they are correctness, data-integrity, performance, and documentation issues.</p>
+
+<h2>Findings at a glance</h2>
+<table class="summary-table">
+  <thead><tr><th style="width:60px">ID</th><th style="width:110px">Severity</th><th>Issue</th><th style="width:150px">Area</th></tr></thead>
+  <tbody>
+    <tr><td><a href="#f1">F1</a></td><td><span class="badge b-high">High</span></td><td>Dashboard never writes <code class="inl">lang_group_id</code> — multi-language grouping silently breaks across platforms</td><td>App ↔ Extension</td></tr>
+    <tr><td><a href="#f2">F2</a></td><td><span class="badge b-med">Medium</span></td><td>Formula divide-by-zero emits literal <code class="inl">"Infinity"</code> into customer messages</td><td>Formula engine</td></tr>
+    <tr><td><a href="#f3">F3</a></td><td><span class="badge b-med">Medium</span></td><td>No code-splitting: single 1.2&nbsp;MB JS bundle (over Vite's 500&nbsp;KB advisory)</td><td>App / perf</td></tr>
+    <tr><td><a href="#f4">F4</a></td><td><span class="badge b-med">Medium</span></td><td>Docs claim auth is gated to <code class="inl">@leibtour.com</code>, but the trigger was dropped — signups are open</td><td>Docs / security</td></tr>
+    <tr><td><a href="#f5">F5</a></td><td><span class="badge b-low">Low</span></td><td>Rate limiter is in-memory client-side only — trivially bypassed, false sense of protection</td><td>App / security</td></tr>
+    <tr><td><a href="#f6">F6</a></td><td><span class="badge b-low">Low</span></td><td>Background <code class="inl">onMessage</code> listener returns <code class="inl">true</code> unconditionally → "message port closed" noise &amp; channel leak</td><td>Extension</td></tr>
+    <tr><td><a href="#f7">F7</a></td><td><span class="badge b-low">Low</span></td><td>Intent-engine "Layer 2 LLM" is a stub that only cosmetically bumps confidence</td><td>App</td></tr>
+    <tr><td><a href="#f8">F8</a></td><td><span class="badge b-low">Low</span></td><td><code class="inl">importSnippets</code> issues N sequential round-trips; partial failures aren't retried</td><td>App / perf</td></tr>
+    <tr><td><a href="#f9">F9</a></td><td><span class="badge b-info">Info</span></td><td>Documentation drift: "no test framework", stale audit version, duplicated key claims</td><td>Docs</td></tr>
+    <tr><td><a href="#f10">F10</a></td><td><span class="badge b-info">Info</span></td><td>Dead write-only accumulators <code class="inl">totalSecs</code>/<code class="inl">totalSnips</code></td><td>Extension</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────────────────────── F1 ───────────────────────── -->
+<div class="finding high" id="f1">
+  <h3><span class="fid">F1</span> <span class="badge b-high">High</span> Dashboard never sets <code class="inl">lang_group_id</code> — cross-platform language grouping is silently broken</h3>
+  <div class="loc">
+    <code>app/src/lib/api/snippetsApi.ts:205</code> (createSnippet insert) &amp; <code>:334</code> (duplicateSnippet) ·
+    consumed by <code>extension/background/background.js:102</code> &amp; <code>extension/content/content.js:428</code> (<code>_findLangVariants</code>)
+  </div>
+  <p>The extension's whole multi-language UX (the "🌐 Available in multiple languages" picker, the EN/ES/IT variant collapsing in the context menu and pickers) is driven primarily by the <code class="inl">lang_group_id</code> column. The extension <em>queries</em> it and <code class="inl">_findLangVariants()</code> uses it as the first-choice grouping key. But the dashboard's <code class="inl">createSnippet</code> / <code class="inl">duplicateSnippet</code> insert payloads <strong>omit <code class="inl">lang_group_id</code> entirely</strong> — the column never appears in <code class="inl">SNIPPET_SELECT</code> or in any insert/update path.</p>
+  <p>Result: every snippet authored in the dashboard has a null <code class="inl">lang_group_id</code> and can <em>only</em> be grouped via the fragile fallback heuristic (strip a trailing <code class="inl">EN/ES/IT/FR/MULTI</code> from the shortcut). Two variants whose shortcuts don't share a stripped base — e.g. <code class="inl">/welcome</code> (EN) and <code class="inl">/bienvenida</code> (ES) — will <strong>never</strong> be detected as siblings: the language picker won't appear and they surface as two unrelated rows. This is a core advertised feature degrading silently, and it only manifests on the extension, so dashboard-only testing misses it.</p>
+  <div class="lbl">Evidence</div>
+  <pre><span class="c">// snippetsApi.ts — insert payload has no lang_group_id</span>
+const insert = { id, user_id, title, shortcut, body, bodies, lang,
+  folder_id, field_cfg, sort_order, ... };  <span class="c">// ← lang_group_id missing</span>
+
+<span class="c">// content.js _findLangVariants — primary key is lang_group_id, then heuristic</span>
+if (item.lang_group_id) { ...group by id... }
+if (Object.keys(map).length &lt;= 1) { ...fallback: shortcut.replace(LANG_SUFFIX_RE,'') }</pre>
+  <div class="fix"><b>Recommended:</b> Make the dashboard a first-class writer of <code class="inl">lang_group_id</code>: add it to <code class="inl">SNIPPET_SELECT</code>, the create/duplicate inserts, and the edit path. Generate a shared group id when the user links variants (and reuse the source's group id on duplicate). Add a vitest case asserting created sibling variants share a group id — the existing suite mocks the API so this gap is invisible to tests today.</div>
+</div>
+
+<!-- ───────────────────────── F2 ───────────────────────── -->
+<div class="finding med" id="f2">
+  <h3><span class="fid">F2</span> <span class="badge b-med">Medium</span> Formula divide-by-zero outputs literal <code class="inl">"Infinity"</code> into customer-facing messages</h3>
+  <div class="loc"><code>extension/formula-engine.js:215</code> (evalFormula) · operator at <code>:161</code></div>
+  <p><code class="inl">safeEval</code> performs real JS division, so <code class="inl">1/0</code> yields <code class="inl">Infinity</code>. The guard in <code class="inl">evalFormula</code> rejects only <code class="inl">null</code> and <code class="inl">NaN</code> — not non-finite numbers — so <code class="inl">Infinity</code> flows straight through <code class="inl">Math.round()</code> and is stringified into the inserted text. Verified live:</p>
+  <pre>$ node -e 'FE.resolveBody("Price: {{= 1/0 }}", {})'
+<span class="c">→ "Price: Infinity"</span></pre>
+  <p>For a hospitality quoting tool whose flagship snippets compute prices (<code class="inl">[YOUR_PRICE × 1.03]</code>, <code class="inl">[OTA_PRICE - YOUR_PRICE]</code>), a stray <code class="inl">Infinity</code> (or, with a slightly different guard order, <code class="inl">-Infinity</code>) reaching a real guest message is a quality/trust defect in the most important path. Empty/garbage operands already coerce to <code class="inl">0</code>, so this is the one remaining hole.</p>
+  <div class="fix"><b>Recommended:</b> Change the guard at line 215 to reject non-finite results:
+  <pre>return (r === null || !isFinite(r)) ? null : Math.round(r * 100) / 100;</pre>
+  Returning <code class="inl">null</code> makes <code class="inl">resolveBody</code> emit <code class="inl">""</code> (its existing behavior for unresolved formulas), which is far safer than "Infinity". Add a <code>formulaConditions</code> test case for <code class="inl">x/0</code>.</div>
+</div>
+
+<!-- ───────────────────────── F3 ───────────────────────── -->
+<div class="finding med" id="f3">
+  <h3><span class="fid">F3</span> <span class="badge b-med">Medium</span> No code-splitting — one 1.2&nbsp;MB JS chunk on first load</h3>
+  <div class="loc"><code>app/</code> build output · <code>app/src/App.tsx</code> (all routes imported eagerly)</div>
+  <p><code class="inl">vite build</code> emits a single <code class="inl">index-*.js</code> at <strong>1,201&nbsp;KB (327&nbsp;KB gzip)</strong>, tripping Vite's 500&nbsp;KB advisory. Everything — Recharts, the Supabase client, every route — ships in one bundle even though the analytics charts (Recharts is heavy) are only needed on one page. The project's own root standard names "extreme ease of navigation / speed" as the primary goal and asks to "watch bundle growth and Core Web Vitals," so this is on-mission, not cosmetic.</p>
+  <div class="fix"><b>Recommended:</b> Lazy-load routes with <code class="inl">React.lazy</code> + <code class="inl">&lt;Suspense&gt;</code> in <code class="inl">App.tsx</code> (Analytics especially), and add <code class="inl">build.rollupOptions.output.manualChunks</code> to split out <code class="inl">recharts</code> and <code class="inl">@supabase/supabase-js</code>. This typically cuts the initial payload by well over half with no behavior change.</div>
+</div>
+
+<!-- ───────────────────────── F4 ───────────────────────── -->
+<div class="finding med" id="f4">
+  <h3><span class="fid">F4</span> <span class="badge b-med">Medium</span> Docs claim signups are gated to <code class="inl">@leibtour.com</code> — the gate was removed</h3>
+  <div class="loc"><code>app/CLAUDE.md</code> §1 &amp; §4.8 vs <code>services/supabase/migrations/20260518120000_drop_auth_domain_allowlist.sql</code></div>
+  <p><code class="inl">app/CLAUDE.md</code> states auth is "domain-restricted to <code class="inl">@leibtour.com</code>" and that "Only <code class="inl">@leibtour.com</code> emails can sign up (enforced by a <code class="inl">BEFORE INSERT</code> trigger on <code class="inl">auth.users</code>)." That trigger and its function were <strong>dropped</strong> in May 2026 — the migration comment explicitly says "SprintBrain is now an open SaaS product that accepts any valid email address," and <code class="inl">SignupPage.tsx</code> enforces no domain. The docs are the canonical onboarding reference (root <code class="inl">CLAUDE.md</code> mandates reading them before changes), so a developer reasoning about access control from the docs would draw a false, security-relevant conclusion (e.g. assume an allowlist exists and skip a check). The behavior is intentional; the documentation is stale.</p>
+  <div class="fix"><b>Recommended:</b> Update <code class="inl">app/CLAUDE.md</code> §1 and §4.8 to describe the open-signup reality and reference the drop migration, so the only access-control statement of record matches the database.</div>
+</div>
+
+<!-- ───────────────────────── F5 ───────────────────────── -->
+<div class="finding low" id="f5">
+  <h3><span class="fid">F5</span> <span class="badge b-low">Low</span> Rate limiter is in-memory &amp; client-side only</h3>
+  <div class="loc"><code>app/src/lib/rateLimiter.ts</code> · used in <code>SignupPage.tsx:201</code>, <code>AuthModal.tsx:589/645/676</code></div>
+  <p><code class="inl">checkRateLimit</code> counts attempts in a module-level <code class="inl">Map</code>. It resets on every page reload, is per-tab, and is bypassed entirely by anyone calling Supabase directly. It guards OTP send, password sign-in, and recovery — exactly the endpoints an attacker would target. Real protection here comes from Supabase's server-side limits (the function correctly handles HTTP 429 in <code class="inl">extension/auth/auth.js</code>), which makes the client limiter a UX nicety, not a control. The risk is mainly that it <em>reads</em> as a security measure.</p>
+  <div class="fix"><b>Recommended:</b> Keep it as UX debounce but document it as non-authoritative, and confirm Supabase Auth rate limits are configured server-side (they are the real boundary). No code change strictly required.</div>
+</div>
+
+<!-- ───────────────────────── F6 ───────────────────────── -->
+<div class="finding low" id="f6">
+  <h3><span class="fid">F6</span> <span class="badge b-low">Low</span> Background message listener returns <code class="inl">true</code> for every message</h3>
+  <div class="loc"><code>extension/background/background.js:469-475</code></div>
+  <p>This <code class="inl">onMessage</code> listener handles only <code class="inl">REFRESH_MENUS</code> but <code class="inl">return true</code> runs for <em>all</em> messages, telling Chrome "I will respond asynchronously." For every other message type (e.g. <code class="inl">log_event</code>, <code class="inl">auth_changed</code>, handled by the other two listeners) it keeps a response channel open that it never closes, producing intermittent <code class="inl">Unchecked runtime.lastError: The message port closed before a response was received</code> noise and a small leak. The pre-commit standard explicitly forbids committing service-worker console errors.</p>
+  <div class="fix"><b>Recommended:</b> Only keep the channel open for messages this listener actually answers:
+  <pre>if (msg &amp;&amp; msg.type === 'REFRESH_MENUS') { initMenus(); sendResponse({ ok: true }); return true; }
+return false;</pre></div>
+</div>
+
+<!-- ───────────────────────── F7 ───────────────────────── -->
+<div class="finding low" id="f7">
+  <h3><span class="fid">F7</span> <span class="badge b-low">Low</span> Intent-engine "Layer 2" LLM is a non-functional stub</h3>
+  <div class="loc"><code>app/src/lib/intentEngine.ts:233-249</code></div>
+  <p>When Layer-1 confidence falls below <code class="inl">LLM_THRESHOLD</code> (0.6), <code class="inl">classifyPrompt</code> calls <code class="inl">classifyWithLLM</code>, which is a stub that returns the same result with confidence cosmetically raised to ≥0.72 — no model is consulted. Any UI that displays this confidence, or treats ≥0.72 as "the LLM verified it," is showing a fabricated number for genuinely ambiguous prompts. This is clearly marked as a stub in-code, so it's a roadmap gap rather than a defect — flagged because the confidence bump is misleading if surfaced to users.</p>
+  <div class="fix"><b>Recommended:</b> Until the Claude call is wired, have the stub return Layer-1 confidence unchanged (don't inflate it), or tag the result so the UI can label it "heuristic" vs "verified." When implementing for real, use the latest model (<code class="inl">claude-opus-4-8</code>).</div>
+</div>
+
+<!-- ───────────────────────── F8 ───────────────────────── -->
+<div class="finding low" id="f8">
+  <h3><span class="fid">F8</span> <span class="badge b-low">Low</span> Bulk import runs sequential round-trips with no retry</h3>
+  <div class="loc"><code>app/src/stores/snippetStore.ts:452-473</code> (importSnippets)</div>
+  <p>Import loops <code class="inl">await snippetsApi.createSnippet(item)</code> one row at a time, so importing N snippets means N serial network requests (slow and visibly janky for large libraries — the production workspace already has ~158 rows). Failures are counted but not retried or surfaced per-row.</p>
+  <div class="fix"><b>Recommended:</b> Batch with a single multi-row <code class="inl">insert</code> (mirroring <code class="inl">bulkMoveSnippets</code>/<code class="inl">bulkDeleteSnippets</code>), or bound concurrency (e.g. <code class="inl">Promise.all</code> over chunks). Return the failed items so the UI can report which rows didn't import.</div>
+</div>
+
+<!-- ───────────────────────── F9 ───────────────────────── -->
+<div class="finding info" id="f9">
+  <h3><span class="fid">F9</span> <span class="badge b-info">Info</span> Documentation drift</h3>
+  <div class="loc"><code>docs/CLAUDE.md</code> · <code>AUDIT_SUMMARY.md</code> · <code>app/CLAUDE.md</code> §2</div>
+  <p>Several docs lag the code: <code class="inl">docs/CLAUDE.md</code> reportedly still says "Testing: Manual only / no test framework" while a 10-spec, 148-test vitest suite is wired to <code class="inl">npm run test</code> (this was already F1 in the prior <code class="inl">AUDIT_SUMMARY.md</code> and remains open); <code class="inl">AUDIT_SUMMARY.md</code>'s header still reads v2.63.8 while the repo is at v2.63.10; and the intent engine's preferred-model table points at <code class="inl">claude-opus-4-7</code>/<code class="inl">sonnet-4-6</code> (one generation behind the current <code class="inl">claude-opus-4-8</code>). Individually trivial, collectively they erode the "docs are source of truth" guarantee the repo relies on.</p>
+  <div class="fix"><b>Recommended:</b> Refresh the testing section, bump the audit header, and revisit the model map when convenient.</div>
+</div>
+
+<!-- ───────────────────────── F10 ───────────────────────── -->
+<div class="finding info" id="f10">
+  <h3><span class="fid">F10</span> <span class="badge b-info">Info</span> Dead write-only accumulators in the content script</h3>
+  <div class="loc"><code>extension/content/content.js:1450-1451, 1542</code></div>
+  <p><code class="inl">totalSecs</code> and <code class="inl">totalSnips</code> are declared and incremented on every celebration confirm but are never read anywhere in the bundle — dead state. The root standard forbids dead code in production. (Harmless, but it's exactly the kind of leftover the zero-defect bar targets.)</p>
+  <div class="fix"><b>Recommended:</b> Remove both, or actually surface the "seconds saved" lifetime stat in the popup if it was intended to be displayed.</div>
+</div>
+
+<h2>Also reviewed — clean</h2>
+<table class="summary-table">
+  <thead><tr><th style="width:200px">Area</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Popup &amp; content-script DOM</td><td>User/folder/snippet content is consistently passed through <code class="inl">esc()</code>/<code class="inl">xesc()</code> before <code class="inl">innerHTML</code> — no XSS found, including for shared-folder content rendered in the privileged popup.</td></tr>
+    <tr><td>Notion edge functions</td><td>Validate the caller JWT, re-check <code class="inl">user_id</code> ownership with the service-role client, slice content to Notion's 2000-char limit, and upsert idempotently. Sound.</td></tr>
+    <tr><td>Auth token handling (extension)</td><td>Single-flight refresh guard, proactive refresh within 60s, remember-me window honored, session cleared on refresh failure. Solid.</td></tr>
+    <tr><td>Optimistic stores</td><td>Snippet/folder mutations snapshot pre-state and roll back on failure with surfaced <code class="inl">error</code> — no silent swallow.</td></tr>
+    <tr><td>RLS / migrations</td><td>Migration history shows disciplined sequencing; the <code class="inl">is_shared</code> re-add hotfix correctly notes it does <em>not</em> re-introduce the read branch, so no cross-tenant exposure.</td></tr>
+    <tr><td>Formula engine safety</td><td>Recursive-descent parser, no <code class="inl">eval</code>/<code class="inl">Function</code>, CSP-safe; the only gap is the non-finite case in F2.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  Generated by an automated codebase audit. Severity reflects user/business impact × likelihood, not exploitability alone. No critical or actively-exploitable security issues were found; prioritize <b>F1</b> (feature correctness) and <b>F2</b> (customer-facing output) first, then <b>F3</b>/<b>F4</b>.
+</footer>
+
+</div>
+</body>
+</html>
