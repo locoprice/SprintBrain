@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FileText, Globe, Search, Share2, Sparkles, Users } from 'lucide-react';
+import { Children, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, FileText, Globe, Search, Share2, Sparkles, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { FolderShareModal } from '@/features/org/FolderShareModal';
@@ -440,7 +440,19 @@ interface AssetColumnProps {
   children: React.ReactNode;
 }
 
+/** Rows shown per column before the list collapses behind a "Show more" toggle. */
+const COLUMN_COLLAPSE_LIMIT = 8;
+
 function AssetColumn({ icon, label, count, children }: AssetColumnProps) {
+  const [expanded, setExpanded] = useState(false);
+  // Slice the rendered rows so a folder with dozens of shared items doesn't
+  // produce an endless column. The header keeps the true total ({count}); the
+  // toggle reveals the rest in place (no layout shift above the button).
+  const items = Children.toArray(children);
+  const overLimit = items.length > COLUMN_COLLAPSE_LIMIT;
+  const visible = expanded || !overLimit ? items : items.slice(0, COLUMN_COLLAPSE_LIMIT);
+  const hiddenCount = items.length - COLUMN_COLLAPSE_LIMIT;
+
   return (
     <div className="flex flex-col gap-1">
       <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
@@ -448,7 +460,21 @@ function AssetColumn({ icon, label, count, children }: AssetColumnProps) {
         {label}
         <span className="text-ink-subtle/70">· {count}</span>
       </div>
-      {children}
+      {visible}
+      {overLimit && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-1 inline-flex items-center justify-center gap-1 self-start rounded-[8px] px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light"
+        >
+          {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+      )}
     </div>
   );
 }
