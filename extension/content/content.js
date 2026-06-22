@@ -1239,6 +1239,22 @@ function doInsert(targetEl, snip) {
   if (!targetEl) return;
   var isCE = targetEl.isContentEditable || (targetEl.getAttribute &&
     (targetEl.getAttribute('contenteditable') === 'true' || targetEl.getAttribute('contenteditable') === ''));
+
+  // Celebrate after a synchronous CE insert. Capture the inserted region so the
+  // Undo button can delete it — same mechanism as the no-field CE path in
+  // _proceedInsert (see restoreFieldState).
+  function celebrateSyncCE() {
+    var snapshot = captureFieldState(targetEl, overlayTriggerLen);
+    snapshot.syncInserted  = true;
+    snapshot.endCharOffset = _ceCaretCharOffset(_ceHost(targetEl));
+    snapshot.visibleLen    = String(text).replace(/\n/g, '').length;
+    showCelebration(
+      text,
+      function onConfirm() { logEvent(snip, fillCount); },
+      function onUndo()    { restoreFieldState(snapshot); }
+    );
+  }
+
   if (isCE && overlayTriggerLen > 0) {
     // CE field overlay: the trigger was never actually deleted (deleteChars only
     // set a selection at match time, which this overlay's focus then wiped).
@@ -1247,17 +1263,23 @@ function doInsert(targetEl, snip) {
     // ::trigger survives and nothing is inserted.
     deleteChars(targetEl, overlayTriggerLen, function() {
       insertText(targetEl, text);
-      showCelebration(text);
-      logEvent(snip, fillCount);
+      celebrateSyncCE();
     });
+  } else if (isCE) {
+    // CE with no captured trigger (context-menu / selection-suggest): nothing to
+    // strip, so insert at the live caret now and celebrate with Undo.
+    insertText(targetEl, text);
+    celebrateSyncCE();
   } else {
-    // Textarea/input (trigger already stripped) and the selection-suggest path.
-    targetEl.focus();
-    setTimeout(function() {
-      insertText(targetEl, text);
-      showCelebration(text);
-      logEvent(snip, fillCount);
-    }, 50);
+    // Textarea/input: the trigger was already stripped before the overlay opened.
+    // Defer insertion to confirm so Undo can simply skip it — identical to the
+    // no-field non-CE path. insertText() refocuses the field itself.
+    var snapshot = captureFieldState(targetEl, overlayTriggerLen);
+    showCelebration(
+      text,
+      function onConfirm() { insertText(targetEl, text); logEvent(snip, fillCount); },
+      function onUndo()    { restoreFieldState(snapshot); }
+    );
   }
 }
 
