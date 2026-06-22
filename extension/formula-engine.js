@@ -212,7 +212,9 @@
         return isNaN(v) ? '0' : String(v);
       });
       var r = safeEval(s);
-      return (r === null || isNaN(r)) ? null : Math.round(r * 100) / 100;
+      // !isFinite catches NaN AND ±Infinity (e.g. divide-by-zero like {{= 1/0 }}),
+      // so a bad formula resolves to '' instead of leaking the literal "Infinity".
+      return (r === null || !isFinite(r)) ? null : Math.round(r * 100) / 100;
     } catch(e) { return null; }
   }
 

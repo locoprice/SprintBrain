@@ -27,7 +27,7 @@
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.
 
-**Scope (v2.28.0)**: Supabase OTP authentication (domain-restricted to `@leibtour.com`) with live reads + full CRUD for snippets, folders, and prompts (AUTH-001 + SNIPPETS-CRUD-001 + PROMPTS-001 all shipped). Analytics still uses mock fixtures pending the `snippet_events` time-series table (`ANALYTICS-001`). Dashboard now includes an `ExtensionLinkPage` for connecting the Chrome extension to a logged-in user session.
+**Scope (v2.28.0)**: Supabase OTP authentication (open signups — any valid email; the original `@leibtour.com` gate was dropped, see §4.8) with live reads + full CRUD for snippets, folders, and prompts (AUTH-001 + SNIPPETS-CRUD-001 + PROMPTS-001 all shipped). Analytics still uses mock fixtures pending the `snippet_events` time-series table (`ANALYTICS-001`). Dashboard now includes an `ExtensionLinkPage` for connecting the Chrome extension to a logged-in user session.
 
 **Audience**: hospitality operators (LeibTour) primarily; B2B prospects evaluating SprintBrain.
 
@@ -156,7 +156,7 @@ app/
 - All mock UUIDs are hand-rolled and stable across re-renders.
 
 ### 4.8 Auth + RLS
-- Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Only `@leibtour.com` emails can sign up (enforced by a `BEFORE INSERT` trigger on `auth.users`).
+- Magic-link flow via `supabase.auth.signInWithOtp`; PKCE. Signups are open to any valid email — the original `@leibtour.com` `BEFORE INSERT` trigger on `auth.users` was dropped (migration `20260518120000_drop_auth_domain_allowlist`).
 - The dashboard uses the Supabase publishable key; the JS client attaches the user's JWT to every request automatically.
 - DB RLS is the primary security layer and is active on every public table. Personal rows are gated by `auth.uid() = user_id`; **Phase B** adds an org branch on snippets/folders/prompts — `organization_id IS NOT NULL AND folder_id IS NOT NULL AND app.can_read_folder(folder_id)` for reads (and `app.can_write_folder` for writes) — resolved by recursion-safe `app.*` SECURITY DEFINER functions. The legacy `is_shared = true` global read **was retired (B5)** and the **column was dropped (B6, 2026-06-10)** — per-snippet sharing no longer exists anywhere; team visibility is folder-level only, and "Push to Notion" is a decoupled content-syndication action that only writes `notion_page_id`. The extension authenticates per-user via JWT (`extension/auth/auth.js`), so `auth.uid()` resolves on both surfaces — **AUTH-EXT-001 is shipped; no permissive `team_*` policies exist.**
 

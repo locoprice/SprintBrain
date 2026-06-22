@@ -1,7 +1,7 @@
 # CLAUDE.md — SprintBrain AI Development Reference
 
-**Document Version**: 3.1  
-**Last Updated**: 2026-05-16  
+**Document Version**: 3.2  
+**Last Updated**: 2026-06-22  
 **Project**: SprintBrain Chrome Extension (`extension/`)  
 **Purpose**: Single source of truth for AI assistants (Claude, GPT, Grok, etc.) during development. Read this before generating, modifying, or reviewing any code.
 
@@ -37,7 +37,7 @@
 
 **Goal**: Replace tools like TextBlaze / TextExpander / Magical, emphasizing dynamic formulas, AI prompts, and reliable sync.
 
-**Version**: 2.37.0  
+**Version**: 2.66.0  
 **Owner**: Alessandro Verdicchio
 
 ---
@@ -59,7 +59,7 @@
 | Notion Sync | Notion API v2022-06-28 | Optional, user-configured |
 | Icons | Unicode emoji + inline SVG | No icon library |
 | Date Handling | Native `Date` object | No date-fns |
-| Testing | Manual only | No test framework, no CI |
+| Testing | Node check scripts + CI | `node --check`, `scripts/check-*.js`; CI parity gate on push (see §11). No unit-test framework in the extension itself — the dashboard (`app/`) carries the vitest suite. |
 
 **No `package.json`** — this is not a Node.js project. There is no install step.
 
@@ -417,9 +417,9 @@ chore: bump manifest version to 2.38.0
 ## 14. Planned / Future Work
 
 - Pro tier with Stripe payments
-- Web dashboard (Next.js 15 App Router)
+- ~~Web dashboard~~ ✅ shipped — React + Vite (`app/`), not Next.js
 - Semantic search across snippets
-- Per-user authentication via Supabase Auth
+- ~~Per-user authentication via Supabase Auth~~ ✅ shipped (per-user JWT)
 - Optional: TypeScript migration (not started)
 
 ## 15. VERIFICATION PROTOCOL

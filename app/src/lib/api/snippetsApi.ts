@@ -18,6 +18,8 @@ export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;
   listSnippets(): Promise<SnippetRow[]>;
   createSnippet(payload: SnippetFormValues): Promise<SnippetRow>;
+  /** Insert many snippets in a single round-trip (used by import). */
+  createSnippetsBatch(items: SnippetFormValues[]): Promise<SnippetRow[]>;
   updateSnippet(id: string, patch: Partial<SnippetFormValues>): Promise<SnippetRow>;
   deleteSnippet(id: string): Promise<void>;
   /** Toggle pinned flag without touching other fields. */
@@ -177,6 +179,36 @@ function mergeActiveBody(
   return next;
 }
 
+/**
+ * Build the row object persisted by createSnippet / createSnippetsBatch. Each
+ * row gets its own id + sort_order so a batch insert keeps stable ordering.
+ */
+function buildSnippetInsert(
+  payload: SnippetFormValues,
+  userId: string,
+  now: string,
+  sortOrder: number,
+): Record<string, unknown> {
+  return {
+    id: crypto.randomUUID(),
+    user_id: userId,
+    title: payload.name,
+    shortcut: payload.trigger,
+    body: payload.content,
+    bodies: mergeActiveBody(payload.bodies, payload.language, payload.content),
+    lang: payload.language,
+    folder_id: payload.folder_id,
+    field_cfg: {},
+    sort_order: sortOrder,
+    updated_at: now,
+    pinned: payload.pinned ?? false,
+    alternative_queries: payload.alternative_queries ?? [],
+    enable_urgency_timer: payload.enable_urgency_timer ?? false,
+    timer_duration_ms: payload.timer_duration_ms ?? 0,
+    scarcity_count: payload.scarcity_count ?? 0,
+  };
+}
+
 export const snippetsApi: SnippetsApi = {
   // Folder CRUD lives in the shared foldersApi (folders are generic containers
   // for both snippets and prompts). These delegate so existing callers + tests
@@ -199,27 +231,7 @@ export const snippetsApi: SnippetsApi = {
 
   async createSnippet(payload) {
     const userId = await currentUserId();
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-    const bodies = mergeActiveBody(payload.bodies, payload.language, payload.content);
-    const insert = {
-      id,
-      user_id: userId,
-      title: payload.name,
-      shortcut: payload.trigger,
-      body: payload.content,
-      bodies,
-      lang: payload.language,
-      folder_id: payload.folder_id,
-      field_cfg: {},
-      sort_order: Date.now(),
-      updated_at: now,
-      pinned: payload.pinned ?? false,
-      alternative_queries: payload.alternative_queries ?? [],
-      enable_urgency_timer: payload.enable_urgency_timer ?? false,
-      timer_duration_ms: payload.timer_duration_ms ?? 0,
-      scarcity_count: payload.scarcity_count ?? 0,
-    };
+    const insert = buildSnippetInsert(payload, userId, new Date().toISOString(), Date.now());
     const { data, error } = await supabase
       .from('snippets')
       .insert(insert)
@@ -227,6 +239,21 @@ export const snippetsApi: SnippetsApi = {
       .single();
     if (error) throw error;
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+  },
+
+  async createSnippetsBatch(items) {
+    if (items.length === 0) return [];
+    const userId = await currentUserId();
+    const now = new Date().toISOString();
+    // Stagger sort_order off one base so the imported rows keep their file order.
+    const base = Date.now();
+    const rows = items.map((p, i) => buildSnippetInsert(p, userId, now, base + i));
+    const { data, error } = await supabase
+      .from('snippets')
+      .insert(rows)
+      .select(SNIPPET_SELECT);
+    if (error) throw error;
+    return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
   },
 
   async updateSnippet(id, patch) {

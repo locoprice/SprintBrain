@@ -12,11 +12,9 @@ export interface ClassificationResult {
   executionType: ExecutionType;
   thinkingMode: ThinkingMode;
   preferredModel: PreferredModel;
-  /** 0-1. Values below LLM_THRESHOLD would route to Layer 2. */
+  /** 0-1 deterministic match confidence: signal strength blended with the margin over the runner-up intent. */
   confidence: number;
 }
-
-const LLM_THRESHOLD = 0.6;
 
 /** Match weights. Phrases are the strongest, then specific terms, then generic. */
 const PHRASE_WEIGHT = 4;
@@ -222,31 +220,13 @@ export function classifyPromptText(text: string): ClassificationResult | null {
 }
 
 /**
- * Layer 2: LLM-backed strategy selector.
- * Activated when Layer 1 confidence is below LLM_THRESHOLD.
- *
- * Currently returns a deterministic result (stub).
- * Replace the stub body with a Claude API call once CLAUDE_API_KEY is wired:
- *   const anthropic = new Anthropic({ apiKey: import.meta.env.VITE_CLAUDE_API_KEY });
- *   const response = await anthropic.messages.create({ ... });
- */
-async function classifyWithLLM(
-  _text: string,
-  layer1: ClassificationResult,
-): Promise<ClassificationResult> {
-  // Stub: boost confidence slightly to signal Layer 2 ran.
-  return { ...layer1, confidence: Math.max(layer1.confidence, 0.72) };
-}
-
-/**
- * Full two-layer classifier. Use this in UI components.
- * Always fast (Layer 2 stub is synchronous in practice).
+ * Async entry point used by UI components. A thin wrapper over the deterministic
+ * Layer-1 classifier that reports the real match confidence (no inflation). The
+ * async signature is kept so an LLM-backed second pass can be added here later
+ * without touching callers.
  */
 export async function classifyPrompt(text: string): Promise<ClassificationResult | null> {
-  const layer1 = classifyPromptText(text);
-  if (!layer1) return null;
-  if (layer1.confidence >= LLM_THRESHOLD) return layer1;
-  return classifyWithLLM(text, layer1);
+  return classifyPromptText(text);
 }
 
 export { assembleBlocks } from '@/lib/promptUtils';

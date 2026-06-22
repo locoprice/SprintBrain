@@ -242,5 +242,16 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Split heavy vendors into their own cached chunks so no single chunk
+        // blows past Vite's 500 kB advisory and repeat visits re-use them.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
 });

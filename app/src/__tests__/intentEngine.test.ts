@@ -129,12 +129,12 @@ describe('classifyPromptText — confidence', () => {
   });
 });
 
-describe('classifyPrompt (two-layer)', () => {
+describe('classifyPrompt (async wrapper)', () => {
   it('returns null when Layer 1 finds nothing', async () => {
     await expect(classifyPrompt('lorem ipsum dolor sit')).resolves.toBeNull();
   });
 
-  it('returns a high-confidence Layer 1 result directly', async () => {
+  it('returns the Layer 1 result directly', async () => {
     const result = await classifyPrompt(
       'Refactor the typescript function and debug the runtime exception',
     );
@@ -142,13 +142,11 @@ describe('classifyPrompt (two-layer)', () => {
     expect(result!.confidence).toBeGreaterThanOrEqual(0.6);
   });
 
-  it('boosts low-confidence results via the Layer 2 stub', async () => {
+  it('reports the real Layer 1 confidence without inflating it', async () => {
     const layer1 = classifyPromptText('write a plan');
     const result = await classifyPrompt('write a plan');
     expect(layer1).not.toBeNull();
     expect(result).not.toBeNull();
-    if (layer1!.confidence < 0.6) {
-      expect(result!.confidence).toBeGreaterThanOrEqual(0.72);
-    }
+    expect(result!.confidence).toBe(layer1!.confidence);
   });
 });

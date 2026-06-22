@@ -491,11 +491,13 @@ chrome.windows.onFocusChanged.addListener(function(winId) {
 });
 // Message handler from popup
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
-  if (msg.type === 'REFRESH_MENUS') {
+  if (msg && msg.type === 'REFRESH_MENUS') {
     initMenus();
     sendResponse({ ok: true });
   }
-  return true;
+  // No `return true`: the response above is synchronous. Returning true kept the
+  // channel open for EVERY message (incl. log_event / auth_changed handled by
+  // other listeners), producing "message channel closed" noise and leaks.
 });
 
 

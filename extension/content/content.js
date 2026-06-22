@@ -1464,9 +1464,6 @@ var MSGS = [
   {e:'🎯',h:'Bullseye!',s:'Right message, right guest, right now.'}
 ];
 
-var totalSecs = 0;
-var totalSnips = 0;
-
 function showCelebration(text, onConfirm, onUndo) {
   ['sb-celebrate','sb-cel-bd'].forEach(function(id){ var e=document.getElementById(id); if(e)e.remove(); });
 
@@ -1556,7 +1553,6 @@ function showCelebration(text, onConfirm, onUndo) {
   function confirm() {
     if (settled) return;
     dismiss();
-    totalSecs += secs; totalSnips++;
     if (typeof onConfirm === 'function') onConfirm();
   }
 

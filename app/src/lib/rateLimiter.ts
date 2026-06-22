@@ -1,3 +1,12 @@
+// Client-side UX guard — NOT a security control.
+//
+// This lives in a single tab's memory and resets on reload, so it cannot stop a
+// determined caller. Its only job is to stop an honest user from hammering the
+// auth endpoints (e.g. double-submitting the magic-link form). The real abuse
+// protection is server-side: Supabase Auth rate-limits OTP, password, and
+// recovery requests per-IP and per-email. Do not treat this module as the
+// boundary — it's the polite first line, the server is the enforced one.
+
 interface RateWindow {
   count: number;
   startMs: number;

@@ -450,26 +450,35 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   },
 
   importSnippets: async (items) => {
-    let imported = 0;
-    let failed = 0;
-    const created: SnippetRow[] = [];
+    if (items.length === 0) return { imported: 0, failed: 0 };
 
-    for (const item of items) {
-      try {
-        const row = await snippetsApi.createSnippet(item);
-        const folder = get().folders.find((f) => f.id === row.folder_id);
-        created.push({ ...row, folder_name: row.folder_name ?? folder?.name ?? null });
-        imported++;
-      } catch {
-        failed++;
+    const enrich = (row: SnippetRow): SnippetRow => {
+      const folder = get().folders.find((f) => f.id === row.folder_id);
+      return { ...row, folder_name: row.folder_name ?? folder?.name ?? null };
+    };
+
+    // Fast path: insert the whole batch in one round-trip.
+    try {
+      const created = (await snippetsApi.createSnippetsBatch(items)).map(enrich);
+      if (created.length > 0) set((s) => ({ snippets: [...s.snippets, ...created] }));
+      return { imported: created.length, failed: items.length - created.length };
+    } catch {
+      // The batch insert is all-or-nothing; fall back to per-row so a single bad
+      // row doesn't sink an otherwise-valid import (partial success preserved).
+      let imported = 0;
+      let failed = 0;
+      const created: SnippetRow[] = [];
+      for (const item of items) {
+        try {
+          created.push(enrich(await snippetsApi.createSnippet(item)));
+          imported++;
+        } catch {
+          failed++;
+        }
       }
+      if (created.length > 0) set((s) => ({ snippets: [...s.snippets, ...created] }));
+      return { imported, failed };
     }
-
-    if (created.length > 0) {
-      set((s) => ({ snippets: [...s.snippets, ...created] }));
-    }
-
-    return { imported, failed };
   },
 
   // ── Version history ──────────────────────────────────────────────────────
