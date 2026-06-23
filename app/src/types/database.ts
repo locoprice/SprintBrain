@@ -178,6 +178,50 @@ export interface AnalyticsSummary {
   top_triggers: TopTrigger[];
 }
 
+/** One calendar day in the Activity Overview heatmap (local timezone). */
+export interface ActivityDay {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+/** One spoke of the "Activity overview" radar (adapted from GitHub's kite). */
+export interface ActivityAxis {
+  key: string;
+  label: string;
+  count: number;
+}
+
+/** A single bar inside a "Contribution activity" month group. */
+export interface ActivityBar {
+  label: string;
+  count: number;
+}
+
+/** One month group in the "Contribution activity" timeline. */
+export interface ActivityMonth {
+  key: string; // YYYY-MM
+  label: string; // e.g. "June 2026"
+  total: number; // expansions that month
+  items: ActivityBar[]; // top folders that month
+}
+
+/** GitHub-style "Activity overview" + "Contribution activity", on snippet data. */
+export interface ActivityOverview {
+  axes: ActivityAxis[]; // Snippets / Prompts / Folders / Notion syncs
+  activeFolders: string[]; // top folders by usage — the "Contributed to" line
+  timeline: ActivityMonth[]; // most-recent month first
+}
+
+/** Year-long snippet-activity series powering the contribution heatmap. */
+export interface ActivityData {
+  /** Dense, ascending — one entry per day from `start` (a Sunday) to `end` (today). */
+  days: ActivityDay[];
+  total: number; // sum of expansions across the window
+  start: string; // YYYY-MM-DD — first cell (Sunday)
+  end: string; // YYYY-MM-DD — today
+  overview: ActivityOverview;
+}
+
 // ── Organizations & folder permissions (Phase B — folder sharing) ─────────────
 
 /** RBAC role within an organization. Gates management actions. */

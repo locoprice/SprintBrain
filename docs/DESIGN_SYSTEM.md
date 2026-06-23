@@ -65,6 +65,19 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 | `warning` | `#FEBC2E` | Caution            |
 | `danger`  | `#D70015` | Destructive (Apple SF system red — AA-safe as text on `card`) |
 
+### Activity heatmap scale (Analytics "Activity Overview")
+
+Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's green so the heatmap stays on the single azure primary. Defined as CSS variables in `app/src/index.css` (light + dark) — referenced by name, never hard-coded in components.
+
+| Token (light → dark)   | Light       | Dark        | Usage                          |
+| ---------------------- | ----------- | ----------- | ------------------------------ |
+| `--activity-0`         | `#EBEDF0`   | `#2C2F36`   | No activity (empty cell)       |
+| `--activity-1`         | `#C7D8FF`   | `#1E3A6E`   | Low activity                   |
+| `--activity-2`         | `#8FAEF6`   | `#2C56A8`   | Moderate activity              |
+| `--activity-3`         | `#4E7AEA`   | `#3F74E0`   | High activity                  |
+| `--activity-4`         | `#1B4FD8`   | `#6E96F0`   | Peak activity (brand)          |
+| `--activity-cell-border` | `rgba(27,31,35,.06)` | `rgba(255,255,255,.06)` | 1px inset cell hairline |
+
 ### Radii
 
 | Token         | Value | Usage                                    |
