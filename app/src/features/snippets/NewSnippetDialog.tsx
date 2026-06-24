@@ -426,7 +426,7 @@ export function NewSnippetDialog() {
                   <option value="">No folder</option>
                   {folders.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.icon} {f.name}
+                      {f.name}
                     </option>
                   ))}
                 </select>

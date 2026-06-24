@@ -10,14 +10,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { DEFAULT_FOLDER_ICON, FOLDER_ICON_KEYS, FolderIcon } from '@/lib/folderIcons';
 import type { Folder } from '@/types/database';
 import { folderFormSchema, type FolderFormValues } from '@/types/schemas';
 
-const ICON_OPTIONS = ['🏠', '🌍', '🏢', '📋', '📊', '💬', '✈️', '🔧', '📝', '⭐'];
-
 const DEFAULT_FORM: FolderFormValues = {
   name: '',
-  icon: ICON_OPTIONS[0] ?? '📁',
+  icon: DEFAULT_FOLDER_ICON,
 };
 
 type FieldErrors = Partial<Record<keyof FolderFormValues, string>>;
@@ -175,7 +174,7 @@ export function FolderDialog({
           <div className="grid gap-1.5">
             <span className="text-xs font-medium text-ink-muted">Icon</span>
             <div className="flex flex-wrap gap-2">
-              {ICON_OPTIONS.map((opt) => {
+              {FOLDER_ICON_KEYS.map((opt) => {
                 const active = form.icon === opt;
                 return (
                   <button
@@ -184,12 +183,14 @@ export function FolderDialog({
                     onClick={() => updateField('icon', opt)}
                     disabled={saving}
                     className={cn(
-                      'flex h-10 w-10 items-center justify-center rounded-[12px] border text-lg transition-colors',
-                      active ? 'border-primary bg-primary-light' : 'border-line bg-card hover:bg-bg-alt',
+                      'flex h-10 w-10 items-center justify-center rounded-[12px] border transition-colors',
+                      active
+                        ? 'border-primary bg-primary-light text-primary'
+                        : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
                     )}
                     aria-pressed={active}
                   >
-                    {opt}
+                    <FolderIcon icon={opt} className="h-5 w-5" />
                   </button>
                 );
               })}

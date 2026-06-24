@@ -734,7 +734,7 @@ export function PromptBlockEditor() {
               <DarkSelect
                 value={folderId}
                 onChange={setFolderId}
-                options={folders.map((f) => ({ value: f.id, label: `${f.icon} ${f.name}` }))}
+                options={folders.map((f) => ({ value: f.id, label: f.name }))}
                 placeholder="No folder"
               />
             </div>

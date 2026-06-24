@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Folders, Globe, Pencil, Plus, Share2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FolderIcon } from '@/lib/folderIcons';
 import type { Folder, FolderShareInfo } from '@/types/database';
 import type { FolderFormValues } from '@/types/schemas';
 import { FolderContextMenu } from '@/features/org/FolderContextMenu';
@@ -123,7 +124,7 @@ export function FolderTree({
               )}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span className="text-base leading-none">{f.icon}</span>
+                <FolderIcon icon={f.icon} />
                 <span className="truncate">{f.name}</span>
                 {share && <FolderShareBadge info={share} />}
               </span>

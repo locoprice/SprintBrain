@@ -11,6 +11,7 @@ import { usePromptStore } from '@/stores/promptStore';
 import { useOrgStore } from '@/stores/orgStore';
 import { useAuthStore } from '@/stores/authStore';
 import { permissionsApi } from '@/lib/api/permissionsApi';
+import { FolderIcon } from '@/lib/folderIcons';
 import type { Folder, FolderPermission, FolderShareScope, OrgMember } from '@/types/database';
 
 /** Resolved creator identity for a shared item. */
@@ -353,7 +354,7 @@ function SharedFolderCard({
     <section className="rounded-[16px] border border-line bg-card p-5">
       {/* Folder header */}
       <div className="flex items-center gap-3 border-b border-line pb-3">
-        <span className="text-lg leading-none">{folder.icon}</span>
+        <FolderIcon icon={folder.icon} className="h-[18px] w-[18px]" />
         <h2 className="truncate text-sm font-semibold text-ink">{folder.name}</h2>
 
         {scope === 'team' ? (

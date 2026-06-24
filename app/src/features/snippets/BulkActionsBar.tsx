@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, FolderInput, Loader2, Trash2, X } from 'lucide-react';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { cn } from '@/lib/utils';
+import { FolderIcon } from '@/lib/folderIcons';
 
 type BulkAction = '' | 'move' | 'delete';
 
@@ -145,10 +146,10 @@ export function BulkActionsBar() {
                   key={f.id}
                   type="button"
                   onClick={() => void handleMove(f.id)}
-                  className="w-full px-3 py-2 text-left text-xs text-ink hover:bg-bg-alt"
+                  className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs text-ink hover:bg-bg-alt"
                 >
-                  <span className="mr-1.5">{f.icon}</span>
-                  {f.name}
+                  <FolderIcon icon={f.icon} className="h-3.5 w-3.5 text-ink-muted" />
+                  <span className="truncate">{f.name}</span>
                 </button>
               ))}
             </div>
