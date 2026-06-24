@@ -454,6 +454,11 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.73.0', date:'2026-06-24', label:'fix: team-shared snippets & prompts now sync to the mobile companion',
+    changes:[
+      {type:'fix', text:'Mobile companion (/mobile/) now shows team-shared snippets, prompts and folders. It was reading personal-only because every query filtered by user_id — so snippets like "Time" shared by a teammate were missing. Snippets now load via the accessible_snippets() RPC (the same source as this popup); folders and prompts rely on RLS, so org-shared rows surface for every member'},
+      {type:'new', text:'Mobile new-folder form gains an icon picker and renders the shared SVG glyph set, matching the popup and dashboard'}
+    ]},
   { version:'v2.64.0', date:'2026-06-21', label:'fix: Team Sync restored — shared snippets & prompts now visible to all team members',
     changes:[
       {type:'fix', text:'Team Sync button restored in Settings — moves personal snippets and prompts into the team-shared folder via the Phase B folder ACL, so all org members can see them through accessible_snippets()'},
