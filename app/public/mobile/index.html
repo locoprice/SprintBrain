@@ -487,7 +487,25 @@ body{
 }
 .sb-folder-new-btn:active{opacity:.7}
 .sb-folder-new-ico{font-size:20px;line-height:1;width:24px;text-align:center}
-.sb-folder-new-form{display:flex;gap:8px;padding:4px 0 2px}
+.sb-folder-new-form{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 2px}
+/* Folder-icon glyphs render at the container's font-size, inheriting text color —
+   keeps mobile byte-identical to the extension & dashboard SVG set. */
+.folder-pill-ico svg,.fbadge-ico svg,.sb-field-ico svg,.sb-folder-row-ico svg,.det-folder-ico svg,.an-folder-ico svg,.sb-fico-opt svg{
+  width:1em;height:1em;display:inline-block;vertical-align:-.125em;
+  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round
+}
+/* New-folder icon picker (matches the extension folder-modal + dashboard FolderDialog).
+   Scoped under .sb-fico-picker to beat the generic ".sb-folder-new-form button" rule. */
+.sb-fico-picker{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;padding:2px 0}
+.sb-fico-picker .sb-fico-opt{
+  width:38px;height:38px;min-height:0;flex:0 0 auto;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:400;border:1px solid var(--border);border-radius:var(--r-in);
+  background:var(--card);color:var(--text2);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:all .15s
+}
+.sb-fico-picker .sb-fico-opt:active{transform:scale(.94)}
+.sb-fico-picker .sb-fico-opt.sel{border-color:var(--primary);background:var(--primary-lt);color:var(--primary)}
 .sb-folder-new-form input{
   flex:1;padding:10px 12px;font-size:15px;
   background:var(--bg-alt);border:1px solid var(--border);
@@ -1058,6 +1076,7 @@ body{
         <span>New Folder</span>
       </button>
       <div class="sb-folder-new-form sb-hidden" id="sb-folder-new-form">
+        <div class="sb-fico-picker" id="sb-fico-picker" role="group" aria-label="Folder icon"></div>
         <input type="text" id="sb-folder-new-name" placeholder="Folder name"
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="sb-folder-new-create">Create</button>
@@ -1366,10 +1385,14 @@ function loadSnips(){
     }
   }catch(e){}
 
-  var uidQ='user_id=eq.'+encodeURIComponent(USER_ID);
-  var sFetch=fetch(SUPA+'/rest/v1/snippets?select=*&'+uidQ+'&order=sort_order,title',{headers:authHeaders()})
+  // Visibility parity with the dashboard + extension popup: surface the user's
+  // own rows PLUS any in a folder shared with them (Phase B org ACL). Snippets go
+  // through accessible_snippets() (SECURITY DEFINER) — the same RPC the extension
+  // popup uses — and folders rely on their own org-read RLS. No user_id filter:
+  // that was hiding every team-shared asset (mobile showed personal-only).
+  var sFetch=fetch(SUPA+'/rest/v1/rpc/accessible_snippets?select=*&order=sort_order,title',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();});
-  var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&'+uidQ+'&order=sort_order,name',{headers:authHeaders()})
+  var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.ok?r.json():[];})
     .catch(function(){return [];});
 
@@ -1454,18 +1477,34 @@ function esc(s){
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-var FOLDER_ICO_MAP={
-  folder:'📁', clipboard:'📋', home:'🏠', message:'💬',
-  cpu:'🤖', star:'⭐', key:'🔑', dollar:'💰',
-  'file-text':'📄', globe:'🌐'
+// Canonical folder-icon SVG set — byte-identical to the extension's _FOLDER_SVGS
+// (extension/popup/popup.js) and the dashboard's lucide map (app/src/lib/folderIcons.tsx),
+// so a folder icon renders the same glyph on all three surfaces. folders.ico stores the
+// keyword key; size + stroke color come from CSS (see .sb-folder-row-ico svg etc.).
+var FOLDER_ICON_KEYS=['folder','clipboard','home','message','cpu','star','key','dollar','file-text','globe'];
+var _FOLDER_SVGS={
+  folder:'<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  clipboard:'<svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+  home:'<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  message:'<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  cpu:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  star:'<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  key:'<svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  dollar:'<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  'file-text':'<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  globe:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
 };
+// Legacy dashboard emoji → canonical key, so folders created before the vocabulary
+// was unified keep a meaningful glyph; anything unknown falls back to folder.
+var FOLDER_LEGACY_EMOJI={'🏠':'home','🌍':'globe','🏢':'folder','📋':'clipboard','📊':'folder','💬':'message','✈️':'folder','🔧':'key','📝':'file-text','⭐':'star'};
+function resolveFolderIcoKey(raw){
+  if(!raw)return 'folder';
+  if(_FOLDER_SVGS[raw])return raw;
+  if(FOLDER_LEGACY_EMOJI[raw])return FOLDER_LEGACY_EMOJI[raw];
+  return 'folder';
+}
 function folderIcon(f){
-  var ic=(f&&f.ico)||'';
-  if(!ic)return '📁';
-  if(FOLDER_ICO_MAP[ic])return FOLDER_ICO_MAP[ic];
-  var cp=ic.codePointAt?ic.codePointAt(0):ic.charCodeAt(0);
-  if(cp>=0x1F300||(cp>=0x2600&&cp<=0x27FF))return ic;
-  return '📁';
+  return _FOLDER_SVGS[resolveFolderIcoKey((f&&f.ico)||'')];
 }
 /* ── LANG-VARIANT GROUPING KEY ────────────────────────────
    Group by lang_group_id when present, else fall back to the trigger with its
@@ -1513,8 +1552,10 @@ function sharingBadge(item){
 
 /* ── PROMPTS ────────────────────────────────────── */
 function loadPrompts(){
+  // No user_id filter — prompts RLS returns the user's own prompts plus any in a
+  // folder shared with them (Phase B org branch), matching the extension popup.
   var url=SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT
-    +'&user_id=eq.'+encodeURIComponent(USER_ID)+'&order=updated_at.desc';
+    +'&order=updated_at.desc';
   fetch(url,{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();})
     .then(function(data){
@@ -1969,7 +2010,7 @@ function renderDetail(snip){
   var fName=document.getElementById('det-folder-name');
   var f=getFolderById(snip.folder_id);
   if(f&&fWrap){
-    fIco.textContent=folderIcon(f);
+    fIco.innerHTML=folderIcon(f);
     fName.textContent=f.name||'Folder';
     fWrap.classList.remove('sb-hide');
   }else if(fWrap){
@@ -2260,10 +2301,10 @@ function renderEditFolderRow(){
   var ico=document.getElementById('sb-edit-folder-ico');
   var name=document.getElementById('sb-edit-folder-name');
   if(f){
-    ico.textContent=folderIcon(f);
+    ico.innerHTML=folderIcon(f);
     name.textContent=f.name||'Folder';
   }else{
-    ico.textContent='📁';
+    ico.innerHTML=_FOLDER_SVGS.folder;
     name.textContent='None';
   }
 }
@@ -2366,6 +2407,18 @@ function renderFolderPicker(){
   ul.innerHTML=html;
 }
 
+var newFolderIco='folder';
+function renderNewFolderIcoPicker(){
+  var box=document.getElementById('sb-fico-picker');
+  if(!box)return;
+  var html='';
+  for(var i=0;i<FOLDER_ICON_KEYS.length;i++){
+    var k=FOLDER_ICON_KEYS[i];
+    var on=(k===newFolderIco);
+    html+='<button type="button" class="sb-fico-opt'+(on?' sel':'')+'" data-ico="'+k+'" aria-label="'+k+'" aria-pressed="'+on+'">'+_FOLDER_SVGS[k]+'</button>';
+  }
+  box.innerHTML=html;
+}
 function resetFolderNewForm(){
   var form=document.getElementById('sb-folder-new-form');
   var btn=document.getElementById('sb-folder-new-btn');
@@ -2375,6 +2428,8 @@ function resetFolderNewForm(){
   if(btn)btn.classList.remove('sb-hidden');
   if(input)input.value='';
   if(err)err.textContent='';
+  newFolderIco='folder';
+  renderNewFolderIcoPicker();
 }
 
 function createFolderInline(){
@@ -2397,7 +2452,7 @@ function createFolderInline(){
     var so=allFolders[j].sort_order;
     if(typeof so==='number'&&so>maxSort)maxSort=so;
   }
-  var f={id:newId(),name:name,ico:'folder',sort_order:maxSort+1,user_id:USER_ID};
+  var f={id:newId(),name:name,ico:newFolderIco,sort_order:maxSort+1,user_id:USER_ID};
   fetch(SUPA+'/rest/v1/folders',{
     method:'POST',
     headers:authHeaders({
@@ -2447,6 +2502,18 @@ document.getElementById('sb-folder-new-create').addEventListener('click',createF
 document.getElementById('sb-folder-new-name').addEventListener('keydown',function(e){
   if(e.key==='Enter'){e.preventDefault();createFolderInline();}
 });
+(function(){
+  var box=document.getElementById('sb-fico-picker');
+  if(box){
+    box.addEventListener('click',function(e){
+      var btn=e.target.closest?e.target.closest('.sb-fico-opt'):null;
+      if(!btn)return;
+      newFolderIco=btn.getAttribute('data-ico')||'folder';
+      renderNewFolderIcoPicker();
+    });
+  }
+  renderNewFolderIcoPicker();
+})();
 (function(){
   var area=document.querySelector('#sb-folder-sheet .sb-sheet-handle-area');
   var panel=document.querySelector('#sb-folder-sheet .sb-sheet-panel');
