@@ -15,5 +15,8 @@ Thumbs.db
 # Claude Code local config — never commit
 .claude/
 
+# Session scratch — multi-session task progress, never commit
+_progress.md
+
 # Extension build artifacts (sprintbrain_vX.Y.Z.zip from packaging)
 *.zip
