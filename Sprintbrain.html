@@ -28,7 +28,8 @@
   .nv-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--sb-ink)}
   .nv-logo{width:26px;height:26px;border-radius:var(--sb-r-sm);background:var(--sb-azure);display:flex;align-items:center;justify-content:center;flex-shrink:0}
   .nv-logo svg{width:15px;height:15px;stroke:#fff;fill:#fff;stroke-width:1}
-  .nv-ver{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:2px 8px}
+  .nv-ver{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:2px 8px;cursor:pointer;transition:color .12s,border-color .12s}
+  .nv-ver:hover{color:var(--sb-azure);border-color:var(--sb-iris-bdr)}
   .nv-search{position:relative;margin-left:auto;width:300px;max-width:38vw}
   .nv-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--sb-ink-subtle);fill:none;stroke-width:2;pointer-events:none}
   .nv-search input{width:100%;background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-in,10px);padding:8px 12px 8px 34px;font-size:var(--sb-fs-13);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
@@ -225,6 +226,25 @@
   .nv-comp-synx p{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);line-height:1.5}
   @media (max-width:860px){ .nv-comp-grid{grid-template-columns:1fr} }
 
+  /* ── Changelog modal ── */
+  .nv-cl-box{width:460px;max-width:100%;display:flex;flex-direction:column;max-height:85vh}
+  .nv-cl-scroll{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
+  .nv-cl-rel{border-left:2px solid var(--sb-line-2);padding-left:12px}
+  .nv-cl-rel:first-child{border-left-color:var(--sb-azure)}
+  .nv-cl-rh{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .nv-cl-rv{font-size:var(--sb-fs-13);font-weight:700;color:var(--sb-azure);font-family:var(--sb-mono)}
+  .nv-cl-rel:not(:first-child) .nv-cl-rv{color:var(--sb-ink-muted)}
+  .nv-cl-rl{font-size:11px;font-weight:600;color:var(--sb-ink-muted)}
+  .nv-cl-rd{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-left:auto}
+  .nv-cl-cs{display:flex;flex-direction:column;gap:5px}
+  .nv-cl-c{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--sb-ink-muted);line-height:1.5}
+  .nv-cl-b{flex-shrink:0;font-size:9px;font-weight:700;padding:1px 6px;border-radius:var(--sb-r-pill);margin-top:1px;text-transform:uppercase;letter-spacing:.3px}
+  .nv-cl-b.new,.nv-cl-b.feat{background:var(--sb-ok-bg);color:var(--sb-ok);border:1px solid var(--sb-ok-bdr)}
+  .nv-cl-b.fix{background:var(--sb-warn-bg);color:var(--sb-warn);border:1px solid var(--sb-warn-bdr)}
+  .nv-cl-b.refactor,.nv-cl-b.perf,.nv-cl-b.chore,.nv-cl-b.docs{background:var(--sb-iris-bg);color:var(--sb-azure);border:1px solid var(--sb-iris-bdr)}
+  .nv-cl-foot{flex-shrink:0;border-top:1px solid var(--sb-line);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono);background:var(--sb-bg-alt)}
+  .nv-cl-foot strong{color:var(--sb-azure);font-weight:700}
+
   /* ── Context menu ── */
   .nv-ctx{position:fixed;z-index:120;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:12px;box-shadow:var(--sb-shadow-lg);min-width:212px;padding:4px 0}
   .nv-ctx-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:var(--sb-fs-13);color:var(--sb-ink);transition:background .1s}
@@ -264,7 +284,7 @@
     <span class="nv-brand">
       <span class="nv-logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
       SprintBrain
-      <span class="nv-ver" id="nv-ver"></span>
+      <span class="nv-ver" id="nv-ver" title="View changelog"></span>
     </span>
     <div class="nv-search">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -515,10 +535,23 @@
   </div>
 </div>
 
+<!-- ═══ CHANGELOG MODAL (native; renders shared window.CHANGELOG from popup.js) ═══ -->
+<div class="nv-modal-bg" id="nv-cl-bg">
+  <div class="nv-modal nv-cl-box">
+    <div class="nv-modal-h">
+      <span class="nv-logo" style="width:24px;height:24px"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      <h2>Changelog</h2>
+      <button class="nv-iconbtn" id="nv-cl-x" title="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="nv-cl-scroll" id="nv-cl-scroll"></div>
+    <div class="nv-cl-foot" id="nv-cl-foot"></div>
+  </div>
+</div>
+
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.79.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.80.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -1234,16 +1267,45 @@
   }
   function leaveComposer(){ composerOpen = false; $('nv-composer').style.display = 'none'; }
 
+  // ── Changelog (native modal; renders the shared window.CHANGELOG from popup.js) ─
+  function openChangelog(){
+    var data = window.CHANGELOG || [];
+    var scroll = $('nv-cl-scroll');
+    if (!data.length) { scroll.innerHTML = '<div class="nv-empty">No changelog entries yet.</div>'; }
+    else {
+      scroll.innerHTML = data.map(function(rel){
+        var changes = (rel.changes || rel.items || []).map(function(c){
+          return '<div class="nv-cl-c"><span class="nv-cl-b ' + ec(c.type) + '">' + ec(c.type) + '</span><span>' + ec(c.text) + '</span></div>';
+        }).join('');
+        return '<div class="nv-cl-rel"><div class="nv-cl-rh">'
+          + '<span class="nv-cl-rv">' + ec(rel.version) + '</span>'
+          + '<span class="nv-cl-rl">' + ec(rel.label || '') + '</span>'
+          + '<span class="nv-cl-rd">' + ec(rel.date || '') + '</span></div>'
+          + '<div class="nv-cl-cs">' + changes + '</div></div>';
+      }).join('');
+    }
+    var latest = data[0];
+    $('nv-cl-foot').innerHTML = latest
+      ? '<span>Ver. <strong>' + ec(latest.version) + '</strong></span><span>Last update: <strong>' + ec(latest.date) + '</strong></span>'
+      : '';
+    $('nv-cl-bg').classList.add('on');
+  }
+  function closeChangelog(){ $('nv-cl-bg').classList.remove('on'); }
+
   // ── Top-level wiring ────────────────────────────────────────────────
   $('nv-nav-snip').addEventListener('click', function(){ gotoMode('snippets'); });
   $('nv-nav-prompt').addEventListener('click', function(){ gotoMode('prompts'); });
   $('nv-nav-settings').addEventListener('click', openSettings);
   $('nv-nav-composer').addEventListener('click', openComposer);
+  $('nv-ver').addEventListener('click', openChangelog);
+  $('nv-cl-x').addEventListener('click', closeChangelog);
+  $('nv-cl-bg').addEventListener('click', function(e){ if (e.target === $('nv-cl-bg')) closeChangelog(); });
   $('nv-new').addEventListener('click', function(){ if (!settingsOpen && nvMode === 'snippets') openEditor(null); });
   $('nv-reload').addEventListener('click', loadData);
   var qT;
   $('nv-q').addEventListener('input', function(e){ nvSearch = e.target.value || ''; clearTimeout(qT); qT = setTimeout(renderMain, 160); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-modal-bg').classList.contains('on')) closeEditor(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-cl-bg').classList.contains('on')) closeChangelog(); });
 
   // ── Boot: skip the gate if a session already exists ─────────────────
   try { $('nv-ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch(e) {}
