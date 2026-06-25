@@ -177,11 +177,13 @@ app/
 
 **Netlify** publishes `app/dist`. SPA fallback to `index.html`. The static folders `landing/` and `mobile/` are copied verbatim from `app/public/` and served at `/landing/` and `/mobile/`.
 
+The **shared-core dashboard** `Sprintbrain.html` (repo root) and its `extension/*` deps are copied into `dist/` at build time by `nativeDashboardPlugin()` in `vite.config.ts` (single source — not duplicated in git), so it ships at **`/Sprintbrain.html`** with deps under `/extension/*` (real files take precedence over the SPA fallback). It is the vanilla counterpart to this React dashboard, on the same Supabase backend. See `../docs/CLAUDE.md` §4/§14.
+
 ---
 
 ## 6. What NOT to do
 
-- Do not import from extension source files (`extension/`). They share no runtime with the dashboard.
+- Do not import from extension source files (`extension/`) into the React app — they share no runtime with it. (Exception: `vite.config.ts`'s `nativeDashboardPlugin` copies them into `dist/` at build time for the separate static `Sprintbrain.html` page — a file copy, not a React import.)
 - The `.eq('user_id', currentUserId)` filters in `lib/api` are redundant with RLS (which already enforces per-user isolation on every table), but they also decide which rows the dashboard surfaces. **Phase B** intentionally dropped them from `snippetsApi.listSnippets` / `listFolders` so folders shared with the user (and their snippets) surface via RLS. The remaining write/patch helpers keep `.eq('user_id')` as an owner scope — don't drop those ad-hoc.
 - Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
