@@ -164,7 +164,10 @@ img,svg{display:block;max-width:100%}
   color:#fff;
   margin:0;
   white-space:normal}
-.foot-statement h2 span{color:var(--primary)}
+.foot-statement h2 span{
+  background:linear-gradient(120deg,#5B82F0 0%,#7FA8F8 50%,#A9C7FF 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent}
 .foot-statement-sub{
   margin-top:clamp(20px,3vw,36px);
   font-size:clamp(15px,1.4vw,19px);
@@ -1369,7 +1372,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.76.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.77.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
