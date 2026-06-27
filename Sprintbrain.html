@@ -658,7 +658,14 @@
   }
 
   // ── Rendering ───────────────────────────────────────────────────────
-  function renderAll(){ renderKpis(); renderNav(); renderFolderList(); renderMain(); }
+  function renderAll(){
+    renderKpis(); renderNav(); renderFolderList(); renderMain();
+    // Deep-link: open the Composer on first render when the URL requests it (e.g.
+    // /Sprintbrain.html#composer from the React dashboard sidebar). One-shot so a
+    // later in-app reload doesn't override manual navigation; the hashchange
+    // listener below handles live hash updates.
+    if (!_composerDeepLinked && location.hash === '#composer') { _composerDeepLinked = true; openComposer(); }
+  }
 
   function renderKpis(){
     var snipN = groupCount(window.snips || []);
@@ -1079,7 +1086,7 @@
   });
 
   // ── Settings (trigger / sequences / language / Notion / team) ───────
-  var settingsOpen = false, composerOpen = false;
+  var settingsOpen = false, composerOpen = false, _composerDeepLinked = false;
   function setStatus(id, txt, color){ var e = $(id); if (e){ e.textContent = txt || ''; e.style.color = color || ''; } }
   function validSeq(seq){ return (typeof validateTriggerSeq === 'function') ? validateTriggerSeq(seq) : (!!seq && seq.length >= 1 && seq.length <= 5 && !/\s/.test(seq) && !/^[a-zA-Z0-9]$/.test(seq)); }
   function updateTrigInfo(){
@@ -1297,6 +1304,8 @@
   $('nv-nav-prompt').addEventListener('click', function(){ gotoMode('prompts'); });
   $('nv-nav-settings').addEventListener('click', openSettings);
   $('nv-nav-composer').addEventListener('click', openComposer);
+  // Deep-link from the React sidebar: react to #composer arriving after initial load.
+  window.addEventListener('hashchange', function(){ if (location.hash === '#composer') openComposer(); });
   $('nv-ver').addEventListener('click', openChangelog);
   $('nv-cl-x').addEventListener('click', closeChangelog);
   $('nv-cl-bg').addEventListener('click', function(e){ if (e.target === $('nv-cl-bg')) closeChangelog(); });

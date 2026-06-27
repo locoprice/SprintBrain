@@ -6,6 +6,7 @@ import {
   BarChart3,
   Briefcase,
   Bug,
+  FlaskConical,
   Github,
   LogOut,
   Settings,
@@ -135,6 +136,19 @@ export function Sidebar() {
               )}
             </NavLink>
           ))}
+
+          {/* Composer lives in the native dashboard (Sprintbrain.html) on the shared
+              formula engine — link out rather than duplicate it into React. */}
+          <a
+            href="/Sprintbrain.html#composer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={navClass({ isActive: false })}
+          >
+            <FlaskConical className="h-4 w-4" />
+            <span>Composer</span>
+            <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-ink-subtle" />
+          </a>
         </div>
       </nav>
 
