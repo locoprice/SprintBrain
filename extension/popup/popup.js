@@ -47,30 +47,6 @@ function _supaFire(table, method, body, qs, headers, retried, resolve, reject) {
   }).catch(reject);
 }
 
-// Calls a Supabase Edge Function by name.
-// cb(err, responseJson) — err is null on success.
-function callEdgeFunction(fnName, body, cb) {
-  sbAuthHeaders(function(err, headers) {
-    if (err || !headers) { cb(new Error('not_authed')); return; }
-    fetch(SB_SUPA_URL + '/functions/v1/' + fnName, {
-      method: 'POST',
-      headers: {
-        'apikey': headers.apikey,
-        'Authorization': headers.Authorization,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
-    .then(function(r) {
-      return r.json().then(function(data) {
-        if (!r.ok) { cb(new Error(data && data.error ? data.error : 'ef_http_' + r.status)); return; }
-        cb(null, data);
-      });
-    })
-    .catch(function(e) { cb(e); });
-  });
-}
-
 // Returns the current authed user's id (set on every write payload).
 var SB_CURRENT_USER_ID = null;
 
@@ -2088,72 +2064,6 @@ function findVariants(snip){
   var emb = bodyVariants(snip);
   Object.keys(emb).forEach(function(l){ if(!v[l]) v[l] = emb[l]; });
   return v;
-}
-
-function addLangVariant(targetLang){
-  var src = findSnip(selId||''); if(!src){ showToast('Select a snippet first'); return; }
-  var v = findVariants(src);
-  if(v[targetLang]){ showToast('Already exists — click the pill to switch'); return; }
-  var gid = src.lang_group_id || src.id;
-  var ns = {
-    id: uid(),
-    title: src.title.replace(/\s*(EN|ES|IT|FR)$/, '') + ' ' + targetLang,
-    shortcut: src.shortcut.replace(/(EN|ES|IT|FR)$/, targetLang),
-    body: src.body, lang: targetLang, folder: src.folder,
-    fieldCfg: JSON.parse(JSON.stringify(src.fieldCfg||{})),
-    lang_group_id: gid, sort_order: snips.length + 1,
-    enable_urgency_timer: src.enable_urgency_timer || false,
-    timer_duration_ms: src.timer_duration_ms || 0,
-    scarcity_count: src.scarcity_count || 0,
-    stats: {uses:0, fills:0, lastUsed:null}
-  };
-  snips.push(ns);
-  DB.upsertSnippet(ns);
-  DB.updateStats(ns.id, 0, 0, null);
-  syncSnippets();
-  selId = ns.id;
-  openEd(ns.id);
-  showToast(LNAMES[targetLang] + ' version created — edit it now!');
-}
-
-function showLangPicker(snip){
-  if(!snip) return;
-  var v = findVariants(snip);
-  var vc = Object.keys(v).length;
-  gi('lp-ttl').textContent = vc > 1 ? 'Which language?' : 'No variants yet';
-  gi('lp-sub').textContent = vc > 1 ? snip.title + ' — ' + vc + ' versions' : 'Add from Edit view';
-  var grid = gi('lp-grid'); var h = ''; var sel = snip.lang;
-  var colors = {EN:'var(--en)',ES:'var(--es)',IT:'var(--it)',FR:'var(--fr)'};
-  LANGS.forEach(function(l){
-    var vs = v[l]; var isCur = snip.lang === l;
-    h += '<div class="lp-opt'+(vs?' lp-has':'')+(isCur?' lp-sel':'')+(vs?'':' lp-dis')+'" data-lang="'+l+'" data-id="'+(vs?vs.id:'')+'">'
-      +'<div class="lp-dot" style="color:'+(colors[l]||'var(--tx2)')+'">'+l+'</div>'
-      +'<span class="lp-nm">'+LNAMES[l]+(vs?' \u2713':'')+'</span></div>';
-  });
-  grid.innerHTML = h;
-  grid.querySelectorAll('.lp-opt.lp-has').forEach(function(opt){
-    opt.addEventListener('click', function(){
-      sel = opt.dataset.lang;
-      grid.querySelectorAll('.lp-opt').forEach(function(o){o.classList.remove('lp-sel');});
-      opt.classList.add('lp-sel');
-    });
-  });
-  gi('lp-ok').onclick = function(){
-    gi('lp-bg').className = 'lp-bg';
-    var target = v[sel];
-    if(target){
-      var sc = target.shortcut || '';
-      try{ navigator.clipboard.writeText(sc); }catch(e){}
-      if(!target.stats) target.stats = {uses:0,fills:0,lastUsed:null};
-      target.stats.uses = (target.stats.uses||0)+1;
-      target.stats.lastUsed = new Date().toISOString();
-      DB.updateStats(target.id, target.stats.uses, target.stats.fills, target.stats.lastUsed);
-      var nm = gi('iname-'+target.id);
-      var orig = nm ? nm.textContent : target.title;
-      if(nm){ nm.textContent = sc + ' copied'; setTimeout(function(){if(nm)nm.textContent=orig;},1600); }
-    }
-  };
-  gi('lp-bg').className = 'lp-bg on';
 }
 
 // ── EDITOR LANGUAGE TABS ──────────────────────────────────────────
