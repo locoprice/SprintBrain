@@ -402,6 +402,9 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
       chrome.tabs.sendMessage(tab.id, {
         type: 'SB_CONTEXT_INSERT',
         snippet: snippet
+      }).catch(function () {
+        // Target tab has no content script (chrome:// page, Web Store, PDF, or a
+        // tab opened before the extension loaded) — nothing to insert into.
       });
     });
 });

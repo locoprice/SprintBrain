@@ -1,346 +1,1176 @@
 <!DOCTYPE html>
+<!--
+  SprintBrain — native dashboard (canonical web surface; this file is Sprintbrain.html).
+  Presentation is native (Notion/Linear-style, canonical Azure design system).
+  Business logic is the SHARED core: this page loads the SAME extension scripts
+  behind the chrome-shim and drives auth + Supabase data + model helpers through
+  them (window.DB, sbRequestOtp/sbVerifyOtp, uid, groupSnips, bodyLangs,
+  folderCount). No logic fork. Supabase is the single source of truth; a write
+  here reaches the extension popup on its next load/sync. The Composer view is a
+  live formula/template tester on the shared extension/formula-engine.js.
+-->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SprintBrain — Snippet Engine v2.64.0</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SprintBrain — Dashboard</title>
+<link rel="stylesheet" href="extension/shared/tokens/colors_and_type.css">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sb-font);font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg-alt)}
+  button,input,select,textarea{font-family:inherit}
+  .nv-hide{display:none!important}
 
-    :root {
-      --brand:   #5c6bc0;
-      --brand-d: #3949ab;
-      --bg:      #f4f5f9;
-      --surface: #ffffff;
-      --border:  #e0e2ed;
-      --text:    #1a1a2e;
-      --muted:   #6b7280;
-      --success: #10b981;
-      --mono:    'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    }
+  /* ── App shell: topbar (56px) + sidebar (220px) + main ── */
+  .nv-app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;height:100vh}
+  .nv-top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--sb-bg);border-bottom:1px solid var(--sb-line)}
+  .nv-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--sb-ink)}
+  .nv-logo{width:26px;height:26px;border-radius:var(--sb-r-sm);background:var(--sb-azure);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .nv-logo svg{width:15px;height:15px;stroke:#fff;fill:#fff;stroke-width:1}
+  .nv-ver{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:2px 8px;cursor:pointer;transition:color .12s,border-color .12s}
+  .nv-ver:hover{color:var(--sb-azure);border-color:var(--sb-iris-bdr)}
+  .nv-search{position:relative;margin-left:auto;width:300px;max-width:38vw}
+  .nv-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--sb-ink-subtle);fill:none;stroke-width:2;pointer-events:none}
+  .nv-search input{width:100%;background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-in,10px);padding:8px 12px 8px 34px;font-size:var(--sb-fs-13);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-search input:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-user{display:flex;align-items:center;gap:10px}
+  .nv-userline{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+  .btn{padding:8px 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);font-weight:500;cursor:pointer;border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-muted);display:inline-flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap}
+  .btn:hover{background:var(--sb-bg-muted);border-color:var(--sb-line-2)}
+  .btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .btn.p{background:var(--sb-azure);border-color:var(--sb-azure);color:#fff}
+  .btn.p:hover{background:var(--sb-iris-dark);border-color:var(--sb-iris-dark)}
+  .btn.danger{color:var(--sb-danger);border-color:var(--sb-danger-bdr);background:var(--sb-danger-bg)}
 
-    /* ── Header ─────────────────────────────────────────── */
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    header .logo {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--brand);
-      letter-spacing: -0.5px;
-    }
-    header .version {
-      font-size: 11px;
-      color: var(--muted);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2px 8px;
-    }
+  /* ── Sidebar ── */
+  .nv-side{background:var(--sb-bg-alt);border-right:1px solid var(--sb-line);padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+  .nv-grp{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.08em;margin:10px 12px 6px}
+  .nv-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;font-size:var(--sb-fs-13);color:var(--sb-ink-muted);font-weight:500;cursor:pointer;position:relative;transition:background .12s,color .12s}
+  .nv-item:hover{background:var(--sb-bg-muted)}
+  .nv-item.on{background:var(--sb-iris-bg);color:var(--sb-azure);font-weight:600}
+  .nv-item.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;background:var(--sb-azure);border-radius:3px}
+  .nv-item svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .nv-item .nv-ico-svg{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:inherit}
+  .nv-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nv-cnt{margin-left:auto;font-size:var(--sb-fs-10);background:var(--sb-bg-muted);color:var(--sb-ink-subtle);padding:1px 8px;border-radius:var(--sb-r-pill);font-weight:600;font-variant-numeric:tabular-nums}
+  .nv-item.on .nv-cnt{background:var(--sb-azure);color:#fff}
+  .nv-side-foot{margin-top:auto;padding-top:8px}
 
-    /* ── Main layout ────────────────────────────────────── */
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto 1fr;
-      gap: 0;
-      max-width: 1400px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 24px;
-      gap: 16px;
-    }
-    @media (max-width: 800px) {
-      main { grid-template-columns: 1fr; }
-    }
+  /* ── Main ── */
+  .nv-main{overflow-y:auto;display:flex;flex-direction:column;background:var(--sb-bg-alt)}
+  .nv-ph{padding:18px 24px 14px;background:var(--sb-bg);border-bottom:1px solid var(--sb-line);display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:5}
+  .nv-ph h1{font-size:21px;font-weight:800;letter-spacing:-.4px;color:var(--sb-ink)}
+  .nv-ph .sub{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);margin-top:2px}
+  .nv-ph-actions{margin-left:auto;display:flex;gap:8px}
+  .nv-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
 
-    /* ── Panels ─────────────────────────────────────────── */
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .panel-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .panel-header .badge {
-      background: var(--brand);
-      color: #fff;
-      border-radius: 20px;
-      padding: 2px 8px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: none;
-      letter-spacing: 0;
-    }
+  /* ── KPI cards ── */
+  .nv-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .nv-kpi{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:16px;padding:16px 18px}
+  .nv-kpi-hd{display:flex;justify-content:space-between;align-items:flex-start}
+  .nv-kpi-lbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em}
+  .nv-kpi-ic{width:30px;height:30px;border-radius:8px;background:var(--sb-iris-bg);color:var(--sb-azure);display:flex;align-items:center;justify-content:center}
+  .nv-kpi-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .nv-kpi-v{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--sb-ink)}
+  .nv-kpi-f{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);margin-top:4px}
 
-    /* ── Template editor ────────────────────────────────── */
-    #template-panel { grid-column: 1; grid-row: 1 / 3; }
-    #template {
-      width: 100%;
-      height: 520px;
-      border: none;
-      resize: vertical;
-      padding: 16px;
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text);
-      background: #fafbfc;
-      outline: none;
-    }
+  /* ── List card ── */
+  .nv-card{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:16px;overflow:hidden}
+  .nv-card-h{padding:13px 18px;border-bottom:1px solid var(--sb-line);display:flex;align-items:center;gap:10px}
+  .nv-card-h h2{font-size:14px;font-weight:700;color:var(--sb-ink)}
+  .nv-card-h .sub{margin-left:auto;font-size:var(--sb-fs-11);color:var(--sb-ink-subtle)}
+  .nv-row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--sb-line);cursor:pointer;transition:background .1s}
+  .nv-row:last-child{border-bottom:none}
+  .nv-row:hover{background:var(--sb-bg-alt)}
+  .nv-row-main{flex:1;min-width:0}
+  .nv-row-title{font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nv-row-meta{display:flex;gap:6px;align-items:center;margin-top:3px}
+  .nv-stat{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-weight:500}
+  .nv-stat.uses{color:var(--sb-azure)}
+  .sctag{font-family:var(--sb-mono);font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-azure);background:var(--sb-iris-bg);border:1px solid var(--sb-iris-bdr);border-radius:var(--sb-r-pill);padding:2px 9px;white-space:nowrap;flex-shrink:0}
+  .sctag .pfx{opacity:.45;font-weight:400}
+  .lb{font-size:var(--sb-fs-10);padding:2px 7px;border-radius:var(--sb-r-xs);font-weight:700;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+  .EN{background:var(--sb-lang-en-bg);color:var(--sb-lang-en)}
+  .ES{background:var(--sb-lang-es-bg);color:var(--sb-lang-es)}
+  .IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
+  .MULTI,.FR{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .nv-pin{color:var(--sb-azure);flex-shrink:0}
+  .nv-pin svg{width:13px;height:13px;fill:currentColor;stroke:currentColor}
+  .nv-row-act{display:flex;gap:6px;flex-shrink:0;opacity:0;transition:opacity .12s}
+  .nv-row:hover .nv-row-act{opacity:1}
+  .nv-iconbtn{width:28px;height:28px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:transparent;color:var(--sb-ink-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .nv-iconbtn:hover{border-color:var(--sb-azure);color:var(--sb-azure);background:var(--sb-iris-bg)}
+  .nv-iconbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .nv-empty{padding:40px 18px;text-align:center;color:var(--sb-ink-subtle);font-size:var(--sb-fs-13);line-height:1.7}
 
-    /* ── Fields form ────────────────────────────────────── */
-    #fields-panel {
-      grid-column: 2;
-      grid-row: 1;
-    }
-    #fields-form {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: 280px;
-      overflow-y: auto;
-    }
-    .field-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .field-row label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .field-row input,
-    .field-row select {
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 11px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.15s;
-      font-family: inherit;
-      color: var(--text);
-      background: var(--surface);
-    }
-    .field-row input:focus,
-    .field-row select:focus { border-color: var(--brand); }
-    .no-fields {
-      padding: 16px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+  .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
+  .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
+  .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .p-tag{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:1px 7px}
 
-    /* ── Output panel ───────────────────────────────────── */
-    #output-panel {
-      grid-column: 2;
-      grid-row: 2;
-    }
-    #output {
-      padding: 16px;
-      font-size: 13px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: var(--text);
-      min-height: 200px;
-      background: #fafbfc;
-    }
-    #output.empty { color: var(--muted); font-style: italic; }
+  /* ── Auth gate ── */
+  .nv-auth{position:fixed;inset:0;background:var(--sb-bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:32px}
+  .nv-auth.on{display:flex}
+  .nv-auth-logo{width:52px;height:52px;border-radius:14px;background:var(--sb-azure);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+  .nv-auth-logo svg{width:28px;height:28px;stroke:#fff;fill:#fff;stroke-width:1}
+  .nv-auth h2{font-size:19px;font-weight:700;color:var(--sb-ink);margin-bottom:6px}
+  .nv-auth p{font-size:var(--sb-fs-13);color:var(--sb-ink-muted);margin-bottom:22px;text-align:center;max-width:340px;line-height:1.5}
+  .nv-auth input{width:100%;max-width:320px;padding:11px 14px;border:1px solid var(--sb-line);border-radius:10px;font-size:14px;color:var(--sb-ink);background:var(--sb-bg);outline:none;margin-bottom:10px;transition:border-color .15s,box-shadow .15s}
+  .nv-auth input:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-auth input.code{font-family:var(--sb-mono);text-align:center;letter-spacing:6px;font-size:18px;font-weight:600}
+  .nv-auth-remember{display:flex;align-items:center;gap:8px;width:100%;max-width:320px;margin-bottom:12px;font-size:12px;color:var(--sb-ink-muted);cursor:pointer;user-select:none}
+  .nv-auth-remember input{width:16px;height:16px;margin:0;accent-color:var(--sb-azure)}
+  .nv-auth button.primary{width:100%;max-width:320px;padding:11px;background:var(--sb-azure);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+  .nv-auth button.primary:hover:not(:disabled){background:var(--sb-iris-dark)}
+  .nv-auth button.primary:disabled{opacity:.5;cursor:not-allowed}
+  .nv-auth-link{margin-top:14px;font-size:12px;color:var(--sb-ink-muted);background:none;border:none;cursor:pointer;text-decoration:underline}
+  .nv-auth-msg{margin-top:14px;font-size:12px;color:var(--sb-danger);min-height:1em;text-align:center;max-width:320px}
+  .nv-auth-msg.ok{color:var(--sb-ok)}
 
-    /* ── Toolbar ────────────────────────────────────────── */
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .btn {
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.15s;
-    }
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: var(--brand); color: #fff; }
-    .btn-ghost { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  /* ── Editor modal ── */
+  .nv-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:90;display:none;align-items:flex-start;justify-content:center;padding:48px 16px;overflow-y:auto}
+  .nv-modal-bg.on{display:flex}
+  .nv-modal{background:var(--sb-bg);border-radius:16px;width:560px;max-width:100%;box-shadow:var(--sb-shadow-xl);overflow:hidden}
+  .nv-modal-h{padding:16px 20px;border-bottom:1px solid var(--sb-line);display:flex;align-items:center;gap:10px}
+  .nv-modal-h h2{font-size:16px;font-weight:700;color:var(--sb-ink);flex:1}
+  .nv-modal-b{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .nv-field{display:flex;flex-direction:column;gap:5px}
+  .nv-field label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em}
+  .nv-field input,.nv-field select,.nv-field textarea{width:100%;background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:10px;padding:9px 12px;font-size:var(--sb-fs-13);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-field textarea{font-family:var(--sb-mono);font-size:12px;line-height:1.6;resize:vertical;min-height:140px}
+  .nv-field input:focus,.nv-field select:focus,.nv-field textarea:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-row2{display:flex;gap:12px}
+  .nv-row2>.nv-field{flex:1}
+  .nv-sc{display:flex;align-items:stretch;border:1px solid var(--sb-line);border-radius:10px;overflow:hidden;background:var(--sb-bg-muted)}
+  .nv-sc:focus-within{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-sc-pfx{padding:9px 12px;font-family:var(--sb-mono);font-weight:700;color:var(--sb-azure);background:var(--sb-iris-bg);border-right:1px solid var(--sb-iris-bdr);display:flex;align-items:center}
+  .nv-sc input{border:none!important;box-shadow:none!important;background:transparent;font-family:var(--sb-mono);color:var(--sb-azure);font-weight:600}
+  .nv-modal-f{padding:14px 20px;border-top:1px solid var(--sb-line);display:flex;gap:8px;align-items:center}
+  .nv-modal-f .danger{margin-left:auto}
+  .nv-langtabs{display:flex;gap:6px;margin-bottom:8px}
+  .nv-langtab{padding:5px 12px;border:1px solid var(--sb-line);border-radius:var(--sb-r-md);background:var(--sb-bg-muted);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:700;cursor:pointer;position:relative;transition:all .12s}
+  .nv-langtab:hover{border-color:var(--sb-line-2);color:var(--sb-ink-muted)}
+  .nv-langtab.on{color:#fff;border-color:transparent}
+  .nv-langtab.on[data-lang="EN"]{background:var(--sb-lang-en)}
+  .nv-langtab.on[data-lang="IT"]{background:var(--sb-lang-it)}
+  .nv-langtab.on[data-lang="ES"]{background:var(--sb-lang-es)}
+  .nv-langtab.on[data-lang="FR"]{background:var(--sb-lang-multi)}
+  .nv-langtab .dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
+  .nv-langtab.has-content .dot{display:block}
+  .nv-langtab.on .dot{background:rgba(255,255,255,.7)}
+  .nv-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .nv-chip{padding:3px 9px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-family:var(--sb-mono);cursor:pointer;border:1px solid var(--sb-line);background:var(--sb-bg-muted);color:var(--sb-ink-muted);transition:all .12s}
+  .nv-chip:hover{border-color:var(--sb-azure);color:var(--sb-azure);background:var(--sb-iris-bg)}
+  .nv-chip.f{color:var(--sb-lang-multi);border-color:#C4B5FD;background:#F5F3FF}
+  .nv-chip.c{color:#0891B2;border-color:#A5F3FC;background:#ECFEFF}
+  .nv-alt-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .nv-alt-tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4}
+  .nv-alt-x{cursor:pointer;opacity:.6;font-style:normal;font-size:10px}
+  .nv-alt-x:hover{opacity:1}
+  .nv-urg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px}
+  .nv-urg-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .nv-urg-lbl{font-size:11px;font-weight:600;color:var(--sb-ink);display:flex;align-items:center;gap:5px}
+  .nv-urg-lbl svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .nv-urg-sub{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:2px}
+  .nv-urg-fields{display:flex;gap:10px;margin-top:10px}
+  .nv-urg-fields .nv-field{flex:0 0 130px}
+  .nv-switch{position:relative;width:34px;height:19px;flex-shrink:0}
+  .nv-switch input{opacity:0;width:0;height:0;position:absolute}
+  .nv-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
+  .nv-slider:before{content:'';position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+  .nv-switch input:checked + .nv-slider{background:var(--sb-azure)}
+  .nv-switch input:checked + .nv-slider:before{transform:translateX(15px)}
+  /* ── Settings view ── */
+  .nv-set-body{padding:18px 20px;display:flex;flex-direction:column;gap:20px;max-width:640px}
+  .nv-set-lbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .nv-set-lbl.accent{color:var(--sb-azure)}
+  .nv-set-sec{border-top:1px solid var(--sb-line);padding-top:18px}
+  .nv-trig-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .nv-trig-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;border:1.5px solid var(--sb-line);cursor:pointer;transition:all .15s}
+  .nv-trig-tile:hover{border-color:var(--sb-line-2);background:var(--sb-bg-alt)}
+  .nv-trig-tile.on{border-color:var(--sb-azure);background:var(--sb-iris-bg)}
+  .nv-trig-tile .k{font-size:20px;font-weight:700;font-family:var(--sb-mono);color:var(--sb-ink)}
+  .nv-trig-tile.on .k{color:var(--sb-azure)}
+  .nv-trig-tile .d{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle)}
+  .nv-trig-input{width:100%;background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:10px;padding:9px 12px;font-family:var(--sb-mono);font-weight:700;font-size:16px;text-align:center;letter-spacing:2px;color:var(--sb-ink);outline:none}
+  .nv-trig-input:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-set-hint{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);margin-top:8px}
+  .nv-set-hint strong{font-family:var(--sb-mono);color:var(--sb-azure)}
+  .nv-set-warn{margin-top:8px;padding:8px 12px;background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr);border-radius:var(--sb-r-md);font-size:11px;color:var(--sb-warn);line-height:1.5}
+  .nv-set-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sb-ink-muted);cursor:pointer;margin-top:10px;user-select:none}
+  .nv-set-check input{width:16px;height:16px;accent-color:var(--sb-azure)}
 
-    /* ── Syntax reference ───────────────────────────────── */
-    #syntax-panel {
-      grid-column: 1 / 3;
-      grid-row: 3;
-    }
-    .syntax-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
-      padding: 16px;
-    }
-    .syntax-item {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-    .syntax-item code {
-      display: block;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--brand);
-      margin-bottom: 4px;
-    }
-    .syntax-item p {
-      font-size: 12px;
-      color: var(--muted);
-    }
+  /* ── Composer view (live formula/template tester) ── */
+  .nv-comp{padding:18px 20px;display:flex;flex-direction:column;gap:16px}
+  .nv-comp-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
+  .nv-comp-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .nv-comp-pane{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .nv-comp-pane-h{padding:11px 14px;border-bottom:1px solid var(--sb-line);font-size:var(--sb-fs-11);font-weight:700;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:10px}
+  .nv-comp-tools{margin-left:auto;display:flex;gap:6px}
+  .nv-comp-tools .btn{padding:5px 11px;font-size:var(--sb-fs-11)}
+  .nv-comp-count{margin-left:auto;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-iris-bg);border:1px solid var(--sb-iris-bdr);border-radius:var(--sb-r-pill);padding:1px 8px;text-transform:none;letter-spacing:0}
+  .nv-comp-ta{width:100%;min-height:420px;border:none;resize:vertical;padding:14px;font-family:var(--sb-mono);font-size:12px;line-height:1.7;color:var(--sb-ink);background:var(--sb-bg-muted);outline:none}
+  .nv-comp-fields{padding:14px;display:flex;flex-direction:column;gap:11px;max-height:320px;overflow-y:auto}
+  .nv-comp-frow{display:flex;flex-direction:column;gap:4px}
+  .nv-comp-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+  .nv-comp-frow input,.nv-comp-frow select{width:100%;border:1px solid var(--sb-line);border-radius:9px;padding:8px 11px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-comp-frow input:focus,.nv-comp-frow select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-comp-empty{font-size:var(--sb-fs-13);color:var(--sb-ink-subtle);line-height:1.6}
+  .nv-comp-out{padding:14px;font-size:var(--sb-fs-13);line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--sb-ink);min-height:180px;background:var(--sb-bg-muted)}
+  .nv-comp-out.empty{color:var(--sb-ink-subtle);font-style:italic}
+  .nv-comp-synx{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px;padding:14px}
+  .nv-comp-synx .it{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:10px;padding:11px 13px}
+  .nv-comp-synx code{display:block;font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-azure);margin-bottom:4px;word-break:break-word}
+  .nv-comp-synx p{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);line-height:1.5}
+  @media (max-width:860px){ .nv-comp-grid{grid-template-columns:1fr} }
 
-    /* ── Team Sync bar ──────────────────────────────────── */
-    .team-sync-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-left: auto;
-    }
-    .team-sync-st { font-size: 11px; font-weight: 600; }
-    .team-sync-st.ok  { color: #16A34A; }
-    .team-sync-st.err { color: #DC2626; }
+  /* ── Changelog modal ── */
+  .nv-cl-box{width:460px;max-width:100%;display:flex;flex-direction:column;max-height:85vh}
+  .nv-cl-scroll{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
+  .nv-cl-rel{border-left:2px solid var(--sb-line-2);padding-left:12px}
+  .nv-cl-rel:first-child{border-left-color:var(--sb-azure)}
+  .nv-cl-rh{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .nv-cl-rv{font-size:var(--sb-fs-13);font-weight:700;color:var(--sb-azure);font-family:var(--sb-mono)}
+  .nv-cl-rel:not(:first-child) .nv-cl-rv{color:var(--sb-ink-muted)}
+  .nv-cl-rl{font-size:11px;font-weight:600;color:var(--sb-ink-muted)}
+  .nv-cl-rd{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-left:auto}
+  .nv-cl-cs{display:flex;flex-direction:column;gap:5px}
+  .nv-cl-c{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--sb-ink-muted);line-height:1.5}
+  .nv-cl-b{flex-shrink:0;font-size:9px;font-weight:700;padding:1px 6px;border-radius:var(--sb-r-pill);margin-top:1px;text-transform:uppercase;letter-spacing:.3px}
+  .nv-cl-b.new,.nv-cl-b.feat{background:var(--sb-ok-bg);color:var(--sb-ok);border:1px solid var(--sb-ok-bdr)}
+  .nv-cl-b.fix{background:var(--sb-warn-bg);color:var(--sb-warn);border:1px solid var(--sb-warn-bdr)}
+  .nv-cl-b.refactor,.nv-cl-b.perf,.nv-cl-b.chore,.nv-cl-b.docs{background:var(--sb-iris-bg);color:var(--sb-azure);border:1px solid var(--sb-iris-bdr)}
+  .nv-cl-foot{flex-shrink:0;border-top:1px solid var(--sb-line);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);font-family:var(--sb-mono);background:var(--sb-bg-alt)}
+  .nv-cl-foot strong{color:var(--sb-azure);font-weight:700}
 
-    /* ── Copy toast ─────────────────────────────────────── */
-    #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(60px);
-      background: var(--text);
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      pointer-events: none;
-      transition: transform 0.25s ease, opacity 0.25s ease;
-      opacity: 0;
-    }
-    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-  </style>
+  /* ── Context menu ── */
+  .nv-ctx{position:fixed;z-index:120;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:12px;box-shadow:var(--sb-shadow-lg);min-width:212px;padding:4px 0}
+  .nv-ctx-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:var(--sb-fs-13);color:var(--sb-ink);transition:background .1s}
+  .nv-ctx-item:hover{background:var(--sb-bg-alt)}
+  .nv-ctx-item.danger{color:var(--sb-danger)}
+  .nv-ctx-item.danger:hover{background:var(--sb-danger-bg)}
+  .nv-ctx-ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .nv-ctx-ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .nv-ctx-arr{margin-left:auto;color:var(--sb-ink-subtle)}
+  .nv-ctx-sep{height:1px;background:var(--sb-line);margin:4px 0}
+  /* folder dots + add-folder + icon grid */
+  .nv-fdots{margin-left:auto;display:none;cursor:pointer;color:var(--sb-ink-subtle);padding:0 4px;line-height:1;letter-spacing:-1px;font-size:14px}
+  #nv-folder-list .nv-item.has-dots:hover .nv-fdots{display:block}
+  #nv-folder-list .nv-item.has-dots:hover .nv-cnt{display:none}
+  .nv-add-folder{color:var(--sb-azure);font-weight:500}
+  .nv-add-folder svg{stroke:var(--sb-azure)}
+  .nv-ico-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .nv-ico-opt{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:var(--sb-r-md);cursor:pointer;border:1.5px solid transparent;color:var(--sb-ink-muted);transition:all .12s}
+  .nv-ico-opt:hover{background:var(--sb-bg-muted)}
+  .nv-ico-opt.on{border-color:var(--sb-azure);background:var(--sb-iris-bg);color:var(--sb-azure)}
+  .nv-ico-opt svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  /* ── Toast ── */
+  .nv-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--sb-ink);color:#fff;padding:10px 18px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-13);font-weight:600;z-index:200;opacity:0;transition:transform .25s,opacity .25s;pointer-events:none}
+  .nv-toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:var(--sb-line);border-radius:10px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--sb-line-2)}
+  @media (max-width:760px){ .nv-app{grid-template-columns:1fr} .nv-side{display:none} .nv-kpis{grid-template-columns:1fr 1fr} }
+</style>
 </head>
 <body>
 
-<header>
-  <span class="logo">⚡ SprintBrain</span>
-  <span class="version">Formula Engine v2.64.0</span>
-  <div class="team-sync-bar">
-    <span id="team-sync-st" class="team-sync-st"></span>
-    <button class="btn btn-ghost" id="btn-team-sync">Sync with Team</button>
-  </div>
-</header>
+<!-- ═══ APP SHELL ═══ -->
+<div class="nv-app" id="nv-app">
+  <header class="nv-top">
+    <span class="nv-brand">
+      <span class="nv-logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      SprintBrain
+      <span class="nv-ver" id="nv-ver" title="View changelog"></span>
+    </span>
+    <div class="nv-search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="nv-q" placeholder="Search snippets, prompts…" autocomplete="off">
+    </div>
+    <div class="nv-user">
+      <span class="nv-userline" id="nv-userline"></span>
+      <button class="btn" id="nv-signout">Sign out</button>
+    </div>
+  </header>
 
-<main>
-  <!-- Template editor -->
-  <div class="panel" id="template-panel">
-    <div class="panel-header">
-      Snippet Template
-      <div class="toolbar">
-        <button class="btn btn-ghost" id="btn-load-demo">Load demo</button>
-        <button class="btn btn-ghost" id="btn-clear">Clear</button>
+  <nav class="nv-side">
+    <div class="nv-grp">Workspace</div>
+    <div class="nv-item on" data-mode="snippets" id="nv-nav-snip">
+      <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span class="nv-name">Snippets</span><span class="nv-cnt" id="nv-cnt-snip">0</span>
+    </div>
+    <div class="nv-item" data-mode="prompts" id="nv-nav-prompt">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="nv-name">Prompts</span><span class="nv-cnt" id="nv-cnt-prompt">0</span>
+    </div>
+    <div class="nv-item" data-mode="composer" id="nv-nav-composer">
+      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      <span class="nv-name">Composer</span>
+    </div>
+    <div class="nv-grp" id="nv-folders-grp">Folders</div>
+    <div id="nv-folder-list"></div>
+    <div class="nv-side-foot">
+      <div class="nv-grp">Account</div>
+      <div class="nv-item" id="nv-nav-settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nv-name">Settings</span>
+      </div>
+      <a class="nv-item" href="https://app.sprintbrain.com/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="nv-name">Open web dashboard</span>
+      </a>
+    </div>
+  </nav>
+
+  <main class="nv-main">
+    <div class="nv-ph">
+      <div>
+        <h1 id="nv-title">All snippets</h1>
+        <div class="sub" id="nv-sub">Loading…</div>
+      </div>
+      <div class="nv-ph-actions">
+        <button class="btn" id="nv-reload"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg> Reload</button>
+        <button class="btn p" id="nv-new"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New snippet</button>
       </div>
     </div>
-    <textarea id="template" spellcheck="false" placeholder="Paste your snippet body here. Supports:
-  {{VARIABLE_NAME}}           — user input placeholder
+    <div class="nv-body">
+      <div class="nv-kpis" id="nv-kpis"></div>
+      <div class="nv-card" id="nv-list-card">
+        <div class="nv-card-h"><h2 id="nv-list-title">Snippets</h2><span class="sub" id="nv-list-sub"></span></div>
+        <div id="nv-list"></div>
+      </div>
+
+      <div class="nv-card" id="nv-settings" style="display:none">
+        <div class="nv-card-h"><h2>Settings</h2><span class="sub" id="nv-set-status"></span></div>
+        <div class="nv-set-body">
+          <div>
+            <div class="nv-set-lbl">Trigger character</div>
+            <div class="nv-trig-tiles" id="nv-trig-tiles">
+              <div class="nv-trig-tile" data-t=";;"><span class="k">;;</span><span class="d">Zero conflicts</span></div>
+              <div class="nv-trig-tile on" data-t="::"><span class="k">::</span><span class="d">Recommended</span></div>
+              <div class="nv-trig-tile" data-t="!!"><span class="k">!!</span><span class="d">Easy to type</span></div>
+            </div>
+            <input class="nv-trig-input" id="nv-set-trig" maxlength="4" spellcheck="false" autocomplete="off" placeholder="::">
+            <div class="nv-set-hint">Active: <strong id="nv-trig-active">::</strong> · Example: <strong id="nv-trig-ex">::quoteEN</strong></div>
+            <div class="nv-set-warn" id="nv-trig-warn" style="display:none"></div>
+          </div>
+
+          <div class="nv-set-sec">
+            <div class="nv-set-lbl accent">Inline trigger sequences</div>
+            <div class="nv-row2">
+              <div class="nv-field"><label>Snippet</label><input id="nv-tcfg-snip" maxlength="5" spellcheck="false" autocomplete="off" value="::" style="font-family:var(--sb-mono);font-weight:700;text-align:center"></div>
+              <div class="nv-field"><label>Prompt</label><input id="nv-tcfg-prompt" maxlength="5" spellcheck="false" autocomplete="off" value='"""' style="font-family:var(--sb-mono);font-weight:700;text-align:center"></div>
+            </div>
+            <div class="nv-row2" style="margin-top:12px">
+              <div class="nv-field"><label>Snippet key</label><select id="nv-tcfg-snip-key"><option>Tab</option><option>Enter</option></select></div>
+              <div class="nv-field"><label>Prompt key</label><select id="nv-tcfg-prompt-key"><option>Tab</option><option>Enter</option></select></div>
+            </div>
+            <label class="nv-set-check"><input type="checkbox" id="nv-tcfg-sel" checked> Suggest snippets when I select text</label>
+          </div>
+
+          <div class="nv-set-sec">
+            <div class="nv-set-lbl accent">Default language</div>
+            <select id="nv-set-lang" style="max-width:200px"><option value="EN">English</option><option value="ES">Español</option><option value="IT">Italiano</option><option value="FR">Français</option></select>
+            <div class="nv-set-hint">Pre-selects this language when creating snippets.</div>
+          </div>
+
+          <div class="nv-set-sec">
+            <div class="nv-set-lbl accent">Notion sync</div>
+            <div class="nv-field" style="margin-bottom:12px"><label>API key</label><input id="nv-notion-key" type="password" placeholder="secret_…" spellcheck="false" autocomplete="off"></div>
+            <div class="nv-field"><label>Database ID</label><input id="nv-notion-db" placeholder="abc123…" spellcheck="false" autocomplete="off"></div>
+          </div>
+
+          <div class="nv-set-sec">
+            <div class="nv-set-lbl accent">Team sync</div>
+            <button class="btn" id="nv-team-btn" style="width:100%">Sync with Team</button>
+            <div class="nv-set-hint" id="nv-team-st"></div>
+          </div>
+        </div>
+        <div class="nv-modal-f" style="border-top:1px solid var(--sb-line)">
+          <button class="btn p" id="nv-set-save">Apply settings</button>
+          <button class="btn" id="nv-set-cancel">Back</button>
+        </div>
+      </div>
+
+      <div class="nv-card" id="nv-composer" style="display:none">
+        <div class="nv-card-h"><h2>Composer</h2><span class="sub">Live formula &amp; template tester — same engine as the extension</span></div>
+        <div class="nv-comp">
+          <div class="nv-comp-grid">
+            <div class="nv-comp-pane">
+              <div class="nv-comp-pane-h">Snippet template
+                <div class="nv-comp-tools">
+                  <button class="btn" id="nv-comp-demo" type="button">Load demo</button>
+                  <button class="btn" id="nv-comp-clear" type="button">Clear</button>
+                </div>
+              </div>
+              <textarea id="nv-comp-tpl" class="nv-comp-ta" spellcheck="false" placeholder="Paste a snippet body here. Supports:
+  {{VARIABLE}}                — input placeholder
   {{= YOUR_PRICE * 0.985 }}   — calculated formula
   {formtext: name=VAR}        — text field
   {formdate: name=VAR}        — date field
   {formmenu: A,B,C; name=VAR} — dropdown
   {time: DD/MM/YYYY HH:mm}    — current date/time
-  {if: VAR = &quot;value&quot;}...{elseif: ...}...{else}...{endif}"></textarea>
-  </div>
-
-  <!-- Variable fields -->
-  <div class="panel" id="fields-panel">
-    <div class="panel-header">
-      Variables
-      <span class="badge" id="field-count">0 fields</span>
-    </div>
-    <div id="fields-form"><p class="no-fields">No variables detected yet. Start typing a template.</p></div>
-  </div>
-
-  <!-- Resolved output -->
-  <div class="panel" id="output-panel">
-    <div class="panel-header">
-      Resolved Output
-      <div class="toolbar">
-        <button class="btn btn-primary" id="btn-copy">Copy</button>
+  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}"></textarea>
+            </div>
+            <div class="nv-comp-side">
+              <div class="nv-comp-pane">
+                <div class="nv-comp-pane-h">Variables<span class="nv-comp-count" id="nv-comp-count">0 fields</span></div>
+                <div class="nv-comp-fields" id="nv-comp-fields"><p class="nv-comp-empty">No variables detected yet. Start typing a template.</p></div>
+              </div>
+              <div class="nv-comp-pane">
+                <div class="nv-comp-pane-h">Resolved output
+                  <div class="nv-comp-tools"><button class="btn p" id="nv-comp-copy" type="button">Copy</button></div>
+                </div>
+                <div class="nv-comp-out empty" id="nv-comp-out">Output appears here as you type.</div>
+              </div>
+            </div>
+          </div>
+          <div class="nv-comp-pane">
+            <div class="nv-comp-pane-h">Syntax reference</div>
+            <div class="nv-comp-synx">
+              <div class="it"><code>{{YOUR_PRICE}}</code><p>Input placeholder. Shown as a form field.</p></div>
+              <div class="it"><code>{{= YOUR_PRICE * 0.985 }}</code><p>Evaluated math formula. Result shown inline (2 dp).</p></div>
+              <div class="it"><code>{{= round(OTA_PRICE * 0.015) }}</code><p>Built-in functions: round, floor, ceil, abs, min, max.</p></div>
+              <div class="it"><code>{formtext: name=VAR; default=x}</code><p>Text input with optional default value.</p></div>
+              <div class="it"><code>{formdate: name=VAR}</code><p>Date picker input.</p></div>
+              <div class="it"><code>{formmenu: A,B,C; name=VAR}</code><p>Dropdown menu — comma-separated options.</p></div>
+              <div class="it"><code>{time: DD/MM/YYYY HH:mm}</code><p>Current date/time formatted inline.</p></div>
+              <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
+              <div class="it"><code>{if: …}…{elseif: …}…{else}…{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
+              <div class="it"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div id="output" class="empty">Output appears here as you type.</div>
-  </div>
+  </main>
+</div>
 
-  <!-- Syntax reference -->
-  <div class="panel" id="syntax-panel">
-    <div class="panel-header">Syntax Reference</div>
-    <div class="syntax-grid">
-      <div class="syntax-item"><code>{{YOUR_PRICE}}</code><p>User input placeholder. Shown as a form field.</p></div>
-      <div class="syntax-item"><code>{{= YOUR_PRICE * 0.985 }}</code><p>Evaluated math formula. Result shown inline (2 dp).</p></div>
-      <div class="syntax-item"><code>{{= round(OTA_PRICE * 0.015) }}</code><p>Built-in functions: round, floor, ceil, abs, min, max.</p></div>
-      <div class="syntax-item"><code>{formtext: name=VAR; default=x}</code><p>Text input with optional default value.</p></div>
-      <div class="syntax-item"><code>{formdate: name=VAR}</code><p>Date picker input.</p></div>
-      <div class="syntax-item"><code>{formmenu: A,B,C; name=VAR}</code><p>Dropdown menu — comma-separated options.</p></div>
-      <div class="syntax-item"><code>{time: DD/MM/YYYY HH:mm}</code><p>Current date/time formatted inline.</p></div>
-      <div class="syntax-item"><code>{if: VAR = "value"}...{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
-      <div class="syntax-item"><code>{if: ...}...{elseif: ...}...{else}...{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
-      <div class="syntax-item"><code>{= EXPR}</code><p>Legacy single-brace formula syntax (also supported).</p></div>
-      <div class="syntax-item"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
-      <div class="syntax-item"><code>**bold** [blue]text[/blue]</code><p>Inline formatting — bold and color tags.</p></div>
+<!-- ═══ AUTH GATE (native, email-OTP via shared auth.js) ═══ -->
+<div class="nv-auth on" id="nv-auth">
+  <div class="nv-auth-logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+  <h2>Sign in to SprintBrain</h2>
+  <p id="nv-auth-sub">Enter your work email — we'll send a one-time code.</p>
+  <input id="nv-auth-email" type="email" placeholder="you@company.com" autocomplete="email">
+  <label class="nv-auth-remember" id="nv-auth-remember-row"><input type="checkbox" id="nv-auth-remember" checked> Remember me for 30 days on this device</label>
+  <input id="nv-auth-code" class="code" type="text" placeholder="······" maxlength="10" inputmode="numeric" autocomplete="one-time-code" style="display:none">
+  <button class="primary" id="nv-auth-primary">Send code</button>
+  <button class="nv-auth-link" id="nv-auth-back" style="display:none">Use a different email</button>
+  <div class="nv-auth-msg" id="nv-auth-msg"></div>
+</div>
+
+<!-- ═══ EDITOR MODAL ═══ -->
+<div class="nv-modal-bg" id="nv-modal-bg">
+  <div class="nv-modal">
+    <div class="nv-modal-h"><h2 id="nv-modal-title">New snippet</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field"><label>Title</label><input id="nv-f-title" placeholder="e.g. Quote — English"></div>
+      <div class="nv-field"><label>Shortcut</label>
+        <div class="nv-sc"><span class="nv-sc-pfx" id="nv-f-pfx">::</span><input id="nv-f-shortcut" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
+        <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:4px">Full shortcut: <strong id="nv-f-preview" style="font-family:var(--sb-mono);color:var(--sb-azure)">::quoteEN</strong></div>
+      </div>
+      <div class="nv-field"><label>Folder</label><select id="nv-f-folder"></select></div>
+      <div class="nv-field"><label>Body — {variable} · {=formula} · {if:cond}…{endif}</label>
+        <div class="nv-langtabs" id="nv-langtabs">
+          <button class="nv-langtab on" data-lang="EN" type="button">EN<span class="dot"></span></button>
+          <button class="nv-langtab" data-lang="IT" type="button">IT<span class="dot"></span></button>
+          <button class="nv-langtab" data-lang="ES" type="button">ES<span class="dot"></span></button>
+          <button class="nv-langtab" data-lang="FR" type="button">FR<span class="dot"></span></button>
+        </div>
+        <textarea id="nv-f-body" placeholder="Dear {guest_name},&#10;&#10;Your message…"></textarea>
+        <div class="nv-chips" id="nv-chips">
+          <span class="nv-chip" data-c="{guest_name}">guest_name</span>
+          <span class="nv-chip" data-c="{property_name}">property_name</span>
+          <span class="nv-chip" data-c="{checkin_date}">checkin_date</span>
+          <span class="nv-chip" data-c="{checkout_date}">checkout_date</span>
+          <span class="nv-chip" data-c="{total_price}">total_price</span>
+          <span class="nv-chip" data-c="{nights}">nights</span>
+          <span class="nv-chip" data-c="{phone_number}">phone</span>
+          <span class="nv-chip" data-c="{review_link}">review_link</span>
+          <span class="nv-chip f" data-c="{=A - B}">{=formula}</span>
+          <span class="nv-chip c" data-c="{if:A > 0}text{endif}">{if:cond}</span>
+        </div>
+      </div>
+      <div class="nv-field"><label>Alternative queries — synonyms, Enter or comma to add</label>
+        <div class="nv-alt-tags" id="nv-alt-tags"></div>
+        <input id="nv-f-alt" placeholder="e.g. availability, no availability…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="nv-urg">
+        <div class="nv-urg-hd">
+          <div>
+            <div class="nv-urg-lbl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Urgency timer</div>
+            <div class="nv-urg-sub">Countdown + scarcity for quotes</div>
+          </div>
+          <label class="nv-switch"><input type="checkbox" id="nv-f-urg"><span class="nv-slider"></span></label>
+        </div>
+        <div class="nv-urg-fields" id="nv-f-urg-fields" style="display:none">
+          <div class="nv-field"><label>Duration (min)</label><input type="number" id="nv-f-urg-dur" min="1" max="10080" value="30"></div>
+          <div class="nv-field"><label>Units left</label><input type="number" id="nv-f-urg-sc" min="0" max="999" value="0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-f-save"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
+      <button class="btn" id="nv-f-cancel">Cancel</button>
+      <button class="btn danger" id="nv-f-delete" style="display:none">Delete</button>
     </div>
   </div>
-</main>
+</div>
 
-<div id="toast">Copied to clipboard!</div>
+<!-- ═══ FOLDER MODAL ═══ -->
+<div class="nv-modal-bg" id="nv-fmodal-bg">
+  <div class="nv-modal" style="width:360px">
+    <div class="nv-modal-h"><h2 id="nv-fmodal-title">New folder</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field"><label>Folder name</label><input id="nv-f-fname" placeholder="Folder name…" autocomplete="off"></div>
+      <div class="nv-field"><label>Icon</label><div class="nv-ico-grid" id="nv-ico-grid"></div></div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-fmodal-save">Create folder</button>
+      <button class="btn" id="nv-fmodal-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
 
-<!-- Formula Engine (standalone, no Chrome API deps) -->
+<!-- ═══ CHANGELOG MODAL (native; renders shared window.CHANGELOG from popup.js) ═══ -->
+<div class="nv-modal-bg" id="nv-cl-bg">
+  <div class="nv-modal nv-cl-box">
+    <div class="nv-modal-h">
+      <span class="nv-logo" style="width:24px;height:24px"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      <h2>Changelog</h2>
+      <button class="nv-iconbtn" id="nv-cl-x" title="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="nv-cl-scroll" id="nv-cl-scroll"></div>
+    <div class="nv-cl-foot" id="nv-cl-foot"></div>
+  </div>
+</div>
+
+<div class="nv-toast" id="nv-toast"></div>
+
+<!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.80.0', manifest_version: 3 };</script>
+<script src="extension/shared/chrome-shim.js"></script>
+<script src="extension/auth/auth.js"></script>
+<script src="extension/services/notion-sync/notion-sync.js"></script>
+<script src="extension/popup/sync-deletion.js"></script>
+<script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
+
+<!-- ═══ NATIVE DASHBOARD CONTROLLER (presentation only; logic via shared core) ═══ -->
 <script>
-(function() {
+(function(){
   'use strict';
 
-  var FE = window.SBFormulaEngine;
-  var templateEl = document.getElementById('template');
-  var fieldsForm = document.getElementById('fields-form');
-  var outputEl   = document.getElementById('output');
-  var fieldCount = document.getElementById('field-count');
+  function $(id){ return document.getElementById(id); }
+  function ec(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function trigChar(){ return (typeof trig !== 'undefined' && trig) ? trig : '::'; }
 
-  var DEMO_TEMPLATE =
+  // ── State (native; presentation only) ───────────────────────────────
+  var nvMode = 'snippets', nvFolder = 'ALL', nvSearch = '', nvEditId = null;
+
+  // ── Toast ───────────────────────────────────────────────────────────
+  var toastT;
+  function toast(msg){
+    var t = $('nv-toast'); t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, 1700);
+  }
+
+  // ── Auth (native OTP, shared auth.js functions) ─────────────────────
+  var authState = 'email', pendingEmail = '';
+  function authMsg(t, ok){ var m = $('nv-auth-msg'); m.textContent = t || ''; m.className = 'nv-auth-msg' + (ok ? ' ok' : ''); }
+  function authRender(){
+    var email = $('nv-auth-email'), code = $('nv-auth-code'), back = $('nv-auth-back'),
+        primary = $('nv-auth-primary'), sub = $('nv-auth-sub'), rem = $('nv-auth-remember-row');
+    if (authState === 'email') {
+      email.style.display = ''; code.style.display = 'none'; back.style.display = 'none';
+      rem.style.display = 'flex'; primary.textContent = 'Send code';
+      sub.textContent = "Enter your work email — we'll send a one-time code.";
+      setTimeout(function(){ email.focus(); }, 30);
+    } else {
+      email.style.display = 'none'; code.style.display = ''; back.style.display = '';
+      rem.style.display = 'none'; primary.textContent = 'Verify';
+      sub.textContent = 'Enter the code sent to ' + pendingEmail + '.';
+      setTimeout(function(){ code.focus(); }, 30);
+    }
+  }
+  function showGate(){ $('nv-auth').classList.add('on'); authState = 'email'; pendingEmail = ''; authMsg(''); authRender(); }
+  function hideGate(){ $('nv-auth').classList.remove('on'); }
+
+  $('nv-auth-primary').addEventListener('click', function(){
+    var primary = $('nv-auth-primary');
+    if (primary.disabled) return;
+    authMsg('');
+    if (authState === 'email') {
+      var email = ($('nv-auth-email').value || '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { authMsg('Enter a valid email'); return; }
+      primary.disabled = true; primary.textContent = 'Sending…';
+      sbRequestOtp(email, function(err){
+        primary.disabled = false; primary.textContent = 'Send code';
+        if (err) { authMsg(err); return; }
+        pendingEmail = email; authState = 'code'; authRender();
+        authMsg('Code sent — check your inbox.', true);
+      });
+    } else {
+      var codeVal = ($('nv-auth-code').value || '').trim();
+      if (!/^\d{4,10}$/.test(codeVal)) { authMsg('Enter the code from your email'); return; }
+      if (!pendingEmail) { authMsg('Session lost — request a new code'); authState = 'email'; authRender(); return; }
+      primary.disabled = true; primary.textContent = 'Verifying…';
+      sbVerifyOtp(pendingEmail, codeVal, $('nv-auth-remember').checked, function(err, session){
+        primary.disabled = false; primary.textContent = 'Verify';
+        if (err || !session) { authMsg(err || 'Invalid code'); return; }
+        hideGate(); enterApp(session);
+      });
+    }
+  });
+  $('nv-auth-back').addEventListener('click', function(){ authState = 'email'; $('nv-auth-code').value = ''; authMsg(''); authRender(); });
+  $('nv-auth-email').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
+  $('nv-auth-code').addEventListener('keydown',  function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
+  $('nv-signout').addEventListener('click', function(){
+    sbClearSession(function(){ window.SB_CURRENT_USER_ID = null; window.snips = []; window.folders = []; window.prompts = []; showGate(); });
+  });
+
+  // ── Enter app: set shared user id, then load via shared DB ───────────
+  function enterApp(session){
+    window.SB_CURRENT_USER_ID = session.user_id;
+    $('nv-userline').textContent = session.email ? ('Signed in as ' + session.email) : 'Signed in';
+    try { $('nv-ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch(e) {}
+    var pending = 2;
+    function step(){ if (--pending <= 0) loadData(); }
+    try { loadUserPrefs(step); } catch(e) { step(); }
+    try { loadTrigger(step); } catch(e) { step(); }
+  }
+
+  function loadData(){
+    $('nv-sub').textContent = 'Syncing…';
+    Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(r){
+      var data = r[0];
+      window.snips   = (data && data.snippets) ? data.snippets : [];
+      window.folders = (data && data.folders && data.folders.length) ? data.folders : [];
+      window.prompts = Array.isArray(r[1]) ? r[1] : [];
+      renderAll();
+      $('nv-sub').textContent = 'Synced · ' + groupCount(window.snips) + ' snippets, ' + window.folders.length + ' folders';
+      // Pull Notion config (local cache → Supabase user_metadata) for the Settings view.
+      try { loadNotionCfg(function(){ syncNotionCfgFromSupabase(function(){}); }); } catch(e) {}
+    }).catch(function(e){ $('nv-sub').textContent = 'Could not load data'; toast('Load failed — check your connection'); });
+  }
+
+  // ── Rendering ───────────────────────────────────────────────────────
+  function renderAll(){
+    renderKpis(); renderNav(); renderFolderList(); renderMain();
+    // Deep-link: open the Composer on first render when the URL requests it (e.g.
+    // /Sprintbrain.html#composer from the React dashboard sidebar). One-shot so a
+    // later in-app reload doesn't override manual navigation; the hashchange
+    // listener below handles live hash updates.
+    if (!_composerDeepLinked && location.hash === '#composer') { _composerDeepLinked = true; openComposer(); }
+  }
+
+  function renderKpis(){
+    var snipN = groupCount(window.snips || []);
+    var promN = (window.prompts || []).length;
+    var foldN = (window.folders || []).length;
+    var topUses = 0;
+    (window.snips || []).forEach(function(s){ var u = s.stats && s.stats.uses ? s.stats.uses : 0; if (u > topUses) topUses = u; });
+    var cards = [
+      { lbl:'Snippets', v:snipN, ic:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', f:'across '+foldN+' folder'+(foldN!==1?'s':'') },
+      { lbl:'Prompts', v:promN, ic:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', f:'authored in dashboard' },
+      { lbl:'Folders', v:foldN, ic:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>', f:'organize your library' },
+      { lbl:'Top uses', v:topUses, ic:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', f:'most-used snippet' }
+    ];
+    $('nv-kpis').innerHTML = cards.map(function(c){
+      return '<div class="nv-kpi"><div class="nv-kpi-hd"><span class="nv-kpi-lbl">'+ec(c.lbl)+'</span>'
+        + '<span class="nv-kpi-ic"><svg viewBox="0 0 24 24">'+c.ic+'</svg></span></div>'
+        + '<div class="nv-kpi-v">'+c.v+'</div><div class="nv-kpi-f">'+ec(c.f)+'</div></div>';
+    }).join('');
+  }
+
+  function renderNav(){
+    $('nv-cnt-snip').textContent = groupCount(window.snips || []);
+    $('nv-cnt-prompt').textContent = (window.prompts || []).length;
+    $('nv-nav-snip').classList.toggle('on', !settingsOpen && !composerOpen && nvMode === 'snippets');
+    $('nv-nav-prompt').classList.toggle('on', !settingsOpen && !composerOpen && nvMode === 'prompts');
+    var ns = $('nv-nav-settings'); if (ns) ns.classList.toggle('on', settingsOpen);
+    var nc = $('nv-nav-composer'); if (nc) nc.classList.toggle('on', composerOpen);
+    var showFolders = !settingsOpen && !composerOpen && nvMode === 'snippets';
+    $('nv-folders-grp').style.display = showFolders ? '' : 'none';
+    $('nv-folder-list').style.display = showFolders ? '' : 'none';
+  }
+
+  var FOLDER_SVGS = (typeof _FOLDER_SVGS !== 'undefined') ? _FOLDER_SVGS : {};
+  function folderSvg(ico){ return (FOLDER_SVGS && FOLDER_SVGS[ico]) || (FOLDER_SVGS && FOLDER_SVGS.folder) || '<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>'; }
+
+  function renderFolderList(){
+    var el = $('nv-folder-list');
+    var h = '<div class="nv-item'+(nvFolder==='ALL'?' on':'')+'" data-fid="ALL">'
+      + '<span class="nv-ico-svg"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/></svg></span>'
+      + '<span class="nv-name">All snippets</span><span class="nv-cnt">'+groupCount(window.snips||[])+'</span></div>';
+    (window.folders || []).forEach(function(f){
+      h += '<div class="nv-item has-dots'+(nvFolder===f.id?' on':'')+'" data-fid="'+ec(f.id)+'">'
+        + '<span class="nv-ico-svg">'+folderSvg(f.ico||'folder')+'</span>'
+        + '<span class="nv-name">'+ec(f.name)+'</span><span class="nv-cnt">'+folderCount(f.id)+'</span>'
+        + '<span class="nv-fdots" data-fdots title="Folder options">⋯</span></div>';
+    });
+    h += '<div class="nv-item nv-add-folder" id="nv-add-folder"><span class="nv-ico-svg"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span><span class="nv-name">New folder</span></div>';
+    el.innerHTML = h;
+    el.querySelectorAll('.nv-item[data-fid]').forEach(function(row){
+      row.addEventListener('click', function(e){
+        if (e.target.closest('[data-fdots]')) { e.stopPropagation(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); return; }
+        nvFolder = row.dataset.fid; renderFolderList(); renderMain();
+      });
+      if (row.dataset.fid !== 'ALL') row.addEventListener('contextmenu', function(e){ e.preventDefault(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); });
+    });
+    var add = $('nv-add-folder'); if (add) add.addEventListener('click', function(){ nvFolderModal({}); });
+  }
+
+  function renderMain(){
+    if (nvMode === 'prompts') return renderPromptsMain();
+    var folderName = nvFolder === 'ALL' ? 'All snippets' : (function(){ var f = findFolder(nvFolder); return f ? f.name : 'Snippets'; })();
+    $('nv-title').textContent = folderName;
+    $('nv-list-title').textContent = 'Snippets';
+    $('nv-new').style.display = '';
+
+    var q = nvSearch.toLowerCase();
+    var filtered = (window.snips || []).filter(function(s){
+      var mf = nvFolder === 'ALL' || (s.folder || '') === nvFolder;
+      var mq = !q || String(s.title||'').toLowerCase().indexOf(q) > -1 || String(s.shortcut||'').toLowerCase().indexOf(q) > -1;
+      return mf && mq;
+    });
+    filtered.sort(function(a,b){ return (b.pinned?1:0) - (a.pinned?1:0); });
+    $('nv-list-sub').textContent = groupCount(filtered) + ' shown';
+
+    if (!filtered.length) {
+      $('nv-list').innerHTML = '<div class="nv-empty">No snippets here yet.<br><small>Click “New snippet” to create one.</small></div>';
+      return;
+    }
+    var groups = groupSnips(filtered);
+    var h = '';
+    groups.forEach(function(g){
+      var s = g.master;
+      var langs = bodyLangs(s);
+      var lb = langs.length > 1 ? 'MULTI' : (s.lang || 'EN');
+      var st = s.stats || { uses:0 };
+      var usesTxt = st.uses ? ('<span class="nv-stat uses">×'+st.uses+'</span>') : '<span class="nv-stat">Never used</span>';
+      var base = String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/, '');
+      h += '<div class="nv-row" data-id="'+ec(s.id)+'">'
+        + (s.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
+        + '<div class="nv-row-main"><div class="nv-row-title">'+ec(base)+'</div>'
+        + '<div class="nv-row-meta">'+usesTxt+'</div></div>'
+        + '<span class="sctag"><span class="pfx">'+ec(trigChar())+'</span>'+ec(String(s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''))+'</span>'
+        + '<span class="lb '+ec(lb)+'">'+ec(lb)+'</span>'
+        + '<div class="nv-row-act">'
+        + '<button class="nv-iconbtn" data-act="edit" title="Edit"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+        + '<button class="nv-iconbtn" data-act="more" title="More actions"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>'
+        + '</div></div>';
+    });
+    $('nv-list').innerHTML = h;
+    $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
+      row.addEventListener('click', function(e){
+        var act = e.target.closest('[data-act]');
+        var s = findSnip(row.dataset.id); if (!s) return;
+        if (act) { e.stopPropagation();
+          if (act.dataset.act === 'edit') return openEditor(s);
+          if (act.dataset.act === 'more') { var r = act.getBoundingClientRect(); return snippetMenu(s, r.right, r.bottom); }
+          return;
+        }
+        // Row click → copy shortcut + bump stats (shared DB.updateStats)
+        try { navigator.clipboard.writeText(s.shortcut || ''); } catch(x) {}
+        if (!s.stats) s.stats = { uses:0, fills:0, lastUsed:null };
+        s.stats.uses = (s.stats.uses||0) + 1; s.stats.lastUsed = new Date().toISOString();
+        DB.updateStats(s.id, s.stats.uses, s.stats.fills, s.stats.lastUsed);
+        toast('Copied ' + trigChar() + String(s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''));
+        renderMain();
+      });
+      row.addEventListener('contextmenu', function(e){ e.preventDefault(); var s = findSnip(row.dataset.id); if (s) snippetMenu(s, e.clientX, e.clientY); });
+    });
+  }
+
+  function renderPromptsMain(){
+    $('nv-title').textContent = 'Prompts';
+    $('nv-list-title').textContent = 'Prompts';
+    $('nv-new').style.display = 'none';
+    var q = nvSearch.toLowerCase().replace(/^"+/, '').trim();
+    var filtered = (window.prompts || []).filter(function(p){
+      return !q || (p.name||'').toLowerCase().indexOf(q) > -1
+        || (p.intent_category||'').toLowerCase().indexOf(q) > -1
+        || (p.tags||[]).some(function(t){ return (t||'').toLowerCase().indexOf(q) > -1; });
+    });
+    $('nv-list-sub').textContent = filtered.length + ' shown';
+    if (!filtered.length) {
+      $('nv-list').innerHTML = '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
+      return;
+    }
+    var h = '';
+    filtered.forEach(function(p){
+      var type = (p.type || 'one-shot').replace(/_/g,'-');
+      var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
+      var tags = (p.tags||[]).slice(0,3).map(function(t){ return '<span class="p-tag">'+ec(t)+'</span>'; }).join('');
+      h += '<div class="nv-row" data-pid="'+ec(p.id)+'"><div class="nv-row-main">'
+        + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
+        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span>'+tags+'</div></div>'
+        + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
+    });
+    $('nv-list').innerHTML = h;
+    $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var p = findPrompt(row.dataset.pid); if (!p) return;
+        try { navigator.clipboard.writeText(p.content || ''); } catch(x) {}
+        toast('Prompt copied');
+      });
+    });
+  }
+
+  // ── Editor (create/edit/delete via shared DB) ───────────────────────
+  // Multi-language buffers mirror popup.js doSave(): one body per language,
+  // active tab edits edBuf[edActive]; on save buildBodies() keeps every non-empty
+  // language. Urgency + alternative_queries persisted exactly as the popup does.
+  var LANG_LIST = (typeof LANGS !== 'undefined') ? LANGS : ['EN','ES','IT','FR'];
+  var edBuf = {}, edActive = 'EN', edAlt = [];
+
+  function folderOptions(current){
+    var h = '<option value="">— No folder —</option>';
+    (window.folders || []).forEach(function(f){ h += '<option value="'+ec(f.id)+'"'+(f.id===current?' selected':'')+'>'+ec(f.name)+'</option>'; });
+    return h;
+  }
+  function defaultLang(){ try { return (userPrefs && userPrefs.defaultLang) || 'EN'; } catch(e){ return 'EN'; } }
+  function updatePreview(){
+    $('nv-f-pfx').textContent = trigChar();
+    var w = ($('nv-f-shortcut').value || '').replace(/^[^a-zA-Z0-9]+/, '');
+    $('nv-f-preview').textContent = trigChar() + (w || 'shortcut');
+  }
+  function renderLangTabs(){
+    Array.prototype.forEach.call(document.querySelectorAll('#nv-langtabs .nv-langtab'), function(t){
+      var l = t.dataset.lang;
+      t.classList.toggle('on', l === edActive);
+      t.classList.toggle('has-content', !!(edBuf[l] && edBuf[l].trim()));
+    });
+  }
+  function switchLang(l){
+    edBuf[edActive] = $('nv-f-body').value;
+    edActive = l;
+    $('nv-f-body').value = (typeof edBuf[l] === 'string') ? edBuf[l] : '';
+    renderLangTabs(); $('nv-f-body').focus();
+  }
+  function renderAltTags(){
+    var c = $('nv-alt-tags'); c.innerHTML = '';
+    edAlt.forEach(function(tag, idx){
+      var span = document.createElement('span'); span.className = 'nv-alt-tag'; span.textContent = tag;
+      var x = document.createElement('i'); x.className = 'nv-alt-x'; x.innerHTML = '&#x2715;'; x.title = 'Remove';
+      x.addEventListener('click', function(){ edAlt.splice(idx, 1); renderAltTags(); });
+      span.appendChild(x); c.appendChild(span);
+    });
+    $('nv-f-alt').placeholder = edAlt.length ? 'Add another…' : 'e.g. availability, no availability…';
+  }
+  function commitAltDraft(){
+    var inp = $('nv-f-alt'); var raw = (inp.value || '').replace(/,/g, '').trim().toLowerCase();
+    if (raw && edAlt.indexOf(raw) === -1) { edAlt.push(raw); renderAltTags(); }
+    inp.value = '';
+  }
+  function openEditor(snip){
+    nvEditId = snip ? snip.id : null;
+    $('nv-modal-title').textContent = snip ? 'Edit snippet' : 'New snippet';
+    $('nv-f-title').value = snip ? (snip.title || '') : '';
+    $('nv-f-shortcut').value = snip ? String(snip.shortcut||'').replace(/^[^a-zA-Z0-9]+/,'') : '';
+    $('nv-f-folder').innerHTML = folderOptions(snip ? snip.folder : (nvFolder !== 'ALL' ? nvFolder : ''));
+    // language buffers (single-row bodies map + legacy sibling variants)
+    edBuf = {}; edActive = snip ? (snip.lang || defaultLang()) : defaultLang();
+    if (snip) {
+      var v = (typeof findVariants === 'function') ? findVariants(snip) : {};
+      LANG_LIST.forEach(function(l){ if (v[l] && typeof v[l].body === 'string') edBuf[l] = v[l].body; });
+      var ab = snip.bodies || {};
+      edBuf[edActive] = (typeof ab[edActive] === 'string') ? ab[edActive] : (snip.body || '');
+    }
+    $('nv-f-body').value = (typeof edBuf[edActive] === 'string') ? edBuf[edActive] : '';
+    renderLangTabs();
+    // alternative queries
+    edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
+    renderAltTags(); $('nv-f-alt').value = '';
+    // urgency
+    var urgOn = snip ? !!snip.enable_urgency_timer : false;
+    $('nv-f-urg').checked = urgOn;
+    $('nv-f-urg-dur').value = (snip && snip.timer_duration_ms) ? Math.round(snip.timer_duration_ms / 60000) : 30;
+    $('nv-f-urg-sc').value = (snip && snip.scarcity_count) ? snip.scarcity_count : 0;
+    $('nv-f-urg-fields').style.display = urgOn ? '' : 'none';
+    updatePreview();
+    $('nv-f-delete').style.display = snip ? '' : 'none';
+    $('nv-modal-bg').classList.add('on');
+    setTimeout(function(){ $('nv-f-title').focus(); }, 30);
+  }
+  function closeEditor(){ $('nv-modal-bg').classList.remove('on'); nvEditId = null; }
+
+  Array.prototype.forEach.call(document.querySelectorAll('#nv-langtabs .nv-langtab'), function(t){
+    t.addEventListener('click', function(){ switchLang(t.dataset.lang); });
+  });
+  $('nv-chips').addEventListener('click', function(e){
+    var c = e.target.closest('[data-c]'); if (!c) return;
+    var ta = $('nv-f-body'), ins = c.dataset.c, s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
+    ta.value = ta.value.slice(0, s) + ins + ta.value.slice(en);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = s + ins.length;
+  });
+  $('nv-f-alt').addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitAltDraft(); }
+    else if (e.key === 'Backspace' && ($('nv-f-alt').value || '') === '') { if (edAlt.length) { edAlt.pop(); renderAltTags(); } }
+  });
+  $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
+  $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
+  $('nv-f-shortcut').addEventListener('input', updatePreview);
+  $('nv-f-cancel').addEventListener('click', closeEditor);
+  $('nv-modal-bg').addEventListener('click', function(e){ if (e.target === $('nv-modal-bg')) closeEditor(); });
+  $('nv-f-save').addEventListener('click', function(){
+    var title = ($('nv-f-title').value || '').trim();
+    var word = ($('nv-f-shortcut').value || '').trim().replace(/^[^a-zA-Z0-9]+/, '');
+    var folder = $('nv-f-folder').value || '';
+    if (!title) { toast('Title is required'); $('nv-f-title').focus(); return; }
+    if (!word) { toast('Shortcut is required'); $('nv-f-shortcut').focus(); return; }
+    commitAltDraft();
+    edBuf[edActive] = $('nv-f-body').value;
+    var lang = edActive, body = $('nv-f-body').value, sc = trigChar() + word;
+    var bodies = {}; LANG_LIST.forEach(function(l){ var t = edBuf[l]; if (typeof t === 'string' && t.trim()) bodies[l] = t; });
+    var urgEnabled = $('nv-f-urg').checked;
+    var urgDurMs = Math.max(1, parseInt($('nv-f-urg-dur').value, 10) || 30) * 60000;
+    var urgSc = Math.max(0, parseInt($('nv-f-urg-sc').value, 10) || 0);
+    var alt = edAlt.slice();
+
+    var existing = nvEditId ? findSnip(nvEditId) : null, obj;
+    if (existing) {
+      obj = existing;
+      obj.title = title; obj.shortcut = sc; obj.body = body; obj.lang = lang; obj.bodies = bodies;
+      obj.folder = folder; obj.enable_urgency_timer = urgEnabled; obj.timer_duration_ms = urgDurMs;
+      obj.scarcity_count = urgSc; obj.alternative_queries = alt; obj.manually_edited = true;
+      DB.upsertSnippet(obj);
+    } else {
+      var id = uid();
+      obj = { id:id, title:title, shortcut:sc, body:body, lang:lang, bodies:bodies, folder:folder,
+        fieldCfg:{}, lang_group_id:id, sort_order:(window.snips||[]).length + 1,
+        enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs, scarcity_count:urgSc,
+        alternative_queries:alt, notion_page_id:null, manually_edited:true, ai_generated:false, pinned:false,
+        stats:{ uses:0, fills:0, lastUsed:null } };
+      (window.snips = window.snips || []).unshift(obj);
+      DB.upsertSnippet(obj); DB.updateStats(obj.id, 0, 0, null);
+    }
+    try { if (window.NotionPush && NotionPush.push) NotionPush.push(obj); } catch(e) {}
+    try { if (typeof syncSnippets === 'function') syncSnippets(); } catch(e) {}
+    closeEditor(); renderAll(); toast(existing ? 'Snippet saved' : 'Snippet created');
+  });
+  $('nv-f-delete').addEventListener('click', function(){ var s = nvEditId ? findSnip(nvEditId) : null; if (s) { closeEditor(); deleteSnip(s); } });
+
+  function togglePin(s){
+    s.pinned = !s.pinned;
+    var obj = {}; for (var k in s) obj[k] = s[k];
+    DB.upsertSnippet(obj);
+    renderMain(); toast(s.pinned ? 'Pinned to top' : 'Unpinned');
+  }
+  function deleteSnip(s){
+    if (!window.confirm('Delete "' + (s.title||'this snippet') + '"? This cannot be undone.')) return;
+    DB.deleteSnippet(s.id);
+    window.snips = (window.snips || []).filter(function(x){ return x.id !== s.id; });
+    renderAll(); toast('Snippet deleted');
+  }
+
+  // ── Context menus + folder management ───────────────────────────────
+  var SVG = {
+    dup:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    move:'<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    pen:'<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    pin:'<svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg>',
+    copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    trash:'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    grid:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>'
+  };
+  function closeMenu(){ var m = $('nv-ctx'); if (m && m.parentNode) m.parentNode.removeChild(m); }
+  function showMenu(x, y, items){
+    closeMenu();
+    var m = document.createElement('div'); m.className = 'nv-ctx'; m.id = 'nv-ctx';
+    items.forEach(function(it){
+      if (it.sep) { var sp = document.createElement('div'); sp.className = 'nv-ctx-sep'; m.appendChild(sp); return; }
+      var el = document.createElement('div'); el.className = 'nv-ctx-item' + (it.danger ? ' danger' : '');
+      el.innerHTML = '<span class="nv-ctx-ic">' + (it.ic || '') + '</span><span>' + ec(it.label) + '</span>' + (it.arrow ? '<span class="nv-ctx-arr">›</span>' : '');
+      el.addEventListener('click', function(e){ e.stopPropagation(); if (it.keepOpen) { it.onClick(); } else { closeMenu(); it.onClick(); } });
+      m.appendChild(el);
+    });
+    document.body.appendChild(m);
+    m.style.left = '-9999px'; m.style.top = '-9999px';
+    var r = m.getBoundingClientRect();
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var vh = document.documentElement.clientHeight || window.innerHeight;
+    m.style.left = Math.max(4, Math.min(x, vw - r.width - 4)) + 'px';
+    m.style.top  = Math.max(4, Math.min(y, vh - r.height - 4)) + 'px';
+  }
+  document.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeMenu(); });
+  window.addEventListener('scroll', closeMenu, true);
+
+  function snippetMenu(s, x, y){
+    showMenu(x, y, [
+      { label:'Duplicate snippet', ic:SVG.dup, onClick:function(){ duplicateSnip(s); } },
+      { label:'Move to folder', ic:SVG.move, arrow:true, keepOpen:true, onClick:function(){ moveMenu(s, x, y); } },
+      { sep:true },
+      { label:'Rename…', ic:SVG.pen, onClick:function(){ renameSnip(s); } },
+      { label:(s.pinned ? 'Unpin' : 'Pin to top'), ic:SVG.pin, onClick:function(){ togglePin(s); } },
+      { sep:true },
+      { label:'Copy content', ic:SVG.copy, onClick:function(){ copyContent(s); } },
+      { sep:true },
+      { label:'Delete snippet…', ic:SVG.trash, danger:true, onClick:function(){ deleteSnip(s); } }
+    ]);
+  }
+  function moveMenu(s, x, y){
+    var items = (window.folders || []).map(function(f){ return { label:f.name, ic:folderSvg(f.ico||'folder'), onClick:function(){ moveSnip(s, f.id); } }; });
+    items.push({ sep:true });
+    items.push({ label:'No folder', ic:'', onClick:function(){ moveSnip(s, ''); } });
+    items.push({ sep:true });
+    items.push({ label:'＋ New folder…', ic:'', onClick:function(){ nvFolderModal({ cb:function(fid){ moveSnip(s, fid); } }); } });
+    showMenu(x, y, items);
+  }
+  function folderMenu(f, x, y){
+    showMenu(x, y, [
+      { label:'Rename folder…', ic:SVG.pen, onClick:function(){ renameFolder(f); } },
+      { label:'Change icon…', ic:SVG.grid, onClick:function(){ nvFolderModal({ editId:f.id }); } },
+      { sep:true },
+      { label:'Delete folder…', ic:SVG.trash, danger:true, onClick:function(){ deleteFolderAction(f); } }
+    ]);
+  }
+
+  function duplicateSnip(s){
+    var copy = JSON.parse(JSON.stringify(s));
+    copy.id = uid(); copy.lang_group_id = copy.id; copy.title = 'Copy of ' + copy.title;
+    copy.shortcut = (copy.shortcut || '') + '2'; copy.pinned = false;
+    copy.stats = { uses:0, fills:0, lastUsed:null };
+    var arr = window.snips || []; var i = arr.indexOf(s);
+    if (i >= 0) arr.splice(i + 1, 0, copy); else arr.unshift(copy);
+    DB.upsertSnippet(copy); DB.updateStats(copy.id, 0, 0, null);
+    renderAll(); toast('Snippet duplicated');
+  }
+  function moveSnip(s, fid){ s.folder = fid; DB.upsertSnippet(s); renderAll(); toast(fid ? 'Moved to folder' : 'Removed from folder'); }
+  function renameSnip(s){ var v = window.prompt('Rename snippet:', s.title || ''); if (v && v.trim() && v.trim() !== s.title) { s.title = v.trim(); s.manually_edited = true; DB.upsertSnippet(s); renderAll(); } }
+  function copyContent(s){ try { navigator.clipboard.writeText(s.body || ''); } catch(e) {} toast('Content copied'); }
+  function renameFolder(f){ var v = window.prompt('Rename folder:', f.name || ''); if (v && v.trim() && v.trim() !== f.name) { f.name = v.trim(); DB.upsertFolder(f); renderAll(); } }
+  function deleteFolderAction(f){
+    var cnt = folderCount(f.id);
+    var msg = cnt > 0 ? 'Delete folder "' + f.name + '" and ungroup its ' + cnt + ' snippet(s)?' : 'Delete folder "' + f.name + '"?';
+    if (!window.confirm(msg)) return;
+    (window.snips || []).forEach(function(s){ if ((s.folder || '') === f.id) { s.folder = ''; DB.upsertSnippet(s); } });
+    DB.deleteFolder(f.id);
+    window.folders = (window.folders || []).filter(function(x){ return x.id !== f.id; });
+    if (nvFolder === f.id) nvFolder = 'ALL';
+    renderAll(); toast('Folder deleted');
+  }
+
+  // ── Folder modal (create / edit icon) ───────────────────────────────
+  var fmEditId = null, fmCb = null, fmIco = 'folder';
+  function renderIcoGrid(){
+    var keys = Object.keys(FOLDER_SVGS); if (!keys.length) keys = ['folder'];
+    $('nv-ico-grid').innerHTML = keys.map(function(k){ return '<span class="nv-ico-opt'+(k===fmIco?' on':'')+'" data-ico="'+ec(k)+'">'+folderSvg(k)+'</span>'; }).join('');
+  }
+  function nvFolderModal(opts){
+    opts = opts || {}; fmEditId = opts.editId || null; fmCb = opts.cb || null;
+    var f = fmEditId ? findFolder(fmEditId) : null;
+    fmIco = f ? (f.ico || 'folder') : 'folder';
+    $('nv-fmodal-title').textContent = f ? 'Edit folder' : 'New folder';
+    $('nv-f-fname').value = f ? f.name : '';
+    $('nv-fmodal-save').textContent = f ? 'Save folder' : 'Create folder';
+    renderIcoGrid();
+    $('nv-fmodal-bg').classList.add('on');
+    setTimeout(function(){ $('nv-f-fname').focus(); }, 30);
+  }
+  function closeFolderModal(){ $('nv-fmodal-bg').classList.remove('on'); fmEditId = null; fmCb = null; }
+  $('nv-ico-grid').addEventListener('click', function(e){ var o = e.target.closest('[data-ico]'); if (!o) return; fmIco = o.dataset.ico; renderIcoGrid(); });
+  $('nv-fmodal-cancel').addEventListener('click', closeFolderModal);
+  $('nv-fmodal-bg').addEventListener('click', function(e){ if (e.target === $('nv-fmodal-bg')) closeFolderModal(); });
+  $('nv-f-fname').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('nv-fmodal-save').click(); if (e.key === 'Escape') closeFolderModal(); });
+  $('nv-fmodal-save').addEventListener('click', function(){
+    var name = ($('nv-f-fname').value || '').trim(); if (!name) { $('nv-f-fname').focus(); toast('Folder name required'); return; }
+    if (fmEditId) { var f = findFolder(fmEditId); if (f) { f.name = name; f.ico = fmIco; DB.upsertFolder(f); } }
+    else { var nf = { id:fuid(), name:name, ico:fmIco, sort_order:(window.folders||[]).length + 1 }; (window.folders = window.folders || []).push(nf); DB.upsertFolder(nf); if (fmCb) fmCb(nf.id); }
+    closeFolderModal(); renderAll();
+  });
+
+  // ── Settings (trigger / sequences / language / Notion / team) ───────
+  var settingsOpen = false, composerOpen = false, _composerDeepLinked = false;
+  function setStatus(id, txt, color){ var e = $(id); if (e){ e.textContent = txt || ''; e.style.color = color || ''; } }
+  function validSeq(seq){ return (typeof validateTriggerSeq === 'function') ? validateTriggerSeq(seq) : (!!seq && seq.length >= 1 && seq.length <= 5 && !/\s/.test(seq) && !/^[a-zA-Z0-9]$/.test(seq)); }
+  function updateTrigInfo(){
+    var t = ($('nv-set-trig').value || '').trim() || '::';
+    $('nv-trig-active').textContent = t;
+    $('nv-trig-ex').textContent = t + 'quoteEN';
+    var w = $('nv-trig-warn');
+    if (t === '/') { w.innerHTML = '<strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>::</strong> instead.'; w.style.display = ''; }
+    else if (/^[a-zA-Z0-9]$/.test(t)) { w.textContent = 'Single alphanumeric triggers may cause false positives.'; w.style.display = ''; }
+    else { w.style.display = 'none'; }
+    Array.prototype.forEach.call(document.querySelectorAll('#nv-trig-tiles .nv-trig-tile'), function(tile){ tile.classList.toggle('on', tile.dataset.t === t); });
+  }
+  function openSettings(){
+    settingsOpen = true; composerOpen = false; $('nv-composer').style.display = 'none';
+    $('nv-set-trig').value = trigChar();
+    try { $('nv-tcfg-snip').value = triggerCfg.snippetTrigger || '::'; $('nv-tcfg-prompt').value = triggerCfg.promptTrigger || '"""';
+      $('nv-tcfg-snip-key').value = triggerCfg.snippetActivationKey || 'Tab'; $('nv-tcfg-prompt-key').value = triggerCfg.promptActivationKey || 'Tab';
+      $('nv-tcfg-sel').checked = triggerCfg.selectionSuggestions !== false; } catch(e) {}
+    try { $('nv-set-lang').value = (userPrefs && userPrefs.defaultLang) || 'EN'; } catch(e) {}
+    try { $('nv-notion-key').value = (notionCfg && notionCfg.apiKey) || ''; $('nv-notion-db').value = (notionCfg && notionCfg.dbId) || ''; } catch(e) {}
+    setStatus('nv-set-status', ''); setStatus('nv-team-st', '');
+    updateTrigInfo();
+    $('nv-kpis').style.display = 'none'; $('nv-list-card').style.display = 'none'; $('nv-settings').style.display = '';
+    $('nv-new').style.display = 'none';
+    $('nv-title').textContent = 'Settings'; $('nv-sub').textContent = 'Trigger, language, Notion & team';
+    renderNav();
+  }
+  function leaveSettings(){
+    settingsOpen = false;
+    $('nv-settings').style.display = 'none'; $('nv-kpis').style.display = ''; $('nv-list-card').style.display = '';
+  }
+  function gotoMode(m){ leaveSettings(); leaveComposer(); nvMode = m; renderNav(); renderMain(); }
+
+  $('nv-trig-tiles').addEventListener('click', function(e){ var t = e.target.closest('.nv-trig-tile'); if (!t) return; $('nv-set-trig').value = t.dataset.t; updateTrigInfo(); });
+  $('nv-set-trig').addEventListener('input', updateTrigInfo);
+  $('nv-set-cancel').addEventListener('click', function(){ leaveSettings(); renderNav(); renderMain(); });
+  $('nv-set-save').addEventListener('click', function(){
+    var chosen = ($('nv-set-trig').value || '').trim() || trigChar();
+    if (!validSeq(chosen)) { setStatus('nv-set-status', 'Invalid trigger', 'var(--sb-danger)'); toast('Trigger must be 1–5 non-space chars, not a single letter/number'); return; }
+    // Apply trigger char: rewrite every snippet's shortcut prefix (mirrors applyTrig).
+    var old = trigChar();
+    if (chosen !== old) {
+      (window.snips || []).forEach(function(s){ var sc = s.shortcut || ''; if (sc.indexOf(old) === 0) { s.shortcut = chosen + sc.slice(old.length); s.manually_edited = true; DB.upsertSnippet(s); } });
+    }
+    window.trig = chosen; try { saveTrigger(); } catch(e) {}
+    try {
+      triggerCfg.snippetTrigger = chosen;
+      var promptSeq = ($('nv-tcfg-prompt').value || '"""').trim();
+      if (validSeq(promptSeq) && !(typeof triggerWouldCollide === 'function' && triggerWouldCollide('promptTrigger', promptSeq))) triggerCfg.promptTrigger = promptSeq;
+      triggerCfg.snippetActivationKey = $('nv-tcfg-snip-key').value || 'Tab';
+      triggerCfg.promptActivationKey = $('nv-tcfg-prompt-key').value || 'Tab';
+      triggerCfg.selectionSuggestions = $('nv-tcfg-sel').checked;
+      saveTriggerCfg();
+    } catch(e) {}
+    try { userPrefs.defaultLang = $('nv-set-lang').value || 'EN'; saveUserPrefs(); } catch(e) {}
+    try { notionCfg.apiKey = ($('nv-notion-key').value || '').trim(); notionCfg.dbId = ($('nv-notion-db').value || '').trim(); saveNotionCfg(); pushNotionCfgToSupabase(); } catch(e) {}
+    toast('Settings saved');
+    leaveSettings(); renderNav(); renderMain();
+  });
+  $('nv-team-btn').addEventListener('click', function(){
+    var btn = $('nv-team-btn');
+    if (!window.SB_CURRENT_USER_ID) { setStatus('nv-team-st', 'Not signed in.', 'var(--sb-danger)'); return; }
+    btn.disabled = true; btn.textContent = 'Syncing…'; setStatus('nv-team-st', '');
+    function done(msg, color){ btn.disabled = false; btn.textContent = 'Sync with Team'; setStatus('nv-team-st', msg, color); }
+    supaFetch('organizations', 'GET', null, 'select=id&slug=eq.leibtour')
+      .then(function(r){ return r.ok ? r.json() : []; })
+      .then(function(orgs){
+        if (!orgs || !orgs.length) { done('Not in a team org.', 'var(--sb-danger)'); return; }
+        var filter = 'user_id=eq.' + window.SB_CURRENT_USER_ID + '&organization_id=is.null';
+        return Promise.all([
+          supaFetch('snippets', 'PATCH', { folder_id: 'leibtour_team_shared' }, filter),
+          supaFetch('prompts',  'PATCH', { folder_id: 'leibtour_team_shared' }, filter)
+        ]).then(function(res){
+          for (var i = 0; i < res.length; i++) { if (!res[i].ok) throw new Error('HTTP ' + res[i].status); }
+          try { chrome.storage.local.set({ sb_team_sync_ts: new Date().toISOString() }); } catch(e) {}
+          done('Synced ✓', 'var(--sb-ok)'); toast('Snippets synced with team');
+        });
+      })
+      .catch(function(){ done('Sync failed.', 'var(--sb-danger)'); });
+  });
+
+  // ── Composer (live formula/template tester; shared formula-engine.js) ─
+  var composerReady = false;
+  var COMP_DEMO =
 '📋 QUOTATION — {time: DD/MM/YYYY} at {time: HH:mm}\n' +
 'Valid for 3 hours.\n\n' +
 'Check-in:  {formdate: name=CHECKIN}\n' +
@@ -366,238 +1196,133 @@
 '📋  Standard cancellation policy applies.\n' +
 '    See leibtour.com/policy for full terms.\n' +
 '{endif}\n\n' +
-'📎 Full terms → leibtour.com/policy\n' +
-'❓ FAQ → leibtour.com/faqs/booking-process';
+'📎 Full terms → leibtour.com/policy';
 
-  // ── Field registry ─────────────────────────────────────────────
-  // Stores field definitions: key → {type, opts, default}
-  var fieldDefs = {};
-
-  function getFieldDefs(body) {
-    var defs = {};
-    // From {formtext/date/menu:} tokens
-    var dynCfg = FE.buildFormFieldCfg(body);
-    for (var k in dynCfg) defs[k] = dynCfg[k];
-    // From {{VARNAME}} placeholders (not already covered by form tokens)
-    var placeholders = FE.parsePlaceholders(body);
-    for (var p = 0; p < placeholders.length; p++) {
-      var ph = placeholders[p];
-      if (!defs[ph]) defs[ph] = { type: 'text', default: '' };
-    }
-    // From {VARNAME} single-brace fields
-    var singleFields = FE.extractFields(body);
-    for (var s = 0; s < singleFields.length; s++) {
-      var sf = singleFields[s];
-      if (!defs[sf]) defs[sf] = { type: 'text', default: '' };
-    }
+  function compFieldDefs(body){
+    var FE = window.SBFormulaEngine, defs = {};
+    var dynCfg = FE.buildFormFieldCfg(body); for (var k in dynCfg) defs[k] = dynCfg[k];
+    var ph = FE.parsePlaceholders(body); for (var p = 0; p < ph.length; p++) { if (!defs[ph[p]]) defs[ph[p]] = { type:'text', default:'' }; }
+    var sf = FE.extractFields(body); for (var s = 0; s < sf.length; s++) { if (!defs[sf[s]]) defs[sf[s]] = { type:'text', default:'' }; }
     return defs;
   }
-
-  function buildFieldsForm(defs) {
-    var keys = Object.keys(defs);
-    fieldCount.textContent = keys.length + (keys.length === 1 ? ' field' : ' fields');
-    if (!keys.length) {
-      fieldsForm.innerHTML = '<p class="no-fields">No variables detected yet.</p>';
-      return;
-    }
+  function compBuildFields(defs){
+    var form = $('nv-comp-fields'), keys = Object.keys(defs);
+    $('nv-comp-count').textContent = keys.length + (keys.length === 1 ? ' field' : ' fields');
+    if (!keys.length) { form.innerHTML = '<p class="nv-comp-empty">No variables detected yet. Start typing a template.</p>'; return; }
     var html = '';
     for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      var def = defs[key];
-      var label = key.replace(/_/g, ' ');
-      var inp;
+      var key = keys[i], def = defs[key], label = key.replace(/_/g, ' '), inp;
       if (def.type === 'dd') {
         var opts = (def.opts || '').split('\n').filter(Boolean);
-        var optHtml = opts.map(function(o) {
-          return '<option value="' + esc(o) + '">' + esc(o) + '</option>';
-        }).join('');
-        inp = '<select data-key="' + esc(key) + '">' + optHtml + '</select>';
-      } else if (def.type === 'date') {
-        inp = '<input type="date" data-key="' + esc(key) + '" value="' + esc(def.default || '') + '">';
-      } else if (def.type === 'time') {
-        inp = '<input type="time" data-key="' + esc(key) + '" value="' + esc(def.default || '') + '">';
-      } else {
-        inp = '<input type="text" data-key="' + esc(key) + '" placeholder="' + esc(label) + '" value="' + esc(def.default || '') + '">';
-      }
-      html += '<div class="field-row"><label>' + esc(label) + '</label>' + inp + '</div>';
+        inp = '<select data-key="' + ec(key) + '">' + opts.map(function(o){ return '<option value="' + ec(o) + '">' + ec(o) + '</option>'; }).join('') + '</select>';
+      } else if (def.type === 'date') { inp = '<input type="date" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
+      else if (def.type === 'time') { inp = '<input type="time" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
+      else { inp = '<input type="text" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(def.default || '') + '">'; }
+      html += '<div class="nv-comp-frow"><label>' + ec(label) + '</label>' + inp + '</div>';
     }
-    fieldsForm.innerHTML = html;
-
-    // Attach live listeners
-    var inputs = fieldsForm.querySelectorAll('input, select');
-    for (var j = 0; j < inputs.length; j++) {
-      inputs[j].addEventListener('input',  updateOutput);
-      inputs[j].addEventListener('change', updateOutput);
-    }
+    form.innerHTML = html;
+    Array.prototype.forEach.call(form.querySelectorAll('input,select'), function(el){ el.addEventListener('input', compUpdate); el.addEventListener('change', compUpdate); });
   }
-
-  function getVals() {
-    var vals = {};
-    var inputs = fieldsForm.querySelectorAll('[data-key]');
-    for (var i = 0; i < inputs.length; i++) {
-      vals[inputs[i].dataset.key] = inputs[i].value;
-    }
-    return vals;
-  }
-
-  function updateOutput() {
-    var body = templateEl.value;
-    if (!body.trim()) {
-      outputEl.textContent = 'Output appears here as you type.';
-      outputEl.className = 'empty';
-      return;
-    }
-    var vals = getVals();
-    // First pass: interpolate double-brace {{VARNAME}} placeholders
+  function compVals(){ var v = {}, ins = $('nv-comp-fields').querySelectorAll('[data-key]'); for (var i = 0; i < ins.length; i++) v[ins[i].dataset.key] = ins[i].value; return v; }
+  function compUpdate(){
+    var FE = window.SBFormulaEngine, body = $('nv-comp-tpl').value, out = $('nv-comp-out');
+    if (!body.trim()) { out.textContent = 'Output appears here as you type.'; out.className = 'nv-comp-out empty'; return; }
+    var vals = compVals();
     var resolved = FE.interpolateSnippet(body, vals);
-    // Second pass: resolve all other tokens (formulas, conditions, time, etc.)
-    var output = FE.resolveBody(resolved, vals);
-    outputEl.textContent = output || '';
-    outputEl.className = output ? '' : 'empty';
+    var result = FE.resolveBody(resolved, vals);
+    out.textContent = result || ''; out.className = 'nv-comp-out' + (result ? '' : ' empty');
   }
-
-  function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Template changes → rebuild fields + update output ───────────
-  var rebuildTimer;
-  templateEl.addEventListener('input', function() {
-    clearTimeout(rebuildTimer);
-    rebuildTimer = setTimeout(function() {
-      var body = templateEl.value;
-      var newDefs = getFieldDefs(body);
-
-      // Preserve existing input values when rebuilding (don't wipe what the user typed)
-      var existingVals = getVals();
-      fieldDefs = newDefs;
-      buildFieldsForm(newDefs);
-
-      // Restore values for fields that survived the rebuild
-      var inputs = fieldsForm.querySelectorAll('[data-key]');
-      for (var i = 0; i < inputs.length; i++) {
-        var key = inputs[i].dataset.key;
-        if (existingVals[key] !== undefined) inputs[i].value = existingVals[key];
-      }
-
-      updateOutput();
-    }, 150);
-  });
-
-  // ── Buttons ───────────────────────────────────────────────────────
-  document.getElementById('btn-load-demo').addEventListener('click', function() {
-    templateEl.value = DEMO_TEMPLATE;
-    templateEl.dispatchEvent(new Event('input'));
-  });
-
-  document.getElementById('btn-clear').addEventListener('click', function() {
-    templateEl.value = '';
-    templateEl.dispatchEvent(new Event('input'));
-  });
-
-  document.getElementById('btn-copy').addEventListener('click', function() {
-    var text = outputEl.textContent;
-    if (!text || outputEl.classList.contains('empty')) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(showToast).catch(function() { legacyCopy(text); });
-    } else {
-      legacyCopy(text);
-    }
-  });
-
-  function legacyCopy(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;opacity:0;';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-    showToast();
-  }
-
-  var toastTimer;
-  function showToast() {
-    var t = document.getElementById('toast');
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 1800);
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────
-  buildFieldsForm({});
-  updateOutput();
-
-})();
-</script>
-<!-- Team Sync — reads the Supabase session written by the dashboard (supabase-js
-     stores it in localStorage) and PATCHes personal snippets + prompts into the
-     team-shared folder, identical logic to the extension's doTeamSync(). -->
-<script>
-(function() {
-  'use strict';
-
-  var SUPA_URL    = 'https://eyowustlbqujaimaxggt.supabase.co';
-  var SUPA_ANON   = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
-  var SESSION_KEY = 'sb-eyowustlbqujaimaxggt-auth-token';
-  var TEAM_FOLDER = 'leibtour_team_shared';
-
-  function getSession() {
-    try {
-      var raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
-      var s = JSON.parse(raw);
-      return s && s.access_token ? s : null;
-    } catch(e) { return null; }
-  }
-
-  function sbPatch(table, body, qs, token) {
-    return fetch(SUPA_URL + '/rest/v1/' + table + (qs ? '?' + qs : ''), {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPA_ANON,
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(body)
+  var compRebuildT;
+  function compReady(){
+    if (composerReady) return;
+    if (!window.SBFormulaEngine) { return; }
+    composerReady = true;
+    $('nv-comp-tpl').addEventListener('input', function(){
+      clearTimeout(compRebuildT);
+      compRebuildT = setTimeout(function(){
+        var body = $('nv-comp-tpl').value, defs = compFieldDefs(body), prev = compVals();
+        compBuildFields(defs);
+        var ins = $('nv-comp-fields').querySelectorAll('[data-key]');
+        for (var i = 0; i < ins.length; i++) { var k = ins[i].dataset.key; if (prev[k] !== undefined) ins[i].value = prev[k]; }
+        compUpdate();
+      }, 150);
     });
-  }
-
-  var btn = document.getElementById('btn-team-sync');
-  var st  = document.getElementById('team-sync-st');
-
-  btn.addEventListener('click', function() {
-    var session = getSession();
-    if (!session || !session.user) {
-      st.textContent = 'Sign in to the dashboard first.';
-      st.className = 'team-sync-st err';
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Syncing…';
-    if (st) { st.textContent = ''; st.className = 'team-sync-st'; }
-
-    var uid    = session.user.id;
-    var filter = 'user_id=eq.' + uid + '&organization_id=is.null';
-
-    Promise.all([
-      sbPatch('snippets', { folder_id: TEAM_FOLDER }, filter, session.access_token),
-      sbPatch('prompts',  { folder_id: TEAM_FOLDER }, filter, session.access_token)
-    ]).then(function(results) {
-      for (var i = 0; i < results.length; i++) {
-        if (!results[i].ok) throw new Error('HTTP ' + results[i].status);
-      }
-      if (st) { st.textContent = 'Synced ✓'; st.className = 'team-sync-st ok'; }
-    }).catch(function(err) {
-      console.error('[SprintBrain] team sync:', err.message || err);
-      if (st) { st.textContent = 'Sync failed.'; st.className = 'team-sync-st err'; }
-    }).then(function() {
-      btn.disabled = false;
-      btn.textContent = 'Sync with Team';
+    $('nv-comp-demo').addEventListener('click', function(){ $('nv-comp-tpl').value = COMP_DEMO; $('nv-comp-tpl').dispatchEvent(new Event('input')); });
+    $('nv-comp-clear').addEventListener('click', function(){ $('nv-comp-tpl').value = ''; $('nv-comp-tpl').dispatchEvent(new Event('input')); });
+    $('nv-comp-copy').addEventListener('click', function(){
+      var out = $('nv-comp-out'); if (out.classList.contains('empty')) return;
+      var text = out.textContent; if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function(){ toast('Output copied'); }).catch(function(){ compLegacyCopy(text); }); }
+      else { compLegacyCopy(text); }
     });
+    compBuildFields({}); compUpdate();
+  }
+  function compLegacyCopy(text){
+    var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    ta.remove(); toast('Output copied');
+  }
+  function openComposer(){
+    composerOpen = true; settingsOpen = false;
+    $('nv-settings').style.display = 'none';
+    $('nv-kpis').style.display = 'none'; $('nv-list-card').style.display = 'none';
+    $('nv-composer').style.display = '';
+    $('nv-new').style.display = 'none';
+    $('nv-title').textContent = 'Composer'; $('nv-sub').textContent = 'Live formula & template tester';
+    compReady(); renderNav();
+  }
+  function leaveComposer(){ composerOpen = false; $('nv-composer').style.display = 'none'; }
+
+  // ── Changelog (native modal; renders the shared window.CHANGELOG from popup.js) ─
+  function openChangelog(){
+    var data = window.CHANGELOG || [];
+    var scroll = $('nv-cl-scroll');
+    if (!data.length) { scroll.innerHTML = '<div class="nv-empty">No changelog entries yet.</div>'; }
+    else {
+      scroll.innerHTML = data.map(function(rel){
+        var changes = (rel.changes || rel.items || []).map(function(c){
+          return '<div class="nv-cl-c"><span class="nv-cl-b ' + ec(c.type) + '">' + ec(c.type) + '</span><span>' + ec(c.text) + '</span></div>';
+        }).join('');
+        return '<div class="nv-cl-rel"><div class="nv-cl-rh">'
+          + '<span class="nv-cl-rv">' + ec(rel.version) + '</span>'
+          + '<span class="nv-cl-rl">' + ec(rel.label || '') + '</span>'
+          + '<span class="nv-cl-rd">' + ec(rel.date || '') + '</span></div>'
+          + '<div class="nv-cl-cs">' + changes + '</div></div>';
+      }).join('');
+    }
+    var latest = data[0];
+    $('nv-cl-foot').innerHTML = latest
+      ? '<span>Ver. <strong>' + ec(latest.version) + '</strong></span><span>Last update: <strong>' + ec(latest.date) + '</strong></span>'
+      : '';
+    $('nv-cl-bg').classList.add('on');
+  }
+  function closeChangelog(){ $('nv-cl-bg').classList.remove('on'); }
+
+  // ── Top-level wiring ────────────────────────────────────────────────
+  $('nv-nav-snip').addEventListener('click', function(){ gotoMode('snippets'); });
+  $('nv-nav-prompt').addEventListener('click', function(){ gotoMode('prompts'); });
+  $('nv-nav-settings').addEventListener('click', openSettings);
+  $('nv-nav-composer').addEventListener('click', openComposer);
+  // Deep-link from the React sidebar: react to #composer arriving after initial load.
+  window.addEventListener('hashchange', function(){ if (location.hash === '#composer') openComposer(); });
+  $('nv-ver').addEventListener('click', openChangelog);
+  $('nv-cl-x').addEventListener('click', closeChangelog);
+  $('nv-cl-bg').addEventListener('click', function(e){ if (e.target === $('nv-cl-bg')) closeChangelog(); });
+  $('nv-new').addEventListener('click', function(){ if (!settingsOpen && nvMode === 'snippets') openEditor(null); });
+  $('nv-reload').addEventListener('click', loadData);
+  var qT;
+  $('nv-q').addEventListener('input', function(e){ nvSearch = e.target.value || ''; clearTimeout(qT); qT = setTimeout(renderMain, 160); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-modal-bg').classList.contains('on')) closeEditor(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-cl-bg').classList.contains('on')) closeChangelog(); });
+
+  // ── Boot: skip the gate if a session already exists ─────────────────
+  try { $('nv-ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch(e) {}
+  sbGetSession(function(session){
+    if (session && session.access_token) { hideGate(); enterApp(session); }
+    else { showGate(); }
   });
+
 })();
 </script>
 </body>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SprintBrain",
-  "version": "2.77.0",
+  "version": "2.82.0",
   "description": "Expand reusable text snippets in any field using custom shortcuts. Organize into folders and sync your library with Notion.",
   "permissions": [
     "storage",

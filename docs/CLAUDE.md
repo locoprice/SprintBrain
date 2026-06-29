@@ -1,7 +1,7 @@
 # CLAUDE.md — SprintBrain AI Development Reference
 
-**Document Version**: 3.2  
-**Last Updated**: 2026-06-22  
+**Document Version**: 3.3  
+**Last Updated**: 2026-06-25  
 **Project**: SprintBrain Chrome Extension (`extension/`)  
 **Purpose**: Single source of truth for AI assistants (Claude, GPT, Grok, etc.) during development. Read this before generating, modifying, or reviewing any code.
 
@@ -37,7 +37,7 @@
 
 **Goal**: Replace tools like TextBlaze / TextExpander / Magical, emphasizing dynamic formulas, AI prompts, and reliable sync.
 
-**Version**: 2.66.0  
+**Version**: 2.80.0  
 **Owner**: Alessandro Verdicchio
 
 ---
@@ -165,6 +165,7 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
   - `DB.upsertFolder(f)` / `DB.deleteFolder(id)` — Folder management
   - `DB.updateStats(snippetId, uses, fills, lastUsed)` — Usage tracking
 - `supaFetch(table, method, body, qs)` — Full REST wrapper (GET/POST/DELETE)
+- **Also the logic core of the web dashboard** (`Sprintbrain.html`, repo root): its `DB`, model helpers, and `window.*` globals (incl. `CHANGELOG`) are reused there behind `extension/shared/chrome-shim.js`. Editing popup.js affects **both** the extension popup and the dashboard — verify both surfaces. See §14.
 
 **`auth/auth.js`** — Supabase OTP + session management
 - Loaded via `importScripts()` in `background.js`
@@ -357,7 +358,8 @@ var SUPA_KEY = 'sb_publishable_...';
 ```bash
 # From repo root
 python3 -m http.server 8080
-# Open http://localhost:8080/extension/popup/popup.html
+# Popup:     http://localhost:8080/extension/popup/popup.html
+# Dashboard: http://localhost:8080/Sprintbrain.html   (shared-core web dashboard)
 ```
 
 ### CI (GitHub Actions)
@@ -417,7 +419,7 @@ chore: bump manifest version to 2.38.0
 ## 14. Planned / Future Work
 
 - Pro tier with Stripe payments
-- ~~Web dashboard~~ ✅ shipped — React + Vite (`app/`), not Next.js
+- ~~Web dashboard~~ ✅ shipped — **two surfaces**: React + Vite (`app/`, app.sprintbrain.com) AND the vanilla **shared-core dashboard `Sprintbrain.html`** (repo root) that drives the same `popup.js` / `auth.js` / `notion-sync.js` / `formula-engine.js` behind `chrome-shim.js`. The popup→dashboard parity migration is complete (v2.79.0–2.80.0): full snippet/folder/prompt CRUD, settings, context menus, a **Composer** formula tester, and a **changelog** modal (renders the shared `window.CHANGELOG`). Supabase is the single source of truth; both surfaces reconcile through it.
 - Semantic search across snippets
 - ~~Per-user authentication via Supabase Auth~~ ✅ shipped (per-user JWT)
 - Optional: TypeScript migration (not started)

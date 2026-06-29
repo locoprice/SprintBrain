@@ -221,8 +221,33 @@ function mobileVersionPlugin(): Plugin {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
+// ── Native dashboard (Sprintbrain.html) deploy plugin ───────────────────────
+// The vanilla shared-core dashboard lives at the repo root (Sprintbrain.html) and
+// loads the extension/* scripts by relative path. Neither is part of the app/ tree
+// Vite builds, so copy both into dist/ after the bundle is written — single source
+// preserved (no committed duplication of the extension code). Served at
+// /Sprintbrain.html with its deps under /extension/*; real files take precedence
+// over the SPA fallback, so they resolve directly.
+
+function nativeDashboardPlugin(): Plugin {
+  const repoRoot = path.resolve(__dirname, '..');
+  const htmlSrc  = path.join(repoRoot, 'Sprintbrain.html');
+  const extSrc   = path.join(repoRoot, 'extension');
+  const distDir  = path.resolve(__dirname, 'dist');
+
+  return {
+    name: 'sprintbrain-native-dashboard',
+    apply: 'build',
+    closeBundle() {
+      fs.copyFileSync(htmlSrc, path.join(distDir, 'Sprintbrain.html'));
+      fs.cpSync(extSrc, path.join(distDir, 'extension'), { recursive: true });
+    },
+  };
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default defineConfig({
-  plugins: [react(), landingVersionPlugin(), mobileVersionPlugin()],
+  plugins: [react(), landingVersionPlugin(), mobileVersionPlugin(), nativeDashboardPlugin()],
   define: {
     // Injected at build time — components read these as plain constants.
     __APP_CHANGELOG__:    JSON.stringify(CHANGELOG),

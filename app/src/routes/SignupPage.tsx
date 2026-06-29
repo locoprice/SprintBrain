@@ -1,166 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { AlertCircle, Check, MailCheck } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { MailCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-
-// ─── OTP input (8 individual digit boxes) ────────────────────────────────────
-
-const OTP_LENGTH = 8;
-
-function OtpInput({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const refs = useRef<Array<HTMLInputElement | null>>(Array(OTP_LENGTH).fill(null));
-
-  function handleChange(i: number, e: React.ChangeEvent<HTMLInputElement>) {
-    const digit = e.target.value.replace(/\D/g, '').slice(-1);
-    const arr = Array.from({ length: OTP_LENGTH }, (_, j) => value[j] ?? '');
-    arr[i] = digit;
-    onChange(arr.join(''));
-    if (digit && i < OTP_LENGTH - 1) refs.current[i + 1]?.focus();
-  }
-
-  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      const arr = Array.from({ length: OTP_LENGTH }, (_, j) => value[j] ?? '');
-      if (arr[i]) {
-        arr[i] = '';
-        onChange(arr.join(''));
-      } else if (i > 0) {
-        refs.current[i - 1]?.focus();
-      }
-    } else if (e.key === 'ArrowLeft' && i > 0) {
-      e.preventDefault();
-      refs.current[i - 1]?.focus();
-    } else if (e.key === 'ArrowRight' && i < OTP_LENGTH - 1) {
-      e.preventDefault();
-      refs.current[i + 1]?.focus();
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
-    onChange(pasted);
-    refs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
-  }
-
-  return (
-    <div className="flex justify-center gap-1.5" onPaste={handlePaste}>
-      {Array.from({ length: OTP_LENGTH }, (_, i) => (
-        <input
-          key={i}
-          ref={(el) => { refs.current[i] = el; }}
-          type="text"
-          inputMode="numeric"
-          pattern="\d"
-          maxLength={2}
-          autoFocus={i === 0}
-          value={value[i] ?? ''}
-          onChange={(e) => handleChange(i, e)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          disabled={disabled}
-          aria-label={`Digit ${i + 1} of ${OTP_LENGTH}`}
-          className={cn(
-            'h-12 w-10 rounded-[10px] border bg-card text-center',
-            'text-lg font-bold text-ink tabular-nums',
-            'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            value[i] ? 'border-primary/40' : 'border-line',
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Error banner ─────────────────────────────────────────────────────────────
-
-function ErrorBanner({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger"
-    >
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-      <span>{message}</span>
-    </div>
-  );
-}
-
-// ─── Left brand panel ─────────────────────────────────────────────────────────
-
-const BRAND_FEATURES = [
-  'Smart text expansion with live formula engine',
-  'Synced instantly across Chrome and mobile',
-  'Works in Gmail, Notion, Slack, and your CRM',
-] as const;
-
-function BrandPanel() {
-  return (
-    <aside
-      aria-hidden="true"
-      className="hidden lg:flex lg:w-[44%] flex-col justify-between p-12 xl:p-16 bg-gradient-to-b from-primary to-primary-dark"
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-white/20 text-[15px] font-extrabold text-white">
-          S
-        </div>
-        <span className="text-[16px] font-bold tracking-tight text-white">
-          SprintBrain
-        </span>
-      </div>
-
-      {/* Hero copy + feature list */}
-      <div className="space-y-8">
-        <div className="space-y-4">
-          <h2 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-white xl:text-[44px]">
-            Type once.<br />
-            Use it<br />
-            everywhere.
-          </h2>
-          <p className="text-[15px] leading-relaxed text-white/70">
-            the f1rts and the only prompt expander.
-          </p>
-        </div>
-
-        <ul className="space-y-3" aria-label="Key features">
-          {BRAND_FEATURES.map((feature) => (
-            <li key={feature} className="flex items-start gap-3 text-sm text-white/85">
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-                <Check className="h-3 w-3 text-white" aria-hidden="true" />
-              </div>
-              {feature}
-            </li>
-          ))}
-        </ul>
-
-        <p className="text-[14px] italic text-white/50 leading-relaxed">
-          Stress the model, not yourself.
-        </p>
-      </div>
-
-      {/* Footer */}
-      <p className="text-[12px] text-white/35">
-        © 2026 SprintBrain
-      </p>
-    </aside>
-  );
-}
+import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
+import { ErrorBanner } from '@/components/auth/ErrorBanner';
+import { OtpInput, OTP_LENGTH } from '@/components/auth/OtpInput';
+import { RecentSignups } from '@/components/auth/RecentSignups';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -258,7 +108,7 @@ export function SignupPage() {
 
   return (
     <div className="flex min-h-dvh">
-      <BrandPanel />
+      <AuthBrandPanel />
 
       {/* ── Form panel ──────────────────────────────────────────────────── */}
       <main className="flex flex-1 flex-col items-center justify-center bg-card px-6 py-12">
@@ -312,6 +162,8 @@ export function SignupPage() {
                   {loading ? 'Sending…' : 'Continue →'}
                 </Button>
               </div>
+
+              <RecentSignups />
 
               <p className="text-center text-[11px] text-ink-subtle">
                 By continuing you agree to our{' '}
