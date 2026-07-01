@@ -106,6 +106,8 @@ export interface Prompt {
   user_id: Uuid;
   name: string;
   content: string;
+  /** Optional direct-expansion trigger (e.g. "followup" → type ::followup). Null = menu-only. */
+  shortcut: string | null;
   type: 'one-shot' | 'few-shot';
   tags: string[];
   strategy_type: StrategyType | null;

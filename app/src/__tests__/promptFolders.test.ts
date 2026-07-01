@@ -42,6 +42,7 @@ const PROMPT_IN_FOLDER: Prompt = {
   user_id: 'user-1',
   name: 'Confirmation',
   content: 'hello',
+  shortcut: null,
   type: 'one-shot',
   tags: [],
   strategy_type: null,

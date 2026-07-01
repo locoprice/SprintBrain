@@ -139,7 +139,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,type,tags,intent_category,last_used_at&order=updated_at.desc'
+      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -373,6 +373,7 @@ function syncPrompts(){
         id: p.id,
         title: p.name || 'Untitled',
         body: p.content || '',
+        shortcut: p.shortcut || '',
         alternative_queries: Array.isArray(p.tags) ? p.tags : []
       };
     });

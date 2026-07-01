@@ -1910,6 +1910,21 @@ function closeTriggerPicker() {
   if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
 }
 
+// Index within triggerPickerFiltered of a prompt whose shortcut EXACTLY equals
+// the typed query (case-insensitive), else -1. Drives the prompt trigger's
+// direct expansion: typing """ + a prompt's shortcut fires it straight away —
+// the prompt-trigger analog of a snippet's ::shortcut. Base Prompts have no
+// shortcut, so they never match here and stay menu-only.
+function _promptShortcutExactIdx(query) {
+  var q = String(query == null ? '' : query).trim().toLowerCase();
+  if (!q) return -1;
+  for (var i = 0; i < triggerPickerFiltered.length; i++) {
+    var sc = String(triggerPickerFiltered[i].shortcut || '').trim().toLowerCase();
+    if (sc && sc === q) return i;
+  }
+  return -1;
+}
+
 function handleTriggerPickerKey(e) {
   if (!triggerPickerEl) return false;
   var count = triggerPickerFiltered.length;
@@ -1954,6 +1969,18 @@ function handleTriggerPickerKey(e) {
     triggerPickerQuery += e.key;
     triggerPickerDeleteLen += 1;
     _renderPickerItems(triggerPickerQuery);
+    // Prompt shortcut → direct expansion: typing a prompt's exact shortcut after
+    // the prompt trigger ("""foo) fires it immediately — the analog of a
+    // snippet's ::shortcut. Deferred one tick so the just-typed char lands in the
+    // field first, keeping the delete span aligned with what's on screen. The
+    // menu stays open for browsing, Base Prompts, and partial matches.
+    if (triggerPickerMode === 'prompt') {
+      setTimeout(function() {
+        if (!triggerPickerEl || triggerPickerMode !== 'prompt') return;
+        var idx = _promptShortcutExactIdx(triggerPickerQuery);
+        if (idx > -1) selectTriggerItem(idx);
+      }, 0);
+    }
     // Return true to short-circuit the main keydown handler so the keystroke
     // isn't accidentally appended to the shortcut buffer (which could match
     // a different snippet while the picker is open).
