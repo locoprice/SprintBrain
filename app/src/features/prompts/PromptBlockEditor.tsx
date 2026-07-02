@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
 import {
@@ -280,6 +282,12 @@ export function PromptBlockEditor() {
   const editPrompt = usePromptStore((s) => s.editPrompt);
   const removePrompt = usePromptStore((s) => s.removePrompt);
 
+  // The prompt trigger is a user setting (single source of truth: user_metadata,
+  // loaded into the settings store). Never hardcode it — the extension reads the
+  // same value, so the hint must reflect whatever the user configured.
+  const promptTrigger =
+    useSettingsStore((s) => s.profile?.trigger_prompt_seq) || DEFAULT_TRIGGER_CONFIG.promptTrigger;
+
   const editingPrompt = useMemo(
     () => (editId ? (prompts.find((p) => p.id === editId) ?? null) : null),
     [editId, prompts],
@@ -507,7 +515,7 @@ export function PromptBlockEditor() {
 
     const trimmedShortcut = shortcut.trim();
     if (trimmedShortcut && !/^[a-zA-Z0-9_-]+$/.test(trimmedShortcut)) {
-      setShortcutError('Use letters, numbers, hyphens or underscores only — no prefix (the """ trigger is added automatically)');
+      setShortcutError(`Use letters, numbers, hyphens or underscores only — no prefix (the ${promptTrigger} trigger is added automatically)`);
       return;
     }
     setShortcutError(null);
@@ -660,7 +668,7 @@ export function PromptBlockEditor() {
           ) : (
             <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
               Type{' '}
-              <span className="font-mono text-[#9C9CA6]">{`"""${shortcut.trim() || 'followup'}`}</span>{' '}
+              <span className="font-mono text-[#9C9CA6]">{`${promptTrigger}${shortcut.trim() || 'followup'}`}</span>{' '}
               (your prompt trigger) in any field to expand this prompt instantly. Leave empty to keep it menu-only.
             </span>
           )}

@@ -1735,7 +1735,10 @@ function _renderPickerItems(query) {
     if (i > 0 && item._group === 'list' && triggerPickerFiltered[i - 1]._group === 'base') {
       h += '<div class="sb-tp-sep" style="margin:5px 4px 2px;padding:7px 8px 3px;border-top:1px solid #E4E4E7;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;">My prompt base</div>';
     }
-    var sc = triggerPickerMode === 'snippet' && item.shortcut
+    // Shortcut badge for BOTH snippets and prompts (when present) — surfaces the
+    // prompt's direct-expansion shortcut in the browser so users learn it. Base
+    // Prompts carry no shortcut, so they show none.
+    var sc = item.shortcut
       ? _scTag(item.shortcut)
       : '';
     h += '<div class="sb-tp-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
@@ -1781,7 +1784,7 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
   div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
   var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
-  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
+  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode \u00b7 ' + xesc(triggerCfg.promptTrigger || '"""')) + '</span>';
   header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Tab / Enter to insert</span>';
   header += '</div>';
   header += '<div class="sb-tp-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';

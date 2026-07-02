@@ -207,6 +207,16 @@ function loadTriggerCfg(cb) {
     });
   } catch(e) { if (cb) cb(); }
 }
+// Populate the config-pane inputs from the current triggerCfg. Idempotent (no
+// listener binding) so it can be called repeatedly — on first load and again
+// after a user_metadata pull refreshes the values.
+function applyTriggerCfgToInputs() {
+  var s  = gi('tcfg-snip');        if (s)  s.value  = triggerCfg.snippetTrigger;
+  var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
+  var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
+  var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+  var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
+}
 function saveTriggerCfg() {
   try { chrome.storage.sync.set({triggerCfg: triggerCfg}); } catch(e) {}
 }
@@ -317,11 +327,30 @@ function notionSendWithRetry(entry, attempt, logIdx, key) {
   });
 }
 
+// Maps the local triggerCfg keys to their user_metadata field names (the single
+// source of truth shared with the dashboard). selectionSuggestions is a
+// local-only preference and is intentionally absent.
+var TRIGGER_META_FIELD = {
+  snippetTrigger:       'trigger_snippet_seq',
+  promptTrigger:        'trigger_prompt_seq',
+  snippetActivationKey: 'trigger_snippet_key',
+  promptActivationKey:  'trigger_prompt_key'
+};
+
 function setTriggerCfgValue(key, value) {
   var oldVal = triggerCfg[key];
   if (oldVal === value) return;
   triggerCfg[key] = value;
   saveTriggerCfg();
+  // Mirror to the single source of truth (auth.users.user_metadata) so the
+  // change reaches the dashboard. chrome.storage.sync stays the local cache.
+  var metaField = TRIGGER_META_FIELD[key];
+  if (metaField && typeof sbWriteTriggerMetadata === 'function') {
+    var patch = {}; patch[metaField] = value;
+    sbWriteTriggerMetadata(patch, function(err) {
+      if (err) console.error('[SprintBrain] trigger metadata write failed:', err);
+    });
+  }
   notionSync({
     triggerType: key.indexOf('snippet') > -1 ? 'Snippet' : 'Prompt',
     field: key, oldValue: oldVal, newValue: value,
@@ -896,17 +925,18 @@ function boot() {
     });
 
     loadTriggerCfg(function () {
-          var s  = gi('tcfg-snip');        if (s)  s.value  = triggerCfg.snippetTrigger;
-          var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
-          var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
-          var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+          applyTriggerCfgToInputs();
           var ss = gi('tcfg-sel-suggest');
           if (ss) {
-            ss.checked = triggerCfg.selectionSuggestions !== false;
             ss.addEventListener('change', function () {
               triggerCfg.selectionSuggestions = ss.checked;
               saveTriggerCfg();
             });
+          }
+          // Refresh from the single source of truth (user_metadata) so the popup
+          // reflects a trigger changed on the dashboard, then re-apply to inputs.
+          if (typeof sbPullTriggerMetadata === 'function') {
+            sbPullTriggerMetadata(function () { loadTriggerCfg(applyTriggerCfgToInputs); });
           }
     });
 
