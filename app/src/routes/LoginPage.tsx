@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, MailCheck } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
@@ -26,6 +26,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +76,9 @@ export function LoginPage() {
     analytics.track('auth_method_selected', { method: 'magic_link' });
     setLoading(true);
     setError(null);
+
+    // Email flows have no remember-me checkbox — always persistent.
+    setRememberMe(true);
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
@@ -134,6 +138,8 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
+    setRememberMe(remember);
+
     const { error: err } = await supabase.auth.signInWithPassword({
       email: trimmed,
       password,
@@ -167,6 +173,8 @@ export function LoginPage() {
     analytics.track('password_recovery_started', { email: trimmed });
     setLoading(true);
     setError(null);
+
+    setRememberMe(true);
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
@@ -383,6 +391,17 @@ export function LoginPage() {
                     )}
                   </button>
                 </div>
+
+                <label className="flex w-fit cursor-pointer select-none items-center gap-2 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    disabled={loading}
+                    className="h-4 w-4 cursor-pointer rounded accent-primary"
+                  />
+                  Remember me on this secure device
+                </label>
 
                 {error && <ErrorBanner message={error} />}
                 <Button

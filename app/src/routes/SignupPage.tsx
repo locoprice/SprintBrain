@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
@@ -58,6 +58,9 @@ export function SignupPage() {
     analytics.track('signup_started', { method: 'magic_link' });
     setLoading(true);
     setError(null);
+
+    // Signup has no remember-me checkbox — always persistent.
+    setRememberMe(true);
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,

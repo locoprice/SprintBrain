@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase, type Session, type User } from '@/lib/supabase';
+import { supabase, clearRememberMe, type Session, type User } from '@/lib/supabase';
 
 /**
  * Auth store — single source of truth for the user's session.
@@ -9,8 +9,8 @@ import { supabase, type Session, type User } from '@/lib/supabase';
  *   - 'authed'  : a valid session is in memory
  *   - 'anon'    : no session (logged out, never logged in, or token expired)
  *
- * Call `init()` once from the AuthGate to hydrate from localStorage and
- * subscribe to future Supabase auth events.
+ * Call `init()` once from the AuthGate to hydrate from local/session storage
+ * and subscribe to future Supabase auth events.
  */
 
 type Status = 'loading' | 'authed' | 'anon';
@@ -68,5 +68,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } catch (err) {
       console.warn('authStore: signOut failed', err);
     }
+    clearRememberMe();
   },
 }));
