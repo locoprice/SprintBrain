@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase, clearRememberMe, type Session, type User } from '@/lib/supabase';
+import { startSessionHeartbeat, stopSessionHeartbeat } from '@/lib/sessionHeartbeat';
 
 /**
  * Auth store — single source of truth for the user's session.
@@ -21,6 +22,7 @@ interface AuthStore {
   status: Status;
   init: () => Promise<void>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
 }
 
 let initialized = false;
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           user: session?.user ?? null,
           status: session ? 'authed' : 'anon',
         });
+        if (session) startSessionHeartbeat();
       }
     } catch (err) {
       console.warn('authStore: init threw', err);
@@ -58,15 +61,40 @@ export const useAuthStore = create<AuthStore>((set) => ({
         user: session?.user ?? null,
         status: session ? 'authed' : 'anon',
       });
+      // The heartbeat notices sessions revoked from another device
+      // (Settings → Security) before the access token expires.
+      if (session) startSessionHeartbeat();
+      else stopSessionHeartbeat();
     });
   },
 
   signOut: async () => {
     try {
-      await supabase.auth.signOut();
+      // This browser only. Ending every device's session is an explicit
+      // action on Settings → Security (signOutAllDevices).
+      await supabase.auth.signOut({ scope: 'local' });
       // onAuthStateChange fires with null session → state updates automatically
     } catch (err) {
       console.warn('authStore: signOut failed', err);
+    }
+    clearRememberMe();
+  },
+
+  signOutAllDevices: async () => {
+    try {
+      // GoTrue deletes every session server-side; refresh tokens die
+      // instantly and other clients converge via the session_alive heartbeat.
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+    } catch (err) {
+      console.warn('authStore: global signOut failed, ending local session', err);
+      // The revoking browser must always land back at /login, even if the
+      // global call failed — a local sign-out clears this session regardless.
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (localErr) {
+        console.warn('authStore: local fallback signOut failed', localErr);
+      }
     }
     clearRememberMe();
   },

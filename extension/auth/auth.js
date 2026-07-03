@@ -1,4 +1,6 @@
-// ── SPRINTBRAIN AUTH v2.26.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN AUTH v2.86.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002)
+//    + server-side session liveness (sbCheckSessionAlive) and login-activity
+//    logging for the Settings → Security dashboard feature. ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //
@@ -83,9 +85,52 @@ function sbVerifyOtp(email, token, rememberMe, cb) {
         : 0;
       chrome.storage.local.set({ sb_remember_until: rememberUntil });
       if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
-      sbSetSession(session, function() { cb(null, session); });
+      sbSetSession(session, function() {
+        sbLogLoginEvent(session.access_token);
+        cb(null, session);
+      });
     });
   }).catch(function(e) { cb(e.message || 'Network error', null); });
+}
+
+// POST /rest/v1/rpc/log_login_event — record this sign-in in the dashboard's
+// "Recent login activity" (Settings → Security). IP, user-agent, country and
+// timestamp are derived server-side; repeat calls for one session are no-ops.
+// Best-effort fire-and-forget: a failed log must never block login.
+function sbLogLoginEvent(accessToken) {
+  try {
+    fetch(SB_SUPA_URL + '/rest/v1/rpc/log_login_event', {
+      method: 'POST',
+      headers: { 'apikey': SB_SUPA_ANON_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_method: 'email_otp' })
+    }).catch(function() {});
+  } catch(e) {}
+}
+
+// POST /rest/v1/rpc/session_alive — is this session's auth.sessions row still
+// there? ONLY an explicit `false` means revoked (dashboard "Sign out from all
+// devices" / per-device sign-out): the local session is cleared (fires
+// auth_changed) and cb(false). Every other outcome — no session, network or
+// HTTP error — is fail-open cb(true), so an outage never signs the user out.
+// Genuinely dead refresh tokens already self-clean via sbRefreshToken.
+function sbCheckSessionAlive(cb) {
+  sbGetSession(function(s) {
+    if (!s || !s.access_token) { if (cb) cb(true); return; }
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { if (cb) cb(true); return; }
+      fetch(SB_SUPA_URL + '/rest/v1/rpc/session_alive', {
+        method: 'POST',
+        headers: { 'apikey': headers.apikey, 'Authorization': headers.Authorization, 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function(r) {
+        if (!r.ok) { if (cb) cb(true); return; }
+        return r.json().then(function(alive) {
+          if (alive === false) { sbClearSession(function() { if (cb) cb(false); }); }
+          else { if (cb) cb(true); }
+        });
+      }).catch(function() { if (cb) cb(true); });
+    });
+  });
 }
 
 // POST /auth/v1/token?grant_type=refresh_token — rotates the access_token.

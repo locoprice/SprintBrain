@@ -5,6 +5,7 @@ import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
+import { securityApi } from '@/lib/api/securityApi';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
@@ -120,6 +121,7 @@ export function LoginPage() {
       setLoading(false);
     } else {
       analytics.track('login_completed');
+      void securityApi.logLoginEvent('email_otp');
     }
     // On success onAuthStateChange flips status → 'authed' → redirect above.
   }
@@ -155,6 +157,7 @@ export function LoginPage() {
       setLoading(false);
     } else {
       analytics.track('login_completed');
+      void securityApi.logLoginEvent('password');
     }
     // On success onAuthStateChange flips status → 'authed' → redirect above.
   }

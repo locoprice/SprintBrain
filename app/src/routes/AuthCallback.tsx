@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { securityApi } from '@/lib/api/securityApi';
 
 /**
  * The magic link from the email lands here. Supabase SDK auto-detects
@@ -18,6 +19,16 @@ export function AuthCallback() {
   // magic-link redirectTo. After auth succeeds we land back on the original
   // deep link (e.g. /extension-link) instead of always bouncing to /.
   const next = params.get('next') || '/';
+  const activityLogged = useRef(false);
+
+  useEffect(() => {
+    // Server-side dedupe makes repeat fires for the same session no-ops
+    // (e.g. email-change confirmations also land here).
+    if (status === 'authed' && !activityLogged.current) {
+      activityLogged.current = true;
+      void securityApi.logLoginEvent('magic_link');
+    }
+  }, [status]);
 
   useEffect(() => {
     // Surface any hash-level error the redirect carries.

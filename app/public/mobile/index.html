@@ -1141,6 +1141,22 @@ function logout(){
   try{localStorage.removeItem(AUTH_KEY);}catch(e){}
   redirectToLogin();
 }
+/* Server-side session liveness — the dashboard's Settings → Security can
+   revoke this session ("Sign out from all devices"). Only an explicit false
+   logs out; no-session, network and HTTP errors are fail-open (a 401 is
+   already handled per-request by handle401). Checked on boot and when the
+   tab becomes visible again, throttled to 30s. */
+var _aliveLastCheck=0;
+function sbCheckAlive(){
+  if(!ACCESS_TOKEN)return;
+  var now=Date.now();
+  if(now-_aliveLastCheck<30000)return;
+  _aliveLastCheck=now;
+  fetch(SUPA+'/rest/v1/rpc/session_alive',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:'{}'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(alive){if(alive===false)logout();})
+    .catch(function(){});
+}
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
 var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
@@ -2965,7 +2981,12 @@ function applyHeroName(){
            :'Good evening,';
   document.querySelectorAll('.mgreet').forEach(function(g){g.textContent=greet;});
 }
-if(requireAuth()){applyHeroName();loadSnips();}
+if(requireAuth()){
+  applyHeroName();loadSnips();sbCheckAlive();
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible')sbCheckAlive();
+  });
+}
 </script>
 </body>
 </html>

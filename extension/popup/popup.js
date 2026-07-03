@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.57.0 — feat: sync dashboard Prompt List to storage.local for the """ picker (syncPrompts)
+// SPRINTBRAIN POPUP v2.86.0 — read-only launcher + shared data core (management lives in the dashboard)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -180,14 +180,8 @@ var snips        = [];
 var folders      = [];
 var prompts      = [];
 var trig         = '::';
-var editId       = null;
-var pendT        = '::';
 var selFolder    = 'ALL';
-var ctxId        = null;
 var selId        = null;
-var pendFolderCb = null;
-var selIco       = 'folder';
-var ctxFolderId  = null;
 var activeMode   = 'snippets';
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
@@ -207,14 +201,15 @@ function loadTriggerCfg(cb) {
     });
   } catch(e) { if (cb) cb(); }
 }
-// Populate the config-pane inputs from the current triggerCfg. Idempotent (no
-// listener binding) so it can be called repeatedly — on first load and again
-// after a user_metadata pull refreshes the values.
+// Reflect the current triggerCfg on the read-only settings pane and the local
+// prefs. Idempotent — called on first load and again after a user_metadata pull.
+// Also derives the display prefix `trig` from the snippet trigger: the popup no
+// longer writes triggers, it mirrors the dashboard-owned setting.
 function applyTriggerCfgToInputs() {
-  var s  = gi('tcfg-snip');        if (s)  s.value  = triggerCfg.snippetTrigger;
-  var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
-  var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
-  var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+  trig = triggerCfg.snippetTrigger || trig;
+  var ti = gi('itrig');   if (ti) ti.textContent = triggerCfg.snippetTrigger;
+  var pi = gi('iprompt'); if (pi) pi.textContent = triggerCfg.promptTrigger;
+  var ie = gi('iex');     if (ie) ie.textContent = triggerCfg.snippetTrigger + 'quoteEN';
   var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
 }
 function saveTriggerCfg() {
@@ -231,10 +226,8 @@ function triggerWouldCollide(key, val) {
   return val === otherVal || otherVal.indexOf(val) === 0 || val.indexOf(otherVal) === 0;
 }
 
-// NOTION SYNC — logs trigger config changes
+// NOTION SYNC — credentials (local cache, reconciled with user_metadata)
 var notionCfg = { apiKey: '', dbId: '' };
-var notionLog = [];
-var notionSentKeys = {};
 
 function loadNotionCfg(cb) {
   chrome.storage.local.get('sb_notion_cfg', function(d) {
@@ -291,73 +284,6 @@ function pushNotionCfgToSupabase() {
   });
 }
 
-function notionSync(entry) {
-  var key = entry.triggerType + '|' + entry.field + '|' + entry.newValue + '|' + entry.timestamp;
-  notionLog.push({ entry: entry, status: 'pending' });
-  if (notionLog.length > 20) notionLog.shift();
-  if (notionSentKeys[key]) { notionLog[notionLog.length-1].status = 'skipped'; return; }
-  if (!notionCfg.apiKey || !notionCfg.dbId) { notionLog[notionLog.length-1].status = 'no config'; return; }
-  notionSendWithRetry(entry, 0, notionLog.length - 1, key);
-}
-
-function notionSendWithRetry(entry, attempt, logIdx, key) {
-  var delays = [1000, 2000, 4000];
-  fetch('https://api.notion.com/v1/pages', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + notionCfg.apiKey, 'Content-Type': 'application/json', 'Notion-Version': '2022-06-28' },
-    body: JSON.stringify({
-      parent: { database_id: notionCfg.dbId },
-      properties: {
-        'Trigger Type': { title: [{ text: { content: entry.triggerType } }] },
-        'Field': { rich_text: [{ text: { content: entry.field } }] },
-        'New Value': { rich_text: [{ text: { content: String(entry.newValue) } }] },
-        'Old Value': { rich_text: [{ text: { content: String(entry.oldValue || '') } }] },
-        'Timestamp': { rich_text: [{ text: { content: entry.timestamp } }] }
-      }
-    })
-  }).then(function(r) {
-    if (r.ok) { notionSentKeys[key] = true; if (notionLog[logIdx]) notionLog[logIdx].status = 'synced'; }
-    else throw new Error('HTTP ' + r.status);
-  }).catch(function(err) {
-    if (attempt < 2) setTimeout(function() { notionSendWithRetry(entry, attempt+1, logIdx, key); }, delays[attempt]);
-    else {
-      if (notionLog[logIdx]) notionLog[logIdx].status = 'failed';
-      console.error('[SprintBrain NotionSync] push failed:', err.message);
-    }
-  });
-}
-
-// Maps the local triggerCfg keys to their user_metadata field names (the single
-// source of truth shared with the dashboard). selectionSuggestions is a
-// local-only preference and is intentionally absent.
-var TRIGGER_META_FIELD = {
-  snippetTrigger:       'trigger_snippet_seq',
-  promptTrigger:        'trigger_prompt_seq',
-  snippetActivationKey: 'trigger_snippet_key',
-  promptActivationKey:  'trigger_prompt_key'
-};
-
-function setTriggerCfgValue(key, value) {
-  var oldVal = triggerCfg[key];
-  if (oldVal === value) return;
-  triggerCfg[key] = value;
-  saveTriggerCfg();
-  // Mirror to the single source of truth (auth.users.user_metadata) so the
-  // change reaches the dashboard. chrome.storage.sync stays the local cache.
-  var metaField = TRIGGER_META_FIELD[key];
-  if (metaField && typeof sbWriteTriggerMetadata === 'function') {
-    var patch = {}; patch[metaField] = value;
-    sbWriteTriggerMetadata(patch, function(err) {
-      if (err) console.error('[SprintBrain] trigger metadata write failed:', err);
-    });
-  }
-  notionSync({
-    triggerType: key.indexOf('snippet') > -1 ? 'Snippet' : 'Prompt',
-    field: key, oldValue: oldVal, newValue: value,
-    timestamp: new Date().toISOString()
-  });
-}
-
 // HELPERS
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function uid(){  return 's'+Date.now()+Math.random().toString(36).slice(2,5); }
@@ -365,7 +291,7 @@ function fuid(){ return 'f'+Date.now()+Math.random().toString(36).slice(2,5); }
 function gi(id){ return document.getElementById(id); }
 
 function show(id){
-  ['pane-list','pane-ed','pane-cfg'].forEach(function(p){
+  ['pane-list','pane-cfg'].forEach(function(p){
     var el=gi(p); if(el) el.className='pane'+(p===id?' on':'');
   });
 }
@@ -415,6 +341,12 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.86.0', date:'2026-07-03', label:'refactor: read-only popup — manage everything in the dashboard',
+    changes:[
+      {type:'refactor', text:'The popup is now a fast launcher: browse, search and copy snippets and prompts. Creating and editing snippets, folders, triggers, Notion credentials and Team Sync live only in the dashboard — one source of truth, no drift between surfaces'},
+      {type:'new', text:'"Open Dashboard" button in the footer and a "Manage in dashboard" shortcut in Settings — both reuse an already-open dashboard tab instead of stacking duplicates'},
+      {type:'refactor', text:'Settings pane slimmed to extension-local preferences (default language, selection suggestions) plus a read-only view of the active triggers, which sync from your dashboard settings'}
+    ]},
   { version:'v2.73.0', date:'2026-06-24', label:'fix: team-shared snippets & prompts now sync to the mobile companion',
     changes:[
       {type:'fix', text:'Mobile companion (/mobile/) now shows team-shared snippets, prompts and folders. It was reading personal-only because every query filtered by user_id — so snippets like "Time" shared by a teammate were missing. Snippets now load via the accessible_snippets() RPC (the same source as this popup); folders and prompts rely on RLS, so org-shared rows surface for every member'},
@@ -917,15 +849,9 @@ function applyPopupGreeting(session) {
 function boot() {
     refreshUI();
 
-    loadTrigger(function () {
-          var tp = gi('tp');
-        if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-          var he = gi('hint-ex'); if (he) he.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-          var sp = gi('spfx'); if (sp) sp.textContent = trig;
-    });
-
     loadTriggerCfg(function () {
           applyTriggerCfgToInputs();
+          refreshUI();
           var ss = gi('tcfg-sel-suggest');
           if (ss) {
             ss.addEventListener('change', function () {
@@ -934,9 +860,9 @@ function boot() {
             });
           }
           // Refresh from the single source of truth (user_metadata) so the popup
-          // reflects a trigger changed on the dashboard, then re-apply to inputs.
+          // reflects a trigger changed on the dashboard, then repaint the lists.
           if (typeof sbPullTriggerMetadata === 'function') {
-            sbPullTriggerMetadata(function () { loadTriggerCfg(applyTriggerCfgToInputs); });
+            sbPullTriggerMetadata(function () { loadTriggerCfg(function () { applyTriggerCfgToInputs(); refreshUI(); }); });
           }
     });
 
@@ -989,24 +915,11 @@ function boot() {
     });
 
     loadNotionCfg(function() {
-      var nk = document.getElementById('notion-key');
-      var nd = document.getElementById('notion-db');
-
-      function applyNotionInputs() {
-        if (nk && notionCfg.apiKey) nk.value = notionCfg.apiKey;
-        if (nd && notionCfg.dbId)   nd.value  = notionCfg.dbId;
-        updateNotionStatus();
-      }
-
-      applyNotionInputs();
       updateSyncStatus();
 
       if (!notionCfg.apiKey || !notionCfg.dbId) {
-        // Config is incomplete — check Supabase (set from dashboard) before syncing.
-        syncNotionCfgFromSupabase(function() {
-          applyNotionInputs();
-          _runNotionSync();
-        });
+        // Config is incomplete — check Supabase (set from the dashboard) before syncing.
+        syncNotionCfgFromSupabase(function() { _runNotionSync(); });
       } else {
         _runNotionSync();
       }
@@ -2452,7 +2365,15 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
 
   // Initial check: if a session exists already, skip the gate.
   sbGetSession(function(session) {
-    if (session && session.access_token) { hideGate(); bootOnce(session); }
+    if (session && session.access_token) {
+      hideGate();
+      bootOnce(session);
+      // Async liveness check: if this session was revoked from the dashboard
+      // (Settings → Security), drop back to the sign-in gate immediately.
+      sbCheckSessionAlive(function(alive) {
+        if (!alive) window.sbSignOut();
+      });
+    }
     else { showGate(); showSsoPane(); }
   });
 

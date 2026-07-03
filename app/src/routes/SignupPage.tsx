@@ -5,6 +5,7 @@ import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
+import { securityApi } from '@/lib/api/securityApi';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
@@ -99,6 +100,8 @@ export function SignupPage() {
           : err.message,
       );
       setLoading(false);
+    } else {
+      void securityApi.logLoginEvent('email_otp');
     }
     // On success: onAuthStateChange fires → status becomes 'authed' → Navigate fires above.
   }

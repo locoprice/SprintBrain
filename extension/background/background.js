@@ -465,6 +465,10 @@ chrome.runtime.onStartup.addListener(function() {
 // ── ALARM LISTENER — fires every 5 minutes ──────────────────────
 chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name !== 'sb_sync_alarm') return;
+  // Liveness first: a session revoked from the dashboard (Settings → Security
+  // "Sign out from all devices") clears local auth within one alarm tick —
+  // sbClearSession fires auth_changed, which rebuilds the menus signed-out.
+  if (typeof sbCheckSessionAlive === 'function') sbCheckSessionAlive(function() {});
   // Refresh the context menu from Supabase so snippets/folders created on the
   // dashboard show up without needing to open the popup, then run Notion sync.
   forceRefreshMenus();
