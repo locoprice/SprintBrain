@@ -4,6 +4,8 @@
 **Scope:** Audit the popup → dashboard migration, verify completeness, fix verifiable defects, and define the staged path to a read-only popup.
 **Verdict:** ⚠️ **MIGRATION INCOMPLETE (by design, not regressed).** Prompts are already read-only in the popup; **snippets, folders, and settings still carry full business logic in the popup**. This session delivers the audit + the one runtime-safe fix; the read-only transformation is staged as a reviewed follow-up (rationale in §6).
 
+> **Status update (v2.87.0, 2026-07-03):** §6 steps 1–4 executed. The popup is now a read-only launcher (browse/search/copy + expansion-cache writer); snippet/folder CRUD, trigger/Notion writes and Team Sync were removed from `popup.js`/`popup.html`. Shared-core functions used by `Sprintbrain.html` were preserved. Extension-local prefs (default language, selection suggestions) intentionally remain in the popup.
+
 ---
 
 ## Method & evidence
