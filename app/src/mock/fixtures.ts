@@ -450,6 +450,7 @@ export const usageBySnippetId: Record<string, number> = Object.fromEntries(
 );
 
 const NULL_PROMPT_META = {
+  shortcut: null,
   strategy_type: null,
   thinking_mode: null,
   preferred_model: null,

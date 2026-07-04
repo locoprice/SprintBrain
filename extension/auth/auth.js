@@ -1,4 +1,6 @@
-// ── SPRINTBRAIN AUTH v2.26.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002) ──
+// ── SPRINTBRAIN AUTH v2.86.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002)
+//    + server-side session liveness (sbCheckSessionAlive) and login-activity
+//    logging for the Settings → Security dashboard feature. ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //
@@ -82,9 +84,53 @@ function sbVerifyOtp(email, token, rememberMe, cb) {
         ? Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
         : 0;
       chrome.storage.local.set({ sb_remember_until: rememberUntil });
-      sbSetSession(session, function() { cb(null, session); });
+      if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
+      sbSetSession(session, function() {
+        sbLogLoginEvent(session.access_token);
+        cb(null, session);
+      });
     });
   }).catch(function(e) { cb(e.message || 'Network error', null); });
+}
+
+// POST /rest/v1/rpc/log_login_event — record this sign-in in the dashboard's
+// "Recent login activity" (Settings → Security). IP, user-agent, country and
+// timestamp are derived server-side; repeat calls for one session are no-ops.
+// Best-effort fire-and-forget: a failed log must never block login.
+function sbLogLoginEvent(accessToken) {
+  try {
+    fetch(SB_SUPA_URL + '/rest/v1/rpc/log_login_event', {
+      method: 'POST',
+      headers: { 'apikey': SB_SUPA_ANON_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_method: 'email_otp' })
+    }).catch(function() {});
+  } catch(e) {}
+}
+
+// POST /rest/v1/rpc/session_alive — is this session's auth.sessions row still
+// there? ONLY an explicit `false` means revoked (dashboard "Sign out from all
+// devices" / per-device sign-out): the local session is cleared (fires
+// auth_changed) and cb(false). Every other outcome — no session, network or
+// HTTP error — is fail-open cb(true), so an outage never signs the user out.
+// Genuinely dead refresh tokens already self-clean via sbRefreshToken.
+function sbCheckSessionAlive(cb) {
+  sbGetSession(function(s) {
+    if (!s || !s.access_token) { if (cb) cb(true); return; }
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { if (cb) cb(true); return; }
+      fetch(SB_SUPA_URL + '/rest/v1/rpc/session_alive', {
+        method: 'POST',
+        headers: { 'apikey': headers.apikey, 'Authorization': headers.Authorization, 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function(r) {
+        if (!r.ok) { if (cb) cb(true); return; }
+        return r.json().then(function(alive) {
+          if (alive === false) { sbClearSession(function() { if (cb) cb(false); }); }
+          else { if (cb) cb(true); }
+        });
+      }).catch(function() { if (cb) cb(true); });
+    });
+  });
 }
 
 // POST /auth/v1/token?grant_type=refresh_token — rotates the access_token.
@@ -124,6 +170,7 @@ function sbRefreshToken(cb) {
             user_id: (j.user && j.user.id) || s.user_id,
             email:   (j.user && j.user.email) || s.email
           };
+          if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
           sbSetSession(next, function() { resolve(next); });
         });
       }).catch(function(e) { reject(e); });
@@ -157,4 +204,76 @@ function sbAuthHeaders(cb) {
 // Convenience: synchronous-ish current user_id (callback). Returns null when signed out.
 function sbCurrentUserId(cb) {
   sbGetSession(function(s) { cb(s && s.user_id ? s.user_id : null); });
+}
+
+// ── TRIGGER CONFIG SYNC — single source of truth = auth.users.user_metadata ──
+// The snippet/prompt trigger settings live in user_metadata
+// (trigger_snippet_seq / trigger_prompt_seq / *_key) — the SAME fields the web
+// dashboard reads and writes (see app/src/lib/api/settingsApi.ts). The extension
+// mirrors them into chrome.storage.sync.triggerCfg, the local cache content.js
+// reads, so a change on either surface reflects on the other.
+
+// Map the user_metadata trigger fields onto the triggerCfg cache and persist.
+// Only overwrites keys the metadata actually carries (an unset field keeps its
+// current value), and only writes when something changed — so we don't churn
+// chrome.storage.onChanged (which content.js listens to for live updates).
+function sbApplyTriggerMetadata(meta) {
+  if (!meta || typeof meta !== 'object') return;
+  chrome.storage.sync.get('triggerCfg', function(d) {
+    var cur = (d && d.triggerCfg) ? d.triggerCfg : {};
+    var next = {
+      snippetTrigger:       cur.snippetTrigger       || '::',
+      promptTrigger:        cur.promptTrigger        || '"""',
+      snippetActivationKey: cur.snippetActivationKey || 'Tab',
+      promptActivationKey:  cur.promptActivationKey  || 'Tab',
+      selectionSuggestions: (typeof cur.selectionSuggestions === 'boolean') ? cur.selectionSuggestions : true
+    };
+    if (typeof meta.trigger_snippet_seq === 'string' && meta.trigger_snippet_seq.trim()) next.snippetTrigger = meta.trigger_snippet_seq.trim();
+    if (typeof meta.trigger_prompt_seq  === 'string' && meta.trigger_prompt_seq.trim())  next.promptTrigger  = meta.trigger_prompt_seq.trim();
+    if (meta.trigger_snippet_key === 'Tab' || meta.trigger_snippet_key === 'Enter') next.snippetActivationKey = meta.trigger_snippet_key;
+    if (meta.trigger_prompt_key  === 'Tab' || meta.trigger_prompt_key  === 'Enter') next.promptActivationKey  = meta.trigger_prompt_key;
+    if (next.snippetTrigger !== cur.snippetTrigger || next.promptTrigger !== cur.promptTrigger ||
+        next.snippetActivationKey !== cur.snippetActivationKey || next.promptActivationKey !== cur.promptActivationKey) {
+      try { chrome.storage.sync.set({ triggerCfg: next }); } catch(e) {}
+    }
+  });
+}
+
+// GET /auth/v1/user — fetch the current user (incl. user_metadata) and apply the
+// trigger fields to the local cache. Used on popup open + a background alarm so
+// dashboard changes propagate without waiting for a token refresh.
+function sbPullTriggerMetadata(cb) {
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) { if (cb) cb(err || 'not_authed'); return; }
+    fetch(SB_SUPA_URL + '/auth/v1/user', { method: 'GET', headers: headers })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(u) {
+        var meta = u && u.user_metadata ? u.user_metadata : null;
+        if (meta) sbApplyTriggerMetadata(meta);
+        if (cb) cb(null, meta);
+      })
+      .catch(function(e) { if (cb) cb(e && e.message ? e.message : 'network_error'); });
+  });
+}
+
+// PUT /auth/v1/user { data } — write trigger fields back to user_metadata (the
+// source of truth), then mirror them into the local cache. Used by the popup
+// trigger editor so an extension-side change reaches the dashboard.
+function sbWriteTriggerMetadata(patch, cb) {
+  if (!patch || typeof patch !== 'object') { if (cb) cb('bad_patch'); return; }
+  sbAuthHeaders(function(err, headers) {
+    if (err || !headers) { if (cb) cb(err || 'not_authed'); return; }
+    fetch(SB_SUPA_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'apikey': headers.apikey, 'Authorization': headers.Authorization, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: patch })
+    }).then(function(r) {
+      return r.text().then(function(t) {
+        var j = null; try { j = JSON.parse(t); } catch(e) {}
+        if (!r.ok) { if (cb) cb((j && (j.msg || j.error_description || j.error)) || 'update_failed'); return; }
+        if (j && j.user_metadata) sbApplyTriggerMetadata(j.user_metadata);
+        if (cb) cb(null, j && j.user_metadata ? j.user_metadata : null);
+      });
+    }).catch(function(e) { if (cb) cb(e && e.message ? e.message : 'network_error'); });
+  });
 }

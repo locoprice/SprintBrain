@@ -1,4 +1,4 @@
-// SPRINTBRAIN POPUP v2.57.0 — feat: sync dashboard Prompt List to storage.local for the """ picker (syncPrompts)
+// SPRINTBRAIN POPUP v2.87.0 — read-only launcher + shared data core (management lives in the dashboard)
 
 // SUPA_URL comes from auth.js (SB_SUPA_URL); legacy var kept for any downstream reference.
 var SUPA_URL = SB_SUPA_URL;
@@ -45,30 +45,6 @@ function _supaFire(table, method, body, qs, headers, retried, resolve, reject) {
     }
     resolve(r);
   }).catch(reject);
-}
-
-// Calls a Supabase Edge Function by name.
-// cb(err, responseJson) — err is null on success.
-function callEdgeFunction(fnName, body, cb) {
-  sbAuthHeaders(function(err, headers) {
-    if (err || !headers) { cb(new Error('not_authed')); return; }
-    fetch(SB_SUPA_URL + '/functions/v1/' + fnName, {
-      method: 'POST',
-      headers: {
-        'apikey': headers.apikey,
-        'Authorization': headers.Authorization,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
-    .then(function(r) {
-      return r.json().then(function(data) {
-        if (!r.ok) { cb(new Error(data && data.error ? data.error : 'ef_http_' + r.status)); return; }
-        cb(null, data);
-      });
-    })
-    .catch(function(e) { cb(e); });
-  });
 }
 
 // Returns the current authed user's id (set on every write payload).
@@ -163,7 +139,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,type,tags,intent_category,last_used_at&order=updated_at.desc'
+      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -204,14 +180,8 @@ var snips        = [];
 var folders      = [];
 var prompts      = [];
 var trig         = '::';
-var editId       = null;
-var pendT        = '::';
 var selFolder    = 'ALL';
-var ctxId        = null;
 var selId        = null;
-var pendFolderCb = null;
-var selIco       = 'folder';
-var ctxFolderId  = null;
 var activeMode   = 'snippets';
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
@@ -231,6 +201,17 @@ function loadTriggerCfg(cb) {
     });
   } catch(e) { if (cb) cb(); }
 }
+// Reflect the current triggerCfg on the read-only settings pane and the local
+// prefs. Idempotent — called on first load and again after a user_metadata pull.
+// Also derives the display prefix `trig` from the snippet trigger: the popup no
+// longer writes triggers, it mirrors the dashboard-owned setting.
+function applyTriggerCfgToInputs() {
+  trig = triggerCfg.snippetTrigger || trig;
+  var ti = gi('itrig');   if (ti) ti.textContent = triggerCfg.snippetTrigger;
+  var pi = gi('iprompt'); if (pi) pi.textContent = triggerCfg.promptTrigger;
+  var ie = gi('iex');     if (ie) ie.textContent = triggerCfg.snippetTrigger + 'quoteEN';
+  var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
+}
 function saveTriggerCfg() {
   try { chrome.storage.sync.set({triggerCfg: triggerCfg}); } catch(e) {}
 }
@@ -245,10 +226,8 @@ function triggerWouldCollide(key, val) {
   return val === otherVal || otherVal.indexOf(val) === 0 || val.indexOf(otherVal) === 0;
 }
 
-// NOTION SYNC — logs trigger config changes
+// NOTION SYNC — credentials (local cache, reconciled with user_metadata)
 var notionCfg = { apiKey: '', dbId: '' };
-var notionLog = [];
-var notionSentKeys = {};
 
 function loadNotionCfg(cb) {
   chrome.storage.local.get('sb_notion_cfg', function(d) {
@@ -305,54 +284,6 @@ function pushNotionCfgToSupabase() {
   });
 }
 
-function notionSync(entry) {
-  var key = entry.triggerType + '|' + entry.field + '|' + entry.newValue + '|' + entry.timestamp;
-  notionLog.push({ entry: entry, status: 'pending' });
-  if (notionLog.length > 20) notionLog.shift();
-  if (notionSentKeys[key]) { notionLog[notionLog.length-1].status = 'skipped'; return; }
-  if (!notionCfg.apiKey || !notionCfg.dbId) { notionLog[notionLog.length-1].status = 'no config'; return; }
-  notionSendWithRetry(entry, 0, notionLog.length - 1, key);
-}
-
-function notionSendWithRetry(entry, attempt, logIdx, key) {
-  var delays = [1000, 2000, 4000];
-  fetch('https://api.notion.com/v1/pages', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + notionCfg.apiKey, 'Content-Type': 'application/json', 'Notion-Version': '2022-06-28' },
-    body: JSON.stringify({
-      parent: { database_id: notionCfg.dbId },
-      properties: {
-        'Trigger Type': { title: [{ text: { content: entry.triggerType } }] },
-        'Field': { rich_text: [{ text: { content: entry.field } }] },
-        'New Value': { rich_text: [{ text: { content: String(entry.newValue) } }] },
-        'Old Value': { rich_text: [{ text: { content: String(entry.oldValue || '') } }] },
-        'Timestamp': { rich_text: [{ text: { content: entry.timestamp } }] }
-      }
-    })
-  }).then(function(r) {
-    if (r.ok) { notionSentKeys[key] = true; if (notionLog[logIdx]) notionLog[logIdx].status = 'synced'; }
-    else throw new Error('HTTP ' + r.status);
-  }).catch(function(err) {
-    if (attempt < 2) setTimeout(function() { notionSendWithRetry(entry, attempt+1, logIdx, key); }, delays[attempt]);
-    else {
-      if (notionLog[logIdx]) notionLog[logIdx].status = 'failed';
-      console.error('[SprintBrain NotionSync] push failed:', err.message);
-    }
-  });
-}
-
-function setTriggerCfgValue(key, value) {
-  var oldVal = triggerCfg[key];
-  if (oldVal === value) return;
-  triggerCfg[key] = value;
-  saveTriggerCfg();
-  notionSync({
-    triggerType: key.indexOf('snippet') > -1 ? 'Snippet' : 'Prompt',
-    field: key, oldValue: oldVal, newValue: value,
-    timestamp: new Date().toISOString()
-  });
-}
-
 // HELPERS
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function uid(){  return 's'+Date.now()+Math.random().toString(36).slice(2,5); }
@@ -360,7 +291,7 @@ function fuid(){ return 'f'+Date.now()+Math.random().toString(36).slice(2,5); }
 function gi(id){ return document.getElementById(id); }
 
 function show(id){
-  ['pane-list','pane-ed','pane-cfg'].forEach(function(p){
+  ['pane-list','pane-cfg'].forEach(function(p){
     var el=gi(p); if(el) el.className='pane'+(p===id?' on':'');
   });
 }
@@ -397,6 +328,7 @@ function syncPrompts(){
         id: p.id,
         title: p.name || 'Untitled',
         body: p.content || '',
+        shortcut: p.shortcut || '',
         alternative_queries: Array.isArray(p.tags) ? p.tags : []
       };
     });
@@ -409,6 +341,12 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.87.0', date:'2026-07-03', label:'refactor: read-only popup — manage everything in the dashboard',
+    changes:[
+      {type:'refactor', text:'The popup is now a fast launcher: browse, search and copy snippets and prompts. Creating and editing snippets, folders, triggers, Notion credentials and Team Sync live only in the dashboard — one source of truth, no drift between surfaces'},
+      {type:'new', text:'"Open Dashboard" button in the footer and a "Manage in dashboard" shortcut in Settings — both reuse an already-open dashboard tab instead of stacking duplicates'},
+      {type:'refactor', text:'Settings pane slimmed to extension-local preferences (default language, selection suggestions) plus a read-only view of the active triggers, which sync from your dashboard settings'}
+    ]},
   { version:'v2.73.0', date:'2026-06-24', label:'fix: team-shared snippets & prompts now sync to the mobile companion',
     changes:[
       {type:'fix', text:'Mobile companion (/mobile/) now shows team-shared snippets, prompts and folders. It was reading personal-only because every query filtered by user_id — so snippets like "Time" shared by a teammate were missing. Snippets now load via the accessible_snippets() RPC (the same source as this popup); folders and prompts rely on RLS, so org-shared rows surface for every member'},
@@ -911,25 +849,20 @@ function applyPopupGreeting(session) {
 function boot() {
     refreshUI();
 
-    loadTrigger(function () {
-          var tp = gi('tp');
-        if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-          var he = gi('hint-ex'); if (he) he.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-          var sp = gi('spfx'); if (sp) sp.textContent = trig;
-    });
-
     loadTriggerCfg(function () {
-          var s  = gi('tcfg-snip');        if (s)  s.value  = triggerCfg.snippetTrigger;
-          var p  = gi('tcfg-prompt');      if (p)  p.value  = triggerCfg.promptTrigger;
-          var sa = gi('tcfg-snip-key');    if (sa) sa.value = triggerCfg.snippetActivationKey;
-          var pa = gi('tcfg-prompt-key');  if (pa) pa.value = triggerCfg.promptActivationKey;
+          applyTriggerCfgToInputs();
+          refreshUI();
           var ss = gi('tcfg-sel-suggest');
           if (ss) {
-            ss.checked = triggerCfg.selectionSuggestions !== false;
             ss.addEventListener('change', function () {
               triggerCfg.selectionSuggestions = ss.checked;
               saveTriggerCfg();
             });
+          }
+          // Refresh from the single source of truth (user_metadata) so the popup
+          // reflects a trigger changed on the dashboard, then repaint the lists.
+          if (typeof sbPullTriggerMetadata === 'function') {
+            sbPullTriggerMetadata(function () { loadTriggerCfg(function () { applyTriggerCfgToInputs(); refreshUI(); }); });
           }
     });
 
@@ -982,24 +915,11 @@ function boot() {
     });
 
     loadNotionCfg(function() {
-      var nk = document.getElementById('notion-key');
-      var nd = document.getElementById('notion-db');
-
-      function applyNotionInputs() {
-        if (nk && notionCfg.apiKey) nk.value = notionCfg.apiKey;
-        if (nd && notionCfg.dbId)   nd.value  = notionCfg.dbId;
-        updateNotionStatus();
-      }
-
-      applyNotionInputs();
       updateSyncStatus();
 
       if (!notionCfg.apiKey || !notionCfg.dbId) {
-        // Config is incomplete — check Supabase (set from dashboard) before syncing.
-        syncNotionCfgFromSupabase(function() {
-          applyNotionInputs();
-          _runNotionSync();
-        });
+        // Config is incomplete — check Supabase (set from the dashboard) before syncing.
+        syncNotionCfgFromSupabase(function() { _runNotionSync(); });
       } else {
         _runNotionSync();
       }
@@ -1010,19 +930,13 @@ function boot() {
 }
 
 function _runNotionSync(cb, force) {
-    var nsEl = document.getElementById('notion-st');
-
     NotionSync.run(notionCfg, {
 
           onProgress: function(state) {
                   if (state === 'syncing') {
                             _setSyncBar('refresh', 'Syncing with Notion\u2026', '#1B4FD8');
-                            if (nsEl) { nsEl.textContent = 'Syncing\u2026'; nsEl.style.color = '#1B4FD8'; }
                   } else {
                             updateSyncStatus();
-                            if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
-                                        nsEl.textContent = 'Connected'; nsEl.style.color = '#3B6D11';
-                            }
                   }
           },
 
@@ -1128,10 +1042,6 @@ function _runNotionSync(cb, force) {
                             }
                   });
 
-                  if (nsEl && notionCfg.apiKey && notionCfg.dbId) {
-                            nsEl.textContent = 'Sync failed'; nsEl.style.color = '#c0392b';
-                  }
-
                   updateSyncStatus();
                   if (cb) cb();
           }
@@ -1184,29 +1094,13 @@ function renderFolders(){
       +'<span class="folder-ico">'+_folderSvg(f.ico||'folder')+'</span>'
       +'<span class="folder-name">'+esc(f.name)+'</span>'
       +'<span class="folder-count">'+folderCount(f.id)+'</span>'
-      +'<span class="folder-dots" data-fdots="'+f.id+'" title="Folder options">\u22EF</span>'
       +'</div>';
   }
   el.innerHTML=h;
   el.querySelectorAll('.folder-item').forEach(function(row){
-    row.addEventListener('click',function(e){
-      if(e.target.dataset.fdots){ e.stopPropagation(); ctxFolderId=e.target.dataset.fdots; showFolderCtxMenu(e.clientX,e.clientY); return; }
+    row.addEventListener('click',function(){
       selFolder=row.dataset.fid; renderFolders();
       renderList(gi('sq')?gi('sq').value:'');
-    });
-    row.addEventListener('contextmenu',function(e){
-      e.preventDefault();
-      if(row.dataset.fid==='ALL') return;
-      ctxFolderId=row.dataset.fid; showFolderCtxMenu(e.clientX,e.clientY);
-    });
-    row.addEventListener('keydown',function(e){
-      if((e.shiftKey&&e.key==='F10')||e.key==='ContextMenu'){
-        e.preventDefault();
-        if(row.dataset.fid==='ALL') return;
-        ctxFolderId=row.dataset.fid;
-        var r=row.getBoundingClientRect();
-        showFolderCtxMenu(r.right-10,r.bottom);
-      }
     });
   });
 }
@@ -1221,7 +1115,7 @@ function renderList(q){
     var mq=!q||String(s.title||'').toLowerCase().indexOf(q.toLowerCase())>-1||String(s.shortcut||'').toLowerCase().indexOf(q.toLowerCase())>-1;
     return mf&&mq;
   });
-  if(!filtered.length){ el.innerHTML='<div class="empty">No snippets found.<br><small>Click \u201C+ New\u201D to add one.</small></div>'; return; }
+  if(!filtered.length){ el.innerHTML='<div class="empty">No snippets found.<br><small>Create snippets in the dashboard.</small></div>'; return; }
   // Sort pinned snippets to top
   filtered.sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   var groups=groupSnips(filtered);
@@ -1252,20 +1146,16 @@ function renderList(q){
       +'</div>'
       +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc((s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''))+'</span>'
       +(function(){ var el2 = bodyLangs(s).length>1 ? 'MULTI' : (s.lang||'EN'); return '<span class="lb '+esc(el2)+'">'+esc(el2)+'</span>'; })()
-      +'<button class="iedit" data-eid="'+s.id+'">Edit</button>'
-      +'<button class="idots" data-dots="'+s.id+'" title="More actions">\u22EF</button>'
       +'</div>';
   }
     el.innerHTML=h;
   el.querySelectorAll('.item').forEach(function(row){
     row.addEventListener('click',function(e){
-      if(e.target.dataset.switch){ 
-        selId=e.target.dataset.switch; 
-        refreshUI(); 
-        return; 
+      if(e.target.dataset.switch){
+        selId=e.target.dataset.switch;
+        refreshUI();
+        return;
       }
-      if(e.target.dataset.eid){ openEd(e.target.dataset.eid); return; }
-      if(e.target.dataset.dots){ e.stopPropagation(); ctxId=e.target.dataset.dots; var dr=e.target.getBoundingClientRect(); showCtxMenu(dr.right,dr.bottom); return; }
       var s=findSnip(row.dataset.id); if(!s) return;
       try{ navigator.clipboard.writeText(s.shortcut||''); }catch(e2){}
       if(!s.stats) s.stats={uses:0,fills:0,lastUsed:null};
@@ -1276,9 +1166,6 @@ function renderList(q){
       var orig=nm?nm.textContent:s.title;
       if(nm) nm.textContent='\u2713 '+(s.shortcut||'')+' copied!';
       setTimeout(function(){ if(nm) nm.textContent=orig; },1600);
-    });
-    row.addEventListener('contextmenu',function(e){
-      e.preventDefault(); ctxId=row.dataset.id; showCtxMenu(e.clientX,e.clientY);
     });
   });
 }
@@ -1338,7 +1225,6 @@ function setMode(m) {
   var pMain      = gi('prompt-main');
   var sq         = gi('sq');
   var tp         = gi('tp');
-  var bnew2      = gi('bnew2');
   var pTrigHint  = gi('ptrig-hint');
   var ptTrig     = triggerCfg.promptTrigger || '"""';
 
@@ -1354,8 +1240,6 @@ function setMode(m) {
     if (sq) sq.placeholder = 'Search prompts…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
     if (pTrigHint) pTrigHint.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
-    // Prompts are authored only in the dashboard — no create/edit in the popup.
-    if (bnew2) bnew2.style.display = 'none';
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
@@ -1364,570 +1248,16 @@ function setMode(m) {
     if (pMain) pMain.className = 'p-main';
     if (sq) sq.placeholder = 'Search snippets or /shortcut…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-    if (bnew2) { bnew2.style.display = ''; bnew2.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Snippet'; }
     renderList(sq ? sq.value : '');
   }
 }
 
-// EDITOR
-function buildFolderOpts(current){
-  var h='<option value="">— No folder —</option>';
-  for(var i=0;i<folders.length;i++){
-    var f=folders[i];
-    h+='<option value="'+f.id+'"'+(f.id===current?' selected':'')+'>'+esc(f.name)+'</option>';
-  }
-  return h;
-}
-
-function _s(id,prop,val){ var e=gi(id); if(e) e[prop]=val; }
-
-// ── ALTERNATIVE QUERIES TAG INPUT ─────────────────────────────────────────
-var _altQueries = []; // current tags for the open edit form
-
-function _renderAltTags() {
-  var container = gi('alt-tags');
-  if (!container) return;
-  container.innerHTML = '';
-  for (var i = 0; i < _altQueries.length; i++) {
-    (function(idx, tag) {
-      var span = document.createElement('span');
-      span.className = 'alt-tag';
-      span.textContent = tag;
-      var x = document.createElement('i');
-      x.className = 'alt-tag-x';
-      x.innerHTML = '&#x2715;';
-      x.title = 'Remove';
-      x.addEventListener('click', function() {
-        _altQueries.splice(idx, 1);
-        _renderAltTags();
-      });
-      span.appendChild(x);
-      container.appendChild(span);
-    })(i, _altQueries[i]);
-  }
-  var inp = gi('ealtq');
-  if (inp) inp.placeholder = _altQueries.length ? 'Add another…' : 'e.g. availability, no availability…';
-}
-
-function _commitAltDraft() {
-  var inp = gi('ealtq');
-  if (!inp) return;
-  var raw = inp.value.replace(/,/g, '').trim().toLowerCase();
-  if (raw && _altQueries.indexOf(raw) === -1) {
-    _altQueries.push(raw);
-    _renderAltTags();
-  }
-  inp.value = '';
-}
-
-function openEd(id){
-  editId=id||null;
-  var s=id?findSnip(id):null;
-  _s('edhdr','textContent',s?'Edit Snippet':'New Snippet');
-  _s('etit','value',s?(s.title||''):'');
-  var full=s?(s.shortcut||''):'';
-  var ew=gi('ewrd'); if(ew) ew.value=full.indexOf(trig)===0?full.slice(trig.length):full;
-  _s('spfx','textContent',trig);
-  var el2=gi('elng'); if(el2) el2.value=s?(s.lang||'EN'):'EN';
-  var ef=gi('efolder'); if(ef) ef.innerHTML=buildFolderOpts(s?(s.folder||''):(selFolder!=='ALL'?selFolder:''));
-  _s('ebdy','value',s?(s.body||''):'');
-  var bd=gi('bdel'); if(bd) bd.style.display=s?'block':'none';
-  // Urgency fields
-  var urgOn = s ? !!s.enable_urgency_timer : false;
-  var urgDur = s && s.timer_duration_ms ? Math.round(s.timer_duration_ms / 60000) : 30;
-  var urgSc = s && s.scarcity_count ? s.scarcity_count : 0;
-  var eu=gi('eurg'); if(eu) eu.checked = urgOn;
-  _s('eurg-dur','value',urgDur);
-  _s('eurg-sc','value',urgSc);
-  var uf=gi('urg-fields'); if(uf) uf.style.display = urgOn ? '' : 'none';
-  // Alternative queries
-  _altQueries = (s && Array.isArray(s.alternative_queries)) ? s.alternative_queries.slice() : [];
-  _renderAltTags();
-  var aq = gi('ealtq'); if (aq) aq.value = '';
-  var sk=gi('sok'); if(sk) sk.className='saveok';
-  initEditorLangTabs(s);
-  updateSprev();
-  show('pane-ed');
-  setTimeout(function(){ var et=gi('etit'); if(et) et.focus(); },50);
-}
-
-function updateSprev(){
-  var w=(gi('ewrd').value||'').replace(/^[^a-zA-Z0-9]+/,'');
-  var el=gi('sprev'); if(el) el.textContent=trig+(w||'shortcut');
-}
-
-function doSave(){
-  var title=(gi('etit').value||'').trim();
-  var word=(gi('ewrd').value||'').trim().replace(/^[^a-zA-Z0-9]+/,'');
-  var body=gi('ebdy').value||'';
-  var folder=gi('efolder').value||'';
-  var sc=trig+word;
-  if(!title){ shake('etit'); return; }
-  if(!word){  shake('ewrd'); return; }
-  var urgEnabled = gi('eurg').checked;
-  var urgDurMs = Math.max(1, parseInt(gi('eurg-dur').value) || 30) * 60000;
-  var urgSc = Math.max(0, parseInt(gi('eurg-sc').value) || 0);
-  // Commit any unsaved draft tag before saving
-  _commitAltDraft();
-  var altQueries = _altQueries.slice();
-
-  // Capture current textarea into the active language buffer
-  edLangBuf[edLangActive] = body;
-  var lang = edLangActive;
-
-  var isNew=!editId, variantIsNew=false, toSave;
-
-  // Canonical bodies map for the single-row (dashboard) model: every language
-  // the user has authored non-empty content for, keyed by language code. Mirrors
-  // app/src/lib/api/snippetsApi.ts mergeActiveBody() so both surfaces agree.
-  function buildBodies(){
-    var out = {};
-    LANGS.forEach(function(l){
-      var t = edLangBuf[l];
-      if(typeof t === 'string' && t.trim()) out[l] = t;
-    });
-    return out;
-  }
-
-  if(isNew){
-    toSave={id:uid(),title:title,shortcut:sc,body:body,lang:lang,bodies:buildBodies(),folder:folder,fieldCfg:{},lang_group_id:'',sort_order:snips.length+1,
-      enable_urgency_timer:urgEnabled,timer_duration_ms:urgDurMs,scarcity_count:urgSc,
-      alternative_queries:altQueries,
-      manually_edited:true,stats:{uses:0,fills:0,lastUsed:null}};
-    toSave.lang_group_id=toSave.id;
-    snips.unshift(toSave);
-    DB.upsertSnippet(toSave);
-    syncSnippets();
-    DB.updateStats(toSave.id,0,0,null);
-    NotionPush.push(toSave);
-  } else {
-    var anchorSnip = findSnip(editId);
-    if (!anchorSnip) {
-      showToast('Save failed — snippet not found. Please close and reopen the popup, then try again.');
-      return;
-    }
-    var anchorGid = anchorSnip.lang_group_id || anchorSnip.id;
-    var realSiblings = snips.filter(function(s){ return (s.lang_group_id||s.id)===anchorGid; });
-
-    if(realSiblings.length <= 1){
-      // Single-row model (dashboard-authored or extension single-row): persist
-      // every language on this one row's bodies map and mirror the active
-      // language into the denormalized body/lang columns. No sibling rows are
-      // created, so the dashboard and the extension stay on the same shape.
-      toSave = anchorSnip;
-      toSave.title=title; toSave.shortcut=sc; toSave.body=body; toSave.lang=lang;
-      toSave.bodies=buildBodies(); toSave.folder=folder;
-      toSave.enable_urgency_timer=urgEnabled; toSave.timer_duration_ms=urgDurMs;
-      toSave.scarcity_count=urgSc; toSave.alternative_queries=altQueries;
-      toSave.manually_edited=true;
-      DB.upsertSnippet(toSave);
-      syncSnippets();
-      NotionPush.push(toSave);
-    } else {
-      // Legacy multi-row model: one Supabase row per language sharing a
-      // lang_group_id. Preserve the historical per-row save so existing data
-      // isn't orphaned or duplicated.
-      for(var i=0;i<snips.length;i++){
-        if((snips[i].lang_group_id||snips[i].id)===anchorGid && snips[i].lang===lang){
-          toSave=snips[i]; break;
-        }
-      }
-      if(toSave){
-        toSave.title=title; toSave.shortcut=sc; toSave.body=body;
-        toSave.folder=folder;
-        toSave.enable_urgency_timer=urgEnabled;
-        toSave.timer_duration_ms=urgDurMs;
-        toSave.scarcity_count=urgSc;
-        toSave.alternative_queries=altQueries;
-        toSave.manually_edited=true;
-      } else {
-        variantIsNew=true;
-        toSave={
-          id:uid(), title:title, shortcut:sc, body:body, lang:lang,
-          folder:folder, fieldCfg:JSON.parse(JSON.stringify(anchorSnip.fieldCfg||{})),
-          lang_group_id:anchorGid, sort_order:snips.length+1,
-          enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs,
-          scarcity_count:urgSc, alternative_queries:altQueries, notion_page_id:null,
-          manually_edited:true, stats:{uses:0,fills:0,lastUsed:null}
-        };
-        snips.push(toSave);
-        edLangVariants[lang] = toSave;
-      }
-      if(anchorSnip !== toSave){
-        anchorSnip.title=title; anchorSnip.folder=folder;
-        anchorSnip.enable_urgency_timer=urgEnabled;
-        anchorSnip.timer_duration_ms=urgDurMs;
-        anchorSnip.scarcity_count=urgSc;
-        anchorSnip.alternative_queries=altQueries;
-        anchorSnip.manually_edited=true;
-        DB.upsertSnippet(anchorSnip);
-      }
-      DB.upsertSnippet(toSave);
-      syncSnippets();
-      if(variantIsNew) DB.updateStats(toSave.id,0,0,null);
-      NotionPush.push(toSave);
-      var gid = toSave.lang_group_id || toSave.id;
-      LANGS.forEach(function(l) {
-        if (l === lang) return; // already saved above
-        if (edLangBuf[l] === undefined) return; // never touched
-        var existing = edLangVariants[l];
-        if (existing) {
-          existing.body = edLangBuf[l];
-          existing.folder = folder;
-          existing.enable_urgency_timer = urgEnabled;
-          existing.timer_duration_ms = urgDurMs;
-          existing.scarcity_count = urgSc;
-          existing.alternative_queries = altQueries;
-          existing.manually_edited = true;
-          DB.upsertSnippet(existing);
-        } else {
-          var baseTitle = title.replace(/\s*(EN|ES|IT|FR)$/, '');
-          var baseWord = word.replace(/(EN|ES|IT|FR)$/, '');
-          var ns = {
-            id: uid(), title: baseTitle + ' ' + l,
-            shortcut: trig + baseWord + l,
-            body: edLangBuf[l], lang: l, folder: folder,
-            fieldCfg: JSON.parse(JSON.stringify(toSave.fieldCfg || {})),
-            lang_group_id: gid, sort_order: snips.length + 1,
-            enable_urgency_timer: urgEnabled, timer_duration_ms: urgDurMs,
-            scarcity_count: urgSc, alternative_queries: altQueries, manually_edited: true,
-            stats: { uses: 0, fills: 0, lastUsed: null }
-          };
-          snips.push(ns);
-          DB.upsertSnippet(ns);
-          DB.updateStats(ns.id, 0, 0, null);
-        }
-      });
-    }
-  }
-  if(!toSave) return;
-  // Refresh context menus in background
-  try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
-  gi('sok').className='saveok on';
-  setTimeout(function(){ gi('sok').className='saveok'; show('pane-list'); refreshUI(); },700);
-}
-
-function doDel(){
-  if(!editId||!confirm('Delete this snippet?')) return;
-  var _delSnip = findSnip(editId);
-  if(_delSnip && _delSnip.notion_page_id) NotionPush.archive(_delSnip.notion_page_id);
-  DB.deleteSnippet(editId);
-  snips=SBPopupSync.removeSnippetFromList(snips, editId);
-  syncSnippets();
-  try{ chrome.runtime.sendMessage({type:'REFRESH_MENUS'}); }catch(e){}
-  show('pane-list'); refreshUI();
-}
-
-function shake(id){
-  var el=gi(id); if(!el) return;
-  el.style.borderColor='#c0392b'; el.style.background='#fdf0ef';
-  setTimeout(function(){ el.style.borderColor=''; el.style.background=''; },900);
-}
-
-function insertCmd(cmd){
-  var ta=gi('ebdy'); var s=ta.selectionStart,e=ta.selectionEnd;
-  ta.value=ta.value.substring(0,s)+cmd+ta.value.substring(e);
-  ta.selectionStart=ta.selectionEnd=s+cmd.length; ta.focus();
-}
-
-// CONTEXT MENU
-function showCtxMenu(x,y){
-  closeCtxMenu();
-  var sub=gi('ctx-sub-folders'); var h='';
-  for(var i=0;i<folders.length;i++){
-    h+='<div class="ctx-sub-item" data-move-to="'+folders[i].id+'"><span class="sub-ico">'+_folderSvg(folders[i].ico||'folder')+'</span>'+esc(folders[i].name)+'</div>';
-  }
-  h+='<div class="ctx-sub-item add" id="ctx-sub-new"><span style="font-size:12px;width:16px;text-align:center">\uFF0B</span>New folder\u2026</div>';
-  sub.innerHTML=h;
-  sub.querySelectorAll('[data-move-to]').forEach(function(item){
-    item.addEventListener('click',function(e){
-      e.stopPropagation();
-      var s=findSnip(ctxId); if(s){ s.folder=item.dataset.moveTo; DB.upsertSnippet(s); refreshUI(); }
-      closeCtxMenu();
-    });
-  });
-  var snf=gi('ctx-sub-new');
-  if(snf) snf.addEventListener('click',function(e){
-    e.stopPropagation(); closeCtxMenu();
-    openFolderModal(function(fid){ var s=findSnip(ctxId); if(s){ s.folder=fid; DB.upsertSnippet(s); refreshUI(); } });
-  });
-  // Update pin label
-  var pinLbl=gi('ctx-pin-label'); var pinSnip=findSnip(ctxId);
-  if(pinLbl&&pinSnip) pinLbl.textContent=pinSnip.pinned?'Unpin':'Pin to top';
-  var m=gi('ctx-menu'); if(!m) return;
-  // Hide off-screen first to measure final size, then clamp inside the popup viewport.
-  m.style.left='-9999px'; m.style.top='-9999px'; m.className='ctx-menu on';
-  setTimeout(function(){
-    var r=m.getBoundingClientRect();
-    var vw=document.documentElement.clientWidth||window.innerWidth;
-    var vh=document.documentElement.clientHeight||window.innerHeight;
-    var finalX=Math.max(4,Math.min(x,vw-r.width-4));
-    var finalY=Math.max(4,Math.min(y,vh-r.height-4));
-    m.style.left=finalX+'px';
-    m.style.top=finalY+'px';
-    // Decide whether the "Move to folder" submenu should flip to the left side.
-    // .ctx-sub has min-width:200px; if it can't fit to the right of the parent menu,
-    // toggle the flip-sub class which switches the submenu to right:100%.
-    var subEl=m.querySelector('.ctx-sub');
-    var subW=(subEl&&subEl.getBoundingClientRect().width)||200;
-    var fitsRight=(finalX+r.width+subW+4)<=vw;
-    if(fitsRight) m.classList.remove('flip-sub'); else m.classList.add('flip-sub');
-    // Focus first menu item for keyboard navigation
-    var first=m.querySelector('.ctx-item'); if(first) first.focus();
-  },0);
-}
-
-function closeCtxMenu(){ var m=gi('ctx-menu'); if(m) m.className='ctx-menu'; closeFolderCtxMenu(); closeEmptyCtxMenu(); }
-
-// Keyboard navigation for snippet context menu
-(function(){
-  var menu=gi('ctx-menu'); if(!menu) return;
-  menu.addEventListener('keydown',function(e){
-    var items=Array.prototype.slice.call(menu.querySelectorAll('.ctx-item'));
-    if(!items.length) return;
-    var cur=document.activeElement;
-    var idx=items.indexOf(cur);
-    if(e.key==='ArrowDown'||e.key==='Down'){
-      e.preventDefault(); idx=(idx+1)%items.length; items[idx].focus();
-    } else if(e.key==='ArrowUp'||e.key==='Up'){
-      e.preventDefault(); idx=(idx-1+items.length)%items.length; items[idx].focus();
-    } else if(e.key==='Enter'||e.key===' '){
-      e.preventDefault(); if(cur&&cur.classList.contains('ctx-item')) cur.click();
-    } else if(e.key==='Escape'||e.key==='Esc'){
-      e.preventDefault(); closeCtxMenu();
-    }
-  });
-})();
-
-// FOLDER CONTEXT MENU
-function showFolderCtxMenu(x,y){
-  // Close other menus individually — closeCtxMenu() also calls closeFolderCtxMenu()
-  var cm=gi('ctx-menu'); if(cm) cm.className='ctx-menu';
-  var em=gi('ectx-menu'); if(em) em.className='ctx-menu';
-
-  var m=gi('fctx-menu'); if(!m) return;
-  // Temporarily show off-screen to measure
-  m.style.left='-9999px'; m.style.top='-9999px';
-  m.className='ctx-menu on';
-
-  setTimeout(function(){
-    var r=m.getBoundingClientRect();
-    var vw=document.documentElement.clientWidth||window.innerWidth;
-    var vh=document.documentElement.clientHeight||window.innerHeight;
-    var finalX=Math.min(x,vw-r.width-4);
-    var finalY=Math.min(y,vh-r.height-4);
-    finalX=Math.max(4,finalX);
-    finalY=Math.max(4,finalY);
-    m.style.left=finalX+'px';
-    m.style.top=finalY+'px';
-  },0);
-}
-function closeFolderCtxMenu(){ var m=gi('fctx-menu'); if(m) m.className='ctx-menu'; }
-
-// EMPTY AREA CONTEXT MENU
-function showEmptyCtxMenu(x,y){
-  closeCtxMenu();
-  var m=gi('ectx-menu'); if(!m) return;
-  m.style.left='-9999px'; m.style.top='-9999px'; m.className='ctx-menu on';
-  setTimeout(function(){
-    var r=m.getBoundingClientRect();
-    var vw=document.documentElement.clientWidth||window.innerWidth;
-    var vh=document.documentElement.clientHeight||window.innerHeight;
-    var finalX=Math.max(4,Math.min(x,vw-r.width-4));
-    var finalY=Math.max(4,Math.min(y,vh-r.height-4));
-    m.style.left=finalX+'px';
-    m.style.top=finalY+'px';
-  },0);
-}
-function closeEmptyCtxMenu(){ var m=gi('ectx-menu'); if(m) m.className='ctx-menu'; }
-
-// Folder context menu actions
-var fctxRen=gi('fctx-rename'); if(fctxRen) fctxRen.addEventListener('click',function(){
-  closeFolderCtxMenu();
-  var f=findFolder(ctxFolderId); if(!f) return;
-  var name=prompt('Rename folder:',f.name);
-  if(name&&name.trim()){ f.name=name.trim(); DB.upsertFolder(f); refreshUI(); }
-});
-
-var fctxIco=gi('fctx-icon'); if(fctxIco) fctxIco.addEventListener('click',function(){
-  closeFolderCtxMenu();
-  var f=findFolder(ctxFolderId); if(!f) return;
-  editFolderId=f.id; selIco=f.ico||'folder';
-  var inp=gi('folder-name-inp'); if(inp) inp.value=f.name;
-  document.querySelectorAll('.ico-opt').forEach(function(el){ el.className='ico-opt'+(el.dataset.ico===selIco?' on':''); });
-  var modal=gi('folder-modal'); if(modal) modal.className='modal-overlay on';
-  setTimeout(function(){ if(inp) inp.focus(); },50);
-});
-
-var fctxDel=gi('fctx-delete'); if(fctxDel) fctxDel.addEventListener('click',function(){
-  closeFolderCtxMenu();
-  var f=findFolder(ctxFolderId); if(!f) return;
-  var cnt=folderCount(f.id);
-  var msg=cnt>0?'Delete folder "'+f.name+'" and ungroup its '+cnt+' snippet(s)?':'Delete folder "'+f.name+'"?';
-  if(!confirm(msg)) return;
-  // Move snippets to no folder
-  snips.forEach(function(s){ if((s.folder||'')===f.id){ s.folder=''; DB.upsertSnippet(s); } });
-  DB.deleteFolder(f.id);
-  folders=folders.filter(function(fl){ return fl.id!==f.id; });
-  if(selFolder===f.id) selFolder='ALL';
-  refreshUI();
-});
-
-// Empty area context menu actions
-var ectxSnip=gi('ectx-new-snippet'); if(ectxSnip) ectxSnip.addEventListener('click',function(){ closeEmptyCtxMenu(); openEd(null); });
-var ectxFold=gi('ectx-new-folder'); if(ectxFold) ectxFold.addEventListener('click',function(){ closeEmptyCtxMenu(); openFolderModal(null); });
-
-var ctxDup=gi('ctx-duplicate'); if(ctxDup) ctxDup.addEventListener('click',function(){
-  var s=findSnip(ctxId); if(!s) return;
-  var copy=JSON.parse(JSON.stringify(s)); copy.id=uid(); copy.title='Copy of '+copy.title; copy.shortcut+='2'; copy.stats={uses:0,fills:0,lastUsed:null};
-  snips.splice(snips.indexOf(s)+1,0,copy); DB.upsertSnippet(copy); DB.updateStats(copy.id,0,0,null);
-  syncSnippets(); refreshUI(); closeCtxMenu();
-});
-var ctxRen=gi('ctx-rename'); if(ctxRen) ctxRen.addEventListener('click',function(){ closeCtxMenu(); startInlineRename(ctxId); });
-var ctxDel=gi('ctx-delete'); if(ctxDel) ctxDel.addEventListener('click',function(){
-  if(!ctxId||!confirm('Delete this snippet?')) return;
-  DB.deleteSnippet(ctxId); snips=SBPopupSync.removeSnippetFromList(snips, ctxId);
-  syncSnippets(); refreshUI(); closeCtxMenu();
-});
-
-// Pin / Unpin
-var ctxPin=gi('ctx-pin'); if(ctxPin) ctxPin.addEventListener('click',function(){
-  var s=findSnip(ctxId); if(!s) return;
-  s.pinned=!s.pinned;
-  DB.upsertSnippet(s); syncSnippets(); refreshUI(); closeCtxMenu();
-});
-
-// Copy content (body) to clipboard
-var ctxCopy=gi('ctx-copy'); if(ctxCopy) ctxCopy.addEventListener('click',function(){
-  var s=findSnip(ctxId); if(!s) return;
-  try{ navigator.clipboard.writeText(s.body||''); }catch(e2){}
-  closeCtxMenu();
-  // Flash feedback on snippet name
-  var nm=gi('iname-'+s.id); if(nm){ var orig=nm.textContent; nm.textContent='\u2713 Content copied!'; setTimeout(function(){ nm.textContent=orig; },1400); }
-});
-
-function startInlineRename(id){
-  var s=findSnip(id); if(!s) return; var el=gi('iname-'+id); if(!el) return;
-  var orig=s.title; var inp=document.createElement('input'); inp.className='iname-edit'; inp.value=orig;
-  el.parentNode.replaceChild(inp,el); inp.focus(); inp.select();
-  function commit(){ var v=(inp.value||'').trim(); if(v&&v!==orig){ s.title=v; DB.upsertSnippet(s); } renderList(gi('sq')?gi('sq').value:''); }
-  inp.addEventListener('blur',commit);
-  inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();inp.blur();} if(e.key==='Escape'){inp.value=orig;inp.blur();} });
-}
-
-// FOLDER MODAL
-function openFolderModal(cb){
-  pendFolderCb=cb||null; editFolderId=null; selIco='folder';
-  var inp=gi('folder-name-inp'); if(inp) inp.value='';
-  document.querySelectorAll('.ico-opt').forEach(function(el){ el.className='ico-opt'+(el.dataset.ico===selIco?' on':''); });
-  var modal=gi('folder-modal'); if(modal) modal.className='modal-overlay on';
-  setTimeout(function(){ var inp2=gi('folder-name-inp'); if(inp2) inp2.focus(); },50);
-}
-function closeFolderModal(){ var m=gi('folder-modal'); if(m) m.className='modal-overlay'; pendFolderCb=null; editFolderId=null; }
-
-var editFolderId=null;
-var fSave=gi('folder-save'); if(fSave) fSave.addEventListener('click',function(){
-  var name=(gi('folder-name-inp').value||'').trim(); if(!name){ shake('folder-name-inp'); return; }
-  if(editFolderId){
-    // Edit-existing-folder mode
-    var ef=findFolder(editFolderId);
-    if(ef){ ef.name=name; ef.ico=selIco; DB.upsertFolder(ef); }
-    editFolderId=null;
-    closeFolderModal(); refreshUI();
-    return;
-  }
-  var nf={id:fuid(),name:name,ico:selIco,sort_order:folders.length+1};
-  folders.push(nf); DB.upsertFolder(nf);
-  if(pendFolderCb) pendFolderCb(nf.id);
-  closeFolderModal(); refreshUI();
-});
-var fCancel=gi('folder-cancel'); if(fCancel) fCancel.addEventListener('click',closeFolderModal);
-var fModal=gi('folder-modal'); if(fModal) fModal.addEventListener('click',function(e){ if(e.target===fModal) closeFolderModal(); });
-var fNameInp=gi('folder-name-inp'); if(fNameInp) fNameInp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ var fs=gi('folder-save'); if(fs) fs.click(); } if(e.key==='Escape') closeFolderModal(); });
-var icoPicker=document.getElementById('ico-picker'); if(icoPicker) icoPicker.addEventListener('click',function(e){
-  var opt=e.target.closest('.ico-opt'); if(!opt) return;
-  selIco=opt.dataset.ico;
-  document.querySelectorAll('.ico-opt').forEach(function(el){ el.className='ico-opt'+(el.dataset.ico===selIco?' on':''); });
-});
-
-// SETTINGS
+// SETTINGS — read-only trigger info + extension-local preferences. All
+// management (snippets, folders, triggers, Notion, team sync) lives in the
+// dashboard; the pane only mirrors state and hosts the two local prefs.
 function openCfg(){
-  pendT=trig; syncTG(pendT); gi('ctrig').value=trig; updateWarn(pendT); updateInfo(pendT); show('pane-cfg');
-  chrome.storage.local.get('sb_team_sync_ts', function(d) {
-    var ts = gi('sb-team-sync-ts');
-    if (ts) ts.textContent = d && d.sb_team_sync_ts ? 'Last sync: ' + _timeAgo(d.sb_team_sync_ts) : '';
-  });
-}
-
-// Moves personal snippets and prompts into the team-shared folder so all org
-// members can see them via accessible_snippets() / the prompts RLS org branch.
-// The enforce_asset_tenancy trigger derives organization_id from the folder —
-// setting folder_id is the only correct path; patching organization_id directly
-// would be overwritten by the trigger.
-function doTeamSync() {
-  var btn = gi('sb-team-sync-btn');
-  var st  = gi('sb-team-sync-st');
-  var ts  = gi('sb-team-sync-ts');
-
-  if (!SB_CURRENT_USER_ID) {
-    if (st) { st.textContent = 'Not signed in.'; st.style.color = '#DC2626'; }
-    return;
-  }
-
-  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
-  if (st)  { st.textContent = ''; }
-
-  // Verify org membership — organizations table is only visible to members via RLS.
-  supaFetch('organizations', 'GET', null, 'select=id&slug=eq.leibtour')
-    .then(function(r) { return r.ok ? r.json() : []; })
-    .then(function(orgs) {
-      if (!orgs || !orgs.length) {
-        if (st)  { st.textContent = 'Not in a team org.'; st.style.color = '#DC2626'; }
-        if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
-        return;
-      }
-
-      var uid = SB_CURRENT_USER_ID;
-      var filter = 'user_id=eq.' + uid + '&organization_id=is.null';
-
-      return Promise.all([
-        supaFetch('snippets', 'PATCH', { folder_id: 'leibtour_team_shared' }, filter),
-        supaFetch('prompts',  'PATCH', { folder_id: 'leibtour_team_shared' }, filter)
-      ]).then(function(results) {
-        for (var i = 0; i < results.length; i++) {
-          if (!results[i].ok) throw new Error('HTTP ' + results[i].status);
-        }
-
-        var now = new Date().toISOString();
-        chrome.storage.local.set({ sb_team_sync_ts: now });
-
-        if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
-        if (st)  { st.textContent = 'Synced ✓'; st.style.color = '#16A34A'; }
-        if (ts)  { ts.textContent = 'Last sync: just now'; }
-        showToast('Snippets synced with team');
-        refreshUI();
-      });
-    })
-    .catch(function(err) {
-      console.error('[SprintBrain] doTeamSync:', err.message || err);
-      if (btn) { btn.disabled = false; btn.textContent = 'Sync with Team'; }
-      if (st)  { st.textContent = 'Sync failed.'; st.style.color = '#DC2626'; }
-    });
-}
-function syncTG(t){ document.querySelectorAll('.topt').forEach(function(el){ el.className='topt'+(el.dataset.t===t?' on':''); }); }
-function updateWarn(t){ var w=gi('wbox'); if(t==='/'){ w.innerHTML='<strong>/</strong> conflicts with WhatsApp, Claude and Notion. Use <strong>::</strong> instead.'; w.className='warn on'; }else if(/^[a-zA-Z0-9]$/.test(t)){ w.innerHTML='Single alphanumeric triggers may cause false positives.'; w.className='warn on'; }else{ w.className='warn'; } }
-function updateInfo(t){ gi('itrig').textContent=t; gi('iex').textContent=t+'quoteEN'; }
-function applyTrig(){
-  var custom=(gi('ctrig').value||'').trim(); var chosen=custom||pendT; if(!chosen) return;
-  var old=trig;
-  for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=chosen+sc.slice(old.length); snips[i].manually_edited=true; DB.upsertSnippet(snips[i]); } }
-  trig=chosen; saveTrigger();
-  // Sync: update snippetTrigger to match trigger prefix (single source of truth)
-  triggerCfg.snippetTrigger=chosen; saveTriggerCfg();
-  var s=gi('tcfg-snip'); if(s) s.value=chosen;
-  // Save default language preference
-  var dl=gi('cfg-default-lang'); if(dl) { userPrefs.defaultLang=dl.value; saveUserPrefs(); }
-  show('pane-list'); refreshUI();
+  applyTriggerCfgToInputs();
+  show('pane-cfg');
 }
 
 // Dashboard link — opens the SprintBrain web app in a browser tab.
@@ -1951,19 +1281,10 @@ function openDashboard(){
 
 // WIRE EVENTS
 function on(id,ev,fn){ var e=gi(id); if(e) e.addEventListener(ev,fn); }
-on('bnew','click',  function(){ if(activeMode!=='prompts') openEd(null); });
-on('bnew2','click', function(){ if(activeMode!=='prompts') openEd(null); });
-on('btn-new-folder','click', function(){ openFolderModal(null); });
-on('bbed','click',   function(){ show('pane-list'); refreshUI(); });
-on('bcan','click',   function(){ show('pane-list'); refreshUI(); });
-on('bsav','click',   doSave);
-on('bdel','click',   doDel);
-on('bcfg','click',        openCfg);
-on('bdash','click',       openDashboard);
-on('bbcfg','click',       function(){ show('pane-list'); refreshUI(); });
-on('bcct','click',        function(){ show('pane-list'); refreshUI(); });
-on('bappt','click',       applyTrig);
-on('sb-team-sync-btn','click', doTeamSync);
+on('bcfg','click',    openCfg);
+on('bdash','click',   openDashboard);
+on('bmanage','click', openDashboard);
+on('bbcfg','click',   function(){ show('pane-list'); refreshUI(); });
 on('brel','click', function(){
   var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(results){
@@ -1979,48 +1300,11 @@ on('sq','input', function(e){
   if(activeMode==='prompts') renderPrompts(e.target.value);
   else renderList(e.target.value);
 });
-on('ewrd','input',  updateSprev);
-on('ebdy','keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();doSave();} });
-on('ealtq','keydown',function(e){
-  if(e.key==='Enter'||e.key===','){
-    e.preventDefault();
-    _commitAltDraft();
-  } else if(e.key==='Backspace' && (gi('ealtq').value||'')==='') {
-    if(_altQueries.length){ _altQueries.pop(); _renderAltTags(); }
-  }
-});
-on('ealtq','input',function(e){
-  var v=e.target.value;
-  if(v.indexOf(',')!==-1){ _commitAltDraft(); }
-});
-on('eurg','change', function(){ var uf=gi('urg-fields'),eu=gi('eurg'); if(uf&&eu) uf.style.display=eu.checked?'':'none'; });
+on('cfg-default-lang','change', function(e){ userPrefs.defaultLang = e.target.value; saveUserPrefs(); });
 
 // Mode tabs
 document.querySelectorAll('.mode-tab').forEach(function(tab){
   tab.addEventListener('click', function(){ setMode(tab.dataset.mode); });
-});
-
-var cmdGrid=document.querySelector('.cmds'); if(cmdGrid) cmdGrid.addEventListener('click',function(e){ if(e.target.dataset.c) insertCmd(e.target.dataset.c); });
-document.querySelectorAll('.topt').forEach(function(opt){
-  opt.addEventListener('click',function(){ pendT=opt.dataset.t; gi('ctrig').value=pendT; syncTG(pendT); updateWarn(pendT); updateInfo(pendT); });
-});
-on('ctrig','input',function(e){ var t=e.target.value; if(!t) return; pendT=t; syncTG(t); updateWarn(t); updateInfo(t); });
-document.addEventListener('click',function(e){
-  var m=gi('ctx-menu'), fm=gi('fctx-menu'), em=gi('ectx-menu');
-  if(m&&!m.contains(e.target)&&fm&&!fm.contains(e.target)&&em&&!em.contains(e.target)) closeCtxMenu();
-});
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeCtxMenu(); });
-document.addEventListener('scroll',function(){ closeCtxMenu(); },true);
-
-// Empty-area right-click on sidebar
-var sbList=gi('folder-list'); if(sbList) sbList.addEventListener('contextmenu',function(e){
-  if(e.target.closest('.folder-item')) return;
-  e.preventDefault(); showEmptyCtxMenu(e.clientX,e.clientY);
-});
-// Empty-area right-click on snippet list
-var sList=gi('list'); if(sList) sList.addEventListener('contextmenu',function(e){
-  if(e.target.closest('.item')) return;
-  e.preventDefault(); showEmptyCtxMenu(e.clientX,e.clientY);
 });
 
 // Changelog events — version bar AND changelog modal are rendered AFTER this <script>
@@ -2050,7 +1334,6 @@ function groupSnips(arr) {
 }
 
 // LANGUAGE VARIANT SYSTEM v2.4
-var LNAMES = {EN:'English',ES:'Español',IT:'Italiano',FR:'Français'};
 var LANGS = ['EN','ES','IT','FR'];
 
 // Languages embedded in a single row's `bodies` map (dashboard model). Returns
@@ -2090,162 +1373,6 @@ function findVariants(snip){
   return v;
 }
 
-function addLangVariant(targetLang){
-  var src = findSnip(selId||''); if(!src){ showToast('Select a snippet first'); return; }
-  var v = findVariants(src);
-  if(v[targetLang]){ showToast('Already exists — click the pill to switch'); return; }
-  var gid = src.lang_group_id || src.id;
-  var ns = {
-    id: uid(),
-    title: src.title.replace(/\s*(EN|ES|IT|FR)$/, '') + ' ' + targetLang,
-    shortcut: src.shortcut.replace(/(EN|ES|IT|FR)$/, targetLang),
-    body: src.body, lang: targetLang, folder: src.folder,
-    fieldCfg: JSON.parse(JSON.stringify(src.fieldCfg||{})),
-    lang_group_id: gid, sort_order: snips.length + 1,
-    enable_urgency_timer: src.enable_urgency_timer || false,
-    timer_duration_ms: src.timer_duration_ms || 0,
-    scarcity_count: src.scarcity_count || 0,
-    stats: {uses:0, fills:0, lastUsed:null}
-  };
-  snips.push(ns);
-  DB.upsertSnippet(ns);
-  DB.updateStats(ns.id, 0, 0, null);
-  syncSnippets();
-  selId = ns.id;
-  openEd(ns.id);
-  showToast(LNAMES[targetLang] + ' version created — edit it now!');
-}
-
-function showLangPicker(snip){
-  if(!snip) return;
-  var v = findVariants(snip);
-  var vc = Object.keys(v).length;
-  gi('lp-ttl').textContent = vc > 1 ? 'Which language?' : 'No variants yet';
-  gi('lp-sub').textContent = vc > 1 ? snip.title + ' — ' + vc + ' versions' : 'Add from Edit view';
-  var grid = gi('lp-grid'); var h = ''; var sel = snip.lang;
-  var colors = {EN:'var(--en)',ES:'var(--es)',IT:'var(--it)',FR:'var(--fr)'};
-  LANGS.forEach(function(l){
-    var vs = v[l]; var isCur = snip.lang === l;
-    h += '<div class="lp-opt'+(vs?' lp-has':'')+(isCur?' lp-sel':'')+(vs?'':' lp-dis')+'" data-lang="'+l+'" data-id="'+(vs?vs.id:'')+'">'
-      +'<div class="lp-dot" style="color:'+(colors[l]||'var(--tx2)')+'">'+l+'</div>'
-      +'<span class="lp-nm">'+LNAMES[l]+(vs?' \u2713':'')+'</span></div>';
-  });
-  grid.innerHTML = h;
-  grid.querySelectorAll('.lp-opt.lp-has').forEach(function(opt){
-    opt.addEventListener('click', function(){
-      sel = opt.dataset.lang;
-      grid.querySelectorAll('.lp-opt').forEach(function(o){o.classList.remove('lp-sel');});
-      opt.classList.add('lp-sel');
-    });
-  });
-  gi('lp-ok').onclick = function(){
-    gi('lp-bg').className = 'lp-bg';
-    var target = v[sel];
-    if(target){
-      var sc = target.shortcut || '';
-      try{ navigator.clipboard.writeText(sc); }catch(e){}
-      if(!target.stats) target.stats = {uses:0,fills:0,lastUsed:null};
-      target.stats.uses = (target.stats.uses||0)+1;
-      target.stats.lastUsed = new Date().toISOString();
-      DB.updateStats(target.id, target.stats.uses, target.stats.fills, target.stats.lastUsed);
-      var nm = gi('iname-'+target.id);
-      var orig = nm ? nm.textContent : target.title;
-      if(nm){ nm.textContent = sc + ' copied'; setTimeout(function(){if(nm)nm.textContent=orig;},1600); }
-    }
-  };
-  gi('lp-bg').className = 'lp-bg on';
-}
-
-// ── EDITOR LANGUAGE TABS ──────────────────────────────────────────
-var edLangBuf = {};      // {EN:'...', ES:'...', IT:'...', FR:'...'}
-var edLangActive = 'EN'; // currently active tab in editor
-var edLangVariants = {};  // {EN: snippetObj, ES: snippetObj, ...}
-
-function initEditorLangTabs(snip) {
-  edLangBuf = {};
-  edLangVariants = {};
-  edLangActive = snip ? (snip.lang || userPrefs.defaultLang || 'EN') : (userPrefs.defaultLang || 'EN');
-  if (snip) {
-    edLangVariants = findVariants(snip);
-    LANGS.forEach(function(l) {
-      if (edLangVariants[l]) edLangBuf[l] = edLangVariants[l].body || '';
-    });
-  }
-  // Set current snippet body into its lang buffer. Prefer the per-language entry
-  // in the bodies map (dashboard model) so the active tab isn't overwritten by a
-  // stale denormalized `body` column.
-  if (snip) {
-    var ab = snip.bodies || {};
-    edLangBuf[edLangActive] = (typeof ab[edLangActive] === 'string') ? ab[edLangActive] : (snip.body || '');
-  }
-  refreshLangTabs();
-}
-
-function refreshLangTabs() {
-  var tabs = document.querySelectorAll('#lang-sidebar .lang-tab');
-  tabs.forEach(function(tab) {
-    var l = tab.dataset.lang;
-    tab.classList.toggle('on', l === edLangActive);
-    tab.classList.toggle('has-content', !!(edLangBuf[l] && edLangBuf[l].trim()));
-  });
-  // Sync the language dropdown
-  var el = gi('elng');
-  if (el) el.value = edLangActive;
-  // Show/hide textarea vs empty state
-  var ta = gi('ebdy');
-  var emp = gi('lang-empty');
-  var hasContent = edLangBuf[edLangActive] !== undefined;
-  if (ta) ta.style.display = hasContent ? '' : 'none';
-  if (emp) {
-    emp.classList.toggle('on', !hasContent);
-    emp.querySelector('.lang-empty-txt').innerHTML = 'No <b>' + LNAMES[edLangActive] + '</b> content yet.<br>Click to start writing.';
-  }
-}
-
-function switchEditorLang(lang) {
-  if (lang === edLangActive) return;
-  // Save current textarea content to buffer
-  var ta = gi('ebdy');
-  if (ta) edLangBuf[edLangActive] = ta.value || '';
-  edLangActive = lang;
-  // Load target language content
-  if (ta) {
-    var content = edLangBuf[lang];
-    if (content !== undefined) {
-      ta.value = content;
-      ta.style.display = '';
-      var emp = gi('lang-empty');
-      if (emp) emp.classList.remove('on');
-    }
-  }
-  // Sync language dropdown
-  var el = gi('elng');
-  if (el) el.value = lang;
-  refreshLangTabs();
-}
-
-function editorLangEmptyClick() {
-  // Create empty buffer entry and show textarea
-  edLangBuf[edLangActive] = '';
-  var ta = gi('ebdy');
-  var emp = gi('lang-empty');
-  if (ta) { ta.value = ''; ta.style.display = ''; ta.focus(); }
-  if (emp) emp.classList.remove('on');
-  refreshLangTabs();
-}
-
-// Wire up sidebar tab clicks + dropdown sync
-(function() {
-  var tabs = document.querySelectorAll('#lang-sidebar .lang-tab');
-  tabs.forEach(function(tab) {
-    tab.addEventListener('click', function() { switchEditorLang(tab.dataset.lang); });
-  });
-  var emp = gi('lang-empty');
-  if (emp) emp.addEventListener('click', editorLangEmptyClick);
-  var elng = gi('elng');
-  if (elng) elng.addEventListener('change', function() { switchEditorLang(elng.value); });
-})();
-
 function showToast(msg){
   var t=gi('toast');
   if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#18181B;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 4px 12px rgba(0,0,0,.15)'; document.body.appendChild(t); }
@@ -2253,53 +1380,8 @@ function showToast(msg){
   setTimeout(function(){ t.style.opacity='0'; },2000);
 }
 
-// Language picker modal — also rendered after the <script> tag, so wait for DOM ready.
-document.addEventListener('DOMContentLoaded', function() {
-  var lpCancel = document.getElementById('lp-cancel');
-  if (lpCancel) lpCancel.addEventListener('click', function(){ var bg=gi('lp-bg'); if(bg) bg.className='lp-bg'; });
-  var lpBg = document.getElementById('lp-bg');
-  if (lpBg) lpBg.addEventListener('click', function(e){ if(e.target===lpBg) lpBg.className='lp-bg'; });
-});
-
-// TRIGGER CONFIG EVENTS
-on('tcfg-snip','change', function(e){
-  var v=e.target.value.trim(); var st=gi('tcfg-snip-st');
-  if(!validateTriggerSeq(v)){ e.target.style.borderColor='#c0392b'; if(st){st.textContent='Invalid';st.style.color='#c0392b';} return; }
-  if(triggerWouldCollide('snippetTrigger',v)){ e.target.style.borderColor='#c0392b'; if(st){st.textContent='Collides';st.style.color='#c0392b';} return; }
-  e.target.style.borderColor=''; setTriggerCfgValue('snippetTrigger',v);
-  // Sync: rewrite all snippet prefixes and update trigger to match
-  var old=trig;
-  if(old!==v){
-    for(var i=0;i<snips.length;i++){ var sc=snips[i].shortcut||''; if(sc.indexOf(old)===0){ snips[i].shortcut=v+sc.slice(old.length); snips[i].manually_edited=true; DB.upsertSnippet(snips[i]); } }
-    trig=v; saveTrigger();
-    var tp=gi('tp'); if(tp) tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-    var he=gi('hint-ex'); if(he) he.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-    var sp=gi('spfx'); if(sp) sp.textContent=trig;
-    gi('ctrig').value=v; syncTG(v);
-    refreshUI();
-  }
-  if(st){st.textContent='Saved';st.style.color='#3B6D11';setTimeout(function(){st.textContent='';},2000);}
-});
-on('tcfg-prompt','change', function(e){
-  var v=e.target.value.trim(); var st=gi('tcfg-prompt-st');
-  if(!validateTriggerSeq(v)){ e.target.style.borderColor='#c0392b'; if(st){st.textContent='Invalid';st.style.color='#c0392b';} return; }
-  if(triggerWouldCollide('promptTrigger',v)){ e.target.style.borderColor='#c0392b'; if(st){st.textContent='Collides';st.style.color='#c0392b';} return; }
-  e.target.style.borderColor=''; setTriggerCfgValue('promptTrigger',v);
-  if(st){st.textContent='Saved';st.style.color='#3B6D11';setTimeout(function(){st.textContent='';},2000);}
-});
-on('tcfg-snip-key','change', function(e){ setTriggerCfgValue('snippetActivationKey',e.target.value); });
-on('tcfg-prompt-key','change', function(e){ setTriggerCfgValue('promptActivationKey',e.target.value); });
-on('notion-key','change', function(e){ notionCfg.apiKey=e.target.value.trim(); saveNotionCfg(); pushNotionCfgToSupabase(); updateNotionStatus(); });
-on('notion-db','change', function(e){ notionCfg.dbId=e.target.value.trim(); saveNotionCfg(); pushNotionCfgToSupabase(); updateNotionStatus(); });
-
-function updateNotionStatus(){
-  var st=gi('notion-st');
-  if(st){ st.textContent=notionCfg.apiKey&&notionCfg.dbId?'Connected':''; st.style.color=notionCfg.apiKey&&notionCfg.dbId?'#3B6D11':'#c0392b'; }
-}
-
-// Paste handlers for popup inputs
+// Paste handler for the search input
 on('sq','paste', function(){ setTimeout(function(){ renderList(gi('sq')?gi('sq').value:''); },0); });
-on('ewrd','paste', function(){ setTimeout(updateSprev,0); });
 
 // ── SYNC NOW BUTTON ──────────────────────────────────────
 var syncNowBtn = document.getElementById('sb-sync-now');
@@ -2511,7 +1593,15 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
 
   // Initial check: if a session exists already, skip the gate.
   sbGetSession(function(session) {
-    if (session && session.access_token) { hideGate(); bootOnce(session); }
+    if (session && session.access_token) {
+      hideGate();
+      bootOnce(session);
+      // Async liveness check: if this session was revoked from the dashboard
+      // (Settings → Security), drop back to the sign-in gate immediately.
+      sbCheckSessionAlive(function(alive) {
+        if (!alive) window.sbSignOut();
+      });
+    }
     else { showGate(); showSsoPane(); }
   });
 

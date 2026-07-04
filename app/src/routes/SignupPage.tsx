@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
+import { securityApi } from '@/lib/api/securityApi';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
@@ -59,6 +60,9 @@ export function SignupPage() {
     setLoading(true);
     setError(null);
 
+    // Signup has no remember-me checkbox — always persistent.
+    setRememberMe(true);
+
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
@@ -96,6 +100,8 @@ export function SignupPage() {
           : err.message,
       );
       setLoading(false);
+    } else {
+      void securityApi.logLoginEvent('email_otp');
     }
     // On success: onAuthStateChange fires → status becomes 'authed' → Navigate fires above.
   }

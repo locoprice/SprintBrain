@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
 import {
@@ -280,6 +282,12 @@ export function PromptBlockEditor() {
   const editPrompt = usePromptStore((s) => s.editPrompt);
   const removePrompt = usePromptStore((s) => s.removePrompt);
 
+  // The prompt trigger is a user setting (single source of truth: user_metadata,
+  // loaded into the settings store). Never hardcode it — the extension reads the
+  // same value, so the hint must reflect whatever the user configured.
+  const promptTrigger =
+    useSettingsStore((s) => s.profile?.trigger_prompt_seq) || DEFAULT_TRIGGER_CONFIG.promptTrigger;
+
   const editingPrompt = useMemo(
     () => (editId ? (prompts.find((p) => p.id === editId) ?? null) : null),
     [editId, prompts],
@@ -289,6 +297,7 @@ export function PromptBlockEditor() {
 
   // Form state
   const [name, setName] = useState('');
+  const [shortcut, setShortcut] = useState('');
   const [promptType, setPromptType] = useState<'one-shot' | 'few-shot'>('one-shot');
   const [blocks, setBlocks] = useState<PromptBlock[]>(DEFAULT_BLOCKS);
   const [tags, setTags] = useState('');
@@ -310,17 +319,20 @@ export function PromptBlockEditor() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
 
   // Sync form when prompt changes
   useEffect(() => {
     if (!isOpen) return;
     setSubmitError(null);
     setNameError(null);
+    setShortcutError(null);
     setConfirmDelete(false);
     setSuggestion(null);
 
     if (editingPrompt) {
       setName(editingPrompt.name);
+      setShortcut(editingPrompt.shortcut ?? '');
       setPromptType(editingPrompt.type);
       setBlocks(
         editingPrompt.blocks && editingPrompt.blocks.length > 0
@@ -342,6 +354,7 @@ export function PromptBlockEditor() {
       setFolderId(editingPrompt.folder_id);
     } else {
       setName('');
+      setShortcut('');
       setPromptType('one-shot');
       setBlocks(DEFAULT_BLOCKS);
       setTags('');
@@ -499,6 +512,13 @@ export function PromptBlockEditor() {
       return;
     }
     setNameError(null);
+
+    const trimmedShortcut = shortcut.trim();
+    if (trimmedShortcut && !/^[a-zA-Z0-9_-]+$/.test(trimmedShortcut)) {
+      setShortcutError(`Use letters, numbers, hyphens or underscores only — no prefix (the ${promptTrigger} trigger is added automatically)`);
+      return;
+    }
+    setShortcutError(null);
     setSubmitError(null);
     setSaving(true);
 
@@ -506,6 +526,7 @@ export function PromptBlockEditor() {
     const payload: PromptFormValues = {
       name: name.trim(),
       content: assembled,
+      shortcut: trimmedShortcut,
       type: promptType,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       strategy_type: strategyType,
@@ -624,6 +645,35 @@ export function PromptBlockEditor() {
 
       {/* ── Scrollable content ── */}
       <div className="flex-1 overflow-y-auto">
+        {/* Shortcut — optional direct-expansion trigger */}
+        <div className="border-b border-[#222227] px-5 py-4">
+          <label className="mb-1.5 block text-[10px] text-[#9C9CA6]">
+            Shortcut <span className="text-[#6A6A73]">· optional</span>
+          </label>
+          <input
+            type="text"
+            value={shortcut}
+            onChange={(e) => {
+              setShortcut(e.target.value);
+              if (shortcutError) setShortcutError(null);
+            }}
+            placeholder="followup"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="h-8 w-full rounded-[8px] border border-[#34343C] bg-[#1C1C22] px-3 font-mono text-xs text-[#D6D6DE] placeholder:text-[#7A7A85] focus:border-[#3D6FE8] focus:outline-none"
+          />
+          {shortcutError ? (
+            <span className="mt-1.5 block text-[11px] text-[#FF5F57]">{shortcutError}</span>
+          ) : (
+            <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
+              Type{' '}
+              <span className="font-mono text-[#9C9CA6]">{`${promptTrigger}${shortcut.trim() || 'followup'}`}</span>{' '}
+              (your prompt trigger) in any field to expand this prompt instantly. Leave empty to keep it menu-only.
+            </span>
+          )}
+        </div>
+
         {/* Blocks */}
         <div>
           <div className="flex items-center justify-between px-5 py-3">

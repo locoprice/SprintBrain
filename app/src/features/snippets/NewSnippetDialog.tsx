@@ -49,6 +49,17 @@ const EMPTY_FORM: SnippetFormValues = {
   scarcity_count: 0,
 };
 
+/**
+ * A snippet trigger is a bare token — the extension prepends the trigger prefix
+ * (::) at match time (see content.js: `snippetTrigger + sc`), so it must never
+ * be stored here. Strip anything that isn't a letter, number, hyphen, or
+ * underscore so a prefix like `::` or a stray symbol can't be typed, pasted, or
+ * carried over from a legacy row. Mirrors snippetFormSchema.trigger.
+ */
+function sanitizeTrigger(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
 // Quick Insert: matches the extension popup chips (popup.html:757-767).
 // Each entry inserts `data-c` at the cursor position in the body textarea.
 interface QuickInsert {
@@ -183,7 +194,7 @@ export function NewSnippetDialog() {
       }
       setForm({
         name:                 editingSnippet.name,
-        trigger:              editingSnippet.triggers[0] ?? '',
+        trigger:              sanitizeTrigger(editingSnippet.triggers[0] ?? ''),
         content:              initialBodies[editingSnippet.language] ?? '',
         bodies:               initialBodies,
         folder_id:            editingSnippet.folder_id,
@@ -405,8 +416,11 @@ export function NewSnippetDialog() {
                 <Input
                   id="snippet-trigger"
                   value={form.trigger}
-                  onChange={(e) => updateField('trigger', e.target.value)}
+                  onChange={(e) => updateField('trigger', sanitizeTrigger(e.target.value))}
                   placeholder="quoteEN"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
                   disabled={saving}
                   className={errors.trigger ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
                 />

@@ -439,6 +439,7 @@ chrome.runtime.onInstalled.addListener(function(details) {
     periodInMinutes: 5
   });
   initMenus();
+  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
 });
 
 // Rebuild when popup saves changes (snippets updated)
@@ -458,11 +459,16 @@ chrome.runtime.onStartup.addListener(function() {
   });
   initMenus();
   bgNotionSync();
+  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
 });
 
 // ── ALARM LISTENER — fires every 5 minutes ──────────────────────
 chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name !== 'sb_sync_alarm') return;
+  // Liveness first: a session revoked from the dashboard (Settings → Security
+  // "Sign out from all devices") clears local auth within one alarm tick —
+  // sbClearSession fires auth_changed, which rebuilds the menus signed-out.
+  if (typeof sbCheckSessionAlive === 'function') sbCheckSessionAlive(function() {});
   // Refresh the context menu from Supabase so snippets/folders created on the
   // dashboard show up without needing to open the popup, then run Notion sync.
   forceRefreshMenus();
@@ -479,6 +485,11 @@ var MENU_REFRESH_MIN_MS = 10000;
 function forceRefreshMenus() {
   chrome.storage.local.set({ sb_menu_last_refresh: Date.now() });
   initMenus();
+  // Same "pull latest dashboard state" hook also refreshes the trigger settings
+  // (user_metadata → chrome.storage.sync cache) so a trigger changed on the
+  // dashboard reflects in-page without the user opening the popup. Fires on the
+  // 5-min alarm and on tab-switch / window-focus (throttled) — see call sites.
+  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
 }
 function maybeRefreshMenus() {
   chrome.storage.local.get('sb_menu_last_refresh', function(d) {

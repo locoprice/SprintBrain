@@ -28,6 +28,7 @@ const BASE_PROMPT: Prompt = {
   user_id: 'user-001',
   name: 'Reservation Confirmation Template',
   content: 'Dear {{guest}}, your reservation for {{date}} is confirmed.',
+  shortcut: null,
   type: 'one-shot',
   tags: ['reservations', 'confirmations'],
   strategy_type: null,

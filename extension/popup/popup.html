@@ -70,8 +70,6 @@ html,body{
 }
 .hdr-btn:hover{background:var(--sb-bg-muted);border-color:var(--sb-line-2);color:var(--sb-ink)}
 .hdr-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.hdr-btn.primary{background:var(--sb-iris);border-color:var(--sb-iris);color:#fff}
-.hdr-btn.primary:hover{background:var(--sb-iris-dark);border-color:var(--sb-iris-dark)}
 .logo-txt{display:flex;flex-direction:column;gap:0}
 .pop-greet{font-size:10px;font-weight:500;color:var(--sb-ink-muted);line-height:1.2;letter-spacing:.05px}
 .pop-name{font-size:14px;font-weight:700;color:var(--sb-ink);line-height:1.2;letter-spacing:-.25px}
@@ -140,21 +138,6 @@ html,body{
 }
 /* v1.1: active folder count is a filled azure pill (matches harmonized mockup). */
 .folder-item.on .folder-count{background:var(--sb-azure);color:#fff}
-.folder-dots{
-  display:none;font-size:11px;color:var(--sb-ink-subtle);
-  cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;letter-spacing:-1px;
-}
-.folder-item:hover .folder-dots{display:block}
-.folder-item:hover .folder-count{display:none}
-.folder-item.on:hover .folder-count{display:none}
-.sb-add{
-  padding:8px 12px;font-size:var(--sb-fs-13);font-weight:500;
-  color:var(--sb-iris);cursor:pointer;border-top:1px solid var(--sb-line);
-  display:flex;align-items:center;gap:6px;margin-top:auto;
-  transition:background var(--sb-dur-base);
-}
-.sb-add:hover{background:var(--sb-iris-bg)}
-.sb-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 
 /* ── MAIN COLUMN ── */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -175,12 +158,6 @@ html,body{
 .iname{
   font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-ink);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.iname-edit{
-  font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-ink);
-  border:1px solid var(--sb-iris);border-radius:var(--sb-r-sm);
-  padding:2px 8px;outline:none;background:var(--sb-iris-bg);
-  font-family:inherit;width:180px;
 }
 /* shortcut code-token chip */
 .isc{
@@ -212,16 +189,6 @@ html,body{
   transition:all 120ms;display:flex;align-items:center;
 }
 .iedit:hover{border-color:var(--sb-iris);color:var(--sb-iris);background:var(--sb-iris-bg)}
-/* dots button */
-.idots{
-  background:transparent;border:none;cursor:pointer;
-  padding:2px 4px;color:var(--sb-ink-subtle);
-  font-size:16px;line-height:1;flex-shrink:0;
-  border-radius:var(--sb-r-sm);transition:all 120ms;
-  display:flex;align-items:center;justify-content:center;opacity:0;
-}
-.item:hover .idots,.item.ctx-open .idots{opacity:1}
-.idots:hover{color:var(--sb-iris);background:var(--sb-iris-bg)}
 
 /* usage meta badges — muted text, no colored pill */
 .stat-b{
@@ -271,8 +238,7 @@ html,body{
 /* ── PANES ── */
 .pane{display:none}.pane.on{display:flex;flex-direction:column}
 
-/* ── EDITOR ── */
-.escroll{padding:16px;display:flex;flex-direction:column;gap:12px;height:420px;overflow-y:auto}
+/* ── SETTINGS FORM PRIMITIVES ── */
 .lbl{
   font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);
   text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;
@@ -285,197 +251,11 @@ html,body{
 }
 .einp:focus{border-color:var(--sb-iris);box-shadow:0 0 0 3px var(--sb-iris-glow)}
 .einp::placeholder{color:var(--sb-ink-subtle)}
-.esel{
-  background:var(--sb-bg-muted);border:1px solid var(--sb-line);
-  border-radius:var(--sb-r-md);padding:8px 12px;font-size:var(--sb-fs-13);
-  color:var(--sb-ink);font-family:inherit;outline:none;cursor:pointer;flex:1;
-  transition:border-color var(--sb-dur-base);
-}
-.esel:focus{border-color:var(--sb-iris)}
-.eta{
-  width:100%;background:var(--sb-bg-muted);border:1px solid var(--sb-line);
-  border-radius:var(--sb-r-md);padding:10px 12px;font-size:11px;
-  color:var(--sb-ink);font-family:var(--sb-mono);outline:none;
-  resize:vertical;min-height:110px;line-height:1.7;
-  transition:border-color var(--sb-dur-base),box-shadow var(--sb-dur-base);
-}
-.eta:focus{border-color:var(--sb-iris);box-shadow:0 0 0 3px var(--sb-iris-glow)}
-
-/* ── LANGUAGE SIDEBAR TABS ── */
-.lang-body-wrap{display:flex;gap:0;align-items:stretch}
-.lang-sidebar{display:flex;flex-direction:column;gap:4px;padding-right:8px;flex-shrink:0}
-.lang-tab{
-  width:36px;padding:6px 0;border:1px solid var(--sb-line);
-  border-radius:var(--sb-r-md);background:var(--sb-bg-muted);
-  color:var(--sb-ink-subtle);font-size:var(--sb-fs-10);font-weight:700;
-  font-family:inherit;letter-spacing:.04em;cursor:pointer;
-  text-align:center;transition:all var(--sb-dur-base);position:relative;
-}
-.lang-tab:hover{border-color:var(--sb-line-2);color:var(--sb-ink-muted);background:var(--sb-bg)}
-.lang-tab.on{color:#fff;border-color:transparent}
-.lang-tab.on[data-lang="EN"]{background:var(--sb-lang-en)}
-.lang-tab.on[data-lang="ES"]{background:var(--sb-lang-es)}
-.lang-tab.on[data-lang="IT"]{background:var(--sb-lang-it)}
-.lang-tab.on[data-lang="MULTI"]{background:var(--sb-lang-multi)}
-.lang-tab.on[data-lang="FR"]{background:var(--sb-lang-multi)}
-.lang-tab .lang-dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
-.lang-tab.has-content .lang-dot{display:block}
-.lang-tab.on .lang-dot{background:rgba(255,255,255,.6)}
-.lang-body-wrap .eta{flex:1;min-height:110px}
-.lang-empty{
-  display:none;flex:1;min-height:110px;background:var(--sb-bg-muted);
-  border:1px dashed var(--sb-line-2);border-radius:var(--sb-r-md);
-  padding:16px;color:var(--sb-ink-subtle);font-size:12px;text-align:center;
-  align-items:center;justify-content:center;flex-direction:column;gap:6px;
-}
-.lang-empty.on{display:flex}
-.lang-empty-ico{font-size:20px;opacity:.5}
-.lang-empty-txt{font-size:11px;line-height:1.4}
-.scrow{
-  display:flex;align-items:stretch;border:1px solid var(--sb-line);
-  border-radius:var(--sb-r-md);overflow:hidden;background:var(--sb-bg-muted);
-  transition:border-color var(--sb-dur-base);
-}
-.scrow:focus-within{border-color:var(--sb-iris);box-shadow:0 0 0 3px var(--sb-iris-glow)}
-.scpfx{
-  padding:8px 12px;font-size:var(--sb-fs-13);font-family:var(--sb-mono);
-  font-weight:700;color:var(--sb-iris);background:var(--sb-iris-bg);
-  border-right:1px solid var(--sb-iris-bdr);flex-shrink:0;display:flex;align-items:center;
-}
-.scrow input{
-  background:transparent;border:none;outline:none;font-family:var(--sb-mono);
-  font-size:var(--sb-fs-13);color:var(--sb-iris);font-weight:600;
-  flex:1;padding:8px 12px;min-width:0;
-}
-.schint{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:4px}
-.schint strong{font-family:var(--sb-mono);color:var(--sb-iris)}
-.row2{display:flex;gap:8px}
-.cmds{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
-.cmd{
-  padding:3px 8px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);
-  font-family:var(--sb-mono);cursor:pointer;border:1px solid var(--sb-line);
-  background:var(--sb-bg-muted);color:var(--sb-ink-muted);transition:all 120ms;
-}
-.cmd:hover{border-color:var(--sb-iris);color:var(--sb-iris);background:var(--sb-iris-bg)}
-.efoot{
-  padding:12px 16px;border-top:1px solid var(--sb-line);
-  display:flex;gap:8px;align-items:center;background:var(--sb-bg);
-}
-.bsave{
-  padding:8px 20px;background:var(--sb-iris);border:none;
-  border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);font-weight:600;
-  color:#fff;cursor:pointer;font-family:inherit;
-  display:flex;align-items:center;gap:5px;transition:background var(--sb-dur-base);
-}
-.bsave:hover{background:var(--sb-iris-dark)}
-.bsave .ic svg{stroke:#fff}
-.bsec{
-  padding:8px 14px;background:transparent;border:1px solid var(--sb-line);
-  border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);color:var(--sb-ink-muted);
-  cursor:pointer;font-family:inherit;transition:all var(--sb-dur-base);
-}
-.bsec:hover{background:var(--sb-bg-muted)}
-.bdel{
-  padding:8px 14px;background:transparent;border:1px solid var(--sb-danger-bdr);
-  border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);color:var(--sb-danger);
-  cursor:pointer;font-family:inherit;margin-left:auto;transition:all var(--sb-dur-base);
-}
-.bdel:hover{background:var(--sb-danger-bg)}
-.saveok{font-size:11px;color:var(--sb-ok);font-weight:600;opacity:0;transition:opacity .2s}
-.saveok.on{opacity:1}
-
-/* ── SETTINGS ── */
-.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.topt{
-  display:flex;flex-direction:column;align-items:center;gap:4px;
-  padding:12px 8px;border-radius:12px;border:1.5px solid var(--sb-line);
-  cursor:pointer;transition:all var(--sb-dur-base);
-}
-.topt:hover{border-color:var(--sb-line-2);background:var(--sb-bg-alt)}
-.topt.on{border-color:var(--sb-iris);background:var(--sb-iris-bg)}
-.tk{font-size:20px;font-weight:700;font-family:var(--sb-mono);color:var(--sb-ink)}
-.topt.on .tk{color:var(--sb-iris)}
-.td{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);text-align:center;line-height:1.3}
-.topt.on .td{color:var(--sb-iris-dark)}
-.warn{
-  padding:8px 12px;background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr);
-  border-radius:var(--sb-r-md);font-size:11px;color:var(--sb-warn);
-  line-height:1.5;display:none;margin-top:8px;
-}
-.warn.on{display:block}
 .ibox{
   padding:8px 12px;background:var(--sb-ok-bg);border:1px solid var(--sb-ok-bdr);
   border-radius:var(--sb-r-md);font-size:11px;color:var(--sb-ok);line-height:1.6;margin-top:12px;
 }
 .ibox strong{font-family:var(--sb-mono)}
-
-/* ── NEW FOLDER MODAL ── */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:var(--sb-z-modal);
-  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);
-}
-.modal-overlay.on{display:flex}
-.modal{
-  background:var(--sb-bg);border-radius:var(--sb-r-2xl);padding:24px;
-  width:320px;box-shadow:var(--sb-shadow-xl);
-}
-.modal-title{font-size:16px;font-weight:700;color:var(--sb-ink);margin-bottom:16px}
-.modal-row{display:flex;gap:8px;margin-bottom:12px;align-items:center}
-.modal-ico{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.ico-opt{
-  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-  border-radius:var(--sb-r-md);cursor:pointer;border:1.5px solid transparent;
-  color:var(--sb-ink-muted);transition:all 120ms;
-}
-.ico-opt:hover{background:var(--sb-bg-muted)}
-.ico-opt.on{border-color:var(--sb-iris);background:var(--sb-iris-bg);color:var(--sb-iris)}
-.ico-opt svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.modal-foot{display:flex;gap:8px;justify-content:flex-end}
-.mbtn{
-  padding:8px 18px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);
-  font-weight:600;cursor:pointer;font-family:inherit;
-  border:1px solid var(--sb-line);background:transparent;
-  color:var(--sb-ink-muted);transition:all var(--sb-dur-base);
-}
-.mbtn:hover{background:var(--sb-bg-muted)}
-.mbtn.p{background:var(--sb-iris);border-color:var(--sb-iris);color:#fff}
-.mbtn.p:hover{background:var(--sb-iris-dark)}
-
-/* ── CONTEXT MENUS ── */
-.ctx-menu{
-  position:fixed;z-index:var(--sb-z-context-menu);background:var(--sb-bg);
-  border:1px solid var(--sb-line);border-radius:var(--sb-r-xl);
-  box-shadow:var(--sb-shadow-lg);min-width:220px;display:none;padding:4px 0;
-}
-.ctx-menu.on{display:block}
-.ctx-item{
-  display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;
-  font-size:var(--sb-fs-13);color:var(--sb-ink);position:relative;transition:background 100ms;
-}
-.ctx-item:hover{background:var(--sb-bg-alt)}
-.ctx-item.danger{color:var(--sb-danger)}
-.ctx-item.danger:hover{background:var(--sb-danger-bg)}
-.ctx-ico{width:16px;height:16px;display:flex;align-items:center;justify-content:center}
-.ctx-ico svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.ctx-arr{margin-left:auto;font-size:var(--sb-fs-10);color:var(--sb-ink-subtle)}
-.ctx-sep{height:1px;background:var(--sb-line);margin:4px 0}
-.ctx-sub{
-  position:absolute;left:100%;top:-4px;background:var(--sb-bg);
-  border:1px solid var(--sb-line);border-radius:var(--sb-r-xl);
-  box-shadow:var(--sb-shadow-lg);min-width:200px;display:none;
-  z-index:calc(var(--sb-z-context-menu) + 1);padding:4px 0;
-}
-.ctx-item:hover .ctx-sub{display:block}
-/* Flip submenu to the left when the parent menu is anchored near the popup's right edge */
-.ctx-menu.flip-sub .ctx-sub{left:auto;right:100%}
-.ctx-sub-item{
-  display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;
-  font-size:var(--sb-fs-13);color:var(--sb-ink);transition:background 100ms;
-}
-.ctx-sub-item:hover{background:var(--sb-bg-alt)}
-.ctx-sub-item.add-folder{color:var(--sb-iris);font-weight:600;border-top:1px solid var(--sb-line);margin-top:4px}
-.ctx-sub-item .sub-ico{width:16px;height:16px;display:flex;align-items:center;justify-content:center}
-.ctx-sub-item .sub-ico svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── CHANGELOG ── */
 .cl-bg{
@@ -525,43 +305,6 @@ html,body{
 }
 .cl-footer strong{color:var(--sb-iris);font-weight:700}
 
-/* ── URGENCY TIMER ── */
-/* ── ALTERNATIVE QUERIES TAG INPUT ── */
-.alt-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;min-height:0}
-.alt-tag{
-  display:inline-flex;align-items:center;gap:4px;
-  font-size:var(--sb-fs-10);font-weight:600;
-  color:var(--sb-azure);background:var(--sb-azure-bg);
-  border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);
-  padding:2px 7px 2px 9px;line-height:1.4;
-}
-.alt-tag-x{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:12px;height:12px;cursor:pointer;border-radius:50%;
-  color:var(--sb-azure);opacity:.6;transition:opacity 100ms;
-  font-size:10px;font-style:normal;line-height:1;flex-shrink:0;
-}
-.alt-tag-x:hover{opacity:1}
-.urg-cfg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px;margin-top:4px}
-.urg-cfg-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.urg-cfg-lbl{font-size:11px;font-weight:600;color:var(--sb-ink);display:flex;align-items:center;gap:5px}
-.urg-cfg-sub{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:2px}
-.urg-cfg-fields{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:flex-end}
-.urg-cfg-field{display:flex;flex-direction:column;gap:3px}
-.urg-cfg-field label{font-size:9px;font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em}
-.urg-cfg-field input{
-  background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);
-  padding:6px 8px;font-size:11px;color:var(--sb-ink);font-family:inherit;outline:none;
-  width:90px;transition:border-color var(--sb-dur-base);
-}
-.urg-cfg-field input:focus{border-color:var(--sb-iris)}
-.urg-switch{position:relative;width:34px;height:19px;flex-shrink:0}
-.urg-switch input{opacity:0;width:0;height:0;position:absolute}
-.urg-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
-.urg-slider:before{content:'';position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.urg-switch input:checked + .urg-slider{background:var(--sb-iris)}
-.urg-switch input:checked + .urg-slider:before{transform:translateX(15px)}
-
 /* ── LANGUAGE VARIANTS ── */
 .lang-bar{display:flex;gap:4px;padding:6px 12px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--sb-line)}
 .lang-pill{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-10);font-weight:700;cursor:pointer;border:1px solid;transition:all 120ms}
@@ -578,32 +321,6 @@ html,body{
 .add-chip.MULTI{color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
 .add-chip.FR{color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
 .add-chip:disabled{opacity:.3;cursor:default;text-decoration:line-through}
-.lp-bg{
-  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:var(--sb-z-modal);
-  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);
-}
-.lp-bg.on{display:flex}
-.lp-box{
-  background:var(--sb-bg);border-radius:var(--sb-r-2xl);padding:20px;
-  width:300px;max-width:96vw;box-shadow:var(--sb-shadow-xl);
-  animation:lpIn .2s var(--sb-ease-out);
-}
-@keyframes lpIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
-.lp-ttl{font-size:15px;font-weight:700;color:var(--sb-ink);margin-bottom:4px}
-.lp-sub{font-size:11px;color:var(--sb-ink-muted);margin-bottom:16px}
-.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px}
-.lp-opt{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--sb-line);border-radius:var(--sb-r-md);cursor:pointer;transition:all 120ms}
-.lp-opt.lp-has{border-color:var(--sb-ok-bdr);background:var(--sb-ok-bg)}
-.lp-opt.lp-sel{border-color:var(--sb-iris);background:var(--sb-iris-bg)}
-.lp-opt.lp-dis{opacity:.35;cursor:default}
-.lp-dot{width:24px;height:24px;border-radius:var(--sb-r-sm);display:flex;align-items:center;justify-content:center;font-size:var(--sb-fs-10);font-weight:800;background:var(--sb-bg-muted);flex-shrink:0}
-.lp-nm{font-size:11px;font-weight:600;color:var(--sb-ink)}
-.lp-opt.lp-has .lp-nm{color:var(--sb-ok)}
-.lp-acts{display:flex;gap:8px}
-.lp-ok{flex:1;padding:9px;background:var(--sb-iris);border:none;border-radius:var(--sb-r-md);font-size:11px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;transition:background var(--sb-dur-base)}
-.lp-ok:hover{background:var(--sb-iris-dark)}
-.lp-cancel{padding:9px 14px;background:transparent;border:1px solid var(--sb-line);border-radius:var(--sb-r-md);font-size:11px;color:var(--sb-ink-muted);cursor:pointer;font-family:inherit;transition:all var(--sb-dur-base)}
-.lp-cancel:hover{background:var(--sb-bg-muted)}
 
 /* ── VERSION BAR ── */
 .ver-bar{
@@ -796,9 +513,6 @@ html,body{
       <button class="hdr-btn" id="bcfg" title="Settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <button class="hdr-btn primary" id="bnew">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New
-      </button>
     </div>
   </div>
   <!-- ═══ MODE BAR ═══ -->
@@ -825,12 +539,9 @@ html,body{
     <div class="sb" id="snip-sb">
       <div class="sb-lbl">Folders</div>
       <div class="sb-list" id="folder-list"></div>
-      <div class="sb-add" id="btn-new-folder">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Folder
-      </div>
     </div>
     <div class="main" id="snip-main">
-      <div class="hint">Type <strong id="hint-ex" class="sb-code-token">::quoteEN</strong> &middot; right-click for options</div>
+      <div class="hint">Type <strong id="hint-ex" class="sb-code-token">::quoteEN</strong> &middot; click a snippet to copy its shortcut</div>
       <div class="list" id="list"></div>
     </div>
     <div class="p-main" id="prompt-main">
@@ -842,87 +553,9 @@ html,body{
     <button class="btn" id="brel">
       <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg> Reload
     </button>
-    <button class="btn p" id="bnew2">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Snippet
+    <button class="btn p" id="bdash">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Open Dashboard
     </button>
-  </div>
-</div>
-
-<!-- ═══ EDITOR ═══ -->
-<div id="pane-ed" class="pane">
-  <div class="hdr">
-    <button class="hdr-btn" id="bbed">
-      <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
-    </button>
-    <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)" id="edhdr">New Snippet</span>
-    <span class="saveok" id="sok">Saved</span>
-  </div>
-  <div class="escroll">
-    <div><div class="lbl">Title</div><input class="einp" id="etit" placeholder="e.g. ESTIMATE B2C"></div>
-    <div>
-      <div class="lbl">Shortcut</div>
-      <div class="scrow"><div class="scpfx" id="spfx">::</div><input id="ewrd" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
-      <div class="schint">Full shortcut: <strong id="sprev">::quoteEN</strong></div>
-    </div>
-    <div class="row2">
-      <div style="flex:1"><div class="lbl">Language</div>
-        <select class="esel" id="elng"><option>EN</option><option>ES</option><option>IT</option><option>FR</option></select></div>
-      <div style="flex:2"><div class="lbl">Folder</div>
-        <select class="esel" id="efolder"></select></div>
-    </div>
-    <div><div class="lbl">Body &mdash; use {variable} for dynamic fields</div>
-      <div class="lang-body-wrap">
-        <div class="lang-sidebar" id="lang-sidebar">
-          <button class="lang-tab on" data-lang="EN">EN<span class="lang-dot"></span></button>
-          <button class="lang-tab" data-lang="IT">IT<span class="lang-dot"></span></button>
-          <button class="lang-tab" data-lang="ES">ES<span class="lang-dot"></span></button>
-          <button class="lang-tab" data-lang="FR">FR<span class="lang-dot"></span></button>
-        </div>
-        <textarea class="eta" id="ebdy" placeholder="Dear {guest_name},&#10;&#10;Your message here...&#10;{variable} &middot; {=formula} &middot; {if:A>0}text{endif}"></textarea>
-        <div class="lang-empty" id="lang-empty"><span class="lang-empty-ico">&#127760;</span><span class="lang-empty-txt">No content for this language yet.<br>Click to start writing.</span></div>
-      </div></div>
-    <div><div class="lbl">Quick insert</div>
-      <div class="cmds">
-        <span class="cmd" data-c="{guest_name}">guest_name</span>
-        <span class="cmd" data-c="{property_name}">property_name</span>
-        <span class="cmd" data-c="{checkin_date}">checkin_date</span>
-        <span class="cmd" data-c="{checkout_date}">checkout_date</span>
-        <span class="cmd" data-c="{total_price}">total_price</span>
-        <span class="cmd" data-c="{nights}">nights</span>
-        <span class="cmd" data-c="{phone_number}">phone</span>
-        <span class="cmd" data-c="{review_link}">review_link</span>
-        <span class="cmd" data-c="{=A - B}" style="color:var(--sb-lang-fr);border-color:#C4B5FD;background:#F5F3FF">{=formula}</span>
-        <span class="cmd" data-c="{if:A > 0}text{endif}" style="color:#0891B2;border-color:#A5F3FC;background:#ECFEFF">{if:cond}</span>
-      </div>
-    </div>
-    <div>
-      <div class="lbl">Alternative queries <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--sb-ink-subtle)">— synonyms, press Enter or comma to add</span></div>
-      <div class="alt-tags" id="alt-tags"></div>
-      <input class="einp" id="ealtq" placeholder="e.g. availability, no availability…" autocomplete="off" spellcheck="false">
-    </div>
-    <div class="urg-cfg">
-      <div class="urg-cfg-hdr">
-        <div>
-          <div class="urg-cfg-lbl">
-            <span class="ic ic-sm"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
-            Urgency Timer
-          </div>
-          <div class="urg-cfg-sub">Countdown + scarcity for quotes</div>
-        </div>
-        <label class="urg-switch"><input type="checkbox" id="eurg"><span class="urg-slider"></span></label>
-      </div>
-      <div class="urg-cfg-fields" id="urg-fields" style="display:none">
-        <div class="urg-cfg-field"><label>Duration (min)</label><input type="number" id="eurg-dur" min="1" max="10080" value="30"></div>
-        <div class="urg-cfg-field"><label>Units left</label><input type="number" id="eurg-sc" min="0" max="999" value="0"></div>
-      </div>
-    </div>
-  </div>
-  <div class="efoot">
-    <button class="bsave" id="bsav">
-      <span class="ic ic-sm"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Save
-    </button>
-    <button class="bsec" id="bcan">Cancel</button>
-    <button class="bdel" id="bdel" style="display:none">Delete</button>
   </div>
 </div>
 
@@ -935,88 +568,27 @@ html,body{
     <span style="flex:1;font-size:15px;font-weight:700;color:var(--sb-ink)">Settings</span>
   </div>
   <div style="padding:16px;overflow-y:auto;height:420px">
-    <div class="lbl" style="margin-bottom:8px">Trigger character</div>
-    <div class="tgrid">
-      <div class="topt" data-t=";;"><span class="tk">;;</span><span class="td">Zero conflicts</span></div>
-      <div class="topt on" data-t="::"><span class="tk">::</span><span class="td">Recommended</span></div>
-      <div class="topt" data-t="!!"><span class="tk">!!</span><span class="td">Easy to type</span></div>
+    <!-- TRIGGERS — read-only mirror; the dashboard owns trigger settings -->
+    <div class="lbl" style="margin-bottom:8px">Triggers</div>
+    <div class="ibox" style="margin-top:0">Snippet: <strong id="itrig">::</strong> &middot; Prompt: <strong id="iprompt">"""</strong> &middot; Example: <strong id="iex">::quoteEN</strong></div>
+    <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:6px">
+      Snippets, folders, triggers, Notion and team sync are managed in the dashboard.
     </div>
-    <div><div class="lbl" style="margin-bottom:6px">Custom trigger</div>
-      <input class="einp" id="ctrig" placeholder="::" maxlength="4" spellcheck="false" autocomplete="off"
-        style="font-family:var(--sb-mono);font-weight:700;font-size:16px;text-align:center;letter-spacing:2px"></div>
-    <div class="warn" id="wbox"></div>
-    <div class="ibox">Active: <strong id="itrig">::</strong> &middot; Example: <strong id="iex">::quoteEN</strong></div>
+    <button class="btn" id="bmanage" style="width:100%;margin-top:10px">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Manage in dashboard
+    </button>
 
-    <!-- DUAL TRIGGER CONFIG -->
+    <!-- SUGGEST ON SELECTION — extension-local preference -->
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--sb-line)">
-      <div class="lbl" style="margin-bottom:8px;color:var(--sb-iris)">Inline Trigger Sequences</div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px;display:flex;align-items:center;gap:4px">
-          <span class="ic ic-sm" style="color:var(--sb-iris)"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> Snippet
-        </span>
-        <input class="einp" id="tcfg-snip" value="::" maxlength="5" spellcheck="false" autocomplete="off"
-          style="font-family:var(--sb-mono);font-weight:700;font-size:13px;text-align:center;width:70px;padding:6px 8px">
-        <span style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle)" id="tcfg-snip-st"></span>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px;display:flex;align-items:center;gap:4px">
-          <span class="ic ic-sm" style="color:var(--sb-iris)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></span> Prompt
-        </span>
-        <input class="einp" id="tcfg-prompt" value='"""' maxlength="5" spellcheck="false" autocomplete="off"
-          style="font-family:var(--sb-mono);font-weight:700;font-size:13px;text-align:center;width:70px;padding:6px 8px">
-        <span style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle)" id="tcfg-prompt-st"></span>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px">Snippet key</span>
-        <select class="einp" id="tcfg-snip-key" style="width:80px;padding:6px 8px;font-size:11px">
-          <option>Tab</option><option>Enter</option>
-        </select>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);min-width:80px">Prompt key</span>
-        <select class="einp" id="tcfg-prompt-key" style="width:80px;padding:6px 8px;font-size:11px">
-          <option>Tab</option><option>Enter</option>
-        </select>
-      </div>
-
-      <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:4px">
-        Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">::</strong> in any text field to pick a snippet.<br>
-        Type <strong style="color:var(--sb-iris);font-family:var(--sb-mono)">"""</strong> to pick a prompt template.
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--sb-line)">
+      <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:600;color:var(--sb-ink);flex:1;display:flex;align-items:center;gap:4px">
-          <span class="ic ic-sm" style="color:var(--sb-iris)"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> Suggest on selection
+          <span class="ic ic-sm" style="color:var(--sb-azure)"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span> Suggest on selection
         </span>
         <input type="checkbox" id="tcfg-sel-suggest" checked
-          style="width:16px;height:16px;accent-color:var(--sb-iris);cursor:pointer">
+          style="width:16px;height:16px;accent-color:var(--sb-azure);cursor:pointer">
       </div>
       <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:4px">
         Highlight text anywhere and SprintBrain offers matching snippets (e.g. select <strong>preventivo</strong> → quote).
-      </div>
-    </div>
-
-    <!-- NOTION SYNC -->
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--sb-line)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span class="lbl" style="color:var(--sb-iris)">Notion Sync</span>
-        <span style="font-size:var(--sb-fs-10);font-weight:600" id="notion-st"></span>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--sb-ink);min-width:65px">API Key</span>
-        <input class="einp" id="notion-key" type="password" placeholder="secret_..." spellcheck="false" autocomplete="off"
-          style="flex:1;font-size:11px;padding:6px 8px">
-      </div>
-
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--sb-ink);min-width:65px">DB ID</span>
-        <input class="einp" id="notion-db" placeholder="abc123..." spellcheck="false" autocomplete="off"
-          style="flex:1;font-size:11px;padding:6px 8px">
       </div>
     </div>
 
@@ -1033,18 +605,8 @@ html,body{
         </select>
       </div>
       <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6">
-        Pre-selects this language when creating snippets and at trigger time.
+        Pre-selects this language at trigger time.
       </div>
-    </div>
-
-    <!-- TEAM SYNC -->
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--sb-line)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span class="lbl" style="color:var(--sb-iris)">Team Sync</span>
-        <span style="font-size:var(--sb-fs-10);font-weight:600" id="sb-team-sync-st"></span>
-      </div>
-      <button class="btn" id="sb-team-sync-btn" style="width:100%">Sync with Team</button>
-      <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.6;margin-top:6px" id="sb-team-sync-ts"></div>
     </div>
 
     <!-- Sign out -->
@@ -1053,67 +615,6 @@ html,body{
       <button class="btn" id="sb-signout-btn" style="border-color:var(--sb-danger-bdr);color:var(--sb-danger);background:var(--sb-danger-bg)">Sign out</button>
     </div>
   </div>
-  <div class="lfoot">
-    <button class="btn p" id="bappt">Apply</button>
-    <button class="btn" id="bcct">Cancel</button>
-  </div>
-</div>
-
-<!-- ═══ NEW FOLDER MODAL ═══ -->
-<div class="modal-overlay" id="folder-modal">
-  <div class="modal">
-    <div class="modal-title">New Folder</div>
-    <div class="modal-row">
-      <input class="einp" id="folder-name-inp" placeholder="Folder name..." style="flex:1">
-    </div>
-    <div class="lbl" style="margin-bottom:8px">Icon</div>
-    <div class="modal-ico" id="ico-picker">
-      <span class="ico-opt on" data-ico="folder"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
-      <span class="ico-opt" data-ico="clipboard"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span>
-      <span class="ico-opt" data-ico="home"><svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
-      <span class="ico-opt" data-ico="message"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-      <span class="ico-opt" data-ico="cpu"><svg viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></span>
-      <span class="ico-opt" data-ico="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-      <span class="ico-opt" data-ico="key"><svg viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg></span>
-      <span class="ico-opt" data-ico="dollar"><svg viewBox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
-      <span class="ico-opt" data-ico="file-text"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
-      <span class="ico-opt" data-ico="globe"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
-    </div>
-    <div class="modal-foot">
-      <button class="mbtn" id="folder-cancel">Cancel</button>
-      <button class="mbtn p" id="folder-save">Create folder</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ SNIPPET CONTEXT MENU ═══ -->
-<div class="ctx-menu" id="ctx-menu" role="menu">
-  <div class="ctx-item" id="ctx-duplicate" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Duplicate snippet</div>
-  <div class="ctx-item" id="ctx-move" role="menuitem" tabindex="-1">
-    <span class="ctx-ico"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>Move to folder<span class="ctx-arr"><span class="ic ic-sm"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-    <div class="ctx-sub" id="ctx-sub-folders" role="menu"></div>
-  </div>
-  <div class="ctx-sep" role="separator"></div>
-  <div class="ctx-item" id="ctx-rename" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>Rename...</div>
-  <div class="ctx-item" id="ctx-pin" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span><span id="ctx-pin-label">Pin to top</span></div>
-  <div class="ctx-sep" role="separator"></div>
-  <div class="ctx-item" id="ctx-copy" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Copy content</div>
-  <div class="ctx-sep" role="separator"></div>
-  <div class="ctx-item danger" id="ctx-delete" role="menuitem" tabindex="-1"><span class="ctx-ico"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>Delete snippet...</div>
-</div>
-
-<!-- ═══ FOLDER CONTEXT MENU ═══ -->
-<div class="ctx-menu" id="fctx-menu" role="menu">
-  <div class="ctx-item" id="fctx-rename" role="menuitem"><span class="ctx-ico"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>Rename folder...</div>
-  <div class="ctx-item" id="fctx-icon" role="menuitem"><span class="ctx-ico"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></span>Change icon...</div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item danger" id="fctx-delete" role="menuitem"><span class="ctx-ico"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>Delete folder...</div>
-</div>
-
-<!-- ═══ EMPTY AREA CONTEXT MENU ═══ -->
-<div class="ctx-menu" id="ectx-menu" role="menu">
-  <div class="ctx-item" id="ectx-new-snippet" role="menuitem"><span class="ctx-ico"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>New snippet</div>
-  <div class="ctx-item" id="ectx-new-folder" role="menuitem"><span class="ctx-ico"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>New folder</div>
 </div>
 
 <script src="../auth/auth.js"></script>
@@ -1143,19 +644,6 @@ html,body{
     </div>
     <div class="cl-scroll" id="cl-scroll"></div>
     <div class="cl-footer" id="cl-footer"></div>
-  </div>
-</div>
-
-<!-- ═══ LANGUAGE PICKER MODAL ═══ -->
-<div class="lp-bg" id="lp-bg">
-  <div class="lp-box">
-    <div class="lp-ttl" id="lp-ttl">Choose language</div>
-    <div class="lp-sub" id="lp-sub">Select which version to copy</div>
-    <div class="lp-grid" id="lp-grid"></div>
-    <div class="lp-acts">
-      <button class="lp-cancel" id="lp-cancel">Cancel</button>
-      <button class="lp-ok" id="lp-ok">Copy</button>
-    </div>
   </div>
 </div>
 

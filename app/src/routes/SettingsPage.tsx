@@ -5,6 +5,7 @@ import { AccountPanel } from '@/features/settings/AccountPanel';
 import { InlineTriggerPanel } from '@/features/settings/InlineTriggerPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
+import { SecurityPanel } from '@/features/settings/SecurityPanel';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 export function SettingsPage() {
@@ -27,6 +28,7 @@ export function SettingsPage() {
       <Tabs defaultValue="account" className="w-full">
         <TabsList>
           <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notion">Notion sync</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
@@ -34,6 +36,9 @@ export function SettingsPage() {
         <TabsContent value="account" className="space-y-4">
           <AccountPanel />
           <InlineTriggerPanel />
+        </TabsContent>
+        <TabsContent value="security" className="space-y-4">
+          <SecurityPanel />
         </TabsContent>
         <TabsContent value="notion">
           <NotionSyncPanel />

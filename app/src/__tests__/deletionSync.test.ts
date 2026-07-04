@@ -115,6 +115,7 @@ const PROMPT_A: Prompt = {
   user_id: 'user-1',
   name: 'Prompt A',
   content: 'do the thing',
+  shortcut: null,
   type: 'one-shot',
   tags: [],
   strategy_type: null,

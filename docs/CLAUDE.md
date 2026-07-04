@@ -78,7 +78,7 @@ extension/                              # Chrome MV3 source root (no build step)
 │   └── content.js                     # Keystroke buffer, formula engine, overlay UI
 ├── popup/
 │   ├── popup.html                     # Popup UI (700×470px fixed)
-│   └── popup.js                       # CRUD controller, Supabase DB wrapper
+│   └── popup.js                       # Read-only popup UI + shared data core (DB wrapper)
 ├── auth/
 │   └── auth.js                        # Supabase OTP + session (importScripts'd by bg)
 ├── services/
@@ -157,7 +157,7 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 - `showOverlay()` — Inline field input UI
 - `isUrgExpired()` — Checks urgency timer (uses sessionStorage)
 
-**`popup/popup.js`** — Popup UI (instantiated on every icon click)
+**`popup/popup.js`** — Read-only popup UI (instantiated on every icon click). Since v2.87.0 the popup only browses/searches/copies snippets and prompts and writes the expansion caches — all management (snippet/folder CRUD, triggers, Notion credentials, Team Sync) lives in the dashboard. The `DB` CRUD wrapper below remains as the shared data core (used by `Sprintbrain.html` and the popup's own stats/cache writes).
 - `DB` object — wraps all Supabase CRUD operations:
   - `DB.loadAll()` — Loads folders, snippets, stats
   - `DB.upsertSnippet(s)` — Create/update snippet

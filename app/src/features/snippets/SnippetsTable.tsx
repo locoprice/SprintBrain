@@ -12,6 +12,7 @@ import {
 } from '@/stores/snippetStore';
 import type { SortColumn } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import type { Snippet, SnippetRow } from '@/types/database';
 import {
   baseSnippetName,
@@ -19,6 +20,7 @@ import {
   resolveActiveVariant,
   type SnippetGroup,
 } from '@/lib/snippetGrouping';
+import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { cn } from '@/lib/utils';
 
 interface MenuState {
@@ -100,12 +102,24 @@ function LangSwitcher({
   );
 }
 
-/** Shortcut tag — `::` prefix at 0.45 opacity, trigger at full weight. */
+/**
+ * Shortcut tag — configured trigger at 0.45 opacity, bare shortcut at full
+ * weight (canonical `.sctag`, see DESIGN_SYSTEM.md §107). The trigger is a user
+ * setting, never hardcoded (mirrors PromptBlockEditor). Stored triggers are
+ * mixed — some already carry the prefix — so strip one leading occurrence to
+ * keep the trigger and the shortcut as two clean, non-duplicated fields.
+ */
 function ShortcutTag({ trigger }: { trigger: string }) {
+  const snippetTrigger =
+    useSettingsStore((s) => s.profile?.trigger_snippet_seq) ||
+    DEFAULT_TRIGGER_CONFIG.snippetTrigger;
+  const shortcut = trigger.startsWith(snippetTrigger)
+    ? trigger.slice(snippetTrigger.length)
+    : trigger;
   return (
     <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-      <span className="font-normal opacity-45">::</span>
-      <span>{trigger}</span>
+      <span className="font-normal opacity-45">{snippetTrigger}</span>
+      <span>{shortcut}</span>
     </code>
   );
 }

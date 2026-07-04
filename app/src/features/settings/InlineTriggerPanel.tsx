@@ -267,7 +267,7 @@ export function InlineTriggerPanel() {
           </div>
           <p className="text-xs text-ink-subtle leading-relaxed">
             Activate snippets two ways — type the prefix directly before a shortcut name (e.g.{' '}
-            <code className="font-mono font-semibold text-primary">::hello</code>) for instant
+            <code className="font-mono font-semibold text-primary">{prefix}hello</code>) for instant
             expansion, or open the picker by typing a trigger sequence or pressing the activation
             key configured below.
           </p>

@@ -19,6 +19,7 @@ type DbPrompt = {
   user_id: string;
   name: string;
   content: string;
+  shortcut: string | null;
   type: 'one-shot' | 'few-shot';
   tags: string[] | null;
   strategy_type: string | null;
@@ -36,7 +37,7 @@ type DbPrompt = {
 };
 
 const PROMPT_SELECT = [
-  'id', 'user_id', 'name', 'content', 'type', 'tags',
+  'id', 'user_id', 'name', 'content', 'shortcut', 'type', 'tags',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
   'folder_id', 'notion_page_id', 'updated_at', 'last_used_at',
@@ -48,6 +49,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     user_id: row.user_id,
     name: row.name,
     content: row.content,
+    shortcut: row.shortcut ?? null,
     type: row.type,
     tags: row.tags ?? [],
     strategy_type: (row.strategy_type as StrategyType) ?? null,
@@ -94,6 +96,7 @@ export const promptsApi: PromptsApi = {
         user_id: userId,
         name: payload.name,
         content: payload.content,
+        shortcut: payload.shortcut?.trim() || null,
         type: payload.type,
         tags: payload.tags,
         strategy_type: payload.strategy_type ?? null,
@@ -120,6 +123,7 @@ export const promptsApi: PromptsApi = {
     };
     if (patch.name !== undefined) update['name'] = patch.name;
     if (patch.content !== undefined) update['content'] = patch.content;
+    if ('shortcut' in patch) update['shortcut'] = patch.shortcut?.trim() || null;
     if (patch.type !== undefined) update['type'] = patch.type;
     if (patch.tags !== undefined) update['tags'] = patch.tags;
     if ('strategy_type' in patch) update['strategy_type'] = patch.strategy_type ?? null;

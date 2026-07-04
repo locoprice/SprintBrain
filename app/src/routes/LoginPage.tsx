@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, MailCheck } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
 import { checkRateLimit } from '@/lib/rateLimiter';
+import { securityApi } from '@/lib/api/securityApi';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
@@ -26,6 +27,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +78,9 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
+    // Email flows have no remember-me checkbox — always persistent.
+    setRememberMe(true);
+
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
@@ -116,6 +121,7 @@ export function LoginPage() {
       setLoading(false);
     } else {
       analytics.track('login_completed');
+      void securityApi.logLoginEvent('email_otp');
     }
     // On success onAuthStateChange flips status → 'authed' → redirect above.
   }
@@ -134,6 +140,8 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
+    setRememberMe(remember);
+
     const { error: err } = await supabase.auth.signInWithPassword({
       email: trimmed,
       password,
@@ -149,6 +157,7 @@ export function LoginPage() {
       setLoading(false);
     } else {
       analytics.track('login_completed');
+      void securityApi.logLoginEvent('password');
     }
     // On success onAuthStateChange flips status → 'authed' → redirect above.
   }
@@ -167,6 +176,8 @@ export function LoginPage() {
     analytics.track('password_recovery_started', { email: trimmed });
     setLoading(true);
     setError(null);
+
+    setRememberMe(true);
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
@@ -383,6 +394,17 @@ export function LoginPage() {
                     )}
                   </button>
                 </div>
+
+                <label className="flex w-fit cursor-pointer select-none items-center gap-2 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    disabled={loading}
+                    className="h-4 w-4 cursor-pointer rounded accent-primary"
+                  />
+                  Remember me on this secure device
+                </label>
 
                 {error && <ErrorBanner message={error} />}
                 <Button

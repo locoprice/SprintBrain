@@ -1466,6 +1466,21 @@ function restoreFieldState(snapshot) {
         } catch(_) {}
       }
     } else {
+      if (snapshot.syncInsertedValue) {
+        // Context-menu insert ran synchronously (insertion already happened, not
+        // deferred). Restore the exact pre-insert value + caret via the native
+        // setter so React-controlled fields register the change, then emit input.
+        var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (desc && desc.set) desc.set.call(el, snapshot.prevValue);
+        else el.value = snapshot.prevValue;
+        try { el.focus(); } catch(_) {}
+        if (snapshot.prevSelStart != null && snapshot.prevSelEnd != null) {
+          try { el.setSelectionRange(snapshot.prevSelStart, snapshot.prevSelEnd); } catch(_) {}
+        }
+        try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+        return;
+      }
       // textarea / input: deleteChars already stripped the trigger from el.value
       // BEFORE the celebration appeared, and insertText was deferred — never
       // fired. The field is already in the clean post-undo state. Just refocus.
@@ -1735,7 +1750,10 @@ function _renderPickerItems(query) {
     if (i > 0 && item._group === 'list' && triggerPickerFiltered[i - 1]._group === 'base') {
       h += '<div class="sb-tp-sep" style="margin:5px 4px 2px;padding:7px 8px 3px;border-top:1px solid #E4E4E7;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;">My prompt base</div>';
     }
-    var sc = triggerPickerMode === 'snippet' && item.shortcut
+    // Shortcut badge for BOTH snippets and prompts (when present) — surfaces the
+    // prompt's direct-expansion shortcut in the browser so users learn it. Base
+    // Prompts carry no shortcut, so they show none.
+    var sc = item.shortcut
       ? _scTag(item.shortcut)
       : '';
     h += '<div class="sb-tp-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
@@ -1781,7 +1799,7 @@ function showTriggerPicker(el, mode, seqLen, filterStr) {
   div.style.cssText = 'position:fixed;z-index:2147483647;display:flex;flex-direction:column;background:#fff;border:1px solid #E4E4E7;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);min-width:260px;max-width:360px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;';
 
   var header = '<div style="flex:0 0 auto;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#A1A1AA;border-bottom:1px solid #E4E4E7;display:flex;align-items:center;gap:8px">';
-  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode') + '</span>';
+  header += '<span>' + (mode === 'snippet' ? '\u26a1 Insert snippet' : '\ud83e\udd16 Prompt mode \u00b7 ' + xesc(triggerCfg.promptTrigger || '"""')) + '</span>';
   header += '<span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:#A1A1AA;font-size:10px">Tab / Enter to insert</span>';
   header += '</div>';
   header += '<div class="sb-tp-items" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px;"></div>';
@@ -1910,6 +1928,21 @@ function closeTriggerPicker() {
   if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
 }
 
+// Index within triggerPickerFiltered of a prompt whose shortcut EXACTLY equals
+// the typed query (case-insensitive), else -1. Drives the prompt trigger's
+// direct expansion: typing """ + a prompt's shortcut fires it straight away —
+// the prompt-trigger analog of a snippet's ::shortcut. Base Prompts have no
+// shortcut, so they never match here and stay menu-only.
+function _promptShortcutExactIdx(query) {
+  var q = String(query == null ? '' : query).trim().toLowerCase();
+  if (!q) return -1;
+  for (var i = 0; i < triggerPickerFiltered.length; i++) {
+    var sc = String(triggerPickerFiltered[i].shortcut || '').trim().toLowerCase();
+    if (sc && sc === q) return i;
+  }
+  return -1;
+}
+
 function handleTriggerPickerKey(e) {
   if (!triggerPickerEl) return false;
   var count = triggerPickerFiltered.length;
@@ -1954,6 +1987,18 @@ function handleTriggerPickerKey(e) {
     triggerPickerQuery += e.key;
     triggerPickerDeleteLen += 1;
     _renderPickerItems(triggerPickerQuery);
+    // Prompt shortcut → direct expansion: typing a prompt's exact shortcut after
+    // the prompt trigger ("""foo) fires it immediately — the analog of a
+    // snippet's ::shortcut. Deferred one tick so the just-typed char lands in the
+    // field first, keeping the delete span aligned with what's on screen. The
+    // menu stays open for browsing, Base Prompts, and partial matches.
+    if (triggerPickerMode === 'prompt') {
+      setTimeout(function() {
+        if (!triggerPickerEl || triggerPickerMode !== 'prompt') return;
+        var idx = _promptShortcutExactIdx(triggerPickerQuery);
+        if (idx > -1) selectTriggerItem(idx);
+      }, 0);
+    }
     // Return true to short-circuit the main keydown handler so the keystroke
     // isn't accidentally appended to the shortcut buffer (which could match
     // a different snippet while the picker is open).
@@ -2596,10 +2641,46 @@ function _proceedContextInsert(el, snip) {
   if (fields.length === 0) {
     if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {});
-    if (el) insertText(el, text);
-    showCelebration(text);
-    logEvent(snip, 0);
-    processing = false;
+    var isCE = el && (el.isContentEditable || (el.getAttribute &&
+      (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
+    var isValueField = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+    if (isCE) {
+      // Insert synchronously, then celebrate with Undo — same proven mechanism as
+      // the trigger paths' CE sync-insert (see _proceedInsert): capture the inserted
+      // region so restoreFieldState can Range-delete it. onUndo skips logEvent.
+      var snapCE = captureFieldState(el, 0);
+      insertText(el, text);
+      snapCE.syncInserted  = true;
+      snapCE.endCharOffset = _ceCaretCharOffset(_ceHost(el));
+      snapCE.visibleLen    = String(text).replace(/\n/g, '').length;
+      showCelebration(
+        text,
+        function onConfirm() { logEvent(snip, 0); processing = false; },
+        function onUndo()    { restoreFieldState(snapCE); processing = false; }
+      );
+    } else if (isValueField) {
+      // Textarea/input: the context menu inserts synchronously (no trigger to
+      // defer), so Undo can't just "skip" insertion like the trigger paths —
+      // snapshot the exact pre-insert value + caret and restore it on Undo.
+      var snapVal = captureFieldState(el, 0);
+      snapVal.syncInsertedValue = true;
+      snapVal.prevValue    = el.value;
+      snapVal.prevSelStart = el.selectionStart;
+      snapVal.prevSelEnd   = el.selectionEnd;
+      insertText(el, text);
+      showCelebration(
+        text,
+        function onConfirm() { logEvent(snip, 0); processing = false; },
+        function onUndo()    { restoreFieldState(snapVal); processing = false; }
+      );
+    } else {
+      // No editable target — nothing meaningful was inserted; celebrate without Undo.
+      if (el) insertText(el, text);
+      showCelebration(text);
+      logEvent(snip, 0);
+      processing = false;
+    }
   } else {
     processing = true;
     showOverlay(el, snip, fields, 0, function() { processing = false; });

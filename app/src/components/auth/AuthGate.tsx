@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Wraps the protected dashboard routes. On first mount it hydrates the
- * auth store from localStorage. While hydrating, it renders a centered
+ * auth store from persisted storage. While hydrating, it renders a centered
  * spinner so the dashboard chrome never flashes for logged-out users.
  */
 export function AuthGate({ children }: { children: ReactNode }) {

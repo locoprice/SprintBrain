@@ -55,6 +55,7 @@ export const promptSchema = z.object({
   user_id: z.string().uuid(),
   name: z.string().min(1),
   content: z.string(),
+  shortcut: z.string().nullable(),
   type: z.enum(['one-shot', 'few-shot']),
   tags: z.array(z.string()),
   strategy_type: z.enum(['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic']).nullable(),
@@ -77,9 +78,11 @@ export const snippetFormSchema = z.object({
     .string()
     .min(1, 'Trigger is required')
     .max(60, 'Trigger must be 60 characters or fewer')
+    // Bare token only — the extension adds the trigger prefix (::) at match
+    // time, so it must never be stored here. No prefix, no spaces, no symbols.
     .regex(
-      /^[!/:;]*[a-zA-Z0-9_-]+$/,
-      'An optional prefix (:: / ; !) followed by letters, numbers, hyphens, and underscores',
+      /^[a-zA-Z0-9_-]+$/,
+      'Letters, numbers, hyphens, and underscores only — no prefix or special characters',
     ),
   content: z.string().min(1, 'Content is required'),
   bodies: snippetBodiesSchema,
@@ -105,6 +108,21 @@ export type FolderFormValues = z.infer<typeof folderFormSchema>;
 export const promptFormSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or fewer'),
   content: z.string(),
+  // Optional direct-expansion trigger. Empty = menu-only. A bare token — the
+  // prompt trigger (""") is prepended by the extension, so no prefix here (that
+  // would conflate it with the snippet trigger).
+  shortcut: z
+    .union([
+      z.literal(''),
+      z
+        .string()
+        .max(60, 'Shortcut must be 60 characters or fewer')
+        .regex(
+          /^[a-zA-Z0-9_-]+$/,
+          'Letters, numbers, hyphens, and underscores only',
+        ),
+    ])
+    .optional(),
   type: z.enum(['one-shot', 'few-shot']),
   tags: z.array(z.string()),
   strategy_type: z.enum(['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic']).nullable(),
