@@ -1466,6 +1466,21 @@ function restoreFieldState(snapshot) {
         } catch(_) {}
       }
     } else {
+      if (snapshot.syncInsertedValue) {
+        // Context-menu insert ran synchronously (insertion already happened, not
+        // deferred). Restore the exact pre-insert value + caret via the native
+        // setter so React-controlled fields register the change, then emit input.
+        var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (desc && desc.set) desc.set.call(el, snapshot.prevValue);
+        else el.value = snapshot.prevValue;
+        try { el.focus(); } catch(_) {}
+        if (snapshot.prevSelStart != null && snapshot.prevSelEnd != null) {
+          try { el.setSelectionRange(snapshot.prevSelStart, snapshot.prevSelEnd); } catch(_) {}
+        }
+        try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+        return;
+      }
       // textarea / input: deleteChars already stripped the trigger from el.value
       // BEFORE the celebration appeared, and insertText was deferred — never
       // fired. The field is already in the clean post-undo state. Just refocus.
@@ -2626,10 +2641,46 @@ function _proceedContextInsert(el, snip) {
   if (fields.length === 0) {
     if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {});
-    if (el) insertText(el, text);
-    showCelebration(text);
-    logEvent(snip, 0);
-    processing = false;
+    var isCE = el && (el.isContentEditable || (el.getAttribute &&
+      (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
+    var isValueField = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+    if (isCE) {
+      // Insert synchronously, then celebrate with Undo — same proven mechanism as
+      // the trigger paths' CE sync-insert (see _proceedInsert): capture the inserted
+      // region so restoreFieldState can Range-delete it. onUndo skips logEvent.
+      var snapCE = captureFieldState(el, 0);
+      insertText(el, text);
+      snapCE.syncInserted  = true;
+      snapCE.endCharOffset = _ceCaretCharOffset(_ceHost(el));
+      snapCE.visibleLen    = String(text).replace(/\n/g, '').length;
+      showCelebration(
+        text,
+        function onConfirm() { logEvent(snip, 0); processing = false; },
+        function onUndo()    { restoreFieldState(snapCE); processing = false; }
+      );
+    } else if (isValueField) {
+      // Textarea/input: the context menu inserts synchronously (no trigger to
+      // defer), so Undo can't just "skip" insertion like the trigger paths —
+      // snapshot the exact pre-insert value + caret and restore it on Undo.
+      var snapVal = captureFieldState(el, 0);
+      snapVal.syncInsertedValue = true;
+      snapVal.prevValue    = el.value;
+      snapVal.prevSelStart = el.selectionStart;
+      snapVal.prevSelEnd   = el.selectionEnd;
+      insertText(el, text);
+      showCelebration(
+        text,
+        function onConfirm() { logEvent(snip, 0); processing = false; },
+        function onUndo()    { restoreFieldState(snapVal); processing = false; }
+      );
+    } else {
+      // No editable target — nothing meaningful was inserted; celebrate without Undo.
+      if (el) insertText(el, text);
+      showCelebration(text);
+      logEvent(snip, 0);
+      processing = false;
+    }
   } else {
     processing = true;
     showOverlay(el, snip, fields, 0, function() { processing = false; });
