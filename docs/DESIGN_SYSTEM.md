@@ -51,9 +51,10 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 | EN    | `#1B4FD8` | `#EEF2FF` |
 | ES    | `#C2410C` | `#FFF7ED` |
 | IT    | `#15803D` | `#F0FDF4` |
+| FR    | `#0D9488` | `#F0FDFA` |
 | MULTI | `#7C3AED` | `#F5F3FF` |
 
-**v1.1 retires the FR pill.** Legacy data with `lang = 'FR'` renders with the MULTI palette via an alias; cleaning up the `Snippet['language']` type union (`app/src/types/database.ts`) is tracked separately.
+**FR is a first-class language (re-added v2.88.0)** with its own teal palette — distinct from EN, IT, ES, and MULTI so every language pill stays visually unambiguous. It appears in the create/edit language picker; the `Snippet['language']` union already carries it.
 
 **v1.1 changed IT from red `#DC2626` to green `#15803D`** to remove the false signal that Italian = stop / error.
 
@@ -121,4 +122,3 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 - Quick-action tiles + mobile tab-bar items are cosmetic shells (no handlers yet).
 - Dashboard "Folders" nav row: mockup shows it; needs a top-level `/folders` route.
 - Hero "time saved" stat: shows snippet count instead until we track time-saved telemetry.
-- FR pill: retired visually (now renders as MULTI violet) but still in `Snippet['language']` type union.

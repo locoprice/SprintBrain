@@ -38,7 +38,7 @@ const LANG_STYLE: Record<Snippet['language'], string> = {
   EN:    'bg-[#EEF2FF] text-[#1B4FD8]',
   ES:    'bg-[#FFF7ED] text-[#C2410C]',
   IT:    'bg-[#F0FDF4] text-[#15803D]',
-  FR:    'bg-[#EEF2FF] text-[#1B4FD8]', // FR retired in v1.1 but kept until type union is cleaned up
+  FR:    'bg-[#F0FDFA] text-[#0D9488]',
   MULTI: 'bg-[#F5F3FF] text-[#7C3AED]',
 };
 const LANG_LABEL: Record<Snippet['language'], string> = {
