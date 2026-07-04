@@ -78,9 +78,11 @@ export const snippetFormSchema = z.object({
     .string()
     .min(1, 'Trigger is required')
     .max(60, 'Trigger must be 60 characters or fewer')
+    // Bare token only — the extension adds the trigger prefix (::) at match
+    // time, so it must never be stored here. No prefix, no spaces, no symbols.
     .regex(
-      /^[!/:;]*[a-zA-Z0-9_-]+$/,
-      'An optional prefix (:: / ; !) followed by letters, numbers, hyphens, and underscores',
+      /^[a-zA-Z0-9_-]+$/,
+      'Letters, numbers, hyphens, and underscores only — no prefix or special characters',
     ),
   content: z.string().min(1, 'Content is required'),
   bodies: snippetBodiesSchema,
