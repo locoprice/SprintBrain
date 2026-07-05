@@ -1830,8 +1830,36 @@ function renderFolderChips(){
   el.innerHTML=html;
 }
 
-var LANG_ORDER=['EN','IT','ES','MULTI'];
+var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
 function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
+// Render-scoped lookup of every rendered variant, keyed by vkey(). Rebuilt each
+// renderList() so card / pill / menu handlers can resolve a DOM id back to the
+// exact variant (real row or synthetic body-variant) it represents.
+var _varIndex={};
+/* Stable identity for a rendered variant. Real rows use their DB id; synthetic
+   per-language views (dashboard `bodies` model, see bodyVariants) carry a
+   composite _vid so each language pill is individually addressable while the
+   underlying DB id stays shared for edit/delete. */
+function vkey(v){ return (v&&v._vid)||(v&&v.id)||''; }
+/* Dashboard single-row model: a lone snippet row keeps every translation in its
+   `bodies` JSONB ({EN,ES,IT,FR,MULTI}) with `body` mirroring only the active
+   language. Expand that map into per-language view objects — same DB row, own
+   lang + body + composite _vid — so mobile shows one pill per language and
+   copies the right translation. Mirrors extension content.js `_findLangVariants`
+   and popup.js `bodyVariants`. Empty language slots are skipped. */
+function bodyVariants(snip){
+  var out=[];
+  var b=snip&&snip.bodies;
+  if(!b||typeof b!=='object')return out;
+  LANG_ORDER.forEach(function(l){
+    var txt=b[l];
+    if(typeof txt!=='string'||!txt.trim())return;
+    var view={}; for(var k in snip)view[k]=snip[k];
+    view.lang=l; view.body=txt; view._vid=snip.id+'::'+l;
+    out.push(view);
+  });
+  return out;
+}
 function buildGroups(arr){
   var map={},order=[];
   for(var i=0;i<arr.length;i++){
@@ -1842,6 +1870,12 @@ function buildGroups(arr){
   }
   return order.map(function(k){
     var g=map[k];
+    // Real sibling rows (legacy lang_group_id model) already supply their own
+    // variants and take precedence; only expand the bodies map for a lone row.
+    if(g.variants.length===1){
+      var ex=bodyVariants(g.variants[0]);
+      if(ex.length>1)g.variants=ex;
+    }
     g.variants.sort(function(a,b){ return langRank(a.lang)-langRank(b.lang); });
     return g;
   });
@@ -1867,6 +1901,7 @@ function pickActiveVariant(g,lang){
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
+  _varIndex={};
   var groups=buildGroups(allSnips).filter(function(g){
     return groupMatches(g,q,curFolder,curLang);
   });
@@ -1877,6 +1912,7 @@ function renderList(){
   }
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang);
+    g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
     var fbadge='';
     if(curFolder==='ALL'&&active.folder_id){
       var f=getFolderById(active.folder_id);
@@ -1891,16 +1927,16 @@ function renderList(){
     var pills='';
     if(g.variants.length>1){
       pills=g.variants.map(function(v){
-        var on=v.id===active.id?' on':'';
+        var on=vkey(v)===vkey(active)?' on':'';
         return '<span class="lbadge lpill l'+esc(v.lang||'EN')+on+'" '
-          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(v.id)+'" '
+          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(vkey(v))+'" '
           +'role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'">'
           +esc(v.lang||'EN')+'</span>';
       }).join('');
     }else{
       pills='<span class="lbadge l'+esc(active.lang||'EN')+'">'+esc(active.lang||'EN')+'</span>';
     }
-    return '<div class="snip-card" data-id="'+esc(active.id)+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
+    return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
         +'<div class="snip-title">'+esc(active.title||active.id)+'</div>'
@@ -1911,7 +1947,7 @@ function renderList(){
           +sharingBadge(active)
         +'</div>'
       +'</div>'
-      +'<button type="button" class="snip-menu" data-menu-id="'+esc(active.id)+'" aria-label="More actions">⋮</button>'
+      +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
   el.querySelectorAll('.snip-card').forEach(function(card){
@@ -1919,7 +1955,7 @@ function renderList(){
       if(e.target.closest('.snip-menu'))return;
       if(e.target.classList&&e.target.classList.contains('lpill'))return;
       var id=this.getAttribute('data-id');
-      var s=allSnips.find(function(x){return x.id===id;});
+      var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
       if(!s)return;
       if(extractFields(s.body||'').length){
         openDetail(s);
@@ -1932,7 +1968,7 @@ function renderList(){
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
         var id=this.getAttribute('data-id');
-        var s=allSnips.find(function(x){return x.id===id;});
+        var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
         if(!s)return;
         if(extractFields(s.body||'').length){
           openDetail(s);
@@ -1949,7 +1985,7 @@ function renderList(){
       var card=pill.closest('.snip-card');
       if(!card)return;
       var vid=pill.getAttribute('data-vid');
-      var v=allSnips.find(function(x){return x.id===vid;});
+      var v=_varIndex[vid]||allSnips.find(function(x){return x.id===vid;});
       if(!v)return;
       // update card visuals
       card.setAttribute('data-id',vid);
@@ -2173,7 +2209,7 @@ window.addEventListener('popstate',function(){
 var sheetSnip=null;
 
 function openBottomSheet(id){
-  var s=allSnips.find(function(x){return x.id===id;});
+  var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
   if(!s)return;
   sheetSnip=s;
   document.getElementById('sb-sheet-snippet-title').textContent=s.title||s.id;
