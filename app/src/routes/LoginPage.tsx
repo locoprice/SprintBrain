@@ -78,8 +78,10 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
-    // Email flows have no remember-me checkbox — always persistent.
-    setRememberMe(true);
+    // Honor the remember-me choice. The flag is read by the storage adapter
+    // when the session lands — via the OTP code (same tab) or the magic link
+    // opened in this same browser.
+    setRememberMe(remember);
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
@@ -233,6 +235,11 @@ export function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
                   className="min-h-[46px]"
+                />
+                <RememberMeField
+                  checked={remember}
+                  onChange={setRemember}
+                  disabled={loading}
                 />
                 {error && <ErrorBanner message={error} />}
                 <Button
@@ -395,16 +402,11 @@ export function LoginPage() {
                   </button>
                 </div>
 
-                <label className="flex w-fit cursor-pointer select-none items-center gap-2 text-sm text-ink-muted">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    disabled={loading}
-                    className="h-4 w-4 cursor-pointer rounded accent-primary"
-                  />
-                  Remember me on this secure device
-                </label>
+                <RememberMeField
+                  checked={remember}
+                  onChange={setRemember}
+                  disabled={loading}
+                />
 
                 {error && <ErrorBanner message={error} />}
                 <Button
@@ -515,5 +517,34 @@ export function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/**
+ * Remember-me toggle — shared by the magic-link and password views so the
+ * control stays identical across both. Bound to the same `remember` state,
+ * which the storage adapter reads to route the session (localStorage vs
+ * sessionStorage) when it lands.
+ */
+function RememberMeField({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="flex w-fit cursor-pointer select-none items-center gap-2 text-sm text-ink-muted">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="h-4 w-4 cursor-pointer rounded accent-primary"
+      />
+      Remember me on this secure device
+    </label>
   );
 }
