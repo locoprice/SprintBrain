@@ -105,7 +105,7 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 - **Dashboard sidebar** active nav: `bg-primary-light` + 3 px primary left bar (painted via `::before`, reserved track so the row doesn't shift on toggle) + filled count pill (`bg-primary` + white text) when count > 0. Inactive count pill: `bg-bg-alt` + `ink-subtle`.
 - **Mobile home** is a single-scroll canvas. Gradient hero (`linear-gradient(160deg, #1B4FD8, #1440B0)`) → floating quick-action grid (overlaps hero by `-22 px`) → search → "All snippets" + Uber-style chips (white default, `#1C1C1E` bg when active) → snippet cards (`r-card-lg`, 14 px padding, 46 × 46 colored icon well per language family) → floating Apple/Revolut tab bar (`rgba(28,28,30,.92)` + blur 20).
 - **Extension popup** active folder: light-primary bg + 2 px primary left bar + **filled** azure count pill (not tinted). All Iris purples replaced with `#1B4FD8`.
-- **Shortcut tag** anywhere it renders: split into `::` prefix at opacity `0.45` + body at full weight. The mockup's `.sctag` pattern is canonical.
+- **Shortcut tag** (dashboard): the trigger and shortcut render as two separate chips — a muted trigger chip (`bg-bg-alt` / `ink-muted`) beside the shortcut chip (`bg-primary-light` / `primary`). Supersedes the single-pill `.sctag` (prefix at `0.45` opacity); the extension popup + mobile still use the inline form pending alignment.
 
 ## Visual references
 
