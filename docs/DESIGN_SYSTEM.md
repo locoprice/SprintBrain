@@ -119,6 +119,6 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 
 - Mobile "Recently used" carousel: omitted from `app/public/mobile/index.html` until we track snippet `last_used_at`. Slot is reserved in the section layout.
 - Mobile bottom sheet: 3 actions (Use now / Edit / Delete) instead of mockup's 4 (Share missing) — needs a `navigator.share` JS handler.
-- Quick-action tiles + mobile tab-bar items are cosmetic shells (no handlers yet).
+- Mobile quick-action tiles (v2.91.0): full-width 3-tile grid (**Snippets · Sync · Prompts**) with **3D extruded icon wells** and a pushed/active state (`.mqa-tile.on` → inset azure icon + azure label). **Snippets** and **Prompts** act as a segmented current-page nav — the Snippets tile is pushed on the home/list view, the Prompts tile on the Prompts view — and the bar renders on both pages so the active tile stays pushed (BrandCam-style indicator). The old Folders tile was replaced by Snippets; **Sync remains a cosmetic shell.** Mobile tab-bar items still have no handlers.
 - Dashboard "Folders" nav row: mockup shows it; needs a top-level `/folders` route.
 - Hero "time saved" stat: shows snippet count instead until we track time-saved telemetry.
