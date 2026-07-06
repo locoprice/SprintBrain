@@ -105,27 +105,46 @@ body{
 }
 
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
-.mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2}
+.mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
 .mqa-grid{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
-  background:var(--card);border-radius:18px;padding:14px 6px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  background:var(--card);border-radius:18px;padding:14px 10px;
   box-shadow:var(--shadow-md)
 }
 .mqa-tile{
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:4px 2px;border:none;background:transparent;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  padding:6px 2px;border:none;background:transparent;font-family:inherit;
+  border-radius:14px;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
-  transition:transform .1s,opacity .1s
+  transition:transform .12s,opacity .12s
 }
-.mqa-tile:active{transform:scale(.95);opacity:.75}
+.mqa-tile:active{transform:scale(.95);opacity:.9}
+/* 3D icon well: extruded tile — soft outer drop + inner top-highlight / bottom-shade bevel. */
 .mqa-ico{
-  width:40px;height:40px;border-radius:12px;
-  background:var(--primary-lt);color:var(--primary);
-  display:flex;align-items:center;justify-content:center
+  width:44px;height:44px;border-radius:14px;
+  background:linear-gradient(158deg,#FFFFFF 0%,var(--primary-lt) 100%);
+  color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(27,79,216,.10);
+  box-shadow:0 4px 8px rgba(27,79,216,.16),
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 -3px 6px rgba(27,79,216,.08) inset;
+  transition:transform .14s,box-shadow .14s,background .14s,color .14s
 }
-.mqa-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mqa-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 1px 1px rgba(27,79,216,.22))}
 .mqa-lbl{font-size:10.5px;font-weight:600;color:var(--text);
-  text-align:center;letter-spacing:-.1px}
+  text-align:center;letter-spacing:-.1px;transition:color .14s}
+/* Pushed / active (current page) — icon presses IN (inset), solid azure, azure label. */
+.mqa-tile.on .mqa-ico{
+  background:linear-gradient(158deg,var(--primary-grad) 0%,var(--primary-dk) 100%);
+  color:#fff;border-color:transparent;transform:translateY(1px);
+  box-shadow:0 1px 2px rgba(20,64,176,.35),
+    0 3px 7px rgba(20,64,176,.35) inset,
+    0 1px 1px rgba(0,0,0,.18) inset
+}
+.mqa-tile.on .mqa-ico svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
+.mqa-tile.on .mqa-lbl{color:var(--primary);font-weight:700}
 
 /* ── SEARCH ──────────────────────────────────── */
 .search-bar{padding:18px 16px 8px}
@@ -762,7 +781,7 @@ body{
     <div class="mqa-grid">
       <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
       <button class="mqa-tile" type="button" data-qa="sync" aria-label="Sync"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span><span class="mqa-lbl">Sync</span></button>
-      <button class="mqa-tile" type="button" data-qa="folders" aria-label="Folders"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg></span><span class="mqa-lbl">Folders</span></button>
+      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
     </div>
   </div>
 
@@ -859,6 +878,14 @@ body{
       <span class="mstatbig-unit">prompts</span>
     </div>
   </div>
+  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
+  <div class="mqa">
+    <div class="mqa-grid">
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
+      <button class="mqa-tile" type="button" data-qa="sync" aria-label="Sync"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span><span class="mqa-lbl">Sync</span></button>
+      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
+    </div>
+  </div>
   <div id="prompt-body">
     <div class="search-bar">
       <div class="psearch-wrap" id="prompt-srch-wrap">
@@ -867,6 +894,7 @@ body{
         <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
     </div>
+    <div class="msec"><span class="msec-t">All prompts</span></div>
     <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
   </div>
@@ -1435,6 +1463,7 @@ function loadSnips(){
 /* ── VIEWS ──────────────────────────────────────── */
 function showList(){
   curView='list';
+  setActiveQuickAction('snippets');
   document.body.classList.remove('sb-detail-view');
   document.getElementById('loading').style.display='none';
   document.getElementById('view-list').classList.add('active');
@@ -1456,6 +1485,7 @@ function openDetail(snip){
 }
 function showAnalyticsView(){
   curView='analytics';
+  setActiveQuickAction(null);
   document.body.classList.remove('sb-detail-view');
   document.getElementById('loading').style.display='none';
   document.getElementById('view-list').classList.remove('active');
@@ -1798,11 +1828,22 @@ function deletePromptRow(p){
     })
     .catch(function(){closePromptSheet();showToast('Could not delete');});
 }
+// Reflect the current page on the quick-action bar(s): the matching tile gets
+// the pushed/active state, every other tile resets. name=null clears them all.
+function setActiveQuickAction(name){
+  document.querySelectorAll('.mqa-tile').forEach(function(t){
+    var on=t.getAttribute('data-qa')===name;
+    t.classList.toggle('on',on);
+    t.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
 function showPrompts(){
+  if(document.getElementById('view-prompts').classList.contains('active'))return;
   history.pushState({prompts:true},'');
   document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').classList.remove('active');
   document.getElementById('view-prompts').classList.add('active');
+  setActiveQuickAction('prompts');
   if(!allPrompts.length)loadPrompts();
   else renderPromptList();
 }
@@ -1810,6 +1851,13 @@ function hidePrompts(){
   closePromptSheet();
   document.getElementById('view-prompts').classList.remove('active');
   document.getElementById('view-list').classList.add('active');
+  setActiveQuickAction('snippets');
+}
+// Snippets tile → the snippets home. From the Prompts page it mirrors the back
+// button; from anywhere else it just shows the list (its tile pushes via showList).
+function showSnippetsHome(){
+  if(document.getElementById('view-prompts').classList.contains('active')){ hidePrompts(); return; }
+  showList();
 }
 
 function renderFolderChips(){
@@ -1830,8 +1878,36 @@ function renderFolderChips(){
   el.innerHTML=html;
 }
 
-var LANG_ORDER=['EN','IT','ES','MULTI'];
+var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
 function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
+// Render-scoped lookup of every rendered variant, keyed by vkey(). Rebuilt each
+// renderList() so card / pill / menu handlers can resolve a DOM id back to the
+// exact variant (real row or synthetic body-variant) it represents.
+var _varIndex={};
+/* Stable identity for a rendered variant. Real rows use their DB id; synthetic
+   per-language views (dashboard `bodies` model, see bodyVariants) carry a
+   composite _vid so each language pill is individually addressable while the
+   underlying DB id stays shared for edit/delete. */
+function vkey(v){ return (v&&v._vid)||(v&&v.id)||''; }
+/* Dashboard single-row model: a lone snippet row keeps every translation in its
+   `bodies` JSONB ({EN,ES,IT,FR,MULTI}) with `body` mirroring only the active
+   language. Expand that map into per-language view objects — same DB row, own
+   lang + body + composite _vid — so mobile shows one pill per language and
+   copies the right translation. Mirrors extension content.js `_findLangVariants`
+   and popup.js `bodyVariants`. Empty language slots are skipped. */
+function bodyVariants(snip){
+  var out=[];
+  var b=snip&&snip.bodies;
+  if(!b||typeof b!=='object')return out;
+  LANG_ORDER.forEach(function(l){
+    var txt=b[l];
+    if(typeof txt!=='string'||!txt.trim())return;
+    var view={}; for(var k in snip)view[k]=snip[k];
+    view.lang=l; view.body=txt; view._vid=snip.id+'::'+l;
+    out.push(view);
+  });
+  return out;
+}
 function buildGroups(arr){
   var map={},order=[];
   for(var i=0;i<arr.length;i++){
@@ -1842,6 +1918,12 @@ function buildGroups(arr){
   }
   return order.map(function(k){
     var g=map[k];
+    // Real sibling rows (legacy lang_group_id model) already supply their own
+    // variants and take precedence; only expand the bodies map for a lone row.
+    if(g.variants.length===1){
+      var ex=bodyVariants(g.variants[0]);
+      if(ex.length>1)g.variants=ex;
+    }
     g.variants.sort(function(a,b){ return langRank(a.lang)-langRank(b.lang); });
     return g;
   });
@@ -1867,6 +1949,7 @@ function pickActiveVariant(g,lang){
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
+  _varIndex={};
   var groups=buildGroups(allSnips).filter(function(g){
     return groupMatches(g,q,curFolder,curLang);
   });
@@ -1877,6 +1960,7 @@ function renderList(){
   }
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang);
+    g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
     var fbadge='';
     if(curFolder==='ALL'&&active.folder_id){
       var f=getFolderById(active.folder_id);
@@ -1891,16 +1975,16 @@ function renderList(){
     var pills='';
     if(g.variants.length>1){
       pills=g.variants.map(function(v){
-        var on=v.id===active.id?' on':'';
+        var on=vkey(v)===vkey(active)?' on':'';
         return '<span class="lbadge lpill l'+esc(v.lang||'EN')+on+'" '
-          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(v.id)+'" '
+          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(vkey(v))+'" '
           +'role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'">'
           +esc(v.lang||'EN')+'</span>';
       }).join('');
     }else{
       pills='<span class="lbadge l'+esc(active.lang||'EN')+'">'+esc(active.lang||'EN')+'</span>';
     }
-    return '<div class="snip-card" data-id="'+esc(active.id)+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
+    return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
         +'<div class="snip-title">'+esc(active.title||active.id)+'</div>'
@@ -1911,7 +1995,7 @@ function renderList(){
           +sharingBadge(active)
         +'</div>'
       +'</div>'
-      +'<button type="button" class="snip-menu" data-menu-id="'+esc(active.id)+'" aria-label="More actions">⋮</button>'
+      +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
   el.querySelectorAll('.snip-card').forEach(function(card){
@@ -1919,7 +2003,7 @@ function renderList(){
       if(e.target.closest('.snip-menu'))return;
       if(e.target.classList&&e.target.classList.contains('lpill'))return;
       var id=this.getAttribute('data-id');
-      var s=allSnips.find(function(x){return x.id===id;});
+      var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
       if(!s)return;
       if(extractFields(s.body||'').length){
         openDetail(s);
@@ -1932,7 +2016,7 @@ function renderList(){
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
         var id=this.getAttribute('data-id');
-        var s=allSnips.find(function(x){return x.id===id;});
+        var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
         if(!s)return;
         if(extractFields(s.body||'').length){
           openDetail(s);
@@ -1949,7 +2033,7 @@ function renderList(){
       var card=pill.closest('.snip-card');
       if(!card)return;
       var vid=pill.getAttribute('data-vid');
-      var v=allSnips.find(function(x){return x.id===vid;});
+      var v=_varIndex[vid]||allSnips.find(function(x){return x.id===vid;});
       if(!v)return;
       // update card visuals
       card.setAttribute('data-id',vid);
@@ -2173,7 +2257,7 @@ window.addEventListener('popstate',function(){
 var sheetSnip=null;
 
 function openBottomSheet(id){
-  var s=allSnips.find(function(x){return x.id===id;});
+  var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
   if(!s)return;
   sheetSnip=s;
   document.getElementById('sb-sheet-snippet-title').textContent=s.title||s.id;
@@ -2616,7 +2700,8 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
 });
 
 /* ── QUICK ACTIONS ──────────────────────────────── */
-document.querySelector('[data-qa="prompts"]').addEventListener('click',showPrompts);
+document.querySelectorAll('[data-qa="prompts"]').forEach(function(b){ b.addEventListener('click',showPrompts); });
+document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEventListener('click',showSnippetsHome); });
 document.getElementById('prompts-back-btn').addEventListener('click',function(){
   if(document.getElementById('view-prompts').classList.contains('active'))hidePrompts();
 });
@@ -2748,6 +2833,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');});
     btn.classList.add('on');
     btn.setAttribute('aria-current','page');
+    setActiveQuickAction('snippets');
   }else if(lbl==='Search'){
     if(curView!=='list'){
       curView='list';
@@ -2759,6 +2845,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
       });
       var hb=document.querySelector('.mtab-item[aria-label="Home"]');
       if(hb){hb.classList.add('on');hb.setAttribute('aria-current','page');}
+      setActiveQuickAction('snippets');
     }
     var srch=document.getElementById('srch');
     srch.scrollIntoView({behavior:'smooth',block:'center'});

@@ -38,7 +38,7 @@ const LANG_STYLE: Record<Snippet['language'], string> = {
   EN:    'bg-[#EEF2FF] text-[#1B4FD8]',
   ES:    'bg-[#FFF7ED] text-[#C2410C]',
   IT:    'bg-[#F0FDF4] text-[#15803D]',
-  FR:    'bg-[#EEF2FF] text-[#1B4FD8]', // FR retired in v1.1 but kept until type union is cleaned up
+  FR:    'bg-[#F0FDFA] text-[#0D9488]',
   MULTI: 'bg-[#F5F3FF] text-[#7C3AED]',
 };
 const LANG_LABEL: Record<Snippet['language'], string> = {
@@ -103,11 +103,11 @@ function LangSwitcher({
 }
 
 /**
- * Shortcut tag — configured trigger at 0.45 opacity, bare shortcut at full
- * weight (canonical `.sctag`, see DESIGN_SYSTEM.md §107). The trigger is a user
- * setting, never hardcoded (mirrors PromptBlockEditor). Stored triggers are
- * mixed — some already carry the prefix — so strip one leading occurrence to
- * keep the trigger and the shortcut as two clean, non-duplicated fields.
+ * Shortcut tag — two separate chips: a muted trigger chip (the configured
+ * prefix) beside the shortcut chip. The trigger is a user setting, never
+ * hardcoded (mirrors PromptBlockEditor). Stored triggers are mixed — some
+ * already carry the prefix — so strip one leading occurrence to keep the two
+ * chips clean and non-duplicated. See DESIGN_SYSTEM.md (shortcut tag).
  */
 function ShortcutTag({ trigger }: { trigger: string }) {
   const snippetTrigger =
@@ -117,10 +117,14 @@ function ShortcutTag({ trigger }: { trigger: string }) {
     ? trigger.slice(snippetTrigger.length)
     : trigger;
   return (
-    <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-      <span className="font-normal opacity-45">{snippetTrigger}</span>
-      <span>{shortcut}</span>
-    </code>
+    <span className="inline-flex items-center gap-1">
+      <code className="inline-flex items-center rounded-md bg-bg-alt px-2 py-0.5 font-mono text-xs font-semibold text-ink-muted">
+        {snippetTrigger}
+      </code>
+      <code className="inline-flex items-center rounded-md bg-primary-light px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+        {shortcut}
+      </code>
+    </span>
   );
 }
 

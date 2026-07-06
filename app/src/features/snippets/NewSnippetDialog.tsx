@@ -11,15 +11,17 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   snippetFormSchema,
   type SnippetFormValues,
 } from '@/types/schemas';
 
-// FR retired in v1.1 — excluded from picker, still valid in DB for legacy rows
-const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'MULTI'];
+// Each language is a first-class picker option with its own color (FR re-added v2.88.0).
+const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
 
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
 const LANG_CONFIG: Record<
@@ -29,7 +31,7 @@ const LANG_CONFIG: Record<
   EN:    { fg: '#1B4FD8', bg: '#EEF2FF', bdr: '#BED0FF', label: 'EN' },
   IT:    { fg: '#15803D', bg: '#F0FDF4', bdr: '#86EFAC', label: 'IT' },
   ES:    { fg: '#C2410C', bg: '#FFF7ED', bdr: '#FDBA74', label: 'ES' },
-  FR:    { fg: '#7C3AED', bg: '#F5F3FF', bdr: '#C4B5FD', label: 'FR' },
+  FR:    { fg: '#0D9488', bg: '#F0FDFA', bdr: '#99F6E4', label: 'FR' },
   MULTI: { fg: '#7C3AED', bg: '#F5F3FF', bdr: '#C4B5FD', label: 'Multi' },
 };
 
@@ -131,6 +133,13 @@ export function NewSnippetDialog() {
   const removeSnippet           = useSnippetStore((s) => s.removeSnippet);
 
   const openHistory = useUiStore((s) => s.openHistory);
+
+  // Snippet trigger prefix (e.g. "::") — a user setting, never hardcoded.
+  // Shown as a leading affix on the Trigger field so the full shortcut
+  // (prefix + token) is obvious at a glance. Mirrors ShortcutTag in SnippetsTable.
+  const snippetPrefix =
+    useSettingsStore((s) => s.profile?.trigger_snippet_seq) ||
+    DEFAULT_TRIGGER_CONFIG.snippetTrigger;
 
   const editingSnippet = useMemo(
     () => (editId ? snippets.find((s) => s.id === editId) ?? null : null),
@@ -413,17 +422,39 @@ export function NewSnippetDialog() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="snippet-trigger" className={FIELD_LABEL}>Trigger</label>
-                <Input
-                  id="snippet-trigger"
-                  value={form.trigger}
-                  onChange={(e) => updateField('trigger', sanitizeTrigger(e.target.value))}
-                  placeholder="quoteEN"
-                  spellCheck={false}
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  disabled={saving}
-                  className={errors.trigger ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
-                />
+                {/*
+                  Input group: a leading affix box shows the configured prefix
+                  (e.g. "::") so the full shortcut reads as prefix + token. The
+                  border and focus ring live on the wrapper so the affix and the
+                  input read as one control. The stored value stays a bare token.
+                */}
+                <div
+                  className={cn(
+                    'flex h-10 items-stretch overflow-hidden rounded-[12px] border border-line bg-card',
+                    'focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20',
+                    errors.trigger && 'border-danger focus-within:border-danger focus-within:ring-danger/20',
+                    saving && 'opacity-50',
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    title={`Your snippet prefix is "${snippetPrefix}". Full shortcut: ${snippetPrefix}${form.trigger || 'quoteEN'}`}
+                    className="flex select-none items-center border-r border-line bg-bg-alt px-3 font-mono text-sm font-semibold text-ink-muted"
+                  >
+                    {snippetPrefix}
+                  </span>
+                  <input
+                    id="snippet-trigger"
+                    value={form.trigger}
+                    onChange={(e) => updateField('trigger', sanitizeTrigger(e.target.value))}
+                    placeholder="quoteEN"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    disabled={saving}
+                    className="min-w-0 flex-1 bg-transparent px-3 text-sm text-ink placeholder:text-ink-subtle focus:outline-none disabled:cursor-not-allowed"
+                  />
+                </div>
                 {errors.trigger && <FieldError message={errors.trigger} />}
               </div>
               <div>
@@ -662,6 +693,8 @@ export function NewSnippetDialog() {
                       }
                       className={cn(
                         'relative h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
+                        // Multi is the odd one out — span both columns so it fills the row.
+                        lang === 'MULTI' && 'col-span-2',
                         isActive
                           ? 'shadow-sm'
                           : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',

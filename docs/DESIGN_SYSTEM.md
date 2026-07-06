@@ -51,9 +51,10 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 | EN    | `#1B4FD8` | `#EEF2FF` |
 | ES    | `#C2410C` | `#FFF7ED` |
 | IT    | `#15803D` | `#F0FDF4` |
+| FR    | `#0D9488` | `#F0FDFA` |
 | MULTI | `#7C3AED` | `#F5F3FF` |
 
-**v1.1 retires the FR pill.** Legacy data with `lang = 'FR'` renders with the MULTI palette via an alias; cleaning up the `Snippet['language']` type union (`app/src/types/database.ts`) is tracked separately.
+**FR is a first-class language (re-added v2.88.0)** with its own teal palette — distinct from EN, IT, ES, and MULTI so every language pill stays visually unambiguous. It appears in the create/edit language picker; the `Snippet['language']` union already carries it.
 
 **v1.1 changed IT from red `#DC2626` to green `#15803D`** to remove the false signal that Italian = stop / error.
 
@@ -104,7 +105,7 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 - **Dashboard sidebar** active nav: `bg-primary-light` + 3 px primary left bar (painted via `::before`, reserved track so the row doesn't shift on toggle) + filled count pill (`bg-primary` + white text) when count > 0. Inactive count pill: `bg-bg-alt` + `ink-subtle`.
 - **Mobile home** is a single-scroll canvas. Gradient hero (`linear-gradient(160deg, #1B4FD8, #1440B0)`) → floating quick-action grid (overlaps hero by `-22 px`) → search → "All snippets" + Uber-style chips (white default, `#1C1C1E` bg when active) → snippet cards (`r-card-lg`, 14 px padding, 46 × 46 colored icon well per language family) → floating Apple/Revolut tab bar (`rgba(28,28,30,.92)` + blur 20).
 - **Extension popup** active folder: light-primary bg + 2 px primary left bar + **filled** azure count pill (not tinted). All Iris purples replaced with `#1B4FD8`.
-- **Shortcut tag** anywhere it renders: split into `::` prefix at opacity `0.45` + body at full weight. The mockup's `.sctag` pattern is canonical.
+- **Shortcut tag** (dashboard): the trigger and shortcut render as two separate chips — a muted trigger chip (`bg-bg-alt` / `ink-muted`) beside the shortcut chip (`bg-primary-light` / `primary`). Supersedes the single-pill `.sctag` (prefix at `0.45` opacity); the extension popup + mobile still use the inline form pending alignment.
 
 ## Visual references
 
@@ -118,7 +119,6 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 
 - Mobile "Recently used" carousel: omitted from `app/public/mobile/index.html` until we track snippet `last_used_at`. Slot is reserved in the section layout.
 - Mobile bottom sheet: 3 actions (Use now / Edit / Delete) instead of mockup's 4 (Share missing) — needs a `navigator.share` JS handler.
-- Quick-action tiles + mobile tab-bar items are cosmetic shells (no handlers yet).
+- Mobile quick-action tiles (v2.91.0): full-width 3-tile grid (**Snippets · Sync · Prompts**) with **3D extruded icon wells** and a pushed/active state (`.mqa-tile.on` → inset azure icon + azure label). **Snippets** and **Prompts** act as a segmented current-page nav — the Snippets tile is pushed on the home/list view, the Prompts tile on the Prompts view — and the bar renders on both pages so the active tile stays pushed (BrandCam-style indicator). The old Folders tile was replaced by Snippets; **Sync remains a cosmetic shell.** Mobile tab-bar items still have no handlers.
 - Dashboard "Folders" nav row: mockup shows it; needs a top-level `/folders` route.
 - Hero "time saved" stat: shows snippet count instead until we track time-saved telemetry.
-- FR pill: retired visually (now renders as MULTI violet) but still in `Snippet['language']` type union.
