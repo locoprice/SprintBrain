@@ -216,12 +216,8 @@ body{
 .lEN{background:#EEF2FF;color:#1B4FD8}
 .lES{background:#FFF7ED;color:#C2410C}
 .lIT{background:#F0FDF4;color:#15803D}
+.lFR{background:#F0FDFA;color:#0D9488}
 .lMULTI{background:#F5F3FF;color:#7C3AED}
-.lbadge.lpill{cursor:pointer;border:1px solid transparent;opacity:.55;
-  transition:opacity .12s,transform .1s;min-height:22px;
-  display:inline-flex;align-items:center;padding:3px 8px;font-size:10px}
-.lbadge.lpill:active{transform:scale(.94)}
-.lbadge.lpill.on{opacity:1;border-color:currentColor}
 
 /* Folder chip on card */
 .fbadge{
@@ -318,6 +314,28 @@ body{
 
 .sec-lbl{font-size:11px;font-weight:700;color:var(--text2);
   text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+
+/* Language picker — large touch tiles, styled to match the fields view.
+   Selected tile carries the per-language palette (identical across surfaces). */
+#det-lang-section.sb-hide{display:none}
+.lang-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px}
+.lang-tile{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-height:64px;padding:12px 8px;background:var(--card);
+  border:1.5px solid var(--border);border-radius:var(--r);
+  color:var(--text2);font-family:inherit;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .1s,border-color .15s,background .15s,color .15s
+}
+.lang-tile:active{transform:scale(.96)}
+.lang-tile-flag{font-size:24px;line-height:1}
+.lang-tile-code{font-size:13px;font-weight:700;letter-spacing:.3px}
+.lang-tile.on{font-weight:800}
+.lang-tile.on.lEN{background:#EEF2FF;color:#1B4FD8;border-color:#1B4FD8}
+.lang-tile.on.lES{background:#FFF7ED;color:#C2410C;border-color:#C2410C}
+.lang-tile.on.lIT{background:#F0FDF4;color:#15803D;border-color:#15803D}
+.lang-tile.on.lFR{background:#F0FDFA;color:#0D9488;border-color:#0D9488}
+.lang-tile.on.lMULTI{background:#F5F3FF;color:#7C3AED;border-color:#7C3AED}
 
 /* White field card with row-divider lines */
 .fields-card{background:var(--card);border-radius:var(--r);
@@ -840,6 +858,10 @@ body{
     <span id="det-lang" class="lbadge"></span>
   </div>
   <div class="det-body" id="det-body">
+    <div id="det-lang-section" class="sb-hide">
+      <div class="sec-lbl">Language</div>
+      <div class="lang-picker" id="det-lang-picker"></div>
+    </div>
     <div>
       <div class="sec-lbl">Fields</div>
       <div class="fields-card" id="fform"></div>
@@ -1388,9 +1410,20 @@ function resolveBody(body,vals){
 }
 
 /* ── STATE ─────────────────────────────────────── */
-var allSnips=[], allFolders=[], curSnip=null, curLang='ALL', curFolder='ALL', curSearch='';
+var allSnips=[], allFolders=[], curSnip=null, curVariants=[], curLang='ALL', curFolder='ALL', curSearch='';
 var curView='list';   // 'list' | 'analytics'
 var prevView='list';  // view we came from before entering detail
+
+/* Per-group last-picked language (mobile detail language picker). Keyed by
+   group key so re-opening a multilingual snippet defaults to the language the
+   user chose last. */
+var _langPref={};
+try{_langPref=JSON.parse(localStorage.getItem('sb_mob_langpref')||'{}')||{};}catch(e){_langPref={};}
+function rememberLang(gkey,lang){
+  if(!gkey||!lang)return;
+  _langPref[gkey]=lang;
+  try{localStorage.setItem('sb_mob_langpref',JSON.stringify(_langPref));}catch(e){}
+}
 
 /* ── SHARING STATUS SVGs ────────────────────────── */
 var LOCK_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
@@ -1473,10 +1506,11 @@ function showList(){
   var homeBtn=document.querySelector('.mtab-item[aria-label="Home"]');
   if(homeBtn){homeBtn.classList.add('on');homeBtn.setAttribute('aria-current','page');}
 }
-function openDetail(snip){
+function openDetail(snip,variants){
   prevView=curView;
   history.pushState({det:true},'');
   curSnip=snip;
+  curVariants=(variants&&variants.length)?variants:[snip];
   document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-analytics').classList.remove('active');
   document.getElementById('view-detail').classList.add('active');
@@ -1879,11 +1913,15 @@ function renderFolderChips(){
 }
 
 var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
+var LANG_FLAGS={EN:'🇬🇧',IT:'🇮🇹',ES:'🇪🇸',FR:'🇫🇷',MULTI:'🌍'};
 function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
 // Render-scoped lookup of every rendered variant, keyed by vkey(). Rebuilt each
 // renderList() so card / pill / menu handlers can resolve a DOM id back to the
 // exact variant (real row or synthetic body-variant) it represents.
 var _varIndex={};
+// group key → its variants[] (rebuilt each renderList) so a card tap can open
+// the detail view with the full language set, not just the active variant.
+var _groupIndex={};
 /* Stable identity for a rendered variant. Real rows use their DB id; synthetic
    per-language views (dashboard `bodies` model, see bodyVariants) carry a
    composite _vid so each language pill is individually addressable while the
@@ -1928,6 +1966,15 @@ function buildGroups(arr){
     return g;
   });
 }
+// Resolve the full variant group for a raw snippet row (used by entry points
+// that hold a single row, e.g. analytics "Recently modified"). Mirrors the
+// grouping the home list performs so those snippets get the same language set.
+function groupForRow(s){
+  var k=groupKey(s);
+  var groups=buildGroups(allSnips);
+  for(var i=0;i<groups.length;i++){ if(groups[i].key===k) return groups[i]; }
+  return {key:k,variants:[s]};
+}
 function groupMatches(g,q,folder,lang){
   // group matches if ANY variant satisfies every active filter
   for(var i=0;i<g.variants.length;i++){
@@ -1944,12 +1991,17 @@ function pickActiveVariant(g,lang){
   if(lang&&lang!=='ALL'){
     for(var i=0;i<g.variants.length;i++){ if(g.variants[i].lang===lang) return g.variants[i]; }
   }
+  var pref=g.key&&_langPref[g.key];
+  if(pref){
+    for(var j=0;j<g.variants.length;j++){ if(g.variants[j].lang===pref) return g.variants[j]; }
+  }
   return g.variants[0];
 }
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
   _varIndex={};
+  _groupIndex={};
   var groups=buildGroups(allSnips).filter(function(g){
     return groupMatches(g,q,curFolder,curLang);
   });
@@ -1961,6 +2013,7 @@ function renderList(){
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
+    _groupIndex[g.key]=g.variants;
     var fbadge='';
     if(curFolder==='ALL'&&active.folder_id){
       var f=getFolderById(active.folder_id);
@@ -1971,19 +2024,11 @@ function renderList(){
         +'</span>';
       }
     }
-    // Language pills: one per variant. Only render pills row if >1 variant.
-    var pills='';
-    if(g.variants.length>1){
-      pills=g.variants.map(function(v){
-        var on=vkey(v)===vkey(active)?' on':'';
-        return '<span class="lbadge lpill l'+esc(v.lang||'EN')+on+'" '
-          +'data-gkey="'+esc(g.key)+'" data-vid="'+esc(vkey(v))+'" '
-          +'role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'">'
-          +esc(v.lang||'EN')+'</span>';
-      }).join('');
-    }else{
-      pills='<span class="lbadge l'+esc(active.lang||'EN')+'">'+esc(active.lang||'EN')+'</span>';
-    }
+    // Language indicators: static badges (one per variant). The card is a single
+    // tap target now — the language is chosen on the detail page, not here.
+    var pills=g.variants.map(function(v){
+      return '<span class="lbadge l'+esc(v.lang||'EN')+'">'+esc(v.lang||'EN')+'</span>';
+    }).join('');
     return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
@@ -1998,64 +2043,33 @@ function renderList(){
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
+  // Card tap → multilingual group opens the detail page (language chosen there);
+  // single-language with fields opens detail; single-language, no fields copies.
+  function activateCard(card){
+    var variants=_groupIndex[card.getAttribute('data-gkey')];
+    var active=_varIndex[card.getAttribute('data-id')];
+    if(variants&&variants.length>1){
+      openDetail(active||variants[0],variants);
+      return;
+    }
+    var s=active||(variants&&variants[0]);
+    if(!s)return;
+    if(extractFields(s.body||'').length){
+      openDetail(s,[s]);
+    }else{
+      copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+    }
+  }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
       if(e.target.closest('.snip-menu'))return;
-      if(e.target.classList&&e.target.classList.contains('lpill'))return;
-      var id=this.getAttribute('data-id');
-      var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
-      if(!s)return;
-      if(extractFields(s.body||'').length){
-        openDetail(s);
-      }else{
-        copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
-      }
+      activateCard(this);
     });
     card.addEventListener('keydown',function(e){
-      if(e.target.classList&&e.target.classList.contains('lpill'))return;
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
-        var id=this.getAttribute('data-id');
-        var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
-        if(!s)return;
-        if(extractFields(s.body||'').length){
-          openDetail(s);
-        }else{
-          copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
-        }
+        activateCard(this);
       }
-    });
-  });
-  // Language-pill switching — no re-render, just swap active state + card data-id
-  el.querySelectorAll('.lpill').forEach(function(pill){
-    var activate=function(e){
-      e.stopPropagation();
-      var card=pill.closest('.snip-card');
-      if(!card)return;
-      var vid=pill.getAttribute('data-vid');
-      var v=_varIndex[vid]||allSnips.find(function(x){return x.id===vid;});
-      if(!v)return;
-      // update card visuals
-      card.setAttribute('data-id',vid);
-      var menu=card.querySelector('.snip-menu');
-      if(menu)menu.setAttribute('data-menu-id',vid);
-      var titleEl=card.querySelector('.snip-title');
-      if(titleEl)titleEl.textContent=v.title||v.id;
-      var scEl=card.querySelector('.snip-sc');
-      if(scEl)scEl.textContent=v.shortcut||'';
-      var icoEl=card.querySelector('.snip-icon');
-      if(icoEl)icoEl.innerHTML=folderIcon(getFolderById(v.folder_id));
-      // toggle pill state
-      card.querySelectorAll('.lpill').forEach(function(p){
-        p.classList.remove('on');
-        p.setAttribute('aria-pressed','false');
-      });
-      pill.classList.add('on');
-      pill.setAttribute('aria-pressed','true');
-    };
-    pill.addEventListener('click',activate);
-    pill.addEventListener('keydown',function(e){
-      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(e); }
     });
   });
   el.querySelectorAll('.snip-menu').forEach(function(btn){
@@ -2085,7 +2099,7 @@ function fieldType(f,cfg){
   return 'text';
 }
 
-function renderDetail(snip){
+function renderDetail(snip,keepVals){
   document.getElementById('det-title').textContent=snip.title||snip.id;
   var lb=document.getElementById('det-lang');
   var lang=snip.lang||'EN';
@@ -2103,6 +2117,29 @@ function renderDetail(snip){
     fWrap.classList.add('sb-hide');
   }
 
+  /* Language picker — only for multilingual groups. Selecting a tile swaps the
+     active variant (curSnip) and re-renders fields + preview on the same page. */
+  var langSec=document.getElementById('det-lang-section');
+  var langPick=document.getElementById('det-lang-picker');
+  if(curVariants&&curVariants.length>1&&langSec&&langPick){
+    langPick.innerHTML=curVariants.map(function(v){
+      var lg=v.lang||'EN';
+      var on=vkey(v)===vkey(snip)?' on l'+lg:'';
+      return '<button type="button" class="lang-tile'+on+'" data-vid="'+esc(vkey(v))+'" '
+        +'aria-pressed="'+(on?'true':'false')+'">'
+        +'<span class="lang-tile-flag">'+(LANG_FLAGS[lg]||'🌐')+'</span>'
+        +'<span class="lang-tile-code">'+esc(lg)+'</span>'
+      +'</button>';
+    }).join('');
+    langPick.querySelectorAll('.lang-tile').forEach(function(t){
+      t.addEventListener('click',function(){ switchVariant(this.getAttribute('data-vid')); });
+    });
+    langSec.classList.remove('sb-hide');
+  }else if(langSec&&langPick){
+    langPick.innerHTML='';
+    langSec.classList.add('sb-hide');
+  }
+
   var fields=extractFields(snip.body||'');
   var cfg=snip.field_cfg||{};
   var form=document.getElementById('fform');
@@ -2118,7 +2155,7 @@ function renderDetail(snip){
       var c=cfg[f]||{};
       var lbl=c.label||humanLbl(f);
       var t=fieldType(f,cfg);
-      var def=c.default||'';
+      var def=(keepVals&&keepVals[f]!=null&&keepVals[f]!=='')?keepVals[f]:(c.default||'');
       if(t==='date'){
         return '<div class="field-row">'
           +'<div class="field-lbl">'+esc(lbl)+'</div>'
@@ -2152,6 +2189,26 @@ function renderDetail(snip){
   }
   updatePrev();
   document.getElementById('det-body').scrollTop=0;
+}
+
+/* Raw string field values — used to carry input across a language switch. */
+function getRawVals(){
+  var v={};
+  document.querySelectorAll('#fform .field-in').forEach(function(i){
+    v[i.getAttribute('data-f')]=i.value;
+  });
+  return v;
+}
+/* Switch the active language variant inside the detail view. Preserves any
+   field values whose names also exist in the newly selected language. */
+function switchVariant(vid){
+  var v=null;
+  for(var i=0;i<curVariants.length;i++){ if(vkey(curVariants[i])===vid){ v=curVariants[i]; break; } }
+  if(!v||vkey(v)===vkey(curSnip))return;
+  var keep=getRawVals();
+  curSnip=v;
+  rememberLang(groupKey(v),v.lang);
+  renderDetail(v,keep);
 }
 
 function getVals(){
@@ -2320,13 +2377,16 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
     var act=li.getAttribute('data-action');
     var s=sheetSnip;
     if(act==='use'){
-      // If the snippet has fields, jump into the detail view so the user
-      // can fill them in; otherwise copy the resolved body straight to
-      // the clipboard — one-tap flow Valentina relies on.
-      var fields=extractFields(s.body||'');
-      if(fields.length){
+      // Multilingual snippet → open the detail page to pick a language (and fill
+      // any fields). Single-language with fields → same page. Single-language,
+      // no fields → straight copy (the one-tap flow Valentina relies on).
+      var grp=_groupIndex[groupKey(s)];
+      if(grp&&grp.length>1){
         closeBottomSheet();
-        setTimeout(function(){openDetail(s);},320);
+        setTimeout(function(){openDetail(s,grp);},320);
+      }else if(extractFields(s.body||'').length){
+        closeBottomSheet();
+        setTimeout(function(){openDetail(s,[s]);},320);
       }else{
         copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
         closeBottomSheet();
@@ -3027,7 +3087,9 @@ function renderAnalytics(){
     function activate(){
       var id=this.getAttribute('data-snip-id');
       var s=allSnips.find(function(x){return x.id===id;});
-      if(s)openDetail(s);
+      if(!s)return;
+      var grp=groupForRow(s);
+      openDetail(pickActiveVariant(grp,curLang),grp.variants);
     }
     el.addEventListener('click',activate);
     el.addEventListener('keydown',function(e){
