@@ -57,8 +57,11 @@ body{
   background:radial-gradient(circle,rgba(79,127,232,.55),transparent 65%);pointer-events:none}
 .mhello{display:flex;align-items:center;justify-content:space-between;
   margin-bottom:24px;position:relative;z-index:1}
-.mgreet{font-size:13px;opacity:.78;font-weight:500;letter-spacing:.1px}
-.mname{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-top:2px}
+/* Greeting + name share one baseline-aligned row — keeps the hero compact
+   and identical on the snippets home and the prompts page. */
+.mhello>div{display:flex;align-items:baseline;gap:6px;min-width:0}
+.mgreet{font-size:13px;opacity:.78;font-weight:500;letter-spacing:.1px;white-space:nowrap}
+.mname{font-size:20px;font-weight:700;letter-spacing:-.4px}
 .hdr-btn{
   width:42px;height:42px;min-width:42px;border-radius:50%;border:none;
   background:rgba(255,255,255,.18);color:#fff;cursor:pointer;
@@ -121,7 +124,7 @@ body{
 .mqa-tile:active{transform:scale(.95);opacity:.9}
 /* 3D icon well: extruded tile — soft outer drop + inner top-highlight / bottom-shade bevel. */
 .mqa-ico{
-  width:44px;height:44px;border-radius:14px;
+  align-self:stretch;height:44px;border-radius:14px;
   background:linear-gradient(158deg,#FFFFFF 0%,var(--primary-lt) 100%);
   color:var(--primary);
   display:flex;align-items:center;justify-content:center;
@@ -610,7 +613,7 @@ body{
 .share-team{background:#F0FDF4;color:#15803D}
 
 /* ── PROMPTS: fixed gradient hero (mirrors snippets home) ── */
-#view-prompts .mhero{flex-shrink:0;padding-bottom:22px}
+#view-prompts .mhero{flex-shrink:0}
 
 /* ── PROMPTS: sticky search + clear + result counter ── */
 #prompt-body .search-bar{
