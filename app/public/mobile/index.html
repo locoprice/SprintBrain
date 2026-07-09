@@ -1548,8 +1548,9 @@ function esc(s){
 
 // Canonical folder-icon SVG set — byte-identical to the extension's _FOLDER_SVGS
 // (extension/popup/popup.js) and the dashboard's lucide map (app/src/lib/folderIcons.tsx),
-// so a folder icon renders the same glyph on all three surfaces. folders.ico stores the
-// keyword key; size + stroke color come from CSS (see .sb-folder-row-ico svg etc.).
+// the native right-click menu projects the same keys to emoji (FOLDER_ICON_EMOJI in
+// extension/background/background.js), so a folder icon renders the same glyph on every
+// surface. folders.ico stores the keyword key; size + stroke color come from CSS.
 var FOLDER_ICON_KEYS=['folder','clipboard','home','message','cpu','star','key','dollar','file-text','globe'];
 var _FOLDER_SVGS={
   folder:'<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',

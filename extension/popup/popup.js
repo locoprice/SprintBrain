@@ -341,6 +341,11 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.95.0', date:'2026-07-09', label:'feat: right-click menu icons match the app',
+    changes:[
+      {type:'new', text:'Folder and snippet icons in the right-click menu now come from the same icon set as the dashboard and the mobile app. A snippet shows its folder icon, so the same item looks the same on every surface.'},
+      {type:'fix', text:'A folder whose icon you set in the dashboard now shows that icon in the menu, instead of a generic folder glyph.'}
+    ]},
   { version:'v2.94.0', date:'2026-07-09', label:'feat: compact right-click menu, grouped by language',
     changes:[
       {type:'new', text:'Language variants of a snippet collapse into one entry with a language submenu. A folder that listed 30 rows now reads as about a dozen: pick the snippet, then the language.'},

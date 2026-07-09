@@ -134,39 +134,34 @@ function loadData() {
   });
 }
 
-// ── ICON RULES (keyword-based, no schema change) ──────────────────
-var ICON_RULES = [
-  { re: /AEROPORT|AEROPUERT|AIRPORT/i,                icon: '✈️' },        // airplane
-  { re: /QUOTE|ESTIMATE|PRESUPUE|PREVENTIVO|BUDGET/i, icon: '\uD83D\uDCB0' },        // 💰
-  { re: /BOOKING|RESERV|NEOB/i,                       icon: '\uD83D\uDCC5' },        // 📅
-  { re: /FOLLOW[\s_-]?UP/i,                           icon: '\u2709\uFE0F' },        // ✉️
-  { re: /CALENDAR|\bCAL\b|PRICE|PREZZO|PRECIO/i,      icon: '\uD83D\uDCC6' },        // 📆
-  { re: /NOT[\s_-]?AVAIL|DISPONIBIL/i,                icon: '\uD83D\uDEAB' },        // 🚫
-  { re: /ALTERN/i,                                    icon: '\uD83D\uDD00' },        // 🔀
-  { re: /WITHDRAW|CANCEL|RITIRAR|RETIRAR/i,           icon: '\u21A9\uFE0F' },        // ↩️
-  { re: /MIN[\s_-]?STAY|MINIMUM/i,                    icon: '\uD83D\uDECF\uFE0F' },  // 🛏️
-  { re: /DISCOUNT|SALE|OFFER/i,                       icon: '\uD83C\uDFF7\uFE0F' },  // 🏷️
-  { re: /CHECK[\s_-]?IN/i,                            icon: '\uD83D\uDD11' },        // 🔑
-  { re: /CHECK[\s_-]?OUT/i,                           icon: '\uD83D\uDEAA' },        // 🚪
-  { re: /GRACE\s*PERIOD|\bGRACE\b|GRAZIA/i,           icon: '⏳' },              // hourglass
-  { re: /\bTIME\b|ORARIO|SCHEDULE/i,                  icon: '🕒' },        // clock
-  { re: /ADDRESS|LOCATION|INDIRIZZ/i,                 icon: '\uD83D\uDCCD' },        // 📍
-  { re: /PHONE|CALL\b/i,                              icon: '\uD83D\uDCDE' },        // 📞
-  { re: /PAYMENT|INVOICE|RECEIPT/i,                   icon: '\uD83D\uDCB3' },        // 💳
-  { re: /WELCOME|SALUDO|GREET|HELLO/i,                icon: '\uD83D\uDC4B' },        // 👋
-  { re: /THANK/i,                                     icon: '\uD83D\uDE4F' },        // 🙏
-  { re: /CONFIRM/i,                                   icon: '\u2705' },              // ✅
-  { re: /REMINDER/i,                                  icon: '\u23F0' },              // ⏰
-  { re: /FORM\b|JOT/i,                                icon: '\uD83D\uDCCB' },        // 📋
-  { re: /CUSTOMER|CLIENT|GUEST|CLIENTE/i,             icon: '\uD83D\uDC64' },        // 👤
-  { re: /ACCOMMO|HOUSE|ROOM|PROPERTY|LOCOPRICE/i,     icon: '\uD83C\uDFE0' }         // 🏠
-];
-function getSnippetIcon(title) {
-  var t = String(title || '');
-  for (var i = 0; i < ICON_RULES.length; i++) {
-    if (ICON_RULES[i].re.test(t)) return ICON_RULES[i].icon;
-  }
-  return '\uD83D\uDCC4'; // 📄
+// ── FOLDER-ICON VOCABULARY (emoji projection of the canonical keyword set) ──
+// The right-click menu is a native chrome.contextMenus tree — it can only render
+// text + emoji, never SVG — so these emoji are this surface's projection of the
+// SAME folder-icon vocabulary the dashboard draws with Lucide
+// (app/src/lib/folderIcons.tsx) and the popup + mobile draw with _FOLDER_SVGS.
+// Keep the keys in parity with FOLDER_ICON_KEYS in those files. A snippet shows
+// its FOLDER's glyph (the product-wide convention — see app/public/mobile/index.html),
+// so the same item shows the same icon on every surface.
+var FOLDER_ICON_EMOJI = {
+  folder: '📁', clipboard: '📋', home: '🏠', message: '💬', cpu: '🖥️',
+  star: '⭐', key: '🔑', dollar: '💵', 'file-text': '📄', globe: '🌐'
+};
+// Legacy dashboard emoji → canonical key, mirroring resolveFolderIcoKey on the
+// other surfaces so folders created before the vocabulary was unified keep a
+// meaningful glyph; anything unknown falls back to the folder glyph.
+var FOLDER_LEGACY_EMOJI = {
+  '🏠': 'home', '🌍': 'globe', '🏢': 'folder', '📋': 'clipboard', '📊': 'folder',
+  '💬': 'message', '✈️': 'folder', '🔧': 'key', '📝': 'file-text', '⭐': 'star'
+};
+function resolveFolderIcoKey(raw) {
+  if (!raw) return 'folder';
+  if (FOLDER_ICON_EMOJI[raw]) return raw;
+  if (FOLDER_LEGACY_EMOJI[raw]) return FOLDER_LEGACY_EMOJI[raw];
+  return 'folder';
+}
+// The emoji glyph for a folder's stored ico value (keyword key or legacy emoji).
+function folderEmoji(ico) {
+  return FOLDER_ICON_EMOJI[resolveFolderIcoKey(ico)];
 }
 
 // ── LANGUAGE ORDERING (EN → IT → ES → MULTI → rest) ───────────────
@@ -177,8 +172,7 @@ function langRank(l) {
 }
 
 // ── LABEL BUILDER: compact "{icon} TITLE · LANG" (shortcut dropped) ──
-function snippetLabel(s) {
-  var ico = getSnippetIcon(s.title);
+function snippetLabel(s, ico) {
   var title = String(s.title || 'Untitled').trim();
   var lang = s.lang ? String(s.lang).toUpperCase() : '';
   return lang ? (ico + ' ' + title + ' \u00B7 ' + lang) : (ico + ' ' + title);
@@ -232,14 +226,14 @@ function sortGroups(groups) {
 // language (EN, IT, ES, FR, MULTI). Every clickable leaf keeps the
 // sb-snip-<id> id the click handler expects, so the insertion path is unchanged.
 var _grpN = 0;
-function renderSnippetGroups(parentId, groups) {
+function renderSnippetGroups(parentId, groups, ico) {
   groups.forEach(function(g) {
     if (g.items.length === 1) {
       var s = g.items[0];
       chrome.contextMenus.create({
         id: 'sb-snip-' + s.id,
         parentId: parentId,
-        title: snippetLabel(s),
+        title: snippetLabel(s, ico),
         contexts: ['editable']
       });
       return;
@@ -249,7 +243,7 @@ function renderSnippetGroups(parentId, groups) {
     chrome.contextMenus.create({
       id: groupId,
       parentId: parentId,
-      title: getSnippetIcon(rep.title) + ' ' + String(rep.title || 'Untitled').trim(),
+      title: ico + ' ' + String(rep.title || 'Untitled').trim(),
       contexts: ['editable']
     });
     g.items.slice().sort(function(a, b) {
@@ -309,6 +303,15 @@ function buildContextMenus(data) {
     var byId = {};
     snippets.forEach(function(s) { byId[s.id] = s; });
 
+    // A snippet's icon is its FOLDER's glyph (product-wide convention),
+    // resolved to the emoji projection. Unfiled snippets fall back to 📁.
+    var folderById = {};
+    folders.forEach(function(f) { folderById[f.id] = f; });
+    function snipIco(s) {
+      var f = s.folder_id ? folderById[s.folder_id] : null;
+      return folderEmoji(f ? f.ico : '');
+    }
+
     // Group by folder
     var byFolder = {};
     var noFolder = [];
@@ -349,7 +352,7 @@ function buildContextMenus(data) {
         chrome.contextMenus.create({
           id: 'sb-recent-' + s.id,
           parentId: 'sb-root',
-          title: snippetLabel(s),
+          title: snippetLabel(s, snipIco(s)),
           contexts: ['editable']
         });
       });
@@ -380,14 +383,14 @@ function buildContextMenus(data) {
 
     foldersWithSnips.forEach(function(entry) {
       var f = entry.folder;
-      var folderIco = (f.ico && /\p{Extended_Pictographic}/u.test(f.ico)) ? f.ico : '\uD83D\uDCC2'; // 📂
+      var folderIco = folderEmoji(f.ico);
       chrome.contextMenus.create({
         id: 'sb-folder-' + f.id,
         parentId: 'sb-root',
         title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.groups.length + ')',
         contexts: ['editable']
       });
-      renderSnippetGroups('sb-folder-' + f.id, entry.groups);
+      renderSnippetGroups('sb-folder-' + f.id, entry.groups, folderIco);
     });
 
     // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
@@ -402,7 +405,7 @@ function buildContextMenus(data) {
           title: '\uD83D\uDCC4  Unfiled',  // 📄
           contexts: ['editable']
         });
-        renderSnippetGroups('sb-unfiled', unfiledGroups);
+        renderSnippetGroups('sb-unfiled', unfiledGroups, folderEmoji(''));
       } else {
         // 1-3 inline entries get a disabled header so they read as a section,
         // not loose rows floating at the root next to the folder submenus.
@@ -413,7 +416,7 @@ function buildContextMenus(data) {
           contexts: ['editable'],
           enabled: false
         });
-        renderSnippetGroups('sb-root', unfiledGroups);
+        renderSnippetGroups('sb-root', unfiledGroups, folderEmoji(''));
       }
     }
 
