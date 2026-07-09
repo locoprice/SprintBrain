@@ -24,6 +24,18 @@ interface HandoffPayload {
   email: string | null;
 }
 
+// AUTH-EXT-003: the preferred handoff is a one-time token_hash minted by the
+// mint-extension-session edge function — the extension redeems it and gets a
+// session of its own. Handing over this page's raw refresh token (the legacy
+// `session` field, kept for extensions that predate sbVerifyTokenHash) shared
+// one rotating refresh-token family between dashboard and extension, and token
+// rotation on either surface eventually revoked the other.
+interface HandoffMessage {
+  type: 'session_handoff';
+  session: HandoffPayload;
+  token_hash?: string;
+}
+
 declare global {
   // Minimal shape — we only call sendMessage from a regular web page.
   interface Window {
@@ -75,14 +87,25 @@ export function ExtensionLinkPage() {
       email: session.user?.email ?? null,
     };
 
+    // Mint the one-time token_hash (see HandoffMessage). A mint failure must
+    // never block linking — the extension then falls back to the legacy
+    // raw-session payload.
+    const message: HandoffMessage = { type: 'session_handoff', session: payload };
+    const { data: minted, error: mintError } = await supabase.functions.invoke<{
+      token_hash?: string;
+    }>('mint-extension-session');
+    if (!mintError && minted && typeof minted.token_hash === 'string' && minted.token_hash) {
+      message.token_hash = minted.token_hash;
+    }
+
     // Try every known extension ID; the first one that responds wins.
     let succeeded = false;
     let lastErr = 'Extension not installed.';
     for (const extId of SPRINTBRAIN_EXTENSION_IDS) {
-      const result = await sendToExtension(extId, payload);
+      const result = await sendToExtension(extId, message);
       if (result.ok) {
         succeeded = true;
-        setLinkedAs(payload.email ?? '(your account)');
+        setLinkedAs(message.session.email ?? '(your account)');
         break;
       }
       lastErr = result.error;
@@ -98,13 +121,13 @@ export function ExtensionLinkPage() {
 
   function sendToExtension(
     extId: string,
-    payload: HandoffPayload,
+    message: HandoffMessage,
   ): Promise<{ ok: true } | { ok: false; error: string }> {
     return new Promise((resolve) => {
       try {
         window.chrome!.runtime!.sendMessage(
           extId,
-          { type: 'session_handoff', session: payload },
+          message,
           (response) => {
             const lastErr = window.chrome?.runtime?.lastError?.message;
             if (lastErr) {

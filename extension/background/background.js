@@ -64,20 +64,39 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 });
 
-// ── AUTH-EXT-002: accept session handoff from the dashboard ───────
+// ── AUTH-EXT-002/003: accept session handoff from the dashboard ───
 // externally_connectable in manifest already restricts senders to the dashboard
 // origin; we double-check the URL prefix as defense in depth.
+//
+// Preferred payload (AUTH-EXT-003) carries a one-time token_hash: redeeming it
+// at /auth/v1/verify gives the extension a session of its OWN. Storing the
+// dashboard's raw tokens (the original AUTH-EXT-002 shape, kept as fallback)
+// shared one rotating refresh-token family between the two surfaces — whichever
+// refreshed second got the family revoked, signing the extension out.
 chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse) {
   if (!sender || !sender.url || sender.url.indexOf('https://app.sprintbrain.com/') !== 0) {
     sendResponse({ ok: false, error: 'unauthorized_origin' });
     return false;
   }
-  if (msg && msg.type === 'session_handoff' && msg.session && msg.session.access_token) {
-    sbSetSession(msg.session, function() {
-      // Rebuild context menus immediately under the new identity.
-      try { initMenus(); } catch(e) {}
-      sendResponse({ ok: true, user_id: msg.session.user_id || null });
-    });
+  if (msg && msg.type === 'session_handoff') {
+    var legacy = (msg.session && msg.session.access_token) ? msg.session : null;
+    var acceptLegacy = function() {
+      if (!legacy) { sendResponse({ ok: false, error: 'invalid_payload' }); return; }
+      sbSetSession(legacy, function() {
+        // Rebuild context menus immediately under the new identity.
+        try { initMenus(); } catch(e) {}
+        sendResponse({ ok: true, user_id: legacy.user_id || null });
+      });
+    };
+    if (msg.token_hash) {
+      sbVerifyTokenHash(msg.token_hash, function(err, session) {
+        if (err || !session) { acceptLegacy(); return; }
+        try { initMenus(); } catch(e) {}
+        sendResponse({ ok: true, user_id: session.user_id || null });
+      });
+    } else {
+      acceptLegacy();
+    }
     return true; // keep the channel open for the async sendResponse
   }
   sendResponse({ ok: false, error: 'invalid_payload' });

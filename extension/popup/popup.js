@@ -341,6 +341,12 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.93.0', date:'2026-07-09', label:'fix: the extension stays signed in',
+    changes:[
+      {type:'fix', text:'"Sign in via dashboard" now gives the extension a session of its own instead of borrowing the dashboard’s — the two no longer sign each other out'},
+      {type:'fix', text:'A network blip or server hiccup during token refresh no longer signs you out — the extension keeps your session and retries'},
+      {type:'new', text:'"Keep me signed in" now renews while you use SprintBrain, so an active account stays signed in until you sign out'}
+    ]},
   { version:'v2.87.0', date:'2026-07-03', label:'refactor: read-only popup — manage everything in the dashboard',
     changes:[
       {type:'refactor', text:'The popup is now a fast launcher: browse, search and copy snippets and prompts. Creating and editing snippets, folders, triggers, Notion credentials and Team Sync live only in the dashboard — one source of truth, no drift between surfaces'},

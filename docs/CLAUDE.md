@@ -168,9 +168,10 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 - **Also the logic core of the web dashboard** (`Sprintbrain.html`, repo root): its `DB`, model helpers, and `window.*` globals (incl. `CHANGELOG`) are reused there behind `extension/shared/chrome-shim.js`. Editing popup.js affects **both** the extension popup and the dashboard — verify both surfaces. See §14.
 
 **`auth/auth.js`** — Supabase OTP + session management
-- Loaded via `importScripts()` in `background.js`
-- `signInWithOtp(email)`, `verifyOtp(email, token)`, `getSession()`, `refreshSession()`
-- Stores session JWT in `chrome.storage.local`
+- Loaded via `importScripts()` in `background.js` and as a plain script by the popup and `Sprintbrain.html`
+- `sbRequestOtp(email)`, `sbVerifyOtp(email, code, rememberMe)`, `sbVerifyTokenHash(tokenHash)` — the dashboard SSO handoff (AUTH-EXT-003) redeems a one-time token_hash minted by the `mint-extension-session` edge function, so the extension owns a refresh-token family independent from the dashboard's
+- `sbRefreshToken()` is fail-open: only a definitive GoTrue rejection (or a closed remember-me window) clears the session; transient errors keep it. The 30-day remember window slides forward on every successful refresh
+- Stores the session in `chrome.storage.local` (`sb_session`, `sb_remember_until`)
 
 **`services/notion-sync/notion-sync.js`** — Notion integration (17K)
 - `_queryDatabase()` — Incremental query filtered by `last_edited_time`
