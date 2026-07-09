@@ -341,6 +341,23 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.95.0', date:'2026-07-09', label:'feat: right-click menu icons match the app',
+    changes:[
+      {type:'new', text:'Folder and snippet icons in the right-click menu now come from the same icon set as the dashboard and the mobile app. A snippet shows its folder icon, so the same item looks the same on every surface.'},
+      {type:'fix', text:'A folder whose icon you set in the dashboard now shows that icon in the menu, instead of a generic folder glyph.'}
+    ]},
+  { version:'v2.94.0', date:'2026-07-09', label:'feat: compact right-click menu, grouped by language',
+    changes:[
+      {type:'new', text:'Language variants of a snippet collapse into one entry with a language submenu. A folder that listed 30 rows now reads as about a dozen: pick the snippet, then the language.'},
+      {type:'new', text:'Tighter rows showing icon, title and language only. The trigger shortcut moved off the menu; it is still shown on every snippet in the popup and dashboard.'},
+      {type:'new', text:'Clear sections with headers and separators for Recent, your folders and Unfiled, plus sharper icons for airport, price, time and withdraw.'}
+    ]},
+  { version:'v2.93.0', date:'2026-07-09', label:'fix: the extension stays signed in',
+    changes:[
+      {type:'fix', text:'"Sign in via dashboard" now gives the extension a session of its own instead of borrowing the dashboard’s — the two no longer sign each other out'},
+      {type:'fix', text:'A network blip or server hiccup during token refresh no longer signs you out — the extension keeps your session and retries'},
+      {type:'new', text:'"Keep me signed in" now renews while you use SprintBrain, so an active account stays signed in until you sign out'}
+    ]},
   { version:'v2.87.0', date:'2026-07-03', label:'refactor: read-only popup — manage everything in the dashboard',
     changes:[
       {type:'refactor', text:'The popup is now a fast launcher: browse, search and copy snippets and prompts. Creating and editing snippets, folders, triggers, Notion credentials and Team Sync live only in the dashboard — one source of truth, no drift between surfaces'},

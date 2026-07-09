@@ -64,20 +64,39 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 });
 
-// ── AUTH-EXT-002: accept session handoff from the dashboard ───────
+// ── AUTH-EXT-002/003: accept session handoff from the dashboard ───
 // externally_connectable in manifest already restricts senders to the dashboard
 // origin; we double-check the URL prefix as defense in depth.
+//
+// Preferred payload (AUTH-EXT-003) carries a one-time token_hash: redeeming it
+// at /auth/v1/verify gives the extension a session of its OWN. Storing the
+// dashboard's raw tokens (the original AUTH-EXT-002 shape, kept as fallback)
+// shared one rotating refresh-token family between the two surfaces — whichever
+// refreshed second got the family revoked, signing the extension out.
 chrome.runtime.onMessageExternal.addListener(function(msg, sender, sendResponse) {
   if (!sender || !sender.url || sender.url.indexOf('https://app.sprintbrain.com/') !== 0) {
     sendResponse({ ok: false, error: 'unauthorized_origin' });
     return false;
   }
-  if (msg && msg.type === 'session_handoff' && msg.session && msg.session.access_token) {
-    sbSetSession(msg.session, function() {
-      // Rebuild context menus immediately under the new identity.
-      try { initMenus(); } catch(e) {}
-      sendResponse({ ok: true, user_id: msg.session.user_id || null });
-    });
+  if (msg && msg.type === 'session_handoff') {
+    var legacy = (msg.session && msg.session.access_token) ? msg.session : null;
+    var acceptLegacy = function() {
+      if (!legacy) { sendResponse({ ok: false, error: 'invalid_payload' }); return; }
+      sbSetSession(legacy, function() {
+        // Rebuild context menus immediately under the new identity.
+        try { initMenus(); } catch(e) {}
+        sendResponse({ ok: true, user_id: legacy.user_id || null });
+      });
+    };
+    if (msg.token_hash) {
+      sbVerifyTokenHash(msg.token_hash, function(err, session) {
+        if (err || !session) { acceptLegacy(); return; }
+        try { initMenus(); } catch(e) {}
+        sendResponse({ ok: true, user_id: session.user_id || null });
+      });
+    } else {
+      acceptLegacy();
+    }
     return true; // keep the channel open for the async sendResponse
   }
   sendResponse({ ok: false, error: 'invalid_payload' });
@@ -115,64 +134,130 @@ function loadData() {
   });
 }
 
-// ── ICON RULES (keyword-based, no schema change) ──────────────────
-var ICON_RULES = [
-  { re: /QUOTE|ESTIMATE|PRESUPUE|PREVENTIVO|BUDGET/i, icon: '\uD83D\uDCB0' },        // 💰
-  { re: /BOOKING|RESERV|NEOB/i,                       icon: '\uD83D\uDCC5' },        // 📅
-  { re: /FOLLOW[\s_-]?UP/i,                           icon: '\u2709\uFE0F' },        // ✉️
-  { re: /CALENDAR|\bCAL\b|PRICE/i,                    icon: '\uD83D\uDCC6' },        // 📆
-  { re: /NOT[\s_-]?AVAIL|DISPONIBIL/i,                icon: '\uD83D\uDEAB' },        // 🚫
-  { re: /ALTERN/i,                                    icon: '\uD83D\uDD00' },        // 🔀
-  { re: /WITHDRAW|CANCEL/i,                           icon: '\u21A9\uFE0F' },        // ↩️
-  { re: /MIN[\s_-]?STAY|MINIMUM/i,                    icon: '\uD83D\uDECF\uFE0F' },  // 🛏️
-  { re: /DISCOUNT|SALE|OFFER/i,                       icon: '\uD83C\uDFF7\uFE0F' },  // 🏷️
-  { re: /CHECK[\s_-]?IN/i,                            icon: '\uD83D\uDD11' },        // 🔑
-  { re: /CHECK[\s_-]?OUT/i,                           icon: '\uD83D\uDEAA' },        // 🚪
-  { re: /ADDRESS|LOCATION|INDIRIZZ/i,                 icon: '\uD83D\uDCCD' },        // 📍
-  { re: /PHONE|CALL\b/i,                              icon: '\uD83D\uDCDE' },        // 📞
-  { re: /PAYMENT|INVOICE|RECEIPT/i,                   icon: '\uD83D\uDCB3' },        // 💳
-  { re: /WELCOME|SALUDO|GREET|HELLO/i,                icon: '\uD83D\uDC4B' },        // 👋
-  { re: /THANK/i,                                     icon: '\uD83D\uDE4F' },        // 🙏
-  { re: /CONFIRM/i,                                   icon: '\u2705' },              // ✅
-  { re: /REMINDER/i,                                  icon: '\u23F0' },              // ⏰
-  { re: /FORM\b|JOT/i,                                icon: '\uD83D\uDCCB' },        // 📋
-  { re: /CUSTOMER|CLIENT|GUEST|CLIENTE/i,             icon: '\uD83D\uDC64' },        // 👤
-  { re: /ACCOMMO|HOUSE|ROOM|PROPERTY|LOCOPRICE/i,     icon: '\uD83C\uDFE0' }         // 🏠
-];
-function getSnippetIcon(title) {
-  var t = String(title || '');
-  for (var i = 0; i < ICON_RULES.length; i++) {
-    if (ICON_RULES[i].re.test(t)) return ICON_RULES[i].icon;
-  }
-  return '\uD83D\uDCC4'; // 📄
+// ── FOLDER-ICON VOCABULARY (emoji projection of the canonical keyword set) ──
+// The right-click menu is a native chrome.contextMenus tree — it can only render
+// text + emoji, never SVG — so these emoji are this surface's projection of the
+// SAME folder-icon vocabulary the dashboard draws with Lucide
+// (app/src/lib/folderIcons.tsx) and the popup + mobile draw with _FOLDER_SVGS.
+// Keep the keys in parity with FOLDER_ICON_KEYS in those files. A snippet shows
+// its FOLDER's glyph (the product-wide convention — see app/public/mobile/index.html),
+// so the same item shows the same icon on every surface.
+var FOLDER_ICON_EMOJI = {
+  folder: '📁', clipboard: '📋', home: '🏠', message: '💬', cpu: '🖥️',
+  star: '⭐', key: '🔑', dollar: '💵', 'file-text': '📄', globe: '🌐'
+};
+// Legacy dashboard emoji → canonical key, mirroring resolveFolderIcoKey on the
+// other surfaces so folders created before the vocabulary was unified keep a
+// meaningful glyph; anything unknown falls back to the folder glyph.
+var FOLDER_LEGACY_EMOJI = {
+  '🏠': 'home', '🌍': 'globe', '🏢': 'folder', '📋': 'clipboard', '📊': 'folder',
+  '💬': 'message', '✈️': 'folder', '🔧': 'key', '📝': 'file-text', '⭐': 'star'
+};
+function resolveFolderIcoKey(raw) {
+  if (!raw) return 'folder';
+  if (FOLDER_ICON_EMOJI[raw]) return raw;
+  if (FOLDER_LEGACY_EMOJI[raw]) return FOLDER_LEGACY_EMOJI[raw];
+  return 'folder';
+}
+// The emoji glyph for a folder's stored ico value (keyword key or legacy emoji).
+function folderEmoji(ico) {
+  return FOLDER_ICON_EMOJI[resolveFolderIcoKey(ico)];
 }
 
 // ── LANGUAGE ORDERING (EN → IT → ES → MULTI → rest) ───────────────
-var LANG_ORDER = ['EN', 'IT', 'ES', 'MULTI'];
+var LANG_ORDER = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
 function langRank(l) {
-  var i = LANG_ORDER.indexOf(l || 'EN');
+  var i = LANG_ORDER.indexOf((l || 'EN').toUpperCase());
   return i < 0 ? 99 : i;
 }
 
-// ── LABEL BUILDER: "{icon} TITLE · LANG · !!shortcut" ─────────────
-function snippetLabel(s) {
-  var ico = getSnippetIcon(s.title);
-  var parts = [String(s.title || 'Untitled').trim()];
-  if (s.lang) parts.push(String(s.lang).toUpperCase());
-  if (s.shortcut) parts.push(String(s.shortcut));
-  return ico + '  ' + parts.join('  \u00B7  ');
+// ── LABEL BUILDER: compact "{icon} TITLE · LANG" (shortcut dropped) ──
+function snippetLabel(s, ico) {
+  var title = String(s.title || 'Untitled').trim();
+  var lang = s.lang ? String(s.lang).toUpperCase() : '';
+  return lang ? (ico + ' ' + title + ' \u00B7 ' + lang) : (ico + ' ' + title);
 }
 
-// ── SORT: respect sort_order, then keep lang variants adjacent (EN first) ──
-function sortForMenu(arr) {
-  return arr.slice().sort(function(a, b) {
-    var sa = (a.sort_order == null) ? 1e9 : a.sort_order;
-    var sb = (b.sort_order == null) ? 1e9 : b.sort_order;
+// Child row inside a language submenu - just the language code.
+function langChildLabel(s) {
+  return String(s.lang || 'EN').toUpperCase();
+}
+
+// GROUP language variants (same lang_group_id) into one entry.
+// Returns [{ items: [snippet, ...] }]. A snippet with no lang_group_id (or a
+// group with a single member in this scope) is its own singleton entry, so it
+// renders as a plain leaf rather than a needless one-item submenu.
+function groupByLang(snips) {
+  var groups = [];
+  var byKey = {};
+  snips.forEach(function(s) {
+    var lg = (s.lang_group_id != null && String(s.lang_group_id).trim() !== '')
+      ? 'g:' + s.lang_group_id
+      : 's:' + s.id;
+    if (!byKey[lg]) { byKey[lg] = { items: [] }; groups.push(byKey[lg]); }
+    byKey[lg].items.push(s);
+  });
+  return groups;
+}
+
+// Lowest sort_order in a group (its position among siblings).
+function groupMinSort(g) {
+  var min = 1e9;
+  g.items.forEach(function(s) {
+    var v = (s.sort_order == null) ? 1e9 : s.sort_order;
+    if (v < min) min = v;
+  });
+  return min;
+}
+
+// Order groups by sort_order then title; stable and predictable.
+function sortGroups(groups) {
+  return groups.slice().sort(function(a, b) {
+    var sa = groupMinSort(a), sb = groupMinSort(b);
     if (sa !== sb) return sa - sb;
-    var ta = (a.title || '').toLowerCase();
-    var tb = (b.title || '').toLowerCase();
-    if (ta !== tb) return ta < tb ? -1 : 1;
-    return langRank(a.lang) - langRank(b.lang);
+    var ta = (a.items[0].title || '').toLowerCase();
+    var tb = (b.items[0].title || '').toLowerCase();
+    return ta === tb ? 0 : (ta < tb ? -1 : 1);
+  });
+}
+
+// Emit grouped snippet rows under parentId: singletons as sb-snip-<id> leaves,
+// multi-language groups as a titled submenu with one sb-snip-<id> child per
+// language (EN, IT, ES, FR, MULTI). Every clickable leaf keeps the
+// sb-snip-<id> id the click handler expects, so the insertion path is unchanged.
+var _grpN = 0;
+function renderSnippetGroups(parentId, groups, ico) {
+  groups.forEach(function(g) {
+    if (g.items.length === 1) {
+      var s = g.items[0];
+      chrome.contextMenus.create({
+        id: 'sb-snip-' + s.id,
+        parentId: parentId,
+        title: snippetLabel(s, ico),
+        contexts: ['editable']
+      });
+      return;
+    }
+    var rep = g.items[0];
+    var groupId = 'sb-grp-' + (++_grpN);
+    chrome.contextMenus.create({
+      id: groupId,
+      parentId: parentId,
+      title: ico + ' ' + String(rep.title || 'Untitled').trim(),
+      contexts: ['editable']
+    });
+    g.items.slice().sort(function(a, b) {
+      var r = langRank(a.lang) - langRank(b.lang);
+      if (r !== 0) return r;
+      return (a.title || '').toLowerCase() < (b.title || '').toLowerCase() ? -1 : 1;
+    }).forEach(function(s) {
+      chrome.contextMenus.create({
+        id: 'sb-snip-' + s.id,
+        parentId: groupId,
+        title: langChildLabel(s),
+        contexts: ['editable']
+      });
+    });
   });
 }
 
@@ -218,6 +303,15 @@ function buildContextMenus(data) {
     var byId = {};
     snippets.forEach(function(s) { byId[s.id] = s; });
 
+    // A snippet's icon is its FOLDER's glyph (product-wide convention),
+    // resolved to the emoji projection. Unfiled snippets fall back to 📁.
+    var folderById = {};
+    folders.forEach(function(f) { folderById[f.id] = f; });
+    function snipIco(s) {
+      var f = s.folder_id ? folderById[s.folder_id] : null;
+      return folderEmoji(f ? f.ico : '');
+    }
+
     // Group by folder
     var byFolder = {};
     var noFolder = [];
@@ -258,7 +352,7 @@ function buildContextMenus(data) {
         chrome.contextMenus.create({
           id: 'sb-recent-' + s.id,
           parentId: 'sb-root',
-          title: snippetLabel(s),
+          title: snippetLabel(s, snipIco(s)),
           contexts: ['editable']
         });
       });
@@ -272,7 +366,7 @@ function buildContextMenus(data) {
     folders.forEach(function(f) {
       var fSnips = byFolder[f.id] || [];
       if (fSnips.length === 0) return;
-      foldersWithSnips.push({ folder: f, snips: sortForMenu(fSnips) });
+      foldersWithSnips.push({ folder: f, groups: sortGroups(groupByLang(fSnips)) });
     });
     // Stable folder order: sort_order first, then name.
     foldersWithSnips.sort(function(a, b) {
@@ -289,52 +383,40 @@ function buildContextMenus(data) {
 
     foldersWithSnips.forEach(function(entry) {
       var f = entry.folder;
-      var folderIco = (f.ico && /\p{Extended_Pictographic}/u.test(f.ico)) ? f.ico : '\uD83D\uDCC2'; // 📂
+      var folderIco = folderEmoji(f.ico);
       chrome.contextMenus.create({
         id: 'sb-folder-' + f.id,
         parentId: 'sb-root',
-        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.snips.length + ')',
+        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.groups.length + ')',
         contexts: ['editable']
       });
-      entry.snips.forEach(function(s) {
-        chrome.contextMenus.create({
-          id: 'sb-snip-' + s.id,
-          parentId: 'sb-folder-' + f.id,
-          title: snippetLabel(s),
-          contexts: ['editable']
-        });
-      });
+      renderSnippetGroups('sb-folder-' + f.id, entry.groups, folderIco);
     });
 
     // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
     if (noFolder.length > 0) {
-      var sortedNoFolder = sortForMenu(noFolder);
+      var unfiledGroups = sortGroups(groupByLang(noFolder));
       if (showingFolders || recent.length > 0) addSep('sb-root');
 
-      if (sortedNoFolder.length >= 4) {
+      if (unfiledGroups.length >= 4) {
         chrome.contextMenus.create({
           id: 'sb-unfiled',
           parentId: 'sb-root',
           title: '\uD83D\uDCC4  Unfiled',  // 📄
           contexts: ['editable']
         });
-        sortedNoFolder.forEach(function(s) {
-          chrome.contextMenus.create({
-            id: 'sb-snip-' + s.id,
-            parentId: 'sb-unfiled',
-            title: snippetLabel(s),
-            contexts: ['editable']
-          });
-        });
+        renderSnippetGroups('sb-unfiled', unfiledGroups, folderEmoji(''));
       } else {
-        sortedNoFolder.forEach(function(s) {
-          chrome.contextMenus.create({
-            id: 'sb-snip-' + s.id,
-            parentId: 'sb-root',
-            title: snippetLabel(s),
-            contexts: ['editable']
-          });
+        // 1-3 inline entries get a disabled header so they read as a section,
+        // not loose rows floating at the root next to the folder submenus.
+        chrome.contextMenus.create({
+          id: 'sb-hdr-unfiled',
+          parentId: 'sb-root',
+          title: '📄  Unfiled',  // 📄
+          contexts: ['editable'],
+          enabled: false
         });
+        renderSnippetGroups('sb-root', unfiledGroups, folderEmoji(''));
       }
     }
 

@@ -1,6 +1,9 @@
-// ── SPRINTBRAIN AUTH v2.86.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002)
+// ── SPRINTBRAIN AUTH v2.93.0 — Email-OTP + dashboard SSO handoff (AUTH-EXT-002/003)
 //    + server-side session liveness (sbCheckSessionAlive) and login-activity
-//    logging for the Settings → Security dashboard feature. ──
+//    logging for the Settings → Security dashboard feature.
+//    v2.93.0: SSO handoff redeems a one-time token_hash (sbVerifyTokenHash) so
+//    the extension owns an independent refresh-token family; token refresh is
+//    fail-open on transient errors; the remember-me window slides on use. ──
 // Loaded by both the popup (via <script>) and the background SW (via importScripts).
 // Vanilla JS, no SDK, talks to Supabase /auth/v1/* directly.
 //
@@ -57,6 +60,25 @@ function sbRequestOtp(email, cb) {
   }).catch(function(e) { cb(e.message || 'Network error'); });
 }
 
+// Shared acceptance of a successful /auth/v1/verify response: build + persist
+// the session, base the remember-me window, mirror trigger metadata, log the
+// login for the Security dashboard.
+function _sbAcceptVerifiedSession(j, fallbackEmail, rememberUntil, method, cb) {
+  var session = {
+    access_token: j.access_token,
+    refresh_token: j.refresh_token,
+    expires_at: j.expires_at || (Math.floor(Date.now() / 1000) + (j.expires_in || 3600)),
+    user_id: j.user && j.user.id ? j.user.id : null,
+    email: (j.user && j.user.email) || fallbackEmail
+  };
+  chrome.storage.local.set({ sb_remember_until: rememberUntil });
+  if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
+  sbSetSession(session, function() {
+    sbLogLoginEvent(session.access_token, method);
+    cb(null, session);
+  });
+}
+
 // POST /auth/v1/verify — exchanges (email, OTP code) for tokens.
 // rememberMe: true → store 30-day expiry; false → expire with access token (no auto-refresh).
 function sbVerifyOtp(email, token, rememberMe, cb) {
@@ -73,22 +95,32 @@ function sbVerifyOtp(email, token, rememberMe, cb) {
         cb(msg, null);
         return;
       }
-      var session = {
-        access_token: j.access_token,
-        refresh_token: j.refresh_token,
-        expires_at: j.expires_at || (Math.floor(Date.now() / 1000) + (j.expires_in || 3600)),
-        user_id: j.user && j.user.id ? j.user.id : null,
-        email: (j.user && j.user.email) || email
-      };
       var rememberUntil = rememberMe !== false
         ? Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
         : 0;
-      chrome.storage.local.set({ sb_remember_until: rememberUntil });
-      if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
-      sbSetSession(session, function() {
-        sbLogLoginEvent(session.access_token);
-        cb(null, session);
-      });
+      _sbAcceptVerifiedSession(j, email, rememberUntil, 'email_otp', cb);
+    });
+  }).catch(function(e) { cb(e.message || 'Network error', null); });
+}
+
+// POST /auth/v1/verify with a one-time token_hash minted server-side by the
+// mint-extension-session edge function (AUTH-EXT-003). Verifying it creates a
+// session of the extension's own — an independent refresh-token family, so
+// dashboard and extension token rotations can never revoke each other.
+function sbVerifyTokenHash(tokenHash, cb) {
+  fetch(SB_SUPA_URL + '/auth/v1/verify', {
+    method: 'POST',
+    headers: { 'apikey': SB_SUPA_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_hash: tokenHash, type: 'magiclink' })
+  }).then(function(r) {
+    return r.text().then(function(t) {
+      var j = null;
+      try { j = JSON.parse(t); } catch(e) {}
+      if (!r.ok || !j || !j.access_token) {
+        cb((j && (j.msg || j.error_description || j.error)) || 'Invalid link token', null);
+        return;
+      }
+      _sbAcceptVerifiedSession(j, null, Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, 'magic_link', cb);
     });
   }).catch(function(e) { cb(e.message || 'Network error', null); });
 }
@@ -97,12 +129,12 @@ function sbVerifyOtp(email, token, rememberMe, cb) {
 // "Recent login activity" (Settings → Security). IP, user-agent, country and
 // timestamp are derived server-side; repeat calls for one session are no-ops.
 // Best-effort fire-and-forget: a failed log must never block login.
-function sbLogLoginEvent(accessToken) {
+function sbLogLoginEvent(accessToken, method) {
   try {
     fetch(SB_SUPA_URL + '/rest/v1/rpc/log_login_event', {
       method: 'POST',
       headers: { 'apikey': SB_SUPA_ANON_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_method: 'email_otp' })
+      body: JSON.stringify({ p_method: method || 'email_otp' })
     }).catch(function() {});
   } catch(e) {}
 }
@@ -135,6 +167,10 @@ function sbCheckSessionAlive(cb) {
 
 // POST /auth/v1/token?grant_type=refresh_token — rotates the access_token.
 // Skips refresh and rejects if the user's remember-me window has closed.
+// Fail-open by design: only a definitive GoTrue rejection of the refresh token
+// (or a closed remember-me window) clears the stored session. Transient
+// failures — offline, 5xx, rate limit — keep it, so the next caller retries
+// and a blip never signs the user out.
 function sbRefreshToken(cb) {
   if (_sbRefreshing) { _sbRefreshing.then(function(s){ cb(null, s); }, function(e){ cb(e, null); }); return; }
   _sbRefreshing = new Promise(function(resolve, reject) {
@@ -146,9 +182,9 @@ function sbRefreshToken(cb) {
         reject(new Error('session_expired'));
         return;
       }
-      doRefresh();
+      doRefresh(until);
     });
-    function doRefresh() {
+    function doRefresh(until) {
     sbGetSession(function(s) {
       if (!s || !s.refresh_token) { reject(new Error('no_session')); return; }
       fetch(SB_SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
@@ -160,7 +196,10 @@ function sbRefreshToken(cb) {
           var j = null;
           try { j = JSON.parse(t); } catch(e) {}
           if (!r.ok || !j || !j.access_token) {
-            reject(new Error('refresh_failed'));
+            // 4xx (minus 408/429) = GoTrue rejected this refresh token — the
+            // session is genuinely dead. Anything else is transient.
+            var dead = r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429;
+            reject(new Error(dead ? 'refresh_rejected' : 'refresh_transient'));
             return;
           }
           var next = {
@@ -171,15 +210,31 @@ function sbRefreshToken(cb) {
             email:   (j.user && j.user.email) || s.email
           };
           if (j.user && j.user.user_metadata) sbApplyTriggerMetadata(j.user.user_metadata);
-          sbSetSession(next, function() { resolve(next); });
+          sbSetSession(next, function() {
+            // Sliding remember-me: each successful refresh re-bases the 30-day
+            // window, so an account in active use stays signed in indefinitely.
+            // 0 (user declined remember-me) never slides.
+            if (until !== 0) {
+              chrome.storage.local.set({ sb_remember_until: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 });
+            }
+            resolve(next);
+          });
         });
-      }).catch(function(e) { reject(e); });
+      }).catch(function() { reject(new Error('refresh_transient')); });
     });
     }
   });
   _sbRefreshing.then(
     function(s) { _sbRefreshing = null; cb(null, s); },
-    function(e) { _sbRefreshing = null; sbClearSession(function() { cb(e.message || 'refresh_failed', null); }); }
+    function(e) {
+      _sbRefreshing = null;
+      var reason = (e && e.message) || 'refresh_failed';
+      if (reason === 'refresh_rejected' || reason === 'session_expired') {
+        sbClearSession(function() { cb(reason, null); });
+      } else {
+        cb(reason, null);
+      }
+    }
   );
 }
 

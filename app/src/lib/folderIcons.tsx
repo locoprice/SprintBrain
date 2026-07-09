@@ -16,9 +16,10 @@ import { cn } from '@/lib/utils';
 // Canonical folder-icon vocabulary, shared across all three surfaces. The value
 // persisted in `folders.ico` is one of these keyword keys (NOT an emoji), so the
 // dashboard, the Chrome extension, and the mobile companion all resolve the same
-// glyph. Keep this list and its order in parity with the extension's
-// `_FOLDER_SVGS` (extension/popup/popup.js) and the mobile `FOLDER_ICO_MAP`
-// (app/public/mobile/index.html).
+// glyph. Keep this list and its order in parity with the three other projections
+// of the same vocabulary: the extension popup + mobile `_FOLDER_SVGS`
+// (extension/popup/popup.js, app/public/mobile/index.html) and the native
+// context-menu emoji map `FOLDER_ICON_EMOJI` (extension/background/background.js).
 export const FOLDER_ICON_KEYS = [
   'folder',
   'clipboard',
