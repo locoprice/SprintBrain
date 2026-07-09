@@ -341,6 +341,12 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.94.0', date:'2026-07-09', label:'feat: compact right-click menu, grouped by language',
+    changes:[
+      {type:'new', text:'Language variants of a snippet collapse into one entry with a language submenu. A folder that listed 30 rows now reads as about a dozen: pick the snippet, then the language.'},
+      {type:'new', text:'Tighter rows showing icon, title and language only. The trigger shortcut moved off the menu; it is still shown on every snippet in the popup and dashboard.'},
+      {type:'new', text:'Clear sections with headers and separators for Recent, your folders and Unfiled, plus sharper icons for airport, price, time and withdraw.'}
+    ]},
   { version:'v2.93.0', date:'2026-07-09', label:'fix: the extension stays signed in',
     changes:[
       {type:'fix', text:'"Sign in via dashboard" now gives the extension a session of its own instead of borrowing the dashboard’s — the two no longer sign each other out'},
