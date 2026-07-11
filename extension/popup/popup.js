@@ -187,6 +187,7 @@ var activeMode   = 'snippets';
 // Sprintbrain.html is unaffected — it drives its own nv-* presentation).
 var expandedId      = null;   // snippet id whose inline detail is open
 var detailLang      = null;   // active language inside the open detail
+var detailFieldVals = {};     // user-entered field values for the open detail's fill form
 var selIdx          = -1;     // keyboard selection index in the snippet list
 var pSelIdx         = -1;     // keyboard selection index in the prompt list
 var loaded          = false;  // true once the authoritative Supabase load resolves
@@ -353,6 +354,11 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.98.0', date:'2026-07-11', label:'feat: fill snippet fields and copy the result from the popup',
+    changes:[
+      {type:'new', text:'Open a snippet in the popup and, if it has fields like {guest_name}, fill them right there and hit Copy filled — you get the finished text ready to paste into WhatsApp Web or anywhere the in-field trigger is awkward.'},
+      {type:'new', text:'Dates, formulas and conditional blocks resolve too, using the same engine as the in-page trigger, so the copied text matches exactly. Copy raw still gives you the untouched template.'}
+    ]},
   { version:'v2.97.0', date:'2026-07-11', label:'feat: popup redesign — a faster, search-first launcher',
     changes:[
       {type:'new', text:'The popup opens with the search box focused — just type to filter, press Enter to copy the top result. Arrow keys move through the list; no mouse needed.'},
@@ -1187,6 +1193,60 @@ function detailBody(s, lang, vars){
   return (lang===(s.lang||'EN')) ? (s.body||'') : '';
 }
 
+// \u2500\u2500 FILL-AND-COPY (read-only resolve; never mutates the snippet) \u2500\u2500\u2500\u2500\u2500
+// Field detection mirrors the dashboard Composer: {formtext/date/menu:}
+// configs, then {{placeholders}}, then bare {fields}.
+function detailFieldDefs(body){
+  var FE=window.SBFormulaEngine; if(!FE||!body) return {};
+  var defs={};
+  try{
+    var dyn=FE.buildFormFieldCfg(body); for(var k in dyn) defs[k]=dyn[k];
+    var ph=FE.parsePlaceholders(body); for(var i=0;i<ph.length;i++){ if(!defs[ph[i]]) defs[ph[i]]={type:'text',default:''}; }
+    var sf=FE.extractFields(body); for(var j=0;j<sf.length;j++){ if(!defs[sf[j]]) defs[sf[j]]={type:'text',default:''}; }
+  }catch(e){}
+  return defs;
+}
+// Values for a body's fields \u2014 user entry wins, else the field default.
+function currentFieldVals(defs){
+  var vals={}; Object.keys(defs).forEach(function(k){ vals[k]=(detailFieldVals[k]!==undefined)?detailFieldVals[k]:(defs[k].default||''); });
+  return vals;
+}
+// Resolve a body with field values through the SAME engine as the in-page
+// ::trigger expansion (formula-engine.js). Falls back to raw if absent.
+function resolveFilled(body, vals){
+  var FE=window.SBFormulaEngine; if(!FE) return body;
+  try{ return FE.resolveBody(FE.interpolateSnippet(body, vals), vals); }catch(e){ return body; }
+}
+function detailActiveBody(s){
+  var vars=findVariants(s);
+  var lang=(detailLang && vars[detailLang]) ? detailLang : (s.lang||'EN');
+  return detailBody(s, lang, vars);
+}
+// Live-update the open detail's preview from the current field inputs.
+function updateDetailPreview(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  var wrap=document.querySelector('.detail[data-detail="'+id+'"]');
+  var pv=wrap?wrap.querySelector('.d-body'):null;
+  if(pv){ pv.textContent=out; if(out.trim()) pv.classList.remove('plain'); else pv.classList.add('plain'); }
+}
+function copyFilled(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  try{ navigator.clipboard.writeText(out||''); }catch(e){}
+  showToast('Copied filled text');
+}
+// Enter inside an open detail copies the primary action (filled when the body
+// is dynamic, otherwise the raw body).
+function copyDetailPrimary(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var vals=currentFieldVals(detailFieldDefs(body));
+  if(resolveFilled(body, vals)!==body) copyFilled(id); else copyBody(id);
+}
+
 function renderDetailHtml(s){
   var vars=findVariants(s);
   var order=detailLangOrder(vars);
@@ -1197,18 +1257,60 @@ function renderDetailHtml(s){
   var pills=order.map(function(l){
     return '<button class="d-lp '+esc(l)+(l===active?' on':'')+'" type="button" data-dlang="'+esc(l)+'" data-did="'+esc(s.id)+'">'+esc(l)+'</button>';
   }).join('');
-  var bodyHtml = body.trim() ? highlightVars(body) : 'This language has no body yet.';
-  var bodyCls  = body.trim() ? 'd-body' : 'd-body plain';
-  return '<div class="detail" data-detail="'+esc(s.id)+'">'
-    +(order.length>1?'<div class="d-langs">'+pills+'</div>':'')
-    +'<div class="'+bodyCls+'">'+bodyHtml+'</div>'
-    +'<div class="d-note">Copies the raw template \u2014 placeholders fill when you expand <b>'+esc(trig)+esc(shortWord(s.shortcut))+'</b> in a page.</div>'
-    +'<div class="d-acts">'
-      +'<button class="d-btn pri" type="button" data-copybody="'+esc(s.id)+'"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy body</button>'
-      +'<button class="d-btn ghost" type="button" data-copysc="'+esc(s.id)+'">Copy shortcut</button>'
-      +'<button class="d-edit" type="button" data-editdash="1">Edit in dashboard<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>'
-    +'</div>'
-  +'</div>';
+
+  var editBtn='<button class="d-edit" type="button" data-editdash="1">Edit in dashboard<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>';
+  var scBtn='<button class="d-btn ghost" type="button" data-copysc="'+esc(s.id)+'">Copy shortcut</button>';
+  var copyIco='<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+  var defs=detailFieldDefs(body);
+  var fieldKeys=Object.keys(defs);
+  var hasFields=fieldKeys.length>0;
+  var vals=currentFieldVals(defs);
+  var resolved=resolveFilled(body, vals);
+  var isDynamic=hasFields || (resolved!==body);
+
+  var h='<div class="detail" data-detail="'+esc(s.id)+'">'
+    +(order.length>1?'<div class="d-langs">'+pills+'</div>':'');
+
+  if(isDynamic){
+    if(hasFields){
+      var form='<div class="d-fields" data-fid="'+esc(s.id)+'">';
+      fieldKeys.forEach(function(k){
+        var def=defs[k], label=k.replace(/_/g,' '), val=(vals[k]!=null?vals[k]:''), inp;
+        if(def.type==='dd'){
+          var opts=(def.opts||'').split('\n').filter(Boolean);
+          inp='<select data-fkey="'+esc(k)+'">'+opts.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+        } else if(def.type==='date'){
+          inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
+        } else {
+          inp='<input type="text" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
+        }
+        form+='<div class="d-frow"><label>'+esc(label)+'</label>'+inp+'</div>';
+      });
+      form+='</div>';
+      h+=form;
+    }
+    var pvCls='d-body'+(resolved.trim()?'':' plain');
+    var note=hasFields
+      ? 'Fill the fields, then <b>Copy filled</b> \u2014 same result as expanding <b>'+esc(trig)+esc(shortWord(s.shortcut))+'</b> in a page.'
+      : '<b>Copy filled</b> resolves dates &amp; formulas \u2014 same result as expanding <b>'+esc(trig)+esc(shortWord(s.shortcut))+'</b> in a page.';
+    h+='<div class="'+pvCls+'">'+esc(resolved)+'</div>'
+      +'<div class="d-note">'+note+'</div>'
+      +'<div class="d-acts">'
+        +'<button class="d-btn pri" type="button" data-copyfilled="'+esc(s.id)+'">'+copyIco+'Copy filled</button>'
+        +'<button class="d-btn ghost" type="button" data-copybody="'+esc(s.id)+'">Copy raw</button>'
+        +scBtn+editBtn
+      +'</div>';
+  } else {
+    var bodyHtml = body.trim() ? highlightVars(body) : 'This language has no body yet.';
+    var bodyCls  = body.trim() ? 'd-body' : 'd-body plain';
+    h+='<div class="'+bodyCls+'">'+bodyHtml+'</div>'
+      +'<div class="d-acts">'
+        +'<button class="d-btn pri" type="button" data-copybody="'+esc(s.id)+'">'+copyIco+'Copy body</button>'
+        +scBtn+editBtn
+      +'</div>';
+  }
+  return h+'</div>';
 }
 
 function renderList(q){
@@ -1283,17 +1385,28 @@ function wireListRows(el){
   el.querySelectorAll('[data-copybody]').forEach(function(btn){
     btn.addEventListener('click',function(e){ e.stopPropagation(); copyBody(btn.dataset.copybody); });
   });
+  el.querySelectorAll('[data-copyfilled]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); copyFilled(btn.dataset.copyfilled); });
+  });
   el.querySelectorAll('[data-copysc]').forEach(function(btn){
     btn.addEventListener('click',function(e){ e.stopPropagation(); var s=findSnip(btn.dataset.copysc); if(s) doCopyShortcut(s); });
   });
   el.querySelectorAll('[data-editdash]').forEach(function(btn){
     btn.addEventListener('click',function(e){ e.stopPropagation(); openDashboard(); });
   });
+  // Fill-form inputs: live-resolve the preview in place (no re-render → focus kept).
+  el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
+    var box=inp.closest('.d-fields'); var did=box?box.getAttribute('data-fid'):null;
+    var handler=function(){ detailFieldVals[inp.getAttribute('data-fkey')]=inp.value; if(did) updateDetailPreview(did); };
+    inp.addEventListener('input',handler); inp.addEventListener('change',handler);
+  });
 }
 
 function toggleDetail(id){
-  if(expandedId===id){ expandedId=null; }
-  else { expandedId=id; detailLang=null; }
+  // Opening a (different) snippet starts with a fresh fill form; language
+  // switches keep the entered values (handled in the data-dlang wiring).
+  if(expandedId===id){ expandedId=null; detailFieldVals={}; }
+  else { expandedId=id; detailLang=null; detailFieldVals={}; }
   renderList(gi('sq')?gi('sq').value:'');
   reSel(id);
 }
@@ -1504,6 +1617,10 @@ document.addEventListener('keydown', function(e){
   var cl=gi('cl-bg'); if(cl && cl.classList.contains('on')){ if(e.key==='Escape') closeChangelog(); return; }
   var sq=gi('sq'); var k=e.key;
 
+  // Editing a fill-form field → leave every key to the input (no list nav).
+  var ae=document.activeElement;
+  if(ae && ae.closest && ae.closest('.d-fields')) return;
+
   if(k==='/' && document.activeElement!==sq){ if(sq){ e.preventDefault(); sq.focus(); } return; }
 
   if(activeMode==='prompts'){
@@ -1521,7 +1638,7 @@ document.addEventListener('keydown', function(e){
   else if(k==='Enter'){
     if(selIdx<0 && listRows().length) setSel(0);
     var row=listRows()[selIdx];
-    if(row){ e.preventDefault(); if(expandedId===row.dataset.id) copyBody(row.dataset.id); else copyShortcutRow(row); }
+    if(row){ e.preventDefault(); if(expandedId===row.dataset.id) copyDetailPrimary(row.dataset.id); else copyShortcutRow(row); }
   }
   else if(k==='ArrowRight' && selIdx>=0 && atEnd){
     var rr=listRows()[selIdx]; if(rr && expandedId!==rr.dataset.id){ e.preventDefault(); toggleDetail(rr.dataset.id); }

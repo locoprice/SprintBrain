@@ -173,7 +173,12 @@ html,body{
 .d-body.plain{color:var(--sb-ink-subtle);font-style:italic}
 .d-note{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.4}
 .d-note b{font-family:var(--sb-mono);font-weight:600;color:var(--sb-ink-muted)}
-.d-acts{display:flex;align-items:center;gap:8px}
+.d-fields{display:flex;flex-direction:column;gap:8px;max-height:150px;overflow-y:auto;padding-right:2px}
+.d-frow{display:flex;flex-direction:column;gap:4px}
+.d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+.d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
+.d-frow input:focus,.d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+.d-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .d-btn{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;transition:all var(--sb-dur-fast)}
 .d-btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 .d-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -472,6 +477,7 @@ html,body{
 <script src="../auth/auth.js"></script>
 <script src="../services/notion-sync/notion-sync.js"></script>
 <script src="sync-deletion.js"></script>
+<script src="../formula-engine.js"></script>
 <script src="popup.js"></script>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->
