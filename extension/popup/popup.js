@@ -354,6 +354,10 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.99.0', date:'2026-07-11', label:'fix: folder chips scroll with the mouse',
+    changes:[
+      {type:'fix', text:'When you have more folders than fit across the top, arrow buttons now appear at the edges and the mouse wheel scrolls the folder chips left and right. Before, folders past the right edge were cut off with no way to reach them using a mouse.'}
+    ]},
   { version:'v2.98.0', date:'2026-07-11', label:'feat: fill snippet fields and copy the result from the popup',
     changes:[
       {type:'new', text:'Open a snippet in the popup and, if it has fields like {guest_name}, fill them right there and hit Copy filled — you get the finished text ready to paste into WhatsApp Web or anywhere the in-field trigger is awkward.'},
@@ -1150,7 +1154,30 @@ function renderFolders(){
       try{ c.scrollIntoView({inline:'center',block:'nearest'}); }catch(e){}
     });
   });
+  updateChipNav();
 }
+
+// Show/hide the folder-chip scroll arrows based on how far the row is scrolled.
+function updateChipNav(){
+  var list=gi('folder-list'), L=gi('chip-nav-left'), R=gi('chip-nav-right');
+  if(!list||!L||!R) return;
+  var max=list.scrollWidth-list.clientWidth-1;
+  L.classList.toggle('show', list.scrollLeft>2);
+  R.classList.toggle('show', max>2 && list.scrollLeft<max);
+}
+// Wire the arrows once + let the mouse wheel scroll the chips horizontally
+// (a plain wheel only scrolls vertically otherwise, leaving hidden chips
+// unreachable with a mouse). Popup-only — guarded by #folder-list's presence.
+(function initChipNav(){
+  var list=gi('folder-list'); if(!list) return;
+  var L=gi('chip-nav-left'), R=gi('chip-nav-right');
+  if(L) L.addEventListener('click', function(){ list.scrollBy({left:-150, behavior:'smooth'}); });
+  if(R) R.addEventListener('click', function(){ list.scrollBy({left:150, behavior:'smooth'}); });
+  list.addEventListener('scroll', updateChipNav);
+  list.addEventListener('wheel', function(e){
+    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ list.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive:false });
+})();
 
 // SNIPPET LIST
 function findSnip(id){ for(var i=0;i<snips.length;i++){ if(snips[i].id===id) return snips[i]; } return null; }

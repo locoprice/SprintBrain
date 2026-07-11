@@ -91,9 +91,17 @@ html,body{
 
 /* ── FOLDER CHIPS ── */
 .chips-row{height:48px;flex-shrink:0;display:flex;align-items:center;background:var(--sb-bg);border-bottom:1px solid var(--sb-line);position:relative}
-.chips-row::after{content:"";position:absolute;right:0;top:0;bottom:1px;width:26px;pointer-events:none;background:linear-gradient(90deg,transparent,var(--sb-bg))}
 .chips{display:flex;align-items:center;gap:8px;padding:0 16px;overflow-x:auto;overflow-y:hidden;width:100%;height:100%;scrollbar-width:none;-ms-overflow-style:none}
 .chips::-webkit-scrollbar{display:none}
+/* Overflow scroll arrows — shown only when there are hidden chips in that
+   direction. The gradient doubles as the edge fade hint. */
+.chip-nav{position:absolute;top:0;bottom:1px;width:38px;display:none;align-items:center;border:none;cursor:pointer;z-index:2;color:var(--sb-ink-muted);padding:0;transition:color var(--sb-dur-fast)}
+.chip-nav.show{display:flex}
+.chip-nav:hover{color:var(--sb-azure)}
+.chip-nav:focus-visible{outline:2px solid var(--sb-azure);outline-offset:-2px}
+.chip-nav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.chip-nav.left{left:0;justify-content:flex-start;padding-left:6px;background:linear-gradient(90deg,var(--sb-bg) 62%,transparent)}
+.chip-nav.right{right:0;justify-content:flex-end;padding-right:6px;background:linear-gradient(270deg,var(--sb-bg) 62%,transparent)}
 .chip{
   height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-pill);
   font-size:var(--sb-fs-12);font-weight:600;color:var(--sb-ink-muted);background:var(--sb-bg);
@@ -401,7 +409,9 @@ html,body{
 
   <!-- FOLDER CHIPS -->
   <div class="chips-row" id="snip-chips">
+    <button class="chip-nav left" id="chip-nav-left" type="button" aria-label="Scroll folders left"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
     <div class="chips" id="folder-list" role="group" aria-label="Filter by folder"></div>
+    <button class="chip-nav right" id="chip-nav-right" type="button" aria-label="Scroll folders right"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
 
   <!-- SNIPPET LIST -->
