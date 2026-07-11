@@ -35,9 +35,6 @@ export function PromptsPage() {
       {/* ── Folder rail ── */}
       <PromptFolderTree />
 
-      {/* ── Filter sidebar ── */}
-      <PromptFilters />
-
       {/* ── Main content ── */}
       <div
         className="flex min-w-0 flex-1 flex-col overflow-y-auto"
@@ -73,8 +70,9 @@ export function PromptsPage() {
           </div>
         </div>
 
-        {/* Card grid */}
+        {/* Filter toolbar + card grid */}
         <div className="px-8 py-6">
+          <PromptFilters />
           {loading && prompts.length === 0 ? (
             <div className="flex items-center justify-center py-24">
               <span className="text-sm text-ink-subtle">Loading prompts…</span>
@@ -88,7 +86,7 @@ export function PromptsPage() {
           ) : (
             <div
               className={`grid gap-5 ${
-                editorOpen ? 'grid-cols-2' : 'grid-cols-3'
+                editorOpen ? 'grid-cols-2' : 'grid-cols-3 2xl:grid-cols-4'
               }`}
             >
               {filtered.map((prompt) => (
