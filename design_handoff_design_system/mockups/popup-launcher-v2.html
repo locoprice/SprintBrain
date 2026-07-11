@@ -1,0 +1,449 @@
+<title>SprintBrain Popup v2 — Design Mock</title>
+<style>
+  :root{
+    --bg:#F5F6F8; --panel:#FFFFFF; --ink:#17181C; --muted:#5C6270; --line:#E4E6EB;
+    --accent:#1B4FD8; --accent-soft:#EEF2FF; --chip:#ECEEF3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#101216; --panel:#171A20; --ink:#ECEEF2; --muted:#99A0AC; --line:#272C35;
+           --accent:#6E96F0; --accent-soft:#1E2A4A; --chip:#20242D; }
+  }
+  :root[data-theme="dark"]{ --bg:#101216; --panel:#171A20; --ink:#ECEEF2; --muted:#99A0AC; --line:#272C35;
+           --accent:#6E96F0; --accent-soft:#1E2A4A; --chip:#20242D; }
+  :root[data-theme="light"]{ --bg:#F5F6F8; --panel:#FFFFFF; --ink:#17181C; --muted:#5C6270; --line:#E4E6EB;
+           --accent:#1B4FD8; --accent-soft:#EEF2FF; --chip:#ECEEF3; }
+
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif;
+    line-height:1.5; padding:40px 28px 64px;
+  }
+  .wrap{max-width:1420px;margin:0 auto}
+  .eyebrow{font-family:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;font-size:11px;font-weight:600;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+  h1{font-size:26px;font-weight:750;letter-spacing:-.5px;text-wrap:balance;margin-bottom:8px}
+  .lede{font-size:14px;color:var(--muted);max-width:70ch;margin-bottom:6px}
+  .meta-strip{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 34px}
+  .meta-strip span{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--chip);
+    border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+  .meta-strip span b{color:var(--ink);font-weight:700}
+
+  .frames{display:flex;gap:32px;overflow-x:auto;padding:6px 2px 18px;align-items:flex-start}
+  .stage{flex:0 0 auto;width:484px}
+  .stage-cap{margin-top:16px}
+  .stage-cap h2{font-size:13.5px;font-weight:700;letter-spacing:-.1px;margin-bottom:6px}
+  .stage-cap h2 em{font-style:normal;color:var(--accent);font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;font-weight:600;margin-right:8px}
+  .stage-cap ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+  .stage-cap li{font-size:12.5px;color:var(--muted);padding-left:14px;position:relative}
+  .stage-cap li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.55}
+  .stage-cap li b{color:var(--ink);font-weight:600}
+
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:34px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .card h3{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .card ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .card li{font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:baseline}
+  .card li .k{flex-shrink:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;font-weight:600;
+    color:var(--muted);background:var(--chip);border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:6px;padding:1px 8px;min-width:66px;text-align:center}
+  .card li .d{color:var(--muted)}
+  .card li b{font-weight:650}
+  table{border-collapse:collapse;width:100%}
+  td,th{font-size:12.5px;padding:6px 10px 6px 0;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--line)}
+  td{border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  td.j{color:var(--ink);font-weight:550}
+  td.old{color:var(--muted)}
+  td.new{color:var(--accent);font-weight:650}
+
+  /* ══════════ PRODUCT FRAME — fixed light, exact extension token values ══════════ */
+  .fr{width:480px;height:600px;background:#FFFFFF;border-radius:18px;overflow:hidden;position:relative;
+    box-shadow:0 1px 3px rgba(0,0,0,.08),0 18px 48px rgba(16,24,40,.16);
+    font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif;color:#18181B;
+    display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.05)}
+  .fr *{box-sizing:border-box}
+  .fr svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* header */
+  .f-hdr{height:60px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 16px}
+  .f-mark{width:28px;height:28px;border-radius:8px;background:#1B4FD8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .f-mark svg{width:15px;height:15px;stroke:#fff;fill:#fff;stroke-width:1}
+  .f-greet{display:flex;flex-direction:column;min-width:0;margin-right:auto}
+  .f-greet .g1{font-size:11px;color:#52525B;line-height:1.25}
+  .f-greet .g2{font-size:15px;font-weight:700;letter-spacing:-.2px;line-height:1.2}
+  .f-status{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;
+    background:#F4F4F5;font-size:11px;font-weight:600;color:#52525B;flex-shrink:0}
+  .f-status .dot{width:6px;height:6px;border-radius:50%;background:#16A34A}
+  .f-iconbtn{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    color:#52525B;background:transparent;flex-shrink:0}
+  .f-iconbtn svg{width:16px;height:16px}
+
+  /* segmented */
+  .f-segwrap{padding:4px 16px;flex-shrink:0;height:52px}
+  .f-seg{height:44px;background:#F4F4F5;border-radius:12px;padding:3px;display:flex;position:relative}
+  .f-seg .thumb{position:absolute;top:3px;left:3px;width:calc(50% - 3px);bottom:3px;background:#fff;border-radius:9px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.04)}
+  .f-seg .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:600;
+    color:#52525B;position:relative;z-index:1}
+  .f-seg .tab.on{color:#1B4FD8}
+  .f-seg .glyph{font-family:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;font-size:10px;font-weight:700;opacity:.6;letter-spacing:-1px}
+  .f-seg .tab.on .glyph{opacity:1}
+  .f-seg .cnt{font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#E4E4E7;color:#52525B;font-variant-numeric:tabular-nums}
+  .f-seg .tab.on .cnt{background:#EEF2FF;color:#1B4FD8}
+
+  /* search */
+  .f-srch{padding:6px 16px;height:56px;flex-shrink:0}
+  .f-sfield{height:44px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:10px;display:flex;align-items:center;
+    gap:9px;padding:0 8px 0 13px;position:relative}
+  .f-sfield.focus{border-color:#1B4FD8;box-shadow:0 0 0 3px rgba(27,79,216,.14)}
+  .f-sfield svg{width:16px;height:16px;color:#A1A1AA;flex-shrink:0}
+  .f-sfield .ph{font-size:14px;color:#A1A1AA;margin-right:auto;white-space:nowrap;overflow:hidden}
+  .f-sfield .caret{width:1.5px;height:18px;background:#1B4FD8;margin-left:-6px;margin-right:auto}
+  .f-tpill{font-family:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;font-size:10px;font-weight:700;color:#1B4FD8;
+    background:#EEF2FF;border-radius:999px;padding:4px 10px;flex-shrink:0}
+  .f-tpill .pfx{opacity:.45;font-weight:400}
+
+  /* folder chips */
+  .f-chips{height:48px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;overflow:hidden;position:relative}
+  .f-chips::after{content:"";position:absolute;right:0;top:0;bottom:0;width:34px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff)}
+  .f-chip{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:999px;
+    font-size:12.5px;font-weight:600;color:#52525B;background:#fff;border:1px solid #E4E4E7;white-space:nowrap;flex-shrink:0}
+  .f-chip svg{width:14px;height:14px}
+  .f-chip .c{font-size:11px;font-weight:700;color:#A1A1AA;font-variant-numeric:tabular-nums}
+  .f-chip.on{background:#18181B;border-color:#18181B;color:#fff}
+  .f-chip.on .c{color:rgba(255,255,255,.75)}
+
+  /* list */
+  .f-list{flex:1;overflow:hidden;border-top:1px solid #E4E4E7;position:relative}
+  .f-row{height:60px;padding:8px 10px 8px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #F4F4F5}
+  .f-rmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .f-r1{display:flex;align-items:center;gap:8px;min-width:0}
+  .f-rtitle{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.1px}
+  .f-sc{font-family:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;font-size:11px;font-weight:600;color:#1B4FD8;
+    background:#EEF2FF;border-radius:999px;padding:2.5px 9px;flex-shrink:0;margin-left:auto;white-space:nowrap}
+  .f-sc .pfx{opacity:.45;font-weight:400}
+  .f-sc.ok{color:#16A34A;background:#F0FDF4}
+  .f-r2{display:flex;align-items:center;gap:6px}
+  .f-lb{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px}
+  .f-lb.ES{background:#FFF7ED;color:#C2410C}.f-lb.EN{background:#EEF2FF;color:#1B4FD8}
+  .f-lb.IT{background:#F0FDF4;color:#15803D}.f-lb.FR{background:#F0FDFA;color:#0D9488}
+  .f-lb.MULTI{background:#F5F3FF;color:#7C3AED}
+  .f-uses{font-size:12px;color:#52525B;font-variant-numeric:tabular-nums}
+  .f-chev{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#A1A1AA;flex-shrink:0}
+  .f-chev svg{width:15px;height:15px}
+  .f-row.sel{background:#FAFAFA;box-shadow:inset 2px 0 0 #1B4FD8}
+  .f-row.open{border-bottom:none;background:#FAFAFA}
+  .f-row.open .f-chev{transform:rotate(90deg);color:#1B4FD8}
+
+  /* expanded detail */
+  .f-det{background:#FAFAFA;border-bottom:1px solid #E4E4E7;padding:2px 16px 14px;display:flex;flex-direction:column;gap:10px}
+  .f-langs{display:flex;gap:6px}
+  .f-lp{height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:999px;font-size:11px;font-weight:700;
+    background:#F4F4F5;color:#52525B;border:1px solid transparent}
+  .f-lp.on-es{background:#FFF7ED;color:#C2410C;border-color:#FED7AA}
+  .f-body{background:#fff;border:1px solid #E4E4E7;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.6;
+    color:#18181B;white-space:pre-wrap;max-height:118px;overflow:hidden}
+  .f-body .var{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#1B4FD8;background:#EEF2FF;border-radius:4px;padding:0 3px}
+  .f-note{font-size:10px;color:#A1A1AA;line-height:1.4}
+  .f-note b{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;color:#52525B}
+  .f-acts{display:flex;align-items:center;gap:8px}
+  .f-btn{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:8px;font-size:12px;font-weight:600}
+  .f-btn svg{width:13px;height:13px}
+  .f-btn.pri{background:#1B4FD8;color:#fff}
+  .f-btn.ghost{background:#fff;color:#52525B;border:1px solid #E4E4E7}
+  .f-edit{margin-left:auto;font-size:12px;font-weight:600;color:#1B4FD8;display:inline-flex;align-items:center;gap:4px}
+  .f-edit svg{width:12px;height:12px}
+
+  /* footer */
+  .f-foot{height:56px;flex-shrink:0;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:14px;padding:0 16px;background:#fff}
+  .f-ver{font-family:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;font-size:10px;font-weight:600;color:#52525B;flex-shrink:0}
+  .f-cta{flex:1;height:44px;background:#1B4FD8;color:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    gap:8px;font-size:13px;font-weight:600}
+  .f-cta svg{width:15px;height:15px}
+
+  /* toast */
+  .f-toast{position:absolute;bottom:68px;left:50%;transform:translateX(-50%);background:rgba(24,24,27,.92);color:#fff;
+    border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);
+    display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .f-toast svg{width:13px;height:13px;color:#4ADE80}
+  .f-toast b{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+
+  /* skeleton */
+  .sk{border-radius:4px;background:linear-gradient(90deg,#F4F4F5 25%,#FAFAFA 50%,#F4F4F5 75%);background-size:200% 100%;animation:shim 1.2s linear infinite}
+  @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @media (prefers-reduced-motion: reduce){ .sk{animation:none;background:#F4F4F5} }
+  .f-row.skrow{gap:12px}
+  .f-row.skrow .f-rmain{gap:7px}
+
+  footer.pg{margin-top:40px;font-size:12px;color:var(--muted)}
+  footer.pg b{color:var(--ink)}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">SprintBrain · design review · v2.97.0 proposal</div>
+  <h1>Popup v2 — the launcher redesign</h1>
+  <p class="lede">The popup drops its desktop-utility chrome (sync bar, folder sidebar, hint row, twin footer buttons, version strip)
+  and becomes a compact single-column launcher: search-first, keyboard-driven, folder chips, and an inline per-language detail —
+  the same visual vocabulary the mobile companion already ships. Static mock, exact token values; no product code written yet.</p>
+  <div class="meta-strip">
+    <span><b>480×600</b> window (was 600×~560)</span>
+    <span>rows <b>60px</b> touch targets (was ~40px)</span>
+    <span><b>0-click</b> copy: type → Enter</span>
+    <span>body copy per language — <b>new</b>, parity with dashboard</span>
+    <span>tokens: <b>azure v1.1</b>, light only</span>
+  </div>
+
+  <div class="frames">
+
+    <!-- ═════════ FRAME 1 — default ═════════ -->
+    <div class="stage">
+      <div class="fr">
+        <div class="f-hdr">
+          <span class="f-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+          <span class="f-greet"><span class="g1">Good afternoon,</span><span class="g2">ALE</span></span>
+          <span class="f-status"><span class="dot"></span>Synced 4m</span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg></span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        </div>
+        <div class="f-segwrap"><div class="f-seg">
+          <span class="thumb"></span>
+          <span class="tab on"><span class="glyph">::</span>Snippets<span class="cnt">20</span></span>
+          <span class="tab"><span class="glyph">"""</span>Prompts<span class="cnt">2</span></span>
+        </div></div>
+        <div class="f-srch"><div class="f-sfield focus">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="caret"></span><span class="ph">Search snippets…</span>
+          <span class="f-tpill"><span class="pfx">::</span>quoteEN</span>
+        </div></div>
+        <div class="f-chips">
+          <span class="f-chip on"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg>All<span class="c">20</span></span>
+          <span class="f-chip"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>TEAM SHARED<span class="c">14</span></span>
+          <span class="f-chip"><svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>CLASS RENT<span class="c">1</span></span>
+          <span class="f-chip"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>RESERVATIONS<span class="c">0</span></span>
+        </div>
+        <div class="f-list">
+          <div class="f-row sel">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">💻 NEO BOOKING</span><span class="f-sc"><span class="pfx">::</span>neob</span></div>
+              <div class="f-r2"><span class="f-lb ES">ES</span><span class="f-uses">×1</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">PREZZO NON AGGIORNATO</span><span class="f-sc"><span class="pfx">::</span>price</span></div>
+              <div class="f-r2"><span class="f-lb MULTI">MULTI</span><span class="f-uses">4 languages</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">RITIRARE LA RICHIESTA</span><span class="f-sc"><span class="pfx">::</span>withdraw</span></div>
+              <div class="f-r2"><span class="f-lb MULTI">MULTI</span><span class="f-uses">Never used</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">BUDGET STAY - NO A/C</span><span class="f-sc"><span class="pfx">::</span>budgetstay</span></div>
+              <div class="f-r2"><span class="f-lb MULTI">MULTI</span><span class="f-uses">×4</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">MINIMUM STAY</span><span class="f-sc"><span class="pfx">::</span>minstay</span></div>
+              <div class="f-r2"><span class="f-lb MULTI">MULTI</span><span class="f-uses">Never used</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">DISCOUNT</span><span class="f-sc"><span class="pfx">::</span>discount</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="f-foot">
+          <span class="f-ver">v2.97.0</span>
+          <span class="f-cta"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Open Dashboard</span>
+        </div>
+      </div>
+      <div class="stage-cap">
+        <h2><em>01</em>Default — search focused on open</h2>
+        <ul>
+          <li><b>Header consolidates 3 old bars</b>: greeting, Notion status chip (tap = Sync Now; hidden when Notion isn't configured), Refresh data, Settings.</li>
+          <li><b>Folder chips replace the 170px sidebar</b> — chips size to content, nothing truncates, rows get full width. Active chip: solid ink, Uber-style.</li>
+          <li><b>First row pre-selected</b> — Enter copies its shortcut instantly. Language switcher pills and "Never used" clutter are gone from the row.</li>
+          <li>Footer: version (opens changelog) + one primary CTA. Reload moved to the header; "Surf the dashboard" strip deleted.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═════════ FRAME 2 — expanded detail + toast ═════════ -->
+    <div class="stage">
+      <div class="fr">
+        <div class="f-hdr">
+          <span class="f-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+          <span class="f-greet"><span class="g1">Good afternoon,</span><span class="g2">ALE</span></span>
+          <span class="f-status"><span class="dot"></span>Synced 4m</span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg></span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        </div>
+        <div class="f-segwrap"><div class="f-seg">
+          <span class="thumb"></span>
+          <span class="tab on"><span class="glyph">::</span>Snippets<span class="cnt">20</span></span>
+          <span class="tab"><span class="glyph">"""</span>Prompts<span class="cnt">2</span></span>
+        </div></div>
+        <div class="f-srch"><div class="f-sfield">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="ph" style="color:#18181B">pre</span>
+          <span class="f-tpill"><span class="pfx">::</span>quoteEN</span>
+        </div></div>
+        <div class="f-chips">
+          <span class="f-chip on"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg>All<span class="c">20</span></span>
+          <span class="f-chip"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>TEAM SHARED<span class="c">14</span></span>
+          <span class="f-chip"><svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>CLASS RENT<span class="c">1</span></span>
+        </div>
+        <div class="f-list">
+          <div class="f-row open">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">PREZZO NON AGGIORNATO</span><span class="f-sc ok">✓ copied</span></div>
+              <div class="f-r2"><span class="f-lb MULTI">MULTI</span><span class="f-uses">4 languages</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="f-det">
+            <div class="f-langs">
+              <span class="f-lp">EN</span><span class="f-lp on-es">ES</span><span class="f-lp">IT</span><span class="f-lp">FR</span>
+            </div>
+            <div class="f-body">Hola <span class="var">{guest_name}</span>, el precio publicado no está actualizado. La tarifa correcta para <span class="var">{checkin_date}</span> – <span class="var">{checkout_date}</span> es <span class="var">{total_price}</span>€. Te la bloqueamos 3 horas…</div>
+            <div class="f-note">Copies the raw template — placeholders fill when you expand <b>::price</b> in a page.</div>
+            <div class="f-acts">
+              <span class="f-btn pri"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy body</span>
+              <span class="f-btn ghost">Copy shortcut</span>
+              <span class="f-edit">Edit in dashboard<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
+            </div>
+          </div>
+          <div class="f-row">
+            <div class="f-rmain">
+              <div class="f-r1"><span class="f-rtitle">PREZZO SPECIALE</span><span class="f-sc"><span class="pfx">::</span>predeal</span></div>
+              <div class="f-r2"><span class="f-lb IT">IT</span><span class="f-uses">×2</span></div>
+            </div>
+            <span class="f-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+        </div>
+        <div class="f-toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Copied <b>::price</b></div>
+        <div class="f-foot">
+          <span class="f-ver">v2.97.0</span>
+          <span class="f-cta"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Open Dashboard</span>
+        </div>
+      </div>
+      <div class="stage-cap">
+        <h2><em>02</em>Inline detail — per-language body copy (new)</h2>
+        <ul>
+          <li><b>Chevron (or →) expands a sheet-style panel</b>: language pills, body preview, Copy body / Copy shortcut, Edit in dashboard. Read-only stays read-only.</li>
+          <li><b>This replaces the dead switcher pills</b> — today the EN/ES/IT/FR pills move a checkmark but never change what's shown or copied.</li>
+          <li>Body copy was impossible in the popup; the dashboard already offers it ("Copy content"), so this closes a parity gap.</li>
+          <li>Copy feedback: chip flashes green + toast. Search stays folder-scoped with a "search all folders" escape when 0 local matches.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═════════ FRAME 3 — skeleton ═════════ -->
+    <div class="stage">
+      <div class="fr">
+        <div class="f-hdr">
+          <span class="f-mark"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+          <span class="f-greet"><span class="g1">Good afternoon,</span><span class="g2">ALE</span></span>
+          <span class="f-status"><span class="dot" style="background:#1B4FD8"></span>Syncing…</span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg></span>
+          <span class="f-iconbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        </div>
+        <div class="f-segwrap"><div class="f-seg">
+          <span class="thumb"></span>
+          <span class="tab on"><span class="glyph">::</span>Snippets<span class="cnt">—</span></span>
+          <span class="tab"><span class="glyph">"""</span>Prompts<span class="cnt">—</span></span>
+        </div></div>
+        <div class="f-srch"><div class="f-sfield focus">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="caret"></span><span class="ph">Search snippets…</span>
+          <span class="f-tpill"><span class="pfx">::</span>quoteEN</span>
+        </div></div>
+        <div class="f-chips">
+          <span class="sk" style="width:74px;height:36px;border-radius:999px"></span>
+          <span class="sk" style="width:128px;height:36px;border-radius:999px"></span>
+          <span class="sk" style="width:104px;height:36px;border-radius:999px"></span>
+          <span class="sk" style="width:118px;height:36px;border-radius:999px"></span>
+        </div>
+        <div class="f-list">
+          <div class="f-row skrow"><div class="f-rmain"><span class="sk" style="width:62%;height:13px"></span><span class="sk" style="width:34%;height:10px"></span></div><span class="sk" style="width:72px;height:22px;border-radius:999px"></span></div>
+          <div class="f-row skrow"><div class="f-rmain"><span class="sk" style="width:48%;height:13px"></span><span class="sk" style="width:28%;height:10px"></span></div><span class="sk" style="width:84px;height:22px;border-radius:999px"></span></div>
+          <div class="f-row skrow"><div class="f-rmain"><span class="sk" style="width:70%;height:13px"></span><span class="sk" style="width:38%;height:10px"></span></div><span class="sk" style="width:64px;height:22px;border-radius:999px"></span></div>
+          <div class="f-row skrow"><div class="f-rmain"><span class="sk" style="width:55%;height:13px"></span><span class="sk" style="width:30%;height:10px"></span></div><span class="sk" style="width:96px;height:22px;border-radius:999px"></span></div>
+          <div class="f-row skrow"><div class="f-rmain"><span class="sk" style="width:64%;height:13px"></span><span class="sk" style="width:26%;height:10px"></span></div><span class="sk" style="width:78px;height:22px;border-radius:999px"></span></div>
+        </div>
+        <div class="f-foot">
+          <span class="f-ver">v2.97.0</span>
+          <span class="f-cta"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Open Dashboard</span>
+        </div>
+      </div>
+      <div class="stage-cap">
+        <h2><em>03</em>Cold open — skeleton instead of a lie</h2>
+        <ul>
+          <li>Today the popup flashes <b>"No snippets found"</b> on every open while Supabase loads. v2 hydrates instantly from the local cache and reconciles in the background.</li>
+          <li>Skeleton rows appear <b>only on a cold cache</b> (first run / after sign-in); reduced-motion gets static placeholders.</li>
+          <li>Status chip doubles as the sync indicator: azure pulse while syncing, green when done, red "Sync failed — tap to retry".</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Keyboard — the 0-click flow</h3>
+      <ul>
+        <li><span class="k">open</span><span>Search is focused — just type</span></li>
+        <li><span class="k">↑ ↓</span><span>Move row selection</span></li>
+        <li><span class="k">Enter</span><span>Copy shortcut (Prompts: copy content)</span></li>
+        <li><span class="k">→ / ←</span><span>Expand / collapse language detail</span></li>
+        <li><span class="k">1–4</span><span>Pick EN / ES / IT / FR inside the detail</span></li>
+        <li><span class="k">Enter</span><span>In open detail: copy active-language body</span></li>
+        <li><span class="k">Esc</span><span>Collapse → clear search → close popup</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Clicks per job — before vs after</h3>
+      <table>
+        <tr><th>Job</th><th>v2.95</th><th>v2</th></tr>
+        <tr><td class="j">Copy a shortcut</td><td class="old">2 clicks</td><td class="new">0 (Enter) / 1</td></tr>
+        <tr><td class="j">Copy body in a language</td><td class="old">impossible → dashboard, 4+</td><td class="new">2–3</td></tr>
+        <tr><td class="j">Inspect a MULTI snippet</td><td class="old">broken control</td><td class="new">1</td></tr>
+        <tr><td class="j">Filter by folder</td><td class="old">1 (names truncated)</td><td class="new">1 (full names)</td></tr>
+        <tr><td class="j">Open dashboard</td><td class="old">3 inconsistent entries</td><td class="new">1 canonical CTA</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Deliberately unchanged</h3>
+      <ul>
+        <li><span class="d">Row click still copies the shortcut and bumps usage stats — same semantics on both surfaces.</span></li>
+        <li><span class="d">Read-only stays read-only: no CRUD returns to the popup; management hands off to the dashboard.</span></li>
+        <li><span class="d">content.js expansion caches, auth gate (SSO + OTP), changelog modal: functionally untouched, restyled only.</span></li>
+        <li><span class="d">Trigger prefix always rendered from your settings — the mock's <b>::</b> is dynamic, never hardcoded (fixes the tab glyphs that are hardcoded today).</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Token diff (registered in DESIGN_SYSTEM.md first)</h3>
+      <ul>
+        <li><span class="k">lang-fr</span><span class="d">#0D9488 / #F0FDFA — FR becomes first-class teal in the extension sheet (docs already say so; popup + Sprintbrain.html align)</span></li>
+        <li><span class="k">toast-bg</span><span class="d">rgba(24,24,27,.92) — tokenizes the existing toast literal</span></li>
+        <li><span class="k">scrim</span><span class="d">rgba(0,0,0,.5) — modal backdrop token</span></li>
+        <li><span class="k">dur-loop</span><span class="d">1200ms — skeleton shimmer + syncing pulse</span></li>
+        <li><span class="k">stagger</span><span class="d">20ms/row — list entrance, capped at 8 rows, off under reduced motion</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <footer class="pg">Frames are pixel specs at 480×600 (Chrome popup limit is 800×600; height is already at the cap) with real library data. Approve and implementation starts on <b>popup.html + popup.js</b> — surgical, shared-core-safe, verified on both surfaces.</footer>
+</div>

@@ -99,6 +99,19 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 | `shadow-sm` | `0 1px 3px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04)`           |
 | `shadow-md` | `0 4px 20px rgba(27,79,216,.12), 0 1px 3px rgba(0,0,0,.06)`       |
 
+### Motion & overlay (added v2.97.0)
+
+Registered in `extension/shared/tokens/colors_and_type.css`. The extension popup uses these; other surfaces may adopt them.
+
+| Token           | Value                 | Usage                                          |
+| --------------- | --------------------- | ---------------------------------------------- |
+| `--sb-toast-bg` | `rgba(24,24,27,.92)`  | Toast pill surface (ink @ 92%) — tokenizes the old inline literal |
+| `--sb-scrim`    | `rgba(0,0,0,.5)`      | Modal / auth backdrop                          |
+| `--sb-dur-loop` | `1200ms`              | Skeleton shimmer, syncing-dot pulse (looping)  |
+| `--sb-stagger`  | `20ms`                | Per-row list entrance delay (capped at 8 rows) |
+
+**FR language token corrected (v2.97.0):** the extension tokens file previously aliased `--sb-lang-fr`/`--sb-lang-fr-bg` to MULTI violet; it now holds the documented teal `#0D9488` / `#F0FDFA` (matching this table and `/mobile/`). The popup and `Sprintbrain.html` `.FR` rules were repointed to the tokens. Contrast of teal on its tint is ~3.6:1 (passes 3:1 UI, misses 4.5:1 text) — a cross-surface darken to `#0F766E` (≈5.3:1) is an open follow-up; do not fork one surface.
+
 ## Surface-specific rules (v1.1)
 
 - **Dashboard topbar** spans the full width (60 px) above sidebar + main. Brand square (28 px, `--primary` solid) on the left.
@@ -122,3 +135,5 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 - Mobile quick-action tiles (v2.91.0): full-width 3-tile grid (**Snippets · Sync · Prompts**) with **3D extruded icon wells** and a pushed/active state (`.mqa-tile.on` → inset azure icon + azure label). **Snippets** and **Prompts** act as a segmented current-page nav — the Snippets tile is pushed on the home/list view, the Prompts tile on the Prompts view — and the bar renders on both pages so the active tile stays pushed (BrandCam-style indicator). The old Folders tile was replaced by Snippets; **Sync remains a cosmetic shell.** Mobile tab-bar items still have no handlers.
 - Dashboard "Folders" nav row: mockup shows it; needs a top-level `/folders` route.
 - Hero "time saved" stat: shows snippet count instead until we track time-saved telemetry.
+- **Extension popup redesign (v2.97.0):** the popup became a 480×600 single-column launcher (search-first, folder chips, per-language inline detail). Approved review mock at `design_handoff_design_system/mockups/popup-launcher-v2.html`. The extension section of `harmonized-final.html` and `kits/extension.html` still show the pre-redesign popup (sidebar + 32px sync bar + iris-gradient logo) — update them to this layout so the canonical mockup matches shipped UI.
+- **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
