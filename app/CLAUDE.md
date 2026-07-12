@@ -85,9 +85,11 @@ app/
 │   ├── features/
 │   │   ├── snippets/          # SnippetFolderTree (adapter), SnippetsTable, NewSnippetDialog
 │   │   ├── org/               # Shared folder UI: FolderTree, FolderDialog,
-│   │   │                      #   FolderContextMenu, FolderShareModal (snippets + prompts)
+│   │   │                      #   FolderContextMenu, FolderShareModal (snippets rail;
+│   │   │                      #   FolderShareBadge reused by prompt folder chips)
 │   │   ├── analytics/         # UsageChart, TopTriggersTable
-│   │   ├── prompts/           # PromptCard, PromptDialog, PromptFolderTree (adapter)
+│   │   ├── prompts/           # PromptCard, PromptBlockEditor, PromptFilters (toolbar
+│   │   │                      #   with prompt-only folder chips — no folder rail)
 │   │   └── settings/          # NotionSyncPanel, AccountPanel, IntegrationsPanel
 │   ├── stores/                # Zustand: snippet, prompt, analytics, settings, auth, ui
 │   ├── lib/

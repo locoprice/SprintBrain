@@ -1,8 +1,10 @@
-import { memo, useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Check, ChevronDown, Folders, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FolderIcon } from '@/lib/folderIcons';
+import { FolderShareBadge } from '@/features/org/FolderTree';
 import { usePromptStore, useActiveFilterCount } from '@/stores/promptStore';
-import type { StrategyType, IntentCategory } from '@/types/database';
+import type { Folder, IntentCategory, Prompt, StrategyType } from '@/types/database';
 
 const STRATEGIES: StrategyType[] = ['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic'];
 const INTENTS: IntentCategory[] = ['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching'];
@@ -94,6 +96,108 @@ function FilterDropdown<T extends string>({
   );
 }
 
+/**
+ * Folders eligible for the chip row: those holding ≥1 prompt, plus the
+ * currently selected one even at count 0 — an active filter must never
+ * hide its own control.
+ */
+export function visiblePromptFolders(
+  folders: Folder[],
+  prompts: Prompt[],
+  selectedFolderId: string | null,
+): { folder: Folder; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const p of prompts) {
+    if (p.folder_id) counts.set(p.folder_id, (counts.get(p.folder_id) ?? 0) + 1);
+  }
+  return folders
+    .filter((f) => (counts.get(f.id) ?? 0) > 0 || f.id === selectedFolderId)
+    .map((f) => ({ folder: f, count: counts.get(f.id) ?? 0 }));
+}
+
+interface FolderChipProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+  icon: ReactNode;
+  badge?: ReactNode;
+}
+
+function FolderChip({ active, onClick, label, count, icon, badge }: FolderChipProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+        active
+          ? 'border-primary/30 bg-primary-light text-primary'
+          : 'border-line bg-card text-ink-muted hover:border-primary/20 hover:text-ink',
+      )}
+    >
+      {icon}
+      <span className="max-w-[160px] truncate">{label}</span>
+      {badge}
+      <span
+        className={cn(
+          'text-[11px] font-semibold tabular-nums',
+          active ? 'text-primary/70' : 'text-ink-subtle',
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Folder filter chips. Folders are a shared container (snippets + prompts), so
+ * only folders actually holding prompts render here — the snippet taxonomy
+ * never shows up empty on this page. The selected folder stays visible even at
+ * count 0 so an active filter can't hide its own control.
+ */
+function FolderChips() {
+  const folders = usePromptStore((s) => s.folders);
+  const folderShares = usePromptStore((s) => s.folderShares);
+  const prompts = usePromptStore((s) => s.prompts);
+  const selected = usePromptStore((s) => s.selectedFolderId);
+  const setSelected = usePromptStore((s) => s.setSelectedFolder);
+
+  const visible = useMemo(
+    () => visiblePromptFolders(folders, prompts, selected),
+    [folders, prompts, selected],
+  );
+  if (visible.length === 0) return null;
+
+  return (
+    <div role="group" aria-label="Filter by folder" className="flex items-center gap-1.5">
+      <FolderChip
+        active={selected === null}
+        onClick={() => setSelected(null)}
+        label="All prompts"
+        count={prompts.length}
+        icon={<Folders className="h-3.5 w-3.5 shrink-0" />}
+      />
+      {visible.map(({ folder, count }) => {
+        const share = folderShares.get(folder.id);
+        return (
+          <FolderChip
+            key={folder.id}
+            active={selected === folder.id}
+            onClick={() => setSelected(selected === folder.id ? null : folder.id)}
+            label={folder.name}
+            count={count}
+            icon={<FolderIcon icon={folder.icon} className="h-3.5 w-3.5" />}
+            badge={share ? <FolderShareBadge info={share} /> : undefined}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export const PromptFilters = memo(function PromptFilters() {
   const filters = usePromptStore((s) => s.filters);
   const setFilters = usePromptStore((s) => s.setFilters);
@@ -101,7 +205,7 @@ export const PromptFilters = memo(function PromptFilters() {
   const activeCount = useActiveFilterCount();
 
   return (
-    <div className="mb-5 flex items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
+    <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
       {/* Search */}
       <div className="relative w-full max-w-[280px]">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle" />
@@ -122,6 +226,8 @@ export const PromptFilters = memo(function PromptFilters() {
           </button>
         )}
       </div>
+
+      <FolderChips />
 
       <FilterDropdown
         label="Strategy"

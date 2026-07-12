@@ -125,7 +125,7 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   setFilters: (patch) =>
     set((s) => ({ filters: { ...s.filters, ...patch } })),
 
-  resetFilters: () => set({ filters: DEFAULT_FILTERS }),
+  resetFilters: () => set({ filters: DEFAULT_FILTERS, selectedFolderId: null }),
 
   setCmdKOpen: (open) => set({ cmdKOpen: open }),
 
@@ -270,7 +270,9 @@ export function useFilteredPrompts(): Prompt[] {
 
 export function useActiveFilterCount(): number {
   const filters = usePromptStore((s) => s.filters);
+  const selectedFolderId = usePromptStore((s) => s.selectedFolderId);
   let count = 0;
+  if (selectedFolderId !== null) count++;
   if (filters.type !== 'all') count++;
   if (filters.strategy) count++;
   if (filters.intent) count++;

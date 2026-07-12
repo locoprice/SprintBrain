@@ -4,7 +4,6 @@ import { EmptyState } from '@/components/layout/EmptyState';
 import { PromptCard } from '@/features/prompts/PromptCard';
 import { PromptBlockEditor } from '@/features/prompts/PromptBlockEditor';
 import { PromptFilters } from '@/features/prompts/PromptFilters';
-import { PromptFolderTree } from '@/features/prompts/PromptFolderTree';
 import { PromptCmdK, usePromptCmdKShortcut } from '@/features/prompts/PromptCmdK';
 import { PromptPreviewModal } from '@/features/prompts/PromptPreviewModal';
 import { useFilteredPrompts, usePromptStore } from '@/stores/promptStore';
@@ -32,9 +31,6 @@ export function PromptsPage() {
   return (
     // Full-height layout that escapes the parent py-8 padding
     <div className="-mx-8 -my-8 flex h-[calc(100vh-60px)] overflow-hidden">
-      {/* ── Folder rail ── */}
-      <PromptFolderTree />
-
       {/* ── Main content ── */}
       <div
         className="flex min-w-0 flex-1 flex-col overflow-y-auto"
