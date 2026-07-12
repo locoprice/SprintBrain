@@ -58,10 +58,10 @@
   --sb-danger-bdr: #FECACA;
 
   /* ── LANGUAGE PALETTE — v1.1 (matches /mobile/ and harmonized mockup)
-        EN azure, ES burnt-orange, IT FOREST-GREEN (was red), MULTI violet.
-        FR aliased to MULTI violet for backward compat — the FR pill is
-        retired in v1.1 but the Snippet['language'] type union still
-        includes 'FR' until a clean removal lands.                       ── */
+        EN azure, ES burnt-orange, IT FOREST-GREEN (was red), MULTI violet,
+        FR first-class teal (re-added v2.88.0) — distinct from every other
+        language pill so the badge stays unambiguous. Kept identical to the
+        /mobile/ inline palette (.lFR #0D9488 / #F0FDFA).                 ── */
   --sb-lang-en:    #1B4FD8;
   --sb-lang-en-bg: #EEF2FF;
   --sb-lang-es:    #C2410C;
@@ -70,8 +70,8 @@
   --sb-lang-it-bg: #F0FDF4;
   --sb-lang-multi: #7C3AED;
   --sb-lang-multi-bg: #F5F3FF;
-  --sb-lang-fr:    var(--sb-lang-multi);
-  --sb-lang-fr-bg: var(--sb-lang-multi-bg);
+  --sb-lang-fr:    #0D9488;
+  --sb-lang-fr-bg: #F0FDFA;
 
   /* ── TYPOGRAPHY ──────────────────────────────────────────── */
   --sb-font:  -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',
@@ -118,10 +118,16 @@
   --sb-shadow-xl:   0 20px 60px rgba(0,0,0,.16);
   --sb-shadow-glow: 0 0 0 3px var(--sb-accent-glow);
 
+  /* ── OVERLAY SURFACES ────────────────────────────────────── */
+  --sb-toast-bg:  rgba(24,24,27,.92);  /* toast pill — ink @ 92% */
+  --sb-scrim:     rgba(0,0,0,.5);      /* modal / auth backdrop */
+
   /* ── MOTION ──────────────────────────────────────────────── */
   --sb-dur-fast:   120ms;
   --sb-dur-base:   150ms;
   --sb-dur-slow:   220ms;
+  --sb-dur-loop:   1200ms;  /* skeleton shimmer, syncing-dot pulse */
+  --sb-stagger:    20ms;    /* per-row list entrance delay (cap 8 rows) */
   --sb-ease:       cubic-bezier(0.4, 0, 0.2, 1);
   --sb-ease-out:   cubic-bezier(0.34, 1.56, 0.64, 1); /* gentle overshoot for modals */
 

@@ -9,6 +9,7 @@ import {
   FlaskConical,
   Github,
   LogOut,
+  PlayCircle,
   Settings,
   Sparkles,
   Type,
@@ -19,6 +20,7 @@ import { RESOURCE_LINKS } from '@/lib/links';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { useUiStore } from '@/stores/uiStore';
 
 interface NavItem {
   to: string;
@@ -73,6 +75,7 @@ export function Sidebar() {
   const snippetCount = useSnippetStore((s) => s.snippets.length);
   const promptCount = usePromptStore((s) => s.prompts.length);
   const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
+  const openOnboarding = useUiStore((s) => s.openOnboarding);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -149,6 +152,16 @@ export function Sidebar() {
             <span>Composer</span>
             <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-ink-subtle" />
           </a>
+
+          {/* Getting Started — replays the onboarding animation on demand */}
+          <button
+            type="button"
+            onClick={openOnboarding}
+            className={cn(navClass({ isActive: false }), 'w-full text-left')}
+          >
+            <PlayCircle className="h-4 w-4" />
+            <span>Getting Started</span>
+          </button>
         </div>
       </nav>
 

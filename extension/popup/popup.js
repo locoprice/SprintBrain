@@ -181,8 +181,18 @@ var folders      = [];
 var prompts      = [];
 var trig         = '::';
 var selFolder    = 'ALL';
-var selId        = null;
 var activeMode   = 'snippets';
+
+// v2 launcher UI state (popup-only; all null-guarded so the shared core in
+// Sprintbrain.html is unaffected — it drives its own nv-* presentation).
+var expandedId      = null;   // snippet id whose inline detail is open
+var detailLang      = null;   // active language inside the open detail
+var detailFieldVals = {};     // user-entered field values for the open detail's fill form
+var selIdx          = -1;     // keyboard selection index in the snippet list
+var pSelIdx         = -1;     // keyboard selection index in the prompt list
+var loaded          = false;  // true once the authoritative Supabase load resolves
+var listAnimated    = false;  // entrance animation runs once, on first data render
+var searchAllFolders= false;  // "search all folders" escape from a folder-scoped miss
 
 // TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
@@ -211,6 +221,9 @@ function applyTriggerCfgToInputs() {
   var pi = gi('iprompt'); if (pi) pi.textContent = triggerCfg.promptTrigger;
   var ie = gi('iex');     if (ie) ie.textContent = triggerCfg.snippetTrigger + 'quoteEN';
   var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
+  // Segmented-control glyphs mirror the live triggers (never hardcoded).
+  var mgs = gi('mglyph-snip');  if (mgs) mgs.textContent = triggerCfg.snippetTrigger;
+  var mgp = gi('mglyph-prmpt'); if (mgp) mgp.textContent = triggerCfg.promptTrigger;
 }
 function saveTriggerCfg() {
   try { chrome.storage.sync.set({triggerCfg: triggerCfg}); } catch(e) {}
@@ -341,6 +354,23 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.99.0', date:'2026-07-11', label:'fix: folder chips scroll with the mouse',
+    changes:[
+      {type:'fix', text:'When you have more folders than fit across the top, arrow buttons now appear at the edges and the mouse wheel scrolls the folder chips left and right. Before, folders past the right edge were cut off with no way to reach them using a mouse.'}
+    ]},
+  { version:'v2.98.0', date:'2026-07-11', label:'feat: fill snippet fields and copy the result from the popup',
+    changes:[
+      {type:'new', text:'Open a snippet in the popup and, if it has fields like {guest_name}, fill them right there and hit Copy filled — you get the finished text ready to paste into WhatsApp Web or anywhere the in-field trigger is awkward.'},
+      {type:'new', text:'Dates, formulas and conditional blocks resolve too, using the same engine as the in-page trigger, so the copied text matches exactly. Copy raw still gives you the untouched template.'}
+    ]},
+  { version:'v2.97.0', date:'2026-07-11', label:'feat: popup redesign — a faster, search-first launcher',
+    changes:[
+      {type:'new', text:'The popup opens with the search box focused — just type to filter, press Enter to copy the top result. Arrow keys move through the list; no mouse needed.'},
+      {type:'new', text:'Folders are now scrollable chips across the top instead of a narrow sidebar, so long folder names read in full and snippet rows use the whole width.'},
+      {type:'new', text:'Open a snippet to see its languages side by side and copy the body text in any one of them — the extension could only copy the shortcut before.'},
+      {type:'new', text:'Bigger, touch-friendly rows; a single "Open Dashboard" button; and the Notion status now lives as a small chip in the header that only appears once Notion is connected.'},
+      {type:'fix', text:'The list no longer flashes "No snippets found" while it loads — it shows your cached snippets instantly, then refreshes.'}
+    ]},
   { version:'v2.95.0', date:'2026-07-09', label:'feat: right-click menu icons match the app',
     changes:[
       {type:'new', text:'Folder and snippet icons in the right-click menu now come from the same icon set as the dashboard and the mobile app. A snippet shows its folder icon, so the same item looks the same on every surface.'},
@@ -615,25 +645,19 @@ function _timeAgo(isoString) {
   return Math.floor(diff / 86400) + ' days ago';
 }
 
-/* SVG icon map for sync bar — Lucide-style stroke icons */
-var _SYNC_SVGS = {
-  settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
-  refresh: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2.5 11.5a10 10 0 0 1 18.8-4.3M21.5 12.5a10 10 0 0 1-18.8 4.2"/></svg>',
-  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-  warn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-};
-
-function _setSyncBar(icon, text, color) {
-  var iconEl = document.getElementById('sb-sync-icon');
+// Header status chip — a colored dot + text. `state==='refresh'` pulses the dot
+// (syncing). The chip's visibility is owned by updateSyncStatus (hidden until
+// Notion is configured). `color` accepts a hex or a CSS var() string.
+function _setSyncBar(state, text, color) {
+  var chip   = document.getElementById('sb-sync-now');
+  var dotEl  = document.getElementById('sb-sync-icon');
   var textEl = document.getElementById('sb-sync-text');
-  if (iconEl) {
-    iconEl.innerHTML = _SYNC_SVGS[icon] || _SYNC_SVGS.refresh;
-    iconEl.style.color = color || '#A1A1AA';
+  if (chip) chip.style.display = 'inline-flex';
+  if (dotEl) {
+    dotEl.style.background = color || 'var(--sb-ink-subtle)';
+    if (state === 'refresh') dotEl.classList.add('pulse'); else dotEl.classList.remove('pulse');
   }
-  if (textEl) {
-    textEl.textContent = text;
-    textEl.style.color = color || '#A1A1AA';
-  }
+  if (textEl) textEl.textContent = text;
 }
 
 function updateSyncStatus() {
@@ -643,31 +667,29 @@ function updateSyncStatus() {
       var lastSync = d && d['sb_notion_last_sync_ts'];
       var hasError = d && d['sb_notion_sync_error'];
       var hasNotion = notionCfg && notionCfg.apiKey && notionCfg.dbId;
+      var chip = gi('sb-sync-now');
 
-      if (!hasNotion) {
-        _setSyncBar('settings', 'Notion not configured', '#A1A1AA');
-        return;
-      }
+      // No Notion \u2192 the status chip is not shown at all (nothing to sync).
+      if (!hasNotion) { if (chip) chip.style.display = 'none'; return; }
 
       if (hasError) {
-        _setSyncBar('warn', 'Sync failed \u2014 ' + _timeAgo(lastSync), '#DC2626');
+        _setSyncBar('warn', 'Sync failed \u2014 tap to retry', 'var(--sb-danger)');
         return;
       }
 
       if (!lastSync) {
-        _setSyncBar('refresh', 'Never synced', '#1B4FD8');
+        _setSyncBar('refresh', 'Never synced', 'var(--sb-azure)');
         return;
       }
 
-      var ageMs = Date.now() - new Date(lastSync).getTime();
-      var ageMin = Math.floor(ageMs / 60000);
+      var ageMin = Math.floor((Date.now() - new Date(lastSync).getTime()) / 60000);
 
       if (ageMin < 15) {
-        _setSyncBar('check', 'Synced with Notion ' + _timeAgo(lastSync), '#16A34A');
+        _setSyncBar('check', 'Synced ' + _timeAgo(lastSync), 'var(--sb-ok)');
       } else if (ageMin < 30) {
-        _setSyncBar('refresh', 'Synced ' + _timeAgo(lastSync), '#1B4FD8');
+        _setSyncBar('refresh', 'Synced ' + _timeAgo(lastSync), 'var(--sb-azure)');
       } else {
-        _setSyncBar('warn', 'Not synced for ' + _timeAgo(lastSync) + ' \u2014 click Sync Now', '#DC2626');
+        _setSyncBar('warn', 'Not synced \u2014 tap to sync', 'var(--sb-danger)');
       }
     }
   );
@@ -866,6 +888,18 @@ function applyPopupGreeting(session) {
 function boot() {
     refreshUI();
 
+    // Instant hydrate from the local cache (same shape as `snips`, written by
+    // syncSnippets) so the list shows immediately instead of flashing empty
+    // while Supabase loads. The authoritative DB.loadAll below reconciles.
+    try {
+      chrome.storage.local.get('snippets', function (d) {
+        if (!snips.length && d && Array.isArray(d.snippets) && d.snippets.length) {
+          snips = d.snippets;
+          refreshUI();
+        }
+      });
+    } catch (e) {}
+
     loadTriggerCfg(function () {
           applyTriggerCfgToInputs();
           refreshUI();
@@ -888,9 +922,8 @@ function boot() {
       if (dl) dl.value = userPrefs.defaultLang;
     });
 
-    var st = gi('st');   if (st) st.textContent = '● Syncing…';
-
     Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(results) {
+      loaded = true;
       var data    = results[0];
       var prmData = Array.isArray(results[1]) ? results[1] : [];
       prompts = prmData;
@@ -1069,10 +1102,8 @@ function _runNotionSync(cb, force) {
 // UI REFRESH
 function groupCount(arr){ var seen={}; var n=0; for(var i=0;i<arr.length;i++){ var gid=arr[i].lang_group_id||arr[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
 function refreshUI(){
-  var tp=gi('tp'); if(tp) tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-  var he=gi('hint-ex'); if(he) he.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
+  var tp=gi('tp'); if(tp && activeMode!=='prompts') tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
   var gc=groupCount(snips);
-  var st=gi('st'); if(st) st.textContent='\u25CF '+gc+' snippet'+(gc!==1?'s':'');
   var mcs=gi('mct-snip'); if(mcs) mcs.textContent=gc;
   var mcp=gi('mct-prmpt'); if(mcp) mcp.textContent=prompts.length;
   renderFolders();
@@ -1104,87 +1135,340 @@ function _folderSvg(ico){ return _FOLDER_SVGS[ico] || _FOLDER_SVGS.folder; }
 function renderFolders(){
   var el=gi('folder-list'); if(!el) return;
   var allIco='<svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg>';
-  var h='<div class="folder-item'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" tabindex="0" role="treeitem"><span class="folder-ico">'+allIco+'</span><span class="folder-name">All snippets</span><span class="folder-count">'+groupCount(snips)+'</span></div>';
+  var h='<button class="chip'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" type="button">'
+      +'<span class="chip-ic">'+allIco+'</span>All<span class="chip-c">'+groupCount(snips)+'</span></button>';
   for(var i=0;i<folders.length;i++){
     var f=folders[i];
-    h+='<div class="folder-item'+(selFolder===f.id?' on':'')+'" data-fid="'+f.id+'" tabindex="0" role="treeitem">'
-      +'<span class="folder-ico">'+_folderSvg(f.ico||'folder')+'</span>'
-      +'<span class="folder-name">'+esc(f.name)+'</span>'
-      +'<span class="folder-count">'+folderCount(f.id)+'</span>'
-      +'</div>';
+    h+='<button class="chip'+(selFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'" type="button">'
+      +'<span class="chip-ic">'+_folderSvg(f.ico||'folder')+'</span>'
+      +esc(f.name)
+      +'<span class="chip-c">'+folderCount(f.id)+'</span>'
+      +'</button>';
   }
   el.innerHTML=h;
-  el.querySelectorAll('.folder-item').forEach(function(row){
-    row.addEventListener('click',function(){
-      selFolder=row.dataset.fid; renderFolders();
+  el.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      selFolder=c.dataset.fid; searchAllFolders=false; expandedId=null; selIdx=-1;
+      renderFolders();
       renderList(gi('sq')?gi('sq').value:'');
+      try{ c.scrollIntoView({inline:'center',block:'nearest'}); }catch(e){}
     });
   });
+  updateChipNav();
 }
+
+// Show/hide the folder-chip scroll arrows based on how far the row is scrolled.
+function updateChipNav(){
+  var list=gi('folder-list'), L=gi('chip-nav-left'), R=gi('chip-nav-right');
+  if(!list||!L||!R) return;
+  var max=list.scrollWidth-list.clientWidth-1;
+  L.classList.toggle('show', list.scrollLeft>2);
+  R.classList.toggle('show', max>2 && list.scrollLeft<max);
+}
+// Wire the arrows once + let the mouse wheel scroll the chips horizontally
+// (a plain wheel only scrolls vertically otherwise, leaving hidden chips
+// unreachable with a mouse). Popup-only — guarded by #folder-list's presence.
+(function initChipNav(){
+  var list=gi('folder-list'); if(!list) return;
+  var L=gi('chip-nav-left'), R=gi('chip-nav-right');
+  if(L) L.addEventListener('click', function(){ list.scrollBy({left:-150, behavior:'smooth'}); });
+  if(R) R.addEventListener('click', function(){ list.scrollBy({left:150, behavior:'smooth'}); });
+  list.addEventListener('scroll', updateChipNav);
+  list.addEventListener('wheel', function(e){
+    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ list.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive:false });
+})();
 
 // SNIPPET LIST
 function findSnip(id){ for(var i=0;i<snips.length;i++){ if(snips[i].id===id) return snips[i]; } return null; }
 
+function shortWord(sc){ return String(sc||'').replace(/^[^a-zA-Z0-9]+/,''); }
+function matchSnip(s,q){ q=q.toLowerCase(); return String(s.title||'').toLowerCase().indexOf(q)>-1||String(s.shortcut||'').toLowerCase().indexOf(q)>-1; }
+
+// Escape a body for display, then wrap {field}/{=formula}/{if:\u2026} tokens so the
+// template's dynamic parts read at a glance in the detail preview.
+function highlightVars(body){
+  return esc(body).replace(/\{[^{}]*\}/g, function(m){ return '<span class="var">'+m+'</span>'; });
+}
+
+// Ordered languages available for a snippet group (sibling rows + single-row
+// bodies map), EN/ES/IT/FR first, then anything else findVariants surfaces.
+function detailLangOrder(vars){
+  var order=[]; LANGS.forEach(function(l){ if(vars[l]) order.push(l); });
+  Object.keys(vars).forEach(function(l){ if(order.indexOf(l)<0) order.push(l); });
+  return order;
+}
+
+function renderSkeleton(el){
+  var h='';
+  for(var i=0;i<6;i++){
+    h+='<div class="sk-row"><div class="sk-main"><span class="sk" style="width:'+(46+i*4)+'%;height:13px"></span>'
+      +'<span class="sk" style="width:'+(26+i*2)+'%;height:10px"></span></div>'
+      +'<span class="sk" style="width:78px;height:22px;border-radius:9999px"></span></div>';
+  }
+  el.innerHTML=h;
+}
+
+// Resolve a language's body with the single-row bodies map taking priority over
+// the raw row (whose `.body` is empty when content lives in `bodies`), then any
+// sibling-row variant, then the primary row's own body. Mirrors the dashboard
+// editor (Sprintbrain.html openEditor), which reads bodies[lang] first.
+function detailBody(s, lang, vars){
+  var bm = (s.bodies && typeof s.bodies==='object') ? s.bodies[lang] : null;
+  if(typeof bm==='string' && bm.trim()) return bm;
+  if(vars[lang] && typeof vars[lang].body==='string' && vars[lang].body.trim()) return vars[lang].body;
+  return (lang===(s.lang||'EN')) ? (s.body||'') : '';
+}
+
+// \u2500\u2500 FILL-AND-COPY (read-only resolve; never mutates the snippet) \u2500\u2500\u2500\u2500\u2500
+// Field detection mirrors the dashboard Composer: {formtext/date/menu:}
+// configs, then {{placeholders}}, then bare {fields}.
+function detailFieldDefs(body){
+  var FE=window.SBFormulaEngine; if(!FE||!body) return {};
+  var defs={};
+  try{
+    var dyn=FE.buildFormFieldCfg(body); for(var k in dyn) defs[k]=dyn[k];
+    var ph=FE.parsePlaceholders(body); for(var i=0;i<ph.length;i++){ if(!defs[ph[i]]) defs[ph[i]]={type:'text',default:''}; }
+    var sf=FE.extractFields(body); for(var j=0;j<sf.length;j++){ if(!defs[sf[j]]) defs[sf[j]]={type:'text',default:''}; }
+  }catch(e){}
+  return defs;
+}
+// Values for a body's fields \u2014 user entry wins, else the field default.
+function currentFieldVals(defs){
+  var vals={}; Object.keys(defs).forEach(function(k){ vals[k]=(detailFieldVals[k]!==undefined)?detailFieldVals[k]:(defs[k].default||''); });
+  return vals;
+}
+// Resolve a body with field values through the SAME engine as the in-page
+// ::trigger expansion (formula-engine.js). Falls back to raw if absent.
+function resolveFilled(body, vals){
+  var FE=window.SBFormulaEngine; if(!FE) return body;
+  try{ return FE.resolveBody(FE.interpolateSnippet(body, vals), vals); }catch(e){ return body; }
+}
+function detailActiveBody(s){
+  var vars=findVariants(s);
+  var lang=(detailLang && vars[detailLang]) ? detailLang : (s.lang||'EN');
+  return detailBody(s, lang, vars);
+}
+// Live-update the open detail's preview from the current field inputs.
+function updateDetailPreview(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  var wrap=document.querySelector('.detail[data-detail="'+id+'"]');
+  var pv=wrap?wrap.querySelector('.d-body'):null;
+  if(pv){ pv.textContent=out; if(out.trim()) pv.classList.remove('plain'); else pv.classList.add('plain'); }
+}
+function copyFilled(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  try{ navigator.clipboard.writeText(out||''); }catch(e){}
+  showToast('Copied filled text');
+}
+// Enter inside an open detail copies the primary action (filled when the body
+// is dynamic, otherwise the raw body).
+function copyDetailPrimary(id){
+  var s=findSnip(id); if(!s) return;
+  var body=detailActiveBody(s);
+  var vals=currentFieldVals(detailFieldDefs(body));
+  if(resolveFilled(body, vals)!==body) copyFilled(id); else copyBody(id);
+}
+
+function renderDetailHtml(s){
+  var vars=findVariants(s);
+  var order=detailLangOrder(vars);
+  if(!order.length) order=[s.lang||'EN'];
+  var active=(detailLang && vars[detailLang]) ? detailLang : (vars[s.lang] ? s.lang : order[0]);
+  detailLang=active;
+  var body=detailBody(s, active, vars);
+  var pills=order.map(function(l){
+    return '<button class="d-lp '+esc(l)+(l===active?' on':'')+'" type="button" data-dlang="'+esc(l)+'" data-did="'+esc(s.id)+'">'+esc(l)+'</button>';
+  }).join('');
+
+  var editBtn='<button class="d-edit" type="button" data-editdash="1">Edit in dashboard<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>';
+  var scBtn='<button class="d-btn ghost" type="button" data-copysc="'+esc(s.id)+'">Copy shortcut</button>';
+  var copyIco='<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+  var defs=detailFieldDefs(body);
+  var fieldKeys=Object.keys(defs);
+  var hasFields=fieldKeys.length>0;
+  var vals=currentFieldVals(defs);
+  var resolved=resolveFilled(body, vals);
+  var isDynamic=hasFields || (resolved!==body);
+
+  var h='<div class="detail" data-detail="'+esc(s.id)+'">'
+    +(order.length>1?'<div class="d-langs">'+pills+'</div>':'');
+
+  if(isDynamic){
+    if(hasFields){
+      var form='<div class="d-fields" data-fid="'+esc(s.id)+'">';
+      fieldKeys.forEach(function(k){
+        var def=defs[k], label=k.replace(/_/g,' '), val=(vals[k]!=null?vals[k]:''), inp;
+        if(def.type==='dd'){
+          var opts=(def.opts||'').split('\n').filter(Boolean);
+          inp='<select data-fkey="'+esc(k)+'">'+opts.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+        } else if(def.type==='date'){
+          inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
+        } else {
+          inp='<input type="text" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
+        }
+        form+='<div class="d-frow"><label>'+esc(label)+'</label>'+inp+'</div>';
+      });
+      form+='</div>';
+      h+=form;
+    }
+    var pvCls='d-body'+(resolved.trim()?'':' plain');
+    var note=hasFields
+      ? 'Fill the fields, then <b>Copy filled</b> \u2014 same result as expanding <b>'+esc(trig)+esc(shortWord(s.shortcut))+'</b> in a page.'
+      : '<b>Copy filled</b> resolves dates &amp; formulas \u2014 same result as expanding <b>'+esc(trig)+esc(shortWord(s.shortcut))+'</b> in a page.';
+    h+='<div class="'+pvCls+'">'+esc(resolved)+'</div>'
+      +'<div class="d-note">'+note+'</div>'
+      +'<div class="d-acts">'
+        +'<button class="d-btn pri" type="button" data-copyfilled="'+esc(s.id)+'">'+copyIco+'Copy filled</button>'
+        +'<button class="d-btn ghost" type="button" data-copybody="'+esc(s.id)+'">Copy raw</button>'
+        +scBtn+editBtn
+      +'</div>';
+  } else {
+    var bodyHtml = body.trim() ? highlightVars(body) : 'This language has no body yet.';
+    var bodyCls  = body.trim() ? 'd-body' : 'd-body plain';
+    h+='<div class="'+bodyCls+'">'+bodyHtml+'</div>'
+      +'<div class="d-acts">'
+        +'<button class="d-btn pri" type="button" data-copybody="'+esc(s.id)+'">'+copyIco+'Copy body</button>'
+        +scBtn+editBtn
+      +'</div>';
+  }
+  return h+'</div>';
+}
+
 function renderList(q){
   var el=gi('list'); if(!el) return;
+  selIdx=-1;
+  // Cold start: show skeleton rows instead of a false "empty" until the
+  // authoritative load resolves (or the local cache hydrates `snips`).
+  if(!loaded && !snips.length){ el.setAttribute('aria-busy','true'); renderSkeleton(el); return; }
+  el.setAttribute('aria-busy','false');
+
+  var effFolder=(searchAllFolders && q) ? 'ALL' : selFolder;
   var filtered=snips.filter(function(s){
-    var mf=selFolder==='ALL'||(s.folder||'')===selFolder;
-    var mq=!q||String(s.title||'').toLowerCase().indexOf(q.toLowerCase())>-1||String(s.shortcut||'').toLowerCase().indexOf(q.toLowerCase())>-1;
-    return mf&&mq;
+    var mf=effFolder==='ALL'||(s.folder||'')===effFolder;
+    return mf && (!q||matchSnip(s,q));
   });
-  if(!filtered.length){ el.innerHTML='<div class="empty">No snippets found.<br><small>Create snippets in the dashboard.</small></div>'; return; }
-  // Sort pinned snippets to top
+
+  if(!filtered.length){
+    // Folder-scoped miss that would hit in another folder \u2192 offer "search all".
+    if(loaded && q && !searchAllFolders && selFolder!=='ALL'){
+      var other=snips.filter(function(s){ return matchSnip(s,q); });
+      if(other.length){
+        el.innerHTML='<div class="empty">No matches in this folder.<br>'
+          +'<button class="searchall" id="btn-searchall" type="button">'+other.length+' in other folders \u2014 search all</button></div>';
+        var b=gi('btn-searchall'); if(b) b.addEventListener('click',function(){ searchAllFolders=true; renderList(gi('sq')?gi('sq').value:''); });
+        return;
+      }
+    }
+    el.innerHTML='<div class="empty">'+(q?'No matches for &ldquo;'+esc(q)+'&rdquo;.':'No snippets yet.<br><small>Create snippets in the dashboard.</small>')+'</div>';
+    return;
+  }
+
   filtered.sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   var groups=groupSnips(filtered);
   var h='';
-  for(var gi2=0;gi2<groups.length;gi2++){
-    var g=groups[gi2];
-    var master=g.master;
-    var variants=g.variants;
-    var vLangs=Object.keys(variants);
-    var s=variants[selId]||master;
-    var st=s.stats||{uses:0,fills:0,lastUsed:null};
-    var usesBadge=st.uses===0?'<span class="stat-b never">Never used</span>':st.uses>=10?'<span class="stat-b hot">\u00D7'+st.uses+'</span>':'<span class="stat-b uses">\u00D7'+st.uses+'</span>';
-    var fillsBadge=st.uses>0?'<span class="stat-b fills">'+st.fills+' filled</span>':'';
-    var pillsHtml='';
-    if(vLangs.length>1){
-      ['EN','ES','IT','FR'].forEach(function(l){
-        if(variants[l]){
-          var isAct=variants[l].id===selId;
-          pillsHtml+='<span class="stat-b '+(isAct?'uses':'never')+'" style="cursor:pointer;font-weight:700" data-switch="'+variants[l].id+'">'+l+(isAct?' \u2713':'')+'</span>';
-        }
-      });
-    }
-    var baseTitle=master.title.replace(/\s*(EN|ES|IT|FR)$/,'');
-    h+='<div class="item" data-id="'+s.id+'">'
-      +'<div style="flex:1;min-width:0;overflow:hidden">'
-      +'<div class="iname" id="iname-'+s.id+'">'+esc(baseTitle)+'</div>'
-      +'<div style="display:flex;gap:4px;margin-top:2px">'+usesBadge+fillsBadge+pillsHtml+'</div>'
+  groups.forEach(function(g){
+    var s=g.master;
+    var langs=Object.keys(findVariants(s));
+    var lb=langs.length>1 ? 'MULTI' : (s.lang||'EN');
+    var st=s.stats||{uses:0};
+    var usesTxt=st.uses ? ('\u00D7'+st.uses) : 'Never used';
+    var base=String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/,'');
+    var open=expandedId===s.id;
+    h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-label="'+esc(base)+' \u2014 copy shortcut">'
+      +'<div class="i-main">'
+        +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'
+          +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
+        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span></div>'
       +'</div>'
-      +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc((s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''))+'</span>'
-      +(function(){ var el2 = bodyLangs(s).length>1 ? 'MULTI' : (s.lang||'EN'); return '<span class="lb '+esc(el2)+'">'+esc(el2)+'</span>'; })()
-      +'</div>';
-  }
-    el.innerHTML=h;
+      +'<button class="chev" type="button" data-chev="'+esc(s.id)+'" title="Details" aria-label="Show languages and body" aria-expanded="'+(open?'true':'false')+'"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>'
+    +'</div>';
+    if(open) h+=renderDetailHtml(s);
+  });
+  el.innerHTML=h;
+
+  // Entrance stagger runs once, on the first data render.
+  if(!listAnimated){ el.classList.add('anim'); listAnimated=true; setTimeout(function(){ el.classList.remove('anim'); },400); }
+  else el.classList.remove('anim');
+
+  wireListRows(el);
+}
+
+function wireListRows(el){
   el.querySelectorAll('.item').forEach(function(row){
     row.addEventListener('click',function(e){
-      if(e.target.dataset.switch){
-        selId=e.target.dataset.switch;
-        refreshUI();
-        return;
-      }
-      var s=findSnip(row.dataset.id); if(!s) return;
-      try{ navigator.clipboard.writeText(s.shortcut||''); }catch(e2){}
-      if(!s.stats) s.stats={uses:0,fills:0,lastUsed:null};
-      s.stats.uses=(s.stats.uses||0)+1;
-      s.stats.lastUsed=new Date().toISOString();
-      DB.updateStats(s.id,s.stats.uses,s.stats.fills,s.stats.lastUsed);
-      var nm=gi('iname-'+row.dataset.id);
-      var orig=nm?nm.textContent:s.title;
-      if(nm) nm.textContent='\u2713 '+(s.shortcut||'')+' copied!';
-      setTimeout(function(){ if(nm) nm.textContent=orig; },1600);
+      if(e.target.closest('[data-chev]')){ toggleDetail(row.dataset.id); return; }
+      copyShortcutRow(row);
     });
   });
+  el.querySelectorAll('[data-dlang]').forEach(function(p){
+    p.addEventListener('click',function(e){ e.stopPropagation(); detailLang=p.dataset.dlang; renderList(gi('sq')?gi('sq').value:''); reSel(p.dataset.did); });
+  });
+  el.querySelectorAll('[data-copybody]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); copyBody(btn.dataset.copybody); });
+  });
+  el.querySelectorAll('[data-copyfilled]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); copyFilled(btn.dataset.copyfilled); });
+  });
+  el.querySelectorAll('[data-copysc]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); var s=findSnip(btn.dataset.copysc); if(s) doCopyShortcut(s); });
+  });
+  el.querySelectorAll('[data-editdash]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); openDashboard(); });
+  });
+  // Fill-form inputs: live-resolve the preview in place (no re-render → focus kept).
+  el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
+    var box=inp.closest('.d-fields'); var did=box?box.getAttribute('data-fid'):null;
+    var handler=function(){ detailFieldVals[inp.getAttribute('data-fkey')]=inp.value; if(did) updateDetailPreview(did); };
+    inp.addEventListener('input',handler); inp.addEventListener('change',handler);
+  });
+}
+
+function toggleDetail(id){
+  // Opening a (different) snippet starts with a fresh fill form; language
+  // switches keep the entered values (handled in the data-dlang wiring).
+  if(expandedId===id){ expandedId=null; detailFieldVals={}; }
+  else { expandedId=id; detailLang=null; detailFieldVals={}; }
+  renderList(gi('sq')?gi('sq').value:'');
+  reSel(id);
+}
+
+// Row copy \u2014 copies the raw stored shortcut and bumps usage stats (identical
+// semantics to Sprintbrain.html so the shared stats stay consistent).
+function copyShortcutRow(row){ var s=findSnip(row.dataset.id); if(s) doCopyShortcut(s); }
+function doCopyShortcut(s){
+  try{ navigator.clipboard.writeText(s.shortcut||''); }catch(e){}
+  if(!s.stats) s.stats={uses:0,fills:0,lastUsed:null};
+  s.stats.uses=(s.stats.uses||0)+1;
+  s.stats.lastUsed=new Date().toISOString();
+  DB.updateStats(s.id,s.stats.uses,s.stats.fills,s.stats.lastUsed);
+  flashChip(s.id);
+  showToast('Copied '+trig+shortWord(s.shortcut));
+}
+
+// Per-language body copy \u2014 copies the RAW template (placeholders intact). Does
+// not bump stats (matches the dashboard's "Copy content").
+function copyBody(id){
+  var s=findSnip(id); if(!s) return;
+  var vars=findVariants(s);
+  var lang=(detailLang && vars[detailLang]) ? detailLang : (s.lang||'EN');
+  var body=detailBody(s, lang, vars);
+  try{ navigator.clipboard.writeText(body||''); }catch(e){}
+  showToast('Copied '+lang+' body');
+}
+
+function flashChip(id){
+  var row=document.querySelector('.item[data-id="'+id+'"]');
+  if(!row) return;
+  var chip=row.querySelector('.isc'); if(!chip) return;
+  var orig=chip.innerHTML;
+  chip.classList.add('ok'); chip.textContent='\u2713 copied';
+  setTimeout(function(){ if(chip){ chip.classList.remove('ok'); chip.innerHTML=orig; } },1500);
 }
 
 // ── PROMPT LIST RENDER ─────────────────────────────────────────────
@@ -1205,65 +1489,76 @@ function renderPrompts(q) {
     el.innerHTML = '<div class="p-empty">'+(q?'No prompts match &ldquo;'+esc(q)+'&rdquo;':'No prompts yet.<br>Create and edit prompts in the <strong>dashboard</strong>.')+'</div>';
     return;
   }
+  var pt = triggerCfg.promptTrigger || '"""';
   var h = '';
   filtered.forEach(function(p) {
     var type = (p.type || 'one-shot').replace(/_/g,'-');
     var badgeLbl = type === 'few-shot' ? 'Few-shot' : 'One-shot';
+    var scHtml = p.shortcut
+      ? '<span class="p-sc"><span class="isc-pfx">'+esc(pt)+'</span>'+esc(shortWord(p.shortcut))+'</span>'
+      : '';
     var tags = (p.tags||[]).slice(0,3).map(function(t){
       return '<span class="p-tagpill">'+esc(t)+'</span>';
     }).join('');
-    h += '<div class="p-item" data-pid="'+esc(p.id)+'">'
+    h += '<div class="p-item" data-pid="'+esc(p.id)+'" tabindex="-1" role="button" aria-label="'+esc(p.name||'Untitled')+' — copy prompt">'
       + '<div class="p-body">'
       + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</div>'
-      + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+tags+'</div>'
+      + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+scHtml+tags+'</div>'
       + '</div>'
-      + '<button class="iedit" title="Copy prompt to clipboard">Copy</button>'
+      + '<button class="p-copy" type="button" title="Copy prompt" aria-label="Copy prompt"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'
       + '</div>';
   });
   el.innerHTML = h;
   el.querySelectorAll('.p-item').forEach(function(row) {
-    row.addEventListener('click', function() {
-      var p = findPrompt(row.dataset.pid); if (!p) return;
-      try { navigator.clipboard.writeText(p.content||''); } catch(_) {}
-      var nm = gi('pname-'+row.dataset.pid);
-      var orig = nm ? nm.textContent : '';
-      if (nm) nm.textContent = '✓ Copied!';
-      setTimeout(function() { if (nm) nm.textContent = orig; }, 1600);
-    });
+    row.addEventListener('click', function() { copyPrompt(row.dataset.pid); });
   });
+}
+
+function copyPrompt(pid){
+  var p = findPrompt(pid); if (!p) return;
+  try { navigator.clipboard.writeText(p.content||''); } catch(_) {}
+  var nm = gi('pname-'+pid);
+  var orig = nm ? nm.textContent : '';
+  if (nm) nm.textContent = '✓ Copied!';
+  setTimeout(function() { if (nm) nm.textContent = orig; }, 1500);
+  showToast('Prompt copied');
 }
 
 // ── MODE SWITCHER ──────────────────────────────────────────────────
 function setMode(m) {
   activeMode = m;
   var srow       = document.querySelector('.srow');
-  var snipSb     = gi('snip-sb');
+  var snipChips  = gi('snip-chips');
   var snipMain   = gi('snip-main');
   var pMain      = gi('prompt-main');
+  var seg        = gi('mode-seg');
   var sq         = gi('sq');
   var tp         = gi('tp');
-  var pTrigHint  = gi('ptrig-hint');
   var ptTrig     = triggerCfg.promptTrigger || '"""';
 
+  expandedId = null; selIdx = -1; pSelIdx = -1;
+
   document.querySelectorAll('.mode-tab').forEach(function(t) {
-    t.className = 'mode-tab' + (t.dataset.mode === m ? ' on' : '');
+    var on = t.dataset.mode === m;
+    t.className = 'mode-tab' + (on ? ' on' : '');
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+  if (seg) { if (m === 'prompts') seg.classList.add('on-prompts'); else seg.classList.remove('on-prompts'); }
 
   if (m === 'prompts') {
     if (srow) srow.classList.add('pmode');
-    if (snipSb) snipSb.style.display = 'none';
+    if (snipChips) snipChips.style.display = 'none';
     if (snipMain) snipMain.style.display = 'none';
     if (pMain) pMain.className = 'p-main on';
     if (sq) sq.placeholder = 'Search prompts…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
-    if (pTrigHint) pTrigHint.innerHTML = '<span class="isc-pfx">'+esc(ptTrig)+'</span>name';
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
-    if (snipSb) snipSb.style.display = '';
+    if (snipChips) snipChips.style.display = '';
     if (snipMain) snipMain.style.display = '';
     if (pMain) pMain.className = 'p-main';
-    if (sq) sq.placeholder = 'Search snippets or /shortcut…';
+    if (sq) sq.placeholder = 'Search snippets…';
     if (tp) tp.innerHTML = '<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
     renderList(sq ? sq.value : '');
   }
@@ -1303,8 +1598,8 @@ on('bdash','click',   openDashboard);
 on('bmanage','click', openDashboard);
 on('bbcfg','click',   function(){ show('pane-list'); refreshUI(); });
 on('brel','click', function(){
-  var st=gi('st'); if(st) st.textContent='\u25CF Reloading\u2026';
   Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(results){
+    loaded=true;
     var data=results[0]; var prmData=Array.isArray(results[1])?results[1]:[];
     prompts=prmData;
     if(data&&data.snippets&&data.snippets.length>0){ snips=data.snippets; if(data.folders&&data.folders.length>0) folders=data.folders; }
@@ -1314,14 +1609,72 @@ on('brel','click', function(){
   });
 });
 on('sq','input', function(e){
-  if(activeMode==='prompts') renderPrompts(e.target.value);
-  else renderList(e.target.value);
+  expandedId=null;
+  if(!e.target.value) searchAllFolders=false;
+  if(activeMode==='prompts'){ pSelIdx=-1; renderPrompts(e.target.value); }
+  else { selIdx=-1; renderList(e.target.value); }
 });
 on('cfg-default-lang','change', function(e){ userPrefs.defaultLang = e.target.value; saveUserPrefs(); });
 
 // Mode tabs
 document.querySelectorAll('.mode-tab').forEach(function(tab){
   tab.addEventListener('click', function(){ setMode(tab.dataset.mode); });
+});
+
+// ── KEYBOARD NAVIGATION (popup only; guarded by #pane-list so the shared core
+//    in Sprintbrain.html — which has no #pane-list — is never affected) ──────
+function listRows(){ var el=gi('list'); return el?Array.prototype.slice.call(el.querySelectorAll('.item')):[]; }
+function setSel(i){
+  var rows=listRows(); if(!rows.length){ selIdx=-1; return; }
+  if(i<0)i=0; if(i>=rows.length)i=rows.length-1; selIdx=i;
+  rows.forEach(function(r,idx){ if(idx===selIdx) r.classList.add('sel'); else r.classList.remove('sel'); });
+  try{ rows[selIdx].scrollIntoView({block:'nearest'}); }catch(e){}
+}
+function reSel(id){ var rows=listRows(); for(var i=0;i<rows.length;i++){ if(rows[i].dataset.id===id){ setSel(i); return; } } }
+function pRows(){ var el=gi('plist'); return el?Array.prototype.slice.call(el.querySelectorAll('.p-item')):[]; }
+function setPSel(i){
+  var rows=pRows(); if(!rows.length){ pSelIdx=-1; return; }
+  if(i<0)i=0; if(i>=rows.length)i=rows.length-1; pSelIdx=i;
+  rows.forEach(function(r,idx){ if(idx===pSelIdx) r.classList.add('sel'); else r.classList.remove('sel'); });
+  try{ rows[pSelIdx].scrollIntoView({block:'nearest'}); }catch(e){}
+}
+document.addEventListener('keydown', function(e){
+  var pane=gi('pane-list'); if(!pane || pane.className.indexOf('on')<0) return;
+  var gate=gi('sb-auth'); if(gate && gate.classList.contains('on')) return;
+  var cl=gi('cl-bg'); if(cl && cl.classList.contains('on')){ if(e.key==='Escape') closeChangelog(); return; }
+  var sq=gi('sq'); var k=e.key;
+
+  // Editing a fill-form field → leave every key to the input (no list nav).
+  var ae=document.activeElement;
+  if(ae && ae.closest && ae.closest('.d-fields')) return;
+
+  if(k==='/' && document.activeElement!==sq){ if(sq){ e.preventDefault(); sq.focus(); } return; }
+
+  if(activeMode==='prompts'){
+    if(k==='ArrowDown'){ e.preventDefault(); setPSel(pSelIdx+1); }
+    else if(k==='ArrowUp'){ e.preventDefault(); setPSel(pSelIdx-1); }
+    else if(k==='Enter'){ if(pSelIdx<0 && pRows().length) setPSel(0); var pr=pRows()[pSelIdx]; if(pr){ e.preventDefault(); copyPrompt(pr.dataset.pid); } }
+    else if(k==='Escape' && sq && sq.value){ e.preventDefault(); sq.value=''; pSelIdx=-1; renderPrompts(''); }
+    return;
+  }
+
+  var atEnd  = sq ? (sq.selectionStart===sq.value.length && sq.selectionEnd===sq.value.length) : true;
+  var atStart= sq ? (sq.selectionStart===0 && sq.selectionEnd===0) : true;
+  if(k==='ArrowDown'){ e.preventDefault(); setSel(selIdx+1); }
+  else if(k==='ArrowUp'){ e.preventDefault(); setSel(selIdx-1); }
+  else if(k==='Enter'){
+    if(selIdx<0 && listRows().length) setSel(0);
+    var row=listRows()[selIdx];
+    if(row){ e.preventDefault(); if(expandedId===row.dataset.id) copyDetailPrimary(row.dataset.id); else copyShortcutRow(row); }
+  }
+  else if(k==='ArrowRight' && selIdx>=0 && atEnd){
+    var rr=listRows()[selIdx]; if(rr && expandedId!==rr.dataset.id){ e.preventDefault(); toggleDetail(rr.dataset.id); }
+  }
+  else if(k==='ArrowLeft' && expandedId && atStart){ e.preventDefault(); toggleDetail(expandedId); }
+  else if(k==='Escape'){
+    if(expandedId){ e.preventDefault(); toggleDetail(expandedId); }
+    else if(sq && sq.value){ e.preventDefault(); sq.value=''; searchAllFolders=false; selIdx=-1; renderList(''); }
+  }
 });
 
 // Changelog events — version bar AND changelog modal are rendered AFTER this <script>
@@ -1392,20 +1745,28 @@ function findVariants(snip){
 
 function showToast(msg){
   var t=gi('toast');
-  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#18181B;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 4px 12px rgba(0,0,0,.15)'; document.body.appendChild(t); }
+  if(!t){
+    t=document.createElement('div'); t.id='toast';
+    t.setAttribute('role','status'); t.setAttribute('aria-live','polite');
+    t.style.cssText='position:fixed;bottom:68px;left:50%;transform:translateX(-50%);background:var(--sb-toast-bg);color:#fff;padding:8px 16px;border-radius:9999px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity var(--sb-dur-slow);box-shadow:var(--sb-shadow-lg);pointer-events:none;white-space:nowrap';
+    document.body.appendChild(t);
+  }
   t.textContent=msg; t.style.opacity='1';
-  setTimeout(function(){ t.style.opacity='0'; },2000);
+  clearTimeout(t._to); t._to=setTimeout(function(){ t.style.opacity='0'; },1800);
 }
 
-// Paste handler for the search input
-on('sq','paste', function(){ setTimeout(function(){ renderList(gi('sq')?gi('sq').value:''); },0); });
+// Paste handler for the search input — route by active mode.
+on('sq','paste', function(){ setTimeout(function(){
+  var v=gi('sq')?gi('sq').value:'';
+  expandedId=null; if(!v) searchAllFolders=false;
+  if(activeMode==='prompts') renderPrompts(v); else renderList(v);
+},0); });
 
 // ── SYNC NOW BUTTON ──────────────────────────────────────
 var syncNowBtn = document.getElementById('sb-sync-now');
 if (syncNowBtn) {
   syncNowBtn.addEventListener('click', function() {
     syncNowBtn.disabled = true;
-    syncNowBtn.textContent = '…';
     _setSyncBar('refresh', 'Syncing now\u2026', '#1B4FD8');
 
     chrome.storage.local.remove('sb_notion_sync_error');
@@ -1413,7 +1774,6 @@ if (syncNowBtn) {
 
     _runNotionSync(function() {
       syncNowBtn.disabled = false;
-      syncNowBtn.textContent = 'Sync Now';
       updateSyncStatus();
     }, true);
   });

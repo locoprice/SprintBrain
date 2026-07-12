@@ -124,6 +124,17 @@ describe('promptStore — folder actions', () => {
     expect(usePromptStore.getState().selectedFolderId).toBe('folder-2');
   });
 
+  it('resetFilters clears the folder selection along with the filters', () => {
+    usePromptStore.setState({ selectedFolderId: 'folder-1' });
+    usePromptStore.getState().setFilters({ search: 'quote' });
+
+    usePromptStore.getState().resetFilters();
+
+    const state = usePromptStore.getState();
+    expect(state.selectedFolderId).toBeNull();
+    expect(state.filters.search).toBe('');
+  });
+
   it('folder action surfaces an error without throwing the store into a bad state', async () => {
     mockCreateFolder.mockRejectedValue(new Error('Failed to create folder'));
 

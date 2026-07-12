@@ -95,7 +95,8 @@
   .EN{background:var(--sb-lang-en-bg);color:var(--sb-lang-en)}
   .ES{background:var(--sb-lang-es-bg);color:var(--sb-lang-es)}
   .IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
-  .MULTI,.FR{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr)}
   .nv-pin{color:var(--sb-azure);flex-shrink:0}
   .nv-pin svg{width:13px;height:13px;fill:currentColor;stroke:currentColor}
   .nv-row-act{display:flex;gap:6px;flex-shrink:0;opacity:0;transition:opacity .12s}
@@ -156,7 +157,7 @@
   .nv-langtab.on[data-lang="EN"]{background:var(--sb-lang-en)}
   .nv-langtab.on[data-lang="IT"]{background:var(--sb-lang-it)}
   .nv-langtab.on[data-lang="ES"]{background:var(--sb-lang-es)}
-  .nv-langtab.on[data-lang="FR"]{background:var(--sb-lang-multi)}
+  .nv-langtab.on[data-lang="FR"]{background:var(--sb-lang-fr)}
   .nv-langtab .dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
   .nv-langtab.has-content .dot{display:block}
   .nv-langtab.on .dot{background:rgba(255,255,255,.7)}
@@ -551,7 +552,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.95.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.102.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>

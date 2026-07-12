@@ -18,8 +18,9 @@ import { resolve } from 'node:path';
 // • Pop-up     — extension/popup/popup.js (global-scope vanilla JS, not
 //                importable into Vitest) is covered by a source-level parity
 //                guard asserting it performs the same hard DELETE on `snippets`.
-// • Mobile     — app/public/mobile/index.html (inline <script>, not importable)
-//                is covered by the same parity guard.
+// • Mobile     — snippets are READ-ONLY on the companion (delete was removed in
+//                v2.100.0); a source-level guard asserts no snippet-delete wiring
+//                exists so it cannot quietly come back.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Shared, reconfigurable Supabase mock. `vi.hoisted` so the factory below can
@@ -295,22 +296,6 @@ interface PopupSync {
   ): Promise<unknown>;
 }
 
-interface MobileSync {
-  snippetDeleteQuery(id: string, userId: string): string;
-  removeSnippetFromList<T extends { id: string }>(list: T[], id: string): T[];
-  performSnippetDelete(
-    deps: {
-      fetch: (url: string, opts: { method: string; headers: unknown }) => Promise<{ ok: boolean }>;
-      supaUrl: string;
-      userId: string;
-      headers: unknown;
-      handle401?: (r: { ok: boolean }) => boolean;
-      list: { id: string }[];
-    },
-    snip: { id: string },
-  ): Promise<{ id: string }[]>;
-}
-
 // Load a plain-script CommonJS helper (the surfaces' sync-deletion.js) without
 // going through Vite's module graph — Vitest would otherwise transform files
 // under its root and mangle the `module.exports` assignment. Evaluating the
@@ -328,9 +313,6 @@ function loadHelper<T>(path: string): T {
 
 const popupSync = loadHelper<PopupSync>(
   resolve(process.cwd(), '..', 'extension', 'popup', 'sync-deletion.js'),
-);
-const mobileSync = loadHelper<MobileSync>(
-  resolve(process.cwd(), 'public', 'mobile', 'sync-deletion.js'),
 );
 
 describe('pop-up · snippet deletion (live helper)', () => {
@@ -357,57 +339,6 @@ describe('pop-up · snippet deletion (live helper)', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOBILE — the companion's delete control flow, executed for real.
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('mobile · snippet deletion (live helper)', () => {
-  const baseDeps = {
-    supaUrl: 'https://db.example',
-    userId: 'user-1',
-    headers: { apikey: 'k' },
-    handle401: () => false,
-    list: [{ id: 'snip-A' }, { id: 'snip-B' }],
-  };
-
-  it('builds a hard-delete query scoped by id AND user_id', () => {
-    expect(mobileSync.snippetDeleteQuery('snip-A', 'user-1')).toBe(
-      'id=eq.snip-A&user_id=eq.user-1',
-    );
-  });
-
-  it('DELETEs the snippet and resolves with the pruned list on success', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    const next = await mobileSync.performSnippetDelete(
-      { ...baseDeps, fetch: fetchMock },
-      { id: 'snip-A' },
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://db.example/rest/v1/snippets?id=eq.snip-A&user_id=eq.user-1',
-      expect.objectContaining({ method: 'DELETE' }),
-    );
-    expect(next.map((s) => s.id)).toEqual(['snip-B']);
-  });
-
-  it('rejects without mutating the list when the backend responds non-OK', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
-    const list = [{ id: 'snip-A' }, { id: 'snip-B' }];
-    await expect(
-      mobileSync.performSnippetDelete({ ...baseDeps, fetch: fetchMock, list }, { id: 'snip-A' }),
-    ).rejects.toThrow('delete failed');
-    expect(list.map((s) => s.id)).toEqual(['snip-A', 'snip-B']);
-  });
-
-  it('rejects with 401 when the session handler claims the response', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    await expect(
-      mobileSync.performSnippetDelete(
-        { ...baseDeps, fetch: fetchMock, handle401: () => true },
-        { id: 'snip-A' },
-      ),
-    ).rejects.toThrow('401');
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WIRING GUARD — the executed helpers above are only meaningful if production
@@ -432,8 +363,11 @@ describe('cross-surface wiring guard', () => {
     expect(popupHtml).toMatch(/<script src="sync-deletion\.js">/);
   });
 
-  it('mobile delegates deletion to SBMobileSync and loads the helper', () => {
-    expect(mobileHtml).toMatch(/SBMobileSync\.performSnippetDelete/);
-    expect(mobileHtml).toMatch(/<script src="sync-deletion\.js">/);
+  it('mobile stays read-only: no snippet-delete wiring exists', () => {
+    // Snippet deletion was removed from the companion in v2.100.0 (read-only
+    // surface). Guard the absence so a delete path cannot quietly return.
+    expect(mobileHtml).not.toMatch(/SBMobileSync/);
+    expect(mobileHtml).not.toMatch(/<script src="sync-deletion\.js">/);
+    expect(mobileHtml).not.toMatch(/data-action="delete"/);
   });
 });

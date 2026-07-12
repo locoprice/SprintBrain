@@ -199,7 +199,7 @@ export function FolderTree({
  *   - shared → muted people icon, "shared with N specific teammates"
  * Private folders render no badge. Tooltip carries the detail on hover.
  */
-function FolderShareBadge({ info }: { info: FolderShareInfo }) {
+export function FolderShareBadge({ info }: { info: FolderShareInfo }) {
   if (info.scope === 'team') {
     return (
       <span
