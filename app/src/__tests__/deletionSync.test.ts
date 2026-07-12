@@ -158,7 +158,10 @@ function resetSnippetStore(): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sb.state.result = { data: null, error: null };
+  // A successful hard delete returns the deleted row(s); snippet deletes now
+  // `.select('id')` and treat an empty result as an RLS denial, so the default
+  // must be non-empty for the success-path tests.
+  sb.state.result = { data: [{ id: 'snip-A' }], error: null };
   sb.state.getUser = { data: { user: { id: 'user-1' } }, error: null };
   sb.state.lastQuery = null;
   resetSnippetStore();
@@ -176,7 +179,10 @@ describe('dashboard · snippet deletion sync', () => {
     const q = sb.state.lastQuery;
     expect(q?.table).toBe('snippets');
     expect(q?.methods).toContain('delete');
-    expect(q?.filters).toMatchObject({ id: 'snip-A', user_id: 'user-1' });
+    // RLS governs ownership now — no `user_id` filter, so shared-folder members
+    // can delete. `.select` reads the deleted id back to detect an RLS no-op.
+    expect(q?.methods).toContain('select');
+    expect(q?.filters).toEqual({ id: 'snip-A' });
 
     const state = useSnippetStore.getState();
     expect(state.snippets.map((s) => s.id)).toEqual(['snip-B']);
@@ -206,7 +212,8 @@ describe('dashboard · bulk snippet deletion sync', () => {
     const q = sb.state.lastQuery;
     expect(q?.table).toBe('snippets');
     expect(q?.methods).toContain('delete');
-    expect(q?.filters).toMatchObject({ id: ['snip-A', 'snip-B'], user_id: 'user-1' });
+    expect(q?.methods).toContain('select');
+    expect(q?.filters).toEqual({ id: ['snip-A', 'snip-B'] });
 
     const state = useSnippetStore.getState();
     expect(state.snippets).toEqual([]);
@@ -258,13 +265,23 @@ describe('dashboard · prompt deletion sync', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('shared backend contract', () => {
-  it('snippetsApi.deleteSnippet issues a hard delete scoped by id + user_id', async () => {
+  it('snippetsApi.deleteSnippet issues a hard delete scoped by id alone (RLS governs ownership)', async () => {
     await snippetsApi.deleteSnippet('snip-A');
     const q = sb.state.lastQuery;
     expect(q?.table).toBe('snippets');
     expect(q?.methods).toContain('delete');
     expect(q?.methods).not.toContain('update'); // never a soft-delete flag write
-    expect(q?.filters).toEqual({ id: 'snip-A', user_id: 'user-1' });
+    expect(q?.methods).toContain('select'); // reads the deleted id back to detect RLS no-ops
+    // No `user_id` filter: a shared-folder member must be able to delete via RLS.
+    expect(q?.filters).toEqual({ id: 'snip-A' });
+  });
+
+  it('snippetsApi.deleteSnippet throws a clear error when RLS deletes no row', async () => {
+    // The DELETE matches 0 rows with no DB error — exactly the shared-folder
+    // denial the old owner-scoped filter hid as a silent no-op. It must surface
+    // as an error, not resolve as if the delete had succeeded.
+    sb.state.result = { data: [], error: null };
+    await expect(snippetsApi.deleteSnippet('snip-A')).rejects.toThrow(/permission/i);
   });
 
   it('promptsApi.deletePrompt issues a hard delete scoped by id + user_id', async () => {

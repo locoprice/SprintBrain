@@ -143,15 +143,11 @@ async function currentUserId(): Promise<string> {
  * language — we need the existing language to know which slot the active
  * body belongs to.
  */
-async function readLanguage(
-  id: string,
-  userId: string,
-): Promise<Snippet['language']> {
+async function readLanguage(id: string): Promise<Snippet['language']> {
   const { data, error } = await supabase
     .from('snippets')
     .select('lang')
     .eq('id', id)
-    .eq('user_id', userId)
     .single();
   if (error) throw error;
   return normalizeLang((data as { lang: string | null } | null)?.lang);
@@ -257,7 +253,6 @@ export const snippetsApi: SnippetsApi = {
   },
 
   async updateSnippet(id, patch) {
-    const userId = await currentUserId();
     const update: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
@@ -280,7 +275,7 @@ export const snippetsApi: SnippetsApi = {
       patch.bodies !== undefined ||
       patch.language !== undefined;
     if (touchesBody) {
-      const language = patch.language ?? (await readLanguage(id, userId));
+      const language = patch.language ?? (await readLanguage(id));
       const activeBody = patch.content ?? '';
       const merged = mergeActiveBody(patch.bodies, language, activeBody);
       update['body'] = activeBody;
@@ -291,7 +286,6 @@ export const snippetsApi: SnippetsApi = {
       .from('snippets')
       .update(update)
       .eq('id', id)
-      .eq('user_id', userId)
       .select(SNIPPET_SELECT)
       .single();
     if (error) throw error;
@@ -299,13 +293,21 @@ export const snippetsApi: SnippetsApi = {
   },
 
   async deleteSnippet(id) {
-    const userId = await currentUserId();
-    const { error } = await supabase
+    // No `.eq('user_id')` scope: RLS decides who can delete. A member with edit
+    // access to a shared folder may delete assets in it; the old owner filter
+    // made that silently match 0 rows — the row looked deleted but survived the
+    // next refresh. `.select('id')` lets us tell a real delete from an RLS no-op.
+    const { data, error } = await supabase
       .from('snippets')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId);
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error(
+        "You don't have permission to delete this snippet, or it no longer exists.",
+      );
+    }
   },
 
   createFolder(payload) {
@@ -321,12 +323,10 @@ export const snippetsApi: SnippetsApi = {
   },
 
   async setPinned(id, pinned) {
-    const userId = await currentUserId();
     const { data, error } = await supabase
       .from('snippets')
       .update({ pinned, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', userId)
       .select(SNIPPET_SELECT)
       .single();
     if (error) throw error;
@@ -334,12 +334,10 @@ export const snippetsApi: SnippetsApi = {
   },
 
   async setActive(id, isActive) {
-    const userId = await currentUserId();
     const { data, error } = await supabase
       .from('snippets')
       .update({ is_active: isActive, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', userId)
       .select(SNIPPET_SELECT)
       .single();
     if (error) throw error;
@@ -349,11 +347,12 @@ export const snippetsApi: SnippetsApi = {
   async duplicateSnippet(id) {
     const userId = await currentUserId();
     // Read the source row first so we copy every column (incl. urgency + pin).
+    // RLS governs read access (owner or shared-folder member); the inserted copy
+    // below is stamped with the current user's id so they own their duplicate.
     const { data: src, error: readErr } = await supabase
       .from('snippets')
       .select(SNIPPET_SELECT)
       .eq('id', id)
-      .eq('user_id', userId)
       .single();
     if (readErr) throw readErr;
     const source = src as unknown as DbSnippetJoined;
@@ -408,24 +407,29 @@ export const snippetsApi: SnippetsApi = {
   // Move multiple snippets to a folder in one idempotent DB write.
   async bulkMoveSnippets(ids, folderId) {
     if (ids.length === 0) return;
-    const userId = await currentUserId();
     const { error } = await supabase
       .from('snippets')
       .update({ folder_id: folderId, updated_at: new Date().toISOString() })
-      .in('id', ids)
-      .eq('user_id', userId);
+      .in('id', ids);
     if (error) throw error;
   },
 
   // Delete multiple snippets in one request.
   async bulkDeleteSnippets(ids) {
     if (ids.length === 0) return;
-    const userId = await currentUserId();
-    const { error } = await supabase
+    // RLS-only scope (see deleteSnippet): a shared-folder member can delete the
+    // rows they have edit access to. `.select('id')` surfaces the actual count
+    // so a fully-denied batch throws instead of silently doing nothing.
+    const { data, error } = await supabase
       .from('snippets')
       .delete()
       .in('id', ids)
-      .eq('user_id', userId);
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error(
+        "You don't have permission to delete the selected snippets.",
+      );
+    }
   },
 };
