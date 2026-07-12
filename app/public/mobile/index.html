@@ -212,6 +212,9 @@ body{
 .snip-meta{display:flex;align-items:center;gap:7px;margin-top:4px;
   flex-wrap:wrap;row-gap:4px}
 .snip-sc{font-family:var(--mono);font-size:12px;color:var(--primary);font-weight:600}
+/* "Last used by" attribution — org-shared cards only */
+.snip-lastuse{font-size:10.5px;font-style:italic;color:var(--text3);margin-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Language badges + interactive pills (shared with mockup) */
 .lbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
@@ -419,6 +422,15 @@ body{
 .sb-sheet-actions li[data-action=use]{color:var(--primary);font-weight:700}
 .sb-action-danger{color:var(--danger) !important}
 .sb-sheet-act-i{width:22px;text-align:center;font-size:16px;line-height:1}
+
+/* Snippet info sheet — read-only key/value rows */
+.sb-info-body{padding:2px 22px 10px}
+.sb-info-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  padding:12px 0;border-top:1px solid var(--bg-alt)}
+.sb-info-row:first-child{border-top:none}
+.sb-info-k{font-size:13px;color:var(--text2);font-weight:600;flex-shrink:0}
+.sb-info-v{font-size:14px;color:var(--text);font-weight:600;text-align:right;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── EDIT MODAL ──────────────────────────────── */
 .sb-edit-modal{
@@ -1033,8 +1045,22 @@ body{
     <div class="sb-sheet-title" id="sb-sheet-snippet-title"></div>
     <ul class="sb-sheet-actions">
       <li data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
-      <li data-action="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
+      <li data-action="copy"><span class="sb-sheet-act-i">📋</span> Copy text</li>
+      <li data-action="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
+      <li data-action="info"><span class="sb-sheet-act-i">ℹ️</span> Snippet info</li>
     </ul>
+  </div>
+</div>
+
+<!-- SNIPPET INFO BOTTOM SHEET (read-only) -->
+<div id="sb-info-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-info-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-info-title">Snippet info</div>
+    <div class="sb-info-body" id="sb-info-body"></div>
   </div>
 </div>
 
@@ -1138,7 +1164,6 @@ body{
 
 <div id="sb-toast" role="status" aria-live="polite"></div>
 
-<script src="sync-deletion.js"></script>
 <script>
 var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -1414,6 +1439,17 @@ function resolveBody(body,vals){
 
 /* ── STATE ─────────────────────────────────────── */
 var allSnips=[], allFolders=[], curSnip=null, curVariants=[], curLang='ALL', curFolder='ALL', curSearch='';
+/* snippet_id → {used_at, used_by_name} for ORG-SHARED snippets, from the
+   shared_snippet_last_use() RPC (SECURITY DEFINER — select-own RLS on
+   snippet_events would otherwise hide teammates' usage). Fail-open: an empty
+   map only hides the "Last used by" line. */
+var lastUseMap={};
+function myDisplayName(){
+  var u=SESSION&&SESSION.user;
+  if(!u)return '';
+  var meta=u.user_metadata||{};
+  return (meta.display_name||'').trim()||u.email||'';
+}
 var curView='list';   // 'list' | 'analytics'
 var prevView='list';  // view we came from before entering detail
 
@@ -1472,12 +1508,22 @@ function loadSnips(){
   var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.ok?r.json():[];})
     .catch(function(){return [];});
+  // Last-use attribution for org-shared snippets (fail-open on any error).
+  var uFetch=fetch(SUPA+'/rest/v1/rpc/shared_snippet_last_use',{headers:authHeaders()})
+    .then(function(r){return r.ok?r.json():[];})
+    .catch(function(){return [];});
 
-  Promise.all([sFetch,fFetch]).then(function(res){
-    var d=res[0], f=res[1];
+  Promise.all([sFetch,fFetch,uFetch]).then(function(res){
+    var d=res[0], f=res[1], uses=res[2];
     if(!Array.isArray(d))throw new Error('bad');
     allSnips=d;
     allFolders=Array.isArray(f)?f:[];
+    lastUseMap={};
+    if(Array.isArray(uses)){
+      uses.forEach(function(u){
+        if(u&&u.snippet_id)lastUseMap[u.snippet_id]={used_at:u.used_at,used_by_name:u.used_by_name||''};
+      });
+    }
     // prune curFolder if it no longer exists
     if(curFolder!=='ALL'&&!allFolders.some(function(x){return x.id===curFolder;}))curFolder='ALL';
     try{
@@ -2001,6 +2047,25 @@ function pickActiveVariant(g,lang){
   }
   return g.variants[0];
 }
+/* Latest use across a group's variants (bodies-model variants share one DB id,
+   so the map lookup naturally dedups; sibling rows each have their own). */
+function groupLastUse(g){
+  var best=null;
+  for(var i=0;i<g.variants.length;i++){
+    var lu=lastUseMap[g.variants[i].id];
+    if(lu&&(!best||new Date(lu.used_at).getTime()>new Date(best.used_at).getTime()))best=lu;
+  }
+  return best;
+}
+function lastUseLine(lu){
+  if(!lu||!lu.used_at)return '';
+  var d=new Date(lu.used_at);
+  if(isNaN(d.getTime()))return '';
+  var date=_sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear();
+  var time=_sbPad(d.getHours())+':'+_sbPad(d.getMinutes());
+  return '<div class="snip-lastuse">Last used by: '+esc(lu.used_by_name||'—')
+    +' | Date: '+date+' | Time: '+time+'</div>';
+}
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
@@ -2033,6 +2098,8 @@ function renderList(){
     var pills=g.variants.map(function(v){
       return '<span class="lbadge l'+esc(v.lang||'EN')+'">'+esc(v.lang||'EN')+'</span>';
     }).join('');
+    // "Last used by" — org-shared cards only (RPC only returns those anyway).
+    var luLine=(active.organization_id&&active.folder_id)?lastUseLine(groupLastUse(g)):'';
     return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
@@ -2043,6 +2110,7 @@ function renderList(){
           +fbadge
           +sharingBadge(active)
         +'</div>'
+        +luLine
       +'</div>'
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
@@ -2062,6 +2130,7 @@ function renderList(){
       openDetail(s,[s]);
     }else{
       copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+      logSnipUse(s,0);
     }
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
@@ -2238,6 +2307,9 @@ function updatePrev(){
 document.getElementById('copy-btn').addEventListener('click',function(){
   if(!curSnip)return;
   var text=resolveBody(curSnip.body||'',Object.assign({},getVals()));
+  var raw=getRawVals(),filled=0;
+  for(var k in raw){if(String(raw[k]).replace(/^\s+|\s+$/g,'')!=='')filled++;}
+  logSnipUse(curSnip,filled);
   var btn=this;
   function onOk(){
     btn.classList.add('ok');
@@ -2393,10 +2465,18 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
         setTimeout(function(){openDetail(s,[s]);},320);
       }else{
         copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+        logSnipUse(s,0);
         closeBottomSheet();
       }
-    }else if(act==='delete'){
-      if(confirm('Delete this snippet?'))deleteSnippet(s);
+    }else if(act==='copy'){
+      copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+      logSnipUse(s,0);
+      closeBottomSheet();
+    }else if(act==='share'){
+      shareSnippet(s);
+    }else if(act==='info'){
+      closeBottomSheet();
+      setTimeout(function(){openSnippetInfo(s);},320);
     }
   });
 
@@ -2416,31 +2496,71 @@ function copyText(t,cb){
   }else{fbCopy(t,cb);}
 }
 
+/* ANALYTICS-001 parity with the extension: fire-and-forget usage event on
+   copy/share (an event = snippet text left the app). The insert policy's
+   WITH CHECK (auth.uid() = user_id) requires our own USER_ID. Also updates
+   lastUseMap optimistically so shared cards reflect the use immediately. */
+function logSnipUse(s,fieldsFilled){
+  if(!s||!s.id)return;
+  fetch(SUPA+'/rest/v1/snippet_events',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+    body:JSON.stringify({
+      snippet_id:s.id, user_id:USER_ID,
+      shortcut:s.shortcut||'', lang:s.lang||null,
+      fields_filled:fieldsFilled||0
+    })
+  }).then(function(r){handle401(r);}).catch(function(){});
+  if(s.organization_id&&s.folder_id){
+    lastUseMap[s.id]={used_at:new Date().toISOString(),used_by_name:myDisplayName()};
+    if(document.getElementById('view-list').classList.contains('active'))renderList();
+  }
+}
+
 function newId(){
   if(typeof crypto!=='undefined'&&crypto.randomUUID){return crypto.randomUUID();}
   return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
 }
 
-function deleteSnippet(s){
-  SBMobileSync.performSnippetDelete({
-    fetch:function(u,o){return fetch(u,o);},
-    supaUrl:SUPA, userId:USER_ID, headers:authHeaders(), handle401:handle401, list:allSnips
-  },s).then(function(newList){
-    allSnips=newList;
-    try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
-    closeBottomSheet();
-    renderFolderChips();
-    renderList();
-    if(curSnip&&curSnip.id===s.id){
-      curSnip=null;
-      document.getElementById('view-detail').classList.remove('active');
-      document.getElementById('view-list').classList.add('active');
-    }
-  }).catch(function(err){
-    console.error('[SprintBrain] delete failed',err);
-    closeBottomSheet();
-    alert('Delete failed. The snippet was not removed — please try again.');
-  });
+/* Share the snippet text via the OS share sheet (read-only). Falls back to a
+   clipboard copy where the Web Share API is unavailable. */
+function shareSnippet(s){
+  var text=resolveBody(s.body||'',{});
+  logSnipUse(s,0);
+  closeBottomSheet();
+  if(navigator.share){
+    navigator.share({title:s.title||'Snippet',text:text}).catch(function(){});
+  }else{
+    copyText(text,function(){showToast('Copied ✓ — sharing not supported');});
+  }
+}
+
+/* Read-only snippet info sheet: folder, language, shortcut, size, last update. */
+function openSnippetInfo(s){
+  var f=getFolderById(s.folder_id);
+  var rows=[
+    ['Folder', f?(f.name||'Folder'):'None'],
+    ['Language', s.lang||'EN'],
+    ['Shortcut', s.shortcut||'—'],
+    ['Characters', String((s.body||'').length)],
+    ['Updated', s.updated_at?timeAgo(s.updated_at):'—']
+  ];
+  document.getElementById('sb-info-title').textContent=s.title||'Snippet';
+  document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
+    return '<div class="sb-info-row"><span class="sb-info-k">'+esc(r[0])
+      +'</span><span class="sb-info-v">'+esc(r[1])+'</span></div>';
+  }).join('');
+  var sh=document.getElementById('sb-info-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+}
+function closeSnippetInfo(){
+  var sh=document.getElementById('sb-info-sheet');
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  setTimeout(function(){sh.classList.add('sb-hidden');},300);
 }
 
 /* ── EDIT MODAL ─────────────────────────────────── */
@@ -2824,6 +2944,14 @@ function setupSheetDrag(sheetEl,closeFn){
     else if(act==='duplicate'){duplicatePrompt(p);}
     else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
   });
+})();
+
+/* Snippet info sheet: backdrop + drag dismiss. */
+(function(){
+  var sheet=document.getElementById('sb-info-sheet');
+  if(!sheet)return;
+  sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',closeSnippetInfo);
+  setupSheetDrag(sheet,closeSnippetInfo);
 })();
 
 /* ── LOGOUT BUTTON ──────────────────────────────── */
