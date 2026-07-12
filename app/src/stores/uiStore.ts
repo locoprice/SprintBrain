@@ -40,6 +40,11 @@ interface UiStore {
   openHistory: (id: string) => void;
   closeHistory: () => void;
 
+  // "Getting Started" onboarding modal (sidebar button + auto-shown once)
+  onboardingOpen: boolean;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
+
   // Transient toast notification (auto-dismissed by the Toast component)
   toast: { message: string; type: 'success' | 'error' } | null;
   showToast: (message: string, type?: 'success' | 'error') => void;
@@ -78,6 +83,10 @@ export const useUiStore = create<UiStore>((set) => ({
   historySnippetId: null,
   openHistory: (id) => set({ historySnippetId: id }),
   closeHistory: () => set({ historySnippetId: null }),
+
+  onboardingOpen: false,
+  openOnboarding: () => set({ onboardingOpen: true }),
+  closeOnboarding: () => set({ onboardingOpen: false }),
 
   toast: null,
   showToast: (message, type = 'success') => set({ toast: { message, type } }),
