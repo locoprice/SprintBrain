@@ -16,6 +16,10 @@ import { SPRINTBRAIN_EXTENSION_IDS } from '@/lib/extensionId';
 
 type Status = 'linking' | 'linked' | 'no_chrome' | 'not_installed' | 'error';
 
+// Once linked there is nothing left to do here — close the tab after a short
+// countdown so the user lands back where they were.
+const AUTO_CLOSE_SECONDS = 5;
+
 interface HandoffPayload {
   access_token: string;
   refresh_token: string;
@@ -56,11 +60,29 @@ export function ExtensionLinkPage() {
   const [status, setStatus] = useState<Status>('linking');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [linkedAs, setLinkedAs] = useState<string | null>(null);
+  const [closeIn, setCloseIn] = useState(AUTO_CLOSE_SECONDS);
+  const [closeBlocked, setCloseBlocked] = useState(false);
 
   useEffect(() => {
     void runHandoff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-close after AUTO_CLOSE_SECONDS. window.close() is allowed here in the
+  // canonical flow — the extension popup opens this page via chrome.tabs.create,
+  // so the tab has a single history entry (script-closable). If the user reached
+  // the page by in-tab navigation instead, the browser refuses the close; detect
+  // that (we're still running shortly after) and fall back to the manual line.
+  useEffect(() => {
+    if (status !== 'linked') return;
+    if (closeIn > 0) {
+      const t = window.setTimeout(() => setCloseIn((s) => s - 1), 1000);
+      return () => window.clearTimeout(t);
+    }
+    window.close();
+    const t = window.setTimeout(() => setCloseBlocked(true), 300);
+    return () => window.clearTimeout(t);
+  }, [status, closeIn]);
 
   async function runHandoff() {
     setStatus('linking');
@@ -166,7 +188,12 @@ export function ExtensionLinkPage() {
             <p className="mt-2 text-sm text-ink-muted">
               The SprintBrain Chrome extension is now signed in
               {linkedAs ? ` as ${linkedAs}` : ''}.
-              <br />You can close this tab.
+              <br />
+              {closeBlocked
+                ? 'You can close this tab.'
+                : closeIn > 0
+                  ? `This tab closes in ${closeIn}s.`
+                  : 'Closing…'}
             </p>
           </>
         )}
