@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccountPanel } from '@/features/settings/AccountPanel';
+import { BrandingPanel } from '@/features/settings/BrandingPanel';
 import { InlineTriggerPanel } from '@/features/settings/InlineTriggerPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
@@ -35,6 +36,7 @@ export function SettingsPage() {
 
         <TabsContent value="account" className="space-y-4">
           <AccountPanel />
+          <BrandingPanel />
           <InlineTriggerPanel />
         </TabsContent>
         <TabsContent value="security" className="space-y-4">

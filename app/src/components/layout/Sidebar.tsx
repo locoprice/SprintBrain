@@ -20,6 +20,7 @@ import { RESOURCE_LINKS } from '@/lib/links';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
 interface NavItem {
@@ -75,6 +76,7 @@ export function Sidebar() {
   const snippetCount = useSnippetStore((s) => s.snippets.length);
   const promptCount = usePromptStore((s) => s.prompts.length);
   const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
+  const companyLogoUrl = useSettingsStore((s) => s.profile?.company_logo_url ?? null);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -165,15 +167,18 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* LeibTour brand watermark — sits in the empty middle space */}
+      {/* Company watermark — the user's own logo (Settings → Company branding).
+          The flex-1 spacer stays even when no logo is set. */}
       <div className="flex flex-1 items-center justify-center">
-        <img
-          src="https://res.cloudinary.com/locoprice/image/upload/v1755373861/LeibTour/LOGHI%20LeibTour/T%20icon/T%20icon%20logo"
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          className="w-24 select-none opacity-[0.10] grayscale"
-        />
+        {companyLogoUrl && (
+          <img
+            src={companyLogoUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="w-24 select-none opacity-[0.10] grayscale"
+          />
+        )}
       </div>
 
       {/* User block — click to open menu */}

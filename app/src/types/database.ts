@@ -19,6 +19,9 @@ export interface Profile {
   trigger_prompt_seq: string;
   trigger_snippet_key: ActivationKey;
   trigger_prompt_key: ActivationKey;
+  /** Company branding (BRANDING-001) — persisted in auth.users.user_metadata. */
+  company_name: string;
+  company_logo_url: string | null;
 }
 
 export interface Folder {

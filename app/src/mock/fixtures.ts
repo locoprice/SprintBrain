@@ -26,6 +26,8 @@ export const mockProfile: Profile = {
   trigger_prompt_seq: '"""',
   trigger_snippet_key: 'Tab',
   trigger_prompt_key: 'Tab',
+  company_name: 'LeibTour',
+  company_logo_url: null,
 };
 
 export const mockFolders: Folder[] = [
