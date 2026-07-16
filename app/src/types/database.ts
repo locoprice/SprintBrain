@@ -22,6 +22,8 @@ export interface Profile {
   /** Company branding (BRANDING-001) — persisted in auth.users.user_metadata. */
   company_name: string;
   company_logo_url: string | null;
+  /** Profile picture (ACCOUNT-PROFILE-001) — GoTrue-conventional metadata key. */
+  avatar_url: string | null;
 }
 
 export interface Folder {

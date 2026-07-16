@@ -25,6 +25,8 @@ interface SettingsStore {
   editProfile: (patch: ProfilePatch) => Promise<Profile>;
   setCompanyLogo: (file: File) => Promise<Profile>;
   clearCompanyLogo: () => Promise<Profile>;
+  setAvatar: (file: File) => Promise<Profile>;
+  clearAvatar: () => Promise<Profile>;
   changeEmail: (newEmail: string) => Promise<void>;
   editNotionSettings: (patch: { api_key?: string; db_id?: string }) => Promise<void>;
 }
@@ -98,6 +100,26 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       return profile;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to remove logo' });
+      throw err;
+    }
+  },
+  setAvatar: async (file) => {
+    try {
+      const profile = await settingsApi.uploadAvatar(file);
+      set({ profile, error: null });
+      return profile;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to upload photo' });
+      throw err;
+    }
+  },
+  clearAvatar: async () => {
+    try {
+      const profile = await settingsApi.removeAvatar();
+      set({ profile, error: null });
+      return profile;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to remove photo' });
       throw err;
     }
   },

@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pickHttpsUrl } from '@/lib/branding';
 import { RESOURCE_LINKS } from '@/lib/links';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -86,6 +87,7 @@ export function Sidebar() {
   const email = user?.email ?? '';
   const displayName = pickDisplayName(user?.user_metadata, email);
   const initial = displayName.slice(0, 1).toUpperCase();
+  const avatarUrl = pickHttpsUrl(user?.user_metadata, 'avatar_url');
 
   const PRIMARY: NavItem[] = [
     { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
@@ -274,9 +276,18 @@ export function Sidebar() {
           aria-haspopup="menu"
           className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-card"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
-            {initial}
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              draggable={false}
+              className="h-8 w-8 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
+              {initial}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-ink">{displayName}</div>
             <div className="truncate text-xs text-ink-subtle">{email}</div>

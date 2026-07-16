@@ -3,7 +3,7 @@ import { AlertCircle, Check, ImagePlus, Trash2, UploadCloud } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { COMPANY_NAME_MAX, LOGO_INPUT_ACCEPT, validateLogoFile } from '@/lib/branding';
+import { COMPANY_NAME_MAX, IMAGE_INPUT_ACCEPT, validateImageFile } from '@/lib/branding';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -70,7 +70,7 @@ export function BrandingPanel() {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-picking the same file after an error
     if (!file) return;
-    const invalid = validateLogoFile(file);
+    const invalid = validateImageFile(file);
     if (invalid) {
       setErrorMsg(invalid);
       return;
@@ -147,7 +147,7 @@ export function BrandingPanel() {
             <input
               ref={fileRef}
               type="file"
-              accept={LOGO_INPUT_ACCEPT}
+              accept={IMAGE_INPUT_ACCEPT}
               onChange={onPickFile}
               className="hidden"
               aria-label="Upload company logo"
