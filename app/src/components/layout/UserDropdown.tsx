@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pickHttpsUrl } from '@/lib/branding';
 import { useAuthStore } from '@/stores/authStore';
 
 function deriveDisplayName(
@@ -26,6 +27,7 @@ export function UserDropdown() {
   const email = user?.email ?? '';
   const displayName = deriveDisplayName(user?.user_metadata, email);
   const initial = displayName.slice(0, 1).toUpperCase();
+  const avatarUrl = pickHttpsUrl(user?.user_metadata, 'avatar_url');
 
   useEffect(() => {
     if (!open) return;
@@ -70,14 +72,18 @@ export function UserDropdown() {
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold',
+          'flex h-8 w-8 items-center justify-center overflow-hidden rounded-full text-xs font-bold',
           'bg-primary-light text-primary transition-colors',
           'hover:bg-primary hover:text-white',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
           open && 'bg-primary text-white',
         )}
       >
-        {initial}
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" draggable={false} className="h-full w-full object-cover" />
+        ) : (
+          initial
+        )}
       </button>
 
       {open && (
@@ -90,9 +96,23 @@ export function UserDropdown() {
           )}
         >
           {/* Identity header */}
-          <div className="border-b border-line px-4 py-3">
-            <p className="truncate text-sm font-semibold text-ink">{displayName}</p>
-            <p className="truncate text-xs text-ink-muted">{email}</p>
+          <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                draggable={false}
+                className="h-8 w-8 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
+                {initial}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-ink">{displayName}</p>
+              <p className="truncate text-xs text-ink-muted">{email}</p>
+            </div>
           </div>
 
           {/* Navigation */}

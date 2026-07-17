@@ -55,13 +55,13 @@ body{
   background:radial-gradient(circle,rgba(255,255,255,.16),transparent 60%);pointer-events:none}
 .mhero::before{content:"";position:absolute;left:-30px;bottom:-60px;width:180px;height:180px;
   background:radial-gradient(circle,rgba(79,127,232,.55),transparent 65%);pointer-events:none}
-.mhello{display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:24px;position:relative;z-index:1}
-/* Greeting + name share one baseline-aligned row — keeps the hero compact
-   and identical on the snippets home and the prompts page. */
-.mhello>div{display:flex;align-items:baseline;gap:6px;min-width:0}
+/* Single hero row — greeting + name (left), counter (pushed right), header
+   button. Identical structure on the snippets home and the prompts page. */
+.mhello{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.mhello>div:first-child{display:flex;align-items:baseline;gap:6px;min-width:0}
 .mgreet{font-size:13px;opacity:.78;font-weight:500;letter-spacing:.1px;white-space:nowrap}
-.mname{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.mname{font-size:20px;font-weight:700;letter-spacing:-.4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr-btn{
   width:42px;height:42px;min-width:42px;border-radius:50%;border:none;
   background:rgba(255,255,255,.18);color:#fff;cursor:pointer;
@@ -72,11 +72,12 @@ body{
 .hdr-btn:active{background:rgba(255,255,255,.32)}
 .hdr-btn svg{width:18px;height:18px;display:block}
 .mstatbig{
-  font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;
-  margin-bottom:8px;font-variant-numeric:tabular-nums;position:relative;z-index:1;
-  display:flex;align-items:baseline;gap:8px
+  font-size:26px;font-weight:800;letter-spacing:-.8px;line-height:1;
+  font-variant-numeric:tabular-nums;position:relative;z-index:1;
+  display:flex;align-items:baseline;gap:6px;
+  margin-left:auto;flex-shrink:0
 }
-.mstatbig .mstatbig-unit{font-size:18px;font-weight:600;opacity:.78;letter-spacing:-.4px}
+.mstatbig .mstatbig-unit{font-size:14px;font-weight:600;opacity:.78;letter-spacing:-.3px}
 .mstatsub{font-size:13px;opacity:.9;font-weight:500;
   display:flex;align-items:center;gap:8px;position:relative;z-index:1}
 .mstatup{
@@ -110,7 +111,7 @@ body{
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
 .mqa-grid{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:6px;
   background:var(--card);border-radius:18px;padding:14px 10px;
   box-shadow:var(--shadow-md)
 }
@@ -189,6 +190,22 @@ body{
   padding:1px 7px;border-radius:9999px;color:var(--text3)
 }
 .folder-pill.on .folder-pill-cnt{background:rgba(255,255,255,.22);color:#fff}
+
+/* Folder-chip scroll arrows — surface only when the row overflows that way. */
+.ftabs-wrap{position:relative}
+.ftabs-arrow{
+  position:absolute;top:calc(50% - 1px);transform:translateY(-50%);z-index:3;
+  display:none;align-items:center;justify-content:center;
+  width:30px;height:30px;padding:0;border-radius:9999px;
+  border:1px solid var(--border);background:var(--card);color:var(--primary);
+  cursor:pointer;box-shadow:var(--shadow-sm);
+  -webkit-tap-highlight-color:transparent
+}
+.ftabs-arrow.show{display:inline-flex}
+.ftabs-arrow.left{left:8px}
+.ftabs-arrow.right{right:8px}
+.ftabs-arrow:active{transform:translateY(-50%) scale(.92)}
+.ftabs-arrow svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── SNIPPET CARDS ───────────────────────────── */
 #snip-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
@@ -794,6 +811,10 @@ body{
         <div class="mgreet">Welcome</div>
         <div class="mname" id="hero-name">SprintBrain</div>
       </div>
+      <div class="mstatbig">
+        <span id="cnt">0</span>
+        <span class="mstatbig-unit">snippets</span>
+      </div>
       <button class="hdr-btn" id="logout-btn" aria-label="Sign out" title="Sign out">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -803,17 +824,12 @@ body{
         </svg>
       </button>
     </div>
-    <div class="mstatbig">
-      <span id="cnt">0</span>
-      <span class="mstatbig-unit">snippets</span>
-    </div>
   </div>
 
   <!-- Floating quick-action grid (overlaps hero) -->
   <div class="mqa">
     <div class="mqa-grid">
       <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile" type="button" data-qa="sync" aria-label="Sync"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span><span class="mqa-lbl">Sync</span></button>
       <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
     </div>
   </div>
@@ -828,7 +844,11 @@ body{
   <div class="msec"><span class="msec-t">All snippets</span></div>
 
   <!-- Folder chips (hidden when no folders) -->
-  <div class="folder-tabs" id="ftabs" style="display:none"></div>
+  <div class="ftabs-wrap">
+    <button class="ftabs-arrow left" id="ftabs-left" type="button" aria-label="Scroll folders left"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div class="folder-tabs" id="ftabs" style="display:none"></div>
+    <button class="ftabs-arrow right" id="ftabs-right" type="button" aria-label="Scroll folders right"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
 
   <!-- Language chips -->
   <div class="lang-tabs" id="ltabs">
@@ -903,6 +923,10 @@ body{
         <div class="mgreet">Welcome</div>
         <div class="mname" id="prompts-hero-name">SprintBrain</div>
       </div>
+      <div class="mstatbig">
+        <span id="prompts-count">0</span>
+        <span class="mstatbig-unit">prompts</span>
+      </div>
       <button class="hdr-btn" id="prompts-back-btn" aria-label="Back to snippets" title="Back to snippets">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -910,16 +934,11 @@ body{
         </svg>
       </button>
     </div>
-    <div class="mstatbig">
-      <span id="prompts-count">0</span>
-      <span class="mstatbig-unit">prompts</span>
-    </div>
   </div>
   <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
   <div class="mqa">
     <div class="mqa-grid">
       <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile" type="button" data-qa="sync" aria-label="Sync"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span><span class="mqa-lbl">Sync</span></button>
       <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
     </div>
   </div>
@@ -1947,8 +1966,9 @@ function showSnippetsHome(){
 function renderFolderChips(){
   var el=document.getElementById('ftabs');
   if(!el)return;
-  if(!allFolders.length){el.style.display='none';el.innerHTML='';return;}
+  if(!allFolders.length){el.style.display='none';el.innerHTML='';updateFtabsArrows();return;}
   el.style.display='';
+  var prevScroll=el.scrollLeft;
   var html='<button class="folder-pill'+(curFolder==='ALL'?' on':'')+'" data-fid="ALL">'
     +'<span class="folder-pill-ico"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg></span><span>All</span>'
     +'<span class="folder-pill-cnt">'+groupCount(allSnips)+'</span></button>';
@@ -1960,6 +1980,8 @@ function renderFolderChips(){
       +'<span class="folder-pill-cnt">'+folderCount(f.id)+'</span></button>';
   }
   el.innerHTML=html;
+  el.scrollLeft=prevScroll;
+  updateFtabsArrows();
 }
 
 var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
@@ -2351,6 +2373,30 @@ document.getElementById('ftabs').addEventListener('click',function(e){
   renderFolderChips();
   renderList();
 });
+
+/* Folder-chip scroll arrows: each edge arrow shows only when the row can
+   scroll that way, and nudges it ~70% of the visible width on tap. Native
+   touch swipe is unaffected. */
+function updateFtabsArrows(){
+  var el=document.getElementById('ftabs');
+  var lft=document.getElementById('ftabs-left');
+  var rgt=document.getElementById('ftabs-right');
+  if(!el||!lft||!rgt)return;
+  var max=el.scrollWidth-el.clientWidth;
+  if(el.style.display==='none'||max<=4){
+    lft.classList.remove('show');rgt.classList.remove('show');return;
+  }
+  lft.classList.toggle('show',el.scrollLeft>2);
+  rgt.classList.toggle('show',el.scrollLeft<max-2);
+}
+function scrollFtabs(dir){
+  var el=document.getElementById('ftabs');if(!el)return;
+  el.scrollBy({left:dir*Math.round(el.clientWidth*0.7),behavior:'smooth'});
+}
+document.getElementById('ftabs-left').addEventListener('click',function(){scrollFtabs(-1);});
+document.getElementById('ftabs-right').addEventListener('click',function(){scrollFtabs(1);});
+document.getElementById('ftabs').addEventListener('scroll',updateFtabsArrows,{passive:true});
+window.addEventListener('resize',updateFtabsArrows);
 
 /* ── SEARCH ─────────────────────────────────────── */
 var st;
