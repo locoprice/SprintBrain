@@ -354,6 +354,10 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.110.0', date:'2026-07-18', label:'feat: wider popup',
+    changes:[
+      {type:'new', text:'The popup is a little wider (540px), so snippet titles and shortcuts have more room before they get cut off.'}
+    ]},
   { version:'v2.109.0', date:'2026-07-18', label:'feat: click a snippet row to open it',
     changes:[
       {type:'new', text:'Clicking anywhere on a snippet row now opens its inline detail — languages, fill fields and the live preview. The row no longer copies the shortcut: Copy filled, Copy raw and Copy shortcut live inside the detail.'},
