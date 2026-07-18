@@ -1,8 +1,8 @@
 import { Children, useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, FileText, Globe, Search, Share2, Sparkles, Users } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { FolderShareModal } from '@/features/org/FolderShareModal';
+import { TeamCover } from '@/features/org/TeamCover';
 import { TeamSharingGuide } from '@/features/org/TeamSharingGuide';
 import { Avatar } from '@/components/shared/Avatar';
 import { AvatarStack, type StackMember } from '@/components/shared/AvatarStack';
@@ -189,10 +189,7 @@ export function TeamPage() {
 
   return (
     <>
-      <PageHeader
-        title="Team"
-        description="Your team, everything you share, and who can use it — in one place."
-      />
+      <TeamCover />
 
       <div className="flex flex-col gap-4">
         {members.length > 0 && <TeamRoster members={members} currentUserId={currentUserId} />}

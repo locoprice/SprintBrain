@@ -18,6 +18,10 @@ interface OrgStore {
   load: () => Promise<void>;
   /** Force a re-fetch (e.g. after membership changes). */
   refresh: () => Promise<void>;
+  /** Set the team cover to a preset key or null (remove); updates activeOrg in place. */
+  setCover: (cover: string | null) => Promise<void>;
+  /** Upload a cover image for the active org; updates activeOrg in place. */
+  uploadCover: (file: File) => Promise<void>;
 }
 
 async function fetchOrg(): Promise<{ org: OrganizationSummary | null; members: OrgMember[] }> {
@@ -50,5 +54,20 @@ export const useOrgStore = create<OrgStore>((set, get) => ({
         error: err instanceof Error ? err.message : 'Failed to load organization',
       });
     }
+  },
+
+  setCover: async (cover) => {
+    const org = get().activeOrg;
+    if (!org) throw new Error('No active team');
+    // Pass the current cover so a replaced/removed uploaded image is cleaned up.
+    await orgApi.setCover(org.id, cover, org.cover);
+    set((s) => (s.activeOrg ? { activeOrg: { ...s.activeOrg, cover } } : {}));
+  },
+
+  uploadCover: async (file) => {
+    const org = get().activeOrg;
+    if (!org) throw new Error('No active team');
+    const url = await orgApi.uploadCover(org.id, org.cover, file);
+    set((s) => (s.activeOrg ? { activeOrg: { ...s.activeOrg, cover: url } } : {}));
   },
 }));

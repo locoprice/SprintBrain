@@ -254,6 +254,8 @@ export interface OrganizationSummary {
   name: string;
   slug: string | null;
   myRole: OrgRole;
+  /** Team-page cover (TEAM-COVER-001): a preset key, an https image URL, or null. */
+  cover: string | null;
 }
 
 /** A teammate, resolved via the `org_member_directory` RPC. */

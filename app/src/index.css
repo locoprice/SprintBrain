@@ -74,3 +74,55 @@
     overflow: hidden;
   }
 }
+
+/* Team-cover preset artwork (TEAM-COVER-001). Decorative gradients keyed by
+   preset name from lib/teamCoverPresets.ts — centralized here (not hard-coded
+   in components) the same way the activity heatmap ramp is. Vivid presets read
+   on both themes; "paper" is a light ground and gets a dark override. */
+.team-cover-azure {
+  background:
+    radial-gradient(720px 300px at 82% -40%, rgba(255, 255, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, #1b4fd8 0%, #1440b0 100%);
+}
+.team-cover-dusk {
+  background:
+    radial-gradient(640px 280px at 15% 120%, rgba(255, 222, 158, 0.55), transparent 60%),
+    linear-gradient(120deg, #ff9a8b 0%, #ff6a88 55%, #ffb199 100%);
+}
+.team-cover-sea {
+  background:
+    radial-gradient(700px 300px at 88% -30%, rgba(255, 255, 255, 0.3), transparent 55%),
+    linear-gradient(120deg, #0f766e 0%, #14b8a6 58%, #7de2d1 100%);
+}
+.team-cover-sand {
+  background:
+    radial-gradient(620px 260px at 20% -40%, rgba(255, 255, 255, 0.6), transparent 60%),
+    linear-gradient(120deg, #ead9bf 0%, #dac099 60%, #c9a97c 100%);
+}
+.team-cover-night {
+  background:
+    radial-gradient(520px 260px at 20% 0%, rgba(27, 79, 216, 0.55), transparent 60%),
+    radial-gradient(560px 300px at 85% 110%, rgba(124, 58, 237, 0.4), transparent 60%),
+    #101319;
+}
+.team-cover-paper {
+  background-color: #eef1f6;
+  background-image:
+    radial-gradient(rgba(27, 79, 216, 0.35) 1.2px, transparent 1.3px),
+    linear-gradient(160deg, #f4f6fb, #e7ebf3);
+  background-size: 18px 18px, cover;
+}
+[data-theme='dark'] .team-cover-paper {
+  background-color: #23262d;
+  background-image:
+    radial-gradient(rgba(110, 150, 240, 0.28) 1.2px, transparent 1.3px),
+    linear-gradient(160deg, #262a32, #1c1f26);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .team-cover-paper {
+    background-color: #23262d;
+    background-image:
+      radial-gradient(rgba(110, 150, 240, 0.28) 1.2px, transparent 1.3px),
+      linear-gradient(160deg, #262a32, #1c1f26);
+  }
+}

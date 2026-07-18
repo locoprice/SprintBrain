@@ -1,4 +1,12 @@
 import { supabase } from '@/lib/supabase';
+import {
+  buildTeamCoverPath,
+  COVER_MAX_BYTES,
+  objectPathFromPublicUrl,
+  TEAM_COVER_BUCKET,
+  validateImageFile,
+} from '@/lib/branding';
+import { isImageCover } from '@/lib/teamCoverPresets';
 import type { OrgMember, OrgRole, OrganizationSummary } from '@/types/database';
 
 // Organization reads for the dashboard. The folder-sharing UI (Phase B) needs
@@ -8,7 +16,7 @@ import type { OrgMember, OrgRole, OrganizationSummary } from '@/types/database';
 // rows for orgs the user belongs to, and `org_member_directory` is a guarded
 // SECURITY DEFINER function that returns teammate identity to co-members only.
 
-type OrgRel = { id: string; name: string; slug: string | null };
+type OrgRel = { id: string; name: string; slug: string | null; cover: string | null };
 type MembershipRow = {
   role: OrgRole;
   // supabase-js may surface an embedded to-one relation as an object or a
@@ -32,6 +40,15 @@ export interface OrgApi {
   getActiveOrg(): Promise<OrganizationSummary | null>;
   /** The member directory for an org the caller belongs to. */
   listMembers(orgId: string): Promise<OrgMember[]>;
+  /**
+   * Set the team cover to a preset key or null (remove). Admin-only — enforced
+   * by the `org_update` RLS policy, which matches 0 rows for non-admins; we
+   * surface that as a clear error rather than a silent no-op. Pass the previous
+   * cover so a replaced/removed uploaded image gets cleaned out of storage.
+   */
+  setCover(orgId: string, cover: string | null, previousCover?: string | null): Promise<void>;
+  /** Upload a cover image, point the org at its public URL, drop the previous upload. */
+  uploadCover(orgId: string, currentCover: string | null, file: File): Promise<string>;
 }
 
 export const orgApi: OrgApi = {
@@ -42,7 +59,7 @@ export const orgApi: OrgApi = {
 
     const { data, error } = await supabase
       .from('organization_members')
-      .select('role, organizations(id, name, slug)')
+      .select('role, organizations(id, name, slug, cover)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .limit(1);
@@ -57,6 +74,7 @@ export const orgApi: OrgApi = {
       name: org.name,
       slug: org.slug,
       myRole: row.role,
+      cover: org.cover,
     };
   },
 
@@ -69,5 +87,48 @@ export const orgApi: OrgApi = {
       display_name: r.display_name,
       role: r.role,
     }));
+  },
+
+  async setCover(orgId, cover, previousCover = null) {
+    const { data, error } = await supabase
+      .from('organizations')
+      .update({ cover })
+      .eq('id', orgId)
+      .select('id');
+    if (error) throw error;
+    // RLS (org_update, admin-only) matches 0 rows for non-admins — make that explicit.
+    if (!data || data.length === 0) {
+      throw new Error('Only a team admin can change the cover.');
+    }
+    // Drop a replaced or removed uploaded image (best-effort; a leftover is harmless).
+    if (isImageCover(previousCover) && previousCover !== cover) {
+      const prevPath = objectPathFromPublicUrl(previousCover, TEAM_COVER_BUCKET);
+      if (prevPath) void supabase.storage.from(TEAM_COVER_BUCKET).remove([prevPath]);
+    }
+  },
+
+  async uploadCover(orgId, currentCover, file) {
+    const invalid = validateImageFile(file, COVER_MAX_BYTES);
+    if (invalid) throw new Error(invalid);
+
+    // Timestamped per-org key — a replacement gets a fresh URL, so no
+    // CDN/browser cache can keep serving the old image.
+    const path = buildTeamCoverPath(orgId, file.type, Date.now());
+    const { error: uploadErr } = await supabase.storage
+      .from(TEAM_COVER_BUCKET)
+      .upload(path, file, { contentType: file.type, cacheControl: '3600' });
+    if (uploadErr) throw uploadErr;
+
+    const { publicUrl } = supabase.storage.from(TEAM_COVER_BUCKET).getPublicUrl(path).data;
+
+    try {
+      // setCover also drops the previously uploaded image once the pointer moves.
+      await this.setCover(orgId, publicUrl, currentCover);
+    } catch (err) {
+      // The pointer never landed (e.g. not an admin) — drop the orphaned object.
+      void supabase.storage.from(TEAM_COVER_BUCKET).remove([path]);
+      throw err;
+    }
+    return publicUrl;
   },
 };
