@@ -34,6 +34,7 @@ function snippet(
     timer_duration_ms: 0,
     scarcity_count: 0,
     updated_at: '2026-06-10T00:00:00Z',
+    updated_by: 'u1',
     folder_name: 'TEAM SHARED',
     usage_count: 0,
   };

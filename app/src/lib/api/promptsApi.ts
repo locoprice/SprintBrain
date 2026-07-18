@@ -33,6 +33,7 @@ type DbPrompt = {
   folder_id: string | null;
   notion_page_id: string | null;
   updated_at: string;
+  updated_by: string | null;
   last_used_at: string | null;
 };
 
@@ -40,7 +41,7 @@ const PROMPT_SELECT = [
   'id', 'user_id', 'name', 'content', 'shortcut', 'type', 'tags',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
-  'folder_id', 'notion_page_id', 'updated_at', 'last_used_at',
+  'folder_id', 'notion_page_id', 'updated_at', 'updated_by', 'last_used_at',
 ].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
@@ -63,6 +64,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     folder_id: row.folder_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
     updated_at: row.updated_at,
+    updated_by: row.updated_by ?? null,
     last_used_at: row.last_used_at,
   };
 }

@@ -7,6 +7,7 @@ import type { Prompt } from '@/types/database';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { assembleBlocks } from '@/lib/promptUtils';
+import { attributionTitle, useUserNameResolver } from '@/lib/useUserNames';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -57,6 +58,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const markUsed = usePromptStore((s) => s.markUsed);
   const pushPromptToNotion = usePromptStore((s) => s.pushPromptToNotion);
   const notionPushingIds = usePromptStore((s) => s.notionPushingIds);
+  const resolveUserName = useUserNameResolver();
   const pushing = notionPushingIds.has(prompt.id);
 
   const preview = getPreviewText(prompt);
@@ -137,7 +139,12 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
 
         {/* Footer */}
         <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
-          <span className="text-xs text-ink-subtle">{lastUsed}</span>
+          <span
+            className="text-xs text-ink-subtle"
+            title={attributionTitle(resolveUserName, prompt.user_id, prompt.updated_by, prompt.updated_at)}
+          >
+            {lastUsed}
+          </span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"

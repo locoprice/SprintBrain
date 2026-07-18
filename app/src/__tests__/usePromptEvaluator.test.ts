@@ -323,6 +323,7 @@ describe('promptToEvaluatorInput', () => {
     folder_id: null,
     notion_page_id: null,
     updated_at: '2026-01-01T00:00:00.000Z',
+    updated_by: 'u1',
     last_used_at: null,
   };
 
@@ -372,6 +373,7 @@ describe('selectBenchmarkCohort', () => {
   const row = (id: string, intent: IntentCategory | null): Prompt => ({
     id,
     user_id: 'u1',
+    updated_by: 'u1',
     name: id,
     content: 'x',
     shortcut: null,

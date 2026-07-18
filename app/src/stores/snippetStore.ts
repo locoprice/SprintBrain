@@ -4,6 +4,7 @@ import type { FolderFormValues, SnippetFormValues } from '@/types/schemas';
 import { snippetsApi } from '@/lib/api/snippetsApi';
 import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
+import { useAuthStore } from '@/stores/authStore';
 import { buildFolderShares } from '@/lib/folderShares';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
@@ -538,6 +539,9 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         timer_duration_ms: patch.timer_duration_ms ?? 0,
         scarcity_count: patch.scarcity_count ?? 0,
         updated_at: new Date().toISOString(),
+        // The DB stamps updated_by = auth.uid() on this write; mirror it
+        // locally so the attribution labels stay fresh without a refetch.
+        updated_by: useAuthStore.getState().user?.id ?? snippet.updated_by,
       };
       set((s) => ({
         snippets: s.snippets.map((sn) => (sn.id === id ? updatedRow : sn)),
@@ -584,6 +588,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
         content: revision.body,
         bodies: revision.bodies,
         updated_at: new Date().toISOString(),
+        updated_by: useAuthStore.getState().user?.id ?? snippet.updated_by,
       };
       set((s) => ({
         snippets: s.snippets.map((sn) => (sn.id === snippetId ? restoredRow : sn)),

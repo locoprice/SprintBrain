@@ -105,6 +105,7 @@ const SNIPPET_A: SnippetRow = {
   scarcity_count: 0,
   alternative_queries: [],
   updated_at: '2026-01-01T00:00:00Z',
+  updated_by: 'user-1',
   folder_name: null,
   usage_count: 0,
 };
@@ -130,6 +131,7 @@ const PROMPT_A: Prompt = {
   folder_id: null,
   notion_page_id: null,
   updated_at: '2026-01-01T00:00:00Z',
+  updated_by: 'user-1',
   last_used_at: null,
 };
 
