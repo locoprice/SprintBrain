@@ -107,6 +107,18 @@ body{
   font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   color:var(--text3);letter-spacing:.2px
 }
+/* Company co-brand — mirrors the dashboard topbar source (Settings → Company
+   branding): logo in a white pill (matches the version badge) + company name,
+   on one symmetric centered row with the version badge. Hidden when unset. */
+.mpage-footer-row{display:flex;align-items:center;justify-content:center;
+  gap:8px;flex-wrap:wrap;max-width:100%}
+.mpage-footer-brand{display:flex;align-items:center;gap:8px;min-width:0}
+.mpage-footer-logo-chip{display:inline-flex;align-items:center;flex-shrink:0;
+  background:var(--card);border:1px solid var(--border);border-radius:9999px;
+  padding:4px 12px;box-shadow:var(--shadow-sm)}
+.mpage-footer-logo{max-height:18px;max-width:120px;display:block;object-fit:contain}
+.mpage-footer-company{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.05px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
@@ -211,7 +223,7 @@ body{
 #snip-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
 .snip-card{
   position:relative;background:var(--card);border-radius:var(--r-card);
-  padding:14px;padding-right:52px;
+  padding:14px;padding-right:92px;
   display:flex;align-items:center;gap:12px;cursor:pointer;
   box-shadow:var(--shadow-sm);border:none;width:100%;text-align:left;
   font-family:inherit;-webkit-tap-highlight-color:transparent;
@@ -263,6 +275,23 @@ body{
 }
 .snip-menu:active{background:rgba(0,0,0,.06)}
 .snip-menu:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+
+/* Pin toggle — sits left of the 3-dot menu. Unpinned: gray outline; pinned:
+   azure stroke + primary-lt fill (same accent pairing as badges). */
+.snip-pin,.prompt-pin{
+  position:absolute;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:none;cursor:pointer;color:var(--text3);
+  padding:0;border-radius:50%;-webkit-tap-highlight-color:transparent;
+  transition:background .15s,color .15s;user-select:none
+}
+.snip-pin{top:50%;right:48px;transform:translateY(-50%)}
+.snip-pin:active,.prompt-pin:active{background:rgba(0,0,0,.06)}
+.snip-pin:focus-visible,.prompt-pin:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.snip-pin svg,.prompt-pin svg{width:17px;height:17px;display:block;
+  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.snip-pin.pinned,.prompt-pin.pinned{color:var(--primary)}
+.snip-pin.pinned svg,.prompt-pin.pinned svg{fill:var(--primary-lt)}
 
 /* Empty state */
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
@@ -665,8 +694,9 @@ body{
   position:sticky;top:54px;z-index:6;background:var(--bg-alt);display:none
 }
 
-/* ── PROMPT CARD: menu + last-used footer ── */
-.prompt-card{position:relative;padding-right:48px}
+/* ── PROMPT CARD: pin + menu + last-used footer ── */
+.prompt-card{position:relative;padding-right:90px}
+.prompt-pin{top:8px;right:46px}
 .prompt-out{font-size:10px;font-weight:600;color:var(--text2);
   background:var(--bg-alt);padding:2px 7px;border-radius:5px;
   border:1px solid var(--border)}
@@ -864,9 +894,15 @@ body{
 
   <!-- Page footer -->
   <div class="mpage-footer">
-    <div class="mpage-footer-badge">
-      <span class="mpage-footer-dot" aria-hidden="true"></span>
-      <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+    <div class="mpage-footer-row">
+      <div class="mpage-footer-brand sb-hidden">
+        <span class="mpage-footer-logo-chip sb-hidden"><img class="mpage-footer-logo" alt="Company logo" draggable="false"></span>
+        <span class="mpage-footer-company"></span>
+      </div>
+      <div class="mpage-footer-badge">
+        <span class="mpage-footer-dot" aria-hidden="true"></span>
+        <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+      </div>
     </div>
     <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
   </div>
@@ -1025,9 +1061,15 @@ body{
 
   <!-- Footer -->
   <div class="mpage-footer" style="padding-top:24px">
-    <div class="mpage-footer-badge">
-      <span class="mpage-footer-dot" aria-hidden="true"></span>
-      <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+    <div class="mpage-footer-row">
+      <div class="mpage-footer-brand sb-hidden">
+        <span class="mpage-footer-logo-chip sb-hidden"><img class="mpage-footer-logo" alt="Company logo" draggable="false"></span>
+        <span class="mpage-footer-company"></span>
+      </div>
+      <div class="mpage-footer-badge">
+        <span class="mpage-footer-dot" aria-hidden="true"></span>
+        <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+      </div>
     </div>
     <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
   </div>
@@ -1483,6 +1525,36 @@ function rememberLang(gkey,lang){
   try{localStorage.setItem('sb_mob_langpref',JSON.stringify(_langPref));}catch(e){}
 }
 
+/* Pinned rows — personal, device-local view preference (same pattern as
+   _langPref), keyed per user so a shared device never leaks pins across
+   accounts. Snippets pin by group key (all language variants pin together);
+   prompts pin by row id. Pinned rows float to the top of their list. */
+var PIN_KEY='sb_mob_pins';
+var _pins={snips:{},prompts:{}};
+function loadPins(){
+  _pins={snips:{},prompts:{}};
+  try{
+    var all=JSON.parse(localStorage.getItem(PIN_KEY)||'{}')||{};
+    var mine=all[USER_ID];
+    if(mine){_pins.snips=mine.snips||{};_pins.prompts=mine.prompts||{};}
+  }catch(e){}
+}
+function savePins(){
+  try{
+    var all=JSON.parse(localStorage.getItem(PIN_KEY)||'{}')||{};
+    all[USER_ID]={snips:_pins.snips,prompts:_pins.prompts};
+    localStorage.setItem(PIN_KEY,JSON.stringify(all));
+  }catch(e){}
+}
+function togglePin(map,key){
+  if(!key)return;
+  if(map[key]){delete map[key];showToast('Unpinned');}
+  else{map[key]=1;showToast('Pinned ✓');}
+  savePins();
+}
+/* Lucide "pin" — same icon vocabulary as the dashboard (lucide-react). */
+var PIN_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+
 /* ── SHARING STATUS SVGs ────────────────────────── */
 var LOCK_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 var TEAM_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
@@ -1754,6 +1826,10 @@ function renderPromptList(){
   var q=promptSearch.toLowerCase();
   var total=allPrompts.length;
   var filtered=filterPrompts(q);
+  // Pinned prompts float to the top; each half keeps its updated_at order.
+  var pinnedP=[],restP=[];
+  filtered.forEach(function(p){(_pins.prompts[p.id]?pinnedP:restP).push(p);});
+  filtered=pinnedP.concat(restP);
 
   // Header count (always total) + live result counter (only while searching).
   var cnt=document.getElementById('prompts-count');
@@ -1809,6 +1885,7 @@ function renderPromptList(){
     var preview=cleaned.slice(0,120);
     if(cleaned.length>120)preview+='…';
     var when=p.last_used_at?('Used '+timeAgo(p.last_used_at)):'Never used';
+    var isPin=!!_pins.prompts[p.id];
     return '<div class="prompt-card" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
       +'<div class="prompt-icon">'+folderIcon(getFolderById(p.folder_id))+'</div>'
       +'<div class="prompt-info">'
@@ -1817,13 +1894,15 @@ function renderPromptList(){
         +'<div class="prompt-meta">'+stratBadge+intentBadge+outBadge+share+'</div>'
         +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
       +'</div>'
+      +'<button type="button" class="prompt-pin'+(isPin?' pinned':'')+'" data-pin-pid="'+esc(p.id)+'" '
+        +'aria-label="'+(isPin?'Unpin':'Pin')+'" aria-pressed="'+(isPin?'true':'false')+'">'+PIN_SVG+'</button>'
       +'<button type="button" class="prompt-menu" data-menu-pid="'+esc(p.id)+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
 
   el.querySelectorAll('.prompt-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.prompt-menu'))return;
+      if(e.target.closest('.prompt-menu')||e.target.closest('.prompt-pin'))return;
       var p=findPrompt(this.getAttribute('data-pid'));
       if(p)promptCopy(p);
     });
@@ -1839,6 +1918,13 @@ function renderPromptList(){
     btn.addEventListener('click',function(e){
       e.stopPropagation();
       openPromptSheet(this.getAttribute('data-menu-pid'));
+    });
+  });
+  el.querySelectorAll('.prompt-pin').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      togglePin(_pins.prompts,this.getAttribute('data-pin-pid'));
+      renderPromptList();
     });
   });
 }
@@ -2096,6 +2182,10 @@ function renderList(){
   var groups=buildGroups(allSnips).filter(function(g){
     return groupMatches(g,q,curFolder,curLang);
   });
+  // Pinned groups float to the top; each half keeps its existing order.
+  var pinnedGroups=[],restGroups=[];
+  groups.forEach(function(g){(_pins.snips[g.key]?pinnedGroups:restGroups).push(g);});
+  groups=pinnedGroups.concat(restGroups);
   document.getElementById('cnt').textContent=groupCount(allSnips);
   if(!groups.length){
     el.innerHTML='<div class="empty"><div class="emo">🔍</div><p>No snippets found</p></div>';
@@ -2122,6 +2212,7 @@ function renderList(){
     }).join('');
     // "Last used by" — org-shared cards only (RPC only returns those anyway).
     var luLine=(active.organization_id&&active.folder_id)?lastUseLine(groupLastUse(g)):'';
+    var isPin=!!_pins.snips[g.key];
     return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
@@ -2134,6 +2225,8 @@ function renderList(){
         +'</div>'
         +luLine
       +'</div>'
+      +'<button type="button" class="snip-pin'+(isPin?' pinned':'')+'" data-pin-key="'+esc(g.key)+'" '
+        +'aria-label="'+(isPin?'Unpin':'Pin')+'" aria-pressed="'+(isPin?'true':'false')+'">'+PIN_SVG+'</button>'
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
@@ -2157,7 +2250,7 @@ function renderList(){
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.snip-menu'))return;
+      if(e.target.closest('.snip-menu')||e.target.closest('.snip-pin'))return;
       activateCard(this);
     });
     card.addEventListener('keydown',function(e){
@@ -2172,6 +2265,13 @@ function renderList(){
       e.stopPropagation();
       // Always read the live data-menu-id (it changes when user switches language pill)
       openBottomSheet(this.getAttribute('data-menu-id'));
+    });
+  });
+  el.querySelectorAll('.snip-pin').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      togglePin(_pins.snips,this.getAttribute('data-pin-key'));
+      renderList();
     });
   });
 }
@@ -3308,8 +3408,35 @@ function applyHeroName(){
            :'Good evening,';
   document.querySelectorAll('.mgreet').forEach(function(g){g.textContent=greet;});
 }
+/* Company co-brand — reads the same user_metadata keys the dashboard topbar
+   renders (Settings → Company branding): company_logo_url (https-only, same
+   guard as branding.ts pickHttpsUrl) + company_name. Fills the brand row in
+   every page footer; stays hidden when the user has set neither. */
+function applyCompanyBrand(){
+  var u=SESSION&&SESSION.user;
+  var meta=(u&&u.user_metadata)||{};
+  var name=typeof meta.company_name==='string'?meta.company_name.trim():'';
+  var logo=(typeof meta.company_logo_url==='string'&&meta.company_logo_url.indexOf('https://')===0)
+    ?meta.company_logo_url:'';
+  document.querySelectorAll('.mpage-footer-brand').forEach(function(row){
+    var chip=row.querySelector('.mpage-footer-logo-chip');
+    var img=row.querySelector('.mpage-footer-logo');
+    var nm=row.querySelector('.mpage-footer-company');
+    if(!name&&!logo){row.classList.add('sb-hidden');return;}
+    if(logo&&chip&&img){
+      img.src=logo;
+      img.alt=name||'Company logo';
+      img.onerror=function(){chip.classList.add('sb-hidden');};
+      chip.classList.remove('sb-hidden');
+    }else if(chip){
+      chip.classList.add('sb-hidden');
+    }
+    if(nm)nm.textContent=name;
+    row.classList.remove('sb-hidden');
+  });
+}
 if(requireAuth()){
-  applyHeroName();loadSnips();sbCheckAlive();
+  applyHeroName();applyCompanyBrand();loadPins();loadSnips();sbCheckAlive();
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible')sbCheckAlive();
   });
