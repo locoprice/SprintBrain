@@ -106,6 +106,37 @@
   .nv-iconbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .nv-empty{padding:40px 18px;text-align:center;color:var(--sb-ink-subtle);font-size:var(--sb-fs-13);line-height:1.7}
 
+  /* ── Inline detail — markup comes from the shared popup.js renderDetailHtml ── */
+  .nv-row.open{background:var(--sb-bg-alt);border-bottom-color:transparent}
+  #nv-list .detail{background:var(--sb-bg-alt);border-bottom:1px solid var(--sb-line);padding:2px 18px 16px;display:flex;flex-direction:column;gap:10px}
+  #nv-list .detail:last-child{border-bottom:none}
+  #nv-list .d-langs{display:flex;gap:6px;flex-wrap:wrap}
+  #nv-list .d-lp{height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-11);font-weight:700;background:var(--sb-bg-muted);color:var(--sb-ink-muted);border:1px solid transparent;cursor:pointer;font-family:inherit;transition:all .12s}
+  #nv-list .d-lp.on.EN{background:var(--sb-lang-en-bg);color:var(--sb-lang-en);border-color:var(--sb-lang-en)}
+  #nv-list .d-lp.on.ES{background:var(--sb-lang-es-bg);color:var(--sb-lang-es);border-color:var(--sb-lang-es)}
+  #nv-list .d-lp.on.IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it);border-color:var(--sb-lang-it)}
+  #nv-list .d-lp.on.FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr);border-color:var(--sb-lang-fr)}
+  #nv-list .d-body{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:10px 12px;font-size:var(--sb-fs-12);line-height:1.6;color:var(--sb-ink);white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto}
+  #nv-list .d-body .var{font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-xs);padding:0 3px}
+  #nv-list .d-body.plain{color:var(--sb-ink-subtle);font-style:italic}
+  #nv-list .d-note{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.4}
+  #nv-list .d-note b{font-family:var(--sb-mono);font-weight:600;color:var(--sb-ink-muted)}
+  #nv-list .d-fields{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;max-width:520px}
+  #nv-list .d-frow{display:flex;flex-direction:column;gap:4px}
+  #nv-list .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+  #nv-list .d-frow input,#nv-list .d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+  #nv-list .d-frow input:focus,#nv-list .d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+  #nv-list .d-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #nv-list .d-btn{height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;transition:all .12s}
+  #nv-list .d-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #nv-list .d-btn.pri{background:var(--sb-azure);color:#fff}
+  #nv-list .d-btn.pri:hover{background:var(--sb-azure-dark)}
+  #nv-list .d-btn.ghost{background:var(--sb-bg);color:var(--sb-ink-muted);border-color:var(--sb-line)}
+  #nv-list .d-btn.ghost:hover{border-color:var(--sb-line-2);color:var(--sb-ink)}
+  #nv-list .d-edit{margin-left:auto;font-size:var(--sb-fs-12);font-weight:600;color:var(--sb-azure);display:inline-flex;align-items:center;gap:4px;cursor:pointer;background:none;border:none;font-family:inherit}
+  #nv-list .d-edit:hover{color:var(--sb-azure-dark)}
+  #nv-list .d-edit svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
   .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
   .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
   .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
@@ -552,7 +583,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.107.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.113.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -718,7 +749,7 @@
     el.querySelectorAll('.nv-item[data-fid]').forEach(function(row){
       row.addEventListener('click', function(e){
         if (e.target.closest('[data-fdots]')) { e.stopPropagation(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); return; }
-        nvFolder = row.dataset.fid; renderFolderList(); renderMain();
+        nvFolder = row.dataset.fid; expandedId = null; renderFolderList(); renderMain();
       });
       if (row.dataset.fid !== 'ALL') row.addEventListener('contextmenu', function(e){ e.preventDefault(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); });
     });
@@ -754,7 +785,8 @@
       var st = s.stats || { uses:0 };
       var usesTxt = st.uses ? ('<span class="nv-stat uses">×'+st.uses+'</span>') : '<span class="nv-stat">Never used</span>';
       var base = String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/, '');
-      h += '<div class="nv-row" data-id="'+ec(s.id)+'">'
+      var open = expandedId === s.id;
+      h += '<div class="nv-row'+(open?' open':'')+'" data-id="'+ec(s.id)+'" role="button" aria-expanded="'+(open?'true':'false')+'">'
         + (s.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main"><div class="nv-row-title">'+ec(base)+'</div>'
         + '<div class="nv-row-meta">'+usesTxt+'</div></div>'
@@ -764,6 +796,7 @@
         + '<button class="nv-iconbtn" data-act="edit" title="Edit"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
         + '<button class="nv-iconbtn" data-act="more" title="More actions"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>'
         + '</div></div>';
+      if (open) h += renderDetailHtml(s);
     });
     $('nv-list').innerHTML = h;
     $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
@@ -775,15 +808,46 @@
           if (act.dataset.act === 'more') { var r = act.getBoundingClientRect(); return snippetMenu(s, r.right, r.bottom); }
           return;
         }
-        // Row click → copy shortcut + bump stats (shared DB.updateStats)
-        try { navigator.clipboard.writeText(s.shortcut || ''); } catch(x) {}
-        if (!s.stats) s.stats = { uses:0, fills:0, lastUsed:null };
-        s.stats.uses = (s.stats.uses||0) + 1; s.stats.lastUsed = new Date().toISOString();
-        DB.updateStats(s.id, s.stats.uses, s.stats.fills, s.stats.lastUsed);
-        toast('Copied ' + trigChar() + String(s.shortcut||'').replace(/^[^a-zA-Z0-9]+/,''));
+        // Row click → open/close the shared inline detail. toggleDetail (popup.js)
+        // flips expandedId + resets the fill state; its popup-only re-render
+        // no-ops on this surface, so repaint natively.
+        toggleDetail(s.id);
         renderMain();
       });
       row.addEventListener('contextmenu', function(e){ e.preventDefault(); var s = findSnip(row.dataset.id); if (s) snippetMenu(s, e.clientX, e.clientY); });
+    });
+    wireDetailControls();
+  }
+
+  // Wire the open detail's controls (markup from the shared popup.js
+  // renderDetailHtml). The .detail div is a sibling of .nv-row, so these
+  // clicks never bubble into the row toggle. Copy/preview logic is the shared
+  // core; "Edit in dashboard" becomes the native editor modal on this surface.
+  function wireDetailControls(){
+    var el = $('nv-list');
+    el.querySelectorAll('[data-dlang]').forEach(function(p){
+      p.addEventListener('click', function(){ detailLang = p.dataset.dlang; renderMain(); });
+    });
+    el.querySelectorAll('[data-copybody]').forEach(function(btn){
+      btn.addEventListener('click', function(){ copyBody(btn.dataset.copybody); });
+    });
+    el.querySelectorAll('[data-copyfilled]').forEach(function(btn){
+      btn.addEventListener('click', function(){ copyFilled(btn.dataset.copyfilled); });
+    });
+    el.querySelectorAll('[data-copysc]').forEach(function(btn){
+      btn.addEventListener('click', function(){ var s = findSnip(btn.dataset.copysc); if (s) doCopyShortcut(s); });
+    });
+    el.querySelectorAll('[data-editdash]').forEach(function(btn){
+      btn.firstChild.nodeValue = 'Edit snippet';
+      btn.addEventListener('click', function(){
+        var d = btn.closest('.detail'); var s = d ? findSnip(d.getAttribute('data-detail')) : null;
+        if (s) openEditor(s);
+      });
+    });
+    el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
+      var box = inp.closest('.d-fields'); var did = box ? box.getAttribute('data-fid') : null;
+      var handler = function(){ detailFieldVals[inp.getAttribute('data-fkey')] = inp.value; if (did) updateDetailPreview(did); };
+      inp.addEventListener('input', handler); inp.addEventListener('change', handler);
     });
   }
 
@@ -1119,7 +1183,7 @@
     settingsOpen = false;
     $('nv-settings').style.display = 'none'; $('nv-kpis').style.display = ''; $('nv-list-card').style.display = '';
   }
-  function gotoMode(m){ leaveSettings(); leaveComposer(); nvMode = m; renderNav(); renderMain(); }
+  function gotoMode(m){ leaveSettings(); leaveComposer(); nvMode = m; expandedId = null; renderNav(); renderMain(); }
 
   $('nv-trig-tiles').addEventListener('click', function(e){ var t = e.target.closest('.nv-trig-tile'); if (!t) return; $('nv-set-trig').value = t.dataset.t; updateTrigInfo(); });
   $('nv-set-trig').addEventListener('input', updateTrigInfo);
@@ -1313,7 +1377,7 @@
   $('nv-new').addEventListener('click', function(){ if (!settingsOpen && nvMode === 'snippets') openEditor(null); });
   $('nv-reload').addEventListener('click', loadData);
   var qT;
-  $('nv-q').addEventListener('input', function(e){ nvSearch = e.target.value || ''; clearTimeout(qT); qT = setTimeout(renderMain, 160); });
+  $('nv-q').addEventListener('input', function(e){ nvSearch = e.target.value || ''; expandedId = null; clearTimeout(qT); qT = setTimeout(renderMain, 160); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-modal-bg').classList.contains('on')) closeEditor(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-cl-bg').classList.contains('on')) closeChangelog(); });
 

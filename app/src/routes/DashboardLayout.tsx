@@ -64,13 +64,29 @@ export function DashboardLayout() {
             </div>
           </main>
           <footer className="flex items-center justify-between border-t border-line bg-bg-alt px-4 py-1">
-            <button
-              type="button"
-              onClick={() => setChangelogOpen(true)}
-              className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
-            >
-              {APP_VERSION}
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setChangelogOpen(true)}
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                {APP_VERSION}
+              </button>
+              {/* Netlify deploy status — live badge served by Netlify. */}
+              <a
+                href="https://app.netlify.com/projects/sprintbrain/deploys"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Netlify deploy status"
+                className="inline-flex items-center"
+              >
+                <img
+                  src="https://api.netlify.com/api/v1/badges/ec845afc-6f50-49de-bbb2-7b6ca1ba2db2/deploy-status"
+                  alt="Netlify Status"
+                  className="h-4 w-auto"
+                />
+              </a>
+            </div>
             <div className="flex items-center gap-3">
               <a
                 href="https://sprintbrain.com/legal/privacy-policy.html"

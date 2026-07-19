@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -779,6 +780,20 @@ export function NewSnippetDialog() {
                 disabled={saving}
               />
             </div>
+
+            {/* Attribution — who created / last touched this snippet */}
+            {mode === 'edit' && editingSnippet && (
+              <div className="shrink-0 border-t border-line p-5 pt-4">
+                <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5">
+                  About
+                </p>
+                <AssetAttribution
+                  createdBy={editingSnippet.user_id}
+                  updatedBy={editingSnippet.updated_by}
+                  updatedAt={editingSnippet.updated_at}
+                />
+              </div>
+            )}
           </div>
         </form>
 

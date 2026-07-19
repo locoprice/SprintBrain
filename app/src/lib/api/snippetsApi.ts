@@ -51,6 +51,7 @@ type DbSnippetJoined = {
   field_cfg: Record<string, unknown> | null;
   sort_order: number;
   updated_at: string;
+  updated_by: string | null;
   notion_page_id: string | null;
   pinned: boolean | null;
   is_active: boolean | null;
@@ -125,6 +126,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     timer_duration_ms: row.timer_duration_ms ?? 0,
     scarcity_count: row.scarcity_count ?? 0,
     updated_at: row.updated_at,
+    updated_by: row.updated_by ?? null,
     folder_name: row.folders?.name ?? null,
     usage_count: usage,
   };
@@ -154,7 +156,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the

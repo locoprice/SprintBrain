@@ -80,6 +80,12 @@ export interface Snippet {
   timer_duration_ms: number;
   scarcity_count: number;
   updated_at: IsoDateTime;
+  /**
+   * Last modifier — stamped in the DB by app.stamp_asset_audit whenever a
+   * write bumps updated_at ("Created by" is user_id, immutable since insert).
+   * Null only after that user's auth account is deleted.
+   */
+  updated_by: Uuid | null;
 }
 
 export interface SnippetStat {
@@ -126,6 +132,8 @@ export interface Prompt {
   folder_id: Uuid | null;
   notion_page_id: string | null;
   updated_at: IsoDateTime;
+  /** Last modifier — same DB-stamped semantics as Snippet.updated_by. */
+  updated_by: Uuid | null;
   last_used_at: IsoDateTime | null;
 }
 
@@ -246,6 +254,8 @@ export interface OrganizationSummary {
   name: string;
   slug: string | null;
   myRole: OrgRole;
+  /** Team-page cover (TEAM-COVER-001): a preset key, an https image URL, or null. */
+  cover: string | null;
 }
 
 /** A teammate, resolved via the `org_member_directory` RPC. */

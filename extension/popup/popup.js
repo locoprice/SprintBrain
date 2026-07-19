@@ -354,6 +354,15 @@ function syncPrompts(){
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.110.0', date:'2026-07-18', label:'feat: wider popup',
+    changes:[
+      {type:'new', text:'The popup is a little wider (540px), so snippet titles and shortcuts have more room before they get cut off.'}
+    ]},
+  { version:'v2.109.0', date:'2026-07-18', label:'feat: click a snippet row to open it',
+    changes:[
+      {type:'new', text:'Clicking anywhere on a snippet row now opens its inline detail — languages, fill fields and the live preview. The row no longer copies the shortcut: Copy filled, Copy raw and Copy shortcut live inside the detail.'},
+      {type:'new', text:'The web dashboard behaves the same — rows expand in place with the exact same detail. In the popup, Enter opens the selected snippet; Enter again copies the result.'}
+    ]},
   { version:'v2.99.0', date:'2026-07-11', label:'fix: folder chips scroll with the mouse',
     changes:[
       {type:'fix', text:'When you have more folders than fit across the top, arrow buttons now appear at the edges and the mouse wheel scrolls the folder chips left and right. Before, folders past the right edge were cut off with no way to reach them using a mouse.'}
@@ -1380,7 +1389,7 @@ function renderList(q){
     var usesTxt=st.uses ? ('\u00D7'+st.uses) : 'Never used';
     var base=String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/,'');
     var open=expandedId===s.id;
-    h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-label="'+esc(base)+' \u2014 copy shortcut">'
+    h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-expanded="'+(open?'true':'false')+'" aria-label="'+esc(base)+' \u2014 show details">'
       +'<div class="i-main">'
         +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'
           +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
@@ -1401,10 +1410,7 @@ function renderList(q){
 
 function wireListRows(el){
   el.querySelectorAll('.item').forEach(function(row){
-    row.addEventListener('click',function(e){
-      if(e.target.closest('[data-chev]')){ toggleDetail(row.dataset.id); return; }
-      copyShortcutRow(row);
-    });
+    row.addEventListener('click',function(){ toggleDetail(row.dataset.id); });
   });
   el.querySelectorAll('[data-dlang]').forEach(function(p){
     p.addEventListener('click',function(e){ e.stopPropagation(); detailLang=p.dataset.dlang; renderList(gi('sq')?gi('sq').value:''); reSel(p.dataset.did); });
@@ -1438,9 +1444,8 @@ function toggleDetail(id){
   reSel(id);
 }
 
-// Row copy \u2014 copies the raw stored shortcut and bumps usage stats (identical
-// semantics to Sprintbrain.html so the shared stats stay consistent).
-function copyShortcutRow(row){ var s=findSnip(row.dataset.id); if(s) doCopyShortcut(s); }
+// Shortcut copy \u2014 fired from the detail panel's "Copy shortcut" on both
+// surfaces; copies the raw stored shortcut and bumps usage stats.
 function doCopyShortcut(s){
   try{ navigator.clipboard.writeText(s.shortcut||''); }catch(e){}
   if(!s.stats) s.stats={uses:0,fills:0,lastUsed:null};
@@ -1665,7 +1670,7 @@ document.addEventListener('keydown', function(e){
   else if(k==='Enter'){
     if(selIdx<0 && listRows().length) setSel(0);
     var row=listRows()[selIdx];
-    if(row){ e.preventDefault(); if(expandedId===row.dataset.id) copyDetailPrimary(row.dataset.id); else copyShortcutRow(row); }
+    if(row){ e.preventDefault(); if(expandedId===row.dataset.id) copyDetailPrimary(row.dataset.id); else toggleDetail(row.dataset.id); }
   }
   else if(k==='ArrowRight' && selIdx>=0 && atEnd){
     var rr=listRows()[selIdx]; if(rr && expandedId!==rr.dataset.id){ e.preventDefault(); toggleDetail(rr.dataset.id); }

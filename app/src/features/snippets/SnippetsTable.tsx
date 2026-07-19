@@ -21,6 +21,7 @@ import {
   type SnippetGroup,
 } from '@/lib/snippetGrouping';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { attributionTitle, useUserNameResolver } from '@/lib/useUserNames';
 import { cn } from '@/lib/utils';
 
 interface MenuState {
@@ -167,6 +168,7 @@ export function SnippetsTable() {
   const selectedIds = useSnippetStore((s) => s.selectedIds);
   const setSnippetsSelected = useSnippetStore((s) => s.setSnippetsSelected);
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
+  const resolveUserName = useUserNameResolver();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   // Active language variant per group key — drives which variant's metadata and
@@ -420,7 +422,10 @@ export function SnippetsTable() {
                   )}
                 </td>
                 <td className="px-5 py-3 text-ink-muted">{row.folder_name ?? '—'}</td>
-                <td className="px-5 py-3 text-ink-muted">
+                <td
+                  className="px-5 py-3 text-ink-muted"
+                  title={attributionTitle(resolveUserName, row.user_id, row.updated_by, row.updated_at)}
+                >
                   {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
                 </td>
                 <td className="px-5 py-3 text-right font-mono text-xs tabular-nums text-ink-muted">

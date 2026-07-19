@@ -15,6 +15,7 @@ import {
   selectBenchmarkCohort,
 } from '@/lib/usePromptEvaluator';
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
+import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -804,6 +805,21 @@ export function PromptBlockEditor() {
             className="h-8 w-full rounded-[8px] border border-[#34343C] bg-[#1C1C22] px-3 text-xs text-[#D6D6DE] placeholder:text-[#7A7A85] focus:border-[#3D6FE8] focus:outline-none"
           />
         </div>
+
+        {/* Attribution — who created / last touched this prompt */}
+        {mode === 'edit' && editingPrompt && (
+          <div className="border-t border-[#222227] px-5 py-4">
+            <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#9C9CA6]">
+              About
+            </p>
+            <AssetAttribution
+              tone="dark"
+              createdBy={editingPrompt.user_id}
+              updatedBy={editingPrompt.updated_by}
+              updatedAt={editingPrompt.updated_at}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Footer actions ── */}

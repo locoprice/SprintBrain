@@ -94,6 +94,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-2),
   },
   {
@@ -116,6 +117,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-1),
   },
   {
@@ -138,6 +140,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-3),
   },
   {
@@ -160,6 +163,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-12),
   },
   {
@@ -182,6 +186,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-7),
   },
   {
@@ -204,6 +209,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-4),
   },
   {
@@ -226,6 +232,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-15),
   },
   {
@@ -248,6 +255,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-1),
   },
   {
@@ -270,6 +278,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-2),
   },
   {
@@ -292,6 +301,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-6),
   },
   {
@@ -314,6 +324,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-9),
   },
   {
@@ -336,6 +347,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-20),
   },
   {
@@ -358,6 +370,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-90),
   },
   {
@@ -380,6 +393,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-5),
   },
   {
@@ -402,6 +416,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-8),
   },
   {
@@ -424,6 +439,7 @@ export const mockSnippets: Snippet[] = [
     scarcity_count: 0,
     bodies: {},
     alternative_queries: [],
+    updated_by: USER_ID,
     updated_at: day(-30),
   },
 ];
@@ -476,6 +492,7 @@ export const mockPrompts: Prompt[] = [
     type: 'one-shot',
     tags: ['ops', 'communication'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-3),
     last_used_at: day(-1),
   },
@@ -488,6 +505,7 @@ export const mockPrompts: Prompt[] = [
     type: 'one-shot',
     tags: ['translation'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-7),
     last_used_at: day(-2),
   },
@@ -500,6 +518,7 @@ export const mockPrompts: Prompt[] = [
     type: 'few-shot',
     tags: ['parsing', 'booking'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-10),
     last_used_at: day(-4),
   },
@@ -512,6 +531,7 @@ export const mockPrompts: Prompt[] = [
     type: 'one-shot',
     tags: ['marketing'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-15),
     last_used_at: null,
   },
@@ -524,6 +544,7 @@ export const mockPrompts: Prompt[] = [
     type: 'few-shot',
     tags: ['communication'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-1),
     last_used_at: day(0),
   },
@@ -536,6 +557,7 @@ export const mockPrompts: Prompt[] = [
     type: 'one-shot',
     tags: ['pricing'],
     ...NULL_PROMPT_META,
+    updated_by: USER_ID,
     updated_at: day(-22),
     last_used_at: day(-10),
   },
