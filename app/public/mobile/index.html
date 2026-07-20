@@ -223,13 +223,15 @@ body{
 #snip-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
 .snip-card{
   position:relative;background:var(--card);border-radius:var(--r-card);
-  padding:14px;padding-right:92px;
+  padding:14px;padding-right:52px;
   display:flex;align-items:center;gap:12px;cursor:pointer;
   box-shadow:var(--shadow-sm);border:none;width:100%;text-align:left;
   font-family:inherit;-webkit-tap-highlight-color:transparent;
   transition:transform .1s,opacity .1s
 }
 .snip-card:active{transform:scale(.98);opacity:.85}
+/* Extra right gutter only when the pinned flag occupies it. */
+.snip-card.is-pinned{padding-right:80px}
 .snip-icon{
   width:46px;height:46px;border-radius:13px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:22px;
@@ -276,22 +278,17 @@ body{
 .snip-menu:active{background:rgba(0,0,0,.06)}
 .snip-menu:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
 
-/* Pin toggle — sits left of the 3-dot menu. Unpinned: gray outline; pinned:
-   azure stroke + primary-lt fill (same accent pairing as badges). */
-.snip-pin,.prompt-pin{
-  position:absolute;width:40px;height:40px;
+/* Pinned flag — a marker, not a control: rendered only on pinned rows, azure
+   stroke + primary-lt fill (same accent pairing as badges). Pinning itself
+   lives in the row's ⋮ menu. */
+.snip-pin-flag,.prompt-pin-flag{
+  position:absolute;width:24px;height:24px;
   display:flex;align-items:center;justify-content:center;
-  background:none;border:none;cursor:pointer;color:var(--text3);
-  padding:0;border-radius:50%;-webkit-tap-highlight-color:transparent;
-  transition:background .15s,color .15s;user-select:none
+  color:var(--primary);pointer-events:none
 }
-.snip-pin{top:50%;right:48px;transform:translateY(-50%)}
-.snip-pin:active,.prompt-pin:active{background:rgba(0,0,0,.06)}
-.snip-pin:focus-visible,.prompt-pin:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
-.snip-pin svg,.prompt-pin svg{width:17px;height:17px;display:block;
-  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.snip-pin.pinned,.prompt-pin.pinned{color:var(--primary)}
-.snip-pin.pinned svg,.prompt-pin.pinned svg{fill:var(--primary-lt)}
+.snip-pin-flag{top:50%;right:50px;transform:translateY(-50%)}
+.snip-pin-flag svg,.prompt-pin-flag svg{width:17px;height:17px;display:block;
+  stroke:currentColor;fill:var(--primary-lt);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Empty state */
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
@@ -694,9 +691,10 @@ body{
   position:sticky;top:54px;z-index:6;background:var(--bg-alt);display:none
 }
 
-/* ── PROMPT CARD: pin + menu + last-used footer ── */
-.prompt-card{position:relative;padding-right:90px}
-.prompt-pin{top:8px;right:46px}
+/* ── PROMPT CARD: pin flag + menu + last-used footer ── */
+.prompt-card{position:relative;padding-right:48px}
+.prompt-card.is-pinned{padding-right:78px}
+.prompt-pin-flag{top:16px;right:46px}
 .prompt-out{font-size:10px;font-weight:600;color:var(--text2);
   background:var(--bg-alt);padding:2px 7px;border-radius:5px;
   border:1px solid var(--border)}
@@ -989,6 +987,21 @@ body{
     <div class="msec"><span class="msec-t">All prompts</span></div>
     <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
+
+    <!-- Page footer -->
+    <div class="mpage-footer">
+      <div class="mpage-footer-row">
+        <div class="mpage-footer-brand sb-hidden">
+          <span class="mpage-footer-logo-chip sb-hidden"><img class="mpage-footer-logo" alt="Company logo" draggable="false"></span>
+          <span class="mpage-footer-company"></span>
+        </div>
+        <div class="mpage-footer-badge">
+          <span class="mpage-footer-dot" aria-hidden="true"></span>
+          <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+        </div>
+      </div>
+      <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
+    </div>
   </div>
 </div>
 
@@ -1107,6 +1120,7 @@ body{
     <ul class="sb-sheet-actions">
       <li data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
       <li data-action="copy"><span class="sb-sheet-act-i">📋</span> Copy text</li>
+      <li data-action="pin"><span class="sb-sheet-act-i">📌</span> <span id="sb-sheet-pin-lbl">Pin to top</span></li>
       <li data-action="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
       <li data-action="info"><span class="sb-sheet-act-i">ℹ️</span> Snippet info</li>
     </ul>
@@ -1135,6 +1149,7 @@ body{
     <div class="sb-sheet-title" id="sb-prompt-sheet-title"></div>
     <ul class="sb-sheet-actions">
       <li data-paction="copy" data-action="use"><span class="sb-sheet-act-i">📋</span> Copy to clipboard</li>
+      <li data-paction="pin"><span class="sb-sheet-act-i">📌</span> <span id="sb-prompt-pin-lbl">Pin to top</span></li>
       <li data-paction="duplicate"><span class="sb-sheet-act-i">⧉</span> Duplicate</li>
       <li data-paction="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
     </ul>
@@ -1886,7 +1901,7 @@ function renderPromptList(){
     if(cleaned.length>120)preview+='…';
     var when=p.last_used_at?('Used '+timeAgo(p.last_used_at)):'Never used';
     var isPin=!!_pins.prompts[p.id];
-    return '<div class="prompt-card" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
+    return '<div class="prompt-card'+(isPin?' is-pinned':'')+'" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
       +'<div class="prompt-icon">'+folderIcon(getFolderById(p.folder_id))+'</div>'
       +'<div class="prompt-info">'
         +'<div class="prompt-name">'+esc(p.name)+'</div>'
@@ -1894,15 +1909,14 @@ function renderPromptList(){
         +'<div class="prompt-meta">'+stratBadge+intentBadge+outBadge+share+'</div>'
         +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
       +'</div>'
-      +'<button type="button" class="prompt-pin'+(isPin?' pinned':'')+'" data-pin-pid="'+esc(p.id)+'" '
-        +'aria-label="'+(isPin?'Unpin':'Pin')+'" aria-pressed="'+(isPin?'true':'false')+'">'+PIN_SVG+'</button>'
+      +(isPin?'<span class="prompt-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="prompt-menu" data-menu-pid="'+esc(p.id)+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
 
   el.querySelectorAll('.prompt-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.prompt-menu')||e.target.closest('.prompt-pin'))return;
+      if(e.target.closest('.prompt-menu'))return;
       var p=findPrompt(this.getAttribute('data-pid'));
       if(p)promptCopy(p);
     });
@@ -1918,13 +1932,6 @@ function renderPromptList(){
     btn.addEventListener('click',function(e){
       e.stopPropagation();
       openPromptSheet(this.getAttribute('data-menu-pid'));
-    });
-  });
-  el.querySelectorAll('.prompt-pin').forEach(function(btn){
-    btn.addEventListener('click',function(e){
-      e.stopPropagation();
-      togglePin(_pins.prompts,this.getAttribute('data-pin-pid'));
-      renderPromptList();
     });
   });
 }
@@ -1954,11 +1961,18 @@ function promptMarkUsed(p){
 
 /* ── PROMPT BOTTOM SHEET ─────────────────────────── */
 var sheetPrompt=null;
+/* Close defers clearing sheetPrompt until the slide-out ends; reopening inside
+   that window must cancel the pending clear or the fresh sheet loses its bound
+   prompt and its actions no-op. */
+var _promptSheetTimer=null;
 function openPromptSheet(pid){
   var p=findPrompt(pid);
   if(!p)return;
+  clearTimeout(_promptSheetTimer);
   sheetPrompt=p;
   document.getElementById('sb-prompt-sheet-title').textContent=p.name||'Prompt';
+  var pinLbl=document.getElementById('sb-prompt-pin-lbl');
+  if(pinLbl)pinLbl.textContent=_pins.prompts[p.id]?'Unpin':'Pin to top';
   var sh=document.getElementById('sb-prompt-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
@@ -1970,7 +1984,8 @@ function closePromptSheet(){
   if(!sh)return;
   sh.classList.remove('sb-open');
   sh.setAttribute('aria-hidden','true');
-  setTimeout(function(){sh.classList.add('sb-hidden');sheetPrompt=null;},300);
+  clearTimeout(_promptSheetTimer);
+  _promptSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');sheetPrompt=null;},300);
 }
 function duplicatePrompt(p){
   var now=new Date().toISOString();
@@ -2213,7 +2228,7 @@ function renderList(){
     // "Last used by" — org-shared cards only (RPC only returns those anyway).
     var luLine=(active.organization_id&&active.folder_id)?lastUseLine(groupLastUse(g)):'';
     var isPin=!!_pins.snips[g.key];
-    return '<div class="snip-card" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
+    return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
         +'<div class="snip-title">'+esc(active.title||active.id)+'</div>'
@@ -2225,8 +2240,7 @@ function renderList(){
         +'</div>'
         +luLine
       +'</div>'
-      +'<button type="button" class="snip-pin'+(isPin?' pinned':'')+'" data-pin-key="'+esc(g.key)+'" '
-        +'aria-label="'+(isPin?'Unpin':'Pin')+'" aria-pressed="'+(isPin?'true':'false')+'">'+PIN_SVG+'</button>'
+      +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
   }).join('');
@@ -2250,7 +2264,7 @@ function renderList(){
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.snip-menu')||e.target.closest('.snip-pin'))return;
+      if(e.target.closest('.snip-menu'))return;
       activateCard(this);
     });
     card.addEventListener('keydown',function(e){
@@ -2265,13 +2279,6 @@ function renderList(){
       e.stopPropagation();
       // Always read the live data-menu-id (it changes when user switches language pill)
       openBottomSheet(this.getAttribute('data-menu-id'));
-    });
-  });
-  el.querySelectorAll('.snip-pin').forEach(function(btn){
-    btn.addEventListener('click',function(e){
-      e.stopPropagation();
-      togglePin(_pins.snips,this.getAttribute('data-pin-key'));
-      renderList();
     });
   });
 }
@@ -2534,12 +2541,18 @@ window.addEventListener('popstate',function(){
 
 /* ── BOTTOM SHEET ───────────────────────────────── */
 var sheetSnip=null;
+/* See _promptSheetTimer — reopening during the slide-out must cancel the
+   pending clear, otherwise the fresh sheet's actions no-op. */
+var _snipSheetTimer=null;
 
 function openBottomSheet(id){
   var s=_varIndex[id]||allSnips.find(function(x){return x.id===id;});
   if(!s)return;
+  clearTimeout(_snipSheetTimer);
   sheetSnip=s;
   document.getElementById('sb-sheet-snippet-title').textContent=s.title||s.id;
+  var pinLbl=document.getElementById('sb-sheet-pin-lbl');
+  if(pinLbl)pinLbl.textContent=_pins.snips[groupKey(s)]?'Unpin':'Pin to top';
   var sh=document.getElementById('sb-bottom-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
@@ -2550,7 +2563,8 @@ function closeBottomSheet(){
   var sh=document.getElementById('sb-bottom-sheet');
   sh.classList.remove('sb-open');
   sh.setAttribute('aria-hidden','true');
-  setTimeout(function(){
+  clearTimeout(_snipSheetTimer);
+  _snipSheetTimer=setTimeout(function(){
     sh.classList.add('sb-hidden');
     sheetSnip=null;
   },300);
@@ -2618,6 +2632,10 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
       logSnipUse(s,0);
       closeBottomSheet();
+    }else if(act==='pin'){
+      togglePin(_pins.snips,groupKey(s));
+      closeBottomSheet();
+      renderList();
     }else if(act==='share'){
       shareSnippet(s);
     }else if(act==='info'){
@@ -3087,6 +3105,7 @@ function setupSheetDrag(sheetEl,closeFn){
     var act=li.getAttribute('data-paction');
     var p=sheetPrompt;
     if(act==='copy'){promptCopy(p);closePromptSheet();}
+    else if(act==='pin'){togglePin(_pins.prompts,p.id);closePromptSheet();renderPromptList();}
     else if(act==='duplicate'){duplicatePrompt(p);}
     else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
   });
@@ -3423,15 +3442,22 @@ function applyCompanyBrand(){
     var img=row.querySelector('.mpage-footer-logo');
     var nm=row.querySelector('.mpage-footer-company');
     if(!name&&!logo){row.classList.add('sb-hidden');return;}
+    // Logo OR name — never both (the mark already carries the wordmark). Same
+    // rule as the dashboard topbar; the name is the no-logo fallback, and it
+    // also comes back if the logo URL fails to load.
     if(logo&&chip&&img){
       img.src=logo;
       img.alt=name||'Company logo';
-      img.onerror=function(){chip.classList.add('sb-hidden');};
+      img.onerror=function(){
+        chip.classList.add('sb-hidden');
+        if(nm){nm.textContent=name;nm.classList.toggle('sb-hidden',!name);}
+      };
       chip.classList.remove('sb-hidden');
-    }else if(chip){
-      chip.classList.add('sb-hidden');
+      if(nm){nm.textContent='';nm.classList.add('sb-hidden');}
+    }else{
+      if(chip)chip.classList.add('sb-hidden');
+      if(nm){nm.textContent=name;nm.classList.remove('sb-hidden');}
     }
-    if(nm)nm.textContent=name;
     row.classList.remove('sb-hidden');
   });
 }
