@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, ImageUp, Trash2, UploadCloud, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { pickHttpsUrl, COVER_INPUT_ACCEPT, validateImageFile, COVER_MAX_BYTES } from '@/lib/branding';
+import { pickHttpsUrl, COVER_INPUT_ACCEPT, validateCoverSource } from '@/lib/branding';
 import { coverPresetClass, isImageCover, TEAM_COVER_PRESETS } from '@/lib/teamCoverPresets';
 import { useAuthStore } from '@/stores/authStore';
 import { useOrgStore } from '@/stores/orgStore';
@@ -54,7 +54,9 @@ export function TeamCover() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const invalid = validateImageFile(file, COVER_MAX_BYTES);
+    // Only type + an outer ceiling here — a large photo gets downscaled during
+    // upload rather than rejected.
+    const invalid = validateCoverSource(file);
     if (invalid) {
       setError(invalid);
       return;
@@ -121,9 +123,29 @@ export function TeamCover() {
         </div>
       ) : null}
 
-      {/* Identity: logo/initial card + eyebrow + org name + description */}
-      <div className={cn('flex items-end gap-4', hasCover ? '-mt-8 px-1' : 'mt-0')}>
-        <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] border border-line bg-card shadow-sm">
+      {/* Identity: logo/initial card + eyebrow + org name + description.
+          Notion rule: only the logo card overlaps the cover (it carries its own
+          card surface) — the text sits fully below the cover edge, so title
+          contrast never depends on the cover art or photo behind it.
+          `relative z-10` is load-bearing: the cover above is positioned, and a
+          positioned sibling paints over a static one regardless of DOM order —
+          without it the cover swallows the overlapping card. */}
+      <div
+        className={cn(
+          'relative z-10 flex items-start gap-4',
+          hasCover ? 'mt-3 px-1' : 'mt-0',
+        )}
+      >
+        <div
+          className={cn(
+            'flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] border border-line shadow-sm',
+            // Logos are usually dark artwork: keep them on white in both themes
+            // (same treatment as the topbar co-brand chip). The initial-letter
+            // fallback is azure, so it reads on the normal card surface.
+            companyLogo ? 'bg-white' : 'bg-card',
+            hasCover && '-mt-[46px]',
+          )}
+        >
           {companyLogo ? (
             <img
               src={companyLogo}

@@ -4,8 +4,10 @@ import {
   COVER_MAX_BYTES,
   objectPathFromPublicUrl,
   TEAM_COVER_BUCKET,
+  validateCoverSource,
   validateImageFile,
 } from '@/lib/branding';
+import { COVER_MAX_WIDTH, downscaleImage } from '@/lib/imageResize';
 import { isImageCover } from '@/lib/teamCoverPresets';
 import type { OrgMember, OrgRole, OrganizationSummary } from '@/types/database';
 
@@ -108,15 +110,24 @@ export const orgApi: OrgApi = {
   },
 
   async uploadCover(orgId, currentCover, file) {
-    const invalid = validateImageFile(file, COVER_MAX_BYTES);
+    const badSource = validateCoverSource(file);
+    if (badSource) throw new Error(badSource);
+
+    // Resize before upload: a phone photo is far larger than the cover renders,
+    // so the storage cap applies to the processed image, not the original.
+    const prepared = await downscaleImage(file, {
+      maxWidth: COVER_MAX_WIDTH,
+      maxBytes: COVER_MAX_BYTES,
+    });
+    const invalid = validateImageFile(prepared, COVER_MAX_BYTES);
     if (invalid) throw new Error(invalid);
 
     // Timestamped per-org key — a replacement gets a fresh URL, so no
     // CDN/browser cache can keep serving the old image.
-    const path = buildTeamCoverPath(orgId, file.type, Date.now());
+    const path = buildTeamCoverPath(orgId, prepared.type, Date.now());
     const { error: uploadErr } = await supabase.storage
       .from(TEAM_COVER_BUCKET)
-      .upload(path, file, { contentType: file.type, cacheControl: '3600' });
+      .upload(path, prepared, { contentType: prepared.type, cacheControl: '3600' });
     if (uploadErr) throw uploadErr;
 
     const { publicUrl } = supabase.storage.from(TEAM_COVER_BUCKET).getPublicUrl(path).data;
