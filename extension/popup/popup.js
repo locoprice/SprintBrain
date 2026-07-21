@@ -1249,20 +1249,24 @@ function currentFieldVals(defs){
 }
 // Resolve a body with field values through the SAME engine as the in-page
 // ::trigger expansion (formula-engine.js). Falls back to raw if absent.
-function resolveFilled(body, vals){
+function resolveFilled(body, vals, lang){
   var FE=window.SBFormulaEngine; if(!FE) return body;
-  try{ return FE.resolveBody(FE.interpolateSnippet(body, vals), vals); }catch(e){ return body; }
+  try{ return FE.resolveBody(FE.interpolateSnippet(body, vals), vals, {lang:lang}); }catch(e){ return body; }
+}
+// Language of the body currently shown in the detail — the active pill when the
+// snippet has variants, otherwise the snippet's own.
+function detailActiveLang(s){
+  var vars=findVariants(s);
+  return (detailLang && vars[detailLang]) ? detailLang : (s.lang||'EN');
 }
 function detailActiveBody(s){
-  var vars=findVariants(s);
-  var lang=(detailLang && vars[detailLang]) ? detailLang : (s.lang||'EN');
-  return detailBody(s, lang, vars);
+  return detailBody(s, detailActiveLang(s), findVariants(s));
 }
 // Live-update the open detail's preview from the current field inputs.
 function updateDetailPreview(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
-  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)), detailActiveLang(s));
   var wrap=document.querySelector('.detail[data-detail="'+id+'"]');
   var pv=wrap?wrap.querySelector('.d-body'):null;
   if(pv){ pv.textContent=out; if(out.trim()) pv.classList.remove('plain'); else pv.classList.add('plain'); }
@@ -1270,7 +1274,7 @@ function updateDetailPreview(id){
 function copyFilled(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
-  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)));
+  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)), detailActiveLang(s));
   try{ navigator.clipboard.writeText(out||''); }catch(e){}
   showToast('Copied filled text');
 }
@@ -1280,7 +1284,7 @@ function copyDetailPrimary(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
   var vals=currentFieldVals(detailFieldDefs(body));
-  if(resolveFilled(body, vals)!==body) copyFilled(id); else copyBody(id);
+  if(resolveFilled(body, vals, detailActiveLang(s))!==body) copyFilled(id); else copyBody(id);
 }
 
 function renderDetailHtml(s){
@@ -1302,7 +1306,7 @@ function renderDetailHtml(s){
   var fieldKeys=Object.keys(defs);
   var hasFields=fieldKeys.length>0;
   var vals=currentFieldVals(defs);
-  var resolved=resolveFilled(body, vals);
+  var resolved=resolveFilled(body, vals, active);
   var isDynamic=hasFields || (resolved!==body);
 
   var h='<div class="detail" data-detail="'+esc(s.id)+'">'

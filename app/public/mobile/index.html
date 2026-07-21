@@ -1399,17 +1399,172 @@ function sbResolveDatetimeDiff(expr,vals){
   });
 }
 
+/* ── GENDER-AWARE GREETINGS ──────────────────────────────────────
+   Port of the same block in extension/formula-engine.js — mobile carries its
+   own resolver, so the two must be kept in sync. See that file for the rules. */
+function _sbNames(list,g,into){
+  var a=list.split(' ');
+  for(var i=0;i<a.length;i++)if(a[i])into[a[i]]=g;
+  return into;
+}
+var GENDER_BY_NAME={};
+_sbNames('carmen isabel raquel beatriz ines dolores mercedes pilar esther ruth judith '+
+         'soledad caridad libertad milagros remedios lourdes nieves flor luz mar iris '+
+         'noemi rocio consuelo amparo socorro cleo margo '+
+         'irene beatrice alice adele agnese matilde penelope dafne cloe ester '+
+         'sophie marie julie claire elodie chloe zoe denise elise louise michelle '+
+         'danielle gabrielle isabelle estelle helene charlotte margot margaux renee '+
+         'mary jennifer elizabeth susan sarah karen nancy betty margaret ashley '+
+         'kimberly emily carol dorothy stephanie sharon kathleen amy shirley kathryn '+
+         'janet heather joyce kelly lauren evelyn megan cheryl hannah jacqueline '+
+         'frances ann anne teresa janice madison doris abigail grace amber marilyn '+
+         'beverly brittany rose kayla lily freya isla poppy daisy holly jade faith '+
+         'hope ingrid astrid kirsten karin miriam myriam jazmin yasmin gwen eileen '+
+         'maureen colleen noor nour hind lucy judy wendy tracy ivy molly sally '+
+         'leah beth meredith savannah norah rachel muriel mabel hazel april gail jill '+
+         'crystal agnes phyllis harriet violet bridget scarlett juliet colette '+
+         'eleanor ginger piper heidi naomi suri kristen imogen shannon alison allison '+
+         'catherine christine caroline adeline jasmine josephine geraldine madeline',
+         'f',GENDER_BY_NAME);
+_sbNames('jose felipe enrique vicente jaime dante cesare davide giuseppe salvatore '+
+         'ettore ercole rene herve clement maxime daniele gabriele emanuele '+
+         'luca mattia elia tobia battista geremia isaia zaccaria joshua elisha ezra '+
+         'mustafa hamza zakaria yahya musa issa borja aleksa kosta ilya misha dima '+
+         'kolya vanya nikola jonah '+
+         'james john robert michael william david richard joseph thomas charles '+
+         'christopher daniel matthew anthony mark donald steven paul andrew kenneth '+
+         'kevin brian george timothy ronald jason edward jeffrey ryan jacob gary '+
+         'nicholas eric jonathan stephen larry justin scott brandon benjamin samuel '+
+         'gregory alexander patrick frank raymond jack dennis jerry tyler aaron adam '+
+         'henry nathan douglas zachary peter kyle ethan walter jeremy christian keith '+
+         'roger terry gerald harold sean austin carl arthur lawrence dylan bryan '+
+         'billy joe bruce gabriel logan albert willie alan juan wayne elijah randy '+
+         'roy vincent ralph eugene russell bobby mason philip louis liam oliver harry '+
+         'oscar archie theo freddie alfie leo max tom ben luke finn felix hugo rory '+
+         'seth ivan igor oleg dmitri sergei viktor pavel andrei mikhail yuri boris '+
+         'ahmed mohamed mohammed muhammad ali omar hassan hussein khaled tarek amir '+
+         'samir karim rachid youssef ismail yusuf noah tony andy shawn',
+         'm',GENDER_BY_NAME);
+_sbNames('alex sam chris jordan robin taylor morgan charlie jamie casey riley avery '+
+         'dana jesse kim lee pat sasha sacha nikita ariel marion camille dominique '+
+         'claude noel cruz alexis dani gabi yael eden quinn skyler rowan harper '+
+         'ale toni nico santi',
+         'x',GENDER_BY_NAME);
+var GENDER_BY_LANG={
+  andrea:{IT:'m',ES:'f',PT:'f',FR:'f',EN:'f'},
+  nicola:{IT:'m',EN:'f'},
+  simone:{IT:'m',FR:'f',EN:'f'},
+  michele:{IT:'m',EN:'f',FR:'f'},
+  rosario:{IT:'m',ES:'f'},
+  jean:{FR:'m',EN:'f'}
+};
+function sbStripAccents(s){
+  return String(s)
+    .replace(/[àáâãäå]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
+    .replace(/[òóôõö]/g,'o').replace(/[ùúûü]/g,'u')
+    .replace(/ç/g,'c').replace(/ñ/g,'n');
+}
+function sbNameKey(name){
+  var s=String(name==null?'':name).replace(/^\s+|\s+$/g,'');
+  if(!s)return '';
+  s=sbStripAccents(s.split(/[\s,;.]+/)[0].toLowerCase());
+  return s.replace(/[^a-z]/g,'');
+}
+function sbNameGender(name,lang){
+  var key=sbNameKey(name);
+  if(key.length<2)return '';
+  var byLang=GENDER_BY_LANG[key];
+  if(byLang)return byLang[String(lang||'').toUpperCase()]||'';
+  var known=GENDER_BY_NAME[key];
+  if(known)return known==='x'?'':known;
+  var last=key.charAt(key.length-1);
+  if(last==='a')return 'f';
+  if(last==='o')return 'm';
+  return '';
+}
+var GENDER_WORDS={};
+function _sbPair(m,f,lang){
+  var pair={m:m,f:f,lang:lang};
+  GENDER_WORDS[sbStripAccents(m.toLowerCase())]=pair;
+  GENDER_WORDS[sbStripAccents(f.toLowerCase())]=pair;
+}
+_sbPair('querido','querida','ES');
+_sbPair('estimado','estimada','ES');
+_sbPair('apreciado','apreciada','ES');
+_sbPair('distinguido','distinguida','ES');
+_sbPair('bienvenido','bienvenida','ES');
+_sbPair('encantado','encantada','ES');
+_sbPair('amigo','amiga','ES');
+_sbPair('prezado','prezada','PT');
+_sbPair('caro','cara','IT');
+_sbPair('carissimo','carissima','IT');
+_sbPair('gentilissimo','gentilissima','IT');
+_sbPair('benvenuto','benvenuta','IT');
+_sbPair('stimato','stimata','IT');
+_sbPair('amico','amica','IT');
+_sbPair('cher','chère','FR');
+_sbPair('bienvenu','bienvenue','FR');
+var _SB_LETTER='A-Za-zÀ-ÖØ-öø-ÿ';
+var _SB_TAIL_RE=new RegExp('(['+_SB_LETTER+']+)([^'+_SB_LETTER+']{0,3})$');
+function sbMatchCase(src,target){
+  if(src===src.toUpperCase()&&src!==src.toLowerCase())return target.toUpperCase();
+  if(src.charAt(0)===src.charAt(0).toUpperCase())return target.charAt(0).toUpperCase()+target.slice(1);
+  return target;
+}
+function sbInflectGreeting(out,value,lock){
+  if(!out)return out;
+  var m=_SB_TAIL_RE.exec(out);
+  if(!m||!/^[\s,:;]*$/.test(m[2]))return out;
+  var start=out.length-m[0].length;
+  if(lock>=0&&start>=lock)return out;
+  var pair=GENDER_WORDS[sbStripAccents(m[1].toLowerCase())];
+  if(!pair)return out;
+  var g=sbNameGender(value,pair.lang);
+  if(!g)return out;
+  return out.slice(0,start)+sbMatchCase(m[1],g==='f'?pair.f:pair.m)+m[2];
+}
+function sbEmitValue(out,value,lock){
+  var s=String(value);
+  return sbInflectGreeting(out,s,lock)+s;
+}
+function sbResolveGenderToken(rest,vals,opts){
+  var parts=String(rest).split(';');
+  var field=parts[0].replace(/^\s+|\s+$/g,'');
+  var cfg={m:'',f:'',u:null,lang:''};
+  for(var i=1;i<parts.length;i++){
+    var eq=parts[i].indexOf('=');
+    if(eq===-1)continue;
+    var k=parts[i].slice(0,eq).replace(/^\s+|\s+$/g,'').toLowerCase();
+    if(k!=='m'&&k!=='f'&&k!=='u'&&k!=='lang')continue;
+    cfg[k]=parts[i].slice(eq+1).replace(/^\s+|\s+$/g,'');
+  }
+  var val=(vals&&vals[field]!==undefined&&vals[field]!==null)?String(vals[field]):'';
+  var g=sbNameGender(val,cfg.lang||(opts&&opts.lang)||'');
+  if(g==='f')return cfg.f;
+  if(g==='m')return cfg.m;
+  return cfg.u!==null?cfg.u:cfg.m;
+}
+function sbGenderTokenField(rest){
+  var f=String(rest).split(';')[0].replace(/^\s+|\s+$/g,'');
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(f)?f:'';
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
     var t=m[1].replace(/^\s+|\s+$/g,'');
-    if(t.charAt(0)!=='='&&t!=='endif'&&
-       t.slice(0,3)!=='if:'&&t.slice(0,4)!=='var:'&&
-       t.slice(0,5).toLowerCase()!=='time:'){
-      var dup=false;
-      for(var i=0;i<vars.length;i++){if(vars[i]===t){dup=true;break;}}
-      if(!dup)vars.push(t);
+    if(t.charAt(0)==='='||t==='endif'||
+       t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
+       t.slice(0,5).toLowerCase()==='time:')continue;
+    /* A {gender:} token is not a field — it reads one, so surface that instead. */
+    var key=t;
+    if(t.slice(0,7).toLowerCase()==='gender:'){
+      key=sbGenderTokenField(t.slice(7));
+      if(!key)continue;
     }
+    var dup=false;
+    for(var i=0;i<vars.length;i++){if(vars[i]===key){dup=true;break;}}
+    if(!dup)vars.push(key);
   }
   return vars;
 }
@@ -1437,9 +1592,9 @@ function mathReplace(s){
            .replace(/min\(/g,'Math.min(').replace(/max\(/g,'Math.max(');
 }
 
-function resolveBody(body,vals){
+function resolveBody(body,vals,opts){
   if(!body)return '';
-  var out='',i=0;
+  var out='',i=0,gLock=-1;
   while(i<body.length){
     if(body[i]==='{'){
       var cl=body.indexOf('}',i);
@@ -1497,16 +1652,23 @@ function resolveBody(body,vals){
         var cnd=tok.slice(3).replace(/^\s+|\s+$/g,'');
         var ei='{endif}',eidx=body.indexOf(ei,cl+1);
         var inner=eidx!==-1?body.slice(cl+1,eidx):'';
-        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals));
+        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),opts);
         i=eidx!==-1?eidx+ei.length:cl+1;continue;
       }
 
       /* {endif} */
       if(tok==='endif'){i=cl+1;continue;}
 
+      /* {gender: FIELD; m=Querido; f=Querida} */
+      if(tok.slice(0,7).toLowerCase()==='gender:'){
+        gLock=out.length;
+        out+=sbResolveGenderToken(tok.slice(7),vals,opts);
+        i=cl+1;continue;
+      }
+
       /* {FIELD} */
       var fval=vals[tok];
-      out+=(fval!==undefined&&fval!==null)?String(fval):'';
+      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,fval,gLock);
       i=cl+1;
     }else{out+=body[i++];}
   }
@@ -2258,7 +2420,7 @@ function renderList(){
     if(extractFields(s.body||'').length){
       openDetail(s,[s]);
     }else{
-      copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
       logSnipUse(s,0);
     }
   }
@@ -2428,14 +2590,14 @@ function getVals(){
 
 function updatePrev(){
   if(!curSnip)return;
-  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()));
+  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()),{lang:curSnip.lang});
   document.getElementById('prev-text').textContent=resolved;
 }
 
 /* ── COPY ───────────────────────────────────────── */
 document.getElementById('copy-btn').addEventListener('click',function(){
   if(!curSnip)return;
-  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()));
+  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()),{lang:curSnip.lang});
   var raw=getRawVals(),filled=0;
   for(var k in raw){if(String(raw[k]).replace(/^\s+|\s+$/g,'')!=='')filled++;}
   logSnipUse(curSnip,filled);
@@ -2624,12 +2786,12 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
         closeBottomSheet();
         setTimeout(function(){openDetail(s,[s]);},320);
       }else{
-        copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+        copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
         logSnipUse(s,0);
         closeBottomSheet();
       }
     }else if(act==='copy'){
-      copyText(resolveBody(s.body||'',{}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
       logSnipUse(s,0);
       closeBottomSheet();
     }else if(act==='pin'){
@@ -2689,7 +2851,7 @@ function newId(){
 /* Share the snippet text via the OS share sheet (read-only). Falls back to a
    clipboard copy where the Web Share API is unavailable. */
 function shareSnippet(s){
-  var text=resolveBody(s.body||'',{});
+  var text=resolveBody(s.body||'',{},{lang:s.lang});
   logSnipUse(s,0);
   closeBottomSheet();
   if(navigator.share){

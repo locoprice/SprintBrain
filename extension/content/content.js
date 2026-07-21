@@ -702,7 +702,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
   var fields = extractFields(snip.body);
   if (!fields.length) {
     if (isUrgExpired(snip)) { processing = false; return; }
-    var text = resolveBody(snip.body, {});
+    var text = resolveBody(snip.body, {}, { lang: snip.lang });
     var _isCE = el && (el.isContentEditable || (el.getAttribute &&
       (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
     if (_isCE) {
@@ -1226,14 +1226,14 @@ function getVals() {
 function updatePrev(snip) {
   var box = document.getElementById('sb-prev');
   if (!box) return;
-  var lines = resolveBody(snip.body, getVals()).split('\n').slice(0, 5);
-  box.textContent = lines.join('\n') + (resolveBody(snip.body, getVals()).split('\n').length > 5 ? '\n\u2026' : '');
+  var all = resolveBody(snip.body, getVals(), { lang: snip.lang }).split('\n');
+  box.textContent = all.slice(0, 5).join('\n') + (all.length > 5 ? '\n\u2026' : '');
 }
 
 function doInsert(targetEl, snip) {
   if (isUrgExpired(snip)) return;
   var vals = getVals();
-  var text = resolveBody(snip.body, vals);
+  var text = resolveBody(snip.body, vals, { lang: snip.lang });
   var fillCount = Object.keys(vals).length;
   closeOverlay();
   if (!targetEl) return;
@@ -1860,7 +1860,7 @@ function selectTriggerItem(idx) {
       processing = true;
       if (!fields.length) {
         if (isUrgExpired(item)) { processing = false; return; }
-        var text = resolveBody(item.body, {});
+        var text = resolveBody(item.body, {}, { lang: item.lang });
         var _isCE2 = el && (el.isContentEditable || (el.getAttribute &&
           (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
         if (_isCE2) {
@@ -2640,7 +2640,7 @@ function _proceedContextInsert(el, snip) {
   var fields = extractFields(snip.body);
   if (fields.length === 0) {
     if (isUrgExpired(snip)) { processing = false; return; }
-    var text = resolveBody(snip.body, {});
+    var text = resolveBody(snip.body, {}, { lang: snip.lang });
     var isCE = el && (el.isContentEditable || (el.getAttribute &&
       (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
     var isValueField = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');

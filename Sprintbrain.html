@@ -445,7 +445,8 @@
   {formdate: name=VAR}        — date field
   {formmenu: A,B,C; name=VAR} — dropdown
   {time: DD/MM/YYYY HH:mm}    — current date/time
-  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}"></textarea>
+  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}
+  Querido {NOMBRE}            — greeting agrees with the name"></textarea>
             </div>
             <div class="nv-comp-side">
               <div class="nv-comp-pane">
@@ -473,6 +474,8 @@
               <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
               <div class="it"><code>{if: …}…{elseif: …}…{else}…{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
               <div class="it"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
+              <div class="it"><code>Querido {NOMBRE}</code><p>Greetings agree with the name: Lucía gets "Querida", Marco gets "Querido". Works for Querido, Estimado, Bienvenido, Caro, Cher and their pairs. Unknown names keep the word you wrote.</p></div>
+              <div class="it"><code>{gender: NOMBRE; m=invitado; f=invitada; u=invitado/a}</code><p>Any other gendered word. <code>u</code> is the fallback for unisex names like Alex.</p></div>
             </div>
           </div>
         </div>
@@ -583,7 +586,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.115.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.116.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
