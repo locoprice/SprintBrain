@@ -509,9 +509,88 @@ function initMenus() {
   });
 }
 
+// ── TOOLBAR ACTION ICON — brand mark by default, company logo when set ──
+// MV3 service workers have no DOM, so a remote company logo is fetched and drawn
+// onto an OffscreenCanvas (white rounded square — matching the committed brand
+// icons and the dashboard's white logo card) and pushed via chrome.action.setIcon
+// as ImageData. The committed assets/icons/icon*.png (the SprintBrain mark) are
+// the signed-out / no-logo default. The last-applied URL is cached so repeated
+// menu refreshes don't refetch or redraw.
+function sbRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function sbComposeActionIcon(bmp, size) {
+  var c = new OffscreenCanvas(size, size);
+  var ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#ffffff';
+  sbRoundRect(ctx, 0, 0, size, size, size * 0.22);
+  ctx.fill();
+  var pad = size * 0.12, inner = size - 2 * pad;
+  var scale = inner / Math.max(bmp.width, bmp.height);
+  var dw = bmp.width * scale, dh = bmp.height * scale;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, (size - dw) / 2, (size - dh) / 2, dw, dh);
+  return ctx.getImageData(0, 0, size, size);
+}
+function sbSetBrandActionIcon() {
+  try {
+    chrome.action.setIcon({ path: {
+      '16': 'assets/icons/icon16.png',
+      '48': 'assets/icons/icon48.png',
+      '128': 'assets/icons/icon128.png'
+    } });
+  } catch (e) {}
+}
+function sbRenderRemoteActionIcon(url, cb) {
+  fetch(url)
+    .then(function(r) { return r.ok ? r.blob() : Promise.reject(new Error('http_' + r.status)); })
+    .then(function(blob) { return createImageBitmap(blob); })
+    .then(function(bmp) {
+      if (!bmp || !bmp.width || !bmp.height) throw new Error('no_bitmap'); // e.g. an SVG logo in a SW
+      var imageData = {
+        16: sbComposeActionIcon(bmp, 16),
+        48: sbComposeActionIcon(bmp, 48),
+        128: sbComposeActionIcon(bmp, 128)
+      };
+      chrome.action.setIcon({ imageData: imageData }, function() { if (cb) cb(!chrome.runtime.lastError); });
+    })
+    .catch(function() { if (cb) cb(false); });
+}
+// Apply the toolbar icon from user_metadata; pass null (signed out) to revert to
+// the brand mark. Skips work when the target already matches what's applied.
+function sbUpdateActionIcon(meta) {
+  var url = (meta && typeof meta.company_logo_url === 'string' &&
+             meta.company_logo_url.indexOf('https://') === 0) ? meta.company_logo_url : null;
+  chrome.storage.local.get('sb_action_icon_url', function(d) {
+    var cur = (d && d.sb_action_icon_url) ? d.sb_action_icon_url : null;
+    if (cur === url) return;
+    if (!url) {
+      sbSetBrandActionIcon();
+      chrome.storage.local.set({ sb_action_icon_url: null });
+      return;
+    }
+    sbRenderRemoteActionIcon(url, function(ok) {
+      if (ok) chrome.storage.local.set({ sb_action_icon_url: url });
+    });
+  });
+}
+// Pull the latest user_metadata and refresh the toolbar icon (reverts on error).
+function sbRefreshActionIcon() {
+  if (typeof sbPullTriggerMetadata !== 'function') return;
+  sbPullTriggerMetadata(function(err, meta) { sbUpdateActionIcon(err ? null : meta); });
+}
+
 // Rebuild menus the moment the popup saves a session (or signs out).
 chrome.runtime.onMessage.addListener(function(msg) {
-  if (msg && msg.type === 'auth_changed') initMenus();
+  if (msg && msg.type === 'auth_changed') { initMenus(); sbRefreshActionIcon(); }
 });
 
 // Build on install + create sync alarm
@@ -521,7 +600,7 @@ chrome.runtime.onInstalled.addListener(function(details) {
     periodInMinutes: 5
   });
   initMenus();
-  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
+  sbRefreshActionIcon();
 });
 
 // Rebuild when popup saves changes (snippets updated)
@@ -541,7 +620,7 @@ chrome.runtime.onStartup.addListener(function() {
   });
   initMenus();
   bgNotionSync();
-  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
+  sbRefreshActionIcon();
 });
 
 // ── ALARM LISTENER — fires every 5 minutes ──────────────────────
@@ -567,11 +646,12 @@ var MENU_REFRESH_MIN_MS = 10000;
 function forceRefreshMenus() {
   chrome.storage.local.set({ sb_menu_last_refresh: Date.now() });
   initMenus();
-  // Same "pull latest dashboard state" hook also refreshes the trigger settings
-  // (user_metadata → chrome.storage.sync cache) so a trigger changed on the
-  // dashboard reflects in-page without the user opening the popup. Fires on the
-  // 5-min alarm and on tab-switch / window-focus (throttled) — see call sites.
-  if (typeof sbPullTriggerMetadata === 'function') sbPullTriggerMetadata();
+  // Same "pull latest dashboard state" hook (sbPullTriggerMetadata) refreshes the
+  // trigger settings (user_metadata → chrome.storage.sync cache) AND the toolbar
+  // action icon (company logo → chrome.action.setIcon), so a change made on the
+  // dashboard reflects without the user opening the popup. Fires on the 5-min
+  // alarm and on tab-switch / window-focus (throttled) — see call sites.
+  sbRefreshActionIcon();
 }
 function maybeRefreshMenus() {
   chrome.storage.local.get('sb_menu_last_refresh', function(d) {

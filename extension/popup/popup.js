@@ -352,8 +352,35 @@ function syncPrompts(){
 }
 
 
+// ── FAVICON — brand mark by default, company logo when the user sets one ──
+// Shared by the popup and Sprintbrain.html (both load popup.js), so the DOM
+// behaviour is identical on both surfaces (parity). The per-surface brand path
+// lives on the <link data-brand>, so this stays path-agnostic. On the extension
+// the *visible* toolbar icon is driven separately by the service worker
+// (background.js → chrome.action.setIcon); the popup <link> is invisible but
+// kept in parity here.
+function sbSetFavicon(href) {
+  var link = document.getElementById('sb-favicon');
+  if (!link) return;
+  var target = (typeof href === 'string' && href) ? href : (link.getAttribute('data-brand') || '');
+  if (target && link.getAttribute('href') !== target) link.setAttribute('href', target);
+}
+
+// Extract a validated company-logo URL from user_metadata and apply it as the
+// favicon, falling back to the brand mark when unset. `meta` is the
+// auth.users.user_metadata object (company_logo_url is written by the dashboard).
+function sbApplyCompanyFavicon(meta) {
+  var url = (meta && typeof meta.company_logo_url === 'string' &&
+             meta.company_logo_url.indexOf('https://') === 0) ? meta.company_logo_url : null;
+  sbSetFavicon(url);
+}
+
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.117.0', date:'2026-07-23', label:'feat: your company logo as the app icon',
+    changes:[
+      {type:'new', text:'Set a company logo in Branding and it becomes the SprintBrain icon — the browser-tab favicon on the dashboard, and the toolbar button for the extension. With no logo set, the SprintBrain mark shows.'}
+    ]},
   { version:'v2.110.0', date:'2026-07-18', label:'feat: wider popup',
     changes:[
       {type:'new', text:'The popup is a little wider (540px), so snippet titles and shortcuts have more room before they get cut off.'}
@@ -882,6 +909,7 @@ function applyPopupGreeting(session) {
       .then(function(r) { return r.json(); })
       .then(function(j) {
         var meta = j && j.user_metadata ? j.user_metadata : {};
+        sbApplyCompanyFavicon(meta);
         var full = (meta.full_name || meta.name || '').trim();
         var first = full.split(/\s+/)[0];
         if (first) {

@@ -14,6 +14,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SprintBrain — Dashboard</title>
+<link rel="icon" id="sb-favicon" data-brand="extension/assets/icons/icon128.png" href="extension/assets/icons/icon128.png">
 <link rel="stylesheet" href="extension/shared/tokens/colors_and_type.css">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -586,7 +587,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.116.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.117.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -664,7 +665,7 @@
   $('nv-auth-email').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
   $('nv-auth-code').addEventListener('keydown',  function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
   $('nv-signout').addEventListener('click', function(){
-    sbClearSession(function(){ window.SB_CURRENT_USER_ID = null; window.snips = []; window.folders = []; window.prompts = []; showGate(); });
+    sbClearSession(function(){ window.SB_CURRENT_USER_ID = null; window.snips = []; window.folders = []; window.prompts = []; if (typeof sbSetFavicon === 'function') sbSetFavicon(null); showGate(); });
   });
 
   // ── Enter app: set shared user id, then load via shared DB ───────────
@@ -672,6 +673,9 @@
     window.SB_CURRENT_USER_ID = session.user_id;
     $('nv-userline').textContent = session.email ? ('Signed in as ' + session.email) : 'Signed in';
     try { $('nv-ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch(e) {}
+    // Favicon: swap the browser-tab icon to the company logo (Branding) when set,
+    // else keep the SprintBrain mark. Shared helpers live in popup.js.
+    try { sbPullTriggerMetadata(function(err, meta){ if (!err && typeof sbApplyCompanyFavicon === 'function') sbApplyCompanyFavicon(meta); }); } catch(e) {}
     var pending = 2;
     function step(){ if (--pending <= 0) loadData(); }
     try { loadUserPrefs(step); } catch(e) { step(); }
