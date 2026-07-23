@@ -7,6 +7,7 @@ import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
 import { Toast } from '@/components/ui/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useCompanyFavicon } from '@/lib/useCompanyFavicon';
 import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
 
 const ONBOARDING_SEEN_KEY = 'sb_onboarding_seen';
@@ -24,6 +25,10 @@ export function DashboardLayout() {
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const closeOnboarding = useUiStore((s) => s.closeOnboarding);
   const [changelogOpen, setChangelogOpen] = useState(false);
+
+  // Reflect the company logo (Settings → Branding) as the browser-tab favicon,
+  // matching the extension toolbar + Sprintbrain.html; brand mark when unset.
+  useCompanyFavicon(profile?.company_logo_url ?? null);
 
   // Settings drives the user block in the sidebar and the sync pill in the
   // topbar. Loaded once at mount; per-page stores hydrate themselves.
