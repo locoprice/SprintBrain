@@ -377,6 +377,10 @@ function sbApplyCompanyFavicon(meta) {
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.118.0', date:'2026-07-23', label:'fix: brand icon on the dashboard + marketing site',
+    changes:[
+      {type:'fix', text:'The SprintBrain mark now shows as the browser-tab icon on the dashboard and the marketing site, matching the extension. They were still showing the old placeholder.'}
+    ]},
   { version:'v2.117.0', date:'2026-07-23', label:'feat: your company logo as the app icon',
     changes:[
       {type:'new', text:'Set a company logo in Branding and it becomes the SprintBrain icon — the browser-tab favicon on the dashboard, and the toolbar button for the extension. With no logo set, the SprintBrain mark shows.'}
