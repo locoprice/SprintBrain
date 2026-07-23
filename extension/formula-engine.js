@@ -12,6 +12,11 @@
 //   {formdate: name=VAR}              — date input field
 //   {formmenu: opt1,opt2; name=VAR}   — dropdown field
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
+//   {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}  — gendered word
+//
+// Gendered greetings also inflect on their own: a word from the built-in
+// dictionary (Querido, Estimado, Caro, Cher…) written directly before a name
+// field agrees with that name — "Querido {NOMBRE}" prints "Querida Lucía".
 //
 // Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max()
 // Comparisons in conditions: VAR = "value" / VAR != "value" (string);
@@ -134,6 +139,194 @@
       if (!da || !db) return '0';
       return String((db.getTime() - da.getTime()) / sbDatetimeDiffUnitMs(unit));
     });
+  }
+
+  // ── GENDER-AWARE GREETINGS ──────────────────────────────────────
+  // Romance-language greetings agree with the reader: "Querido" for Marco,
+  // "Querida" for Lucía. Gender resolves in three tiers:
+  //   1. per-language override — ANDREA is masculine in IT, feminine in ES
+  //   2. explicit name list    — CARMEN, VICENTE: no suffix rule reaches them
+  //   3. suffix rule           — trailing -a feminine, -o masculine
+  // An unresolved name returns '' and every caller then leaves the text alone.
+  // Guessing wrong is worse than printing the wording the author already chose.
+
+  function _sbNames(list, g, into) {
+    var a = list.split(' ');
+    for (var i = 0; i < a.length; i++) if (a[i]) into[a[i]] = g;
+    return into;
+  }
+
+  var GENDER_BY_NAME = {};
+  // Feminine — only names the suffix rule gets wrong or cannot judge.
+  _sbNames('carmen isabel raquel beatriz ines dolores mercedes pilar esther ruth judith ' +
+           'soledad caridad libertad milagros remedios lourdes nieves flor luz mar iris ' +
+           'noemi rocio consuelo amparo socorro cleo margo ' +
+           'irene beatrice alice adele agnese matilde penelope dafne cloe ester ' +
+           'sophie marie julie claire elodie chloe zoe denise elise louise michelle ' +
+           'danielle gabrielle isabelle estelle helene charlotte margot margaux renee ' +
+           'mary jennifer elizabeth susan sarah karen nancy betty margaret ashley ' +
+           'kimberly emily carol dorothy stephanie sharon kathleen amy shirley kathryn ' +
+           'janet heather joyce kelly lauren evelyn megan cheryl hannah jacqueline ' +
+           'frances ann anne teresa janice madison doris abigail grace amber marilyn ' +
+           'beverly brittany rose kayla lily freya isla poppy daisy holly jade faith ' +
+           'hope ingrid astrid kirsten karin miriam myriam jazmin yasmin gwen eileen ' +
+           'maureen colleen noor nour hind lucy judy wendy tracy ivy molly sally ' +
+           'leah beth meredith savannah norah rachel muriel mabel hazel april gail jill ' +
+           'crystal agnes phyllis harriet violet bridget scarlett juliet colette ' +
+           'eleanor ginger piper heidi naomi suri kristen imogen shannon alison allison ' +
+           'catherine christine caroline adeline jasmine josephine geraldine madeline',
+           'f', GENDER_BY_NAME);
+  // Masculine — same principle, plus the -a endings the suffix rule would flip.
+  _sbNames('jose felipe enrique vicente jaime dante cesare davide giuseppe salvatore ' +
+           'ettore ercole rene herve clement maxime daniele gabriele emanuele ' +
+           'luca mattia elia tobia battista geremia isaia zaccaria joshua elisha ezra ' +
+           'mustafa hamza zakaria yahya musa issa borja aleksa kosta ilya misha dima ' +
+           'kolya vanya nikola jonah ' +
+           'james john robert michael william david richard joseph thomas charles ' +
+           'christopher daniel matthew anthony mark donald steven paul andrew kenneth ' +
+           'kevin brian george timothy ronald jason edward jeffrey ryan jacob gary ' +
+           'nicholas eric jonathan stephen larry justin scott brandon benjamin samuel ' +
+           'gregory alexander patrick frank raymond jack dennis jerry tyler aaron adam ' +
+           'henry nathan douglas zachary peter kyle ethan walter jeremy christian keith ' +
+           'roger terry gerald harold sean austin carl arthur lawrence dylan bryan ' +
+           'billy joe bruce gabriel logan albert willie alan juan wayne elijah randy ' +
+           'roy vincent ralph eugene russell bobby mason philip louis liam oliver harry ' +
+           'oscar archie theo freddie alfie leo max tom ben luke finn felix hugo rory ' +
+           'seth ivan igor oleg dmitri sergei viktor pavel andrei mikhail yuri boris ' +
+           'ahmed mohamed mohammed muhammad ali omar hassan hussein khaled tarek amir ' +
+           'samir karim rachid youssef ismail yusuf noah tony andy shawn',
+           'm', GENDER_BY_NAME);
+  // Genuinely unisex — 'x' forces "unknown" so nothing gets rewritten.
+  _sbNames('alex sam chris jordan robin taylor morgan charlie jamie casey riley avery ' +
+           'dana jesse kim lee pat sasha sacha nikita ariel marion camille dominique ' +
+           'claude noel cruz alexis dani gabi yael eden quinn skyler rowan harper ' +
+           'ale toni nico santi',
+           'x', GENDER_BY_NAME);
+
+  // Names whose gender flips with the language being written.
+  var GENDER_BY_LANG = {
+    andrea:  { IT:'m', ES:'f', PT:'f', FR:'f', EN:'f' },
+    nicola:  { IT:'m', EN:'f' },
+    simone:  { IT:'m', FR:'f', EN:'f' },
+    michele: { IT:'m', EN:'f', FR:'f' },
+    rosario: { IT:'m', ES:'f' },
+    jean:    { FR:'m', EN:'f' }
+  };
+
+  function sbStripAccents(s) {
+    return String(s)
+      .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+      .replace(/[òóôõö]/g, 'o').replace(/[ùúûü]/g, 'u')
+      .replace(/ç/g, 'c').replace(/ñ/g, 'n');
+  }
+
+  // First token only, lowercased and stripped to bare letters: "Lucía Pérez" → "lucia".
+  function sbNameKey(name) {
+    var s = String(name == null ? '' : name).replace(/^\s+|\s+$/g, '');
+    if (!s) return '';
+    s = sbStripAccents(s.split(/[\s,;.]+/)[0].toLowerCase());
+    return s.replace(/[^a-z]/g, '');
+  }
+
+  function sbNameGender(name, lang) {
+    var key = sbNameKey(name);
+    if (key.length < 2) return '';
+    var byLang = GENDER_BY_LANG[key];
+    if (byLang) return byLang[String(lang || '').toUpperCase()] || '';
+    var known = GENDER_BY_NAME[key];
+    if (known) return known === 'x' ? '' : known;
+    var last = key.charAt(key.length - 1);
+    if (last === 'a') return 'f';
+    if (last === 'o') return 'm';
+    return '';
+  }
+
+  // ── GENDERED WORD DICTIONARY ────────────────────────────────────
+  // Closed list of address terms only — never general prose. Keys are
+  // accent-stripped and lowercase; both forms map to the same pair so a body
+  // written either way lands on the right one. `lang` disambiguates the name.
+  var GENDER_WORDS = {};
+  function _sbPair(m, f, lang) {
+    var pair = { m: m, f: f, lang: lang };
+    GENDER_WORDS[sbStripAccents(m.toLowerCase())] = pair;
+    GENDER_WORDS[sbStripAccents(f.toLowerCase())] = pair;
+  }
+  _sbPair('querido', 'querida', 'ES');
+  _sbPair('estimado', 'estimada', 'ES');
+  _sbPair('apreciado', 'apreciada', 'ES');
+  _sbPair('distinguido', 'distinguida', 'ES');
+  _sbPair('bienvenido', 'bienvenida', 'ES');
+  _sbPair('encantado', 'encantada', 'ES');
+  _sbPair('amigo', 'amiga', 'ES');
+  _sbPair('prezado', 'prezada', 'PT');
+  _sbPair('caro', 'cara', 'IT');
+  _sbPair('carissimo', 'carissima', 'IT');
+  _sbPair('gentilissimo', 'gentilissima', 'IT');
+  _sbPair('benvenuto', 'benvenuta', 'IT');
+  _sbPair('stimato', 'stimata', 'IT');
+  _sbPair('amico', 'amica', 'IT');
+  _sbPair('cher', 'chère', 'FR');
+  _sbPair('bienvenu', 'bienvenue', 'FR');
+
+  var _SB_LETTER = 'A-Za-zÀ-ÖØ-öø-ÿ';
+  var _SB_TAIL_RE = new RegExp('([' + _SB_LETTER + ']+)([^' + _SB_LETTER + ']{0,3})$');
+
+  function sbMatchCase(src, target) {
+    if (src === src.toUpperCase() && src !== src.toLowerCase()) return target.toUpperCase();
+    if (src.charAt(0) === src.charAt(0).toUpperCase()) return target.charAt(0).toUpperCase() + target.slice(1);
+    return target;
+  }
+
+  // Re-inflects the greeting word already emitted at the tail of `out` to agree
+  // with `value`, the field about to be appended. No-ops unless the tail word is
+  // in the dictionary AND the value resolves to a known gender — so a date, an
+  // amount, or an unrecognised name all leave the authored wording intact.
+  // `lock` is the offset of text a {gender:} token wrote. Anything at or past it
+  // was chosen explicitly by the author, so auto-inflection keeps its hands off.
+  function sbInflectGreeting(out, value, lock) {
+    if (!out) return out;
+    var m = _SB_TAIL_RE.exec(out);
+    if (!m || !/^[\s,:;]*$/.test(m[2])) return out;
+    var start = out.length - m[0].length;
+    if (lock >= 0 && start >= lock) return out;
+    var pair = GENDER_WORDS[sbStripAccents(m[1].toLowerCase())];
+    if (!pair) return out;
+    var g = sbNameGender(value, pair.lang);
+    if (!g) return out;
+    return out.slice(0, start) + sbMatchCase(m[1], g === 'f' ? pair.f : pair.m) + m[2];
+  }
+
+  // Appends a resolved field value, inflecting any greeting word ahead of it.
+  function sbEmitValue(out, value, lock) {
+    var s = String(value);
+    return sbInflectGreeting(out, s, lock) + s;
+  }
+
+  // {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}
+  // `u` is the fallback when the name is unknown or unisex; it defaults to the
+  // masculine form, which is the unmarked one in every language here.
+  function sbResolveGenderToken(rest, vals, opts) {
+    var parts = String(rest).split(';');
+    var field = parts[0].replace(/^\s+|\s+$/g, '');
+    var cfg = { m: '', f: '', u: null, lang: '' };
+    for (var i = 1; i < parts.length; i++) {
+      var eq = parts[i].indexOf('=');
+      if (eq === -1) continue;
+      var k = parts[i].slice(0, eq).replace(/^\s+|\s+$/g, '').toLowerCase();
+      if (k !== 'm' && k !== 'f' && k !== 'u' && k !== 'lang') continue;
+      cfg[k] = parts[i].slice(eq + 1).replace(/^\s+|\s+$/g, '');
+    }
+    var val = (vals && vals[field] !== undefined && vals[field] !== null) ? String(vals[field]) : '';
+    var g = sbNameGender(val, cfg.lang || (opts && opts.lang) || '');
+    if (g === 'f') return cfg.f;
+    if (g === 'm') return cfg.m;
+    return cfg.u !== null ? cfg.u : cfg.m;
+  }
+
+  // Field name a {gender:} token reads, so the overlay still prompts for it.
+  function sbGenderTokenField(rest) {
+    var f = String(rest).split(';')[0].replace(/^\s+|\s+$/g, '');
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(f) ? f : '';
   }
 
   // ── SAFE MATH EVALUATOR ─────────────────────────────────────────
@@ -271,9 +464,11 @@
   }
 
   // ── BODY RESOLVER ───────────────────────────────────────────────
-  function resolveBody(body, vals) {
+  // `opts.lang` — the snippet's language, used only to gender ambiguous names
+  // in a {gender:} token that omits its own `lang=`.
+  function resolveBody(body, vals, opts) {
     if (!body) return '';
-    var out = '', i = 0;
+    var out = '', i = 0, gLock = -1;
     while (i < body.length) {
       if (body[i] === '{') {
         // Double-brace: {{= EXPR}} or {{VARNAME}}
@@ -286,7 +481,8 @@
             out += dfv !== null ? String(dfv) : '';
           } else {
             var dval = vals[dtok];
-            out += (dval !== undefined && dval !== null) ? String(dval) : '{{' + dtok + '}}';
+            if (dval !== undefined && dval !== null) out = sbEmitValue(out, dval, gLock);
+            else out += '{{' + dtok + '}}';
           }
           i = cll + 2; continue;
         }
@@ -321,7 +517,12 @@
           var formRest = tok.slice(9);
           var fNameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(formRest);
           var fKey = fNameM ? fNameM[1] : '';
-          out += String(fKey && vals[fKey] !== undefined ? vals[fKey] : '');
+          out = sbEmitValue(out, fKey && vals[fKey] !== undefined ? vals[fKey] : '', gLock);
+          i = cl+1; continue;
+        }
+        if (tokLow.slice(0,7) === 'gender:') {
+          gLock = out.length;
+          out += sbResolveGenderToken(tok.slice(7), vals, opts);
           i = cl+1; continue;
         }
         if (tok.slice(0,3) === 'if:') {
@@ -334,7 +535,7 @@
             var brOk = false;
             if (br.cond === null) { brOk = true; }
             else { try { var cr = evalCondition(br.cond, vals); brOk = cr !== null && cr !== 0; } catch(e) {} }
-            if (brOk) { out += resolveBody(br.body, vals); break; }
+            if (brOk) { out += resolveBody(br.body, vals, opts); break; }
           }
           i = eidx !== -1 ? eidx + ei.length : cl+1; continue;
         }
@@ -342,7 +543,7 @@
           i = cl+1; continue;
         }
         var fval = vals[tok];
-        out += (fval !== undefined && fval !== null) ? String(fval) : '';
+        if (fval !== undefined && fval !== null) out = sbEmitValue(out, fval, gLock);
         i = cl+1;
       } else {
         out += body[i++];
@@ -365,7 +566,13 @@
           t.slice(0,5).toLowerCase() === 'time:') continue;
       var tokLow = t.toLowerCase();
       var fieldKey = t;
-      if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
+      // A {gender:} token is not a field itself — it reads one, so surface that
+      // field instead. It is usually declared elsewhere too; the dup check below
+      // keeps the overlay to one input either way.
+      if (tokLow.slice(0,7) === 'gender:') {
+        fieldKey = sbGenderTokenField(t.slice(7));
+        if (!fieldKey) continue;
+      } else if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
         var fNm = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(t.slice(9));
         if (!fNm) continue;
         fieldKey = fNm[1];
@@ -432,6 +639,7 @@
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,
     evalCondition:     evalCondition,
+    sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,
     sbParseTimeToken:  sbParseTimeToken
   };

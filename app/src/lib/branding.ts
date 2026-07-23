@@ -27,6 +27,27 @@ export const IMAGE_INPUT_ACCEPT = Object.keys(IMAGE_MIME_TO_EXT).join(',');
 /** Team covers are raster photos — the bucket rejects SVG, so the picker omits it too. */
 export const COVER_INPUT_ACCEPT = 'image/png,image/jpeg,image/webp';
 
+/**
+ * Outer ceiling on the file a user picks for a cover. Anything under this is
+ * downscaled to fit COVER_MAX_BYTES rather than rejected (see lib/imageResize),
+ * so a normal phone photo uploads fine.
+ */
+export const COVER_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Validate a picked cover file *before* downscaling — type and an outer sanity
+ * ceiling only. The 2 MB storage cap is checked against the processed image,
+ * not the original.
+ */
+export function validateCoverSource(file: { type: string; size: number }): string | null {
+  if (!COVER_INPUT_ACCEPT.split(',').includes(file.type)) {
+    return 'Use a PNG, JPG, or WebP image.';
+  }
+  if (file.size === 0) return 'That file is empty.';
+  if (file.size > COVER_SOURCE_MAX_BYTES) return 'Image must be 20 MB or smaller.';
+  return null;
+}
+
 export const COMPANY_NAME_MAX = 60;
 
 /**

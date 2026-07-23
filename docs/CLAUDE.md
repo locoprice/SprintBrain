@@ -150,8 +150,9 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 
 **`content/content.js`** — Injected into all pages
 - `evalFormula(expr, vals)` — Safe math evaluator (whitelist: round, floor, ceil, abs, min, max)
-- `resolveBody(body, vals)` — Template resolver: `{field}`, `{=formula}`, `{if:cond}...{endif}`
+- `resolveBody(body, vals, opts)` — Template resolver: `{field}`, `{=formula}`, `{if:cond}...{endif}`, `{gender:...}`. `opts.lang` is the snippet language, used to gender names that read differently per language (Andrea)
 - `extractFields(body)` — Parses template to identify required input fields
+- `sbNameGender(name, lang)` — `'m'` / `'f'` / `''`; drives gendered greetings (Querido → Querida). `''` means unknown, and every caller then leaves the wording untouched
 - `addKey()` / `checkBuf()` — 40-char keystroke buffer for trigger detection
 - `handleMatch()` — Triggers overlay or direct insertion
 - `showOverlay()` — Inline field input UI

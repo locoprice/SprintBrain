@@ -14,6 +14,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SprintBrain — Dashboard</title>
+<link rel="icon" id="sb-favicon" data-brand="extension/assets/icons/icon128.png" href="extension/assets/icons/icon128.png">
 <link rel="stylesheet" href="extension/shared/tokens/colors_and_type.css">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -445,7 +446,8 @@
   {formdate: name=VAR}        — date field
   {formmenu: A,B,C; name=VAR} — dropdown
   {time: DD/MM/YYYY HH:mm}    — current date/time
-  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}"></textarea>
+  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}
+  Querido {NOMBRE}            — greeting agrees with the name"></textarea>
             </div>
             <div class="nv-comp-side">
               <div class="nv-comp-pane">
@@ -473,6 +475,8 @@
               <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
               <div class="it"><code>{if: …}…{elseif: …}…{else}…{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
               <div class="it"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
+              <div class="it"><code>Querido {NOMBRE}</code><p>Greetings agree with the name: Lucía gets "Querida", Marco gets "Querido". Works for Querido, Estimado, Bienvenido, Caro, Cher and their pairs. Unknown names keep the word you wrote.</p></div>
+              <div class="it"><code>{gender: NOMBRE; m=invitado; f=invitada; u=invitado/a}</code><p>Any other gendered word. <code>u</code> is the fallback for unisex names like Alex.</p></div>
             </div>
           </div>
         </div>
@@ -583,7 +587,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.113.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.117.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -661,7 +665,7 @@
   $('nv-auth-email').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
   $('nv-auth-code').addEventListener('keydown',  function(e){ if (e.key === 'Enter') $('nv-auth-primary').click(); });
   $('nv-signout').addEventListener('click', function(){
-    sbClearSession(function(){ window.SB_CURRENT_USER_ID = null; window.snips = []; window.folders = []; window.prompts = []; showGate(); });
+    sbClearSession(function(){ window.SB_CURRENT_USER_ID = null; window.snips = []; window.folders = []; window.prompts = []; if (typeof sbSetFavicon === 'function') sbSetFavicon(null); showGate(); });
   });
 
   // ── Enter app: set shared user id, then load via shared DB ───────────
@@ -669,6 +673,9 @@
     window.SB_CURRENT_USER_ID = session.user_id;
     $('nv-userline').textContent = session.email ? ('Signed in as ' + session.email) : 'Signed in';
     try { $('nv-ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch(e) {}
+    // Favicon: swap the browser-tab icon to the company logo (Branding) when set,
+    // else keep the SprintBrain mark. Shared helpers live in popup.js.
+    try { sbPullTriggerMetadata(function(err, meta){ if (!err && typeof sbApplyCompanyFavicon === 'function') sbApplyCompanyFavicon(meta); }); } catch(e) {}
     var pending = 2;
     function step(){ if (--pending <= 0) loadData(); }
     try { loadUserPrefs(step); } catch(e) { step(); }
