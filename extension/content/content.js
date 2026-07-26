@@ -927,6 +927,84 @@ function deleteChars(el, n, cb) {
 // Multi-line text via execCommand('insertText', '...\n...') is mangled by
 // rich-text editors (WhatsApp Web/Lexical drops or reorders the segments).
 // Insert one line at a time and emit a real line break between them.
+
+// Per-line insertion: one execCommand per line, a real line break between them.
+// Works in plain contenteditables, Gmail, Slack. Editors that own their input
+// model (Lexical) accept the break commands and drop them — _cePasteInsert
+// handles those; this stays the fallback for everything else.
+function _ceLineInsert(text) {
+  var lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    if (i > 0) {
+      var ok = false;
+      try { ok = document.execCommand('insertLineBreak', false, null); } catch(e) {}
+      if (!ok) {
+        try { ok = document.execCommand('insertParagraph', false, null); } catch(e) {}
+      }
+      if (!ok) {
+        try { document.execCommand('insertText', false, '\n'); } catch(e) {}
+      }
+    }
+    // Always emit execCommand on the first line (even when empty) so that
+    // the non-collapsed selection set by deleteChars is atomically replaced.
+    // Without this, an empty body leaves the trigger text selected in the
+    // field — producing the "outputs ::shortcut" symptom.
+    if (i === 0 || lines[i]) {
+      try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
+    }
+  }
+}
+
+// Lexical (WhatsApp Web) keeps its own input model. It accepts
+// execCommand('insertLineBreak') — returning true — and then inserts nothing,
+// so the fallbacks above never fire and a multi-paragraph snippet lands as one
+// dense block. It does honour a text/plain paste, which it converts into real
+// line breaks. Returns true only when the editor claimed the paste.
+//
+// The trigger is consumed first, with execCommand: that fires a real
+// beforeinput carrying target ranges, so the editor deletes exactly the
+// selection deleteChars set across the trigger. A paste event carries no target
+// ranges — Lexical pastes at its own cached caret and leaves the trigger text
+// in the field ("...reserva ♡::neob").
+function _cePasteInsert(el, text) {
+  var host = _ceHost(el);
+  if (!host || typeof DataTransfer !== 'function' || typeof ClipboardEvent !== 'function') return false;
+
+  var dt;
+  try {
+    dt = new DataTransfer();
+    dt.setData('text/plain', text);
+  } catch(e) { return false; }
+
+  try { document.execCommand('insertText', false, ''); } catch(e) {}
+
+  var claimed;
+  try {
+    claimed = !host.dispatchEvent(new ClipboardEvent('paste', {
+      clipboardData: dt, bubbles: true, cancelable: true
+    }));
+  } catch(e) { return false; }
+  if (!claimed) return false;
+
+  // preventDefault alone does not prove the editor inserted anything — it may
+  // reject untrusted events, or read the system clipboard instead of ours.
+  // Confirm the body actually landed once the editor has had time to reconcile
+  // (Lexical writes to the DOM a microtask later), and fall back to the
+  // per-line path if it did not. Probe on the first non-empty line so the check
+  // means "the snippet is in the field", not "the field grew".
+  var probe = '';
+  var lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i]) { probe = lines[i].slice(0, 24); break; }
+  }
+  if (probe) {
+    setTimeout(function() {
+      if (_ceHost(el).textContent.indexOf(probe) === -1) _ceLineInsert(text);
+    }, 120);
+  }
+  return true;
+}
+
 function insertText(el, text) {
   if (!el) return;
   // Normalize CRLF/CR to LF first. A body carrying Windows line endings (JSON
@@ -957,26 +1035,8 @@ function insertText(el, text) {
       if (document.activeElement !== el && !document.activeElement.contains(el)) {
         try { el.focus(); } catch(_) {}
       }
-      var lines = text.split('\n');
-      for (var i = 0; i < lines.length; i++) {
-        if (i > 0) {
-          var ok = false;
-          try { ok = document.execCommand('insertLineBreak', false, null); } catch(e) {}
-          if (!ok) {
-            try { ok = document.execCommand('insertParagraph', false, null); } catch(e) {}
-          }
-          if (!ok) {
-            try { document.execCommand('insertText', false, '\n'); } catch(e) {}
-          }
-        }
-        // Always emit execCommand on the first line (even when empty) so that
-        // the non-collapsed selection set by deleteChars is atomically replaced.
-        // Without this, an empty body leaves the trigger text selected in the
-        // field — producing the "outputs ::shortcut" symptom.
-        if (i === 0 || lines[i]) {
-          try { document.execCommand('insertText', false, lines[i]); } catch(e) {}
-        }
-      }
+      if (text.indexOf('\n') > -1 && _cePasteInsert(el, text)) return;
+      _ceLineInsert(text);
       return;
     }
     el.focus();
