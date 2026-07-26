@@ -716,7 +716,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
       // Capture the inserted region for Undo: caret char-offset (end of snippet)
       // and the snippet's visible length, measured the instant insertion finished.
       fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-      fieldSnapshot.visibleLen = String(text).replace(/\n/g, '').length;
+      fieldSnapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
       showCelebration(
         text,
         function onConfirm() {           // timer expired or user clicked OK
@@ -929,6 +929,12 @@ function deleteChars(el, n, cb) {
 // Insert one line at a time and emit a real line break between them.
 function insertText(el, text) {
   if (!el) return;
+  // Normalize CRLF/CR to LF first. A body carrying Windows line endings (JSON
+  // import, text pasted from a desktop editor) otherwise splits into lines that
+  // each keep a trailing CR: the CR survives into the message as an invisible
+  // character, and a blank line — the lone "\r" segment — loses its break
+  // entirely, collapsing paragraphs into one block.
+  text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
   var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     if (isCE) {
@@ -951,7 +957,7 @@ function insertText(el, text) {
       if (document.activeElement !== el && !document.activeElement.contains(el)) {
         try { el.focus(); } catch(_) {}
       }
-      var lines = String(text).split('\n');
+      var lines = text.split('\n');
       for (var i = 0; i < lines.length; i++) {
         if (i > 0) {
           var ok = false;
@@ -1247,7 +1253,7 @@ function doInsert(targetEl, snip) {
     var snapshot = captureFieldState(targetEl, overlayTriggerLen);
     snapshot.syncInserted  = true;
     snapshot.endCharOffset = _ceCaretCharOffset(_ceHost(targetEl));
-    snapshot.visibleLen    = String(text).replace(/\n/g, '').length;
+    snapshot.visibleLen    = String(text).replace(/[\r\n]/g, '').length;
     showCelebration(
       text,
       function onConfirm() { logEvent(snip, fillCount); },
@@ -1868,7 +1874,7 @@ function selectTriggerItem(idx) {
           insertText(el, text);
           fieldSnapshot.syncInserted = true;
           fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-          fieldSnapshot.visibleLen = String(text).replace(/\n/g, '').length;
+          fieldSnapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
           showCelebration(
             text,
             function onConfirm() {     // timer expired or user clicked OK
@@ -2653,7 +2659,7 @@ function _proceedContextInsert(el, snip) {
       insertText(el, text);
       snapCE.syncInserted  = true;
       snapCE.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-      snapCE.visibleLen    = String(text).replace(/\n/g, '').length;
+      snapCE.visibleLen    = String(text).replace(/[\r\n]/g, '').length;
       showCelebration(
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },
