@@ -803,7 +803,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
       <div class="demo-body">
         <div class="demo-label">You type</div>
         <div class="demo-typeline">
-          <span class="demo-type" id="demo-type">::quoteEN</span><span class="demo-caret" id="demo-caret" aria-hidden="true"></span>
+          <span class="demo-type" id="demo-type">::quote</span><span class="demo-caret" id="demo-caret" aria-hidden="true"></span>
         </div>
         <div class="demo-arrow" id="demo-arrow">↓</div>
         <div class="demo-label">SprintBrain writes</div>
@@ -972,12 +972,12 @@ LeibTour Team</div>
         <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>01 · Triggers</div>
         <h3 class="fs-card-title">Type a short tag. Watch a full template appear.</h3>
         <p class="fs-card-body">
-          <code>::quoteEN</code> expands into a <b>200-word multilingual quote</b>.
+          <code>::quote</code> expands into a <b>200-word multilingual quote</b>.
           Works in Gmail, Notion, Slack, your CRM. Anywhere you can type, or from
           the <b>right-click menu</b> when you'd rather pick than type.
         </p>
         <div class="fs-demo" aria-hidden="true">
-          <span class="fs-typed">::quoteEN</span>
+          <span class="fs-typed">::quote</span>
           <div class="fs-arrow">↓</div>
           <div class="fs-out">
             Dear guest,<br>
@@ -1179,7 +1179,7 @@ LeibTour Team</div>
           <span class="pp-label">SprintBrain</span>
         </div>
         <div class="pp-body">
-          <div class="pp-row pp-active"><span class="pp-trigger">::quoteEN</span><span class="pp-lang">EN</span></div>
+          <div class="pp-row pp-active"><span class="pp-trigger">::quote</span><span class="pp-lang">EN</span></div>
           <div class="pp-row"><span class="pp-trigger">::greet</span><span class="pp-name">Greeting</span></div>
           <div class="pp-row"><span class="pp-trigger">::price3</span><span class="pp-name">Quote</span></div>
           <div class="pp-row"><span class="pp-trigger">::followup</span><span class="pp-name">Email</span></div>
@@ -1358,7 +1358,7 @@ LeibTour Team</div>
       tag:'01 · Triggers',
       title:'Type a short tag. Watch a full template appear.',
       body:'Any shortcut prefixed with <code>::</code> triggers an instant expansion, inside <b>Gmail</b>, <b>Notion</b>, <b>Slack</b>, your CRM, or any web app where you type. No clipboard juggling, no copy-paste.',
-      detail:'<strong>How it works</strong>Type <code>::quoteEN</code> and press Space or Tab. SprintBrain replaces the tag with the full template in under 50&nbsp;ms. Field-level, no page reload, no extension overlay visible to anyone else.'
+      detail:'<strong>How it works</strong>Type <code>::quote</code> and press Space or Tab. SprintBrain replaces the tag with the full template in under 50&nbsp;ms. Field-level, no page reload, no extension overlay visible to anyone else.'
     },
     {
       tag:'02 · Formulas',
@@ -1472,7 +1472,7 @@ LeibTour Team</div>
   if(!typeEl||!outEl||!urlEl||!arrowEl||!stepsEl||!demoEl)return;
 
   var SCENES=[
-    {app:'mail.google.com',trigger:'::quoteEN',out:
+    {app:'mail.google.com',trigger:'::quote',out:
       'Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team'},
     {app:'web.whatsapp.com',trigger:'::checkin',out:
       'Hi Marco, check-in opens at 16:00.\n\nThe keys are in the smart lock by the gate — code 4417. Parking and the wifi details are in the guide.\n\nSee you tomorrow!'},
@@ -1607,7 +1607,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.123.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.123.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
