@@ -243,9 +243,13 @@ body{
 .snip-meta{display:flex;align-items:center;gap:7px;margin-top:4px;
   flex-wrap:wrap;row-gap:4px}
 .snip-sc{font-family:var(--mono);font-size:12px;color:var(--primary);font-weight:600}
-/* "Last used by" attribution — org-shared cards only */
+/* "Last used by" attribution — org-shared cards only. Stacks over two rows so
+   the whole line stays readable on narrow phones: the email (row 1) ellipsizes
+   only as a last resort; date + time (row 2) always fit. */
 .snip-lastuse{font-size:10.5px;font-style:italic;color:var(--text3);margin-top:4px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  display:flex;flex-direction:column;gap:1px;min-width:0}
+.snip-lastuse-by{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.snip-lastuse-when{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Language badges + interactive pills (shared with mockup) */
 .lbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
@@ -2348,8 +2352,10 @@ function lastUseLine(lu){
   if(isNaN(d.getTime()))return '';
   var date=_sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear();
   var time=_sbPad(d.getHours())+':'+_sbPad(d.getMinutes());
-  return '<div class="snip-lastuse">Last used by: '+esc(lu.used_by_name||'—')
-    +' | Date: '+date+' | Time: '+time+'</div>';
+  return '<div class="snip-lastuse">'
+    +'<span class="snip-lastuse-by">Last used by: '+esc(lu.used_by_name||'—')+'</span>'
+    +'<span class="snip-lastuse-when">Date: '+date+' | Time: '+time+'</span>'
+  +'</div>';
 }
 function renderList(){
   var el=document.getElementById('snip-list');
