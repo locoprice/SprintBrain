@@ -63,20 +63,38 @@ img,svg{display:block;max-width:100%}
 
 /* HERO */
 .hero{
-  padding:88px 24px 72px;position:relative;overflow:hidden;
-  background:radial-gradient(ellipse 80% 52% at 50% -8%,rgba(27,79,216,.07) 0%,var(--bg) 68%)}
-.hero-inner{max-width:var(--max);margin:0 auto;text-align:center;position:relative}
+  padding:54px 24px 72px;position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse 74% 46% at 50% -6%,rgba(27,79,216,.10) 0%,rgba(27,79,216,0) 64%),
+    radial-gradient(ellipse 42% 30% at 84% 4%,rgba(127,168,248,.16) 0%,rgba(127,168,248,0) 62%),
+    var(--bg)}
+/* ambient grid wash — fades out toward the edges */
+.hero::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(27,79,216,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(27,79,216,.05) 1px,transparent 1px);
+  background-size:68px 68px;
+  mask:radial-gradient(ellipse 64% 58% at 50% 0%,#000 0%,transparent 74%);
+  -webkit-mask:radial-gradient(ellipse 64% 58% at 50% 0%,#000 0%,transparent 74%)}
+.hero-inner{max-width:var(--max);margin:0 auto;text-align:center;position:relative;z-index:1}
 .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
-  background:var(--primary-lt);color:var(--primary);
-  padding:6px 14px;border-radius:100px;font-size:13px;font-weight:600;
-  margin-bottom:24px}
+  background:rgba(255,255,255,.7);color:var(--primary);
+  border:1px solid var(--primary-lt);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  padding:6px 14px 6px 12px;border-radius:100px;font-size:13px;font-weight:600;
+  margin-bottom:20px}
 .hero-eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;
   background:var(--primary);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.hero h1{font-size:clamp(40px,6vw,72px);font-weight:800;letter-spacing:-2.5px;
-  line-height:1.05;margin-bottom:20px;color:var(--text)}
-.hero h1 span{background:linear-gradient(135deg,var(--primary) 0%,#5B82F0 60%,#7FA8F8 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero h1{font-size:clamp(40px,5.3vw,64px);font-weight:800;letter-spacing:-.032em;
+  line-height:1.03;margin-bottom:18px;color:var(--text)}
+.hero h1 span{
+  background:linear-gradient(115deg,var(--primary) 0%,#5B82F0 40%,#7FA8F8 60%,var(--primary) 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  animation:heroSheen 9s ease-in-out infinite}
+@keyframes heroSheen{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 .hero p{font-size:clamp(17px,2vw,20px);color:var(--text2);
   max-width:620px;margin:0 auto 12px;line-height:1.55}
 .hero p.hero-slogan{
@@ -87,33 +105,60 @@ img,svg{display:block;max-width:100%}
   letter-spacing:.01em;opacity:1}
 .hero-proof{
   display:flex;align-items:center;justify-content:center;
-  gap:16px;margin-bottom:28px;flex-wrap:wrap}
+  gap:16px;margin-bottom:22px;flex-wrap:wrap}
 .hero-proof-item{
   display:inline-flex;align-items:center;gap:5px;
   font-size:12.5px;font-weight:500;color:var(--text2)}
 .hero-proof-item svg{color:var(--primary);flex-shrink:0}
 .hero-proof-sep{width:3px;height:3px;border-radius:50%;background:var(--border)}
-.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
+.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
 
 /* DEMO */
-.demo{max-width:780px;margin:0 auto;background:var(--card);
-  border-radius:var(--r);
-  box-shadow:0 8px 32px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06);
+.demo{max-width:800px;margin:0 auto;background:var(--card);
+  border-radius:18px;
+  box-shadow:0 24px 60px rgba(27,79,216,.16),0 3px 12px rgba(0,0,0,.06);
   overflow:hidden;border:1px solid var(--border)}
-.demo-bar{background:var(--bg-alt);padding:12px 16px;border-bottom:1px solid var(--border);
+.demo-bar{background:linear-gradient(180deg,var(--card),var(--bg-alt));
+  padding:11px 16px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;gap:8px}
 .demo-dot{width:11px;height:11px;border-radius:50%}
 .demo-dot.r{background:#FF5F57}.demo-dot.y{background:#FEBC2E}.demo-dot.g{background:#28C840}
-.demo-url{margin-left:12px;font-size:12px;color:var(--text3);font-family:ui-monospace,monospace}
-.demo-body{padding:32px 28px;text-align:left;font-size:15px;min-height:180px}
+.demo-url{margin-left:12px;font-size:12px;color:var(--text3);font-family:ui-monospace,monospace;
+  transition:opacity .25s ease}
+.demo-url.swap{opacity:0}
+.demo-steps{margin-left:auto;display:flex;align-items:center;gap:5px}
+.demo-step{width:5px;height:5px;border-radius:50%;background:var(--border);
+  transition:background .3s ease,transform .3s ease}
+.demo-step.on{background:var(--primary);transform:scale(1.3)}
+.demo-body{padding:20px 26px 24px;text-align:left;font-size:15px}
 .demo-label{font-size:12px;color:var(--text3);text-transform:uppercase;
-  letter-spacing:.5px;font-weight:600;margin-bottom:10px}
+  letter-spacing:.5px;font-weight:600;margin-bottom:7px}
+.demo-typeline{display:flex;align-items:center;min-height:30px}
 .demo-type{font-family:ui-monospace,"SF Mono",Menlo,monospace;
   background:var(--primary-lt);color:var(--primary);
-  padding:3px 8px;border-radius:5px;font-weight:600;font-size:14px}
-.demo-arrow{color:var(--text3);margin:16px 0;font-size:18px;text-align:center}
+  padding:3px 8px;border-radius:5px;font-weight:600;font-size:14px;
+  min-width:10px;min-height:22px;display:inline-flex;align-items:center}
+.demo-caret{width:2px;height:19px;margin-left:3px;background:var(--primary);
+  border-radius:1px;animation:caretBlink 1.05s steps(1) infinite}
+@keyframes caretBlink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+.demo-arrow{color:var(--text3);margin:9px 0;font-size:17px;text-align:center;
+  transition:opacity .3s ease,transform .3s ease}
+.demo-arrow.idle{opacity:.25;transform:translateY(-3px)}
 .demo-output{background:var(--bg-alt);border-radius:10px;padding:16px;
-  color:var(--text);line-height:1.6;white-space:pre-wrap;font-size:14.5px}
+  color:var(--text);line-height:1.6;font-size:14.5px;min-height:136px;
+  white-space:pre-wrap}
+.demo-line{opacity:0;transform:translateY(7px);
+  animation:demoLineIn .42s cubic-bezier(.22,1,.36,1) forwards}
+.demo-line.blank{height:.72em}
+@keyframes demoLineIn{to{opacity:1;transform:none}}
+.demo-hi{color:var(--primary);font-weight:600}
+
+@media (prefers-reduced-motion:reduce){
+  .hero h1 span{animation:none}
+  .hero-eyebrow::before,.demo-caret{animation:none}
+  .demo-line{opacity:1;transform:none;animation:none}
+  .demo-url,.demo-arrow,.demo-step{transition:none}
+}
 
 /* SECTIONS */
 .section{padding:88px 24px}
@@ -185,8 +230,9 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 .foot-links a:hover{color:#fff}
 
 @media (max-width:640px){
-  .hero{padding:56px 20px 48px}
-  .hero h1{letter-spacing:-1.5px}
+  .hero{padding:56px 20px 52px}
+  .hero::before{background-size:44px 44px}
+  .hero h1{letter-spacing:-.028em}
   .hero p.hero-slogan{text-align:left;margin-left:0;margin-right:0;max-width:none}
   .hero-ctas{flex-direction:column;align-items:center;gap:16px}
   .hero-ctas .btn-primary{width:100%;justify-content:center;height:52px;font-size:16px}
@@ -200,8 +246,10 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .section{padding:64px 20px}
   .nav-inner{padding:12px 16px;gap:12px}
   .nav-link,.nav-links .btn-primary svg{display:none}
-  .demo-body{padding:24px 20px}
-  .demo{margin-top:0;box-shadow:0 4px 20px rgba(27,79,216,.10),0 1px 4px rgba(0,0,0,.06)}
+  .demo-body{padding:22px 18px 24px}
+  .demo{margin-top:0;box-shadow:0 12px 34px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06)}
+  .demo-output{min-height:150px;font-size:14px}
+  .demo-url{margin-left:8px;font-size:11px}
   footer{padding:28px 20px}
   .foot-inner{flex-direction:column;gap:14px}
   .foot-brand{flex-wrap:wrap;gap:4px 6px;font-size:12px}
@@ -744,19 +792,24 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
       <a href="https://app.sprintbrain.com/mobile/" class="btn btn-ghost">Open mobile app</a>
     </div>
 
-    <div class="demo">
+    <div class="demo" id="demo">
       <div class="demo-bar">
         <span class="demo-dot r"></span><span class="demo-dot y"></span><span class="demo-dot g"></span>
-        <span class="demo-url">mail.google.com</span>
+        <span class="demo-url" id="demo-url">mail.google.com</span>
+        <span class="demo-steps" id="demo-steps" aria-hidden="true">
+          <span class="demo-step on"></span><span class="demo-step"></span><span class="demo-step"></span>
+        </span>
       </div>
       <div class="demo-body">
         <div class="demo-label">You type</div>
-        <span class="demo-type">::quoteEN</span>
-        <div class="demo-arrow">↓</div>
+        <div class="demo-typeline">
+          <span class="demo-type" id="demo-type">::quoteEN</span><span class="demo-caret" id="demo-caret" aria-hidden="true"></span>
+        </div>
+        <div class="demo-arrow" id="demo-arrow">↓</div>
         <div class="demo-label">SprintBrain writes</div>
-        <div class="demo-output">Dear guest,
+        <div class="demo-output" id="demo-out" aria-live="polite">Dear guest,
 
-Thank you for your interest. The total for 3 nights is €450 (€150/night x 3), with the 10% early-bird discount applied.
+The total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.
 
 Best regards,
 LeibTour Team</div>
@@ -920,7 +973,8 @@ LeibTour Team</div>
         <h3 class="fs-card-title">Type a short tag. Watch a full template appear.</h3>
         <p class="fs-card-body">
           <code>::quoteEN</code> expands into a <b>200-word multilingual quote</b>.
-          Works in Gmail, Notion, Slack, your CRM. Anywhere you can type.
+          Works in Gmail, Notion, Slack, your CRM. Anywhere you can type, or from
+          the <b>right-click menu</b> when you'd rather pick than type.
         </p>
         <div class="fs-demo" aria-hidden="true">
           <span class="fs-typed">::quoteEN</span>
@@ -942,7 +996,9 @@ LeibTour Team</div>
         <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>02 · Formulas</div>
         <h3 class="fs-card-title">Real math, inline.</h3>
         <p class="fs-card-body">
-          <b>Totals, discounts, fees, net prices</b>: calculated the instant a template expands. CSP-safe parser, no <code>eval</code>.
+          <b>Totals, discounts, fees, net prices</b>: calculated the instant a template expands.
+          Conditionals, date tokens, and greetings that agree with the guest's name.
+          CSP-safe parser, no <code>eval</code>.
         </p>
         <div class="fs-formula" aria-hidden="true">
           <span class="fs-lbl">Nights × rate</span><span class="fs-val">€450.00</span>
@@ -962,7 +1018,8 @@ LeibTour Team</div>
         <h3 class="fs-card-title">A library of reusable prompts.</h3>
         <p class="fs-card-body">
           One-shot and few-shot prompts for <b>ChatGPT</b>, <b>Claude</b>, and any model, stored
-          next to your templates, expanded the same way.
+          next to your templates. Type <code>"""</code> to browse them, or give a prompt its own
+          shortcut and expand it straight into the box.
         </p>
         <button class="fs-cta" type="button" aria-label="Learn more about prompts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -972,10 +1029,11 @@ LeibTour Team</div>
       <!-- 04 · Cloud sync -->
       <article class="fs-card">
         <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>04 · Cloud sync</div>
-        <h3 class="fs-card-title">Every device, under a second.</h3>
+        <h3 class="fs-card-title">One library. Every surface.</h3>
         <p class="fs-card-body">
-          Backed by <b>Supabase</b>. Edit on your laptop, paste on your phone, propagated in
-          <b>&lt; 1&nbsp;s</b>, encrypted at rest, no conflicts.
+          Backed by <b>Supabase</b>, encrypted at rest. Write once in the dashboard; the extension
+          and your phone read the same library, refreshed in the background and again every time
+          you open them.
         </p>
         <button class="fs-cta" type="button" aria-label="Learn more about cloud sync">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -1000,25 +1058,54 @@ LeibTour Team</div>
         <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>06 · Mobile</div>
         <h3 class="fs-card-title">Your library, on any phone.</h3>
         <p class="fs-card-body">
-          Browse, search, and copy from <b>iOS</b> and <b>Android</b>. No laptop required.
-          Same library, same shortcuts, same formulas.
+          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,
+          no download. Pin what you use daily, fill a snippet's fields, and copy the finished text.
         </p>
         <button class="fs-cta" type="button" aria-label="Learn more about mobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
       </article>
 
-      <!-- 07 · Team folders (full-width) -->
+      <!-- 07 · Analytics -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>07 · Analytics</div>
+        <h3 class="fs-card-title">See what your team actually types.</h3>
+        <p class="fs-card-body">
+          Every expansion is counted. <b>Top triggers</b>, usage over time, and a contribution
+          heatmap show which snippets earn their place, and which ones nobody has touched in weeks.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 08 · Security -->
+      <article class="fs-card">
+        <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>08 · Security</div>
+        <h3 class="fs-card-title">Your account, on your terms.</h3>
+        <p class="fs-card-body">
+          See every signed-in device, review recent login activity, and <b>sign out everywhere</b>
+          in one click. Each surface holds its own session, so revoking one doesn't lock you out of
+          the rest.
+        </p>
+        <button class="fs-cta" type="button" aria-label="Learn more about security">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </article>
+
+      <!-- 09 · Team workspace (full-width) -->
       <article class="fs-card fs-wide">
         <div class="fs-wide-main">
-          <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>07 · Team folders</div>
+          <div class="fs-card-tag"><span class="fs-dot" aria-hidden="true"></span>09 · Team workspace</div>
           <h3 class="fs-card-title">Share a folder. Your team types from it.</h3>
           <p class="fs-card-body">
             Share a folder with the <b>whole team</b> or <b>specific teammates</b>, at
             <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. Every snippet, formula, and prompt
-            inside it shows up in their dashboard and extension the moment you share.
+            inside it shows up in their dashboard and extension the moment you share. Each one
+            carries <b>who wrote it and who touched it last</b>, and the whole workspace wears your
+            company logo and cover.
           </p>
-          <button class="fs-cta" type="button" aria-label="Learn more about team folders">
+          <button class="fs-cta" type="button" aria-label="Learn more about the team workspace">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>
@@ -1276,20 +1363,20 @@ LeibTour Team</div>
     {
       tag:'02 · Formulas',
       title:'Real math, inline.',
-      body:'Embed live calculations directly in your templates using <code>{{NIGHTS * RATE}}</code> syntax. Values are resolved the moment the snippet expands. A <b>CSP-safe custom parser</b>, zero <code>eval</code>, zero risk.',
-      detail:'<strong>Supported operations</strong>Addition, subtraction, multiplication, division, percentage discounts, rounding, and conditional expressions. Works with named fields like <code>{{NIGHTS}}</code> that you fill in at expansion time.'
+      body:'Embed live calculations directly in your templates: <code>{{= NIGHTS * RATE }}</code> resolves the moment the snippet expands, using named fields like <code>{{NIGHTS}}</code> that you fill in at expansion time. A <b>CSP-safe custom parser</b>, zero <code>eval</code>, zero risk.',
+      detail:'<strong>Supported operations</strong>Addition, subtraction, multiplication, division, rounding (<code>round</code>, <code>floor</code>, <code>ceil</code>, <code>abs</code>, <code>min</code>, <code>max</code>), local variables, and date/time tokens. Conditionals branch with <code>{if:}</code>, <code>{elseif:}</code> and <code>{else}</code>. Greetings inflect on their own: <b>Querido</b> before a woman&rsquo;s name prints <b>Querida</b>.'
     },
     {
       tag:'03 · Prompts',
       title:'A library of reusable prompts.',
       body:'Store your best <b>one-shot and few-shot prompts</b> next to your templates and expand them the same way, into <b>ChatGPT</b>, <b>Claude</b>, Gemini, or any model UI. No more re-writing the same instruction from scratch.',
-      detail:'<strong>Why it matters</strong>Consistent prompt phrasing produces consistent model output. Centralising your prompt library means the whole team gets the same quality baseline, and you can version it like any other snippet.'
+      detail:'<strong>Two ways to reach them</strong>Type <code>"""</code> to open the prompt picker and choose, or give a prompt its own shortcut and expand it straight into the box. Prompts are written in the dashboard, where the whole team draws from the same quality baseline.'
     },
     {
       tag:'04 · Cloud sync',
-      title:'Every device, under a second.',
-      body:'Your snippet library lives in <b>Supabase</b>. Edit on your laptop, paste on your phone within <b>&lt;&nbsp;1&nbsp;s</b>. Encrypted at rest. No manual export/import, no conflicts, no stale copies.',
-      detail:'<strong>Reliability</strong>Supabase Realtime pushes changes to all connected clients as soon as you save. Offline edits queue locally and sync the moment connectivity returns.'
+      title:'One library. Every surface.',
+      body:'Your snippet library lives in <b>Supabase</b>, encrypted at rest. Edit on your laptop and the extension, the dashboard, and your phone all read the same rows. No manual export/import, no stale copies to reconcile.',
+      detail:'<strong>How it refreshes</strong>The dashboard writes straight to Supabase. The extension pulls a fresh copy every time you open the popup, on browser start, and on a background refresh every few minutes; the mobile app reads live on load.'
     },
     {
       tag:'05 · Notion sync',
@@ -1300,14 +1387,26 @@ LeibTour Team</div>
     {
       tag:'06 · Mobile',
       title:'Your library, on any phone.',
-      body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet. Same library, same formulas.',
-      detail:'<strong>Progressive Web App</strong>Add it to your home screen for instant launch. Works offline for read access. Tap any snippet to copy the expanded text straight to your clipboard.'
+      body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet from the same library.',
+      detail:'<strong>Built for one hand</strong>Add it to your home screen for instant launch. Pin the snippets you use daily to the top, switch between language variants on the detail page, fill any fields, and copy the finished text straight to your clipboard.'
     },
     {
-      tag:'07 · Team folders',
+      tag:'07 · Analytics',
+      title:'See what your team actually types.',
+      body:'Every expansion is counted, so the library stops being guesswork. <b>Top triggers</b>, usage over time, and a contribution heatmap show what earns its place and what nobody has touched in weeks.',
+      detail:'<strong>What you get</strong>A 14-day usage chart, a ranked top-triggers table, and a GitHub-style activity heatmap, all built from real expansion events rather than estimates.'
+    },
+    {
+      tag:'08 · Security',
+      title:'Your account, on your terms.',
+      body:'Sign in with a <b>magic link or an emailed code</b>, no password to leak. Choose whether the session is remembered or ends when you close the browser.',
+      detail:'<strong>Devices and activity</strong>Settings &rarr; Security lists every signed-in device with its last-seen time, shows recent login activity, and lets you <b>sign out everywhere</b> in one click. Each surface holds its own session, so signing the extension out never touches the dashboard.'
+    },
+    {
+      tag:'09 · Team workspace',
       title:'Share a folder. Your team types from it.',
       body:'Right-click any folder and <b>Share with team</b>: pick the <b>whole team</b> or <b>specific teammates</b>, each at <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. The folder is the boundary: every snippet, formula, and prompt inside it inherits the access you grant.',
-      detail:'<strong>One place to manage it</strong>Sharing is managed in the dashboard; shared folders appear for every teammate in the extension and web library automatically, enforced server-side by row-level security. A globe marks team-wide folders; a people icon marks folders shared with named teammates. Private folders stay private.'
+      detail:'<strong>One place to manage it</strong>Sharing is managed in the dashboard; shared folders appear for every teammate in the extension and web library automatically, enforced server-side by row-level security. A globe marks team-wide folders; a people icon marks folders shared with named teammates. Every asset records who created it and who edited it last, and admins can put the company logo and a team cover on the workspace. Private folders stay private.'
     }
   ];
 
@@ -1361,6 +1460,142 @@ LeibTour Team</div>
   });
 })();
 
+/* Hero demo — types a trigger, expands it, moves to the next app. The product
+   selling itself above the fold. Static markup is the no-JS fallback. */
+(function(){
+  var typeEl=document.getElementById('demo-type');
+  var outEl=document.getElementById('demo-out');
+  var urlEl=document.getElementById('demo-url');
+  var arrowEl=document.getElementById('demo-arrow');
+  var stepsEl=document.getElementById('demo-steps');
+  var demoEl=document.getElementById('demo');
+  if(!typeEl||!outEl||!urlEl||!arrowEl||!stepsEl||!demoEl)return;
+
+  var SCENES=[
+    {app:'mail.google.com',trigger:'::quoteEN',out:
+      'Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team'},
+    {app:'web.whatsapp.com',trigger:'::checkin',out:
+      'Hi Marco, check-in opens at 16:00.\n\nThe keys are in the smart lock by the gate — code 4417. Parking and the wifi details are in the guide.\n\nSee you tomorrow!'},
+    {app:'notion.so',trigger:'::followup',out:
+      'Following up on Tuesday’s quote.\n\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\n\nWant me to reserve it?'}
+  ];
+
+  var TYPE_MS=58, HOLD_AFTER_TYPE=520, LINE_STAGGER=70, HOLD_SCENE=3200, FADE_MS=340;
+  var timers=[], i=0, running=false;
+
+  function clearTimers(){timers.forEach(clearTimeout);timers=[];}
+  function at(ms,fn){timers.push(setTimeout(fn,ms));}
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  // Highlight the values a formula would have produced — money and percentages.
+  function highlight(line){
+    return esc(line).replace(/(€[\d.,]+|\d+%)/g,'<span class="demo-hi">$1</span>');
+  }
+
+  function buildHtml(text,animate){
+    var lines=text.split('\n'), html='', shown=0;
+    for(var n=0;n<lines.length;n++){
+      var blank=lines[n]==='';
+      var delay=animate?(shown*LINE_STAGGER):0;
+      html+='<div class="demo-line'+(blank?' blank':'')+'"'
+          +(animate?' style="animation-delay:'+delay+'ms"':' style="animation:none;opacity:1"')
+          +'>'+(blank?'':highlight(lines[n]))+'</div>';
+      if(!blank)shown++;
+    }
+    return {html:html,revealMs:shown*LINE_STAGGER+420};
+  }
+
+  function renderOut(text,animate){
+    var b=buildHtml(text,animate);
+    outEl.innerHTML=b.html;
+    return b.revealMs;
+  }
+
+  // Reserve the tallest scene's height so the card never resizes mid-loop.
+  // Text wraps differently at every width, so this is measured, not hard-coded.
+  var probe=null;
+  function sizeOutput(){
+    if(!probe){
+      probe=outEl.cloneNode(false);
+      probe.removeAttribute('id');
+      probe.setAttribute('aria-hidden','true');
+      probe.style.position='absolute';
+      probe.style.visibility='hidden';
+      probe.style.pointerEvents='none';
+      probe.style.minHeight='0';
+      probe.style.boxSizing=getComputedStyle(outEl).boxSizing;
+      outEl.parentNode.appendChild(probe);
+    }
+    outEl.style.minHeight='0';
+    probe.style.width=outEl.getBoundingClientRect().width+'px';
+    var max=0;
+    for(var n=0;n<SCENES.length;n++){
+      probe.innerHTML=buildHtml(SCENES[n].out,false).html;
+      max=Math.max(max,probe.getBoundingClientRect().height);
+    }
+    outEl.style.minHeight=Math.ceil(max)+'px';
+  }
+
+  function setSteps(idx){
+    var dots=stepsEl.children;
+    for(var n=0;n<dots.length;n++)dots[n].className='demo-step'+(n===idx?' on':'');
+  }
+
+  function playScene(){
+    var s=SCENES[i];
+    setSteps(i);
+    urlEl.classList.add('swap');
+    at(FADE_MS/2,function(){urlEl.textContent=s.app;urlEl.classList.remove('swap');});
+
+    typeEl.textContent='';
+    outEl.innerHTML='';
+    arrowEl.classList.add('idle');
+
+    // type the trigger, one character at a time
+    for(var c=1;c<=s.trigger.length;c++){
+      (function(n){at(n*TYPE_MS,function(){typeEl.textContent=s.trigger.slice(0,n);});})(c);
+    }
+
+    var typedAt=s.trigger.length*TYPE_MS+HOLD_AFTER_TYPE;
+    at(typedAt,function(){arrowEl.classList.remove('idle');});
+    at(typedAt+140,function(){
+      var revealMs=renderOut(s.out,true);
+      at(revealMs+HOLD_SCENE,function(){
+        i=(i+1)%SCENES.length;
+        if(running)playScene();
+      });
+    });
+  }
+
+  function start(){if(running)return;running=true;i=0;playScene();}
+  function stop(){running=false;clearTimers();}
+
+  var resizeTimer;
+  window.addEventListener('resize',function(){
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(sizeOutput,150);
+  });
+
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    sizeOutput();
+    renderOut(SCENES[0].out,false);
+    return; // static: no typing, no loop
+  }
+
+  sizeOutput();
+  start();
+
+  // Stop the loop once the demo is scrolled past; resume when it returns.
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting)start();
+        else stop();
+      });
+    },{threshold:.15}).observe(demoEl);
+  }
+})();
+
 (function(){
   var yearEl=document.getElementById('foot-year');
   if(yearEl)yearEl.textContent=String(new Date().getFullYear());
@@ -1372,7 +1607,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.122.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.123.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
