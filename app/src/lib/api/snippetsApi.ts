@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { foldersApi } from '@/lib/api/foldersApi';
+import { validateTemplate } from '@/lib/statusSignals';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
@@ -55,12 +56,15 @@ type DbSnippetJoined = {
   notion_page_id: string | null;
   pinned: boolean | null;
   is_active: boolean | null;
+  is_malformed: boolean | null;
   alternative_queries: string[] | null;
   enable_urgency_timer: boolean | null;
   timer_duration_ms: number | null;
   scarcity_count: number | null;
   folders: { name: string } | null;
-  snippet_stats: Array<{ uses: number | null }> | null;
+  // One-to-one embed → object; kept union-typed so a cardinality change on the
+  // relationship can't silently zero the counts again. See readUses().
+  snippet_stats: { uses: number | null } | Array<{ uses: number | null }> | null;
 };
 
 const LANGS = ['EN', 'IT', 'ES', 'FR', 'MULTI'] as const;
@@ -94,11 +98,24 @@ function normalizeBodies(
   return out;
 }
 
+/**
+ * Read the `uses` count out of the embedded stats row.
+ *
+ * PostgREST shapes an embed by the cardinality it detects: `snippet_stats` is
+ * keyed one-to-one on `snippet_id`, so it comes back as a bare OBJECT
+ * (`{"uses":21}`), not the array this previously assumed — which meant
+ * `usage_count` silently resolved to 0 for every snippet, and sorting by Usage
+ * did nothing. Both shapes are handled because that cardinality is inferred
+ * from constraints and can flip if they ever change.
+ */
+function readUses(stats: DbSnippetJoined['snippet_stats']): number {
+  if (stats == null) return 0;
+  const first = Array.isArray(stats) ? stats[0] : stats;
+  return first?.uses ?? 0;
+}
+
 function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
-  const usage =
-    Array.isArray(row.snippet_stats) && row.snippet_stats[0]?.uses != null
-      ? row.snippet_stats[0].uses
-      : 0;
+  const usage = readUses(row.snippet_stats);
   const body = row.body ?? '';
   const language = normalizeLang(row.lang);
   const bodies = normalizeBodies(row.bodies, language, body);
@@ -121,6 +138,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     is_active: row.is_active ?? true,
+    is_malformed: row.is_malformed ?? false,
     alternative_queries: Array.isArray(row.alternative_queries) ? row.alternative_queries : [],
     enable_urgency_timer: row.enable_urgency_timer ?? false,
     timer_duration_ms: row.timer_duration_ms ?? 0,
@@ -156,7 +174,18 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+
+/**
+ * Template-validation verdict for the row about to be written — every language
+ * body a save carries, not just the active one (STATUS-ICONS-001). Persisting
+ * it makes "show me what's broken" a server-side query; the UI still validates
+ * live, so this flag going stale can never surface a wrong badge.
+ */
+function malformedFlag(bodies: SnippetBodies, activeBody: string): boolean {
+  if (!validateTemplate(activeBody).ok) return true;
+  return Object.values(bodies).some((b) => typeof b === 'string' && !validateTemplate(b).ok);
+}
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the
@@ -187,18 +216,20 @@ function buildSnippetInsert(
   now: string,
   sortOrder: number,
 ): Record<string, unknown> {
+  const bodies = mergeActiveBody(payload.bodies, payload.language, payload.content);
   return {
     id: crypto.randomUUID(),
     user_id: userId,
     title: payload.name,
     shortcut: payload.trigger,
     body: payload.content,
-    bodies: mergeActiveBody(payload.bodies, payload.language, payload.content),
+    bodies,
     lang: payload.language,
     folder_id: payload.folder_id,
     field_cfg: {},
     sort_order: sortOrder,
     updated_at: now,
+    is_malformed: malformedFlag(bodies, payload.content),
     pinned: payload.pinned ?? false,
     alternative_queries: payload.alternative_queries ?? [],
     enable_urgency_timer: payload.enable_urgency_timer ?? false,
@@ -282,6 +313,9 @@ export const snippetsApi: SnippetsApi = {
       const merged = mergeActiveBody(patch.bodies, language, activeBody);
       update['body'] = activeBody;
       update['bodies'] = merged;
+      // Re-derive on every body write — a fix has to clear the flag as reliably
+      // as a mistake sets it.
+      update['is_malformed'] = malformedFlag(merged, activeBody);
     }
 
     const { data, error } = await supabase
@@ -376,6 +410,12 @@ export const snippetsApi: SnippetsApi = {
       // disabled snippet yields a disabled copy (predictable).
       pinned: false,
       is_active: source.is_active ?? true,
+      // Re-derived rather than copied: the source flag could pre-date the
+      // validator, and the copy carries the same bodies either way.
+      is_malformed: malformedFlag(
+        (source.bodies ?? {}) as SnippetBodies,
+        source.body ?? '',
+      ),
       alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
       enable_urgency_timer: source.enable_urgency_timer ?? false,
       timer_duration_ms: source.timer_duration_ms ?? 0,

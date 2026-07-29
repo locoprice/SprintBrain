@@ -1,12 +1,15 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Brain, Loader2, Send, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import type { Prompt } from '@/types/database';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { assembleBlocks } from '@/lib/promptUtils';
+import { maxPromptUsage, promptStatus } from '@/lib/statusSignals';
+import { evaluatePrompt, promptToEvaluatorInput } from '@/lib/usePromptEvaluator';
 import { attributionTitle, useUserNameResolver } from '@/lib/useUserNames';
 
 interface PromptCardProps {
@@ -74,6 +77,26 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     ? `Used ${formatDistanceToNow(new Date(prompt.last_used_at), { addSuffix: true })}`
     : 'Never used';
 
+  // Usage decides the trophy; the efficiency score is the secondary signal and
+  // can only raise "needs work". Selecting the scalar (not the array) keeps a
+  // card from re-rendering every time an unrelated prompt changes.
+  const libraryMax = usePromptStore((s) => maxPromptUsage(s.prompts));
+  const evaluation = useMemo(() => evaluatePrompt(promptToEvaluatorInput(prompt)), [prompt]);
+  const status = promptStatus(
+    {
+      usage_count: prompt.usage_count,
+      is_malformed: prompt.is_malformed,
+      score: evaluation.score,
+    },
+    libraryMax,
+  );
+  const statusDetail =
+    status === 'top'
+      ? `used ${prompt.usage_count.toLocaleString()} times`
+      : status === 'weak'
+        ? `scores ${evaluation.score.toFixed(1)}/10`
+        : undefined;
+
   function handleUse(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation();
     markUsed(prompt.id);
@@ -97,6 +120,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
             <Brain className="h-4 w-4" />
           </div>
           <h3 className="truncate text-sm font-semibold text-ink">{prompt.name}</h3>
+          {status !== null && <StatusBadge status={status} detail={statusDetail} />}
         </div>
         {prompt.strategy_type && strategyColor && (
           <span

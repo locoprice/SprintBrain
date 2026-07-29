@@ -108,6 +108,7 @@ const SNIPPET_A: SnippetRow = {
   updated_by: 'user-1',
   folder_name: null,
   usage_count: 0,
+  is_malformed: false,
 };
 
 const SNIPPET_B: SnippetRow = { ...SNIPPET_A, id: 'snip-B', name: 'Snippet B', triggers: ['b'] };
@@ -133,6 +134,8 @@ const PROMPT_A: Prompt = {
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,
+  usage_count: 0,
+  is_malformed: false,
 };
 
 const PROMPT_B: Prompt = { ...PROMPT_A, id: 'prompt-B', name: 'Prompt B' };

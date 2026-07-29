@@ -630,10 +630,61 @@
     });
   }
 
+  // ── TEMPLATE VALIDATOR ──────────────────────────────────────────
+  // Structural faults that make resolveBody() emit visibly wrong output while
+  // failing silently — the user only finds out after pasting to a guest.
+  // Walks the same tokenizer as resolveBody so a verdict here matches what the
+  // engine actually does with the body.
+  //
+  // Deliberately narrow: only faults with no legitimate authoring reason. A
+  // stray "{" around prose or code still resolves to an unknown field (and is
+  // dropped), but that shape is common enough in real bodies that flagging it
+  // would be noise, not a signal.
+  //
+  // MIRRORED in app/src/lib/statusSignals.ts (the dashboard cannot import
+  // extension source — see app/CLAUDE.md §6). Change both together.
+  function validateTemplate(body) {
+    var src = (body === null || body === undefined) ? '' : String(body);
+    var i = 0, depth = 0;
+    while (i < src.length) {
+      if (src.charAt(i) !== '{') { i++; continue; }
+      if (src.charAt(i + 1) === '{') {
+        var dcl = src.indexOf('}}', i + 2);
+        if (dcl === -1) return _invalid('unterminated-token');
+        i = dcl + 2; continue;
+      }
+      var cl = src.indexOf('}', i);
+      if (cl === -1) return _invalid('unterminated-token');
+      var tok = src.slice(i + 1, cl).replace(/^\s+|\s+$/g, '');
+      if (tok.slice(0, 3) === 'if:') {
+        depth++;
+      } else if (tok === 'endif') {
+        if (depth === 0) return _invalid('orphan-branch');
+        depth--;
+      } else if (tok === 'else' || tok.slice(0, 7).toLowerCase() === 'elseif:') {
+        if (depth === 0) return _invalid('orphan-branch');
+      }
+      i = cl + 1;
+    }
+    if (depth > 0) return _invalid('unclosed-if');
+    return { ok: true, code: null, message: '' };
+  }
+
+  var VALIDATION_MESSAGES = {
+    'unterminated-token': 'A { is never closed — it prints literally instead of filling in.',
+    'orphan-branch': 'A branch tag has no matching {if:} — the condition is ignored.',
+    'unclosed-if': 'An {if:} is never closed with {endif} — its content is dropped.'
+  };
+
+  function _invalid(code) {
+    return { ok: false, code: code, message: VALIDATION_MESSAGES[code] };
+  }
+
   // ── PUBLIC API ──────────────────────────────────────────────────
   var API = {
     resolveBody:       resolveBody,
     extractFields:     extractFields,
+    validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,

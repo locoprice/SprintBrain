@@ -59,6 +59,7 @@ const MOCK_SNIPPET: SnippetRow = {
   updated_by: 'user-1',
   folder_name: null,
   usage_count: 0,
+  is_malformed: false,
 };
 
 const MOCK_REVISION: SnippetRevision = {

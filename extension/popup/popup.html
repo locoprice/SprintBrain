@@ -153,6 +153,20 @@ html,body{
 .FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr)}
 .MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
 .i-uses{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);font-variant-numeric:tabular-nums}
+
+/* ── STATUS BADGE (STATUS-ICONS-001) ──
+   Mirrors the dashboard's StatusBadge component (app/src/components/shared/).
+   Transform/opacity only, so every frame stays on the compositor. Faults keep
+   moving until fixed; the trophy pops once and then rests. */
+.sb-stat{width:20px;height:20px;border-radius:var(--sb-r-pill);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;animation:sbStatPop 260ms var(--sb-ease-out) both}
+.sb-stat svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sb-stat.top{background:var(--sb-azure-bg);color:var(--sb-azure)}
+.sb-stat.broken{background:var(--sb-danger-bg);color:var(--sb-danger)}
+.sb-stat.broken svg{animation:sbStatWobble 2400ms var(--sb-ease) infinite}
+.sb-stat:hover svg{animation:sbStatCheer 520ms var(--sb-ease)}
+@keyframes sbStatPop{0%{opacity:0;transform:scale(.4)}70%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@keyframes sbStatWobble{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+@keyframes sbStatCheer{0%,100%{transform:scale(1) rotate(0deg)}30%{transform:scale(1.18) rotate(-10deg)}65%{transform:scale(1.18) rotate(10deg)}}
 .chev{
   width:34px;height:34px;flex-shrink:0;border:none;background:transparent;border-radius:var(--sb-r-sm);
   color:var(--sb-ink-subtle);cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -333,6 +347,8 @@ html,body{
   .seg-thumb,.item,.chev,.chip,.btn,.btn.p,.ic-btn,.isc{transition:none}
   .list.anim .item{animation:none}
   .cl-box{animation:none}
+  /* Status badges fall back to the static icon — same box, same colour. */
+  .sb-stat,.sb-stat svg,.sb-stat.broken svg,.sb-stat:hover svg{animation:none}
 }
 </style>
 </head>

@@ -34,6 +34,8 @@ const PROMPT: Prompt = {
   updated_at: '2026-07-12T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,
+  usage_count: 0,
+  is_malformed: false,
 };
 
 const PROMPT_FOLDER = makeFolder('folder-prompts', 'TEAM SHARED');

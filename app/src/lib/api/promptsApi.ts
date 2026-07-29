@@ -7,7 +7,8 @@ export interface PromptsApi {
   createPrompt(payload: PromptFormValues): Promise<Prompt>;
   updatePrompt(id: string, patch: Partial<PromptFormValues>) : Promise<Prompt>;
   deletePrompt(id: string): Promise<void>;
-  markUsed(id: string): Promise<void>;
+  /** Atomically counts one execution; returns the authoritative new total. */
+  markUsed(id: string): Promise<{ usage_count: number; last_used_at: string }>;
   /** Push prompt to the team Notion DB via Edge Function; writes notion_page_id back. */
   pushToNotion(id: string): Promise<{ notion_page_id: string }>;
 }
@@ -35,6 +36,8 @@ type DbPrompt = {
   updated_at: string;
   updated_by: string | null;
   last_used_at: string | null;
+  usage_count: number | null;
+  is_malformed: boolean | null;
 };
 
 const PROMPT_SELECT = [
@@ -42,6 +45,7 @@ const PROMPT_SELECT = [
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
   'folder_id', 'notion_page_id', 'updated_at', 'updated_by', 'last_used_at',
+  'usage_count', 'is_malformed',
 ].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
@@ -66,6 +70,8 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? null,
     last_used_at: row.last_used_at,
+    usage_count: row.usage_count ?? 0,
+    is_malformed: row.is_malformed ?? false,
   };
 }
 
@@ -160,13 +166,19 @@ export const promptsApi: PromptsApi = {
   },
 
   async markUsed(id) {
-    const userId = await currentUserId();
-    const { error } = await supabase
-      .from('prompts')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId);
+    // Atomic: a read-modify-write from the client drops increments whenever the
+    // same prompt is used from two surfaces at once. The RPC does it in one
+    // UPDATE and stamps last_used_at in the same statement. SECURITY INVOKER,
+    // so RLS gates it exactly as the plain update it replaces did — including
+    // the shared-folder branch, which the old `.eq('user_id')` filter silently
+    // excluded for teammates.
+    const { data, error } = await supabase
+      .rpc('increment_prompt_usage', { p_prompt_id: id })
+      .select('id, usage_count, last_used_at')
+      .maybeSingle<{ id: string; usage_count: number; last_used_at: string }>();
     if (error) throw error;
+    if (!data) throw new Error('Prompt not found, or you do not have access to it');
+    return { usage_count: data.usage_count, last_used_at: data.last_used_at };
   },
 
   async pushToNotion(id) {

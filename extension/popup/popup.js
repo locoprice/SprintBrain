@@ -1385,6 +1385,48 @@ function renderDetailHtml(s){
   return h+'</div>';
 }
 
+// ── STATUS BADGES (STATUS-ICONS-001) ────────────────────────────────
+// Mirrors app/src/lib/statusSignals.ts — same thresholds, same verdicts, so a
+// snippet reads identically in the popup and the dashboard. Change both.
+var TOP_MIN_USES=5, TOP_USAGE_SHARE=0.6;
+
+// Lucide Trophy / Wrench — the same two glyphs the dashboard renders.
+var STAT_SVG={
+  top:'<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+  broken:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
+};
+
+// Highest usage across the whole library — never the filtered view, so
+// searching or switching folders can't change which snippets earn a trophy.
+function maxSnipUses(list){
+  var max=0;
+  list.forEach(function(s){ var u=(s.stats&&s.stats.uses)||0; if(u>max) max=u; });
+  return max;
+}
+
+function isTopByUsage(uses,max){
+  return uses>=TOP_MIN_USES && uses>=max*TOP_USAGE_SHARE;
+}
+
+// First malformed body across every language a snippet carries. The engine is
+// loaded after popup.js in Sprintbrain.html, so it is resolved at call time.
+function snipIssue(s,variants){
+  var eng=(typeof SBFormulaEngine!=='undefined')?SBFormulaEngine:null;
+  if(!eng||!eng.validateTemplate) return null;
+  var bodies=[], k;
+  if(s.body) bodies.push(s.body);
+  for(k in variants){ if(variants[k]&&variants[k].body) bodies.push(variants[k].body); }
+  for(var i=0;i<bodies.length;i++){
+    var r=eng.validateTemplate(bodies[i]);
+    if(!r.ok) return r;
+  }
+  return null;
+}
+
+function statBadgeHtml(kind,title){
+  return '<span class="sb-stat '+kind+'" role="img" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+STAT_SVG[kind]+'</span>';
+}
+
 function renderList(q){
   var el=gi('list'); if(!el) return;
   selIdx=-1;
@@ -1416,20 +1458,28 @@ function renderList(q){
 
   filtered.sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   var groups=groupSnips(filtered);
+  var libMax=maxSnipUses(snips);
   var h='';
   groups.forEach(function(g){
     var s=g.master;
-    var langs=Object.keys(findVariants(s));
+    var variants=findVariants(s);
+    var langs=Object.keys(variants);
     var lb=langs.length>1 ? 'MULTI' : (s.lang||'EN');
     var st=s.stats||{uses:0};
     var usesTxt=st.uses ? ('\u00D7'+st.uses) : 'Never used';
+    // A fault in any language breaks the snippet, including one this row is
+    // not showing \u2014 exactly the case a user cannot spot on their own.
+    var issue=snipIssue(s,variants);
+    var statHtml=issue
+      ? statBadgeHtml('broken','Broken template \u2014 '+issue.message)
+      : (isTopByUsage(st.uses||0,libMax) ? statBadgeHtml('top','Top snippet \u2014 used '+(st.uses||0)+' times') : '');
     var base=String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/,'');
     var open=expandedId===s.id;
     h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-expanded="'+(open?'true':'false')+'" aria-label="'+esc(base)+' \u2014 show details">'
       +'<div class="i-main">'
         +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'
           +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
-        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span></div>'
+        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span>'+statHtml+'</div>'
       +'</div>'
       +'<button class="chev" type="button" data-chev="'+esc(s.id)+'" title="Details" aria-label="Show languages and body" aria-expanded="'+(open?'true':'false')+'"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>'
     +'</div>';
