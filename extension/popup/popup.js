@@ -1490,7 +1490,14 @@ function renderList(q){
     var langs=Object.keys(variants);
     var lb=langs.length>1 ? 'MULTI' : (s.lang||'EN');
     var groupUses=libTotals[s.lang_group_id||s.id]||0;
-    var usesTxt=groupUses ? ('\u00D7'+groupUses) : 'Never used';
+    // "151 expansions" rather than a bare "\u00D7151": this list has no column
+    // header to explain the number, and "expansions" is the precise word \u2014
+    // snippet_stats counts popup copies, which is a different metric entirely.
+    // Number-first so the counts stay scannable down the list.
+    var n=Number(groupUses)||0;
+    var usesHtml=n
+      ? '<span class="i-usen">'+n.toLocaleString()+'</span> '+(n===1?'expansion':'expansions')
+      : 'Never expanded';
     // A fault in any language breaks the snippet, including one this row is
     // not showing \u2014 exactly the case a user cannot spot on their own.
     var issue=snipIssue(s,variants);
@@ -1503,7 +1510,8 @@ function renderList(q){
       +'<div class="i-main">'
         +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'+statHtml
           +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
-        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span></div>'
+        // usesHtml is built from a coerced Number plus literals — safe unescaped.
+        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+usesHtml+'</span></div>'
       +'</div>'
       +'<button class="chev" type="button" data-chev="'+esc(s.id)+'" title="Details" aria-label="Show languages and body" aria-expanded="'+(open?'true':'false')+'"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>'
     +'</div>';

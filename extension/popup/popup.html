@@ -154,7 +154,10 @@ html,body{
 .MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
 /* Pushed to the row's trailing edge, under the shortcut chip (which right-aligns
    the same way) — mirrors the dashboard, where Usage is a right-aligned column. */
-.i-uses{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);font-variant-numeric:tabular-nums;margin-left:auto}
+.i-uses{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+/* The count carries the weight; the unit stays muted, so a column of these reads
+   as numbers with a label rather than as sentences. */
+.i-usen{font-weight:600;color:var(--sb-ink)}
 
 /* ── STATUS BADGE (STATUS-ICONS-001) ──
    Mirrors the dashboard's StatusBadge component (app/src/components/shared/).
