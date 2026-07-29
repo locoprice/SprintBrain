@@ -68,11 +68,18 @@ var DB = {
     return Promise.all([
       supaFetch('folders',                 'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
       supaFetch('rpc/accessible_snippets', 'GET', null, snipQs).then(function(r){ return r.json(); }),
-      supaFetch('snippet_stats',           'GET', null, 'select=*').then(function(r){ return r.json(); })
+      supaFetch('snippet_stats',           'GET', null, 'select=*').then(function(r){ return r.json(); }),
+      // Real expansion counts (snippet_events), which is what the status badge
+      // ranks on. snippet_stats below is a DIFFERENT metric — it only counts
+      // copy-shortcut from this popup — and must never drive "top".
+      supaFetch('rpc/snippet_usage_counts','GET', null, 'select=*').then(function(r){ return r.json(); })
     ]).then(function(res) {
       var folders  = Array.isArray(res[0]) ? res[0] : [];
       var snippets = Array.isArray(res[1]) ? res[1] : [];
       var stats    = Array.isArray(res[2]) ? res[2] : [];
+      var usage    = Array.isArray(res[3]) ? res[3] : [];
+      var um = {};
+      usage.forEach(function(u) { um[u.snippet_id] = u.uses || 0; });
       var sm = {};
       stats.forEach(function(s) { sm[s.snippet_id] = s; });
       return {
@@ -92,6 +99,7 @@ var DB = {
             manually_edited: s.manually_edited || false,
             ai_generated: s.ai_generated || false,
             pinned: s.pinned || false,
+            expansions: um[s.id] || 0,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -1388,7 +1396,7 @@ function renderDetailHtml(s){
 // ── STATUS BADGES (STATUS-ICONS-001) ────────────────────────────────
 // Mirrors app/src/lib/statusSignals.ts — same thresholds, same verdicts, so a
 // snippet reads identically in the popup and the dashboard. Change both.
-var TOP_MIN_USES=5, TOP_USAGE_SHARE=0.6;
+var TOP_MIN_USES=5, TOP_USAGE_SHARE=0.25;
 
 // Lucide Trophy / Wrench — the same two glyphs the dashboard renders.
 var STAT_SVG={
@@ -1396,11 +1404,26 @@ var STAT_SVG={
   broken:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
 };
 
-// Highest usage across the whole library — never the filtered view, so
-// searching or switching folders can't change which snippets earn a trophy.
-function maxSnipUses(list){
-  var max=0;
-  list.forEach(function(s){ var u=(s.stats&&s.stats.uses)||0; if(u>max) max=u; });
+// Expansions per language group, keyed by lang_group_id.
+//
+// Summed over DISTINCT rows: a translated snippet is several rows sharing a
+// group id and each is expanded under its own id, so counting one row splits
+// the total (`time` is four variants). Always built from the FULL library, never
+// the filtered view, so searching or switching folders can't change which
+// snippets earn a trophy — and so a variant hidden by the current folder filter
+// still counts toward its group.
+function groupExpansions(list){
+  var totals={};
+  list.forEach(function(s){
+    var gid=s.lang_group_id||s.id;
+    totals[gid]=(totals[gid]||0)+(s.expansions||0);
+  });
+  return totals;
+}
+
+function maxGroupExpansions(totals){
+  var max=0, k;
+  for(k in totals){ if(totals[k]>max) max=totals[k]; }
   return max;
 }
 
@@ -1458,21 +1481,22 @@ function renderList(q){
 
   filtered.sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   var groups=groupSnips(filtered);
-  var libMax=maxSnipUses(snips);
+  var libTotals=groupExpansions(snips);
+  var libMax=maxGroupExpansions(libTotals);
   var h='';
   groups.forEach(function(g){
     var s=g.master;
     var variants=findVariants(s);
     var langs=Object.keys(variants);
     var lb=langs.length>1 ? 'MULTI' : (s.lang||'EN');
-    var st=s.stats||{uses:0};
-    var usesTxt=st.uses ? ('\u00D7'+st.uses) : 'Never used';
+    var groupUses=libTotals[s.lang_group_id||s.id]||0;
+    var usesTxt=groupUses ? ('\u00D7'+groupUses) : 'Never used';
     // A fault in any language breaks the snippet, including one this row is
     // not showing \u2014 exactly the case a user cannot spot on their own.
     var issue=snipIssue(s,variants);
     var statHtml=issue
       ? statBadgeHtml('broken','Broken template \u2014 '+issue.message)
-      : (isTopByUsage(st.uses||0,libMax) ? statBadgeHtml('top','Top snippet \u2014 used '+(st.uses||0)+' times') : '');
+      : (isTopByUsage(groupUses,libMax) ? statBadgeHtml('top','Top snippet \u2014 expanded '+groupUses+' times') : '');
     var base=String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/,'');
     var open=expandedId===s.id;
     h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-expanded="'+(open?'true':'false')+'" aria-label="'+esc(base)+' \u2014 show details">'

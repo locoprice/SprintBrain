@@ -180,7 +180,13 @@ const SNIPPET_SELECT =
  */
 async function fetchUsageCounts(): Promise<UsageCounts> {
   const { data, error } = await supabase.rpc('snippet_usage_counts');
-  if (error) throw error;
+  if (error) {
+    // Fail soft: usage counts are decoration on top of the library, so a missing
+    // or failing aggregate must not take the whole snippet list down with it.
+    // Badges and the Usage column read 0 until the next successful load.
+    console.error('snippet_usage_counts failed; usage counts unavailable:', error);
+    return new Map();
+  }
   const rows = (data ?? []) as Array<{ snippet_id: string; uses: number }>;
   return new Map(rows.map((r) => [r.snippet_id, Number(r.uses) || 0]));
 }
