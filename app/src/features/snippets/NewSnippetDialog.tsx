@@ -665,7 +665,7 @@ export function NewSnippetDialog() {
           <div className="w-px bg-line shrink-0" />
 
           {/* ── RIGHT PANEL: language + options ── */}
-          <div className="w-[240px] shrink-0 overflow-y-auto flex flex-col bg-bg">
+          <div className="w-[240px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
 
             {/* Language picker — visual pill tabs matching the extension popup */}
             <div className="p-5 pb-4 border-b border-line">

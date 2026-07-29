@@ -127,6 +127,11 @@
   #nv-list .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
   #nv-list .d-frow input,#nv-list .d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
   #nv-list .d-frow input:focus,#nv-list .d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+  #nv-list .d-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
+  #nv-list .d-opt{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color .15s,background .15s}
+  #nv-list .d-opt:hover{border-color:var(--sb-azure)}
+  #nv-list .d-opt input[type=checkbox]{width:auto;height:auto;padding:0;accent-color:var(--sb-azure);cursor:pointer}
+  #nv-list .d-opt:has(input:checked){background:var(--sb-iris-bg);border-color:var(--sb-azure-bdr);color:var(--sb-azure)}
   #nv-list .d-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   #nv-list .d-btn{height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;transition:all .12s}
   #nv-list .d-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -250,6 +255,11 @@
   .nv-comp-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
   .nv-comp-frow input,.nv-comp-frow select{width:100%;border:1px solid var(--sb-line);border-radius:9px;padding:8px 11px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);outline:none;transition:border-color .15s,box-shadow .15s}
   .nv-comp-frow input:focus,.nv-comp-frow select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-comp-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
+  .nv-comp-opt{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--sb-line);border-radius:9px;background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color .15s,background .15s}
+  .nv-comp-opt:hover{border-color:var(--sb-azure)}
+  .nv-comp-opt input[type=checkbox]{width:auto;padding:0;accent-color:var(--sb-azure);cursor:pointer}
+  .nv-comp-opt:has(input:checked){background:var(--sb-azure-bg);border-color:var(--sb-azure-bdr);color:var(--sb-azure)}
   .nv-comp-empty{font-size:var(--sb-fs-13);color:var(--sb-ink-subtle);line-height:1.6}
   .nv-comp-out{padding:14px;font-size:var(--sb-fs-13);line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--sb-ink);min-height:180px;background:var(--sb-bg-muted)}
   .nv-comp-out.empty{color:var(--sb-ink-subtle);font-style:italic}
@@ -587,7 +597,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.128.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.129.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -853,7 +863,18 @@
     });
     el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
       var box = inp.closest('.d-fields'); var did = box ? box.getAttribute('data-fid') : null;
-      var handler = function(){ detailFieldVals[inp.getAttribute('data-fkey')] = inp.value; if (did) updateDetailPreview(did); };
+      var handler = function(){
+        var key = inp.getAttribute('data-fkey');
+        if (inp.type === 'checkbox' && box) {
+          /* Checkbox group (multiple=yes menu): the value is every checked box. */
+          var picked = [];
+          box.querySelectorAll('input[type=checkbox][data-fkey="' + key + '"]').forEach(function(cb){ if (cb.checked) picked.push(cb.value); });
+          detailFieldVals[key] = picked.join(', ');
+        } else {
+          detailFieldVals[key] = inp.value;
+        }
+        if (did) updateDetailPreview(did);
+      };
       inp.addEventListener('input', handler); inp.addEventListener('change', handler);
     });
   }
@@ -1286,7 +1307,15 @@
       var key = keys[i], def = defs[key], label = key.replace(/_/g, ' '), inp;
       if (def.type === 'dd') {
         var opts = (def.opts || '').split('\n').filter(Boolean);
-        inp = '<select data-key="' + ec(key) + '">' + opts.map(function(o){ return '<option value="' + ec(o) + '">' + ec(o) + '</option>'; }).join('') + '</select>';
+        var picks = window.SBFormulaEngine.formMenuPicks(def.default);
+        var wide = def.cols ? ' style="width:' + def.cols + 'ch;max-width:100%"' : '';
+        if (def.multiple) {
+          inp = '<div class="nv-comp-multi"' + wide + '>' + opts.map(function(o){
+            return '<label class="nv-comp-opt"><input type="checkbox" data-key="' + ec(key) + '" value="' + ec(o) + '"' + (picks.indexOf(o) >= 0 ? ' checked' : '') + '><span>' + ec(o) + '</span></label>';
+          }).join('') + '</div>';
+        } else {
+          inp = '<select data-key="' + ec(key) + '"' + wide + '>' + opts.map(function(o){ return '<option value="' + ec(o) + '"' + (picks.indexOf(o) >= 0 ? ' selected' : '') + '>' + ec(o) + '</option>'; }).join('') + '</select>';
+        }
       } else if (def.type === 'date') { inp = '<input type="date" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
       else if (def.type === 'time') { inp = '<input type="time" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
       else { inp = '<input type="text" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(def.default || '') + '">'; }
@@ -1295,7 +1324,20 @@
     form.innerHTML = html;
     Array.prototype.forEach.call(form.querySelectorAll('input,select'), function(el){ el.addEventListener('input', compUpdate); el.addEventListener('change', compUpdate); });
   }
-  function compVals(){ var v = {}, ins = $('nv-comp-fields').querySelectorAll('[data-key]'); for (var i = 0; i < ins.length; i++) v[ins[i].dataset.key] = ins[i].value; return v; }
+  /* A multiple=yes menu is a checkbox group sharing one data-key — collect the
+     checked boxes into the single ", "-joined value the engine resolves. */
+  function compVals(){
+    var v = {}, groups = {}, ins = $('nv-comp-fields').querySelectorAll('[data-key]');
+    for (var i = 0; i < ins.length; i++) {
+      var el = ins[i], k = el.dataset.key;
+      if (el.type === 'checkbox') {
+        if (!groups[k]) groups[k] = [];
+        if (el.checked) groups[k].push(el.value);
+      } else { v[k] = el.value; }
+    }
+    for (var g in groups) v[g] = groups[g].join(', ');
+    return v;
+  }
   function compUpdate(){
     var FE = window.SBFormulaEngine, body = $('nv-comp-tpl').value, out = $('nv-comp-out');
     if (!body.trim()) { out.textContent = 'Output appears here as you type.'; out.className = 'nv-comp-out empty'; return; }
@@ -1315,7 +1357,14 @@
         var body = $('nv-comp-tpl').value, defs = compFieldDefs(body), prev = compVals();
         compBuildFields(defs);
         var ins = $('nv-comp-fields').querySelectorAll('[data-key]');
-        for (var i = 0; i < ins.length; i++) { var k = ins[i].dataset.key; if (prev[k] !== undefined) ins[i].value = prev[k]; }
+        for (var i = 0; i < ins.length; i++) {
+          var k = ins[i].dataset.key;
+          if (prev[k] === undefined) continue;
+          /* Never write .value on a checkbox — that would overwrite the option
+             it stands for. Restore its picked state from the joined value. */
+          if (ins[i].type === 'checkbox') ins[i].checked = window.SBFormulaEngine.formMenuPicks(prev[k]).indexOf(ins[i].value) >= 0;
+          else ins[i].value = prev[k];
+        }
         compUpdate();
       }, 150);
     });
