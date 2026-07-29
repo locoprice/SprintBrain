@@ -4,9 +4,8 @@ import {
   TOP_MIN_USES,
   isTopByUsage,
   maxPromptUsage,
-  maxUsage,
   promptStatus,
-  snippetStatus,
+  sumUsage,
   validateSnippet,
   validateTemplate,
 } from '@/lib/statusSignals';
@@ -125,33 +124,39 @@ function row(over: Partial<SnippetRow> = {}): SnippetRow {
   };
 }
 
-describe('snippetStatus', () => {
-  it('ranks broken above top — a popular snippet that renders wrong is the worst case', () => {
-    expect(snippetStatus(row({ content: '{if: A}oops', usage_count: 999 }), 999)).toBe('broken');
+describe('sumUsage', () => {
+  it('returns 0 for a group with no rows', () => {
+    expect(sumUsage([])).toBe(0);
   });
 
-  it('badges a sound, heavily-used snippet', () => {
-    expect(snippetStatus(row({ usage_count: 20 }), 20)).toBe('top');
+  it('sums expansions across language variants', () => {
+    // The real case this exists for: `time` is four variant rows, and counting
+    // any single one buries the account's most-used snippet.
+    const variants = [
+      row({ id: 'time-en', usage_count: 97 }),
+      row({ id: 'time-it', usage_count: 51 }),
+      row({ id: 'time-es', usage_count: 9 }),
+      row({ id: 'time-fr', usage_count: 6 }),
+    ];
+    expect(sumUsage(variants)).toBe(163);
   });
 
-  it('leaves an ordinary snippet unbadged', () => {
-    expect(snippetStatus(row({ usage_count: 1 }), 20)).toBeNull();
-  });
-
-  it('validates live rather than trusting a stale is_malformed flag', () => {
-    // Flag says broken, body is sound: the live check wins.
-    expect(snippetStatus(row({ is_malformed: true, usage_count: 0 }), 20)).toBeNull();
+  it('lets a summed group outrank a single-variant leader', () => {
+    // 163 across four variants beats withdraw's 111 on one row; per-variant
+    // counting would have ranked the 97 below it.
+    const time = sumUsage([row({ usage_count: 97 }), row({ usage_count: 66 })]);
+    const withdraw = sumUsage([row({ usage_count: 111 })]);
+    expect(time).toBeGreaterThan(withdraw);
+    expect(isTopByUsage(withdraw, time)).toBe(true);
   });
 });
 
-describe('maxUsage / maxPromptUsage', () => {
+describe('maxPromptUsage', () => {
   it('returns 0 for an empty library rather than -Infinity', () => {
-    expect(maxUsage([])).toBe(0);
     expect(maxPromptUsage([])).toBe(0);
   });
 
   it('finds the leader', () => {
-    expect(maxUsage([row({ usage_count: 3 }), row({ usage_count: 11 })])).toBe(11);
     expect(maxPromptUsage([{ usage_count: 2 }, { usage_count: 9 }])).toBe(9);
   });
 });

@@ -123,9 +123,11 @@ A 20 × 20 pill with a 12 × 12 stroked glyph, rendered beside an asset's name o
 
 | State    | Glyph  | Tint (dashboard)             | Meaning                                                        |
 | -------- | ------ | ---------------------------- | -------------------------------------------------------------- |
-| `top`    | Trophy | `primary-light` / `primary`  | Used ≥ 5 times **and** ≥ 25% of the library leader's count      |
+| `top`    | Trophy | `primary-light` / `primary`  | Expanded ≥ 5 times **and** ≥ 25% of the library leader's count  |
 | `broken` | Wrench | `danger-bg` / `danger`       | Template fails structural validation — renders wrong output     |
 | `weak`   | Wrench | `warning-bg` / `warning-deep`| Prompt scoring ≤ 4/10, and not yet used enough to earn a trophy |
+
+**Usage means expansions, counted per snippet — not per row.** Counts come from `snippet_events` via the `snippet_usage_counts()` RPC, never from `snippet_stats.uses` (that column only tracks copy-shortcut from the popup). A translated snippet is several rows sharing a base trigger and each is expanded under its own id, so both the badge and the Usage column sum across the group — `time` is 151 expansions across four variants, not four separate small numbers.
 
 Motion is transform/opacity only, so frames stay on the compositor. Timings are identical on both surfaces — the popup mirrors them by hand in `popup.html` since it has no build step:
 

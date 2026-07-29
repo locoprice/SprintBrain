@@ -62,9 +62,6 @@ type DbSnippetJoined = {
   timer_duration_ms: number | null;
   scarcity_count: number | null;
   folders: { name: string } | null;
-  // One-to-one embed → object; kept union-typed so a cardinality change on the
-  // relationship can't silently zero the counts again. See readUses().
-  snippet_stats: { uses: number | null } | Array<{ uses: number | null }> | null;
 };
 
 const LANGS = ['EN', 'IT', 'ES', 'FR', 'MULTI'] as const;
@@ -99,23 +96,13 @@ function normalizeBodies(
 }
 
 /**
- * Read the `uses` count out of the embedded stats row.
- *
- * PostgREST shapes an embed by the cardinality it detects: `snippet_stats` is
- * keyed one-to-one on `snippet_id`, so it comes back as a bare OBJECT
- * (`{"uses":21}`), not the array this previously assumed — which meant
- * `usage_count` silently resolved to 0 for every snippet, and sorting by Usage
- * did nothing. Both shapes are handled because that cardinality is inferred
- * from constraints and can flip if they ever change.
+ * Expansion counts keyed by snippet id, from `snippet_usage_counts()`.
+ * Rows absent from the map have never been expanded.
  */
-function readUses(stats: DbSnippetJoined['snippet_stats']): number {
-  if (stats == null) return 0;
-  const first = Array.isArray(stats) ? stats[0] : stats;
-  return first?.uses ?? 0;
-}
+export type UsageCounts = ReadonlyMap<string, number>;
 
-function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
-  const usage = readUses(row.snippet_stats);
+function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts): SnippetRow {
+  const usage = usageCounts?.get(row.id) ?? 0;
   const body = row.body ?? '';
   const language = normalizeLang(row.lang);
   const bodies = normalizeBodies(row.bodies, language, body);
@@ -174,7 +161,29 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
+
+/**
+ * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
+ *
+ * Deliberately NOT `snippet_stats.uses`: that column is written only when a
+ * user copies a shortcut out of the popup, so it ranked `neob` (21) above
+ * `time` (3) when `time` is in fact the most-expanded snippet in the account by
+ * a wide margin. Real expansions are logged to `snippet_events` by the
+ * extension's service worker — the same table the Analytics page reads.
+ *
+ * It needs an RPC rather than an embed because `snippet_events` has no FK to
+ * `snippets` (over half its rows point at snippets that no longer exist, so one
+ * cannot be added), and because its RLS is select-own — the function is
+ * SECURITY DEFINER so a shared snippet reports the same team-wide total to
+ * every member instead of a different number each.
+ */
+async function fetchUsageCounts(): Promise<UsageCounts> {
+  const { data, error } = await supabase.rpc('snippet_usage_counts');
+  if (error) throw error;
+  const rows = (data ?? []) as Array<{ snippet_id: string; uses: number }>;
+  return new Map(rows.map((r) => [r.snippet_id, Number(r.uses) || 0]));
+}
 
 /**
  * Template-validation verdict for the row about to be written — every language
@@ -250,12 +259,17 @@ export const snippetsApi: SnippetsApi = {
     // No `.eq('user_id')` filter: RLS returns the user's own snippets plus any
     // that live in a folder shared with them (Phase B). Personal-only users see
     // exactly what they did before.
-    const { data, error } = await supabase
-      .from('snippets')
-      .select(SNIPPET_SELECT)
-      .order('sort_order', { ascending: true });
-    if (error) throw error;
-    return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
+    //
+    // Usage counts need a second round trip (see fetchUsageCounts); issued in
+    // parallel so it costs latency only, not a serial hop.
+    const [listRes, usageCounts] = await Promise.all([
+      supabase.from('snippets').select(SNIPPET_SELECT).order('sort_order', { ascending: true }),
+      fetchUsageCounts(),
+    ]);
+    if (listRes.error) throw listRes.error;
+    return ((listRes.data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
+      dbSnippetToSnippetRow(row, usageCounts),
+    );
   },
 
   async createSnippet(payload) {
@@ -282,7 +296,12 @@ export const snippetsApi: SnippetsApi = {
       .insert(rows)
       .select(SNIPPET_SELECT);
     if (error) throw error;
-    return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
+    // Arrow, not a bare reference: `.map` passes the index as the second
+    // argument, which would land in `usageCounts`. Freshly created rows have no
+    // expansions yet, so 0 is correct here.
+    return ((data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
+      dbSnippetToSnippetRow(row),
+    );
   },
 
   async updateSnippet(id, patch) {

@@ -10,7 +10,7 @@
 //
 // Pure and side-effect free so the thresholds stay testable in isolation.
 
-import type { Snippet, SnippetRow } from '@/types/database';
+import type { Snippet } from '@/types/database';
 
 // ── Template validation ──────────────────────────────────────────────────────
 
@@ -124,30 +124,22 @@ export function isTopByUsage(usage: number, maxUsage: number): boolean {
   return usage >= maxUsage * TOP_USAGE_SHARE;
 }
 
-/** Highest usage count across the library — the denominator for `isTopByUsage`. */
-export function maxUsage(rows: readonly SnippetRow[]): number {
-  return rows.reduce((max, row) => (row.usage_count > max ? row.usage_count : max), 0);
+/**
+ * Total expansions for one logical snippet.
+ *
+ * A translated snippet is several rows sharing a base trigger, and each is
+ * expanded under its own id — `time` spans four language variants. Counting a
+ * single variant splits the total four ways and buries the snippet that is
+ * actually used most, so usage is always summed over the group.
+ */
+export function sumUsage(rows: readonly { usage_count: number }[]): number {
+  return rows.reduce((total, row) => total + row.usage_count, 0);
 }
 
 // ── Resolved status ──────────────────────────────────────────────────────────
 
-/** The four states a status badge can render. Consumed by StatusBadge. */
+/** The three states a status badge can render. Consumed by StatusBadge. */
 export type BadgeStatus = 'top' | 'broken' | 'weak';
-
-/**
- * Broken outranks top: a snippet that renders wrong output needs attention more
- * than a popular one needs applause, and a heavily-used broken snippet is the
- * most urgent case of all.
- *
- * Validation runs live rather than reading the persisted `is_malformed` flag —
- * the column is the queryable mirror, but a body edited by another surface
- * between writes would leave it stale, and a stale badge is worse than none.
- */
-export function snippetStatus(row: SnippetRow, libraryMax: number): BadgeStatus | null {
-  if (!validateSnippet(row).ok) return 'broken';
-  if (isTopByUsage(row.usage_count, libraryMax)) return 'top';
-  return null;
-}
 
 /** Efficiency score at or below which a prompt needs work. */
 export const PROMPT_WEAK_SCORE = 4;
