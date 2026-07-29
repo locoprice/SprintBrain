@@ -1501,9 +1501,9 @@ function renderList(q){
     var open=expandedId===s.id;
     h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-expanded="'+(open?'true':'false')+'" aria-label="'+esc(base)+' \u2014 show details">'
       +'<div class="i-main">'
-        +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'
+        +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'+statHtml
           +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
-        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span>'+statHtml+'</div>'
+        +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+esc(usesTxt)+'</span></div>'
       +'</div>'
       +'<button class="chev" type="button" data-chev="'+esc(s.id)+'" title="Details" aria-label="Show languages and body" aria-expanded="'+(open?'true':'false')+'"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>'
     +'</div>';
