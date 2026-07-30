@@ -127,6 +127,11 @@
   #nv-list .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
   #nv-list .d-frow input,#nv-list .d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
   #nv-list .d-frow input:focus,#nv-list .d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+  #nv-list .d-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+  #nv-list .d-actbtn{height:32px;padding:0 12px;border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-sm);background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;transition:border-color .15s}
+  #nv-list .d-actbtn:hover{border-color:var(--sb-azure)}
+  #nv-list .d-actbtn:active{transform:scale(.97)}
+  #nv-list .d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
   #nv-list .d-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
   #nv-list .d-opt{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color .15s,background .15s}
   #nv-list .d-opt:hover{border-color:var(--sb-azure)}
@@ -187,6 +192,29 @@
   .nv-sc input{border:none!important;box-shadow:none!important;background:transparent;font-family:var(--sb-mono);color:var(--sb-azure);font-weight:600}
   .nv-modal-f{padding:14px 20px;border-top:1px solid var(--sb-line);display:flex;gap:8px;align-items:center}
   .nv-modal-f .danger{margin-left:auto}
+  /* Dropdown menu field builder — opens above the snippet editor modal (z 90). */
+  #nv-menu-bg{z-index:95}
+  .nv-menu-box{display:flex;flex-direction:column;gap:8px;border:1px solid var(--sb-line);border-radius:12px;background:var(--sb-bg-muted);padding:12px}
+  .nv-menu-row{display:flex;align-items:center;gap:10px}
+  .nv-menu-row input[type=radio],.nv-menu-row input[type=checkbox]{width:auto;height:auto;padding:0;flex-shrink:0;accent-color:var(--sb-azure);cursor:pointer}
+  .nv-menu-row .nv-menu-val{flex:1;min-width:0;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:10px;padding:8px 11px;font-size:var(--sb-fs-13);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-menu-row .nv-menu-val:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-menu-rm{background:none;border:none;padding:0;color:var(--sb-ink-subtle);cursor:pointer;display:flex;flex-shrink:0;transition:color .15s}
+  .nv-menu-rm:hover{color:var(--sb-danger)}
+  .nv-menu-rm:disabled{opacity:.4;cursor:default;color:var(--sb-ink-subtle)}
+  .nv-menu-rm svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .nv-menu-addrow{display:flex;justify-content:flex-end}
+  .nv-menu-add{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border:1px solid var(--sb-azure-bdr);border-radius:8px;background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-11);font-weight:600;cursor:pointer;transition:border-color .15s}
+  .nv-menu-add:hover{border-color:var(--sb-azure)}
+  .nv-menu-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .nv-menu-hint{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.5}
+  .nv-menu-hint strong{font-family:var(--sb-mono);color:var(--sb-azure)}
+  .nv-menu-hint.bad{color:var(--sb-danger)}
+  .nv-menu-toggle{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+  .nv-menu-tlbl{font-size:var(--sb-fs-12);font-weight:600;color:var(--sb-ink)}
+  .nv-menu-prev{border:1px solid var(--sb-line);border-radius:10px;background:var(--sb-bg-muted);padding:9px 11px}
+  .nv-menu-prev span{display:block;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+  .nv-menu-prev code{font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-ink-muted);word-break:break-all;line-height:1.6}
   .nv-langtabs{display:flex;gap:6px;margin-bottom:8px}
   .nv-langtab{padding:5px 12px;border:1px solid var(--sb-line);border-radius:var(--sb-r-md);background:var(--sb-bg-muted);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:700;cursor:pointer;position:relative;transition:all .12s}
   .nv-langtab:hover{border-color:var(--sb-line-2);color:var(--sb-ink-muted)}
@@ -198,11 +226,18 @@
   .nv-langtab .dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
   .nv-langtab.has-content .dot{display:block}
   .nv-langtab.on .dot{background:rgba(255,255,255,.7)}
-  .nv-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .nv-chips{display:flex;flex-direction:column;gap:10px;margin-top:9px}
+  .nv-chiprow{display:flex;flex-wrap:wrap;gap:5px}
+  .nv-chiplbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-muted);margin-bottom:5px}
+  .nv-chiplbl span{font-weight:400;color:var(--sb-ink-subtle)}
+  .nv-chiplbl code{font-family:var(--sb-mono);color:var(--sb-azure)}
   .nv-chip{padding:3px 9px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-family:var(--sb-mono);cursor:pointer;border:1px solid var(--sb-line);background:var(--sb-bg-muted);color:var(--sb-ink-muted);transition:all .12s}
   .nv-chip:hover{border-color:var(--sb-azure);color:var(--sb-azure);background:var(--sb-iris-bg)}
   .nv-chip.f{color:var(--sb-lang-multi);border-color:#C4B5FD;background:#F5F3FF}
   .nv-chip.c{color:#0891B2;border-color:#A5F3FC;background:#ECFEFF}
+  /* Opens a builder dialog instead of pasting a literal token. */
+  .nv-chip.m{display:inline-flex;align-items:center;gap:5px;color:var(--sb-azure);border-color:var(--sb-azure-bdr);background:var(--sb-azure-bg)}
+  .nv-chip.m svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
   .nv-alt-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
   .nv-alt-tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4}
   .nv-alt-x{cursor:pointer;opacity:.6;font-style:normal;font-size:10px}
@@ -255,6 +290,11 @@
   .nv-comp-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
   .nv-comp-frow input,.nv-comp-frow select{width:100%;border:1px solid var(--sb-line);border-radius:9px;padding:8px 11px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);outline:none;transition:border-color .15s,box-shadow .15s}
   .nv-comp-frow input:focus,.nv-comp-frow select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-comp-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+  .nv-comp-actbtn{padding:8px 13px;border:1px solid var(--sb-azure-bdr);border-radius:9px;background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-13);font-weight:600;cursor:pointer;transition:border-color .15s}
+  .nv-comp-actbtn:hover{border-color:var(--sb-azure)}
+  .nv-comp-actbtn:active{transform:scale(.97)}
+  .nv-comp-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
   .nv-comp-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
   .nv-comp-opt{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--sb-line);border-radius:9px;background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color .15s,background .15s}
   .nv-comp-opt:hover{border-color:var(--sb-azure)}
@@ -455,6 +495,7 @@
   {formtext: name=VAR}        — text field
   {formdate: name=VAR}        — date field
   {formmenu: A,B,C; name=VAR} — dropdown
+  {button label=x}P = P * 0.9{/button} — action button
   {time: DD/MM/YYYY HH:mm}    — current date/time
   {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}
   Querido {NOMBRE}            — greeting agrees with the name"></textarea>
@@ -481,8 +522,9 @@
               <div class="it"><code>{formtext: name=VAR; default=x}</code><p>Text input with optional default value.</p></div>
               <div class="it"><code>{formdate: name=VAR}</code><p>Date picker input.</p></div>
               <div class="it"><code>{formmenu: A,B,C; name=VAR}</code><p>Dropdown menu — comma-separated options.</p></div>
+              <div class="it"><code>{button label="10% off"}PRICE = PRICE * 0.9{/button}</code><p>Action button. Sets field values when clicked; never appears in the message. Add <code>trim=left</code> so it leaves no blank line.</p></div>
               <div class="it"><code>{time: DD/MM/YYYY HH:mm}</code><p>Current date/time formatted inline.</p></div>
-              <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != &lt;&gt; comparisons.</p></div>
+              <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != comparisons.</p></div>
               <div class="it"><code>{if: …}…{elseif: …}…{else}…{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
               <div class="it"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
               <div class="it"><code>Querido {NOMBRE}</code><p>Greetings agree with the name: Lucía gets "Querida", Marco gets "Querido". Works for Querido, Estimado, Bienvenido, Caro, Cher and their pairs. Unknown names keep the word you wrote.</p></div>
@@ -519,7 +561,7 @@
         <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:4px">Full shortcut: <strong id="nv-f-preview" style="font-family:var(--sb-mono);color:var(--sb-azure)">::quoteEN</strong></div>
       </div>
       <div class="nv-field"><label>Folder</label><select id="nv-f-folder"></select></div>
-      <div class="nv-field"><label>Body — {variable} · {=formula} · {if:cond}…{endif}</label>
+      <div class="nv-field"><label>Body</label>
         <div class="nv-langtabs" id="nv-langtabs">
           <button class="nv-langtab on" data-lang="EN" type="button">EN<span class="dot"></span></button>
           <button class="nv-langtab" data-lang="IT" type="button">IT<span class="dot"></span></button>
@@ -528,16 +570,27 @@
         </div>
         <textarea id="nv-f-body" placeholder="Dear {guest_name},&#10;&#10;Your message…"></textarea>
         <div class="nv-chips" id="nv-chips">
-          <span class="nv-chip" data-c="{guest_name}">guest_name</span>
-          <span class="nv-chip" data-c="{property_name}">property_name</span>
-          <span class="nv-chip" data-c="{checkin_date}">checkin_date</span>
-          <span class="nv-chip" data-c="{checkout_date}">checkout_date</span>
-          <span class="nv-chip" data-c="{total_price}">total_price</span>
-          <span class="nv-chip" data-c="{nights}">nights</span>
-          <span class="nv-chip" data-c="{phone_number}">phone</span>
-          <span class="nv-chip" data-c="{review_link}">review_link</span>
-          <span class="nv-chip f" data-c="{=A - B}">{=formula}</span>
-          <span class="nv-chip c" data-c="{if:A > 0}text{endif}">{if:cond}</span>
+          <div>
+            <div class="nv-chiplbl">Fields <span>— filled in when the snippet expands · type <code>{any_name}</code> for your own</span></div>
+            <div class="nv-chiprow">
+              <span class="nv-chip" data-c="{guest_name}" title="The guest's name — inserts {guest_name}">guest_name</span>
+              <span class="nv-chip" data-c="{property_name}" title="The property name — inserts {property_name}">property_name</span>
+              <span class="nv-chip" data-c="{checkin_date}" title="Arrival date — inserts {checkin_date}">checkin_date</span>
+              <span class="nv-chip" data-c="{checkout_date}" title="Departure date — inserts {checkout_date}">checkout_date</span>
+              <span class="nv-chip" data-c="{total_price}" title="Total price of the stay — inserts {total_price}">total_price</span>
+              <span class="nv-chip" data-c="{nights}" title="Number of nights — inserts {nights}">nights</span>
+              <span class="nv-chip" data-c="{phone_number}" title="Phone number — inserts {phone_number}">phone</span>
+              <span class="nv-chip" data-c="{review_link}" title="Link to your review page — inserts {review_link}">review_link</span>
+              <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
+            </div>
+          </div>
+          <div>
+            <div class="nv-chiplbl">Logic <span>— worked out on its own, nothing to fill</span></div>
+            <div class="nv-chiprow">
+              <span class="nv-chip f" data-c="{=A - B}" title="Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}">{=formula}</span>
+              <span class="nv-chip c" data-c="{if:A > 0}text{endif}" title="Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}">{if:cond}</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="nv-field"><label>Alternative queries — synonyms, Enter or comma to add</label>
@@ -562,6 +615,47 @@
       <button class="btn p" id="nv-f-save"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
       <button class="btn" id="nv-f-cancel">Cancel</button>
       <button class="btn danger" id="nv-f-delete" style="display:none">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DROPDOWN MENU FIELD MODAL ({formmenu:} builder) ═══ -->
+<div class="nv-modal-bg" id="nv-menu-bg">
+  <div class="nv-modal" style="width:420px">
+    <div class="nv-modal-h"><h2>Insert dropdown menu field</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field">
+        <label>Values</label>
+        <div class="nv-menu-box">
+          <div id="nv-menu-rows"></div>
+          <div class="nv-menu-addrow">
+            <button class="nv-menu-add" type="button" id="nv-menu-add"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add</button>
+          </div>
+        </div>
+        <div class="nv-menu-hint">The options for the menu. Tick one to preselect it.</div>
+      </div>
+      <div class="nv-field">
+        <label>Name</label>
+        <input id="nv-menu-name" placeholder="MENU_1" autocomplete="off" spellcheck="false" style="font-family:var(--sb-mono)">
+        <div class="nv-menu-hint" id="nv-menu-namehint"></div>
+      </div>
+      <div class="nv-menu-toggle">
+        <div>
+          <div class="nv-menu-tlbl">Multiple</div>
+          <div class="nv-menu-hint" style="margin-top:2px">Whether the user can select multiple items</div>
+        </div>
+        <label class="nv-switch"><input type="checkbox" id="nv-menu-multi"><span class="nv-slider"></span></label>
+      </div>
+      <div class="nv-field">
+        <label>Cols</label>
+        <input id="nv-menu-cols" inputmode="numeric" placeholder="auto" style="width:110px" autocomplete="off">
+        <div class="nv-menu-hint">The width of the field in columns of text</div>
+      </div>
+      <div class="nv-menu-prev"><span>Inserts</span><code id="nv-menu-token"></code></div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-menu-insert">Insert</button>
+      <button class="btn" id="nv-menu-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -597,7 +691,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.130.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.132.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -877,6 +971,10 @@
       };
       inp.addEventListener('input', handler); inp.addEventListener('change', handler);
     });
+    /* {button} controls — same runner as the extension popup (popup.js). */
+    el.querySelectorAll('.d-fields .d-actbtn').forEach(function(btn){
+      btn.addEventListener('click', function(e){ e.stopPropagation(); runDetailButton(btn); });
+    });
   }
 
   function renderPromptsMain(){
@@ -995,11 +1093,159 @@
   Array.prototype.forEach.call(document.querySelectorAll('#nv-langtabs .nv-langtab'), function(t){
     t.addEventListener('click', function(){ switchLang(t.dataset.lang); });
   });
+  /* Writes text at the body cursor and leaves the caret after it. */
+  function bodyInsert(text){
+    var ta = $('nv-f-body'), s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
+    ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
+  }
   $('nv-chips').addEventListener('click', function(e){
     var c = e.target.closest('[data-c]'); if (!c) return;
-    var ta = $('nv-f-body'), ins = c.dataset.c, s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
-    ta.value = ta.value.slice(0, s) + ins + ta.value.slice(en);
-    ta.focus(); ta.selectionStart = ta.selectionEnd = s + ins.length;
+    bodyInsert(c.dataset.c);
+  });
+
+  /* ── DROPDOWN MENU FIELD BUILDER ({formmenu:}) ───────────────────────
+     Mirrors the React dashboard's FormMenuDialog. Both write the token through
+     SBFormulaEngine.buildFormMenuToken, so the two surfaces cannot drift. */
+  var MENU_START_ROWS = 3;
+  var menuRows = [], menuSel = [], menuSeq = 0;
+
+  function menuMulti(){ return $('nv-menu-multi').checked; }
+
+  function menuNextName(){
+    var used = {}, re = /name\s*=\s*(MENU_\d+)/gi, m, body = $('nv-f-body').value;
+    while ((m = re.exec(body)) !== null) used[m[1].toUpperCase()] = 1;
+    var n = 1; while (used['MENU_' + n]) n++;
+    return 'MENU_' + n;
+  }
+
+  function menuToken(){
+    return window.SBFormulaEngine.buildFormMenuToken({
+      options: menuRows.map(function(r){ return r.label; }),
+      selected: menuRows.filter(function(r){ return menuSel.indexOf(r.id) > -1; }).map(function(r){ return r.label; }),
+      name: $('nv-menu-name').value,
+      multiple: menuMulti(),
+      cols: $('nv-menu-cols').value
+    });
+  }
+
+  /* Valid = the engine parses the token back into a named menu with options.
+     Asking the real parser beats re-deriving its rules here. */
+  function menuSync(){
+    var token = menuToken(), name = $('nv-menu-name').value;
+    var cfg = window.SBFormulaEngine.buildFormFieldCfg(token);
+    var key = Object.keys(cfg)[0];
+    var nameOk = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+    var hint = $('nv-menu-namehint');
+    if (nameOk) {
+      hint.className = 'nv-menu-hint';
+      hint.innerHTML = 'Name of the form field — the body reads it back as <strong>{' + ec(name) + '}</strong>.';
+    } else {
+      hint.className = 'nv-menu-hint bad';
+      hint.textContent = 'Letters, numbers and underscore only, starting with a letter — e.g. MENU_1.';
+    }
+    $('nv-menu-token').textContent = token;
+    $('nv-menu-insert').disabled = !(nameOk && key && cfg[key].opts);
+  }
+
+  function menuRenderRows(){
+    var multi = menuMulti(), html = '';
+    for (var i = 0; i < menuRows.length; i++) {
+      var r = menuRows[i], on = menuSel.indexOf(r.id) > -1;
+      html += '<div class="nv-menu-row">'
+        + '<input type="' + (multi ? 'checkbox' : 'radio') + '" name="nv-menu-def" data-mid="' + r.id + '"' + (on ? ' checked' : '') + ' title="Preselect this choice">'
+        + '<input type="text" class="nv-menu-val" data-mid="' + r.id + '" value="' + ec(r.label) + '" placeholder="Choice ' + String.fromCharCode(65 + i) + '" autocomplete="off" spellcheck="false">'
+        + '<button type="button" class="nv-menu-rm" data-mid="' + r.id + '" title="Remove this choice"' + (menuRows.length === 1 ? ' disabled' : '') + '>'
+          + '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'
+        + '</button>'
+      + '</div>';
+    }
+    $('nv-menu-rows').innerHTML = html;
+
+    /* Typing must not re-render — that would drop focus mid-word. Only add /
+       remove / multiple rebuild the rows. */
+    Array.prototype.forEach.call($('nv-menu-rows').querySelectorAll('.nv-menu-val'), function(inp){
+      inp.addEventListener('input', function(){
+        var row = menuFind(this.dataset.mid); if (row) row.label = this.value;
+        menuSync();
+      });
+      inp.addEventListener('keydown', function(e){
+        if (e.key === 'Enter') { e.preventDefault(); menuAddRow(); }
+      });
+    });
+    Array.prototype.forEach.call($('nv-menu-rows').querySelectorAll('input[data-mid][type=radio],input[data-mid][type=checkbox]'), function(box){
+      box.addEventListener('mousedown', function(){ this._wasOn = this.checked; });
+      box.addEventListener('click', function(){
+        var id = Number(this.dataset.mid);
+        if (menuMulti()) {
+          if (this.checked) { if (menuSel.indexOf(id) === -1) menuSel.push(id); }
+          else menuSel = menuSel.filter(function(s){ return s !== id; });
+        } else if (this._wasOn) {
+          /* A radio cannot be cleared by re-selecting it, and "no default" is a
+             valid menu — undo the browser's toggle. */
+          this.checked = false; menuSel = [];
+        } else {
+          menuSel = [id];
+        }
+        menuSync();
+      });
+    });
+    Array.prototype.forEach.call($('nv-menu-rows').querySelectorAll('.nv-menu-rm'), function(btn){
+      btn.addEventListener('click', function(){
+        if (menuRows.length === 1) return;
+        var id = Number(this.dataset.mid);
+        menuRows = menuRows.filter(function(r){ return r.id !== id; });
+        menuSel = menuSel.filter(function(s){ return s !== id; });
+        menuRenderRows(); menuSync();
+      });
+    });
+  }
+
+  function menuFind(id){
+    var n = Number(id);
+    for (var i = 0; i < menuRows.length; i++) { if (menuRows[i].id === n) return menuRows[i]; }
+    return null;
+  }
+
+  function menuAddRow(){
+    menuRows.push({ id: ++menuSeq, label: '' });
+    menuRenderRows(); menuSync();
+    var all = $('nv-menu-rows').querySelectorAll('.nv-menu-val');
+    if (all.length) all[all.length - 1].focus();
+  }
+
+  function openMenuBuilder(){
+    if (!window.SBFormulaEngine) { toast('Formula engine not loaded'); return; }
+    menuRows = []; menuSel = []; menuSeq = 0;
+    for (var i = 0; i < MENU_START_ROWS; i++) menuRows.push({ id: ++menuSeq, label: '' });
+    $('nv-menu-multi').checked = false;
+    $('nv-menu-cols').value = '';
+    $('nv-menu-name').value = menuNextName();
+    menuRenderRows(); menuSync();
+    $('nv-menu-bg').classList.add('on');
+    var first = $('nv-menu-rows').querySelector('.nv-menu-val');
+    if (first) setTimeout(function(){ first.focus(); }, 30);
+  }
+  function closeMenuBuilder(){ $('nv-menu-bg').classList.remove('on'); }
+
+  $('nv-chip-menu').addEventListener('click', openMenuBuilder);
+  $('nv-menu-add').addEventListener('click', menuAddRow);
+  $('nv-menu-name').addEventListener('input', menuSync);
+  $('nv-menu-cols').addEventListener('input', function(){
+    this.value = this.value.replace(/[^0-9]/g, '');
+    menuSync();
+  });
+  $('nv-menu-multi').addEventListener('change', function(){
+    /* Single choice carries one default — collapse the extra picks. */
+    if (!menuMulti()) menuSel = menuSel.slice(0, 1);
+    menuRenderRows(); menuSync();
+  });
+  $('nv-menu-cancel').addEventListener('click', closeMenuBuilder);
+  $('nv-menu-bg').addEventListener('click', function(e){ if (e.target === $('nv-menu-bg')) closeMenuBuilder(); });
+  $('nv-menu-insert').addEventListener('click', function(){
+    if ($('nv-menu-insert').disabled) return;
+    bodyInsert(menuToken());
+    closeMenuBuilder();
   });
   $('nv-f-alt').addEventListener('keydown', function(e){
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitAltDraft(); }
@@ -1321,8 +1567,40 @@
       else { inp = '<input type="text" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(def.default || '') + '">'; }
       html += '<div class="nv-comp-frow"><label>' + ec(label) + '</label>' + inp + '</div>';
     }
+    /* {button} controls — set field values, never print. */
+    var cbtns = window.SBFormulaEngine.extractButtons($('nv-comp-tpl').value);
+    if (cbtns.length) {
+      html += '<div class="nv-comp-btnrow">' + cbtns.map(function(b){
+        return '<button type="button" class="nv-comp-actbtn" data-btn="' + ec(b.id) + '">' + ec(b.label) + '</button>';
+      }).join('') + '</div><div class="nv-comp-btnerr" hidden></div>';
+    }
     form.innerHTML = html;
     Array.prototype.forEach.call(form.querySelectorAll('input,select'), function(el){ el.addEventListener('input', compUpdate); el.addEventListener('change', compUpdate); });
+    Array.prototype.forEach.call(form.querySelectorAll('.nv-comp-actbtn'), function(btn){
+      btn.addEventListener('click', function(){ compRunButton(btn); });
+    });
+  }
+
+  /* Runs a composer {button}: apply its code to the live values, write the
+     results into the inputs, re-resolve the output. Mirrors runDetailButton. */
+  function compRunButton(btn){
+    var FE = window.SBFormulaEngine;
+    var list = FE.extractButtons($('nv-comp-tpl').value), spec = null;
+    for (var i = 0; i < list.length; i++) { if (list[i].id === btn.getAttribute('data-btn')) spec = list[i]; }
+    if (!spec) return;
+    var form = $('nv-comp-fields');
+    var res = FE.applyButtonCode(spec.statements, compVals());
+    var errs = spec.errors.concat(res.errors);
+    for (var name in res.values) {
+      if (!Object.prototype.hasOwnProperty.call(res.values, name)) continue;
+      var target = form.querySelector('[data-key="' + name + '"]');
+      if (!target) { errs.push('No field called ' + name); continue; }
+      if (target.type === 'checkbox') { errs.push(name + ' is a multi-choice menu'); continue; }
+      target.value = String(res.values[name]);
+    }
+    var eb = form.querySelector('.nv-comp-btnerr');
+    if (eb) { eb.textContent = errs.join(' · '); eb.hidden = errs.length === 0; }
+    compUpdate();
   }
   /* A multiple=yes menu is a checkbox group sharing one data-key — collect the
      checked boxes into the single ", "-joined value the engine resolves. */
@@ -1434,7 +1712,12 @@
   $('nv-reload').addEventListener('click', loadData);
   var qT;
   $('nv-q').addEventListener('input', function(e){ nvSearch = e.target.value || ''; expandedId = null; clearTimeout(qT); qT = setTimeout(renderMain, 160); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-modal-bg').classList.contains('on')) closeEditor(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    /* Topmost layer first — the field builder sits above the snippet editor. */
+    if ($('nv-menu-bg').classList.contains('on')) { closeMenuBuilder(); return; }
+    if ($('nv-modal-bg').classList.contains('on')) closeEditor();
+  });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('nv-cl-bg').classList.contains('on')) closeChangelog(); });
 
   // ── Boot: skip the gate if a session already exists ─────────────────

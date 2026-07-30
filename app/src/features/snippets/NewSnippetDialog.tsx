@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertCircle, Clock, History, Pin, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, Clock, History, Pin, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,8 +10,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { cn } from '@/lib/utils';
+import { nextMenuName } from '@/lib/formMenuToken';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -63,26 +66,47 @@ function sanitizeTrigger(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-// Quick Insert: matches the extension popup chips (popup.html:757-767).
-// Each entry inserts `data-c` at the cursor position in the body textarea.
+// Quick Insert: mirrors the Sprintbrain.html chip rail. Each entry inserts
+// `value` at the cursor position in the body textarea.
+//
+// Grouped because the two halves behave differently and the flat row never said
+// so: a `field` becomes an input to fill when the snippet expands, while `logic`
+// resolves on its own.
+//
+// Every entry carries a `hint` — a token name is not an explanation, and `phone`
+// inserting {phone_number} is only obvious once someone tells you.
 interface QuickInsert {
   label: string;
   value: string;
   variant: 'default' | 'formula' | 'cond';
+  group: 'field' | 'logic';
+  hint: string;
 }
 
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'guest_name',    value: '{guest_name}',           variant: 'default' },
-  { label: 'property_name', value: '{property_name}',        variant: 'default' },
-  { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default' },
-  { label: 'checkout_date', value: '{checkout_date}',        variant: 'default' },
-  { label: 'total_price',   value: '{total_price}',          variant: 'default' },
-  { label: 'nights',        value: '{nights}',               variant: 'default' },
-  { label: 'phone',         value: '{phone_number}',         variant: 'default' },
-  { label: 'review_link',   value: '{review_link}',          variant: 'default' },
-  { label: '{=formula}',    value: '{=A - B}',               variant: 'formula' },
-  { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond'    },
+  { label: 'guest_name',    value: '{guest_name}',           variant: 'default', group: 'field',
+    hint: "The guest's name — inserts {guest_name}" },
+  { label: 'property_name', value: '{property_name}',        variant: 'default', group: 'field',
+    hint: 'The property name — inserts {property_name}' },
+  { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default', group: 'field',
+    hint: 'Arrival date — inserts {checkin_date}' },
+  { label: 'checkout_date', value: '{checkout_date}',        variant: 'default', group: 'field',
+    hint: 'Departure date — inserts {checkout_date}' },
+  { label: 'total_price',   value: '{total_price}',          variant: 'default', group: 'field',
+    hint: 'Total price of the stay — inserts {total_price}' },
+  { label: 'nights',        value: '{nights}',               variant: 'default', group: 'field',
+    hint: 'Number of nights — inserts {nights}' },
+  { label: 'phone',         value: '{phone_number}',         variant: 'default', group: 'field',
+    hint: 'Phone number — inserts {phone_number}' },
+  { label: 'review_link',   value: '{review_link}',          variant: 'default', group: 'field',
+    hint: 'Link to your review page — inserts {review_link}' },
+  { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
+    hint: 'Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}' },
+  { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
+    hint: 'Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}' },
 ];
+
+const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
 
 const FIELD_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
 const SELECT_CLASS =
@@ -156,6 +180,8 @@ export function NewSnippetDialog() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
+  const [menuFieldOpen, setMenuFieldOpen] = useState(false);
 
   // Auto-suggestions: derived from snippet name + trigger. Suggestions from
   // matching keyword rules that haven't been added yet are shown as one-click chips.
@@ -597,10 +623,7 @@ export function NewSnippetDialog() {
             {/* Body */}
             <div className="flex flex-col gap-1.5 flex-1">
               <label htmlFor="snippet-content" className={FIELD_LABEL}>
-                Body{' '}
-                <span className="font-normal text-ink-subtle">
-                  — use <code className="font-mono text-primary/80">{'{variable}'}</code> for dynamic fields
-                </span>
+                Body
               </label>
               <textarea
                 id="snippet-content"
@@ -618,29 +641,57 @@ export function NewSnippetDialog() {
               {errors.content && <FieldError message={errors.content} />}
             </div>
 
-            {/* Quick insert */}
-            <div>
-              <span className={FIELD_LABEL}>Quick insert</span>
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_INSERTS.map((qi) => (
+            {/* Quick insert — split so the rail says what each half does */}
+            <div className="flex flex-col gap-3">
+              <div>
+                <span className={CHIP_GROUP_LABEL}>
+                  Fields{' '}
+                  <span className="font-normal text-ink-subtle">
+                    — filled in when the snippet expands · type{' '}
+                    <code className="font-mono text-primary/80">{'{any_name}'}</code> for your own
+                  </span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_INSERTS.filter((qi) => qi.group === 'field').map((qi) => (
+                    <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                  ))}
+
+                  {/* Field builders open a dialog instead of pasting a literal —
+                      a menu needs its options before the token means anything. */}
                   <button
-                    key={qi.label}
                     type="button"
-                    onClick={() => insertAtCursor(qi.value)}
+                    onClick={() => setMenuFieldOpen(true)}
                     disabled={saving}
-                    title={`Insert ${qi.value}`}
-                    className={cn(
-                      'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
-                      qi.variant === 'formula' && 'border-[#BED0FF] bg-[#EEF2FF] text-[#1B4FD8] hover:bg-[#E0EAFF]',
-                      qi.variant === 'cond'    && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
-                      qi.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
-                    )}
+                    title="A list of choices to pick from — opens the builder"
+                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
                   >
-                    {qi.label}
+                    <ChevronDown className="h-3 w-3" />
+                    {'{formmenu}'}
                   </button>
-                ))}
+                </div>
+              </div>
+
+              <div>
+                <span className={CHIP_GROUP_LABEL}>
+                  Logic{' '}
+                  <span className="font-normal text-ink-subtle">
+                    — worked out on its own, nothing to fill
+                  </span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
+                    <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                  ))}
+                </div>
               </div>
             </div>
+
+            <FormMenuDialog
+              open={menuFieldOpen}
+              onOpenChange={setMenuFieldOpen}
+              suggestedName={nextMenuName(form.content)}
+              onInsert={insertAtCursor}
+            />
 
             {/* Edit note — only shown in edit mode; recorded in version history */}
             {mode === 'edit' && (
@@ -855,6 +906,33 @@ export function NewSnippetDialog() {
   );
 }
 
+function QuickChip({
+  item,
+  disabled,
+  onInsert,
+}: {
+  item: QuickInsert;
+  disabled: boolean;
+  onInsert: (value: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onInsert(item.value)}
+      disabled={disabled}
+      title={item.hint}
+      className={cn(
+        'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
+        item.variant === 'formula' && 'border-[#BED0FF] bg-[#EEF2FF] text-[#1B4FD8] hover:bg-[#E0EAFF]',
+        item.variant === 'cond'    && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
+        item.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
+      )}
+    >
+      {item.label}
+    </button>
+  );
+}
+
 function FieldError({ message }: { message: string }) {
   return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
@@ -887,26 +965,13 @@ function OptionToggle({
         <p className="text-xs font-semibold text-ink leading-tight">{title}</p>
         <p className="text-[11px] text-ink-subtle leading-tight mt-0.5">{description}</p>
       </div>
-      <button
-        type="button"
+      <Switch
         id={id}
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
+        checked={checked}
+        onChange={onChange}
         disabled={disabled}
-        className={cn(
-          'relative mt-0.5 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50',
-          checked ? 'bg-primary' : 'bg-line',
-        )}
-      >
-        <span
-          aria-hidden
-          className={cn(
-            'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition',
-            checked ? 'translate-x-4' : 'translate-x-0',
-          )}
-        />
-      </button>
+        className="mt-0.5"
+      />
     </div>
   );
 }

@@ -1553,6 +1553,39 @@ function sbGenderTokenField(rest){
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(f)?f:'';
 }
 
+/* {formtext/formdate/formmenu: …; name=FIELD} — the field is the token's `name`,
+   not the token text. {formmenu:}'s first segment is its options list, so its
+   attributes are only read after the first ';' (an option spelled "name=Bob"
+   must not claim the field). Mirrors _formFieldName in the extension engine. */
+function sbFormTokenName(tokLow,rest){
+  var src=rest;
+  if(tokLow.slice(0,9)==='formmenu:'){
+    var semi=rest.indexOf(';');
+    src=semi===-1?'':rest.slice(semi);
+  }
+  var m=/(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(src);
+  return m?m[1]:'';
+}
+
+function sbIsFormToken(tokLow){
+  return tokLow.slice(0,9)==='formtext:'||tokLow.slice(0,9)==='formdate:'||tokLow.slice(0,9)==='formmenu:';
+}
+
+/* {button …}code{/button} — an interface control on the desktop surfaces. The
+   mobile companion renders no buttons, but it MUST still swallow the region:
+   left in place the code block would be sent to a guest as literal text.
+   Mirrors the button branch in extension/formula-engine.js. */
+var SB_BUTTON_CLOSE='{/button}';
+function sbIsButtonHead(tokLow){
+  if(tokLow.slice(0,6)!=='button')return false;
+  return tokLow.length===6||/\s/.test(tokLow.charAt(6));
+}
+function sbButtonTrim(head){
+  var m=/(?:^|\s)trim\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/i.exec(head);
+  if(!m)return 'no';
+  return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
@@ -1561,8 +1594,12 @@ function extractFields(body) {
        t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
        t.slice(0,5).toLowerCase()==='time:')continue;
     /* A {gender:} token is not a field — it reads one, so surface that instead. */
-    var key=t;
-    if(t.slice(0,7).toLowerCase()==='gender:'){
+    var key=t,tLow=t.toLowerCase();
+    if(sbIsButtonHead(tLow)||t==='/button')continue;
+    if(sbIsFormToken(tLow)){
+      key=sbFormTokenName(tLow,t.slice(9));
+      if(!key)continue;
+    } else if(tLow.slice(0,7)==='gender:'){
       key=sbGenderTokenField(t.slice(7));
       if(!key)continue;
     }
@@ -1667,6 +1704,30 @@ function resolveBody(body,vals,opts){
       if(tok.slice(0,7).toLowerCase()==='gender:'){
         gLock=out.length;
         out+=sbResolveGenderToken(tok.slice(7),vals,opts);
+        i=cl+1;continue;
+      }
+
+      var tokLow=tok.toLowerCase();
+
+      /* {button …}code{/button} — never printed */
+      if(sbIsButtonHead(tokLow)){
+        var bClose=body.indexOf(SB_BUTTON_CLOSE,cl+1);
+        if(bClose===-1){i=cl+1;continue;}
+        var bTrim=sbButtonTrim(tok.slice(6));
+        if(bTrim==='left'||bTrim==='yes')out=out.replace(/[ \t]*\r?\n?[ \t]*$/,'');
+        i=bClose+SB_BUTTON_CLOSE.length;
+        if(bTrim==='right'||bTrim==='yes'){
+          var bAfter=/^[ \t]*\r?\n?[ \t]*/.exec(body.slice(i));
+          if(bAfter)i+=bAfter[0].length;
+        }
+        continue;
+      }
+
+      /* {formtext/formdate/formmenu: …} — emits the value of the field it declares */
+      if(sbIsFormToken(tokLow)){
+        var fk=sbFormTokenName(tokLow,tok.slice(9));
+        var fkv=fk?vals[fk]:undefined;
+        out=sbEmitValue(out,(fkv!==undefined&&fkv!==null)?fkv:'',gLock);
         i=cl+1;continue;
       }
 

@@ -38,6 +38,9 @@ var _SBFE = window.SBFormulaEngine;
 var resolveBody        = _SBFE.resolveBody;
 var extractFields      = _SBFE.extractFields;
 var buildFormFieldCfg  = _SBFE.buildFormFieldCfg;
+var formMenuPicks      = _SBFE.formMenuPicks;
+var extractButtons     = _SBFE.extractButtons;
+var applyButtonCode    = _SBFE.applyButtonCode;
 var parsePlaceholders  = _SBFE.parsePlaceholders;
 var interpolateSnippet = _SBFE.interpolateSnippet;
 var sbFormatDate       = _SBFE.sbFormatDate;
@@ -1160,7 +1163,10 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   for (var i = 0; i < fields.length; i++) {
     var key = fields[i];
     var rawCfg = cfgs[key] || {};
-    var cfg = { type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default };
+    var cfg = {
+      type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default,
+      multiple: rawCfg.multiple, cols: rawCfg.cols
+    };
     // Auto-detect date/time/datetime by field name when cfg.type is not set.
     // Split on non-letters so "TIME_HH:MM" / "DATE_DD/MM/YYYY" still expose
     // TIME / DATE as standalone tokens.
@@ -1174,10 +1180,25 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
     var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
     var inp;
     if (cfg.type === 'dd' && opts.length) {
-      inp = '<select class="sb-inp" data-key="'+key+'">' +
-        '<option value="">— select —</option>' +
-        opts.map(function(o){ return '<option value="'+xesc(o)+'">'+xesc(o)+'</option>'; }).join('') +
-        '</select>';
+      // {formmenu: …; cols=N} sizes the field in characters; capped at the
+      // overlay width so a long value can never push the panel out of view.
+      var wide = cfg.cols ? ' style="width:'+cfg.cols+'ch;max-width:100%"' : '';
+      var picked = formMenuPicks(cfg.default);
+      if (cfg.multiple) {
+        // A native multi-select needs ctrl-click to be usable — checkboxes make
+        // "pick several" obvious, and getVals() joins them back into one value.
+        inp = '<div class="sb-multi"'+wide+'>' + opts.map(function(o){
+          return '<label class="sb-opt"><input type="checkbox" class="sb-inp" data-key="'+key+'" value="'+xesc(o)+'"'+
+                 (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
+        }).join('') + '</div>';
+      } else {
+        inp = '<select class="sb-inp" data-key="'+key+'"'+wide+'>' +
+          (picked.length ? '' : '<option value="">— select —</option>') +
+          opts.map(function(o){
+            return '<option value="'+xesc(o)+'"'+(picked.indexOf(o) >= 0 ? ' selected' : '')+'>'+xesc(o)+'</option>';
+          }).join('') +
+          '</select>';
+      }
     } else if (cfg.type === 'date') {
       inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||today)+'">';
     } else if (cfg.type === 'time') {
@@ -1188,6 +1209,15 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
       inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.default||'')+'">';
     }
     fhtml += '<div class="sb-field"><label class="sb-lbl">{'+key+'}</label>'+inp+'</div>';
+  }
+
+  // {button} controls: they set field values, they never print. Rendered after
+  // the inputs they act on, so the cause sits above the effect.
+  var buttons = extractButtons(snip.body);
+  if (buttons.length) {
+    fhtml += '<div class="sb-btnrow">' + buttons.map(function(b){
+      return '<button type="button" class="sb-actbtn" data-btn="'+xesc(b.id)+'">'+xesc(b.label)+'</button>';
+    }).join('') + '</div><div class="sb-btnerr" hidden></div>';
   }
 
   var urgHtml = buildUrgencyHtml(snip);
@@ -1241,6 +1271,36 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
     })(inps[j]);
   }
 
+  // Action buttons write their results straight into the inputs, so the preview
+  // and the eventual insert both read them back through the normal getVals path.
+  var errBox = el.querySelector('.sb-btnerr');
+  var actBtns = el.querySelectorAll('.sb-actbtn');
+  for (var b = 0; b < actBtns.length; b++) {
+    (function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var spec = null;
+        for (var q = 0; q < buttons.length; q++) { if (buttons[q].id === btn.dataset.btn) spec = buttons[q]; }
+        if (!spec) return;
+        var res = applyButtonCode(spec.statements, getVals());
+        var errs = spec.errors.concat(res.errors);
+        for (var name in res.values) {
+          if (!Object.prototype.hasOwnProperty.call(res.values, name)) continue;
+          var target = el.querySelector('.sb-inp[data-key="' + name + '"]');
+          if (!target) { errs.push('No field called ' + name); continue; }
+          if (target.type === 'checkbox') { errs.push(name + ' is a multi-choice menu'); continue; }
+          target.value = String(res.values[name]);
+        }
+        if (errBox) {
+          errBox.textContent = errs.join(' · ');
+          errBox.hidden = errs.length === 0;
+        }
+        updatePrev(snip);
+      });
+    })(actBtns[b]);
+  }
+
   var closeBtn   = el.querySelector('.sb-close');
   var insertBtn  = el.querySelector('.sb-insert');
 
@@ -1269,8 +1329,11 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeOverlay(); }
     if (e.key === 'Enter' && !e.shiftKey) {
+      // BUTTON excluded: the browser already activates a focused button on
+      // Enter, so inserting here too would fire an action button and insert
+      // the message in one keypress.
       var tag = document.activeElement ? document.activeElement.tagName : '';
-      if (tag !== 'TEXTAREA' && tag !== 'SELECT') {
+      if (tag !== 'TEXTAREA' && tag !== 'SELECT' && tag !== 'BUTTON') {
         e.preventDefault(); e.stopPropagation(); doInsert(targetEl, snip);
       }
     }
@@ -1283,9 +1346,21 @@ function xesc(s) {
 
 function getVals() {
   if (!overlayEl) return {};
-  var v = {};
+  var v = {}, groups = {};
   var inps = overlayEl.querySelectorAll('.sb-inp[data-key]');
-  for (var i = 0; i < inps.length; i++) v[inps[i].dataset.key] = inps[i].value;
+  for (var i = 0; i < inps.length; i++) {
+    var el = inps[i], k = el.dataset.key;
+    // A multiple-choice {formmenu:} is a checkbox group sharing one data-key —
+    // every box contributes, checked or not, so the value is the picks in the
+    // order the menu declares them.
+    if (el.type === 'checkbox') {
+      if (!groups[k]) groups[k] = [];
+      if (el.checked) groups[k].push(el.value);
+    } else {
+      v[k] = el.value;
+    }
+  }
+  for (var g in groups) v[g] = groups[g].join(', ');
   return v;
 }
 
@@ -2651,6 +2726,16 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
     '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%231B4FD8"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
+    '#sb-overlay .sb-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px;}' +
+    '#sb-overlay .sb-actbtn{background:#EEF2FF;border:1px solid #BED0FF;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;color:#1B4FD8;font-family:inherit;cursor:pointer;min-height:32px;touch-action:manipulation;transition:background .15s;}' +
+    '#sb-overlay .sb-actbtn:hover{background:#E0EAFF;}' +
+    '#sb-overlay .sb-actbtn:active{transform:scale(.97);}' +
+    '#sb-overlay .sb-btnerr{color:#DC2626;font-size:11px;line-height:1.5;padding-top:2px;}' +
+    '#sb-overlay .sb-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box;}' +
+    '#sb-overlay .sb-opt{display:inline-flex;align-items:center;gap:6px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:6px 10px;font-size:13px;color:#18181B;cursor:pointer;min-height:32px;touch-action:manipulation;}' +
+    '#sb-overlay .sb-opt:hover{border-color:#BED0FF;}' +
+    '#sb-overlay .sb-opt input.sb-inp{width:auto;padding:0;margin:0;background:none;border:none;box-shadow:none;accent-color:#1B4FD8;cursor:pointer;min-height:0;}' +
+    '#sb-overlay .sb-opt:has(input:checked){background:#EEF2FF;border-color:#BED0FF;color:#1B4FD8;}' +
     '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:8px;background:#FAFAFA;}' +
     '#sb-overlay .sb-insert{padding:8px 18px;background:#1B4FD8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +

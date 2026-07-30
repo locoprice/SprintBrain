@@ -14,7 +14,11 @@ import type { Snippet } from '@/types/database';
 
 // ── Template validation ──────────────────────────────────────────────────────
 
-export type TemplateIssueCode = 'unterminated-token' | 'orphan-branch' | 'unclosed-if';
+export type TemplateIssueCode =
+  | 'unterminated-token'
+  | 'orphan-branch'
+  | 'unclosed-if'
+  | 'unclosed-button';
 
 export interface TemplateValidation {
   ok: boolean;
@@ -27,7 +31,16 @@ const VALIDATION_MESSAGES: Record<TemplateIssueCode, string> = {
   'unterminated-token': 'A { is never closed — it prints literally instead of filling in.',
   'orphan-branch': 'A branch tag has no matching {if:} — the condition is ignored.',
   'unclosed-if': 'An {if:} is never closed with {endif} — its content is dropped.',
+  'unclosed-button': 'A {button} is never closed with {/button} — its code prints as text.',
 };
+
+const BUTTON_CLOSE = '{/button}';
+
+/** True when the token opens a button, so a field called "buttonish" doesn't. */
+function isButtonHead(tokLow: string): boolean {
+  if (tokLow.slice(0, 6) !== 'button') return false;
+  return tokLow.length === 6 || /\s/.test(tokLow.charAt(6));
+}
 
 function invalid(code: TemplateIssueCode): TemplateValidation {
   return { ok: false, code, message: VALIDATION_MESSAGES[code] };
@@ -74,6 +87,15 @@ export function validateTemplate(body: string | null | undefined): TemplateValid
       depth -= 1;
     } else if (tok === 'else' || tok.slice(0, 7).toLowerCase() === 'elseif:') {
       if (depth === 0) return invalid('orphan-branch');
+    } else if (isButtonHead(tok.toLowerCase())) {
+      // An unclosed button prints its own code block at the guest. A closed one
+      // is skipped whole — the block is code, not text to be validated.
+      const bClose = src.indexOf(BUTTON_CLOSE, cl + 1);
+      if (bClose === -1) return invalid('unclosed-button');
+      i = bClose + BUTTON_CLOSE.length;
+      continue;
+    } else if (tok === '/button') {
+      return invalid('orphan-branch');
     }
     i = cl + 1;
   }

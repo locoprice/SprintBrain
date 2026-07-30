@@ -65,6 +65,10 @@ const validationCases = [
   { body: '{if: A}{if: B}only one closer{endif}', code: 'unclosed-if' },
   { body: 'nothing opened it{endif}', code: 'orphan-branch' },
   { body: 'stray {else} branch', code: 'orphan-branch' },
+  { body: '{button label="Discount"}P = P * 0.9{/button}', code: null },
+  { body: 'a{if: A}x{endif}{button label="b"}P = 1{/button}z', code: null },
+  { body: '{button label="Discount"}P = P * 0.9', code: 'unclosed-button' },
+  { body: 'stray {/button} closer', code: 'orphan-branch' },
 ];
 
 if (typeof engine.validateTemplate !== 'function') {

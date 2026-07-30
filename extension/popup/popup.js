@@ -385,6 +385,14 @@ function sbApplyCompanyFavicon(meta) {
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.132.0', date:'2026-07-30', label:'feat: action buttons in snippets',
+    changes:[
+      {type:'new', text:'A snippet can now carry a button that changes its numbers for you — "10% off", "add city tax". Write {button label="10% off"}PRICE = PRICE * 0.9{/button} in the body; the button shows up when you fill the snippet, and never appears in the message itself.'}
+    ]},
+  { version:'v2.131.0', date:'2026-07-30', label:'feat: dropdown menu fields',
+    changes:[
+      {type:'new', text:'Snippets can now ask you to pick from a menu. In the snippet editor, hit {formmenu} to build one: type the choices, tick a default, allow several picks if you want. When the snippet expands, the menu is there to choose from.'}
+    ]},
   { version:'v2.118.0', date:'2026-07-23', label:'fix: brand icon on the dashboard + marketing site',
     changes:[
       {type:'fix', text:'The SprintBrain mark now shows as the browser-tab icon on the dashboard and the marketing site, matching the extension. They were still showing the old placeholder.'}
@@ -1282,6 +1290,19 @@ function detailFieldDefs(body){
   }catch(e){}
   return defs;
 }
+// {button} controls declared by a body. Empty when the engine is unavailable,
+// so the fill form degrades to plain fields rather than throwing.
+function detailButtons(body){
+  var FE=window.SBFormulaEngine;
+  if(!FE||!FE.extractButtons||!body) return [];
+  try{ return FE.extractButtons(body); }catch(e){ return []; }
+}
+// Picked options of a {formmenu:} value ("A, B") \u2014 one parser, shared with
+// content.js's in-page overlay so both surfaces preselect identically.
+function fieldMenuPicks(v){
+  var FE=window.SBFormulaEngine;
+  return FE&&FE.formMenuPicks?FE.formMenuPicks(v):[];
+}
 // Values for a body's fields \u2014 user entry wins, else the field default.
 function currentFieldVals(defs){
   var vals={}; Object.keys(defs).forEach(function(k){ vals[k]=(detailFieldVals[k]!==undefined)?detailFieldVals[k]:(defs[k].default||''); });
@@ -1359,7 +1380,16 @@ function renderDetailHtml(s){
         var def=defs[k], label=k.replace(/_/g,' '), val=(vals[k]!=null?vals[k]:''), inp;
         if(def.type==='dd'){
           var opts=(def.opts||'').split('\n').filter(Boolean);
-          inp='<select data-fkey="'+esc(k)+'">'+opts.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+          var picks=fieldMenuPicks(val);
+          var wide=def.cols?' style="width:'+def.cols+'ch;max-width:100%"':'';
+          if(def.multiple){
+            // multiple=yes menus fill as checkboxes — one data-fkey per group.
+            inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
+              return '<label class="d-opt"><input type="checkbox" data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
+            }).join('')+'</div>';
+          } else {
+            inp='<select data-fkey="'+esc(k)+'"'+wide+'>'+opts.map(function(o){ return '<option value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+          }
         } else if(def.type==='date'){
           inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
         } else {
@@ -1367,6 +1397,13 @@ function renderDetailHtml(s){
         }
         form+='<div class="d-frow"><label>'+esc(label)+'</label>'+inp+'</div>';
       });
+      // {button} controls — they set field values, they never print.
+      var dBtns=detailButtons(body);
+      if(dBtns.length){
+        form+='<div class="d-btnrow">'+dBtns.map(function(b){
+          return '<button class="d-actbtn" type="button" data-btn="'+esc(b.id)+'">'+esc(b.label)+'</button>';
+        }).join('')+'</div><div class="d-btnerr" hidden></div>';
+      }
       form+='</div>';
       h+=form;
     }
@@ -1548,9 +1585,50 @@ function wireListRows(el){
   // Fill-form inputs: live-resolve the preview in place (no re-render → focus kept).
   el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
     var box=inp.closest('.d-fields'); var did=box?box.getAttribute('data-fid'):null;
-    var handler=function(){ detailFieldVals[inp.getAttribute('data-fkey')]=inp.value; if(did) updateDetailPreview(did); };
+    var handler=function(){
+      var key=inp.getAttribute('data-fkey');
+      if(inp.type==='checkbox'&&box){
+        // Checkbox group (multiple=yes menu): the value is every checked box.
+        var picked=[];
+        box.querySelectorAll('input[type=checkbox][data-fkey="'+key+'"]').forEach(function(cb){ if(cb.checked) picked.push(cb.value); });
+        detailFieldVals[key]=picked.join(', ');
+      } else {
+        detailFieldVals[key]=inp.value;
+      }
+      if(did) updateDetailPreview(did);
+    };
     inp.addEventListener('input',handler); inp.addEventListener('change',handler);
   });
+  // Action buttons: run the code block against the live values, write the
+  // results back into the inputs, re-resolve the preview in place.
+  el.querySelectorAll('.d-fields .d-actbtn').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); runDetailButton(btn); });
+  });
+}
+
+// Runs one {button}'s code block against the live fill-form values, writes the
+// results back into the inputs and re-resolves the preview. Shared: the popup
+// binds it above, Sprintbrain.html binds it from its own render pass.
+function runDetailButton(btn){
+  var FE=window.SBFormulaEngine; if(!FE||!FE.applyButtonCode) return;
+  var box=btn.closest('.d-fields'); if(!box) return;
+  var did=box.getAttribute('data-fid'), s=findSnip(did); if(!s) return;
+  var body=detailActiveBody(s), list=detailButtons(body), spec=null;
+  for(var i=0;i<list.length;i++){ if(list[i].id===btn.getAttribute('data-btn')) spec=list[i]; }
+  if(!spec) return;
+  var res=FE.applyButtonCode(spec.statements, currentFieldVals(detailFieldDefs(body)));
+  var errs=spec.errors.concat(res.errors);
+  for(var name in res.values){
+    if(!Object.prototype.hasOwnProperty.call(res.values,name)) continue;
+    var target=box.querySelector('[data-fkey="'+name+'"]');
+    if(!target){ errs.push('No field called '+name); continue; }
+    if(target.type==='checkbox'){ errs.push(name+' is a multi-choice menu'); continue; }
+    target.value=String(res.values[name]);
+    detailFieldVals[name]=target.value;
+  }
+  var eb=box.querySelector('.d-btnerr');
+  if(eb){ eb.textContent=errs.join(' · '); eb.hidden=errs.length===0; }
+  updateDetailPreview(did);
 }
 
 function toggleDetail(id){

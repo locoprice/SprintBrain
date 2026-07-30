@@ -206,6 +206,16 @@ html,body{
 .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
 .d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
 .d-frow input:focus,.d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+.d-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.d-actbtn{height:32px;padding:0 12px;border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-sm);background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;transition:background var(--sb-dur-fast)}
+.d-actbtn:hover{background:var(--sb-azure-bg);border-color:var(--sb-azure)}
+.d-actbtn:active{transform:scale(.97)}
+.d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+.d-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
+.d-opt{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color var(--sb-dur-fast),background var(--sb-dur-fast)}
+.d-opt:hover{border-color:var(--sb-azure)}
+.d-opt input[type=checkbox]{width:auto;height:auto;padding:0;accent-color:var(--sb-azure);cursor:pointer}
+.d-opt:has(input:checked){background:var(--sb-azure-bg);border-color:var(--sb-azure-bdr);color:var(--sb-azure)}
 .d-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .d-btn{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;transition:all var(--sb-dur-fast)}
 .d-btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
