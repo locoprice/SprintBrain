@@ -118,18 +118,30 @@ function loadData() {
       // disabled rows must not appear in the right-click context menu and must
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
-      var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&is_active=eq.true&order=sort_order';
+      // The body/field_cfg/urgency columns are not needed to draw the context
+      // menu — they are here so this one fetch can also refresh the expansion
+      // cache content.js reads (see writeExpansionCache below). Without them the
+      // service worker had no body to cache, which is why a snippet edited on
+      // the dashboard kept expanding its old text until the popup was opened.
+      var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order,' +
+        'body,bodies,field_cfg,enable_urgency_timer,timer_duration_ms,scarcity_count,pinned' +
+        '&is_active=eq.true&order=sort_order';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
         supaFetch('rpc/accessible_snippets', snipQs),
         supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
       ]).then(function(res) {
         resolve({
+          // `ok` separates "fetched fine, the user has no snippets" from "the
+          // fetch failed". Both look like an empty array, and the expansion
+          // cache must never be cleared on the second — that would silently
+          // disable every trigger until the next successful sync.
+          ok: Array.isArray(res[1]),
           folders:  Array.isArray(res[0]) ? res[0] : [],
           snippets: Array.isArray(res[1]) ? res[1] : [],
           stats:    Array.isArray(res[2]) ? res[2] : []
         });
-      }).catch(function() { resolve({ folders: [], snippets: [], stats: [] }); });
+      }).catch(function() { resolve({ ok: false, folders: [], snippets: [], stats: [] }); });
     });
   });
 }
@@ -505,8 +517,63 @@ function initMenus() {
       });
       return;
     }
-    loadData().then(buildContextMenus);
+    loadData().then(function(data) {
+      buildContextMenus(data);
+      if (data.ok) writeExpansionCache(data.snippets);
+    });
   });
+}
+
+// ── EXPANSION CACHE ────────────────────────────────────────────────
+// content.js expands from chrome.storage.local.snippets and live-updates from
+// storage.onChanged, so whoever writes this key decides what a typed trigger
+// produces. popup.js used to be its only writer, which meant a snippet edited
+// on the dashboard (a direct Supabase write, no push to the worker) kept
+// expanding its previous body until the user happened to open the popup —
+// a menu added there would not appear in the overlay at all.
+//
+// The menu refresh already runs on the 5-minute alarm and on tab focus, so the
+// cache now rides the same fetch and stays as fresh as the context menu.
+//
+// The row shape MUST match DB.loadAll() in popup/popup.js — content.js reads
+// `folder`, `fieldCfg` and `bodies` off these objects. Change both together.
+function writeExpansionCache(rows) {
+  if (!Array.isArray(rows)) return;
+  try {
+    chrome.storage.local.set({
+      snippets: rows.map(function(s) {
+        return {
+          id: s.id,
+          title: s.title,
+          shortcut: s.shortcut || '',
+          body: s.body || '',
+          bodies: (s.bodies && typeof s.bodies === 'object') ? s.bodies : {},
+          lang: s.lang || 'EN',
+          folder: s.folder_id || '',
+          fieldCfg: s.field_cfg || {},
+          lang_group_id: s.lang_group_id || s.id,
+          sort_order: s.sort_order || 0,
+          alternative_queries: Array.isArray(s.alternative_queries) ? s.alternative_queries : [],
+          enable_urgency_timer: s.enable_urgency_timer || false,
+          timer_duration_ms: s.timer_duration_ms || 0,
+          scarcity_count: s.scarcity_count || 0,
+          pinned: s.pinned || false,
+          // The worker does not fetch usage, but the popup hydrates its list
+          // from this same cache and reads s.stats.uses unguarded. Writing the
+          // zeroed shape keeps that contract; DB.loadAll overwrites it with the
+          // real counts a moment later.
+          expansions: 0,
+          stats: { uses: 0, fills: 0, lastUsed: null }
+        };
+      })
+    }, function() {
+      if (chrome.runtime.lastError) {
+        console.warn('[Sprintbrain] expansion cache write:', chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    console.warn('[Sprintbrain] expansion cache:', e);
+  }
 }
 
 // ── TOOLBAR ACTION ICON — brand mark by default, company logo when set ──
