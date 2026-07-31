@@ -699,30 +699,6 @@
     return { values: values, errors: errors };
   }
 
-  /**
-   * Writes a {button} token from an insert-dialog config — the exact inverse of
-   * extractButtons(), so every token this writes parses back to the same button.
-   *
-   * `"` `{` `}` would end the head early, so they collapse to a space inside a
-   * label; a literal {/button} inside the code would end the block early and is
-   * dropped.
-   *
-   * MIRRORED in app/src/lib/buttonToken.ts — the React dashboard cannot import
-   * extension source (see app/CLAUDE.md §6). Change both together.
-   */
-  function buildButtonToken(cfg) {
-    var c = cfg || {};
-    var label = _sTrim(String(c.label === null || c.label === undefined ? '' : c.label)
-      .replace(/["{}]/g, ' ').replace(/\s+/g, ' ')) || 'Run';
-    var trim = BUTTON_TRIMS[String(c.trim || '').toLowerCase()] ? String(c.trim).toLowerCase() : 'no';
-    var lines = String(c.code === null || c.code === undefined ? '' : c.code)
-      .replace(/\{\/button\}/gi, '\n')
-      .split(/\r?\n/).map(_sTrim).filter(function(l){ return l !== ''; });
-    var out = '{button label="' + label + '"';
-    if (trim !== 'no') out += ' trim=' + trim;
-    return out + '}' + lines.join('\n') + BUTTON_CLOSE;
-  }
-
   // ── FIELD EXTRACTOR ─────────────────────────────────────────────
   // Returns unique field names for the overlay form.
   function extractFields(body) {
@@ -979,7 +955,6 @@
     extractButtons:    extractButtons,
     parseButtonCode:   parseButtonCode,
     applyButtonCode:   applyButtonCode,
-    buildButtonToken:  buildButtonToken,
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,

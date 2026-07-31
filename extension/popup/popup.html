@@ -7,9 +7,11 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 
-/* v2 launcher — 540×600 single column (Chrome popup height cap is 600). */
+/* v2 launcher — 720×600 single column. 600 is Chrome's hard popup height cap
+   (800×600); only the width can grow, so vertical breathing room comes from
+   raising the cramped internal maxes below rather than from the frame. */
 html,body{
-  width:540px;height:600px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
+  width:720px;height:600px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
   color:var(--sb-ink);background:var(--sb-bg);overflow:hidden;user-select:none;line-height:1.5;
 }
 
@@ -196,12 +198,12 @@ html,body{
 .d-lp.on.IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it);border-color:var(--sb-lang-it)}
 .d-lp.on.FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr);border-color:var(--sb-lang-fr)}
 .d-lp.on.MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
-.d-body{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:10px 12px;font-size:var(--sb-fs-12);line-height:1.6;color:var(--sb-ink);white-space:pre-wrap;word-break:break-word;max-height:118px;overflow-y:auto}
+.d-body{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:10px 12px;font-size:var(--sb-fs-12);line-height:1.6;color:var(--sb-ink);white-space:pre-wrap;word-break:break-word;max-height:210px;overflow-y:auto}
 .d-body .var{font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-xs);padding:0 3px}
 .d-body.plain{color:var(--sb-ink-subtle);font-style:italic}
 .d-note{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.4}
 .d-note b{font-family:var(--sb-mono);font-weight:600;color:var(--sb-ink-muted)}
-.d-fields{display:flex;flex-direction:column;gap:8px;max-height:150px;overflow-y:auto;padding-right:2px}
+.d-fields{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:2px}
 .d-frow{display:flex;flex-direction:column;gap:4px}
 .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
 .d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}

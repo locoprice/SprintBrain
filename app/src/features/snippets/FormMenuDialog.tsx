@@ -205,7 +205,11 @@ export function FormMenuDialog({
             <Input
               id="form-menu-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              // Disallowed characters (spaces, symbols) are stripped as they're
+              // typed rather than rejected after the fact — a space silently
+              // failing validation with no visible cause is a worse experience
+              // than the character simply not appearing.
+              onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
               placeholder="MENU_1"
               className={cn(
                 'h-10 rounded-[10px] font-mono',
