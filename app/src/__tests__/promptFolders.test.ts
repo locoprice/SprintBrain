@@ -35,6 +35,7 @@ const FOLDER: Folder = {
   icon: '📋',
   sort_order: 1,
   updated_at: '2026-06-19T00:00:00Z',
+  parent_id: null,
 };
 
 const PROMPT_IN_FOLDER: Prompt = {

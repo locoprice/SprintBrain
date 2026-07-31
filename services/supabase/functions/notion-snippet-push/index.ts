@@ -31,12 +31,32 @@ type SnippetRow = {
   body: string;
   lang: string | null;
   notion_page_id: string | null;
-  folders: { name: string } | null;
+  folders: { id: string; name: string; parent_id: string | null } | null;
 };
 
-function buildNotionProps(snippet: SnippetRow): Record<string, unknown> {
+type FolderRow = { id: string; name: string; parent_id: string | null };
+
+/**
+ * "Villa Serena / Preventivi" — Notion's Categoria is a flat Select, so a
+ * nested folder is syndicated as its full path. Without this a subfolder would
+ * arrive as a bare "Preventivi", indistinguishable across properties.
+ * Depth-capped and cycle-guarded: this runs on untrusted stored data.
+ */
+function folderPath(folder: FolderRow | null, byId: Map<string, FolderRow>): string {
+  if (!folder) return '';
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  let current: FolderRow | undefined = folder;
+  while (current && !seen.has(current.id) && parts.length < 8) {
+    seen.add(current.id);
+    parts.unshift(current.name);
+    current = current.parent_id ? byId.get(current.parent_id) : undefined;
+  }
+  return parts.join(' / ');
+}
+
+function buildNotionProps(snippet: SnippetRow, folderName: string): Record<string, unknown> {
   const bodyText = (snippet.body ?? '').slice(0, 2000);
-  const folderName = snippet.folders?.name ?? '';
 
   const props: Record<string, unknown> = {
     'Nome Snippet': {
@@ -110,7 +130,7 @@ Deno.serve(async (req: Request) => {
   const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   const { data: snippet, error: fetchError } = await serviceClient
     .from('snippets')
-    .select('id, title, shortcut, body, lang, notion_page_id, folders(name)')
+    .select('id, title, shortcut, body, lang, notion_page_id, folders(id, name, parent_id)')
     .eq('id', snippetId)
     .eq('user_id', user.id) // ownership check — cannot push another user's snippet
     .single();
@@ -144,7 +164,21 @@ Deno.serve(async (req: Request) => {
     'Notion-Version': '2022-06-28',
   };
 
-  const props = buildNotionProps(row);
+  // Folders nest, so Categoria carries the full path. The ancestors are fetched
+  // separately — a to-one embed only reaches the snippet's own folder.
+  let folderName = '';
+  if (row.folders) {
+    const { data: allFolders } = await serviceClient
+      .from('folders')
+      .select('id, name, parent_id')
+      .eq('user_id', user.id);
+    const byId = new Map<string, FolderRow>(
+      ((allFolders ?? []) as FolderRow[]).map((f) => [f.id, f]),
+    );
+    folderName = folderPath(row.folders, byId);
+  }
+
+  const props = buildNotionProps(row, folderName);
   let notionPageId = row.notion_page_id;
 
   // ── Idempotent upsert: PATCH if page exists, CREATE otherwise ────

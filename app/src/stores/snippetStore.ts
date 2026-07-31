@@ -6,6 +6,7 @@ import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
 import { useAuthStore } from '@/stores/authStore';
 import { buildFolderShares } from '@/lib/folderShares';
+import { subtreeIds } from '@/lib/folderTree';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -414,7 +415,11 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     try {
       await snippetsApi.deleteFolder(id);
       set((s) => ({
-        folders: s.folders.filter((f) => f.id !== id),
+        // Mirror the parent_id FK (`on delete set null`): children are promoted
+        // to root rather than disappearing with their parent.
+        folders: s.folders
+          .filter((f) => f.id !== id)
+          .map((f) => (f.parent_id === id ? { ...f, parent_id: null } : f)),
         // Mirror the server-side reassignment: snippets in this folder drop
         // back to "no folder" in memory.
         snippets: s.snippets.map((sn) =>
@@ -613,14 +618,19 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
 // Selector: filtered + sorted snippet list derived from current store state.
 export function useFilteredSnippets(): SnippetRow[] {
   const snippets = useSnippetStore((s) => s.snippets);
+  const folders = useSnippetStore((s) => s.folders);
   const folderId = useSnippetStore((s) => s.selectedFolderId);
   const query = useSnippetStore((s) => s.searchQuery.trim().toLowerCase());
   const languageFilter = useSnippetStore((s) => s.languageFilter);
   const sortBy = useSnippetStore((s) => s.sortBy);
   const sortDir = useSnippetStore((s) => s.sortDir);
 
+  // Selecting a parent folder lists its whole subtree, so the row count agrees
+  // with the rolled-up badge in the folder rail.
+  const scope = folderId === null ? null : subtreeIds(folders, folderId);
+
   const filtered = snippets.filter((s) => {
-    if (folderId !== null && s.folder_id !== folderId) return false;
+    if (scope !== null && (s.folder_id === null || !scope.has(s.folder_id))) return false;
     if (languageFilter !== null && s.language !== languageFilter) return false;
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;

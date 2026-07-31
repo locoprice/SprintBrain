@@ -33,6 +33,8 @@ export interface Folder {
   icon: string; // emoji
   sort_order: number;
   updated_at: IsoDateTime;
+  /** Parent folder, null = root. Nesting is capped at MAX_FOLDER_DEPTH levels. */
+  parent_id: string | null;
 }
 
 export type SnippetLanguage = 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';

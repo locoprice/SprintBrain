@@ -1,19 +1,34 @@
-import { useState } from 'react';
-import { Folders, Globe, Pencil, Plus, Share2, Users } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { ChevronRight, Folders, Globe, Pencil, Plus, Share2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FolderIcon } from '@/lib/folderIcons';
+import {
+  buildFolderTree,
+  canMoveFolder,
+  canNestUnder,
+  flattenTree,
+  rollupCounts,
+  type FolderNode,
+} from '@/lib/folderTree';
 import type { Folder, FolderShareInfo } from '@/types/database';
 import type { FolderFormValues } from '@/types/schemas';
 import { FolderContextMenu } from '@/features/org/FolderContextMenu';
 import { FolderDialog, type FolderDialogTarget } from '@/features/org/FolderDialog';
 import { FolderShareModal } from '@/features/org/FolderShareModal';
 
+/**
+ * Drag payload keys. Read during `drop`; only `types` is readable during
+ * `dragover`, which is why the kind is encoded in the key rather than the value.
+ */
+export const DND_SNIPPET = 'application/x-sprintbrain-snippet';
+export const DND_FOLDER = 'application/x-sprintbrain-folder';
+
 export interface FolderTreeProps {
   folders: Folder[];
   folderShares: Map<string, FolderShareInfo>;
   selectedFolderId: string | null;
   onSelect: (id: string | null) => void;
-  /** folderId → item count (snippets or prompts in that folder). */
+  /** folderId → item count for that folder alone. Rolled up the tree here. */
   itemCounts: Map<string, number>;
   /** Count shown next to the "All" row. */
   totalCount: number;
@@ -24,6 +39,10 @@ export interface FolderTreeProps {
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
   editFolder: (id: string, patch: Partial<FolderFormValues>) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
+  /** Reparent a folder. null = move to root. */
+  moveFolder: (id: string, parentId: string | null) => Promise<void>;
+  /** Drop handler for items dragged onto a folder. null = remove from folder. */
+  moveItems: (ids: string[], folderId: string | null) => Promise<void>;
   /** Called after a share grant changes so the host can refresh shared items. */
   onShared: () => void | Promise<void>;
   /** Extra classes for the <aside> wrapper (width / surface). */
@@ -36,10 +55,17 @@ interface MenuState {
   y: number;
 }
 
+/** What is hovering over a row, so the drop ring only shows for legal targets. */
+type DropTarget = { id: string | null } | null;
+
 /**
  * Folder rail shared by the Snippets and Prompts pages. Store-agnostic: the host
  * adapter passes the folder list, counts, and the CRUD actions for its store.
  * Folders are a generic container — the same folder can hold snippets + prompts.
+ *
+ * Folders nest (Property > Category > Sub). Rows are drop targets for both
+ * items and other folders; a parent's badge counts its whole subtree, matching
+ * what selecting that parent lists.
  */
 export function FolderTree({
   folders,
@@ -53,15 +79,75 @@ export function FolderTree({
   addFolder,
   editFolder,
   removeFolder,
+  moveFolder,
+  moveItems,
   onShared,
   className,
 }: FolderTreeProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [shareFolder, setShareFolder] = useState<Folder | null>(null);
   const [dialogTarget, setDialogTarget] = useState<FolderDialogTarget>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [dropTarget, setDropTarget] = useState<DropTarget>(null);
+  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
+
+  const tree = useMemo(() => buildFolderTree(folders), [folders]);
+  const rolled = useMemo(() => rollupCounts(folders, itemCounts), [folders, itemCounts]);
+  const visible = useMemo(
+    () => flattenTree(tree, (id) => collapsed.has(id)),
+    [tree, collapsed],
+  );
 
   const activeMenuFolder =
     menu !== null ? folders.find((f) => f.id === menu.folderId) ?? null : null;
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  /** A drop is legal when it carries an item, or a folder that may be reparented. */
+  const acceptsDrop = useCallback(
+    (types: readonly string[], targetId: string | null): boolean => {
+      if (types.includes(DND_SNIPPET)) return true;
+      if (types.includes(DND_FOLDER) && draggingFolderId) {
+        return canMoveFolder(folders, draggingFolderId, targetId);
+      }
+      return false;
+    },
+    [draggingFolderId, folders],
+  );
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent, targetId: string | null) => {
+      setDropTarget(null);
+      const snippetIds = e.dataTransfer.getData(DND_SNIPPET);
+      if (snippetIds) {
+        e.preventDefault();
+        await moveItems(snippetIds.split(','), targetId);
+        return;
+      }
+      const folderId = e.dataTransfer.getData(DND_FOLDER);
+      if (folderId && canMoveFolder(folders, folderId, targetId)) {
+        e.preventDefault();
+        await moveFolder(folderId, targetId);
+        // Dropping into a collapsed parent would hide the folder that just moved.
+        if (targetId) {
+          setCollapsed((prev) => {
+            if (!prev.has(targetId)) return prev;
+            const next = new Set(prev);
+            next.delete(targetId);
+            return next;
+          });
+        }
+      }
+    },
+    [folders, moveFolder, moveItems],
+  );
 
   return (
     <aside className={cn('flex shrink-0 flex-col gap-1', className ?? 'w-[240px]')}>
@@ -83,11 +169,19 @@ export function FolderTree({
       <button
         type="button"
         onClick={() => onSelect(null)}
+        onDragOver={(e) => {
+          if (!acceptsDrop(e.dataTransfer.types, null)) return;
+          e.preventDefault();
+          setDropTarget({ id: null });
+        }}
+        onDragLeave={() => setDropTarget(null)}
+        onDrop={(e) => void handleDrop(e, null)}
         className={cn(
           'flex items-center justify-between rounded-[10px] px-3 py-2 text-left text-sm font-medium transition-colors',
           selectedFolderId === null
             ? 'bg-primary-light text-primary'
             : 'text-ink-muted hover:bg-bg-alt hover:text-ink',
+          dropTarget?.id === null && 'ring-2 ring-inset ring-primary',
         )}
       >
         <span className="flex items-center gap-2">
@@ -99,66 +193,39 @@ export function FolderTree({
 
       <div className="my-2 h-px bg-line" />
 
-      {folders.map((f) => {
-        const isActive = selectedFolderId === f.id;
-        const count = itemCounts.get(f.id) ?? 0;
-        const share = folderShares.get(f.id) ?? null;
-        return (
-          <div
-            key={f.id}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenu({ folderId: f.id, x: e.clientX, y: e.clientY });
-            }}
-            className={cn(
-              'group relative flex items-center rounded-[10px] transition-colors',
-              isActive ? 'bg-primary-light' : 'hover:bg-bg-alt',
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(f.id)}
-              className={cn(
-                'flex min-w-0 flex-1 items-center justify-between px-3 py-2 text-left text-sm font-medium transition-colors',
-                isActive ? 'text-primary' : 'text-ink-muted group-hover:text-ink',
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <FolderIcon icon={f.icon} />
-                <span className="truncate">{f.name}</span>
-                {share && <FolderShareBadge info={share} />}
-              </span>
-              <span className="ml-2 shrink-0 text-xs text-ink-subtle">{count}</span>
-            </button>
-            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 bg-inherit opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShareFolder(f);
-                }}
-                aria-label={`Share ${f.name} with team`}
-                title={`Share ${f.name} with team`}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-primary"
-              >
-                <Share2 className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDialogTarget(f.id);
-                }}
-                aria-label={`Edit ${f.name}`}
-                title={`Edit ${f.name}`}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-            </div>
-          </div>
-        );
-      })}
+      {visible.map((node) => (
+        <FolderRow
+          key={node.folder.id}
+          node={node}
+          count={rolled.get(node.folder.id) ?? 0}
+          share={folderShares.get(node.folder.id) ?? null}
+          isActive={selectedFolderId === node.folder.id}
+          isCollapsed={collapsed.has(node.folder.id)}
+          isDropTarget={dropTarget?.id === node.folder.id}
+          isDragging={draggingFolderId === node.folder.id}
+          onSelect={onSelect}
+          onToggle={toggleCollapse}
+          onContextMenu={(x, y) => setMenu({ folderId: node.folder.id, x, y })}
+          onShareClick={() => setShareFolder(node.folder)}
+          onEditClick={() => setDialogTarget(node.folder.id)}
+          onDragStart={(e) => {
+            setDraggingFolderId(node.folder.id);
+            e.dataTransfer.setData(DND_FOLDER, node.folder.id);
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          onDragEnd={() => {
+            setDraggingFolderId(null);
+            setDropTarget(null);
+          }}
+          onDragOver={(e) => {
+            if (!acceptsDrop(e.dataTransfer.types, node.folder.id)) return;
+            e.preventDefault();
+            setDropTarget({ id: node.folder.id });
+          }}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={(e) => void handleDrop(e, node.folder.id)}
+        />
+      ))}
 
       <FolderDialog
         target={dialogTarget}
@@ -167,7 +234,7 @@ export function FolderTree({
         addFolder={addFolder}
         editFolder={editFolder}
         removeFolder={removeFolder}
-        countFor={(id) => itemCounts.get(id) ?? 0}
+        countFor={(id) => rolled.get(id) ?? 0}
         itemNoun={itemNoun}
         allLabel={allLabel}
       />
@@ -177,9 +244,11 @@ export function FolderTree({
           folder={activeMenuFolder}
           x={menu.x}
           y={menu.y}
+          canNest={canNestUnder(folders, activeMenuFolder.id)}
           onClose={() => setMenu(null)}
           onShare={(f) => setShareFolder(f)}
           onEdit={(f) => setDialogTarget(f.id)}
+          onNewSubfolder={(f) => setDialogTarget({ parentId: f.id })}
           onDelete={removeFolder}
         />
       )}
@@ -190,6 +259,136 @@ export function FolderTree({
         onShared={onShared}
       />
     </aside>
+  );
+}
+
+interface FolderRowProps {
+  node: FolderNode;
+  count: number;
+  share: FolderShareInfo | null;
+  isActive: boolean;
+  isCollapsed: boolean;
+  isDropTarget: boolean;
+  isDragging: boolean;
+  onSelect: (id: string) => void;
+  onToggle: (id: string) => void;
+  onContextMenu: (x: number, y: number) => void;
+  onShareClick: () => void;
+  onEditClick: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
+}
+
+/** Indent per nesting level. Depth 1 sits flush with the "All" row above it. */
+const INDENT_PX = 14;
+
+function FolderRow({
+  node,
+  count,
+  share,
+  isActive,
+  isCollapsed,
+  isDropTarget,
+  isDragging,
+  onSelect,
+  onToggle,
+  onContextMenu,
+  onShareClick,
+  onEditClick,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: FolderRowProps) {
+  const { folder, depth, children } = node;
+  const hasChildren = children.length > 0;
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu(e.clientX, e.clientY);
+      }}
+      className={cn(
+        'group relative flex items-center rounded-[10px] transition-colors',
+        isActive ? 'bg-primary-light' : 'hover:bg-bg-alt',
+        isDropTarget && 'ring-2 ring-inset ring-primary',
+        isDragging && 'opacity-50',
+      )}
+      style={{ paddingLeft: (depth - 1) * INDENT_PX }}
+    >
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(folder.id);
+          }}
+          aria-label={isCollapsed ? `Expand ${folder.name}` : `Collapse ${folder.name}`}
+          aria-expanded={!isCollapsed}
+          className="ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
+        >
+          <ChevronRight
+            className={cn('h-3.5 w-3.5 transition-transform', !isCollapsed && 'rotate-90')}
+          />
+        </button>
+      ) : (
+        <span className="ml-1 h-5 w-5 shrink-0" aria-hidden="true" />
+      )}
+
+      <button
+        type="button"
+        onClick={() => onSelect(folder.id)}
+        className={cn(
+          'flex min-w-0 flex-1 items-center justify-between py-2 pl-1 pr-3 text-left text-sm font-medium transition-colors',
+          isActive ? 'text-primary' : 'text-ink-muted group-hover:text-ink',
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <FolderIcon icon={folder.icon} />
+          <span className="truncate">{folder.name}</span>
+          {share && <FolderShareBadge info={share} />}
+        </span>
+        <span className="ml-2 shrink-0 text-xs text-ink-subtle">{count}</span>
+      </button>
+
+      <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 bg-inherit opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onShareClick();
+          }}
+          aria-label={`Share ${folder.name} with team`}
+          title={`Share ${folder.name} with team`}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-primary"
+        >
+          <Share2 className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditClick();
+          }}
+          aria-label={`Edit ${folder.name}`}
+          title={`Edit ${folder.name}`}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
   );
 }
 

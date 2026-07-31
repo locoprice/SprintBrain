@@ -364,6 +364,15 @@
   #nv-folder-list .nv-item.has-dots:hover .nv-cnt{display:none}
   .nv-add-folder{color:var(--sb-azure);font-weight:500}
   .nv-add-folder svg{stroke:var(--sb-azure)}
+  /* folder nesting: expand chevron + drop target */
+  .nv-fchev{width:14px;height:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--sb-ink-subtle);border-radius:4px;transition:transform .12s,background .12s}
+  .nv-fchev svg{width:12px;height:12px;stroke-width:2.4}
+  .nv-fchev.open{transform:rotate(90deg)}
+  .nv-fchev:not(.empty):hover{background:var(--sb-bg)}
+  .nv-fchev.empty{cursor:default}
+  #nv-folder-list .nv-item.drop{background:var(--sb-iris-bg);box-shadow:inset 0 0 0 2px var(--sb-azure)}
+  .nv-row[draggable="true"]{cursor:grab}
+  .nv-row[draggable="true"]:active{cursor:grabbing}
   .nv-ico-grid{display:flex;flex-wrap:wrap;gap:6px}
   .nv-ico-opt{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:var(--sb-r-md);cursor:pointer;border:1.5px solid transparent;color:var(--sb-ink-muted);transition:all .12s}
   .nv-ico-opt:hover{background:var(--sb-bg-muted)}
@@ -727,6 +736,7 @@
     <div class="nv-modal-h"><h2 id="nv-fmodal-title">New folder</h2></div>
     <div class="nv-modal-b">
       <div class="nv-field"><label>Folder name</label><input id="nv-f-fname" placeholder="Folder name…" autocomplete="off"></div>
+      <div class="nv-field"><label>Parent folder</label><select id="nv-f-fparent"></select></div>
       <div class="nv-field"><label>Icon</label><div class="nv-ico-grid" id="nv-ico-grid"></div></div>
     </div>
     <div class="nv-modal-f">
@@ -752,7 +762,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.135.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.136.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -771,6 +781,11 @@
 
   // ── State (native; presentation only) ───────────────────────────────
   var nvMode = 'snippets', nvFolder = 'ALL', nvSearch = '', nvEditId = null;
+  // Folder hierarchy UI state. Collapse is view-only (not persisted); the tree
+  // walking helpers themselves live in popup.js, shared with the extension.
+  var nvCollapsed = {}, nvDragFolderId = null;
+  var DND_SNIPPET = 'application/x-sprintbrain-snippet';
+  var DND_FOLDER  = 'application/x-sprintbrain-folder';
 
   // ── Toast ───────────────────────────────────────────────────────────
   var toastT;
@@ -905,39 +920,121 @@
   var FOLDER_SVGS = (typeof _FOLDER_SVGS !== 'undefined') ? _FOLDER_SVGS : {};
   function folderSvg(ico){ return (FOLDER_SVGS && FOLDER_SVGS[ico]) || (FOLDER_SVGS && FOLDER_SVGS.folder) || '<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>'; }
 
+  // Hidden because one of its ancestors is collapsed (the folder itself being
+  // collapsed only hides its children, not the row).
+  function folderAncestorCollapsed(fid){
+    var cur = findFolder(fid), guard = 0;
+    while (cur && cur.parent_id && guard++ < MAX_FOLDER_DEPTH + 2) {
+      if (nvCollapsed[cur.parent_id]) return true;
+      cur = findFolder(cur.parent_id);
+    }
+    return false;
+  }
+
+  function clearDropMark(){
+    var el = $('nv-folder-list'); if (!el) return;
+    el.querySelectorAll('.nv-item.drop').forEach(function(r){ r.classList.remove('drop'); });
+  }
+
+  // Only `types` is readable during dragover, so the payload kind is encoded in
+  // the key. A folder drop is refused up front when it would cycle or overflow.
+  function nvDropAllowed(e, targetFid){
+    var types = e.dataTransfer && e.dataTransfer.types ? Array.prototype.slice.call(e.dataTransfer.types) : [];
+    if (types.indexOf(DND_SNIPPET) > -1) return true;
+    if (types.indexOf(DND_FOLDER) > -1 && nvDragFolderId) return canNestFolder(nvDragFolderId, targetFid);
+    return false;
+  }
+
+  function reparentFolder(fid, pid){
+    var f = findFolder(fid); if (!f) return;
+    if (!canNestFolder(fid, pid)) { toast('Folders nest up to ' + MAX_FOLDER_DEPTH + ' levels'); return; }
+    f.parent_id = pid || null;
+    DB.upsertFolder(f);
+    if (pid) delete nvCollapsed[pid];  // reveal the folder that just moved in
+    renderAll();
+    toast(pid ? 'Moved into ' + folderPathLabel(pid) : 'Moved to top level');
+  }
+
   function renderFolderList(){
     var el = $('nv-folder-list');
     var h = '<div class="nv-item'+(nvFolder==='ALL'?' on':'')+'" data-fid="ALL">'
       + '<span class="nv-ico-svg"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/></svg></span>'
       + '<span class="nv-name">All snippets</span><span class="nv-cnt">'+groupCount(window.snips||[])+'</span></div>';
-    (window.folders || []).forEach(function(f){
-      h += '<div class="nv-item has-dots'+(nvFolder===f.id?' on':'')+'" data-fid="'+ec(f.id)+'">'
+    // Depth-first: a subfolder renders directly under its parent, indented.
+    // Collapsed parents hide their subtree (nvCollapsed).
+    folderTreeOrder().forEach(function(node){
+      var f = node.f, depth = node.depth;
+      if (folderAncestorCollapsed(f.id)) return;
+      var kids = folderChildren(f.id).length;
+      var open = !nvCollapsed[f.id];
+      h += '<div class="nv-item has-dots'+(nvFolder===f.id?' on':'')+'" data-fid="'+ec(f.id)+'"'
+        + ' draggable="true" data-depth="'+depth+'" style="padding-left:'+(10 + (depth-1)*14)+'px"'
+        + ' title="'+ec(folderPathLabel(f.id))+'">'
+        + (kids
+            ? '<span class="nv-fchev'+(open?' open':'')+'" data-fchev title="'+(open?'Collapse':'Expand')+'"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>'
+            : '<span class="nv-fchev empty"></span>')
         + '<span class="nv-ico-svg">'+folderSvg(f.ico||'folder')+'</span>'
-        + '<span class="nv-name">'+ec(f.name)+'</span><span class="nv-cnt">'+folderCount(f.id)+'</span>'
+        + '<span class="nv-name">'+ec(f.name)+'</span><span class="nv-cnt">'+folderCountDeep(f.id)+'</span>'
         + '<span class="nv-fdots" data-fdots title="Folder options">⋯</span></div>';
     });
     h += '<div class="nv-item nv-add-folder" id="nv-add-folder"><span class="nv-ico-svg"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span><span class="nv-name">New folder</span></div>';
     el.innerHTML = h;
     el.querySelectorAll('.nv-item[data-fid]').forEach(function(row){
+      var fid = row.dataset.fid;
       row.addEventListener('click', function(e){
-        if (e.target.closest('[data-fdots]')) { e.stopPropagation(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); return; }
-        nvFolder = row.dataset.fid; expandedId = null; renderFolderList(); renderMain();
+        if (e.target.closest('[data-fdots]')) { e.stopPropagation(); var f = findFolder(fid); if (f) folderMenu(f, e.clientX, e.clientY); return; }
+        if (e.target.closest('[data-fchev]')) {
+          e.stopPropagation();
+          if (nvCollapsed[fid]) delete nvCollapsed[fid]; else nvCollapsed[fid] = 1;
+          renderFolderList(); return;
+        }
+        nvFolder = fid; expandedId = null; renderFolderList(); renderMain();
       });
-      if (row.dataset.fid !== 'ALL') row.addEventListener('contextmenu', function(e){ e.preventDefault(); var f = findFolder(row.dataset.fid); if (f) folderMenu(f, e.clientX, e.clientY); });
+      if (fid !== 'ALL') row.addEventListener('contextmenu', function(e){ e.preventDefault(); var f = findFolder(fid); if (f) folderMenu(f, e.clientX, e.clientY); });
+
+      // ── Drag & drop: snippets onto folders, folders onto folders ──
+      if (fid !== 'ALL') {
+        row.addEventListener('dragstart', function(e){
+          nvDragFolderId = fid;
+          try { e.dataTransfer.setData(DND_FOLDER, fid); } catch(_) {}
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragend', function(){ nvDragFolderId = null; clearDropMark(); });
+      }
+      row.addEventListener('dragover', function(e){
+        var target = fid === 'ALL' ? '' : fid;
+        if (!nvDropAllowed(e, target)) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+        clearDropMark(); row.classList.add('drop');
+      });
+      row.addEventListener('dragleave', function(){ row.classList.remove('drop'); });
+      row.addEventListener('drop', function(e){
+        e.preventDefault(); clearDropMark();
+        var target = fid === 'ALL' ? '' : fid;
+        var sid = '';
+        try { sid = e.dataTransfer.getData(DND_SNIPPET) || ''; } catch(_) {}
+        if (sid) { var s = findSnip(sid); if (s) moveSnip(s, target); nvDragFolderId = null; return; }
+        var dragged = '';
+        try { dragged = e.dataTransfer.getData(DND_FOLDER) || ''; } catch(_) {}
+        if (!dragged) dragged = nvDragFolderId || '';
+        nvDragFolderId = null;
+        if (dragged && canNestFolder(dragged, target)) reparentFolder(dragged, target);
+      });
     });
     var add = $('nv-add-folder'); if (add) add.addEventListener('click', function(){ nvFolderModal({}); });
   }
 
   function renderMain(){
     if (nvMode === 'prompts') return renderPromptsMain();
-    var folderName = nvFolder === 'ALL' ? 'All snippets' : (function(){ var f = findFolder(nvFolder); return f ? f.name : 'Snippets'; })();
+    var folderName = nvFolder === 'ALL' ? 'All snippets' : (function(){ var f = findFolder(nvFolder); return f ? folderPathLabel(f.id) : 'Snippets'; })();
     $('nv-title').textContent = folderName;
     $('nv-list-title').textContent = 'Snippets';
     $('nv-new').style.display = '';
 
     var q = nvSearch.toLowerCase();
     var filtered = (window.snips || []).filter(function(s){
-      var mf = nvFolder === 'ALL' || (s.folder || '') === nvFolder;
+      // A parent folder lists its whole subtree, matching its rolled-up count.
+      var mf = inFolderSubtree(s.folder, nvFolder);
       var mq = !q || String(s.title||'').toLowerCase().indexOf(q) > -1 || String(s.shortcut||'').toLowerCase().indexOf(q) > -1;
       return mf && mq;
     });
@@ -958,7 +1055,7 @@
       var usesTxt = st.uses ? ('<span class="nv-stat uses">×'+st.uses+'</span>') : '<span class="nv-stat">Never used</span>';
       var base = String(s.title||'').replace(/\s*(EN|ES|IT|FR)$/, '');
       var open = expandedId === s.id;
-      h += '<div class="nv-row'+(open?' open':'')+'" data-id="'+ec(s.id)+'" role="button" aria-expanded="'+(open?'true':'false')+'">'
+      h += '<div class="nv-row'+(open?' open':'')+'" data-id="'+ec(s.id)+'" draggable="true" role="button" aria-expanded="'+(open?'true':'false')+'">'
         + (s.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main"><div class="nv-row-title">'+ec(base)+'</div>'
         + '<div class="nv-row-meta">'+usesTxt+'</div></div>'
@@ -972,6 +1069,11 @@
     });
     $('nv-list').innerHTML = h;
     $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
+      // Drag a snippet onto any folder in the rail to move it there.
+      row.addEventListener('dragstart', function(e){
+        try { e.dataTransfer.setData(DND_SNIPPET, row.dataset.id); } catch(_) {}
+        e.dataTransfer.effectAllowed = 'move';
+      });
       row.addEventListener('click', function(e){
         var act = e.target.closest('[data-act]');
         var s = findSnip(row.dataset.id); if (!s) return;
@@ -1082,7 +1184,10 @@
 
   function folderOptions(current){
     var h = '<option value="">— No folder —</option>';
-    (window.folders || []).forEach(function(f){ h += '<option value="'+ec(f.id)+'"'+(f.id===current?' selected':'')+'>'+ec(f.name)+'</option>'; });
+    folderTreeOrder().forEach(function(node){
+      var f = node.f;
+      h += '<option value="'+ec(f.id)+'"'+(f.id===current?' selected':'')+'>'+ec(folderPathLabel(f.id))+'</option>';
+    });
     return h;
   }
   function defaultLang(){ try { return (userPrefs && userPrefs.defaultLang) || 'EN'; } catch(e){ return 'EN'; } }
@@ -1558,7 +1663,12 @@
     ]);
   }
   function moveMenu(s, x, y){
-    var items = (window.folders || []).map(function(f){ return { label:f.name, ic:folderSvg(f.ico||'folder'), onClick:function(){ moveSnip(s, f.id); } }; });
+    // Tree order + full paths, so "Preventivi" under two different properties
+    // stays tellable apart.
+    var items = folderTreeOrder().map(function(node){
+      var f = node.f;
+      return { label:folderPathLabel(f.id), ic:folderSvg(f.ico||'folder'), onClick:function(){ moveSnip(s, f.id); } };
+    });
     items.push({ sep:true });
     items.push({ label:'No folder', ic:'', onClick:function(){ moveSnip(s, ''); } });
     items.push({ sep:true });
@@ -1566,12 +1676,30 @@
     showMenu(x, y, items);
   }
   function folderMenu(f, x, y){
-    showMenu(x, y, [
-      { label:'Rename folder…', ic:SVG.pen, onClick:function(){ renameFolder(f); } },
-      { label:'Change icon…', ic:SVG.grid, onClick:function(){ nvFolderModal({ editId:f.id }); } },
-      { sep:true },
-      { label:'Delete folder…', ic:SVG.trash, danger:true, onClick:function(){ deleteFolderAction(f); } }
-    ]);
+    var items = [];
+    if (canNestUnderFolder(f.id)) {
+      items.push({ label:'New subfolder…', ic:SVG.move, onClick:function(){ nvFolderModal({ parentId:f.id }); } });
+    }
+    items.push({ label:'Move folder to…', ic:SVG.move, arrow:true, keepOpen:true, onClick:function(){ folderMoveMenu(f, x, y); } });
+    items.push({ sep:true });
+    items.push({ label:'Rename folder…', ic:SVG.pen, onClick:function(){ renameFolder(f); } });
+    items.push({ label:'Change icon…', ic:SVG.grid, onClick:function(){ nvFolderModal({ editId:f.id }); } });
+    items.push({ sep:true });
+    items.push({ label:'Delete folder…', ic:SVG.trash, danger:true, onClick:function(){ deleteFolderAction(f); } });
+    showMenu(x, y, items);
+  }
+
+  // Keyboard/mouse alternative to dragging a folder onto another folder.
+  function folderMoveMenu(f, x, y){
+    var items = [];
+    folderTreeOrder().forEach(function(node){
+      var t = node.f;
+      if (!canNestFolder(f.id, t.id)) return;
+      items.push({ label:folderPathLabel(t.id), ic:folderSvg(t.ico||'folder'), onClick:function(){ reparentFolder(f.id, t.id); } });
+    });
+    if (items.length) items.push({ sep:true });
+    items.push({ label:'Top level', ic:'', onClick:function(){ reparentFolder(f.id, ''); } });
+    showMenu(x, y, items);
   }
 
   function duplicateSnip(s){
@@ -1589,13 +1717,23 @@
   function copyContent(s){ try { navigator.clipboard.writeText(s.body || ''); } catch(e) {} toast('Content copied'); }
   function renameFolder(f){ var v = window.prompt('Rename folder:', f.name || ''); if (v && v.trim() && v.trim() !== f.name) { f.name = v.trim(); DB.upsertFolder(f); renderAll(); } }
   function deleteFolderAction(f){
+    // Only this folder's own snippets are ungrouped: children are promoted to
+    // the top level and keep theirs, so no subtree is lost to one click.
     var cnt = folderCount(f.id);
-    var msg = cnt > 0 ? 'Delete folder "' + f.name + '" and ungroup its ' + cnt + ' snippet(s)?' : 'Delete folder "' + f.name + '"?';
+    var kids = folderChildren(f.id);
+    var parts = [];
+    if (cnt > 0) parts.push('ungroup its ' + cnt + ' snippet(s)');
+    if (kids.length) parts.push('move ' + kids.length + ' subfolder(s) to the top level');
+    var msg = parts.length
+      ? 'Delete folder "' + f.name + '" and ' + parts.join(' and ') + '?'
+      : 'Delete folder "' + f.name + '"?';
     if (!window.confirm(msg)) return;
     (window.snips || []).forEach(function(s){ if ((s.folder || '') === f.id) { s.folder = ''; DB.upsertSnippet(s); } });
+    kids.forEach(function(k){ k.parent_id = null; DB.upsertFolder(k); });
     DB.deleteFolder(f.id);
     window.folders = (window.folders || []).filter(function(x){ return x.id !== f.id; });
     if (nvFolder === f.id) nvFolder = 'ALL';
+    delete nvCollapsed[f.id];
     renderAll(); toast('Folder deleted');
   }
 
@@ -1605,12 +1743,27 @@
     var keys = Object.keys(FOLDER_SVGS); if (!keys.length) keys = ['folder'];
     $('nv-ico-grid').innerHTML = keys.map(function(k){ return '<span class="nv-ico-opt'+(k===fmIco?' on':'')+'" data-ico="'+ec(k)+'">'+folderSvg(k)+'</span>'; }).join('');
   }
+  // Parents this folder may sit under. Editing excludes its own subtree and
+  // anything too deep for it; creating only needs room for one more level.
+  function folderParentOptions(editId, current){
+    var h = '<option value="">— No parent (top level) —</option>';
+    folderTreeOrder().forEach(function(node){
+      var f = node.f;
+      var ok = editId ? canNestFolder(editId, f.id) : canNestUnderFolder(f.id);
+      if (!ok) return;
+      h += '<option value="'+ec(f.id)+'"'+(f.id===current?' selected':'')+'>'+ec(folderPathLabel(f.id))+'</option>';
+    });
+    return h;
+  }
+
   function nvFolderModal(opts){
     opts = opts || {}; fmEditId = opts.editId || null; fmCb = opts.cb || null;
     var f = fmEditId ? findFolder(fmEditId) : null;
     fmIco = f ? (f.ico || 'folder') : 'folder';
     $('nv-fmodal-title').textContent = f ? 'Edit folder' : 'New folder';
     $('nv-f-fname').value = f ? f.name : '';
+    var presetParent = f ? (f.parent_id || '') : (opts.parentId || '');
+    $('nv-f-fparent').innerHTML = folderParentOptions(fmEditId, presetParent);
     $('nv-fmodal-save').textContent = f ? 'Save folder' : 'Create folder';
     renderIcoGrid();
     $('nv-fmodal-bg').classList.add('on');
@@ -1623,8 +1776,19 @@
   $('nv-f-fname').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('nv-fmodal-save').click(); if (e.key === 'Escape') closeFolderModal(); });
   $('nv-fmodal-save').addEventListener('click', function(){
     var name = ($('nv-f-fname').value || '').trim(); if (!name) { $('nv-f-fname').focus(); toast('Folder name required'); return; }
-    if (fmEditId) { var f = findFolder(fmEditId); if (f) { f.name = name; f.ico = fmIco; DB.upsertFolder(f); } }
-    else { var nf = { id:fuid(), name:name, ico:fmIco, sort_order:(window.folders||[]).length + 1 }; (window.folders = window.folders || []).push(nf); DB.upsertFolder(nf); if (fmCb) fmCb(nf.id); }
+    var parent = $('nv-f-fparent').value || '';
+    if (fmEditId) {
+      var f = findFolder(fmEditId);
+      if (f) {
+        if (parent && !canNestFolder(fmEditId, parent)) { toast('Folders nest up to ' + MAX_FOLDER_DEPTH + ' levels'); return; }
+        f.name = name; f.ico = fmIco; f.parent_id = parent || null; DB.upsertFolder(f);
+      }
+    } else {
+      var nf = { id:fuid(), name:name, ico:fmIco, sort_order:(window.folders||[]).length + 1, parent_id: parent || null };
+      (window.folders = window.folders || []).push(nf); DB.upsertFolder(nf);
+      if (parent) delete nvCollapsed[parent];
+      if (fmCb) fmCb(nf.id);
+    }
     closeFolderModal(); renderAll();
   });
 

@@ -11,18 +11,30 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { DEFAULT_FOLDER_ICON, FOLDER_ICON_KEYS, FolderIcon } from '@/lib/folderIcons';
+import { canMoveFolder, canNestUnder, folderPath } from '@/lib/folderTree';
 import type { Folder } from '@/types/database';
 import { folderFormSchema, type FolderFormValues } from '@/types/schemas';
 
 const DEFAULT_FORM: FolderFormValues = {
   name: '',
   icon: DEFAULT_FOLDER_ICON,
+  parent_id: null,
 };
 
 type FieldErrors = Partial<Record<keyof FolderFormValues, string>>;
 
-/** Open target: 'new' → create, a folder id → edit, null → closed. */
-export type FolderDialogTarget = 'new' | string | null;
+/**
+ * Open target:
+ *   'new'                → create at root
+ *   { parentId: id }     → create nested under `id`
+ *   a folder id (string) → edit that folder
+ *   null                 → closed
+ */
+export type FolderDialogTarget = 'new' | { parentId: string } | string | null;
+
+function isEditTarget(target: FolderDialogTarget): target is string {
+  return typeof target === 'string' && target !== 'new';
+}
 
 interface FolderDialogProps {
   target: FolderDialogTarget;
@@ -55,14 +67,28 @@ export function FolderDialog({
   itemNoun,
   allLabel,
 }: FolderDialogProps) {
-  const isEdit = target !== null && target !== 'new';
+  const isEdit = isEditTarget(target);
   const editingFolder = useMemo(
-    () => (isEdit && target ? folders.find((f) => f.id === target) ?? null : null),
+    () => (isEdit ? folders.find((f) => f.id === target) ?? null : null),
     [isEdit, target, folders],
   );
   const open = target !== null;
 
+  // Parents this folder may sit under. Creating: anything with room below it.
+  // Editing: exclude the folder's own subtree and anything too deep for it.
+  const parentOptions = useMemo(() => {
+    const candidates = folders.filter((f) =>
+      editingFolder ? canMoveFolder(folders, editingFolder.id, f.id) : canNestUnder(folders, f.id),
+    );
+    return candidates
+      .map((f) => ({ id: f.id, label: folderPath(folders, f.id) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [folders, editingFolder]);
+
   const affectedCount = editingFolder ? countFor(editingFolder.id) : 0;
+  const childCount = editingFolder
+    ? folders.filter((f) => f.parent_id === editingFolder.id).length
+    : 0;
 
   const [form, setForm] = useState<FolderFormValues>(DEFAULT_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -76,11 +102,18 @@ export function FolderDialog({
     setSubmitError(null);
     setConfirmDelete(false);
     if (editingFolder) {
-      setForm({ name: editingFolder.name, icon: editingFolder.icon || DEFAULT_FORM.icon });
+      setForm({
+        name: editingFolder.name,
+        icon: editingFolder.icon || DEFAULT_FORM.icon,
+        parent_id: editingFolder.parent_id,
+      });
     } else {
-      setForm(DEFAULT_FORM);
+      setForm({
+        ...DEFAULT_FORM,
+        parent_id: typeof target === 'object' && target !== null ? target.parentId : null,
+      });
     }
-  }, [open, editingFolder]);
+  }, [open, editingFolder, target]);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -172,6 +205,29 @@ export function FolderDialog({
           </div>
 
           <div className="grid gap-1.5">
+            <label htmlFor="folder-parent" className="text-xs font-medium text-ink-muted">
+              Parent folder
+            </label>
+            <select
+              id="folder-parent"
+              value={form.parent_id ?? ''}
+              onChange={(e) => updateField('parent_id', e.target.value || null)}
+              disabled={saving}
+              className="h-10 rounded-[12px] border border-line bg-card px-3 text-sm text-ink outline-none transition-colors focus:border-primary disabled:opacity-50"
+            >
+              <option value="">No parent (top level)</option>
+              {parentOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-[11px] text-ink-subtle">
+              Nest a category under a property, e.g. Villa Serena / Preventivi.
+            </span>
+          </div>
+
+          <div className="grid gap-1.5">
             <span className="text-xs font-medium text-ink-muted">Icon</span>
             <div className="flex flex-wrap gap-2">
               {FOLDER_ICON_KEYS.map((opt) => {
@@ -198,10 +254,21 @@ export function FolderDialog({
             {errors.icon && <span className="text-xs text-danger">{errors.icon}</span>}
           </div>
 
-          {editingFolder && affectedCount > 0 && confirmDelete && (
+          {editingFolder && confirmDelete && (affectedCount > 0 || childCount > 0) && (
             <div className="rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
-              {affectedCount} {itemNoun}
-              {affectedCount === 1 ? '' : 's'} will move to “{allLabel}”. Click again to confirm.
+              {affectedCount > 0 && (
+                <>
+                  {affectedCount} {itemNoun}
+                  {affectedCount === 1 ? '' : 's'} will move to “{allLabel}”.
+                </>
+              )}
+              {childCount > 0 && (
+                <>
+                  {affectedCount > 0 ? ' ' : ''}
+                  {childCount} subfolder{childCount === 1 ? '' : 's'} will move to the top level.
+                </>
+              )}{' '}
+              Click again to confirm.
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Pencil, Share2, Smile, Trash2 } from 'lucide-react';
+import { FolderPlus, Pencil, Share2, Smile, Trash2 } from 'lucide-react';
 import type { Folder } from '@/types/database';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +14,11 @@ interface FolderContextMenuProps {
   onShare: (folder: Folder) => void;
   /** Open the rename / change-icon dialog for this folder. */
   onEdit: (folder: Folder) => void;
-  /** Delete this folder (its items drop back to "no folder"). */
+  /** Create a folder nested under this one. */
+  onNewSubfolder: (folder: Folder) => void;
+  /** False at the deepest nesting level — "New subfolder" is greyed out. */
+  canNest: boolean;
+  /** Delete this folder (its items drop back to "no folder", children to root). */
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -28,6 +32,8 @@ export function FolderContextMenu({
   onClose,
   onShare,
   onEdit,
+  onNewSubfolder,
+  canNest,
   onDelete,
 }: FolderContextMenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -79,6 +85,11 @@ export function FolderContextMenu({
     onClose();
   }
 
+  function handleNewSubfolder() {
+    onNewSubfolder(folder);
+    onClose();
+  }
+
   async function handleDelete() {
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -107,6 +118,12 @@ export function FolderContextMenu({
       style={{ left: pos.x, top: pos.y, minWidth: MIN_WIDTH }}
       onContextMenu={(e) => e.preventDefault()}
     >
+      <MenuItem
+        icon={<FolderPlus className="h-3.5 w-3.5" />}
+        label={canNest ? 'New subfolder' : 'Nesting limit reached'}
+        onClick={handleNewSubfolder}
+        disabled={!canNest}
+      />
       <MenuItem icon={<Pencil className="h-3.5 w-3.5" />} label="Rename" onClick={handleEdit} />
       <MenuItem icon={<Smile className="h-3.5 w-3.5" />} label="Change icon" onClick={handleEdit} />
       <MenuItem icon={<Share2 className="h-3.5 w-3.5" />} label="Share with team…" onClick={handleShare} />

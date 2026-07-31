@@ -374,36 +374,64 @@ function buildContextMenus(data) {
     // Single-snippet folders are no longer flattened to the root: showing each
     // folder consistently means a folder created in the dashboard is always
     // visible here, and the menu reads the same way every time.
-    var foldersWithSnips = [];
-    folders.forEach(function(f) {
-      var fSnips = byFolder[f.id] || [];
-      if (fSnips.length === 0) return;
-      foldersWithSnips.push({ folder: f, groups: sortGroups(groupByLang(fSnips)) });
-    });
-    // Stable folder order: sort_order first, then name.
-    foldersWithSnips.sort(function(a, b) {
-      var sa = (a.folder.sort_order == null) ? 1e9 : a.folder.sort_order;
-      var sb = (b.folder.sort_order == null) ? 1e9 : b.folder.sort_order;
-      if (sa !== sb) return sa - sb;
-      var na = (a.folder.name || '').toLowerCase();
-      var nb = (b.folder.name || '').toLowerCase();
-      return na === nb ? 0 : (na < nb ? -1 : 1);
-    });
+    // Folders nest (Property > Category > Sub), so the menu nests with them:
+    // a parent submenu holds its own snippets followed by its child folders.
+    function sortFolders(list) {
+      return list.slice().sort(function(a, b) {
+        var sa = (a.sort_order == null) ? 1e9 : a.sort_order;
+        var sb = (b.sort_order == null) ? 1e9 : b.sort_order;
+        if (sa !== sb) return sa - sb;
+        var na = (a.name || '').toLowerCase();
+        var nb = (b.name || '').toLowerCase();
+        return na === nb ? 0 : (na < nb ? -1 : 1);
+      });
+    }
+    function childFolders(pid) {
+      return sortFolders(folders.filter(function(f) {
+        return f.id !== pid && (f.parent_id || '') === pid;
+      }));
+    }
+    // Snippet groups in this folder and everything below it — drives the count
+    // on the parent so it matches what opening the submenu leads to.
+    function subtreeGroupCount(f, depth) {
+      var n = (byFolder[f.id] || []).length ? sortGroups(groupByLang(byFolder[f.id])).length : 0;
+      if (depth < 8) {
+        childFolders(f.id).forEach(function(c) { n += subtreeGroupCount(c, depth + 1); });
+      }
+      return n;
+    }
+    function hasSnippetsDeep(f, depth) { return subtreeGroupCount(f, depth) > 0; }
 
-    var showingFolders = foldersWithSnips.length > 0;
-    if (recent.length > 0 && showingFolders) addSep('sb-root');
+    // A folder whose parent is not in the list is a root — RLS can share a
+    // child without its parent, and it must still appear.
+    var folderIds = {};
+    folders.forEach(function(f) { folderIds[f.id] = 1; });
+    var rootFolders = sortFolders(folders.filter(function(f) {
+      var p = f.parent_id || '';
+      return !p || p === f.id || !folderIds[p];
+    })).filter(function(f) { return hasSnippetsDeep(f, 1); });
 
-    foldersWithSnips.forEach(function(entry) {
-      var f = entry.folder;
+    function emitFolderMenu(parentMenuId, f, depth) {
+      if (depth > 8) return;
       var folderIco = folderEmoji(f.ico);
+      var menuId = 'sb-folder-' + f.id;
       chrome.contextMenus.create({
-        id: 'sb-folder-' + f.id,
-        parentId: 'sb-root',
-        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.groups.length + ')',
+        id: menuId,
+        parentId: parentMenuId,
+        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + subtreeGroupCount(f, depth) + ')',
         contexts: ['editable']
       });
-      renderSnippetGroups('sb-folder-' + f.id, entry.groups, folderIco);
-    });
+      var own = byFolder[f.id] || [];
+      if (own.length > 0) renderSnippetGroups(menuId, sortGroups(groupByLang(own)), folderIco);
+      var kids = childFolders(f.id).filter(function(c) { return hasSnippetsDeep(c, depth + 1); });
+      if (kids.length > 0 && own.length > 0) addSep(menuId);
+      kids.forEach(function(c) { emitFolderMenu(menuId, c, depth + 1); });
+    }
+
+    var showingFolders = rootFolders.length > 0;
+    if (recent.length > 0 && showingFolders) addSep('sb-root');
+
+    rootFolders.forEach(function(f) { emitFolderMenu('sb-root', f, 1); });
 
     // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
     if (noFolder.length > 0) {

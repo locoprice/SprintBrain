@@ -101,6 +101,9 @@ export type SnippetFormValues = z.infer<typeof snippetFormSchema>;
 export const folderFormSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
   icon: z.string().min(1, 'Icon is required'),
+  // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
+  // null = root folder; omitted = leave the current parent untouched on patch.
+  parent_id: z.string().nullable().optional(),
 });
 
 export type FolderFormValues = z.infer<typeof folderFormSchema>;

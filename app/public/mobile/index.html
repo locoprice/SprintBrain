@@ -202,6 +202,11 @@ body{
   padding:1px 7px;border-radius:9999px;color:var(--text3)
 }
 .folder-pill.on .folder-pill-cnt{background:rgba(255,255,255,.22);color:#fff}
+/* nested folder pill — follows its parent, marked by a corner glyph */
+.folder-pill.sub{padding-left:9px;border-style:dashed}
+.folder-pill.sub.on{border-style:solid}
+.folder-pill-nest{width:11px;height:11px;display:flex;flex-shrink:0;opacity:.55}
+.folder-pill-nest svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Folder-chip scroll arrows — surface only when the row overflows that way. */
 .ftabs-wrap{position:relative}
@@ -2002,6 +2007,88 @@ function folderCount(fid){
   }
   return n;
 }
+/* ── FOLDER HIERARCHY ──────────────────────────────────────────────
+   Folders nest (Property > Category > Sub) via parent_id. The mobile
+   companion keeps its own copy of these helpers by design — it shares no
+   runtime with popup.js. Mirrors app/src/lib/folderTree.ts; keep the two in
+   step when the rules change. Read-only here: mobile never reparents. */
+var MAX_FOLDER_DEPTH=3;
+function folderChildrenOf(pid){
+  var out=[];
+  for(var i=0;i<allFolders.length;i++){
+    var f=allFolders[i];
+    if(f.id!==pid&&(f.parent_id||'')===pid)out.push(f);
+  }
+  return out.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0?d:String(a.name||'').localeCompare(String(b.name||''));
+  });
+}
+/* Depth-first: each folder immediately followed by its children. A folder
+   whose parent isn't visible renders as a root (RLS shares children alone). */
+function folderTreeOrder(){
+  var known={},out=[],seen={};
+  for(var i=0;i<allFolders.length;i++)known[allFolders[i].id]=1;
+  function walk(list,depth){
+    for(var j=0;j<list.length;j++){
+      var f=list[j];
+      if(seen[f.id]||depth>MAX_FOLDER_DEPTH)continue;
+      seen[f.id]=1;
+      out.push({f:f,depth:depth});
+      walk(folderChildrenOf(f.id),depth+1);
+    }
+  }
+  var roots=[];
+  for(var k=0;k<allFolders.length;k++){
+    var f=allFolders[k],p=f.parent_id||'';
+    if(!p||p===f.id||!known[p])roots.push(f);
+  }
+  roots.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0?d:String(a.name||'').localeCompare(String(b.name||''));
+  });
+  walk(roots,1);
+  return out;
+}
+function folderDescendantsOf(fid){
+  var out=[],queue=folderChildrenOf(fid).slice(),seen={};
+  while(queue.length){
+    var f=queue.pop();
+    if(!f||seen[f.id]||f.id===fid)continue;
+    seen[f.id]=1;out.push(f.id);
+    queue=queue.concat(folderChildrenOf(f.id));
+  }
+  return out;
+}
+function inFolderSubtree(sfid,fid){
+  if(fid==='ALL')return true;
+  if((sfid||'')===fid)return true;
+  var kids=folderDescendantsOf(fid);
+  for(var i=0;i<kids.length;i++)if(kids[i]===(sfid||''))return true;
+  return false;
+}
+/* Own snippets plus every descendant's, so the pill count matches the list. */
+function folderCountDeep(fid){
+  var ids=[fid].concat(folderDescendantsOf(fid)),inSet={};
+  for(var i=0;i<ids.length;i++)inSet[ids[i]]=1;
+  var seen={},n=0;
+  for(var j=0;j<allSnips.length;j++){
+    if(!inSet[allSnips[j].folder_id||''])continue;
+    var gid=groupKey(allSnips[j]);
+    if(!seen[gid]){seen[gid]=1;n++;}
+  }
+  return n;
+}
+function folderPathLabel(fid){
+  var parts=[],cur=getFolderById(fid),guard=0,seen={};
+  while(cur&&guard++<MAX_FOLDER_DEPTH+2){
+    if(seen[cur.id])break;
+    seen[cur.id]=1;
+    parts.unshift(cur.name||'');
+    cur=cur.parent_id?getFolderById(cur.parent_id):null;
+  }
+  return parts.join(' / ');
+}
 function getFolderById(id){
   if(!id)return null;
   for(var i=0;i<allFolders.length;i++){
@@ -2318,12 +2405,17 @@ function renderFolderChips(){
   var html='<button class="folder-pill'+(curFolder==='ALL'?' on':'')+'" data-fid="ALL">'
     +'<span class="folder-pill-ico"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg></span><span>All</span>'
     +'<span class="folder-pill-cnt">'+groupCount(allSnips)+'</span></button>';
-  for(var i=0;i<allFolders.length;i++){
-    var f=allFolders[i];
-    html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'">'
+  /* Depth-first so a subfolder sits right after its parent. The row is
+     horizontal, so nesting reads as a corner glyph, not an indent. */
+  var ordered=folderTreeOrder();
+  for(var i=0;i<ordered.length;i++){
+    var f=ordered[i].f,depth=ordered[i].depth;
+    html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+(depth>1?' sub':'')+'" data-fid="'+esc(f.id)+'"'
+      +' title="'+esc(folderPathLabel(f.id))+'">'
+      +(depth>1?'<span class="folder-pill-nest"><svg viewBox="0 0 24 24"><path d="M4 4v10a4 4 0 0 0 4 4h12"/><polyline points="16 14 20 18 16 22"/></svg></span>':'')
       +'<span class="folder-pill-ico">'+folderIcon(f)+'</span>'
       +'<span>'+esc(f.name||'Untitled')+'</span>'
-      +'<span class="folder-pill-cnt">'+folderCount(f.id)+'</span></button>';
+      +'<span class="folder-pill-cnt">'+folderCountDeep(f.id)+'</span></button>';
   }
   el.innerHTML=html;
   el.scrollLeft=prevScroll;
@@ -2398,7 +2490,8 @@ function groupMatches(g,q,folder,lang){
   for(var i=0;i<g.variants.length;i++){
     var s=g.variants[i];
     var ml=lang==='ALL'||s.lang===lang;
-    var mf=folder==='ALL'||s.folder_id===folder;
+    /* A parent folder lists its whole subtree, matching its pill count. */
+    var mf=inFolderSubtree(s.folder_id,folder);
     var ms=!q||(s.title||'').toLowerCase().includes(q)||
             (s.shortcut||'').toLowerCase().includes(q);
     if(ml&&mf&&ms) return true;
@@ -3063,9 +3156,11 @@ function closeFolderPicker(){
 function renderFolderPicker(){
   var ul=document.getElementById('sb-folder-list');
   var q=(folderPickerSearch||'').toLowerCase().trim();
-  var list=allFolders.filter(function(f){
+  /* Tree order, and search matches the full path so "villa preventivi" finds
+     the nested folder as readily as its own name does. */
+  var list=folderTreeOrder().map(function(n){return n.f;}).filter(function(f){
     if(!q)return true;
-    return (f.name||'').toLowerCase().indexOf(q)>-1;
+    return folderPathLabel(f.id).toLowerCase().indexOf(q)>-1;
   });
   var html='';
   if(!q){
@@ -3079,7 +3174,7 @@ function renderFolderPicker(){
     var sel=(editFolderId===f.id)?'sb-selected':'';
     html+='<li data-fid="'+esc(f.id)+'" class="'+sel+'">'
       +'<span class="sb-folder-row-ico">'+folderIcon(f)+'</span>'
-      +'<span class="sb-folder-row-name">'+esc(f.name||'Untitled')+'</span>'
+      +'<span class="sb-folder-row-name">'+esc(folderPathLabel(f.id)||f.name||'Untitled')+'</span>'
     +'</li>';
   }
   if(!list.length&&q){
