@@ -699,6 +699,30 @@
     return { values: values, errors: errors };
   }
 
+  /**
+   * Writes a {button} token from an insert-dialog config — the exact inverse of
+   * extractButtons(), so every token this writes parses back to the same button.
+   *
+   * `"` `{` `}` would end the head early, so they collapse to a space inside a
+   * label; a literal {/button} inside the code would end the block early and is
+   * dropped.
+   *
+   * MIRRORED in app/src/lib/buttonToken.ts — the React dashboard cannot import
+   * extension source (see app/CLAUDE.md §6). Change both together.
+   */
+  function buildButtonToken(cfg) {
+    var c = cfg || {};
+    var label = _sTrim(String(c.label === null || c.label === undefined ? '' : c.label)
+      .replace(/["{}]/g, ' ').replace(/\s+/g, ' ')) || 'Run';
+    var trim = BUTTON_TRIMS[String(c.trim || '').toLowerCase()] ? String(c.trim).toLowerCase() : 'no';
+    var lines = String(c.code === null || c.code === undefined ? '' : c.code)
+      .replace(/\{\/button\}/gi, '\n')
+      .split(/\r?\n/).map(_sTrim).filter(function(l){ return l !== ''; });
+    var out = '{button label="' + label + '"';
+    if (trim !== 'no') out += ' trim=' + trim;
+    return out + '}' + lines.join('\n') + BUTTON_CLOSE;
+  }
+
   // ── FIELD EXTRACTOR ─────────────────────────────────────────────
   // Returns unique field names for the overlay form.
   function extractFields(body) {
@@ -833,6 +857,41 @@
     return out + '}';
   }
 
+  // ── BUTTON TOKEN WRITER ─────────────────────────────────────────
+  // Serializes a {button …}code{/button} token from an insert-dialog config —
+  // the inverse of extractButtons(), so every token this writes parses back.
+  //
+  // MIRRORED in app/src/lib/formButtonToken.ts — the React dashboard cannot
+  // import extension source (app/CLAUDE.md §6). Change both together.
+  function _btnLabelSafe(s) {
+    // `"` would close the attribute; braces would end the token early.
+    return _sTrim(String(s).replace(/["{}]/g, '').replace(/\s+/g, ' '));
+  }
+
+  function _btnExprSafe(s) {
+    // ';' and newlines separate statements; braces end the token.
+    return _sTrim(String(s).replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' '));
+  }
+
+  function buildFormButtonToken(cfg) {
+    var c = cfg || {};
+    var lines = [], raw = c.lines || [];
+    for (var i = 0; i < raw.length; i++) {
+      var field = String(raw[i].field || '').replace(/[^A-Za-z0-9_]/g, '');
+      var expr = _btnExprSafe(raw[i].expr || '');
+      if (!field || !expr) continue;
+      if (!/^[A-Za-z_]/.test(field)) field = 'F' + field;
+      lines.push(field + ' = ' + expr);
+    }
+
+    var head = '{button';
+    var label = _btnLabelSafe(c.label || '');
+    if (label) head += ' label="' + label + '"';
+    var trim = String(c.trim || '').toLowerCase();
+    if (BUTTON_TRIMS[trim] && trim !== 'no') head += ' trim=' + trim;
+    return head + '}' + lines.join('; ') + BUTTON_CLOSE;
+  }
+
   // ── PLACEHOLDER ENGINE (double-brace only) ──────────────────────
   function parsePlaceholders(body) {
     var regex = /\{\{([a-zA-Z0-9_]+)\}\}/g, found = {}, result = [], match;
@@ -916,9 +975,11 @@
     buildFormFieldCfg: buildFormFieldCfg,
     buildFormMenuToken: buildFormMenuToken,
     formMenuPicks:     formMenuPicks,
+    buildFormButtonToken: buildFormButtonToken,
     extractButtons:    extractButtons,
     parseButtonCode:   parseButtonCode,
     applyButtonCode:   applyButtonCode,
+    buildButtonToken:  buildButtonToken,
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,

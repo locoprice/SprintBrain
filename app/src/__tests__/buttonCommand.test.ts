@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { validateTemplate } from '@/lib/statusSignals';
+import {
+  buildFormButtonToken,
+  isValidButtonField,
+  sanitizeButtonExpr,
+  sanitizeButtonField,
+  sanitizeButtonLabel,
+} from '@/lib/formButtonToken';
 
 // Loads the REAL shipping engine (extension/formula-engine.js) so these cases
 // pin the code the extension actually runs, not a copy. Same pattern as
@@ -24,6 +31,11 @@ interface ButtonSpec {
 }
 
 interface FormulaEngine {
+  buildFormButtonToken: (cfg: {
+    label: string;
+    trim: string;
+    lines: { field: string; expr: string }[];
+  }) => string;
   extractButtons: (body: string) => ButtonSpec[];
   parseButtonCode: (code: string) => { statements: { name: string; expr: string }[]; errors: string[] };
   applyButtonCode: (
@@ -164,6 +176,71 @@ describe('{button} — output', () => {
 
   it('drops only the head when the closer is missing, keeping the rest readable', () => {
     expect(engine.resolveBody('Hi {button label="x"}P = 1', {})).toBe('Hi P = 1');
+  });
+});
+
+describe('{button} — writer', () => {
+  it('writes label, trim and the code block', () => {
+    expect(
+      buildFormButtonToken({
+        label: '10% off',
+        trim: 'left',
+        lines: [{ field: 'PRICE', expr: 'PRICE * 0.9' }],
+      }),
+    ).toBe('{button label="10% off" trim=left}PRICE = PRICE * 0.9{/button}');
+  });
+
+  it('omits trim=no and an empty label', () => {
+    expect(
+      buildFormButtonToken({ label: '', trim: 'no', lines: [{ field: 'A', expr: '1' }] }),
+    ).toBe('{button}A = 1{/button}');
+  });
+
+  it('joins several actions with a semicolon and drops incomplete rows', () => {
+    expect(
+      buildFormButtonToken({
+        label: 'Totals',
+        trim: 'no',
+        lines: [
+          { field: 'SUB', expr: 'PRICE * NIGHTS' },
+          { field: '', expr: 'orphan' },
+          { field: 'DROPPED', expr: '  ' },
+          { field: 'TOTAL', expr: 'SUB + 4.40' },
+        ],
+      }),
+    ).toBe('{button label="Totals"}SUB = PRICE * NIGHTS; TOTAL = SUB + 4.40{/button}');
+  });
+
+  it('strips the characters that would break the token', () => {
+    expect(sanitizeButtonLabel('He said "hi" {now}')).toBe('He said hi now');
+    expect(sanitizeButtonExpr('A; B {c}\nD')).toBe('A B c D');
+    expect(sanitizeButtonField('2bad-name')).toBe('F2badname');
+    expect(sanitizeButtonField('!!!')).toBe('');
+    expect(isValidButtonField('PRICE_2')).toBe(true);
+    expect(isValidButtonField('2PRICE')).toBe(false);
+  });
+
+  it('round-trips through the shipping engine', () => {
+    const token = buildFormButtonToken({
+      label: 'Add city tax',
+      trim: 'yes',
+      lines: [{ field: 'PRICE', expr: 'PRICE + 4.40' }],
+    });
+    const btn = firstButton(token);
+    expect(btn.label).toBe('Add city tax');
+    expect(btn.trim).toBe('yes');
+    expect(btn.statements).toEqual([{ name: 'PRICE', expr: 'PRICE + 4.40' }]);
+    expect(btn.errors).toEqual([]);
+    expect(engine.validateTemplate(token).code).toBeNull();
+  });
+
+  it('agrees with the engine-side writer character for character', () => {
+    const cfg = {
+      label: 'Half it',
+      trim: 'right' as const,
+      lines: [{ field: 'PRICE', expr: 'PRICE / 2' }],
+    };
+    expect(buildFormButtonToken(cfg)).toBe(engine.buildFormButtonToken(cfg));
   });
 });
 

@@ -385,6 +385,10 @@ function sbApplyCompanyFavicon(meta) {
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.133.0', date:'2026-07-30', label:'feat: build an action button without typing the code',
+    changes:[
+      {type:'new', text:'The snippet editor has a {button} chip beside {formmenu}. Give the button a label, add the lines it should set — PRICE = PRICE * 0.9 — pick how it handles spacing, and it writes the token for you.'}
+    ]},
   { version:'v2.132.0', date:'2026-07-30', label:'feat: action buttons in snippets',
     changes:[
       {type:'new', text:'A snippet can now carry a button that changes its numbers for you — "10% off", "add city tax". Write {button label="10% off"}PRICE = PRICE * 0.9{/button} in the body; the button shows up when you fill the snippet, and never appears in the message itself.'}

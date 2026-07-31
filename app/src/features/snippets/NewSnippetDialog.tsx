@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertCircle, ChevronDown, Clock, History, Pin, Plus, Trash2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronDown,
+  Clock,
+  History,
+  MousePointerClick,
+  Pin,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { cn } from '@/lib/utils';
 import { nextMenuName } from '@/lib/formMenuToken';
@@ -182,6 +193,8 @@ export function NewSnippetDialog() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
   const [menuFieldOpen, setMenuFieldOpen] = useState(false);
+  // Action-button builder — writes a {button}…{/button} token at the cursor.
+  const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
   // Auto-suggestions: derived from snippet name + trigger. Suggestions from
   // matching keyword rules that haven't been added yet are shown as one-click chips.
@@ -397,12 +410,18 @@ export function NewSnippetDialog() {
 
       {/*
         Override defaults via tailwind-merge:
-          max-w-lg  → max-w-[860px]
+          max-w-lg  → max-w-[min(94vw,1100px)]
           p-6       → p-0
           gap-4     → gap-0
           grid      → flex flex-col
+
+        Height is FIXED (not max-) so the flex column always fills it and the
+        body textarea absorbs the slack — on target desktop viewports the left
+        panel then has nothing to scroll. The panel keeps overflow-y as the
+        safety valve for short windows, with the scrollbar chrome hidden
+        (no-scrollbar) like the options rail (v2.129.0).
       */}
-      <DialogContent className="max-w-[860px] p-0 gap-0 flex flex-col overflow-hidden max-h-[min(90vh,760px)]">
+      <DialogContent className="max-w-[min(94vw,1100px)] p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]">
 
         {/* ── Dialog header ── */}
         <DialogHeader className="shrink-0 px-6 pt-6 pb-4 pr-14 border-b border-line">
@@ -428,25 +447,25 @@ export function NewSnippetDialog() {
           className="flex flex-1 overflow-hidden min-h-0"
         >
           {/* ── LEFT PANEL: main editor ── */}
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 min-w-0">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-3 min-w-0">
 
-            {/* Name */}
-            <div>
-              <label htmlFor="snippet-name" className={FIELD_LABEL}>Name</label>
-              <Input
-                id="snippet-name"
-                value={form.name}
-                onChange={(e) => updateField('name', e.target.value)}
-                placeholder="Quote — English"
-                autoFocus
-                disabled={saving}
-                className={errors.name ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
-              />
-              {errors.name && <FieldError message={errors.name} />}
-            </div>
-
-            {/* Trigger + Folder */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Name + Trigger + Folder — one row. None of the three needs the
+                full panel width, and pairing them keeps the editor's vertical
+                budget inside the dialog on a 1280×800 screen. */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label htmlFor="snippet-name" className={FIELD_LABEL}>Name</label>
+                <Input
+                  id="snippet-name"
+                  value={form.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  placeholder="Quote — English"
+                  autoFocus
+                  disabled={saving}
+                  className={errors.name ? 'border-danger focus:border-danger focus:ring-danger/20' : ''}
+                />
+                {errors.name && <FieldError message={errors.name} />}
+              </div>
               <div>
                 <label htmlFor="snippet-trigger" className={FIELD_LABEL}>Trigger</label>
                 {/*
@@ -576,6 +595,7 @@ export function NewSnippetDialog() {
               {/* Text input */}
               <Input
                 id="snippet-alt-queries"
+                className="max-w-md"
                 value={altQueryDraft}
                 onChange={(e) => setAltQueryDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -620,8 +640,12 @@ export function NewSnippetDialog() {
               )}
             </div>
 
-            {/* Body */}
-            <div className="flex flex-col gap-1.5 flex-1">
+            {/* Body — the panel's flexible element: it absorbs whatever height
+                the fixed-size dialog has to spare, and shrinks (never below
+                min-h) before the panel resorts to scrolling. The wrapper's
+                min-h must cover label + gap + the textarea's own 200px floor,
+                or the textarea escapes the wrapper and runs under the chips. */}
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[190px]">
               <label htmlFor="snippet-content" className={FIELD_LABEL}>
                 Body
               </label>
@@ -633,7 +657,7 @@ export function NewSnippetDialog() {
                 onChange={(e) => updateBody(e.target.value)}
                 disabled={saving}
                 className={cn(
-                  'w-full resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
+                  'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
                   errors.content && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
                 placeholder="Dear {guest_name}, …"
@@ -671,17 +695,43 @@ export function NewSnippetDialog() {
                 </div>
               </div>
 
-              <div>
-                <span className={CHIP_GROUP_LABEL}>
-                  Logic{' '}
-                  <span className="font-normal text-ink-subtle">
-                    — worked out on its own, nothing to fill
+              {/* Actions and Logic are one and two chips — side by side they
+                  cost one row instead of two, which is what lets the whole
+                  panel fit without scrolling on target viewports. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className={CHIP_GROUP_LABEL}>
+                    Actions{' '}
+                    <span className="font-normal text-ink-subtle">
+                      — clicked while filling; never print
+                    </span>
                   </span>
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
-                    <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                  ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setActionButtonOpen(true)}
+                      disabled={saving}
+                      title="Build an action button — changes field values when clicked"
+                      className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                    >
+                      <MousePointerClick className="h-3 w-3" />
+                      {'{button}'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className={CHIP_GROUP_LABEL}>
+                    Logic{' '}
+                    <span className="font-normal text-ink-subtle">
+                      — worked out on its own
+                    </span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
+                      <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -693,33 +743,22 @@ export function NewSnippetDialog() {
               onInsert={insertAtCursor}
             />
 
-            {/* Edit note — only shown in edit mode; recorded in version history */}
-            {mode === 'edit' && (
-              <div>
-                <label htmlFor="snippet-edit-note" className={FIELD_LABEL}>
-                  Edit note{' '}
-                  <span className="font-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={'What changed? e.g. "Updated checkout wording"'}
-                  disabled={saving}
-                  maxLength={200}
-                />
-              </div>
-            )}
+            <FormButtonDialog
+              open={actionButtonOpen}
+              onOpenChange={setActionButtonOpen}
+              onInsert={insertAtCursor}
+            />
+
           </div>
 
           {/* ── PANEL DIVIDER ── */}
           <div className="w-px bg-line shrink-0" />
 
           {/* ── RIGHT PANEL: language + options ── */}
-          <div className="w-[240px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
+          <div className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
 
             {/* Language picker — visual pill tabs matching the extension popup */}
-            <div className="p-5 pb-4 border-b border-line">
+            <div className="p-4 border-b border-line">
               <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-3">
                 Language
               </p>
@@ -766,7 +805,7 @@ export function NewSnippetDialog() {
             </div>
 
             {/* Options */}
-            <div className="flex-1 p-5 flex flex-col gap-2.5">
+            <div className="flex-1 p-4 flex flex-col gap-2.5">
               <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-0.5">
                 Options
               </p>
@@ -832,9 +871,32 @@ export function NewSnippetDialog() {
               />
             </div>
 
+            {/* Edit note — recorded in version history. Lives in the rail (not
+                the editor panel) so the left column fits without scrolling on
+                target viewports; the rail has the spare height. */}
+            {mode === 'edit' && (
+              <div className="shrink-0 border-t border-line p-4">
+                <label
+                  htmlFor="snippet-edit-note"
+                  className="block text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5"
+                >
+                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder={'What changed?'}
+                  disabled={saving}
+                  maxLength={200}
+                  className="h-9 text-xs"
+                />
+              </div>
+            )}
+
             {/* Attribution — who created / last touched this snippet */}
             {mode === 'edit' && editingSnippet && (
-              <div className="shrink-0 border-t border-line p-5 pt-4">
+              <div className="shrink-0 border-t border-line p-4">
                 <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5">
                   About
                 </p>

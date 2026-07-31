@@ -173,16 +173,20 @@
   .nv-auth-msg.ok{color:var(--sb-ok)}
 
   /* ── Editor modal ── */
-  .nv-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:90;display:none;align-items:flex-start;justify-content:center;padding:48px 16px;overflow-y:auto}
+  .nv-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:90;display:none;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
   .nv-modal-bg.on{display:flex}
-  .nv-modal{background:var(--sb-bg);border-radius:16px;width:560px;max-width:100%;box-shadow:var(--sb-shadow-xl);overflow:hidden}
+  /* Capped to the viewport with a scrolling body, so the header and the
+     Save/Cancel footer stay pinned instead of the whole modal scrolling out of
+     reach inside the backdrop. Mirrors the React dialog's structure. */
+  .nv-modal{background:var(--sb-bg);border-radius:16px;width:720px;max-width:100%;box-shadow:var(--sb-shadow-xl);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 64px)}
+  .nv-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .nv-modal-h{padding:16px 20px;border-bottom:1px solid var(--sb-line);display:flex;align-items:center;gap:10px}
   .nv-modal-h h2{font-size:16px;font-weight:700;color:var(--sb-ink);flex:1}
-  .nv-modal-b{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .nv-modal-b{padding:18px 20px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto}
   .nv-field{display:flex;flex-direction:column;gap:5px}
   .nv-field label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em}
   .nv-field input,.nv-field select,.nv-field textarea{width:100%;background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:10px;padding:9px 12px;font-size:var(--sb-fs-13);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
-  .nv-field textarea{font-family:var(--sb-mono);font-size:12px;line-height:1.6;resize:vertical;min-height:140px}
+  .nv-field textarea{font-family:var(--sb-mono);font-size:12px;line-height:1.6;resize:vertical;min-height:190px}
   .nv-field input:focus,.nv-field select:focus,.nv-field textarea:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
   .nv-row2{display:flex;gap:12px}
   .nv-row2>.nv-field{flex:1}
@@ -193,7 +197,13 @@
   .nv-modal-f{padding:14px 20px;border-top:1px solid var(--sb-line);display:flex;gap:8px;align-items:center}
   .nv-modal-f .danger{margin-left:auto}
   /* Dropdown menu field builder — opens above the snippet editor modal (z 90). */
-  #nv-menu-bg{z-index:95}
+  #nv-menu-bg,#nv-btn-bg{z-index:95}
+  .nv-btn-row{display:flex;align-items:center;gap:8px}
+  .nv-btn-row .nv-btn-f{width:38%;flex-shrink:0}
+  .nv-btn-row .nv-btn-eq{flex-shrink:0;font-family:var(--sb-mono);font-size:var(--sb-fs-13);color:var(--sb-ink-subtle)}
+  .nv-btn-row input{min-width:0;flex:1;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:10px;padding:8px 11px;font-family:var(--sb-mono);font-size:var(--sb-fs-12);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-btn-row input:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-btn-row input.bad{border-color:var(--sb-danger)}
   .nv-menu-box{display:flex;flex-direction:column;gap:8px;border:1px solid var(--sb-line);border-radius:12px;background:var(--sb-bg-muted);padding:12px}
   .nv-menu-row{display:flex;align-items:center;gap:10px}
   .nv-menu-row input[type=radio],.nv-menu-row input[type=checkbox]{width:auto;height:auto;padding:0;flex-shrink:0;accent-color:var(--sb-azure);cursor:pointer}
@@ -227,7 +237,8 @@
   .nv-langtab.has-content .dot{display:block}
   .nv-langtab.on .dot{background:rgba(255,255,255,.7)}
   .nv-chips{display:flex;flex-direction:column;gap:10px;margin-top:9px}
-  .nv-chiprow{display:flex;flex-wrap:wrap;gap:5px}
+  .nv-chiprow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .nv-chipgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .nv-chiplbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-muted);margin-bottom:5px}
   .nv-chiplbl span{font-weight:400;color:var(--sb-ink-subtle)}
   .nv-chiplbl code{font-family:var(--sb-mono);color:var(--sb-azure)}
@@ -242,13 +253,19 @@
   .nv-alt-tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4}
   .nv-alt-x{cursor:pointer;opacity:.6;font-style:normal;font-size:10px}
   .nv-alt-x:hover{opacity:1}
-  .nv-urg{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:12px}
-  .nv-urg-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .nv-urg-lbl{font-size:11px;font-weight:600;color:var(--sb-ink);display:flex;align-items:center;gap:5px}
-  .nv-urg-lbl svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .nv-urg-sub{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:2px}
-  .nv-urg-fields{display:flex;gap:10px;margin-top:10px}
-  .nv-urg-fields .nv-field{flex:0 0 130px}
+  /* Urgency rides the Actions chip row: it is a fill-time control like the
+     buttons beside it, and inlining it there reclaims the whole card the
+     standalone block used to cost. */
+  .nv-urgchip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-weight:600;border:1px solid var(--sb-line);background:var(--sb-bg-muted);color:var(--sb-ink-muted)}
+  .nv-urgchip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  /* The timer's own fields sit directly under its toggle, inside the Actions
+     column — they belong to the timer, not to whatever section happens to have
+     spare width. Laid out inline (label beside input) so correct grouping costs
+     one short row rather than a full stacked field. */
+  .nv-urg-fields{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px}
+  .nv-urg-fields .nv-field{flex:0 0 auto;flex-direction:row;align-items:center;gap:6px}
+  .nv-urg-fields .nv-field label{white-space:nowrap;margin:0}
+  .nv-urg-fields .nv-field input{width:66px;padding:4px 8px;font-size:var(--sb-fs-11)}
   .nv-switch{position:relative;width:34px;height:19px;flex-shrink:0}
   .nv-switch input{opacity:0;width:0;height:0;position:absolute}
   .nv-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
@@ -555,12 +572,14 @@
   <div class="nv-modal">
     <div class="nv-modal-h"><h2 id="nv-modal-title">New snippet</h2></div>
     <div class="nv-modal-b">
-      <div class="nv-field"><label>Title</label><input id="nv-f-title" placeholder="e.g. Quote — English"></div>
-      <div class="nv-field"><label>Shortcut</label>
-        <div class="nv-sc"><span class="nv-sc-pfx" id="nv-f-pfx">::</span><input id="nv-f-shortcut" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
-        <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:4px">Full shortcut: <strong id="nv-f-preview" style="font-family:var(--sb-mono);color:var(--sb-azure)">::quoteEN</strong></div>
+      <div class="nv-row3">
+        <div class="nv-field"><label>Title</label><input id="nv-f-title" placeholder="e.g. Quote — English"></div>
+        <div class="nv-field"><label>Shortcut</label>
+          <div class="nv-sc"><span class="nv-sc-pfx" id="nv-f-pfx">::</span><input id="nv-f-shortcut" placeholder="quoteEN" autocomplete="off" spellcheck="false"></div>
+          <div style="font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);margin-top:4px">Full shortcut: <strong id="nv-f-preview" style="font-family:var(--sb-mono);color:var(--sb-azure)">::quoteEN</strong></div>
+        </div>
+        <div class="nv-field"><label>Folder</label><select id="nv-f-folder"></select></div>
       </div>
-      <div class="nv-field"><label>Folder</label><select id="nv-f-folder"></select></div>
       <div class="nv-field"><label>Body</label>
         <div class="nv-langtabs" id="nv-langtabs">
           <button class="nv-langtab on" data-lang="EN" type="button">EN<span class="dot"></span></button>
@@ -584,11 +603,24 @@
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
             </div>
           </div>
-          <div>
-            <div class="nv-chiplbl">Logic <span>— worked out on its own, nothing to fill</span></div>
-            <div class="nv-chiprow">
-              <span class="nv-chip f" data-c="{=A - B}" title="Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}">{=formula}</span>
-              <span class="nv-chip c" data-c="{if:A > 0}text{endif}" title="Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}">{if:cond}</span>
+          <div class="nv-chipgrid">
+            <div>
+              <div class="nv-chiplbl">Actions <span>— clicked while filling; never print</span></div>
+              <div class="nv-chiprow">
+                <span class="nv-chip m" id="nv-chip-button" title="Build an action button — changes field values when clicked"><svg viewBox="0 0 24 24"><path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2l.9 2.1"/><path d="M2.2 7.2l2.1.9"/><path d="M4.3 12.1l-2.1.9"/><path d="M12.1 4.3l.9-2.1"/></svg>{button}</span>
+                <span class="nv-urgchip" title="Countdown + scarcity for quotes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Urgency timer<label class="nv-switch"><input type="checkbox" id="nv-f-urg"><span class="nv-slider"></span></label></span>
+              </div>
+              <div class="nv-urg-fields" id="nv-f-urg-fields" style="display:none">
+                <div class="nv-field"><label for="nv-f-urg-dur">Duration (min)</label><input type="number" id="nv-f-urg-dur" min="1" max="10080" value="30"></div>
+                <div class="nv-field"><label for="nv-f-urg-sc">Units left</label><input type="number" id="nv-f-urg-sc" min="0" max="999" value="0"></div>
+              </div>
+            </div>
+            <div>
+              <div class="nv-chiplbl">Logic <span>— worked out on its own</span></div>
+              <div class="nv-chiprow">
+                <span class="nv-chip f" data-c="{=A - B}" title="Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}">{=formula}</span>
+                <span class="nv-chip c" data-c="{if:A > 0}text{endif}" title="Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}">{if:cond}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -596,19 +628,6 @@
       <div class="nv-field"><label>Alternative queries — synonyms, Enter or comma to add</label>
         <div class="nv-alt-tags" id="nv-alt-tags"></div>
         <input id="nv-f-alt" placeholder="e.g. availability, no availability…" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="nv-urg">
-        <div class="nv-urg-hd">
-          <div>
-            <div class="nv-urg-lbl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Urgency timer</div>
-            <div class="nv-urg-sub">Countdown + scarcity for quotes</div>
-          </div>
-          <label class="nv-switch"><input type="checkbox" id="nv-f-urg"><span class="nv-slider"></span></label>
-        </div>
-        <div class="nv-urg-fields" id="nv-f-urg-fields" style="display:none">
-          <div class="nv-field"><label>Duration (min)</label><input type="number" id="nv-f-urg-dur" min="1" max="10080" value="30"></div>
-          <div class="nv-field"><label>Units left</label><input type="number" id="nv-f-urg-sc" min="0" max="999" value="0"></div>
-        </div>
       </div>
     </div>
     <div class="nv-modal-f">
@@ -660,6 +679,45 @@
   </div>
 </div>
 
+<!-- ═══ ACTION BUTTON MODAL ({button} builder) ═══ -->
+<div class="nv-modal-bg" id="nv-btn-bg">
+  <div class="nv-modal" style="width:460px">
+    <div class="nv-modal-h"><h2>Insert action button</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field">
+        <label>Label</label>
+        <input id="nv-btn-label" placeholder="10% off" autocomplete="off">
+        <div class="nv-menu-hint">The text on the button. Blank shows “Run”.</div>
+      </div>
+      <div class="nv-field">
+        <label>What it does</label>
+        <div class="nv-menu-box">
+          <div id="nv-btn-rows"></div>
+          <div class="nv-menu-addrow">
+            <button class="nv-menu-add" type="button" id="nv-btn-add"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add</button>
+          </div>
+        </div>
+        <div class="nv-menu-hint" id="nv-btn-hint"></div>
+      </div>
+      <div class="nv-field">
+        <label>Spacing</label>
+        <select id="nv-btn-trim">
+          <option value="left">Trim before the button</option>
+          <option value="right">Trim after the button</option>
+          <option value="yes">Trim both sides</option>
+          <option value="no">Keep the surrounding space</option>
+        </select>
+        <div class="nv-menu-hint">A button on its own line leaves a blank line behind unless it trims one side.</div>
+      </div>
+      <div class="nv-menu-prev"><span>Inserts</span><code id="nv-btn-token"></code></div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-btn-insert">Insert</button>
+      <button class="btn" id="nv-btn-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FOLDER MODAL ═══ -->
 <div class="nv-modal-bg" id="nv-fmodal-bg">
   <div class="nv-modal" style="width:360px">
@@ -691,7 +749,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.132.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.133.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -1247,6 +1305,112 @@
     bodyInsert(menuToken());
     closeMenuBuilder();
   });
+
+  /* ── ACTION BUTTON BUILDER ({button}) ────────────────────────────────
+     Mirrors the React dashboard's FormButtonDialog. Both write the token
+     through SBFormulaEngine.buildFormButtonToken, so they cannot drift. */
+  var btnRows = [], btnSeq = 0;
+  var BTN_FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+  function btnToken(){
+    return window.SBFormulaEngine.buildFormButtonToken({
+      label: $('nv-btn-label').value,
+      trim: $('nv-btn-trim').value,
+      lines: btnRows
+    });
+  }
+
+  function btnFind(id){
+    var n = Number(id);
+    for (var i = 0; i < btnRows.length; i++) { if (btnRows[i].id === n) return btnRows[i]; }
+    return null;
+  }
+
+  /* Valid = the engine parses the token back into at least one statement.
+     Asking the real parser beats re-deriving its rules here. */
+  function btnSync(){
+    var token = btnToken(), bad = false;
+    Array.prototype.forEach.call($('nv-btn-rows').querySelectorAll('[data-k="field"]'), function(inp){
+      var v = inp.value.replace(/^\s+|\s+$/g, '');
+      var off = v !== '' && !BTN_FIELD_RE.test(v);
+      inp.classList.toggle('bad', off);
+      if (off) bad = true;
+    });
+    var back = window.SBFormulaEngine.extractButtons(token)[0];
+    var hint = $('nv-btn-hint');
+    if (bad) {
+      hint.className = 'nv-menu-hint bad';
+      hint.textContent = 'Field names use letters, numbers and underscore, starting with a letter.';
+    } else {
+      hint.className = 'nv-menu-hint';
+      hint.innerHTML = 'Each line sets one field. Later lines see the earlier results, so <strong>SUB</strong> can feed <strong>TOTAL</strong>.';
+    }
+    $('nv-btn-token').textContent = token;
+    $('nv-btn-insert').disabled = bad || !back || !back.statements.length;
+  }
+
+  function btnRenderRows(){
+    var html = '';
+    for (var i = 0; i < btnRows.length; i++) {
+      var r = btnRows[i];
+      html += '<div class="nv-btn-row">'
+        + '<input class="nv-btn-f" data-bid="' + r.id + '" data-k="field" value="' + ec(r.field) + '" placeholder="PRICE" autocomplete="off" spellcheck="false">'
+        + '<span class="nv-btn-eq">=</span>'
+        + '<input data-bid="' + r.id + '" data-k="expr" value="' + ec(r.expr) + '" placeholder="PRICE * 0.9" autocomplete="off" spellcheck="false">'
+        + '<button type="button" class="nv-menu-rm" data-bid="' + r.id + '" title="Remove this action"' + (btnRows.length === 1 ? ' disabled' : '') + '>'
+          + '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'
+        + '</button>'
+      + '</div>';
+    }
+    $('nv-btn-rows').innerHTML = html;
+
+    /* Typing must not re-render — that would drop focus mid-word. */
+    Array.prototype.forEach.call($('nv-btn-rows').querySelectorAll('input[data-bid]'), function(inp){
+      inp.addEventListener('input', function(){
+        var row = btnFind(this.dataset.bid);
+        if (row) row[this.dataset.k] = this.value;
+        btnSync();
+      });
+    });
+    Array.prototype.forEach.call($('nv-btn-rows').querySelectorAll('.nv-menu-rm'), function(rm){
+      rm.addEventListener('click', function(){
+        if (btnRows.length === 1) return;
+        var id = Number(this.dataset.bid);
+        btnRows = btnRows.filter(function(r){ return r.id !== id; });
+        btnRenderRows(); btnSync();
+      });
+    });
+  }
+
+  function btnAddRow(){
+    btnRows.push({ id: ++btnSeq, field: '', expr: '' });
+    btnRenderRows(); btnSync();
+    var all = $('nv-btn-rows').querySelectorAll('[data-k="field"]');
+    if (all.length) all[all.length - 1].focus();
+  }
+
+  function openButtonBuilder(){
+    if (!window.SBFormulaEngine) { toast('Formula engine not loaded'); return; }
+    btnRows = [{ id: 1, field: '', expr: '' }]; btnSeq = 1;
+    $('nv-btn-label').value = '';
+    $('nv-btn-trim').value = 'left';
+    btnRenderRows(); btnSync();
+    $('nv-btn-bg').classList.add('on');
+    setTimeout(function(){ $('nv-btn-label').focus(); }, 30);
+  }
+  function closeButtonBuilder(){ $('nv-btn-bg').classList.remove('on'); }
+
+  $('nv-chip-button').addEventListener('click', openButtonBuilder);
+  $('nv-btn-add').addEventListener('click', btnAddRow);
+  $('nv-btn-label').addEventListener('input', btnSync);
+  $('nv-btn-trim').addEventListener('change', btnSync);
+  $('nv-btn-cancel').addEventListener('click', closeButtonBuilder);
+  $('nv-btn-bg').addEventListener('click', function(e){ if (e.target === $('nv-btn-bg')) closeButtonBuilder(); });
+  $('nv-btn-insert').addEventListener('click', function(){
+    if ($('nv-btn-insert').disabled) return;
+    bodyInsert(btnToken());
+    closeButtonBuilder();
+  });
   $('nv-f-alt').addEventListener('keydown', function(e){
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitAltDraft(); }
     else if (e.key === 'Backspace' && ($('nv-f-alt').value || '') === '') { if (edAlt.length) { edAlt.pop(); renderAltTags(); } }
@@ -1715,6 +1879,7 @@
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     /* Topmost layer first — the field builder sits above the snippet editor. */
+    if ($('nv-btn-bg').classList.contains('on')) { closeButtonBuilder(); return; }
     if ($('nv-menu-bg').classList.contains('on')) { closeMenuBuilder(); return; }
     if ($('nv-modal-bg').classList.contains('on')) closeEditor();
   });
