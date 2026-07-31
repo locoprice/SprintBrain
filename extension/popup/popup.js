@@ -385,6 +385,11 @@ function sbApplyCompanyFavicon(meta) {
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.135.0', date:'2026-07-31', label:'fix: snippets expand the text you just saved',
+    changes:[
+      {type:'fix', text:'Edit a snippet on the dashboard and typing its shortcut expands the new text straight away. Before, the extension could keep using the version it last saw when you opened the popup — so a dropdown you had just added did not appear.'},
+      {type:'new', text:'Dropdown menus copied from Text Blaze now keep all their choices. Menus no longer need a name, and you can drag the choices into the order you want.'}
+    ]},
   { version:'v2.133.0', date:'2026-07-30', label:'feat: build an action button without typing the code',
     changes:[
       {type:'new', text:'The snippet editor has a {button} chip beside {formmenu}. Give the button a label, add the lines it should set — PRICE = PRICE * 0.9 — pick how it handles spacing, and it writes the token for you.'}

@@ -424,11 +424,13 @@ export function NewSnippetDialog() {
       <DialogContent className="max-w-[min(94vw,1100px)] p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]">
 
         {/* ── Dialog header ── */}
-        <DialogHeader className="shrink-0 px-6 pt-6 pb-4 pr-14 border-b border-line">
-          <DialogTitle>
+        {/* Title and description share one line — the description is a short
+            aside, and stacking it cost a full row of dialog height. */}
+        <DialogHeader className="shrink-0 flex-row items-baseline gap-3 px-6 pt-4 pb-3 pr-14 border-b border-line">
+          <DialogTitle className="shrink-0">
             {mode === 'edit' ? 'Edit snippet' : 'Create snippet'}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="min-w-0 truncate">
             {mode === 'edit'
               ? 'Update the name, trigger, or body. Changes sync across every device.'
               : 'Give the snippet a name, a trigger, and a body. It will sync immediately.'}
