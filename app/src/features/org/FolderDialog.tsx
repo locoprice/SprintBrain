@@ -15,10 +15,13 @@ import { canMoveFolder, canNestUnder, folderPath } from '@/lib/folderTree';
 import type { Folder } from '@/types/database';
 import { folderFormSchema, type FolderFormValues } from '@/types/schemas';
 
+const DESCRIPTION_MAX = 200;
+
 const DEFAULT_FORM: FolderFormValues = {
   name: '',
   icon: DEFAULT_FOLDER_ICON,
   parent_id: null,
+  description: '',
 };
 
 type FieldErrors = Partial<Record<keyof FolderFormValues, string>>;
@@ -106,6 +109,7 @@ export function FolderDialog({
         name: editingFolder.name,
         icon: editingFolder.icon || DEFAULT_FORM.icon,
         parent_id: editingFolder.parent_id,
+        description: editingFolder.description ?? '',
       });
     } else {
       setForm({
@@ -202,6 +206,33 @@ export function FolderDialog({
               disabled={saving}
             />
             {errors.name && <span className="text-xs text-danger">{errors.name}</span>}
+          </div>
+
+          <div className="grid gap-1.5">
+            <label htmlFor="folder-description" className="text-xs font-medium text-ink-muted">
+              Description <span className="font-normal text-ink-subtle">(optional)</span>
+            </label>
+            <textarea
+              id="folder-description"
+              value={form.description ?? ''}
+              onChange={(e) => updateField('description', e.target.value)}
+              placeholder="What belongs in this folder"
+              rows={2}
+              maxLength={DESCRIPTION_MAX}
+              disabled={saving}
+              className="w-full resize-none rounded-[12px] border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-subtle outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-ink-subtle">
+                Shown under the folder title.
+              </span>
+              <span className="text-[11px] tabular-nums text-ink-subtle">
+                {(form.description ?? '').length}/{DESCRIPTION_MAX}
+              </span>
+            </div>
+            {errors.description && (
+              <span className="text-xs text-danger">{errors.description}</span>
+            )}
           </div>
 
           <div className="grid gap-1.5">

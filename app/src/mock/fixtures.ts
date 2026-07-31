@@ -40,6 +40,7 @@ export const mockFolders: Folder[] = [
     sort_order: 0,
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
+    description: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000002',
@@ -49,6 +50,7 @@ export const mockFolders: Folder[] = [
     sort_order: 1,
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
+    description: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000003',
@@ -58,6 +60,7 @@ export const mockFolders: Folder[] = [
     sort_order: 2,
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
+    description: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000004',
@@ -67,6 +70,7 @@ export const mockFolders: Folder[] = [
     sort_order: 3,
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
+    description: null,
   },
 ];
 

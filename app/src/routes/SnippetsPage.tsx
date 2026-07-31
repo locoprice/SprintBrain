@@ -18,6 +18,12 @@ export function SnippetsPage() {
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const error = useSnippetStore((s) => s.error);
   const clearError = useSnippetStore((s) => s.clearError);
+  // The header takes on the selected folder's identity, so its description has
+  // somewhere to live. "All snippets" keeps the page-level blurb.
+  const folders = useSnippetStore((s) => s.folders);
+  const selectedFolderId = useSnippetStore((s) => s.selectedFolderId);
+  const selectedFolder =
+    selectedFolderId === null ? null : folders.find((f) => f.id === selectedFolderId) ?? null;
 
   // Local input value so typing feels instant; debounce propagation to the store.
   const [localQuery, setLocalQuery] = useState(storeQuery);
@@ -54,8 +60,12 @@ export function SnippetsPage() {
     <>
       <VersionHistoryPanel />
       <PageHeader
-        title="Snippets"
-        description="Triggers, formulas, and templates synced across every device."
+        title={selectedFolder ? selectedFolder.name : 'Snippets'}
+        description={
+          selectedFolder
+            ? selectedFolder.description ?? undefined
+            : 'Triggers, formulas, and templates synced across every device.'
+        }
         action={
           <>
             <ImportExportButtons onResult={setImportResult} />

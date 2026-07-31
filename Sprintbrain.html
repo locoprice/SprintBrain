@@ -364,6 +364,8 @@
   #nv-folder-list .nv-item.has-dots:hover .nv-cnt{display:none}
   .nv-add-folder{color:var(--sb-azure);font-weight:500}
   .nv-add-folder svg{stroke:var(--sb-azure)}
+  /* folder description under the page title */
+  .nv-fdesc{margin-top:4px;font-size:var(--sb-fs-13);color:var(--sb-ink-muted);max-width:640px;line-height:1.45}
   /* folder nesting: expand chevron + drop target */
   .nv-fchev{width:14px;height:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--sb-ink-subtle);border-radius:4px;transition:transform .12s,background .12s}
   .nv-fchev svg{width:12px;height:12px;stroke-width:2.4}
@@ -441,6 +443,7 @@
     <div class="nv-ph">
       <div>
         <h1 id="nv-title">All snippets</h1>
+        <div class="nv-fdesc" id="nv-fdesc" hidden></div>
         <div class="sub" id="nv-sub">Loading…</div>
       </div>
       <div class="nv-ph-actions">
@@ -736,6 +739,7 @@
     <div class="nv-modal-h"><h2 id="nv-fmodal-title">New folder</h2></div>
     <div class="nv-modal-b">
       <div class="nv-field"><label>Folder name</label><input id="nv-f-fname" placeholder="Folder name…" autocomplete="off"></div>
+      <div class="nv-field"><label>Description <span style="font-weight:400;color:var(--sb-ink-subtle)">(optional)</span></label><textarea id="nv-f-fdesc" rows="2" maxlength="200" placeholder="What belongs in this folder" style="resize:none"></textarea></div>
       <div class="nv-field"><label>Parent folder</label><select id="nv-f-fparent"></select></div>
       <div class="nv-field"><label>Icon</label><div class="nv-ico-grid" id="nv-ico-grid"></div></div>
     </div>
@@ -762,7 +766,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.136.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.137.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -1024,10 +1028,22 @@
     var add = $('nv-add-folder'); if (add) add.addEventListener('click', function(){ nvFolderModal({}); });
   }
 
+  // The folder description line belongs to the snippets view only — every other
+  // view clears it, so it can never linger under an unrelated title.
+  function setFolderDesc(text){
+    var el = $('nv-fdesc'); if (!el) return;
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
+
   function renderMain(){
-    if (nvMode === 'prompts') return renderPromptsMain();
+    if (nvMode === 'prompts') { setFolderDesc(''); return renderPromptsMain(); }
     var folderName = nvFolder === 'ALL' ? 'All snippets' : (function(){ var f = findFolder(nvFolder); return f ? folderPathLabel(f.id) : 'Snippets'; })();
     $('nv-title').textContent = folderName;
+    // The folder's own description, when it has one. Kept separate from
+    // #nv-sub so it never overwrites the sync status.
+    var selFolderObj = nvFolder === 'ALL' ? null : findFolder(nvFolder);
+    setFolderDesc(selFolderObj && selFolderObj.description ? String(selFolderObj.description) : '');
     $('nv-list-title').textContent = 'Snippets';
     $('nv-new').style.display = '';
 
@@ -1762,6 +1778,7 @@
     fmIco = f ? (f.ico || 'folder') : 'folder';
     $('nv-fmodal-title').textContent = f ? 'Edit folder' : 'New folder';
     $('nv-f-fname').value = f ? f.name : '';
+    $('nv-f-fdesc').value = f ? (f.description || '') : '';
     var presetParent = f ? (f.parent_id || '') : (opts.parentId || '');
     $('nv-f-fparent').innerHTML = folderParentOptions(fmEditId, presetParent);
     $('nv-fmodal-save').textContent = f ? 'Save folder' : 'Create folder';
@@ -1777,14 +1794,15 @@
   $('nv-fmodal-save').addEventListener('click', function(){
     var name = ($('nv-f-fname').value || '').trim(); if (!name) { $('nv-f-fname').focus(); toast('Folder name required'); return; }
     var parent = $('nv-f-fparent').value || '';
+    var desc = ($('nv-f-fdesc').value || '').trim() || null;
     if (fmEditId) {
       var f = findFolder(fmEditId);
       if (f) {
         if (parent && !canNestFolder(fmEditId, parent)) { toast('Folders nest up to ' + MAX_FOLDER_DEPTH + ' levels'); return; }
-        f.name = name; f.ico = fmIco; f.parent_id = parent || null; DB.upsertFolder(f);
+        f.name = name; f.ico = fmIco; f.parent_id = parent || null; f.description = desc; DB.upsertFolder(f);
       }
     } else {
-      var nf = { id:fuid(), name:name, ico:fmIco, sort_order:(window.folders||[]).length + 1, parent_id: parent || null };
+      var nf = { id:fuid(), name:name, ico:fmIco, sort_order:(window.folders||[]).length + 1, parent_id: parent || null, description: desc };
       (window.folders = window.folders || []).push(nf); DB.upsertFolder(nf);
       if (parent) delete nvCollapsed[parent];
       if (fmCb) fmCb(nf.id);
@@ -1818,7 +1836,7 @@
     updateTrigInfo();
     $('nv-kpis').style.display = 'none'; $('nv-list-card').style.display = 'none'; $('nv-settings').style.display = '';
     $('nv-new').style.display = 'none';
-    $('nv-title').textContent = 'Settings'; $('nv-sub').textContent = 'Trigger, language, Notion & team';
+    $('nv-title').textContent = 'Settings'; setFolderDesc(''); $('nv-sub').textContent = 'Trigger, language, Notion & team';
     renderNav();
   }
   function leaveSettings(){
@@ -2036,7 +2054,7 @@
     $('nv-kpis').style.display = 'none'; $('nv-list-card').style.display = 'none';
     $('nv-composer').style.display = '';
     $('nv-new').style.display = 'none';
-    $('nv-title').textContent = 'Composer'; $('nv-sub').textContent = 'Live formula & template tester';
+    $('nv-title').textContent = 'Composer'; setFolderDesc(''); $('nv-sub').textContent = 'Live formula & template tester';
     compReady(); renderNav();
   }
   function leaveComposer(){ composerOpen = false; $('nv-composer').style.display = 'none'; }

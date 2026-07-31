@@ -104,6 +104,13 @@ export const folderFormSchema = z.object({
   // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
   // null = root folder; omitted = leave the current parent untouched on patch.
   parent_id: z.string().nullable().optional(),
+  // Optional one-liner shown under the folder title. Empty input is stored as
+  // null so "no description" is one value, not two.
+  description: z
+    .string()
+    .max(200, 'Description must be 200 characters or fewer')
+    .nullable()
+    .optional(),
 });
 
 export type FolderFormValues = z.infer<typeof folderFormSchema>;

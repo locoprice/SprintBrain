@@ -32,9 +32,11 @@ type DbFolder = {
   sort_order: number;
   updated_at: string;
   parent_id: string | null;
+  description: string | null;
 };
 
-const FOLDER_SELECT = 'id, user_id, name, ico, sort_order, updated_at, parent_id';
+const FOLDER_SELECT =
+  'id, user_id, name, ico, sort_order, updated_at, parent_id, description';
 
 function dbFolderToFolder(row: DbFolder): Folder {
   return {
@@ -45,7 +47,14 @@ function dbFolderToFolder(row: DbFolder): Folder {
     sort_order: row.sort_order,
     updated_at: row.updated_at,
     parent_id: row.parent_id ?? null,
+    description: row.description ?? null,
   };
+}
+
+/** Trim to null: a blank box means "no description", never an empty string. */
+function normalizeDescription(value: string | null | undefined): string | null {
+  const trimmed = (value ?? '').trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 async function currentUserId(): Promise<string> {
@@ -77,6 +86,7 @@ export const foldersApi: FoldersApi = {
         ico: payload.icon,
         sort_order: Date.now(),
         parent_id: payload.parent_id ?? null,
+        description: normalizeDescription(payload.description),
       })
       .select(FOLDER_SELECT)
       .single();
@@ -90,6 +100,9 @@ export const foldersApi: FoldersApi = {
     if (patch.name !== undefined) update['name'] = patch.name;
     if (patch.icon !== undefined) update['ico'] = patch.icon;
     if (patch.parent_id !== undefined) update['parent_id'] = patch.parent_id;
+    if (patch.description !== undefined) {
+      update['description'] = normalizeDescription(patch.description);
+    }
 
     const { data, error } = await supabase
       .from('folders')

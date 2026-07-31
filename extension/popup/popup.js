@@ -134,7 +134,8 @@ var DB = {
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
       id: f.id, user_id: SB_CURRENT_USER_ID, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0,
-      parent_id: f.parent_id || null
+      parent_id: f.parent_id || null,
+      description: (f.description || '').trim() || null
     }).catch(function(e) { console.error('upsertFolder:', e); });
   },
   deleteFolder: function(id) {
