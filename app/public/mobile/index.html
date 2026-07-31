@@ -1557,13 +1557,31 @@ function sbGenderTokenField(rest){
    not the token text. {formmenu:}'s first segment is its options list, so its
    attributes are only read after the first ';' (an option spelled "name=Bob"
    must not claim the field). Mirrors _formFieldName in the extension engine. */
+/* A {formmenu:} option list may be ';'-separated (Text Blaze) or comma-separated
+   in one segment (SprintBrain's writer), and `name=` can sit in any position. A
+   segment counts as a named setting only when it opens with one of the four
+   keys. Unnamed menus are legal and get a key hashed from the token, matching
+   _parseMenuSettings in extension/formula-engine.js — keep the two in step or
+   mobile will fill a different field than the desktop surfaces. */
+var SB_MENU_KEYS=/^\s*(name|default|multiple|cols)\s*=/i;
+function sbMenuKeyHash(src){
+  var h=5381,s=String(src);
+  for(var i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
+  return h.toString(36);
+}
 function sbFormTokenName(tokLow,rest){
-  var src=rest;
   if(tokLow.slice(0,9)==='formmenu:'){
-    var semi=rest.indexOf(';');
-    src=semi===-1?'':rest.slice(semi);
+    var segs=String(rest==null?'':rest).split(';'),name='',hasOpt=false;
+    for(var i=0;i<segs.length;i++){
+      if(SB_MENU_KEYS.test(segs[i])){
+        var nm=/^\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(segs[i]);
+        if(nm&&!name)name=nm[1];
+      } else if(segs[i].replace(/[\s,]/g,'')!=='')hasOpt=true;
+    }
+    if(name)return name;
+    return hasOpt?'MENU_'+sbMenuKeyHash(rest):'';
   }
-  var m=/(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(src);
+  var m=/(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(rest);
   return m?m[1]:'';
 }
 

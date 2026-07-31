@@ -69,7 +69,10 @@ export function buildFormMenuToken(cfg: FormMenuConfig): string {
   }
   const picks = cfg.multiple ? picked : picked.slice(0, 1);
 
-  let out = `{formmenu: ${options.join(',')}; name=${sanitizeMenuName(cfg.name)}`;
+  // A blank name is written as no `name=` at all, matching Text Blaze — the
+  // engine then keys the menu from the token itself.
+  const named = cfg.name.trim() === '' ? '' : `; name=${sanitizeMenuName(cfg.name)}`;
+  let out = `{formmenu: ${options.join(',')}${named}`;
   if (picks.length) out += `; default=${picks.join(',')}`;
   if (cfg.multiple) out += '; multiple=yes';
   if (cfg.cols !== null && cfg.cols > 0) out += `; cols=${Math.floor(cfg.cols)}`;
