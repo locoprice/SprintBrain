@@ -214,13 +214,33 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   },
 
   markUsed: (id) => {
-    void promptsApi.markUsed(id);
+    // Optimistic bump so the card updates on click, then reconciled against the
+    // count the RPC actually committed — concurrent uses from another surface
+    // make the local guess drift, and the server total is the truth.
     const now = new Date().toISOString();
     set((s) => ({
       prompts: s.prompts.map((p) =>
-        p.id === id ? { ...p, last_used_at: now } : p,
+        p.id === id ? { ...p, last_used_at: now, usage_count: p.usage_count + 1 } : p,
       ),
     }));
+    void promptsApi
+      .markUsed(id)
+      .then(({ usage_count, last_used_at }) => {
+        set((s) => ({
+          prompts: s.prompts.map((p) =>
+            p.id === id ? { ...p, usage_count, last_used_at } : p,
+          ),
+        }));
+      })
+      .catch((err: unknown) => {
+        // Roll the optimistic bump back rather than leaving an inflated count.
+        set((s) => ({
+          prompts: s.prompts.map((p) =>
+            p.id === id ? { ...p, usage_count: Math.max(0, p.usage_count - 1) } : p,
+          ),
+          error: err instanceof Error ? err.message : 'Failed to record prompt usage',
+        }));
+      });
   },
 
   pushPromptToNotion: async (id) => {

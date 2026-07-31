@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { foldersApi } from '@/lib/api/foldersApi';
+import { validateTemplate } from '@/lib/statusSignals';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
 
@@ -55,12 +56,12 @@ type DbSnippetJoined = {
   notion_page_id: string | null;
   pinned: boolean | null;
   is_active: boolean | null;
+  is_malformed: boolean | null;
   alternative_queries: string[] | null;
   enable_urgency_timer: boolean | null;
   timer_duration_ms: number | null;
   scarcity_count: number | null;
   folders: { name: string } | null;
-  snippet_stats: Array<{ uses: number | null }> | null;
 };
 
 const LANGS = ['EN', 'IT', 'ES', 'FR', 'MULTI'] as const;
@@ -94,11 +95,14 @@ function normalizeBodies(
   return out;
 }
 
-function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
-  const usage =
-    Array.isArray(row.snippet_stats) && row.snippet_stats[0]?.uses != null
-      ? row.snippet_stats[0].uses
-      : 0;
+/**
+ * Expansion counts keyed by snippet id, from `snippet_usage_counts()`.
+ * Rows absent from the map have never been expanded.
+ */
+export type UsageCounts = ReadonlyMap<string, number>;
+
+function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts): SnippetRow {
+  const usage = usageCounts?.get(row.id) ?? 0;
   const body = row.body ?? '';
   const language = normalizeLang(row.lang);
   const bodies = normalizeBodies(row.bodies, language, body);
@@ -121,6 +125,7 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined): SnippetRow {
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     is_active: row.is_active ?? true,
+    is_malformed: row.is_malformed ?? false,
     alternative_queries: Array.isArray(row.alternative_queries) ? row.alternative_queries : [],
     enable_urgency_timer: row.enable_urgency_timer ?? false,
     timer_duration_ms: row.timer_duration_ms ?? 0,
@@ -156,7 +161,46 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name), snippet_stats(uses)';
+  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
+
+/**
+ * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
+ *
+ * Deliberately NOT `snippet_stats.uses`: that column is written only when a
+ * user copies a shortcut out of the popup, so it ranked `neob` (21) above
+ * `time` (3) when `time` is in fact the most-expanded snippet in the account by
+ * a wide margin. Real expansions are logged to `snippet_events` by the
+ * extension's service worker — the same table the Analytics page reads.
+ *
+ * It needs an RPC rather than an embed because `snippet_events` has no FK to
+ * `snippets` (over half its rows point at snippets that no longer exist, so one
+ * cannot be added), and because its RLS is select-own — the function is
+ * SECURITY DEFINER so a shared snippet reports the same team-wide total to
+ * every member instead of a different number each.
+ */
+async function fetchUsageCounts(): Promise<UsageCounts> {
+  const { data, error } = await supabase.rpc('snippet_usage_counts');
+  if (error) {
+    // Fail soft: usage counts are decoration on top of the library, so a missing
+    // or failing aggregate must not take the whole snippet list down with it.
+    // Badges and the Usage column read 0 until the next successful load.
+    console.error('snippet_usage_counts failed; usage counts unavailable:', error);
+    return new Map();
+  }
+  const rows = (data ?? []) as Array<{ snippet_id: string; uses: number }>;
+  return new Map(rows.map((r) => [r.snippet_id, Number(r.uses) || 0]));
+}
+
+/**
+ * Template-validation verdict for the row about to be written — every language
+ * body a save carries, not just the active one (STATUS-ICONS-001). Persisting
+ * it makes "show me what's broken" a server-side query; the UI still validates
+ * live, so this flag going stale can never surface a wrong badge.
+ */
+function malformedFlag(bodies: SnippetBodies, activeBody: string): boolean {
+  if (!validateTemplate(activeBody).ok) return true;
+  return Object.values(bodies).some((b) => typeof b === 'string' && !validateTemplate(b).ok);
+}
 
 /**
  * Build the canonical bodies map that gets persisted. Always includes the
@@ -187,18 +231,20 @@ function buildSnippetInsert(
   now: string,
   sortOrder: number,
 ): Record<string, unknown> {
+  const bodies = mergeActiveBody(payload.bodies, payload.language, payload.content);
   return {
     id: crypto.randomUUID(),
     user_id: userId,
     title: payload.name,
     shortcut: payload.trigger,
     body: payload.content,
-    bodies: mergeActiveBody(payload.bodies, payload.language, payload.content),
+    bodies,
     lang: payload.language,
     folder_id: payload.folder_id,
     field_cfg: {},
     sort_order: sortOrder,
     updated_at: now,
+    is_malformed: malformedFlag(bodies, payload.content),
     pinned: payload.pinned ?? false,
     alternative_queries: payload.alternative_queries ?? [],
     enable_urgency_timer: payload.enable_urgency_timer ?? false,
@@ -219,12 +265,17 @@ export const snippetsApi: SnippetsApi = {
     // No `.eq('user_id')` filter: RLS returns the user's own snippets plus any
     // that live in a folder shared with them (Phase B). Personal-only users see
     // exactly what they did before.
-    const { data, error } = await supabase
-      .from('snippets')
-      .select(SNIPPET_SELECT)
-      .order('sort_order', { ascending: true });
-    if (error) throw error;
-    return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
+    //
+    // Usage counts need a second round trip (see fetchUsageCounts); issued in
+    // parallel so it costs latency only, not a serial hop.
+    const [listRes, usageCounts] = await Promise.all([
+      supabase.from('snippets').select(SNIPPET_SELECT).order('sort_order', { ascending: true }),
+      fetchUsageCounts(),
+    ]);
+    if (listRes.error) throw listRes.error;
+    return ((listRes.data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
+      dbSnippetToSnippetRow(row, usageCounts),
+    );
   },
 
   async createSnippet(payload) {
@@ -251,7 +302,12 @@ export const snippetsApi: SnippetsApi = {
       .insert(rows)
       .select(SNIPPET_SELECT);
     if (error) throw error;
-    return ((data ?? []) as unknown as DbSnippetJoined[]).map(dbSnippetToSnippetRow);
+    // Arrow, not a bare reference: `.map` passes the index as the second
+    // argument, which would land in `usageCounts`. Freshly created rows have no
+    // expansions yet, so 0 is correct here.
+    return ((data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
+      dbSnippetToSnippetRow(row),
+    );
   },
 
   async updateSnippet(id, patch) {
@@ -282,6 +338,9 @@ export const snippetsApi: SnippetsApi = {
       const merged = mergeActiveBody(patch.bodies, language, activeBody);
       update['body'] = activeBody;
       update['bodies'] = merged;
+      // Re-derive on every body write — a fix has to clear the flag as reliably
+      // as a mistake sets it.
+      update['is_malformed'] = malformedFlag(merged, activeBody);
     }
 
     const { data, error } = await supabase
@@ -376,6 +435,12 @@ export const snippetsApi: SnippetsApi = {
       // disabled snippet yields a disabled copy (predictable).
       pinned: false,
       is_active: source.is_active ?? true,
+      // Re-derived rather than copied: the source flag could pre-date the
+      // validator, and the copy carries the same bodies either way.
+      is_malformed: malformedFlag(
+        (source.bodies ?? {}) as SnippetBodies,
+        source.body ?? '',
+      ),
       alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
       enable_urgency_timer: source.enable_urgency_timer ?? false,
       timer_duration_ms: source.timer_duration_ms ?? 0,

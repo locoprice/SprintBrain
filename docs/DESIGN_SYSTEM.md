@@ -60,11 +60,16 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 
 ### Semantic
 
-| Token     | Hex       | Usage              |
-| --------- | --------- | ------------------ |
-| `success` | `#34C759` | Confirmation, deltas (Apple semantic green) |
-| `warning` | `#FEBC2E` | Caution            |
-| `danger`  | `#D70015` | Destructive (Apple SF system red — AA-safe as text on `card`) |
+| Token          | Hex       | Usage              |
+| -------------- | --------- | ------------------ |
+| `success`      | `#34C759` | Confirmation, deltas (Apple semantic green) |
+| `warning`      | `#FEBC2E` | Caution — a **fill**; too light to read as text or an icon |
+| `warning-deep` | `#D97706` | Amber that holds contrast as text/icon on `warning-bg`. Mirrors `--sb-warn` |
+| `warning-bg`   | `#FFFBEB` | Amber tint ground. Mirrors `--sb-warn-bg` |
+| `danger`       | `#D70015` | Destructive (Apple SF system red — AA-safe as text on `card`) |
+| `danger-bg`    | `#FEF2F2` | Red tint ground. Mirrors `--sb-danger-bg` |
+
+**Known divergence:** the extension's `--sb-danger` is `#DC2626`, not the canonical `#D70015` above. It predates this table and is used by every danger element in the popup, so status badges inherit it — the wrench reads marginally warmer in the extension than in the dashboard. Aligning the token is a follow-up (below), not a per-component override: hard-coded hexes in component files stay forbidden.
 
 ### Activity heatmap scale (Analytics "Activity Overview")
 
@@ -112,6 +117,28 @@ Registered in `extension/shared/tokens/colors_and_type.css`. The extension popup
 
 **FR language token corrected (v2.97.0):** the extension tokens file previously aliased `--sb-lang-fr`/`--sb-lang-fr-bg` to MULTI violet; it now holds the documented teal `#0D9488` / `#F0FDFA` (matching this table and `/mobile/`). The popup and `Sprintbrain.html` `.FR` rules were repointed to the tokens. Contrast of teal on its tint is ~3.6:1 (passes 3:1 UI, misses 4.5:1 text) — a cross-surface darken to `#0F766E` (≈5.3:1) is an open follow-up; do not fork one surface.
 
+### Status badges (STATUS-ICONS-001)
+
+A 20 × 20 pill with a 12 × 12 stroked glyph, rendered beside an asset's name on the dashboard table, the prompt cards, and the extension popup list. Three states, and only ever one at a time — a fault always outranks a trophy:
+
+| State    | Glyph  | Tint (dashboard)             | Meaning                                                        |
+| -------- | ------ | ---------------------------- | -------------------------------------------------------------- |
+| `top`    | Trophy | `primary-light` / `primary`  | Expanded ≥ 5 times **and** ≥ 25% of the library leader's count  |
+| `broken` | Wrench | `danger-bg` / `danger`       | Template fails structural validation — renders wrong output     |
+| `weak`   | Wrench | `warning-bg` / `warning-deep`| Prompt scoring ≤ 4/10, and not yet used enough to earn a trophy |
+
+**Usage means expansions, counted per snippet — not per row.** Counts come from `snippet_events` via the `snippet_usage_counts()` RPC, never from `snippet_stats.uses` (that column only tracks copy-shortcut from the popup). A translated snippet is several rows sharing a base trigger and each is expanded under its own id, so both the badge and the Usage column sum across the group — `time` is 151 expansions across four variants, not four separate small numbers.
+
+Motion is transform/opacity only, so frames stay on the compositor. Timings are identical on both surfaces — the popup mirrors them by hand in `popup.html` since it has no build step:
+
+| Keyframe        | Duration / curve                          | When                                             |
+| --------------- | ----------------------------------------- | ------------------------------------------------ |
+| `status-pop`    | 260 ms · `--sb-ease-out` (overshoot)      | Entrance, once                                    |
+| `status-wobble` | 2400 ms · `--sb-ease` · infinite          | Idle, `broken` + `weak` only — faults nag, trophies rest |
+| `status-cheer`  | 520 ms · `--sb-ease`                      | Hover                                             |
+
+Both surfaces drop every animation under `prefers-reduced-motion` and keep the static glyph in the same box, so nothing reflows between modes.
+
 ## Surface-specific rules (v1.1)
 
 - **Dashboard topbar** spans the full width (60 px) above sidebar + main. Brand square (28 px, `--primary` solid) on the left.
@@ -138,3 +165,5 @@ Registered in `extension/shared/tokens/colors_and_type.css`. The extension popup
 - Hero "time saved" stat: shows snippet count instead until we track time-saved telemetry.
 - **Extension popup redesign (v2.97.0):** the popup became a single-column launcher (search-first, folder chips, per-language inline detail); it now ships at 540×600 (width widened from the original 480 in v2.110.0). Approved review mock at `design_handoff_design_system/mockups/popup-launcher-v2.html`. The extension section of `harmonized-final.html` and `kits/extension.html` still show the pre-redesign popup (sidebar + 32px sync bar + iris-gradient logo) — update them to this layout so the canonical mockup matches shipped UI.
 - **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
+- **Danger token alignment:** move the extension's `--sb-danger` from `#DC2626` to the canonical `#D70015` so the two surfaces match. Touches every danger element in the popup, so it wants its own change and a visual pass — not a side effect of the ticket that surfaced it.
+- **Status badges on `/mobile/` and `Sprintbrain.html`:** neither surface renders them yet. `Sprintbrain.html` reuses `popup.js` but has no `#list` element, so `renderList` returns early and no markup is emitted — adding them there means porting the `.sb-stat` rules too.

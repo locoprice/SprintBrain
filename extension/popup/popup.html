@@ -7,9 +7,11 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 
-/* v2 launcher — 540×600 single column (Chrome popup height cap is 600). */
+/* v2 launcher — 720×600 single column. 600 is Chrome's hard popup height cap
+   (800×600); only the width can grow, so vertical breathing room comes from
+   raising the cramped internal maxes below rather than from the frame. */
 html,body{
-  width:540px;height:600px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
+  width:720px;height:600px;font-family:var(--sb-font);font-size:var(--sb-fs-13);
   color:var(--sb-ink);background:var(--sb-bg);overflow:hidden;user-select:none;line-height:1.5;
 }
 
@@ -152,7 +154,26 @@ html,body{
 .IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
 .FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr)}
 .MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
-.i-uses{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);font-variant-numeric:tabular-nums}
+/* Pushed to the row's trailing edge, under the shortcut chip (which right-aligns
+   the same way) — mirrors the dashboard, where Usage is a right-aligned column. */
+.i-uses{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+/* The count carries the weight; the unit stays muted, so a column of these reads
+   as numbers with a label rather than as sentences. */
+.i-usen{font-weight:600;color:var(--sb-ink)}
+
+/* ── STATUS BADGE (STATUS-ICONS-001) ──
+   Mirrors the dashboard's StatusBadge component (app/src/components/shared/).
+   Transform/opacity only, so every frame stays on the compositor. Faults keep
+   moving until fixed; the trophy pops once and then rests. */
+.sb-stat{width:20px;height:20px;border-radius:var(--sb-r-pill);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;animation:sbStatPop 260ms var(--sb-ease-out) both}
+.sb-stat svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sb-stat.top{background:var(--sb-azure-bg);color:var(--sb-azure)}
+.sb-stat.broken{background:var(--sb-danger-bg);color:var(--sb-danger)}
+.sb-stat.broken svg{animation:sbStatWobble 2400ms var(--sb-ease) infinite}
+.sb-stat:hover svg{animation:sbStatCheer 520ms var(--sb-ease)}
+@keyframes sbStatPop{0%{opacity:0;transform:scale(.4)}70%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@keyframes sbStatWobble{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+@keyframes sbStatCheer{0%,100%{transform:scale(1) rotate(0deg)}30%{transform:scale(1.18) rotate(-10deg)}65%{transform:scale(1.18) rotate(10deg)}}
 .chev{
   width:34px;height:34px;flex-shrink:0;border:none;background:transparent;border-radius:var(--sb-r-sm);
   color:var(--sb-ink-subtle);cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -177,16 +198,26 @@ html,body{
 .d-lp.on.IT{background:var(--sb-lang-it-bg);color:var(--sb-lang-it);border-color:var(--sb-lang-it)}
 .d-lp.on.FR{background:var(--sb-lang-fr-bg);color:var(--sb-lang-fr);border-color:var(--sb-lang-fr)}
 .d-lp.on.MULTI{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:var(--sb-lang-multi)}
-.d-body{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:10px 12px;font-size:var(--sb-fs-12);line-height:1.6;color:var(--sb-ink);white-space:pre-wrap;word-break:break-word;max-height:118px;overflow-y:auto}
+.d-body{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);padding:10px 12px;font-size:var(--sb-fs-12);line-height:1.6;color:var(--sb-ink);white-space:pre-wrap;word-break:break-word;max-height:210px;overflow-y:auto}
 .d-body .var{font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-xs);padding:0 3px}
 .d-body.plain{color:var(--sb-ink-subtle);font-style:italic}
 .d-note{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);line-height:1.4}
 .d-note b{font-family:var(--sb-mono);font-weight:600;color:var(--sb-ink-muted)}
-.d-fields{display:flex;flex-direction:column;gap:8px;max-height:150px;overflow-y:auto;padding-right:2px}
+.d-fields{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:2px}
 .d-frow{display:flex;flex-direction:column;gap:4px}
 .d-frow label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
 .d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
 .d-frow input:focus,.d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+.d-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.d-actbtn{height:32px;padding:0 12px;border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-sm);background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;transition:background var(--sb-dur-fast)}
+.d-actbtn:hover{background:var(--sb-azure-bg);border-color:var(--sb-azure)}
+.d-actbtn:active{transform:scale(.97)}
+.d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+.d-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box}
+.d-opt{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);background:var(--sb-bg);font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:border-color var(--sb-dur-fast),background var(--sb-dur-fast)}
+.d-opt:hover{border-color:var(--sb-azure)}
+.d-opt input[type=checkbox]{width:auto;height:auto;padding:0;accent-color:var(--sb-azure);cursor:pointer}
+.d-opt:has(input:checked){background:var(--sb-azure-bg);border-color:var(--sb-azure-bdr);color:var(--sb-azure)}
 .d-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .d-btn{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;transition:all var(--sb-dur-fast)}
 .d-btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
@@ -333,6 +364,8 @@ html,body{
   .seg-thumb,.item,.chev,.chip,.btn,.btn.p,.ic-btn,.isc{transition:none}
   .list.anim .item{animation:none}
   .cl-box{animation:none}
+  /* Status badges fall back to the static icon — same box, same colour. */
+  .sb-stat,.sb-stat svg,.sb-stat.broken svg,.sb-stat:hover svg{animation:none}
 }
 </style>
 </head>

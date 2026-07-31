@@ -74,6 +74,12 @@ export interface Snippet {
    * dashboard still displays it so it can be re-enabled.
    */
   is_active: boolean;
+  /**
+   * Template-validation verdict persisted on write (STATUS-ICONS-001). The
+   * queryable mirror of `validateSnippet`; the UI re-validates live so a stale
+   * flag can never surface a wrong badge.
+   */
+  is_malformed: boolean;
   /** Keyword synonyms for context-based snippet matching (ALTERNATIVE-QUERIES-001). */
   alternative_queries: string[];
   enable_urgency_timer: boolean;
@@ -135,6 +141,18 @@ export interface Prompt {
   /** Last modifier — same DB-stamped semantics as Snippet.updated_by. */
   updated_by: Uuid | null;
   last_used_at: IsoDateTime | null;
+  /**
+   * Executions counted by the `increment_prompt_usage` RPC (STATUS-ICONS-001).
+   * Drives trophy eligibility; the efficiency score never can.
+   */
+  usage_count: number;
+  /**
+   * Template-validation verdict. Present for parity with Snippet, but nothing
+   * sets it today: prompts are inserted raw (content.js resolves bodies only in
+   * the `mode === 'snippet'` branch), so they carry no template syntax to
+   * malform. The UI honours it if it ever becomes true.
+   */
+  is_malformed: boolean;
 }
 
 export interface NotionSyncState {

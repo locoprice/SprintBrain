@@ -268,6 +268,10 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
       const enriched: SnippetRow = {
         ...row,
         folder_name: row.folder_name ?? folder?.name ?? null,
+        // Usage comes from a separate aggregate that single-row writes don't
+        // fetch, so carry the known count forward. Editing a snippet does not
+        // change how often it has been expanded.
+        usage_count: get().snippets.find((sn) => sn.id === id)?.usage_count ?? row.usage_count,
       };
       set((s) => ({
         snippets: s.snippets.map((sn) => (sn.id === id ? enriched : sn)),

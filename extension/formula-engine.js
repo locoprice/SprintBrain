@@ -10,9 +10,16 @@
 //   {time: FORMAT}             — date/time token
 //   {formtext: name=VAR; default=X}   — text input field
 //   {formdate: name=VAR}              — date input field
-//   {formmenu: opt1,opt2; name=VAR}   — dropdown field
+//   {formmenu: opt1,opt2; name=VAR[; default=opt1][; multiple=yes][; cols=N]}  — dropdown field
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
 //   {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}  — gendered word
+//   {button label="Text" [trim=yes|no|left|right]}CODE{/button}  — action button
+//
+// {button} renders in the fill form, never in the output. CODE is one or more
+// `FIELD = expression` assignments, separated by newlines or ';', evaluated in
+// order against the current field values when the button is clicked.
+// `trim` drops horizontal whitespace plus at most one line break on the chosen
+// side, so a button sitting on its own line leaves no blank line behind.
 //
 // Gendered greetings also inflect on their own: a word from the built-in
 // dictionary (Querido, Estimado, Caro, Cher…) written directly before a name
@@ -513,10 +520,24 @@
           i = cl+1; continue;
         }
         var tokLow = tok.toLowerCase();
+        // {button …}code{/button} — an interface control, never text. The whole
+        // region drops out, then `trim` removes the whitespace it left behind.
+        if (_isButtonHead(tokLow)) {
+          var bClose = body.indexOf(BUTTON_CLOSE, cl + 1);
+          // Unclosed: drop only the head so the rest still renders. The template
+          // validator flags this shape as 'unclosed-button'.
+          if (bClose === -1) { i = cl + 1; continue; }
+          var bTrim = String(_parseButtonAttrs(tok.slice(6)).trim || '').toLowerCase();
+          if (bTrim === 'left' || bTrim === 'yes') out = out.replace(/[ \t]*\r?\n?[ \t]*$/, '');
+          i = bClose + BUTTON_CLOSE.length;
+          if (bTrim === 'right' || bTrim === 'yes') {
+            var after = /^[ \t]*\r?\n?[ \t]*/.exec(body.slice(i));
+            if (after) i += after[0].length;
+          }
+          continue;
+        }
         if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
-          var formRest = tok.slice(9);
-          var fNameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(formRest);
-          var fKey = fNameM ? fNameM[1] : '';
+          var fKey = _formFieldName(tokLow, tok.slice(9));
           out = sbEmitValue(out, fKey && vals[fKey] !== undefined ? vals[fKey] : '', gLock);
           i = cl+1; continue;
         }
@@ -553,6 +574,131 @@
               .replace(/\[(blue|yellow|red)\]([\s\S]*?)\[\/(?:blue|yellow|red)\]/g, '$2');
   }
 
+  // ── FORM TOKEN FIELD NAME ───────────────────────────────────────
+  // {formmenu:}'s first segment is its options list, so attributes are read
+  // only from what follows the first ';' — an option literally spelled
+  // "name=Bob" must not be picked up as the field name (the menu would then
+  // write to the wrong key and its own {NAME} reference would never fill).
+  // formtext/formdate have no options segment: their attributes start at 0.
+  function _formAttrSrc(tokLow, rest) {
+    if (tokLow.slice(0, 9) !== 'formmenu:') return rest;
+    var semi = rest.indexOf(';');
+    return semi === -1 ? '' : rest.slice(semi);
+  }
+
+  function _formFieldName(tokLow, rest) {
+    var m = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(_formAttrSrc(tokLow, rest));
+    return m ? m[1] : '';
+  }
+
+  // ── BUTTON COMMAND ──────────────────────────────────────────────
+  // {button label="Text" trim=left}FIELD = expr{/button}
+  //
+  // Unlike every other token, a button is an *interface* element: it renders in
+  // the fill form and contributes nothing to the resolved text. Its code block
+  // assigns to fields, evaluated through evalFormula — the same recursive-descent
+  // evaluator as {= }, so no user string ever reaches eval()/Function().
+  var BUTTON_CLOSE = '{/button}';
+  var BUTTON_TRIMS = { yes: 1, no: 1, left: 1, right: 1 };
+
+  // Attributes are space-separated key=value; values may be quoted to carry
+  // spaces. Deliberately not the ';'-separated form of the other commands — the
+  // {button} spec is written this way.
+  function _parseButtonAttrs(head) {
+    var re = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/g;
+    var attrs = {}, m;
+    while ((m = re.exec(head)) !== null) {
+      var val = m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : m[4]);
+      attrs[m[1].toLowerCase()] = val;
+    }
+    return attrs;
+  }
+
+  // True when the token opens a button, so a field called "buttonish" doesn't.
+  function _isButtonHead(tokLow) {
+    if (tokLow.slice(0, 6) !== 'button') return false;
+    return tokLow.length === 6 || /\s/.test(tokLow.charAt(6));
+  }
+
+  /**
+   * Splits a code block into `FIELD = expression` statements. Statements are
+   * separated by newlines or ';'. A line the parser cannot read is reported
+   * rather than dropped, so a typo never silently does nothing.
+   */
+  function parseButtonCode(code) {
+    var lines = String(code === null || code === undefined ? '' : code).split(/[\n;]+/);
+    var statements = [], errors = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = _sTrim(lines[i]);
+      if (!line) continue;
+      var eq = line.indexOf('=');
+      var name = eq > -1 ? _sTrim(line.slice(0, eq)) : '';
+      if (eq === -1 || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        errors.push('"' + line + '" is not a FIELD = value line');
+        continue;
+      }
+      var expr = _sTrim(line.slice(eq + 1));
+      if (!expr) { errors.push('"' + name + '" has nothing to assign'); continue; }
+      statements.push({ name: name, expr: expr });
+    }
+    return { statements: statements, errors: errors };
+  }
+
+  /**
+   * Every button in a body, in document order, for the fill form to render.
+   * `id` is the occurrence index — stable for a given body, which is all the UI
+   * needs to map a click back to its code.
+   */
+  function extractButtons(body) {
+    var src = (body === null || body === undefined) ? '' : String(body);
+    var out = [], i = 0;
+    while (i < src.length) {
+      var open = src.indexOf('{', i);
+      if (open === -1) break;
+      var cl = src.indexOf('}', open);
+      if (cl === -1) break;
+      var tok = _sTrim(src.slice(open + 1, cl));
+      if (!_isButtonHead(tok.toLowerCase())) { i = open + 1; continue; }
+      var close = src.indexOf(BUTTON_CLOSE, cl + 1);
+      if (close === -1) break;
+      var attrs = _parseButtonAttrs(tok.slice(6));
+      var code = src.slice(cl + 1, close);
+      var parsed = parseButtonCode(code);
+      out.push({
+        id: 'btn' + out.length,
+        label: attrs.label || 'Run',
+        trim: BUTTON_TRIMS[String(attrs.trim || '').toLowerCase()] ? attrs.trim.toLowerCase() : 'no',
+        code: code,
+        statements: parsed.statements,
+        errors: parsed.errors
+      });
+      i = close + BUTTON_CLOSE.length;
+    }
+    return out;
+  }
+
+  /**
+   * Runs a button's statements against the current field values.
+   * Assignments apply in order, so a later line sees an earlier line's result.
+   * @returns {{ values: Object, errors: string[] }} values to write back
+   */
+  function applyButtonCode(statements, vals) {
+    var scope = {}, values = {}, errors = [];
+    for (var k in vals) { if (Object.prototype.hasOwnProperty.call(vals, k)) scope[k] = vals[k]; }
+    var list = statements || [];
+    for (var i = 0; i < list.length; i++) {
+      var st = list[i], res = null;
+      try { res = evalFormula(st.expr, scope); } catch (e) { res = null; }
+      if (res === null || typeof res !== 'number' || isNaN(res)) {
+        errors.push('Could not work out "' + st.expr + '"');
+        continue;
+      }
+      scope[st.name] = res;
+      values[st.name] = res;
+    }
+    return { values: values, errors: errors };
+  }
+
   // ── FIELD EXTRACTOR ─────────────────────────────────────────────
   // Returns unique field names for the overlay form.
   function extractFields(body) {
@@ -560,10 +706,11 @@
     while ((m = re.exec(body)) !== null) {
       var t = m[1].replace(/^\s+|\s+$/g, '');
       if (t.charAt(0) === '=' || t.charAt(0) === '{' ||
-          t === 'endif' || t === 'else' ||
+          t === 'endif' || t === 'else' || t === '/button' ||
           t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
           t.slice(0,7).toLowerCase() === 'elseif:' ||
-          t.slice(0,5).toLowerCase() === 'time:') continue;
+          t.slice(0,5).toLowerCase() === 'time:' ||
+          _isButtonHead(t.toLowerCase())) continue;
       var tokLow = t.toLowerCase();
       var fieldKey = t;
       // A {gender:} token is not a field itself — it reads one, so surface that
@@ -573,9 +720,8 @@
         fieldKey = sbGenderTokenField(t.slice(7));
         if (!fieldKey) continue;
       } else if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
-        var fNm = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(t.slice(9));
-        if (!fNm) continue;
-        fieldKey = fNm[1];
+        fieldKey = _formFieldName(tokLow, t.slice(9));
+        if (!fieldKey) continue;
       }
       var dup = false;
       for (var ix = 0; ix < vars.length; ix++) { if (vars[ix] === fieldKey) { dup = true; break; } }
@@ -585,7 +731,14 @@
   }
 
   // ── FORM FIELD CONFIG BUILDER ───────────────────────────────────
+  function _sTrim(s) { return String(s).replace(/^\s+|\s+$/g, ''); }
+
   // Derives type/options/default from {formtext/date/menu:} tokens.
+  //
+  // {formmenu:} carries three optional attributes beyond `name`:
+  //   default=X[,Y]  — preselected option(s); silently dropped when not declared
+  //   multiple=yes   — the field accepts several picks, joined with ", " on output
+  //   cols=N         — field width in characters (presentation only)
   function buildFormFieldCfg(body) {
     var cfg = {}, re = /\{([^}]+)\}/g, m;
     while ((m = re.exec(body)) !== null) {
@@ -597,22 +750,122 @@
       else if (tokLow.slice(0,9) === 'formmenu:') prefix = 'formmenu';
       if (!prefix) continue;
       var rest = t.slice(9);
-      var nameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(rest);
-      if (!nameM) continue;
-      var key = nameM[1];
+      var key = _formFieldName(tokLow, rest);
+      if (!key) continue;
       if (cfg[key]) continue;
-      var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(rest);
+      var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(_formAttrSrc(tokLow, rest));
       var defVal = defM ? defM[1].replace(/^\s+|\s+$/g, '') : '';
       if (prefix === 'formdate') {
         cfg[key] = { type: 'date', default: defVal };
       } else if (prefix === 'formmenu') {
-        var optStr = rest.split(';')[0].replace(/^\s+|\s+$/g, '');
-        cfg[key] = { type: 'dd', opts: optStr.split(',').map(function(o){ return o.replace(/^\s+|\s+$/g, ''); }).join('\n') };
+        var attrs = _formAttrSrc(tokLow, rest);
+        var opts = rest.split(';')[0].split(',').map(_sTrim).filter(function(o){ return o !== ''; });
+        var multi = /(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(attrs);
+        var colsM = /(?:^|;)\s*cols\s*=\s*(\d+)/i.exec(attrs);
+        // Only declared options can be preselected — a default naming an option
+        // that no longer exists must not become an unpickable value.
+        var picks = defVal
+          ? defVal.split(',').map(_sTrim).filter(function(d){ return opts.indexOf(d) !== -1; })
+          : [];
+        if (!multi) picks = picks.slice(0, 1);
+        var menu = { type: 'dd', opts: opts.join('\n'), default: picks.join(', ') };
+        if (multi) menu.multiple = true;
+        if (colsM) {
+          var cols = parseInt(colsM[1], 10);
+          if (cols > 0) menu.cols = cols;
+        }
+        cfg[key] = menu;
       } else {
         cfg[key] = { type: 'text', default: defVal };
       }
     }
     return cfg;
+  }
+
+  // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
+  // Serializes a {formmenu:} token from an insert-dialog config — the exact
+  // inverse of the formmenu branch above, so every token this writes parses
+  // back to the same options / default / multiple / cols.
+  //
+  // `,` `;` `{` `}` are the token grammar's own delimiters, so they collapse to
+  // a space inside an option label rather than breaking the snippet.
+  //
+  // MIRRORED in app/src/lib/formMenuToken.ts — the React dashboard cannot import
+  // extension source (see app/CLAUDE.md §6). Change both together.
+  function _menuSafe(s) {
+    return _sTrim(String(s).replace(/[,;{}]/g, ' ').replace(/\s+/g, ' '));
+  }
+
+  // Reads a formmenu cfg `default` ("A, B") back into the picked options. Every
+  // renderer preselects from this, so the separator is defined in one place.
+  function formMenuPicks(defaultStr) {
+    if (defaultStr === null || defaultStr === undefined) return [];
+    return String(defaultStr).split(',').map(_sTrim).filter(function(v){ return v !== ''; });
+  }
+
+  function buildFormMenuToken(cfg) {
+    var c = cfg || {};
+    var opts = [], seen = {};
+    var raw = c.options || [];
+    for (var i = 0; i < raw.length; i++) {
+      var o = _menuSafe(raw[i]);
+      if (o !== '' && !seen[o]) { seen[o] = 1; opts.push(o); }
+    }
+
+    // Always emit a usable identifier: a token whose name the engine rejects
+    // resolves to nothing at expansion time, which reads as a vanished field.
+    var name = String(c.name || '').replace(/[^A-Za-z0-9_]/g, '');
+    if (!/^[A-Za-z_]/.test(name)) name = 'MENU_' + name;
+
+    var picks = [];
+    var sel = c.selected || [];
+    for (var j = 0; j < sel.length; j++) {
+      var p = _menuSafe(sel[j]);
+      if (opts.indexOf(p) !== -1 && picks.indexOf(p) === -1) picks.push(p);
+    }
+    if (!c.multiple) picks = picks.slice(0, 1);
+
+    var out = '{formmenu: ' + opts.join(',') + '; name=' + name;
+    if (picks.length) out += '; default=' + picks.join(',');
+    if (c.multiple) out += '; multiple=yes';
+    var cols = parseInt(c.cols, 10);
+    if (cols > 0) out += '; cols=' + cols;
+    return out + '}';
+  }
+
+  // ── BUTTON TOKEN WRITER ─────────────────────────────────────────
+  // Serializes a {button …}code{/button} token from an insert-dialog config —
+  // the inverse of extractButtons(), so every token this writes parses back.
+  //
+  // MIRRORED in app/src/lib/formButtonToken.ts — the React dashboard cannot
+  // import extension source (app/CLAUDE.md §6). Change both together.
+  function _btnLabelSafe(s) {
+    // `"` would close the attribute; braces would end the token early.
+    return _sTrim(String(s).replace(/["{}]/g, '').replace(/\s+/g, ' '));
+  }
+
+  function _btnExprSafe(s) {
+    // ';' and newlines separate statements; braces end the token.
+    return _sTrim(String(s).replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' '));
+  }
+
+  function buildFormButtonToken(cfg) {
+    var c = cfg || {};
+    var lines = [], raw = c.lines || [];
+    for (var i = 0; i < raw.length; i++) {
+      var field = String(raw[i].field || '').replace(/[^A-Za-z0-9_]/g, '');
+      var expr = _btnExprSafe(raw[i].expr || '');
+      if (!field || !expr) continue;
+      if (!/^[A-Za-z_]/.test(field)) field = 'F' + field;
+      lines.push(field + ' = ' + expr);
+    }
+
+    var head = '{button';
+    var label = _btnLabelSafe(c.label || '');
+    if (label) head += ' label="' + label + '"';
+    var trim = String(c.trim || '').toLowerCase();
+    if (BUTTON_TRIMS[trim] && trim !== 'no') head += ' trim=' + trim;
+    return head + '}' + lines.join('; ') + BUTTON_CLOSE;
   }
 
   // ── PLACEHOLDER ENGINE (double-brace only) ──────────────────────
@@ -630,11 +883,78 @@
     });
   }
 
+  // ── TEMPLATE VALIDATOR ──────────────────────────────────────────
+  // Structural faults that make resolveBody() emit visibly wrong output while
+  // failing silently — the user only finds out after pasting to a guest.
+  // Walks the same tokenizer as resolveBody so a verdict here matches what the
+  // engine actually does with the body.
+  //
+  // Deliberately narrow: only faults with no legitimate authoring reason. A
+  // stray "{" around prose or code still resolves to an unknown field (and is
+  // dropped), but that shape is common enough in real bodies that flagging it
+  // would be noise, not a signal.
+  //
+  // MIRRORED in app/src/lib/statusSignals.ts (the dashboard cannot import
+  // extension source — see app/CLAUDE.md §6). Change both together.
+  function validateTemplate(body) {
+    var src = (body === null || body === undefined) ? '' : String(body);
+    var i = 0, depth = 0;
+    while (i < src.length) {
+      if (src.charAt(i) !== '{') { i++; continue; }
+      if (src.charAt(i + 1) === '{') {
+        var dcl = src.indexOf('}}', i + 2);
+        if (dcl === -1) return _invalid('unterminated-token');
+        i = dcl + 2; continue;
+      }
+      var cl = src.indexOf('}', i);
+      if (cl === -1) return _invalid('unterminated-token');
+      var tok = src.slice(i + 1, cl).replace(/^\s+|\s+$/g, '');
+      if (tok.slice(0, 3) === 'if:') {
+        depth++;
+      } else if (tok === 'endif') {
+        if (depth === 0) return _invalid('orphan-branch');
+        depth--;
+      } else if (tok === 'else' || tok.slice(0, 7).toLowerCase() === 'elseif:') {
+        if (depth === 0) return _invalid('orphan-branch');
+      } else if (_isButtonHead(tok.toLowerCase())) {
+        // An unclosed button prints its own code block at the guest. A closed one
+        // is skipped whole — the block is code, not text to be validated.
+        var bClose = src.indexOf(BUTTON_CLOSE, cl + 1);
+        if (bClose === -1) return _invalid('unclosed-button');
+        i = bClose + BUTTON_CLOSE.length;
+        continue;
+      } else if (tok === '/button') {
+        return _invalid('orphan-branch');
+      }
+      i = cl + 1;
+    }
+    if (depth > 0) return _invalid('unclosed-if');
+    return { ok: true, code: null, message: '' };
+  }
+
+  var VALIDATION_MESSAGES = {
+    'unterminated-token': 'A { is never closed — it prints literally instead of filling in.',
+    'orphan-branch': 'A branch tag has no matching {if:} — the condition is ignored.',
+    'unclosed-if': 'An {if:} is never closed with {endif} — its content is dropped.',
+    'unclosed-button': 'A {button} is never closed with {/button} — its code prints as text.'
+  };
+
+  function _invalid(code) {
+    return { ok: false, code: code, message: VALIDATION_MESSAGES[code] };
+  }
+
   // ── PUBLIC API ──────────────────────────────────────────────────
   var API = {
     resolveBody:       resolveBody,
     extractFields:     extractFields,
+    validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
+    buildFormMenuToken: buildFormMenuToken,
+    formMenuPicks:     formMenuPicks,
+    buildFormButtonToken: buildFormButtonToken,
+    extractButtons:    extractButtons,
+    parseButtonCode:   parseButtonCode,
+    applyButtonCode:   applyButtonCode,
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,

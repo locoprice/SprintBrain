@@ -37,6 +37,7 @@ function snippet(
     updated_by: 'u1',
     folder_name: 'TEAM SHARED',
     usage_count: 0,
+    is_malformed: false,
   };
 }
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SprintBrain",
-  "version": "2.123.1",
-  "description": "Expand reusable text snippets in any field using custom shortcuts. Organize into folders and sync your library with Notion.",
+  "version": "2.134.0",
+  "description": "AI prompt library and text expander. Free team sharing, dynamic snippets with live formulas, and two-way Notion sync.",
   "permissions": [
     "storage",
     "activeTab",

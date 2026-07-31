@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, L
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
 import { SnippetRowActions } from '@/features/snippets/SnippetRowActions';
 import {
@@ -21,6 +22,12 @@ import {
   type SnippetGroup,
 } from '@/lib/snippetGrouping';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import {
+  isTopByUsage,
+  sumUsage,
+  validateSnippet,
+  type TemplateValidation,
+} from '@/lib/statusSignals';
 import { attributionTitle, useUserNameResolver } from '@/lib/useUserNames';
 import { cn } from '@/lib/utils';
 
@@ -159,6 +166,29 @@ export function SnippetsTable() {
   // Collapse translated variants (sharing a base trigger) into one row each.
   const groups = useMemo(() => groupSnippetsByLanguage(rows), [rows]);
   const loading = useSnippetStore((s) => s.loading);
+  // Status badges read the whole library, not the filtered page: "top" is
+  // relative to every snippet the user owns, so paging or searching never
+  // changes which rows earn the trophy. Compared group-to-group, since a
+  // translated snippet's expansions are spread across its variant rows.
+  const library = useSnippetStore((s) => s.snippets);
+  const libraryMax = useMemo(
+    () =>
+      groupSnippetsByLanguage(library).reduce(
+        (max, group) => Math.max(max, sumUsage(group.variants)),
+        0,
+      ),
+    [library],
+  );
+  // Validate once per data change rather than once per render — the table
+  // re-renders on every keystroke in the search box.
+  const issues = useMemo(() => {
+    const map = new Map<string, TemplateValidation>();
+    for (const snippet of library) {
+      const result = validateSnippet(snippet);
+      if (!result.ok) map.set(snippet.id, result);
+    }
+    return map;
+  }, [library]);
   const pushSnippetToNotion = useSnippetStore((s) => s.pushSnippetToNotion);
   const notionPushingIds = useSnippetStore((s) => s.notionPushingIds);
   const query = useSnippetStore((s) => s.searchQuery);
@@ -327,6 +357,17 @@ export function SnippetsTable() {
             const displayName = multiLang ? baseSnippetName(group.master.name) : group.master.name;
             const variantIds = group.variants.map((v) => v.id);
             const isSelected = variantIds.every((id) => selectedIds.has(id));
+            // Any language variant failing breaks the snippet — including one
+            // the row isn't currently showing, which is exactly the case a user
+            // cannot spot on their own.
+            let issue: TemplateValidation | undefined;
+            for (const variant of group.variants) {
+              issue = issues.get(variant.id);
+              if (issue) break;
+            }
+            // Expansions across every language variant — the row represents the
+            // whole group, so the count it shows has to as well.
+            const groupUsage = sumUsage(group.variants);
             return (
               <tr
                 key={group.key}
@@ -374,6 +415,14 @@ export function SnippetsTable() {
                           />
                         )}
                         <span className="truncate">{displayName}</span>
+                        {issue !== undefined ? (
+                          <StatusBadge status="broken" detail={issue.message} />
+                        ) : isTopByUsage(groupUsage, libraryMax) ? (
+                          <StatusBadge
+                            status="top"
+                            detail={`expanded ${groupUsage.toLocaleString()} times`}
+                          />
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                         {row.is_formula ? (
@@ -428,8 +477,15 @@ export function SnippetsTable() {
                 >
                   {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
                 </td>
-                <td className="px-5 py-3 text-right font-mono text-xs tabular-nums text-ink-muted">
-                  {row.usage_count.toLocaleString()}
+                <td
+                  className="px-5 py-3 text-right font-mono text-xs tabular-nums text-ink-muted"
+                  title={
+                    multiLang
+                      ? `${groupUsage.toLocaleString()} expansions across ${group.languages.length} languages`
+                      : undefined
+                  }
+                >
+                  {groupUsage.toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-center">
                   {notionPushingIds.has(row.id) ? (

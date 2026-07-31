@@ -325,6 +325,8 @@ describe('promptToEvaluatorInput', () => {
     updated_at: '2026-01-01T00:00:00.000Z',
     updated_by: 'u1',
     last_used_at: null,
+    usage_count: 0,
+    is_malformed: false,
   };
 
   it('uses structured blocks when present', () => {
@@ -391,6 +393,8 @@ describe('selectBenchmarkCohort', () => {
     notion_page_id: null,
     updated_at: '2026-01-01T00:00:00.000Z',
     last_used_at: null,
+    usage_count: 0,
+    is_malformed: false,
   });
 
   function many(n: number, intent: IntentCategory | null, prefix = 'p'): Prompt[] {
