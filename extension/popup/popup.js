@@ -1304,6 +1304,16 @@ function canNestUnderFolder(pid){
   return folderDepth(pid)+1 <= MAX_FOLDER_DEPTH;
 }
 
+// Hover text for a folder row/chip: full path, plus the description on a second
+// line when it has one. Without this a description stays invisible until the
+// folder is selected, so you cannot tell which folders carry one.
+function folderTooltip(fid){
+  var path = folderPathLabel(fid);
+  var f = findFolder(fid);
+  var d = f && f.description ? String(f.description).trim() : '';
+  return d ? path + '\n' + d : path;
+}
+
 // "Villa Serena / Preventivi" — used wherever a nested folder has to read as
 // one line (move menus, Notion's flat Categoria select).
 function folderPathLabel(fid){
@@ -1347,7 +1357,7 @@ function renderFolders(){
   for(var i=0;i<ordered.length;i++){
     var f=ordered[i].f, depth=ordered[i].depth;
     h+='<button class="chip'+(selFolder===f.id?' on':'')+(depth>1?' sub':'')+'" data-fid="'+esc(f.id)+'"'
-      +' title="'+esc(folderPathLabel(f.id))+'" type="button">'
+      +' title="'+esc(folderTooltip(f.id))+'" type="button">'
       +(depth>1?'<span class="chip-nest" aria-hidden="true">'+_NEST_SVG+'</span>':'')
       +'<span class="chip-ic">'+_folderSvg(f.ico||'folder')+'</span>'
       +esc(f.name)

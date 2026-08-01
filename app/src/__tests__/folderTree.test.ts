@@ -9,6 +9,7 @@ import {
   descendantIds,
   flattenTree,
   folderPath,
+  folderTooltip,
   rollupCounts,
   subtreeHeight,
   subtreeIds,
@@ -95,6 +96,12 @@ describe('ancestorsOf / depthOf / subtreeHeight', () => {
     expect(ancestorsOf(TREE, 'villa')).toEqual([]);
   });
 
+  it('returns every ancestor, not just the immediate parent', () => {
+    // Drives the breadcrumb: at depth 3 the trail must show both ancestors.
+    const sub = folder('sub', 'Sub', 'quotes');
+    expect(ancestorsOf([...TREE, sub], 'sub').map((f) => f.id)).toEqual(['quotes', 'villa']);
+  });
+
   it('reports 1-based depth', () => {
     expect(depthOf(TREE, 'villa')).toBe(1);
     expect(depthOf(TREE, 'quotes')).toBe(2);
@@ -158,6 +165,22 @@ describe('folderPath', () => {
 
   it('returns an empty string for an unknown folder', () => {
     expect(folderPath(TREE, 'nope')).toBe('');
+  });
+});
+
+describe('folderTooltip', () => {
+  it('is just the path when the folder has no description', () => {
+    expect(folderTooltip(TREE, 'quotes')).toBe('Villa Serena / Preventivi');
+  });
+
+  it('appends the description on a second line', () => {
+    const described = [...TREE.filter((f) => f.id !== 'villa'), { ...villa, description: 'Business partners' }];
+    expect(folderTooltip(described, 'villa')).toBe('Villa Serena\nBusiness partners');
+  });
+
+  it('ignores a whitespace-only description', () => {
+    const blank = [...TREE.filter((f) => f.id !== 'villa'), { ...villa, description: '   ' }];
+    expect(folderTooltip(blank, 'villa')).toBe('Villa Serena');
   });
 });
 

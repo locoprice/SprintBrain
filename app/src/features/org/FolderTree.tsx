@@ -7,6 +7,7 @@ import {
   canMoveFolder,
   canNestUnder,
   flattenTree,
+  folderTooltip,
   rollupCounts,
   type FolderNode,
 } from '@/lib/folderTree';
@@ -203,6 +204,7 @@ export function FolderTree({
           isCollapsed={collapsed.has(node.folder.id)}
           isDropTarget={dropTarget?.id === node.folder.id}
           isDragging={draggingFolderId === node.folder.id}
+          tooltip={folderTooltip(folders, node.folder.id)}
           onSelect={onSelect}
           onToggle={toggleCollapse}
           onContextMenu={(x, y) => setMenu({ folderId: node.folder.id, x, y })}
@@ -270,6 +272,8 @@ interface FolderRowProps {
   isCollapsed: boolean;
   isDropTarget: boolean;
   isDragging: boolean;
+  /** Full path plus description — the only place a description shows unselected. */
+  tooltip: string;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onContextMenu: (x: number, y: number) => void;
@@ -293,6 +297,7 @@ function FolderRow({
   isCollapsed,
   isDropTarget,
   isDragging,
+  tooltip,
   onSelect,
   onToggle,
   onContextMenu,
@@ -319,6 +324,7 @@ function FolderRow({
         e.preventDefault();
         onContextMenu(e.clientX, e.clientY);
       }}
+      title={tooltip}
       className={cn(
         'group relative flex items-center rounded-[10px] transition-colors',
         isActive ? 'bg-primary-light' : 'hover:bg-bg-alt',

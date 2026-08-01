@@ -187,6 +187,17 @@ export function folderPath(folders: Folder[], id: string): string {
 }
 
 /**
+ * Hover text for a folder row: its full path, plus the description on a second
+ * line when it has one. Without this a description is invisible until you
+ * select the folder, so you cannot tell which folders carry one.
+ */
+export function folderTooltip(folders: Folder[], id: string): string {
+  const path = folderPath(folders, id);
+  const description = folders.find((f) => f.id === id)?.description?.trim();
+  return description ? `${path}\n${description}` : path;
+}
+
+/**
  * Roll per-folder counts up the tree: a parent reports its own items plus every
  * descendant's, so the badge agrees with what selecting that folder lists.
  */

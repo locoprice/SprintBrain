@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
+import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
 import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
 import { FilterToolbar } from '@/features/snippets/FilterToolbar';
 import { ImportExportButtons, type ImportResult } from '@/features/snippets/ImportExportButtons';
@@ -22,6 +23,7 @@ export function SnippetsPage() {
   // somewhere to live. "All snippets" keeps the page-level blurb.
   const folders = useSnippetStore((s) => s.folders);
   const selectedFolderId = useSnippetStore((s) => s.selectedFolderId);
+  const setSelectedFolder = useSnippetStore((s) => s.setSelectedFolder);
   const selectedFolder =
     selectedFolderId === null ? null : folders.find((f) => f.id === selectedFolderId) ?? null;
 
@@ -60,6 +62,15 @@ export function SnippetsPage() {
     <>
       <VersionHistoryPanel />
       <PageHeader
+        breadcrumb={
+          selectedFolder ? (
+            <FolderBreadcrumb
+              folders={folders}
+              folderId={selectedFolder.id}
+              onNavigate={setSelectedFolder}
+            />
+          ) : undefined
+        }
         title={selectedFolder ? selectedFolder.name : 'Snippets'}
         description={
           selectedFolder
