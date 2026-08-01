@@ -222,6 +222,17 @@ img,svg{display:block;max-width:100%}
 
 /* FOOTER */
 footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
+.foot-support{max-width:var(--max);margin:0 auto 30px;padding-bottom:30px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;align-items:center;gap:22px}
+.foot-support-label{font-size:11.5px;font-weight:600;letter-spacing:.13em;
+  text-transform:uppercase;color:#6E6E73}
+.foot-logos{display:flex;flex-wrap:wrap;align-items:center;
+  justify-content:center;gap:26px 52px}
+.foot-logos img{display:block;width:auto;opacity:.62}
+.foot-logo-aws{height:26px}
+.foot-logo-nvidia{height:40px}
+.foot-logo-google{height:42px}
 .foot-inner{max-width:var(--max);margin:0 auto;display:flex;
   flex-direction:row;justify-content:space-between;align-items:center;gap:16px}
 .foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:#AEAEB2}
@@ -251,6 +262,11 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .demo-output{min-height:150px;font-size:14px}
   .demo-url{margin-left:8px;font-size:11px}
   footer{padding:28px 20px}
+  .foot-support{margin-bottom:22px;padding-bottom:22px;gap:16px}
+  .foot-logos{gap:18px 30px}
+  .foot-logo-aws{height:20px}
+  .foot-logo-nvidia{height:31px}
+  .foot-logo-google{height:33px}
   .foot-inner{flex-direction:column;gap:14px}
   .foot-brand{flex-wrap:wrap;gap:4px 6px;font-size:12px}
   .foot-links{flex-wrap:wrap;gap:6px 14px;font-size:12px}
@@ -1321,6 +1337,14 @@ LeibTour Team</div>
 </section>
 
 <footer>
+  <div class="foot-support">
+    <span class="foot-support-label">Supported by</span>
+    <div class="foot-logos">
+      <img class="foot-logo-aws" src="supported-aws-startups.png" width="364" height="78" alt="AWS Startups" loading="lazy" decoding="async" draggable="false">
+      <img class="foot-logo-nvidia" src="supported-nvidia-inception.png" width="366" height="120" alt="NVIDIA Inception Program" loading="lazy" decoding="async" draggable="false">
+      <img class="foot-logo-google" src="supported-google-for-startups.png" width="249" height="126" alt="Google for Startups" loading="lazy" decoding="async" draggable="false">
+    </div>
+  </div>
   <div class="foot-inner">
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
@@ -1607,7 +1631,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.134.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.135.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
