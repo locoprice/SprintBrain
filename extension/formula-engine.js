@@ -575,20 +575,62 @@
   }
 
   // ── FORM TOKEN FIELD NAME ───────────────────────────────────────
-  // {formmenu:}'s first segment is its options list, so attributes are read
-  // only from what follows the first ';' — an option literally spelled
-  // "name=Bob" must not be picked up as the field name (the menu would then
-  // write to the wrong key and its own {NAME} reference would never fill).
   // formtext/formdate have no options segment: their attributes start at 0.
   function _formAttrSrc(tokLow, rest) {
     if (tokLow.slice(0, 9) !== 'formmenu:') return rest;
-    var semi = rest.indexOf(';');
-    return semi === -1 ? '' : rest.slice(semi);
+    return _parseMenuSettings(rest).attrs;
   }
 
   function _formFieldName(tokLow, rest) {
-    var m = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(_formAttrSrc(tokLow, rest));
+    if (tokLow.slice(0, 9) === 'formmenu:') return _parseMenuSettings(rest).name;
+    var m = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(rest);
     return m ? m[1] : '';
+  }
+
+  // ── FORM MENU SETTINGS ──────────────────────────────────────────
+  // Text Blaze separates a menu's options with ';' and lets them sit in any
+  // order among the named settings:
+  //
+  //   {formmenu: 1980; 1985; name=year; default=1985}
+  //   {formmenu: name=year; 1980; 1985}
+  //
+  // SprintBrain's own writer emits them comma-separated in one segment
+  // ({formmenu: a,b,c; name=X}). Both are accepted: a ';' segment is a named
+  // setting only when it opens with one of the four keys below, otherwise it is
+  // positional and its commas split further. That keeps every snippet already
+  // authored here working while importing Text Blaze bodies without dropping
+  // options — before this, everything after the first ';' was read as settings
+  // and silently discarded.
+  var MENU_KEYS = /^\s*(name|default|multiple|cols)\s*=/i;
+
+  function _parseMenuSettings(rest) {
+    var segs = String(rest === null || rest === undefined ? '' : rest).split(';');
+    var options = [], attrs = '', name = '';
+    for (var i = 0; i < segs.length; i++) {
+      var seg = segs[i];
+      if (MENU_KEYS.test(seg)) {
+        attrs += ';' + seg;
+        var nm = /^\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(seg);
+        if (nm && !name) name = nm[1];
+        continue;
+      }
+      var parts = seg.split(',');
+      for (var j = 0; j < parts.length; j++) {
+        var opt = _sTrim(parts[j]);
+        if (opt !== '' && options.indexOf(opt) === -1) options.push(opt);
+      }
+    }
+    // An unnamed menu is legal in Text Blaze, so give it a key derived from the
+    // token itself: stable wherever it is read from (extractFields, the config
+    // builder, resolveBody's {if:} recursion) without depending on walk order.
+    if (!name) name = options.length ? 'MENU_' + _menuKeyHash(rest) : '';
+    return { options: options, attrs: attrs, name: name };
+  }
+
+  function _menuKeyHash(src) {
+    var h = 5381, s = String(src);
+    for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
   }
 
   // ── BUTTON COMMAND ──────────────────────────────────────────────
@@ -758,8 +800,9 @@
       if (prefix === 'formdate') {
         cfg[key] = { type: 'date', default: defVal };
       } else if (prefix === 'formmenu') {
-        var attrs = _formAttrSrc(tokLow, rest);
-        var opts = rest.split(';')[0].split(',').map(_sTrim).filter(function(o){ return o !== ''; });
+        var menuSet = _parseMenuSettings(rest);
+        var attrs = menuSet.attrs;
+        var opts = menuSet.options;
         var multi = /(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(attrs);
         var colsM = /(?:^|;)\s*cols\s*=\s*(\d+)/i.exec(attrs);
         // Only declared options can be preselected — a default naming an option
@@ -812,10 +855,11 @@
       if (o !== '' && !seen[o]) { seen[o] = 1; opts.push(o); }
     }
 
-    // Always emit a usable identifier: a token whose name the engine rejects
-    // resolves to nothing at expansion time, which reads as a vanished field.
+    // A blank name is written as no `name=` at all, matching Text Blaze — the
+    // parser then keys the menu from the token itself. A name that was typed
+    // but is not a usable identifier is repaired rather than emitted broken.
     var name = String(c.name || '').replace(/[^A-Za-z0-9_]/g, '');
-    if (!/^[A-Za-z_]/.test(name)) name = 'MENU_' + name;
+    if (name !== '' && !/^[A-Za-z_]/.test(name)) name = 'MENU_' + name;
 
     var picks = [];
     var sel = c.selected || [];
@@ -825,7 +869,7 @@
     }
     if (!c.multiple) picks = picks.slice(0, 1);
 
-    var out = '{formmenu: ' + opts.join(',') + '; name=' + name;
+    var out = '{formmenu: ' + opts.join(',') + (name === '' ? '' : '; name=' + name);
     if (picks.length) out += '; default=' + picks.join(',');
     if (c.multiple) out += '; multiple=yes';
     var cols = parseInt(c.cols, 10);

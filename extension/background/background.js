@@ -118,18 +118,30 @@ function loadData() {
       // disabled rows must not appear in the right-click context menu and must
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
-      var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order&is_active=eq.true&order=sort_order';
+      // The body/field_cfg/urgency columns are not needed to draw the context
+      // menu — they are here so this one fetch can also refresh the expansion
+      // cache content.js reads (see writeExpansionCache below). Without them the
+      // service worker had no body to cache, which is why a snippet edited on
+      // the dashboard kept expanding its old text until the popup was opened.
+      var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order,' +
+        'body,bodies,field_cfg,enable_urgency_timer,timer_duration_ms,scarcity_count,pinned' +
+        '&is_active=eq.true&order=sort_order';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
         supaFetch('rpc/accessible_snippets', snipQs),
         supaFetch('snippet_stats', 'select=snippet_id,uses,last_used&order=last_used.desc.nullslast&limit=20')
       ]).then(function(res) {
         resolve({
+          // `ok` separates "fetched fine, the user has no snippets" from "the
+          // fetch failed". Both look like an empty array, and the expansion
+          // cache must never be cleared on the second — that would silently
+          // disable every trigger until the next successful sync.
+          ok: Array.isArray(res[1]),
           folders:  Array.isArray(res[0]) ? res[0] : [],
           snippets: Array.isArray(res[1]) ? res[1] : [],
           stats:    Array.isArray(res[2]) ? res[2] : []
         });
-      }).catch(function() { resolve({ folders: [], snippets: [], stats: [] }); });
+      }).catch(function() { resolve({ ok: false, folders: [], snippets: [], stats: [] }); });
     });
   });
 }
@@ -362,36 +374,64 @@ function buildContextMenus(data) {
     // Single-snippet folders are no longer flattened to the root: showing each
     // folder consistently means a folder created in the dashboard is always
     // visible here, and the menu reads the same way every time.
-    var foldersWithSnips = [];
-    folders.forEach(function(f) {
-      var fSnips = byFolder[f.id] || [];
-      if (fSnips.length === 0) return;
-      foldersWithSnips.push({ folder: f, groups: sortGroups(groupByLang(fSnips)) });
-    });
-    // Stable folder order: sort_order first, then name.
-    foldersWithSnips.sort(function(a, b) {
-      var sa = (a.folder.sort_order == null) ? 1e9 : a.folder.sort_order;
-      var sb = (b.folder.sort_order == null) ? 1e9 : b.folder.sort_order;
-      if (sa !== sb) return sa - sb;
-      var na = (a.folder.name || '').toLowerCase();
-      var nb = (b.folder.name || '').toLowerCase();
-      return na === nb ? 0 : (na < nb ? -1 : 1);
-    });
+    // Folders nest (Property > Category > Sub), so the menu nests with them:
+    // a parent submenu holds its own snippets followed by its child folders.
+    function sortFolders(list) {
+      return list.slice().sort(function(a, b) {
+        var sa = (a.sort_order == null) ? 1e9 : a.sort_order;
+        var sb = (b.sort_order == null) ? 1e9 : b.sort_order;
+        if (sa !== sb) return sa - sb;
+        var na = (a.name || '').toLowerCase();
+        var nb = (b.name || '').toLowerCase();
+        return na === nb ? 0 : (na < nb ? -1 : 1);
+      });
+    }
+    function childFolders(pid) {
+      return sortFolders(folders.filter(function(f) {
+        return f.id !== pid && (f.parent_id || '') === pid;
+      }));
+    }
+    // Snippet groups in this folder and everything below it — drives the count
+    // on the parent so it matches what opening the submenu leads to.
+    function subtreeGroupCount(f, depth) {
+      var n = (byFolder[f.id] || []).length ? sortGroups(groupByLang(byFolder[f.id])).length : 0;
+      if (depth < 8) {
+        childFolders(f.id).forEach(function(c) { n += subtreeGroupCount(c, depth + 1); });
+      }
+      return n;
+    }
+    function hasSnippetsDeep(f, depth) { return subtreeGroupCount(f, depth) > 0; }
 
-    var showingFolders = foldersWithSnips.length > 0;
-    if (recent.length > 0 && showingFolders) addSep('sb-root');
+    // A folder whose parent is not in the list is a root — RLS can share a
+    // child without its parent, and it must still appear.
+    var folderIds = {};
+    folders.forEach(function(f) { folderIds[f.id] = 1; });
+    var rootFolders = sortFolders(folders.filter(function(f) {
+      var p = f.parent_id || '';
+      return !p || p === f.id || !folderIds[p];
+    })).filter(function(f) { return hasSnippetsDeep(f, 1); });
 
-    foldersWithSnips.forEach(function(entry) {
-      var f = entry.folder;
+    function emitFolderMenu(parentMenuId, f, depth) {
+      if (depth > 8) return;
       var folderIco = folderEmoji(f.ico);
+      var menuId = 'sb-folder-' + f.id;
       chrome.contextMenus.create({
-        id: 'sb-folder-' + f.id,
-        parentId: 'sb-root',
-        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + entry.groups.length + ')',
+        id: menuId,
+        parentId: parentMenuId,
+        title: folderIco + '  ' + (f.name || 'Folder') + '  (' + subtreeGroupCount(f, depth) + ')',
         contexts: ['editable']
       });
-      renderSnippetGroups('sb-folder-' + f.id, entry.groups, folderIco);
-    });
+      var own = byFolder[f.id] || [];
+      if (own.length > 0) renderSnippetGroups(menuId, sortGroups(groupByLang(own)), folderIco);
+      var kids = childFolders(f.id).filter(function(c) { return hasSnippetsDeep(c, depth + 1); });
+      if (kids.length > 0 && own.length > 0) addSep(menuId);
+      kids.forEach(function(c) { emitFolderMenu(menuId, c, depth + 1); });
+    }
+
+    var showingFolders = rootFolders.length > 0;
+    if (recent.length > 0 && showingFolders) addSep('sb-root');
+
+    rootFolders.forEach(function(f) { emitFolderMenu('sb-root', f, 1); });
 
     // ── 3. UNFILED (≥4 → submenu; 1–3 → inline) ───────────────────
     if (noFolder.length > 0) {
@@ -505,8 +545,63 @@ function initMenus() {
       });
       return;
     }
-    loadData().then(buildContextMenus);
+    loadData().then(function(data) {
+      buildContextMenus(data);
+      if (data.ok) writeExpansionCache(data.snippets);
+    });
   });
+}
+
+// ── EXPANSION CACHE ────────────────────────────────────────────────
+// content.js expands from chrome.storage.local.snippets and live-updates from
+// storage.onChanged, so whoever writes this key decides what a typed trigger
+// produces. popup.js used to be its only writer, which meant a snippet edited
+// on the dashboard (a direct Supabase write, no push to the worker) kept
+// expanding its previous body until the user happened to open the popup —
+// a menu added there would not appear in the overlay at all.
+//
+// The menu refresh already runs on the 5-minute alarm and on tab focus, so the
+// cache now rides the same fetch and stays as fresh as the context menu.
+//
+// The row shape MUST match DB.loadAll() in popup/popup.js — content.js reads
+// `folder`, `fieldCfg` and `bodies` off these objects. Change both together.
+function writeExpansionCache(rows) {
+  if (!Array.isArray(rows)) return;
+  try {
+    chrome.storage.local.set({
+      snippets: rows.map(function(s) {
+        return {
+          id: s.id,
+          title: s.title,
+          shortcut: s.shortcut || '',
+          body: s.body || '',
+          bodies: (s.bodies && typeof s.bodies === 'object') ? s.bodies : {},
+          lang: s.lang || 'EN',
+          folder: s.folder_id || '',
+          fieldCfg: s.field_cfg || {},
+          lang_group_id: s.lang_group_id || s.id,
+          sort_order: s.sort_order || 0,
+          alternative_queries: Array.isArray(s.alternative_queries) ? s.alternative_queries : [],
+          enable_urgency_timer: s.enable_urgency_timer || false,
+          timer_duration_ms: s.timer_duration_ms || 0,
+          scarcity_count: s.scarcity_count || 0,
+          pinned: s.pinned || false,
+          // The worker does not fetch usage, but the popup hydrates its list
+          // from this same cache and reads s.stats.uses unguarded. Writing the
+          // zeroed shape keeps that contract; DB.loadAll overwrites it with the
+          // real counts a moment later.
+          expansions: 0,
+          stats: { uses: 0, fills: 0, lastUsed: null }
+        };
+      })
+    }, function() {
+      if (chrome.runtime.lastError) {
+        console.warn('[Sprintbrain] expansion cache write:', chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    console.warn('[Sprintbrain] expansion cache:', e);
+  }
 }
 
 // ── TOOLBAR ACTION ICON — brand mark by default, company logo when set ──

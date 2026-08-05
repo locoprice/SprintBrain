@@ -16,7 +16,11 @@ export interface FoldersApi {
   listFolders(): Promise<Folder[]>;
   createFolder(payload: FolderFormValues): Promise<Folder>;
   updateFolder(id: string, patch: Partial<FolderFormValues>): Promise<Folder>;
-  /** Delete a folder, reassigning its snippets AND prompts to "no folder" first. */
+  /**
+   * Delete a folder, reassigning its snippets AND prompts to "no folder" first.
+   * Child folders are promoted to root by the parent_id FK (`on delete set null`),
+   * so deleting a parent never takes its subtree down with it.
+   */
   deleteFolder(id: string): Promise<void>;
 }
 
@@ -27,9 +31,12 @@ type DbFolder = {
   ico: string;
   sort_order: number;
   updated_at: string;
+  parent_id: string | null;
+  description: string | null;
 };
 
-const FOLDER_SELECT = 'id, user_id, name, ico, sort_order, updated_at';
+const FOLDER_SELECT =
+  'id, user_id, name, ico, sort_order, updated_at, parent_id, description';
 
 function dbFolderToFolder(row: DbFolder): Folder {
   return {
@@ -39,7 +46,15 @@ function dbFolderToFolder(row: DbFolder): Folder {
     icon: row.ico,
     sort_order: row.sort_order,
     updated_at: row.updated_at,
+    parent_id: row.parent_id ?? null,
+    description: row.description ?? null,
   };
+}
+
+/** Trim to null: a blank box means "no description", never an empty string. */
+function normalizeDescription(value: string | null | undefined): string | null {
+  const trimmed = (value ?? '').trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 async function currentUserId(): Promise<string> {
@@ -70,6 +85,8 @@ export const foldersApi: FoldersApi = {
         name: payload.name,
         ico: payload.icon,
         sort_order: Date.now(),
+        parent_id: payload.parent_id ?? null,
+        description: normalizeDescription(payload.description),
       })
       .select(FOLDER_SELECT)
       .single();
@@ -82,6 +99,10 @@ export const foldersApi: FoldersApi = {
     const update: Record<string, unknown> = {};
     if (patch.name !== undefined) update['name'] = patch.name;
     if (patch.icon !== undefined) update['ico'] = patch.icon;
+    if (patch.parent_id !== undefined) update['parent_id'] = patch.parent_id;
+    if (patch.description !== undefined) {
+      update['description'] = normalizeDescription(patch.description);
+    }
 
     const { data, error } = await supabase
       .from('folders')

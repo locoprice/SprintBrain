@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { DND_SNIPPET } from '@/features/org/FolderTree';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
 import { SnippetRowActions } from '@/features/snippets/SnippetRowActions';
 import {
@@ -371,6 +372,15 @@ export function SnippetsTable() {
             return (
               <tr
                 key={group.key}
+                draggable
+                onDragStart={(e) => {
+                  // Dragging a row inside a multi-selection moves the whole
+                  // selection; otherwise just this group's language variants.
+                  const ids =
+                    isSelected && selectedIds.size > 0 ? [...selectedIds] : variantIds;
+                  e.dataTransfer.setData(DND_SNIPPET, ids.join(','));
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
                 onClick={() => openEditSnippet(row.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();

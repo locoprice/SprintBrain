@@ -119,6 +119,12 @@ html,body{
 .chip-c{font-size:var(--sb-fs-11);font-weight:700;color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums}
 .chip.on{background:var(--sb-ink);border-color:var(--sb-ink);color:#fff}
 .chip.on .chip-c{color:rgba(255,255,255,.75)}
+/* Nested folder chip — sits right after its parent, marked by a corner glyph
+   and a dashed border so the hierarchy reads in a horizontal row. */
+.chip.sub{padding-left:9px;border-style:dashed}
+.chip.sub.on{border-style:solid}
+.chip-nest{width:11px;height:11px;display:flex;flex-shrink:0;opacity:.55}
+.chip-nest svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── LISTS ── */
 .list-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}

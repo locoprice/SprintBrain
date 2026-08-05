@@ -216,7 +216,10 @@ var NotionSync = (function () {
       shortcut = _extractText(p['Shortcut'].rich_text);
     }
 
-    // Folder → "Categoria" (select type)
+    // Folder → "Categoria" (select type). Nested folders are syndicated as a
+    // full path ("Villa Serena / Preventivi") because a Notion Select is flat.
+    // Note this carries the folder NAME, not a folders.id — pre-existing
+    // behaviour: pulled snippets land unfiled until moved in the dashboard.
     var folder = '';
     if (p['Categoria'] && p['Categoria'].select &&
         p['Categoria'].select.name) {

@@ -10,6 +10,8 @@ function makeFolder(id: string, name: string): Folder {
     icon: 'folder',
     sort_order: 1,
     updated_at: '2026-07-12T00:00:00Z',
+    parent_id: null,
+    description: null,
   };
 }
 

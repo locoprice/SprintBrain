@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FolderTree } from '@/features/org/FolderTree';
 import { useSnippetStore } from '@/stores/snippetStore';
 
@@ -12,7 +12,15 @@ export function SnippetFolderTree() {
   const addFolder = useSnippetStore((s) => s.addFolder);
   const editFolder = useSnippetStore((s) => s.editFolder);
   const removeFolder = useSnippetStore((s) => s.removeFolder);
+  const bulkMoveSnippets = useSnippetStore((s) => s.bulkMoveSnippets);
   const reload = useSnippetStore((s) => s.load);
+
+  const moveFolder = useCallback(
+    async (id: string, parentId: string | null) => {
+      await editFolder(id, { parent_id: parentId });
+    },
+    [editFolder],
+  );
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -35,6 +43,8 @@ export function SnippetFolderTree() {
       addFolder={addFolder}
       editFolder={editFolder}
       removeFolder={removeFolder}
+      moveFolder={moveFolder}
+      moveItems={bulkMoveSnippets}
       onShared={reload}
     />
   );

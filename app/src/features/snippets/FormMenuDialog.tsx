@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MinusCircle, PlusCircle } from 'lucide-react';
+import { GripVertical, MinusCircle, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -66,7 +66,9 @@ export function FormMenuDialog({
     nextId.current = STARTING_ROWS;
     setRows(Array.from({ length: STARTING_ROWS }, (_, i) => ({ id: i + 1, label: '' })));
     setSelectedIds([]);
-    setName(suggestedName);
+    // Left blank like Text Blaze: `suggestedName` is only the placeholder, so a
+    // name is something you opt into rather than something to clear.
+    setName('');
     setMultiple(false);
     setCols('');
   }, [open, suggestedName]);
@@ -100,8 +102,27 @@ export function FormMenuDialog({
     if (!next) setSelectedIds((prev) => prev.slice(0, 1));
   }
 
+  // Drag to reorder, matching the grip handles on Text Blaze's rows. The order
+  // of `rows` is the order the menu offers, so this is a plain array move.
+  const dragId = useRef<number | null>(null);
+
+  function moveRow(fromId: number, toId: number) {
+    if (fromId === toId) return;
+    setRows((prev) => {
+      const from = prev.findIndex((r) => r.id === fromId);
+      const to = prev.findIndex((r) => r.id === toId);
+      if (from === -1 || to === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      if (moved) next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
   const filledRows = rows.filter((r) => sanitizeMenuOption(r.label) !== '');
-  const nameValid = isValidMenuName(name);
+  // The name is optional, exactly as it is in Text Blaze: blank is fine and the
+  // engine keys the menu itself. Only a non-empty *invalid* name blocks Insert.
+  const nameValid = name === '' || isValidMenuName(name);
 
   const token = useMemo(
     () =>
@@ -147,7 +168,30 @@ export function FormMenuDialog({
               {rows.map((row, i) => {
                 const isSelected = selectedIds.includes(row.id);
                 return (
-                  <div key={row.id} className="flex items-center gap-2.5">
+                  <div
+                    key={row.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId.current !== null) moveRow(dragId.current, row.id);
+                      dragId.current = null;
+                    }}
+                    className="flex items-center gap-2.5"
+                  >
+                    <span
+                      draggable
+                      onDragStart={() => {
+                        dragId.current = row.id;
+                      }}
+                      onDragEnd={() => {
+                        dragId.current = null;
+                      }}
+                      aria-hidden
+                      title="Drag to reorder"
+                      className="shrink-0 cursor-grab text-ink-subtle active:cursor-grabbing"
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </span>
                     <input
                       type={multiple ? 'checkbox' : 'radio'}
                       name="form-menu-default"
@@ -200,7 +244,7 @@ export function FormMenuDialog({
           {/* ── Field name ── */}
           <div>
             <label htmlFor="form-menu-name" className={SECTION_LABEL}>
-              Name
+              Name <span className="font-normal text-ink-subtle">(optional)</span>
             </label>
             <Input
               id="form-menu-name"
@@ -210,20 +254,25 @@ export function FormMenuDialog({
               // failing validation with no visible cause is a worse experience
               // than the character simply not appearing.
               onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
-              placeholder="MENU_1"
+              placeholder={suggestedName}
               className={cn(
                 'h-10 rounded-[10px] font-mono',
                 !nameValid && 'border-danger focus:border-danger focus:ring-danger/20',
               )}
             />
-            {nameValid ? (
+            {!nameValid ? (
+              <p className="mt-1.5 text-[11px] text-danger">
+                Letters, numbers and underscore only, starting with a letter — e.g. MENU_1.
+              </p>
+            ) : name === '' ? (
+              <p className={HINT}>
+                Name of the form field. Only needed if the body refers back to the choice — leave
+                it blank and the menu still works.
+              </p>
+            ) : (
               <p className={HINT}>
                 Name of the form field — the body reads it back as{' '}
                 <code className="font-mono text-primary/80">{`{${name}}`}</code>.
-              </p>
-            ) : (
-              <p className="mt-1.5 text-[11px] text-danger">
-                Letters, numbers and underscore only, starting with a letter — e.g. MENU_1.
               </p>
             )}
           </div>

@@ -133,7 +133,9 @@ var DB = {
   },
   upsertFolder: function(f) {
     supaFetch('folders', 'POST', {
-      id: f.id, user_id: SB_CURRENT_USER_ID, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0
+      id: f.id, user_id: SB_CURRENT_USER_ID, name: f.name, ico: f.ico || 'folder', sort_order: f.sort_order || 0,
+      parent_id: f.parent_id || null,
+      description: (f.description || '').trim() || null
     }).catch(function(e) { console.error('upsertFolder:', e); });
   },
   deleteFolder: function(id) {
@@ -385,6 +387,11 @@ function sbApplyCompanyFavicon(meta) {
 
 // ── CHANGELOG ─────────────────────────────────────────────────────
 var CHANGELOG = [
+  { version:'v2.135.0', date:'2026-07-31', label:'fix: snippets expand the text you just saved',
+    changes:[
+      {type:'fix', text:'Edit a snippet on the dashboard and typing its shortcut expands the new text straight away. Before, the extension could keep using the version it last saw when you opened the popup — so a dropdown you had just added did not appear.'},
+      {type:'new', text:'Dropdown menus copied from Text Blaze now keep all their choices. Menus no longer need a name, and you can drag the choices into the order you want.'}
+    ]},
   { version:'v2.133.0', date:'2026-07-30', label:'feat: build an action button without typing the code',
     changes:[
       {type:'new', text:'The snippet editor has a {button} chip beside {formmenu}. Give the button a label, add the lines it should set — PRICE = PRICE * 0.9 — pick how it handles spacing, and it writes the token for you.'}
@@ -1178,6 +1185,148 @@ function folderCount(fid){ var seen={}; var n=0; for(var i=0;i<snips.length;i++)
 function findFolder(id){ for(var i=0;i<folders.length;i++){ if(folders[i].id===id) return folders[i]; } return null; }
 function findPrompt(id){ for(var i=0;i<prompts.length;i++){ if(prompts[i].id===id) return prompts[i]; } return null; }
 
+// ── FOLDER HIERARCHY ────────────────────────────────────────────────────────
+// Folders nest (Property > Category > Sub) via parent_id. These mirror
+// app/src/lib/folderTree.ts so the popup, Sprintbrain.html and the dashboard
+// agree on ordering, depth and rolled-up counts. Every walk is depth-capped so
+// a bad parent_id chain can never hang the UI.
+var MAX_FOLDER_DEPTH = 3;
+
+function folderParent(f){ return (f && f.parent_id) || ''; }
+
+function folderChildren(pid){
+  var out=[];
+  for(var i=0;i<folders.length;i++){
+    var f=folders[i];
+    if(f.id!==pid && folderParent(f)===pid) out.push(f);
+  }
+  return out.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0 ? d : String(a.name||'').localeCompare(String(b.name||''));
+  });
+}
+
+// Depth-first order: each folder immediately followed by its children.
+// A folder whose parent is not in the list renders as a root — RLS can hand
+// over a shared child without its parent, and it must still be reachable.
+function folderTreeOrder(){
+  var byId={}; for(var i=0;i<folders.length;i++) byId[folders[i].id]=1;
+  var out=[], seen={};
+  function walk(list, depth){
+    for(var j=0;j<list.length;j++){
+      var f=list[j];
+      if(seen[f.id] || depth>MAX_FOLDER_DEPTH) continue;
+      seen[f.id]=1;
+      out.push({ f:f, depth:depth });
+      walk(folderChildren(f.id), depth+1);
+    }
+  }
+  var roots=[];
+  for(var k=0;k<folders.length;k++){
+    var f=folders[k], p=folderParent(f);
+    if(!p || p===f.id || !byId[p]) roots.push(f);
+  }
+  roots.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0 ? d : String(a.name||'').localeCompare(String(b.name||''));
+  });
+  walk(roots, 1);
+  return out;
+}
+
+function folderDescendants(fid){
+  var out=[], queue=folderChildren(fid).slice(), seen={};
+  while(queue.length){
+    var f=queue.pop();
+    if(!f || seen[f.id] || f.id===fid) continue;
+    seen[f.id]=1; out.push(f.id);
+    queue=queue.concat(folderChildren(f.id));
+  }
+  return out;
+}
+
+// The ids a folder filter should match: the folder plus everything under it.
+function folderSubtree(fid){ return [fid].concat(folderDescendants(fid)); }
+
+function inFolderSubtree(sfid, fid){
+  if(fid==='ALL') return true;
+  if((sfid||'')===fid) return true;
+  var kids=folderDescendants(fid);
+  for(var i=0;i<kids.length;i++) if(kids[i]===(sfid||'')) return true;
+  return false;
+}
+
+// Rolled-up count: own snippets plus every descendant's, so the badge agrees
+// with what selecting that folder lists.
+function folderCountDeep(fid){
+  var ids=folderSubtree(fid), inSet={};
+  for(var i=0;i<ids.length;i++) inSet[ids[i]]=1;
+  var seen={}, n=0;
+  for(var j=0;j<snips.length;j++){
+    if(!inSet[snips[j].folder||'']) continue;
+    var gid=snips[j].lang_group_id||snips[j].id;
+    if(!seen[gid]){ seen[gid]=1; n++; }
+  }
+  return n;
+}
+
+function folderDepth(fid){
+  var d=1, cur=findFolder(fid), guard=0, seen={};
+  while(cur && folderParent(cur) && guard++<MAX_FOLDER_DEPTH+2){
+    if(seen[cur.id]) break;
+    seen[cur.id]=1;
+    var p=findFolder(folderParent(cur));
+    if(!p) break;
+    d++; cur=p;
+  }
+  return d;
+}
+
+function folderSubtreeHeight(fid){
+  var kids=folderChildren(fid), tallest=1;
+  for(var i=0;i<kids.length;i++) tallest=Math.max(tallest, 1+folderSubtreeHeight(kids[i].id));
+  return tallest;
+}
+
+// Can `fid` be reparented under `pid`? Mirrors the DB trigger so the UI can
+// refuse an impossible move instead of waiting for a failed write.
+function canNestFolder(fid, pid){
+  if(!pid) return true;
+  if(pid===fid) return false;
+  var kids=folderDescendants(fid);
+  for(var i=0;i<kids.length;i++) if(kids[i]===pid) return false;
+  return folderDepth(pid)+folderSubtreeHeight(fid) <= MAX_FOLDER_DEPTH;
+}
+
+// Is there room for a brand-new (childless) folder under `pid`?
+function canNestUnderFolder(pid){
+  if(!pid) return true;
+  return folderDepth(pid)+1 <= MAX_FOLDER_DEPTH;
+}
+
+// Hover text for a folder row/chip: full path, plus the description on a second
+// line when it has one. Without this a description stays invisible until the
+// folder is selected, so you cannot tell which folders carry one.
+function folderTooltip(fid){
+  var path = folderPathLabel(fid);
+  var f = findFolder(fid);
+  var d = f && f.description ? String(f.description).trim() : '';
+  return d ? path + '\n' + d : path;
+}
+
+// "Villa Serena / Preventivi" — used wherever a nested folder has to read as
+// one line (move menus, Notion's flat Categoria select).
+function folderPathLabel(fid){
+  var parts=[], cur=findFolder(fid), guard=0, seen={};
+  while(cur && guard++<MAX_FOLDER_DEPTH+2){
+    if(seen[cur.id]) break;
+    seen[cur.id]=1;
+    parts.unshift(cur.name||'');
+    cur = folderParent(cur) ? findFolder(folderParent(cur)) : null;
+  }
+  return parts.join(' / ');
+}
+
 /* SVG icon map for folder icons — keyed by data-ico values */
 var _FOLDER_SVGS = {
   folder: '<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
@@ -1193,17 +1342,26 @@ var _FOLDER_SVGS = {
 };
 function _folderSvg(ico){ return _FOLDER_SVGS[ico] || _FOLDER_SVGS.folder; }
 
+/* Corner glyph marking a nested folder chip */
+var _NEST_SVG = '<svg viewBox="0 0 24 24"><path d="M4 4v10a4 4 0 0 0 4 4h12"/><polyline points="16 14 20 18 16 22"/></svg>';
+
 function renderFolders(){
   var el=gi('folder-list'); if(!el) return;
   var allIco='<svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg>';
   var h='<button class="chip'+(selFolder==='ALL'?' on':'')+'" data-fid="ALL" type="button">'
       +'<span class="chip-ic">'+allIco+'</span>All<span class="chip-c">'+groupCount(snips)+'</span></button>';
-  for(var i=0;i<folders.length;i++){
-    var f=folders[i];
-    h+='<button class="chip'+(selFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'" type="button">'
+  // Depth-first so a subfolder always sits directly after its parent. The chip
+  // row is horizontal, so nesting reads as a leading corner glyph rather than
+  // an indent, and the full path lands in the tooltip.
+  var ordered=folderTreeOrder();
+  for(var i=0;i<ordered.length;i++){
+    var f=ordered[i].f, depth=ordered[i].depth;
+    h+='<button class="chip'+(selFolder===f.id?' on':'')+(depth>1?' sub':'')+'" data-fid="'+esc(f.id)+'"'
+      +' title="'+esc(folderTooltip(f.id))+'" type="button">'
+      +(depth>1?'<span class="chip-nest" aria-hidden="true">'+_NEST_SVG+'</span>':'')
       +'<span class="chip-ic">'+_folderSvg(f.ico||'folder')+'</span>'
       +esc(f.name)
-      +'<span class="chip-c">'+folderCount(f.id)+'</span>'
+      +'<span class="chip-c">'+folderCountDeep(f.id)+'</span>'
       +'</button>';
   }
   el.innerHTML=h;
@@ -1501,7 +1659,8 @@ function renderList(q){
 
   var effFolder=(searchAllFolders && q) ? 'ALL' : selFolder;
   var filtered=snips.filter(function(s){
-    var mf=effFolder==='ALL'||(s.folder||'')===effFolder;
+    // Selecting a parent folder lists its whole subtree, matching its badge.
+    var mf=inFolderSubtree(s.folder, effFolder);
     return mf && (!q||matchSnip(s,q));
   });
 

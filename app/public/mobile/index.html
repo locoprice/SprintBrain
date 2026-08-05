@@ -202,6 +202,20 @@ body{
   padding:1px 7px;border-radius:9999px;color:var(--text3)
 }
 .folder-pill.on .folder-pill-cnt{background:rgba(255,255,255,.22);color:#fff}
+/* selected-folder header (touch has no hover, so descriptions live here) */
+.fhead{padding:10px 16px 2px}
+.fhead-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-bottom:2px}
+.fhead-crumb{font-size:12px;font-weight:600;color:var(--text3);background:none;border:0;padding:3px 5px;border-radius:6px;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fhead-crumb:active{background:var(--bg-alt);color:var(--text)}
+.fhead-sep{width:11px;height:11px;flex-shrink:0;color:var(--text3);opacity:.7}
+.fhead-sep svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.fhead-name{font-size:17px;font-weight:700;color:var(--text);line-height:1.25}
+.fhead-desc{margin-top:3px;font-size:13px;color:var(--text3);line-height:1.45}
+/* nested folder pill — follows its parent, marked by a corner glyph */
+.folder-pill.sub{padding-left:9px;border-style:dashed}
+.folder-pill.sub.on{border-style:solid}
+.folder-pill-nest{width:11px;height:11px;display:flex;flex-shrink:0;opacity:.55}
+.folder-pill-nest svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Folder-chip scroll arrows — surface only when the row overflows that way. */
 .ftabs-wrap{position:relative}
@@ -882,6 +896,11 @@ body{
     <button class="ftabs-arrow right" id="ftabs-right" type="button" aria-label="Scroll folders right"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
   </div>
 
+  <!-- Selected-folder header: ancestor trail + name + description.
+       Touch has no hover, so this is where a folder's description is legible;
+       the pill tooltip alone would be unreachable on a phone. -->
+  <div class="fhead" id="fhead" hidden></div>
+
   <!-- Language chips -->
   <div class="lang-tabs" id="ltabs">
     <button class="lang-pill on" data-l="ALL">All</button>
@@ -1557,13 +1576,31 @@ function sbGenderTokenField(rest){
    not the token text. {formmenu:}'s first segment is its options list, so its
    attributes are only read after the first ';' (an option spelled "name=Bob"
    must not claim the field). Mirrors _formFieldName in the extension engine. */
+/* A {formmenu:} option list may be ';'-separated (Text Blaze) or comma-separated
+   in one segment (SprintBrain's writer), and `name=` can sit in any position. A
+   segment counts as a named setting only when it opens with one of the four
+   keys. Unnamed menus are legal and get a key hashed from the token, matching
+   _parseMenuSettings in extension/formula-engine.js — keep the two in step or
+   mobile will fill a different field than the desktop surfaces. */
+var SB_MENU_KEYS=/^\s*(name|default|multiple|cols)\s*=/i;
+function sbMenuKeyHash(src){
+  var h=5381,s=String(src);
+  for(var i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
+  return h.toString(36);
+}
 function sbFormTokenName(tokLow,rest){
-  var src=rest;
   if(tokLow.slice(0,9)==='formmenu:'){
-    var semi=rest.indexOf(';');
-    src=semi===-1?'':rest.slice(semi);
+    var segs=String(rest==null?'':rest).split(';'),name='',hasOpt=false;
+    for(var i=0;i<segs.length;i++){
+      if(SB_MENU_KEYS.test(segs[i])){
+        var nm=/^\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(segs[i]);
+        if(nm&&!name)name=nm[1];
+      } else if(segs[i].replace(/[\s,]/g,'')!=='')hasOpt=true;
+    }
+    if(name)return name;
+    return hasOpt?'MENU_'+sbMenuKeyHash(rest):'';
   }
-  var m=/(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(src);
+  var m=/(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(rest);
   return m?m[1]:'';
 }
 
@@ -1984,6 +2021,109 @@ function folderCount(fid){
   }
   return n;
 }
+/* ── FOLDER HIERARCHY ──────────────────────────────────────────────
+   Folders nest (Property > Category > Sub) via parent_id. The mobile
+   companion keeps its own copy of these helpers by design — it shares no
+   runtime with popup.js. Mirrors app/src/lib/folderTree.ts; keep the two in
+   step when the rules change. Read-only here: mobile never reparents. */
+var MAX_FOLDER_DEPTH=3;
+function folderChildrenOf(pid){
+  var out=[];
+  for(var i=0;i<allFolders.length;i++){
+    var f=allFolders[i];
+    if(f.id!==pid&&(f.parent_id||'')===pid)out.push(f);
+  }
+  return out.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0?d:String(a.name||'').localeCompare(String(b.name||''));
+  });
+}
+/* Depth-first: each folder immediately followed by its children. A folder
+   whose parent isn't visible renders as a root (RLS shares children alone). */
+function folderTreeOrder(){
+  var known={},out=[],seen={};
+  for(var i=0;i<allFolders.length;i++)known[allFolders[i].id]=1;
+  function walk(list,depth){
+    for(var j=0;j<list.length;j++){
+      var f=list[j];
+      if(seen[f.id]||depth>MAX_FOLDER_DEPTH)continue;
+      seen[f.id]=1;
+      out.push({f:f,depth:depth});
+      walk(folderChildrenOf(f.id),depth+1);
+    }
+  }
+  var roots=[];
+  for(var k=0;k<allFolders.length;k++){
+    var f=allFolders[k],p=f.parent_id||'';
+    if(!p||p===f.id||!known[p])roots.push(f);
+  }
+  roots.sort(function(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0?d:String(a.name||'').localeCompare(String(b.name||''));
+  });
+  walk(roots,1);
+  return out;
+}
+function folderDescendantsOf(fid){
+  var out=[],queue=folderChildrenOf(fid).slice(),seen={};
+  while(queue.length){
+    var f=queue.pop();
+    if(!f||seen[f.id]||f.id===fid)continue;
+    seen[f.id]=1;out.push(f.id);
+    queue=queue.concat(folderChildrenOf(f.id));
+  }
+  return out;
+}
+function inFolderSubtree(sfid,fid){
+  if(fid==='ALL')return true;
+  if((sfid||'')===fid)return true;
+  var kids=folderDescendantsOf(fid);
+  for(var i=0;i<kids.length;i++)if(kids[i]===(sfid||''))return true;
+  return false;
+}
+/* Own snippets plus every descendant's, so the pill count matches the list. */
+function folderCountDeep(fid){
+  var ids=[fid].concat(folderDescendantsOf(fid)),inSet={};
+  for(var i=0;i<ids.length;i++)inSet[ids[i]]=1;
+  var seen={},n=0;
+  for(var j=0;j<allSnips.length;j++){
+    if(!inSet[allSnips[j].folder_id||''])continue;
+    var gid=groupKey(allSnips[j]);
+    if(!seen[gid]){seen[gid]=1;n++;}
+  }
+  return n;
+}
+function folderPathLabel(fid){
+  var parts=[],cur=getFolderById(fid),guard=0,seen={};
+  while(cur&&guard++<MAX_FOLDER_DEPTH+2){
+    if(seen[cur.id])break;
+    seen[cur.id]=1;
+    parts.unshift(cur.name||'');
+    cur=cur.parent_id?getFolderById(cur.parent_id):null;
+  }
+  return parts.join(' / ');
+}
+/* Ancestors nearest-first, excluding the folder itself. Drives the header trail. */
+function folderAncestorsOf(fid){
+  var out=[],seen={},cur=getFolderById(fid),guard=0;
+  while(cur&&cur.parent_id&&guard++<MAX_FOLDER_DEPTH+2){
+    if(seen[cur.id])break;
+    seen[cur.id]=1;
+    var p=getFolderById(cur.parent_id);
+    if(!p)break;
+    out.push(p);cur=p;
+  }
+  return out;
+}
+/* Hover text: full path, plus the description on a second line when it has one.
+   Mirrors folderTooltip() in app/src/lib/folderTree.ts and popup.js. Only helps
+   pointer devices — the #fhead header is the touch-reachable equivalent. */
+function folderTooltip(fid){
+  var path=folderPathLabel(fid);
+  var f=getFolderById(fid);
+  var d=f&&f.description?String(f.description).trim():'';
+  return d?path+'\n'+d:path;
+}
 function getFolderById(id){
   if(!id)return null;
   for(var i=0;i<allFolders.length;i++){
@@ -2291,6 +2431,30 @@ function showSnippetsHome(){
   showList();
 }
 
+/* Selected-folder header: tappable ancestor trail, the folder name, and its
+   description. Hidden on "All", and the trail is omitted for a root folder
+   because there is nothing to trace. */
+function renderFolderHead(){
+  var el=document.getElementById('fhead');
+  if(!el)return;
+  var f=curFolder==='ALL'?null:getFolderById(curFolder);
+  if(!f){el.hidden=true;el.innerHTML='';return;}
+  var chev='<span class="fhead-sep"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>';
+  var trail=folderAncestorsOf(f.id).reverse();
+  var html='';
+  if(trail.length){
+    html+='<div class="fhead-crumbs">';
+    for(var i=0;i<trail.length;i++){
+      html+='<button class="fhead-crumb" data-crumb="'+esc(trail[i].id)+'" type="button">'+esc(trail[i].name||'Untitled')+'</button>'+chev;
+    }
+    html+='</div>';
+  }
+  html+='<div class="fhead-name">'+esc(f.name||'Untitled')+'</div>';
+  if(f.description)html+='<div class="fhead-desc">'+esc(String(f.description))+'</div>';
+  el.innerHTML=html;
+  el.hidden=false;
+}
+
 function renderFolderChips(){
   var el=document.getElementById('ftabs');
   if(!el)return;
@@ -2300,16 +2464,22 @@ function renderFolderChips(){
   var html='<button class="folder-pill'+(curFolder==='ALL'?' on':'')+'" data-fid="ALL">'
     +'<span class="folder-pill-ico"><svg viewBox="0 0 24 24"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/></svg></span><span>All</span>'
     +'<span class="folder-pill-cnt">'+groupCount(allSnips)+'</span></button>';
-  for(var i=0;i<allFolders.length;i++){
-    var f=allFolders[i];
-    html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+'" data-fid="'+esc(f.id)+'">'
+  /* Depth-first so a subfolder sits right after its parent. The row is
+     horizontal, so nesting reads as a corner glyph, not an indent. */
+  var ordered=folderTreeOrder();
+  for(var i=0;i<ordered.length;i++){
+    var f=ordered[i].f,depth=ordered[i].depth;
+    html+='<button class="folder-pill'+(curFolder===f.id?' on':'')+(depth>1?' sub':'')+'" data-fid="'+esc(f.id)+'"'
+      +' title="'+esc(folderTooltip(f.id))+'">'
+      +(depth>1?'<span class="folder-pill-nest"><svg viewBox="0 0 24 24"><path d="M4 4v10a4 4 0 0 0 4 4h12"/><polyline points="16 14 20 18 16 22"/></svg></span>':'')
       +'<span class="folder-pill-ico">'+folderIcon(f)+'</span>'
       +'<span>'+esc(f.name||'Untitled')+'</span>'
-      +'<span class="folder-pill-cnt">'+folderCount(f.id)+'</span></button>';
+      +'<span class="folder-pill-cnt">'+folderCountDeep(f.id)+'</span></button>';
   }
   el.innerHTML=html;
   el.scrollLeft=prevScroll;
   updateFtabsArrows();
+  renderFolderHead();
 }
 
 var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
@@ -2380,7 +2550,8 @@ function groupMatches(g,q,folder,lang){
   for(var i=0;i<g.variants.length;i++){
     var s=g.variants[i];
     var ml=lang==='ALL'||s.lang===lang;
-    var mf=folder==='ALL'||s.folder_id===folder;
+    /* A parent folder lists its whole subtree, matching its pill count. */
+    var mf=inFolderSubtree(s.folder_id,folder);
     var ms=!q||(s.title||'').toLowerCase().includes(q)||
             (s.shortcut||'').toLowerCase().includes(q);
     if(ml&&mf&&ms) return true;
@@ -2708,6 +2879,18 @@ document.getElementById('ftabs').addEventListener('click',function(e){
   curFolder=fid;
   renderFolderChips();
   renderList();
+});
+
+/* Tapping an ancestor in the header walks back up the tree. */
+document.getElementById('fhead').addEventListener('click',function(e){
+  var b=e.target.closest('[data-crumb]');if(!b)return;
+  var fid=b.getAttribute('data-crumb');
+  if(fid===curFolder)return;
+  curFolder=fid;
+  renderFolderChips();
+  renderList();
+  var pill=document.querySelector('.folder-pill[data-fid="'+fid+'"]');
+  if(pill&&pill.scrollIntoView)try{pill.scrollIntoView({inline:'center',block:'nearest'});}catch(_){}
 });
 
 /* Folder-chip scroll arrows: each edge arrow shows only when the row can
@@ -3045,9 +3228,11 @@ function closeFolderPicker(){
 function renderFolderPicker(){
   var ul=document.getElementById('sb-folder-list');
   var q=(folderPickerSearch||'').toLowerCase().trim();
-  var list=allFolders.filter(function(f){
+  /* Tree order, and search matches the full path so "villa preventivi" finds
+     the nested folder as readily as its own name does. */
+  var list=folderTreeOrder().map(function(n){return n.f;}).filter(function(f){
     if(!q)return true;
-    return (f.name||'').toLowerCase().indexOf(q)>-1;
+    return folderPathLabel(f.id).toLowerCase().indexOf(q)>-1;
   });
   var html='';
   if(!q){
@@ -3061,7 +3246,7 @@ function renderFolderPicker(){
     var sel=(editFolderId===f.id)?'sb-selected':'';
     html+='<li data-fid="'+esc(f.id)+'" class="'+sel+'">'
       +'<span class="sb-folder-row-ico">'+folderIcon(f)+'</span>'
-      +'<span class="sb-folder-row-name">'+esc(f.name||'Untitled')+'</span>'
+      +'<span class="sb-folder-row-name">'+esc(folderPathLabel(f.id)||f.name||'Untitled')+'</span>'
     +'</li>';
   }
   if(!list.length&&q){
