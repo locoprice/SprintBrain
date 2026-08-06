@@ -102,3 +102,94 @@ for (const junk of [null, undefined, '', '{', '}', '{}', '{{', '}}']) {
 }
 
 console.log('OK Template validator passed all ' + vok + ' parity cases');
+
+// ── MOBILE FIELD-CONFIG PARITY ──────────────────────────────────────
+// The mobile companion (app/public/mobile/index.html) keeps its own resolver —
+// a known exception to the single-source rule, because it cannot load the
+// extension engine. buildFormFieldCfg is hand-mirrored there as sbBodyFieldCfg,
+// and a drift means a {formmenu:} renders as a text box on the phone: the
+// operator retypes an option instead of picking one and a typo reaches a guest.
+//
+// The mirrored helpers are pure (no DOM), so they are sliced out of the HTML
+// and run in a throwaway vm context. The slice markers are load-bearing: if
+// either moves, this gate fails loudly rather than silently passing.
+const fs = require('fs');
+const vm = require('vm');
+
+const MOBILE_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'public', 'mobile', 'index.html'), 'utf8');
+const SLICE_START = 'var SB_MENU_KEYS=';
+const SLICE_END = 'function sbIsFormToken(';
+const sliceFrom = MOBILE_SRC.indexOf(SLICE_START);
+const sliceTo = MOBILE_SRC.indexOf(SLICE_END);
+if (sliceFrom === -1 || sliceTo === -1 || sliceTo <= sliceFrom) {
+  fail('mobile/index.html: cannot slice the field-config helpers — the markers ' +
+    JSON.stringify(SLICE_START) + ' .. ' + JSON.stringify(SLICE_END) + ' moved');
+}
+
+const mobile = {};
+vm.createContext(mobile);
+try {
+  vm.runInNewContext(MOBILE_SRC.slice(sliceFrom, sliceTo), mobile);
+} catch (e) {
+  fail('mobile field-config helpers failed to evaluate: ' + e.message);
+}
+for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+// Key order is walk order on both sides, but canonicalise anyway so a parity
+// failure always means a real difference in what the two surfaces would render.
+function canon(cfg) {
+  return JSON.stringify(Object.keys(cfg).sort().map((k) =>
+    [k, Object.keys(cfg[k]).sort().map((p) => [p, cfg[k][p]])]));
+}
+
+const fieldCfgCases = [
+  // The shape the dashboard's FormMenuDialog writes.
+  '{formmenu: Refundable,Semiflexible,NOT Refundable - always cheaper; name=RATE_PLAN; default=Refundable}',
+  // Text Blaze writes options ';'-separated, and name= may sit anywhere.
+  '{formmenu: 1980; 1985; name=YEAR; default=1985}',
+  '{formmenu: name=YEAR; 1980; 1985}',
+  // multiple=yes keeps every declared pick; single-choice trims to the first.
+  '{formmenu: A,B,C; name=M; default=A,C; multiple=yes}',
+  '{formmenu: A,B,C; name=M; default=A,C}',
+  // A default naming an option that no longer exists must be dropped.
+  '{formmenu: A,B; name=M; default=ZZ}',
+  '{formmenu: A,B; name=M; cols=20}',
+  // Unnamed menus key off the token itself — the hash must agree exactly.
+  '{formmenu: A,B}',
+  '{formmenu: name=M}',
+  '{formtext: name=GUEST; default=Ada}',
+  '{formdate: name=CHECKIN; default=2026-08-06}',
+  'Hi {formtext: name=G}, plan {formmenu: A,B; name=P; default=B} and {formmenu: X,Y}',
+  'no tokens at all',
+  '',
+];
+
+let mok = 0;
+for (const body of fieldCfgCases) {
+  const want = canon(engine.buildFormFieldCfg(body));
+  let got;
+  try {
+    got = canon(mobile.sbBodyFieldCfg(body));
+  } catch (e) {
+    fail('mobile sbBodyFieldCfg(' + JSON.stringify(body) + ') threw: ' + e.message);
+  }
+  if (got !== want) {
+    fail('field-config drift for ' + JSON.stringify(body) +
+      '\n  engine: ' + want + '\n  mobile: ' + got);
+  }
+  mok++;
+}
+
+for (const v of ['A, B', 'A,B', ' A ,, B ', '', null, undefined]) {
+  const want = JSON.stringify(engine.formMenuPicks(v));
+  const got = JSON.stringify(mobile.sbFormMenuPicks(v));
+  if (got !== want) {
+    fail('formMenuPicks drift for ' + JSON.stringify(v) +
+      ' -> engine ' + want + ', mobile ' + got);
+  }
+}
+
+console.log('OK Mobile field-config parity passed all ' + mok + ' cases');
