@@ -656,7 +656,7 @@
 <!-- ═══ DROPDOWN MENU FIELD MODAL ({formmenu:} builder) ═══ -->
 <div class="nv-modal-bg" id="nv-menu-bg">
   <div class="nv-modal" style="width:420px">
-    <div class="nv-modal-h"><h2>Insert dropdown menu field</h2></div>
+    <div class="nv-modal-h"><h2 id="nv-menu-title">Insert dropdown menu field</h2></div>
     <div class="nv-modal-b">
       <div class="nv-field">
         <label>Values</label>
@@ -766,7 +766,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.138.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.139.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
@@ -1281,6 +1281,14 @@
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
     ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
   }
+
+  /* Swap the body text between two offsets — the edit path for a token already
+     in the body. Same caret handling as bodyInsert, so both feel identical. */
+  function bodyReplace(start, end, text){
+    var ta = $('nv-f-body');
+    ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = start + text.length;
+  }
   $('nv-chips').addEventListener('click', function(e){
     var c = e.target.closest('[data-c]'); if (!c) return;
     bodyInsert(c.dataset.c);
@@ -1291,6 +1299,32 @@
      SBFormulaEngine.buildFormMenuToken, so the two surfaces cannot drift. */
   var MENU_START_ROWS = 3;
   var menuRows = [], menuSel = [], menuSeq = 0, menuDragId = null;
+  /* Range of the token being edited, or null when building a new one. */
+  var menuEditRange = null;
+
+  /* The {formmenu:} token the body caret sits in, via the engine's own finder
+     so this surface and the React dashboard agree on what counts as "inside". */
+  function menuTokenAtCaret(){
+    var FE = window.SBFormulaEngine;
+    if (!FE || !FE.findMenuTokenAt) return null;
+    var ta = $('nv-f-body');
+    return FE.findMenuTokenAt(ta.value, ta.selectionStart || 0);
+  }
+
+  /* The chip inserts a menu, or edits the one the caret is in. Swapping its
+     label is the only signal that the second mode exists, so it has to track
+     the caret rather than wait until the builder opens. */
+  var MENU_CHIP_NEW  = '<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}';
+  var MENU_CHIP_EDIT = '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit menu';
+
+  function syncMenuChip(){
+    var chip = $('nv-chip-menu'); if (!chip) return;
+    var found = menuTokenAtCaret();
+    chip.innerHTML = found ? MENU_CHIP_EDIT : MENU_CHIP_NEW;
+    chip.title = found
+      ? 'Edit the menu the cursor is in — its choices load into the builder'
+      : 'A list of choices to pick from — opens the builder. Put the cursor inside an existing menu to edit it.';
+  }
 
   function menuMulti(){ return $('nv-menu-multi').checked; }
 
@@ -1433,21 +1467,45 @@
   function openMenuBuilder(){
     if (!window.SBFormulaEngine) { toast('Formula engine not loaded'); return; }
     menuRows = []; menuSel = []; menuSeq = 0;
-    for (var i = 0; i < MENU_START_ROWS; i++) menuRows.push({ id: ++menuSeq, label: '' });
-    $('nv-menu-multi').checked = false;
-    $('nv-menu-cols').value = '';
-    /* Blank, with the next free MENU_n only as the placeholder — a name is
-       something you opt into, not something to clear (Text Blaze parity). */
-    $('nv-menu-name').value = '';
+
+    var found = menuTokenAtCaret();
+    var cfg = found ? window.SBFormulaEngine.parseFormMenuToken(found.raw) : null;
+    menuEditRange = cfg ? found : null;
+
+    if (cfg) {
+      for (var j = 0; j < cfg.options.length; j++) {
+        var row = { id: ++menuSeq, label: cfg.options[j] };
+        menuRows.push(row);
+        if (cfg.selected.indexOf(cfg.options[j]) > -1) menuSel.push(row.id);
+      }
+      if (!menuRows.length) menuRows.push({ id: ++menuSeq, label: '' });
+      $('nv-menu-multi').checked = cfg.multiple;
+      $('nv-menu-cols').value = cfg.cols === null ? '' : String(cfg.cols);
+      $('nv-menu-name').value = cfg.name;
+    } else {
+      for (var i = 0; i < MENU_START_ROWS; i++) menuRows.push({ id: ++menuSeq, label: '' });
+      $('nv-menu-multi').checked = false;
+      $('nv-menu-cols').value = '';
+      /* Blank, with the next free MENU_n only as the placeholder — a name is
+         something you opt into, not something to clear (Text Blaze parity). */
+      $('nv-menu-name').value = '';
+    }
     $('nv-menu-name').placeholder = menuNextName();
+    $('nv-menu-title').textContent = cfg ? 'Edit dropdown menu field' : 'Insert dropdown menu field';
+    $('nv-menu-insert').textContent = cfg ? 'Save' : 'Insert';
     menuRenderRows(); menuSync();
     $('nv-menu-bg').classList.add('on');
     var first = $('nv-menu-rows').querySelector('.nv-menu-val');
     if (first) setTimeout(function(){ first.focus(); }, 30);
   }
-  function closeMenuBuilder(){ $('nv-menu-bg').classList.remove('on'); }
+  function closeMenuBuilder(){ menuEditRange = null; $('nv-menu-bg').classList.remove('on'); }
 
   $('nv-chip-menu').addEventListener('click', openMenuBuilder);
+  /* Caret position decides whether the chip inserts or edits, so every way of
+     moving it has to refresh the label. */
+  ['keyup', 'mouseup', 'input', 'focus'].forEach(function(ev){
+    $('nv-f-body').addEventListener(ev, syncMenuChip);
+  });
   $('nv-menu-add').addEventListener('click', menuAddRow);
   $('nv-menu-name').addEventListener('input', menuSync);
   $('nv-menu-cols').addEventListener('input', function(){
@@ -1463,8 +1521,14 @@
   $('nv-menu-bg').addEventListener('click', function(e){ if (e.target === $('nv-menu-bg')) closeMenuBuilder(); });
   $('nv-menu-insert').addEventListener('click', function(){
     if ($('nv-menu-insert').disabled) return;
-    bodyInsert(menuToken());
+    var token = menuToken(), r = menuEditRange;
+    /* Replacing a stale range would overwrite unrelated text — confirm the
+       range still holds the token that was opened before writing over it. */
+    if (r && $('nv-f-body').value.slice(r.start, r.end) === r.raw) bodyReplace(r.start, r.end, token);
+    else bodyInsert(token);
+    menuEditRange = null;
     closeMenuBuilder();
+    syncMenuChip();
   });
 
   /* ── ACTION BUTTON BUILDER ({button}) ────────────────────────────────

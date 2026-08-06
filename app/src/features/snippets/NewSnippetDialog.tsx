@@ -5,6 +5,7 @@ import {
   Clock,
   History,
   MousePointerClick,
+  Pencil,
   Pin,
   Plus,
   Trash2,
@@ -25,7 +26,13 @@ import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { cn } from '@/lib/utils';
-import { nextMenuName } from '@/lib/formMenuToken';
+import {
+  findMenuTokenAt,
+  nextMenuName,
+  parseFormMenuToken,
+  type FormMenuConfig,
+  type MenuTokenRange,
+} from '@/lib/formMenuToken';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -193,6 +200,16 @@ export function NewSnippetDialog() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
   const [menuFieldOpen, setMenuFieldOpen] = useState(false);
+  // Body caret, tracked so the menu chip can offer Edit when it sits inside a
+  // {formmenu:} token. React's onSelect fires on plain caret moves, not only
+  // on selections, which is what makes this cheap enough to keep in state.
+  const [caret, setCaret] = useState(0);
+  // The menu being edited: its range in the body plus the config the dialog
+  // loads. Held in state so the object stays referentially stable while the
+  // dialog is open — rebuilding it per render would reseed and wipe the edit.
+  const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
+    null,
+  );
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
@@ -285,12 +302,59 @@ export function NewSnippetDialog() {
       bodies: { ...prev.bodies, [prev.language]: next },
     }));
     // Restore cursor right after the inserted text on the next frame.
+    setCaret(start + value.length);
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + value.length;
       el.setSelectionRange(pos, pos);
     });
     if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+  }
+
+  // Swap the text between `start` and `end` for `value` — the edit path for a
+  // token already in the body. Mirrors insertAtCursor's state update and caret
+  // restore, so an edit and an insert leave the editor in the same shape.
+  function replaceRange(start: number, end: number, value: string) {
+    const el = contentRef.current;
+    const source = el ? el.value : form.content;
+    const next = source.slice(0, start) + value + source.slice(end);
+    setForm((prev) => ({
+      ...prev,
+      content: next,
+      bodies: { ...prev.bodies, [prev.language]: next },
+    }));
+    setCaret(start + value.length);
+    if (el) {
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + value.length;
+        el.setSelectionRange(pos, pos);
+      });
+    }
+    if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+  }
+
+  // The {formmenu:} token the caret is sitting in, if any — this is what turns
+  // the chip from "insert a menu" into "edit this menu".
+  const menuAtCaret = useMemo(() => findMenuTokenAt(form.content, caret), [form.content, caret]);
+
+  function openMenuBuilder() {
+    const cfg = menuAtCaret ? parseFormMenuToken(menuAtCaret.raw) : null;
+    setMenuEdit(menuAtCaret && cfg ? { range: menuAtCaret, cfg } : null);
+    setMenuFieldOpen(true);
+  }
+
+  function submitMenuToken(token: string) {
+    if (menuEdit) {
+      const { start, end, raw } = menuEdit.range;
+      // The body can't change behind a modal, but replacing a stale range would
+      // overwrite unrelated text — confirm the range still holds that token.
+      if (form.content.slice(start, end) === raw) {
+        replaceRange(start, end, token);
+        return;
+      }
+    }
+    insertAtCursor(token);
   }
 
   const handleOpenChange = useCallback(
@@ -656,7 +720,12 @@ export function NewSnippetDialog() {
                 ref={contentRef}
                 rows={12}
                 value={form.content}
-                onChange={(e) => updateBody(e.target.value)}
+                onChange={(e) => {
+                  updateBody(e.target.value);
+                  setCaret(e.currentTarget.selectionStart);
+                }}
+                // Caret position decides whether the menu chip inserts or edits.
+                onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
                 disabled={saving}
                 className={cn(
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
@@ -683,16 +752,26 @@ export function NewSnippetDialog() {
                   ))}
 
                   {/* Field builders open a dialog instead of pasting a literal —
-                      a menu needs its options before the token means anything. */}
+                      a menu needs its options before the token means anything.
+                      With the caret inside a menu the same chip edits it, so
+                      changing the choices never means retyping raw token text. */}
                   <button
                     type="button"
-                    onClick={() => setMenuFieldOpen(true)}
+                    onClick={openMenuBuilder}
                     disabled={saving}
-                    title="A list of choices to pick from — opens the builder"
+                    title={
+                      menuAtCaret
+                        ? 'Edit the menu the cursor is in — its choices load into the builder'
+                        : 'A list of choices to pick from — opens the builder. Put the cursor inside an existing menu to edit it.'
+                    }
                     className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
                   >
-                    <ChevronDown className="h-3 w-3" />
-                    {'{formmenu}'}
+                    {menuAtCaret ? (
+                      <Pencil className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                    {menuAtCaret ? 'Edit menu' : '{formmenu}'}
                   </button>
                 </div>
               </div>
@@ -742,7 +821,8 @@ export function NewSnippetDialog() {
               open={menuFieldOpen}
               onOpenChange={setMenuFieldOpen}
               suggestedName={nextMenuName(form.content)}
-              onInsert={insertAtCursor}
+              initial={menuEdit?.cfg ?? null}
+              onSubmit={submitMenuToken}
             />
 
             <FormButtonDialog

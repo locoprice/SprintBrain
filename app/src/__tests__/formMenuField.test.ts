@@ -3,11 +3,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   buildFormMenuToken,
+  findMenuTokenAt,
   formMenuPicks,
   isValidMenuName,
   nextMenuName,
+  parseFormMenuToken,
   sanitizeMenuName,
   sanitizeMenuOption,
+  type FormMenuConfig,
+  type MenuTokenRange,
 } from '@/lib/formMenuToken';
 
 // The dashboard writes {formmenu:} tokens with its own mirrored writer
@@ -42,6 +46,8 @@ interface FormulaEngine {
     cols?: number | null;
   }) => string;
   formMenuPicks: (value: string | null | undefined) => string[];
+  parseFormMenuToken: (raw: string) => FormMenuConfig | null;
+  findMenuTokenAt: (body: string, caret: number) => MenuTokenRange | null;
   resolveBody: (body: string, vals: Record<string, unknown>) => string;
   extractFields: (body: string) => string[];
 }
@@ -224,6 +230,197 @@ describe('formMenuToken — round-trips through the shipping engine', () => {
     expect(engine.formMenuPicks('Card, Bank transfer')).toEqual(['Card', 'Bank transfer']);
     expect(formMenuPicks('')).toEqual([]);
     expect(engine.formMenuPicks(null)).toEqual([]);
+  });
+});
+
+// Reading a token back is what turns "insert a menu" into "edit this menu".
+// The same matrix is asserted engine-side in scripts/check-snippets.js as
+// MENU_READ_CASES, so the two readers cannot drift.
+const MENU_READ_CASES = [
+  '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
+  '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
+  '{formmenu: 1980; 1985; name=YEAR; default=1985}',
+  '{formmenu: name=YEAR; 1980; 1985}',
+  '{formmenu: A,B; name=M; default=ZZ}',
+  '{formmenu: A,B,C; name=M; default=A,C}',
+  '{formmenu: A,B}',
+  '{formmenu: red; green; blue}',
+];
+
+const NOT_MENU_TOKENS = ['{formtext: name=G}', '{formmenuish: A}', 'plain text', '{formmenu: A,B', ''];
+
+describe('formMenuToken — reader', () => {
+  it('reads options, name, default, multiple and cols back out', () => {
+    expect(
+      parseFormMenuToken('{formmenu: A,B,C; name=PICK; default=B; multiple=yes; cols=20}'),
+    ).toEqual({
+      options: ['A', 'B', 'C'],
+      selected: ['B'],
+      name: 'PICK',
+      multiple: true,
+      cols: 20,
+    });
+  });
+
+  it('leaves an unnamed menu unnamed rather than baking in the engine key', () => {
+    // The engine keys these as MENU_<hash> for filling. Writing that back into
+    // the token would silently pin a name the author never chose.
+    expect(parseFormMenuToken('{formmenu: A,B}')?.name).toBe('');
+  });
+
+  it('drops a default that is not one of the options', () => {
+    expect(parseFormMenuToken('{formmenu: A,B; default=ZZ}')?.selected).toEqual([]);
+  });
+
+  it('keeps a single-choice menu to one preselection', () => {
+    expect(parseFormMenuToken('{formmenu: A,B,C; default=A,C}')?.selected).toEqual(['A']);
+  });
+
+  it('returns null for anything that is not a complete menu token', () => {
+    for (const raw of NOT_MENU_TOKENS) {
+      expect(parseFormMenuToken(raw), raw).toBeNull();
+      expect(engine.parseFormMenuToken(raw), raw).toBeNull();
+    }
+  });
+
+  it('agrees with the engine-side reader on every case', () => {
+    for (const raw of MENU_READ_CASES) {
+      expect(parseFormMenuToken(raw), raw).toEqual(engine.parseFormMenuToken(raw));
+    }
+  });
+
+  // build() sanitises, dedupes and drops unknown defaults, so a hand-written
+  // token is normalised the first time it is saved. What must hold is that
+  // saving again changes nothing — otherwise every edit would rewrite the body.
+  it('is idempotent once a token has been through the builder', () => {
+    for (const raw of MENU_READ_CASES) {
+      const cfg = parseFormMenuToken(raw);
+      expect(cfg, raw).not.toBeNull();
+      const once = buildFormMenuToken(cfg as FormMenuConfig);
+      const twice = buildFormMenuToken(parseFormMenuToken(once) as FormMenuConfig);
+      expect(twice, raw).toBe(once);
+    }
+  });
+
+  it('round-trips a built token back to the config it came from', () => {
+    const cfg: FormMenuConfig = {
+      options: ['Choice A', 'Choice B'],
+      selected: ['Choice B'],
+      name: 'MENU_1',
+      multiple: false,
+      cols: 12,
+    };
+    expect(parseFormMenuToken(buildFormMenuToken(cfg))).toEqual(cfg);
+  });
+});
+
+describe('formMenuToken — locating the menu under the caret', () => {
+  const body = 'Hi {formtext: name=G}, pick {formmenu: A,B; name=P} then {formmenu: X,Y}';
+  const first = { start: 28, end: 51, raw: '{formmenu: A,B; name=P}' };
+  const second = { start: 57, end: 72, raw: '{formmenu: X,Y}' };
+
+  it('finds the token the caret sits in, including on either brace', () => {
+    expect(findMenuTokenAt(body, 28)).toEqual(first); // on the opening brace
+    expect(findMenuTokenAt(body, 40)).toEqual(first); // inside
+    expect(findMenuTokenAt(body, 51)).toEqual(first); // just past the closing brace
+    expect(findMenuTokenAt(body, 60)).toEqual(second);
+  });
+
+  it('returns null outside any menu', () => {
+    expect(findMenuTokenAt(body, 0)).toBeNull();
+    expect(findMenuTokenAt(body, 10)).toBeNull(); // inside the {formtext:}
+    expect(findMenuTokenAt(body, 54)).toBeNull(); // in the prose between menus
+    expect(findMenuTokenAt('no tokens here', 5)).toBeNull();
+    expect(findMenuTokenAt('{formmenu: A,B', 5)).toBeNull(); // never closed
+  });
+
+  it('clamps a caret outside the body instead of throwing', () => {
+    expect(findMenuTokenAt(body, -10)).toBeNull();
+    expect(findMenuTokenAt(body, 9999)).toEqual(second);
+  });
+
+  it('agrees with the engine-side finder across the whole body', () => {
+    for (let caret = 0; caret <= body.length; caret += 1) {
+      expect(findMenuTokenAt(body, caret), `caret ${caret}`).toEqual(
+        engine.findMenuTokenAt(body, caret),
+      );
+    }
+  });
+});
+
+// The edit path composes three pieces: find the token under the caret, rebuild
+// it from the dialog, splice it back. Getting the range wrong overwrites
+// unrelated body text, which is the one failure here that destroys work rather
+// than just looking wrong — so the composition is asserted, not just its parts.
+describe('formMenuToken — editing a menu in place', () => {
+  const body =
+    'Hi {NAME}, pick {formmenu: Option A,Option B; name=PLAN; default=Option B}' +
+    ' and {formmenu: X,Y; name=SECOND}.';
+
+  function editAt(source: string, caret: number, change: (cfg: FormMenuConfig) => FormMenuConfig) {
+    const found = findMenuTokenAt(source, caret);
+    if (!found) return null;
+    const cfg = parseFormMenuToken(found.raw);
+    if (!cfg) return null;
+    const token = buildFormMenuToken(change(cfg));
+    return source.slice(0, found.start) + token + source.slice(found.end);
+  }
+
+  it('replaces only the menu the caret is in', () => {
+    const caret = body.indexOf('; name=PLAN');
+    const next = editAt(body, caret, (cfg) => ({ ...cfg, options: [...cfg.options, 'Option C'] }));
+    expect(next).toBe(
+      'Hi {NAME}, pick {formmenu: Option A,Option B,Option C; name=PLAN; default=Option B}' +
+        ' and {formmenu: X,Y; name=SECOND}.',
+    );
+  });
+
+  it('edits the second menu without touching the first', () => {
+    const caret = body.indexOf('name=SECOND');
+    const next = editAt(body, caret, (cfg) => ({ ...cfg, selected: ['Y'] }));
+    expect(next).toBe(
+      'Hi {NAME}, pick {formmenu: Option A,Option B; name=PLAN; default=Option B}' +
+        ' and {formmenu: X,Y; name=SECOND; default=Y}.',
+    );
+  });
+
+  it('leaves the body byte-identical when nothing is changed', () => {
+    const caret = body.indexOf('; name=PLAN');
+    expect(editAt(body, caret, (cfg) => cfg)).toBe(body);
+  });
+
+  it('renames and drops options without disturbing the surrounding text', () => {
+    const caret = body.indexOf('Option A');
+    const next = editAt(body, caret, () => ({
+      options: ['Yes', 'No'],
+      selected: ['No'],
+      name: 'PLAN',
+      multiple: false,
+      cols: null,
+    }));
+    expect(next).toBe(
+      'Hi {NAME}, pick {formmenu: Yes,No; name=PLAN; default=No}' +
+        ' and {formmenu: X,Y; name=SECOND}.',
+    );
+  });
+
+  // submitMenuToken re-checks the stored range against the live body before
+  // writing. Without that guard an edit made against a changed body would
+  // splice over whatever now sits at those offsets.
+  it('detects a stale range instead of overwriting the wrong span', () => {
+    const found = findMenuTokenAt(body, body.indexOf('name=SECOND'));
+    expect(found).not.toBeNull();
+    const range = found as MenuTokenRange;
+    const shifted = `A longer prefix — ${body}`;
+    expect(shifted.slice(range.start, range.end)).not.toBe(range.raw);
+    expect(body.slice(range.start, range.end)).toBe(range.raw);
+  });
+
+  it('still edits correctly when the body holds nothing but the menu', () => {
+    const only = '{formmenu: A,B; name=M}';
+    expect(editAt(only, 0, (cfg) => ({ ...cfg, selected: ['B'] }))).toBe(
+      '{formmenu: A,B; name=M; default=B}',
+    );
   });
 });
 

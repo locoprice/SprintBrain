@@ -15,6 +15,7 @@ import {
   buildFormMenuToken,
   isValidMenuName,
   sanitizeMenuOption,
+  type FormMenuConfig,
 } from '@/lib/formMenuToken';
 
 interface MenuRow {
@@ -32,7 +33,13 @@ interface FormMenuDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Prefilled field name — the next free MENU_n for the body being edited. */
   suggestedName: string;
-  onInsert: (token: string) => void;
+  /**
+   * The menu being edited, or null to build a new one. Must be referentially
+   * stable while open: the dialog reseeds whenever it changes, so a value
+   * rebuilt on every render would wipe the edit in progress.
+   */
+  initial?: FormMenuConfig | null;
+  onSubmit: (token: string) => void;
 }
 
 /**
@@ -40,13 +47,15 @@ interface FormMenuDialogProps {
  * person expanding the snippet picks from.
  *
  * The token grammar is written by `@/lib/formMenuToken` and parsed back by the
- * formula engine, so what this dialog previews is exactly what expands.
+ * formula engine, so what this dialog previews is exactly what expands. Passing
+ * `initial` loads an existing menu for editing instead of starting blank.
  */
 export function FormMenuDialog({
   open,
   onOpenChange,
   suggestedName,
-  onInsert,
+  initial = null,
+  onSubmit,
 }: FormMenuDialogProps) {
   const nextId = useRef(0);
   const makeRow = (label = ''): MenuRow => ({ id: (nextId.current += 1), label });
@@ -60,9 +69,21 @@ export function FormMenuDialog({
   const firstOptionRef = useRef<HTMLInputElement | null>(null);
 
   // Every opening starts from a clean menu — a half-built one carried over from
-  // a cancelled insert would silently ship into the next snippet.
+  // a cancelled insert would silently ship into the next snippet — unless an
+  // existing menu was handed in, in which case it starts from that.
   useEffect(() => {
     if (!open) return;
+    if (initial) {
+      const seeded = initial.options.map((label, i) => ({ id: i + 1, label }));
+      const loaded = seeded.length > 0 ? seeded : [{ id: 1, label: '' }];
+      nextId.current = loaded.length;
+      setRows(loaded);
+      setSelectedIds(loaded.filter((r) => initial.selected.includes(r.label)).map((r) => r.id));
+      setName(initial.name);
+      setMultiple(initial.multiple);
+      setCols(initial.cols === null ? '' : String(initial.cols));
+      return;
+    }
     nextId.current = STARTING_ROWS;
     setRows(Array.from({ length: STARTING_ROWS }, (_, i) => ({ id: i + 1, label: '' })));
     setSelectedIds([]);
@@ -71,7 +92,7 @@ export function FormMenuDialog({
     setName('');
     setMultiple(false);
     setCols('');
-  }, [open, suggestedName]);
+  }, [open, suggestedName, initial]);
 
   function updateRow(id: number, label: string) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, label } : r)));
@@ -138,9 +159,9 @@ export function FormMenuDialog({
 
   const canInsert = filledRows.length > 0 && nameValid;
 
-  function handleInsert() {
+  function handleSubmit() {
     if (!canInsert) return;
-    onInsert(token);
+    onSubmit(token);
     onOpenChange(false);
   }
 
@@ -154,7 +175,7 @@ export function FormMenuDialog({
         }}
       >
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle>Insert dropdown menu field</DialogTitle>
+          <DialogTitle>{initial ? 'Edit dropdown menu field' : 'Insert dropdown menu field'}</DialogTitle>
           <DialogDescription>
             A menu of choices, picked when the snippet expands.
           </DialogDescription>
@@ -314,7 +335,7 @@ export function FormMenuDialog({
           {/* ── What lands in the body ── */}
           <div className="rounded-[10px] border border-line bg-bg-alt px-3 py-2.5">
             <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-1">
-              Inserts
+              {initial ? 'Saves as' : 'Inserts'}
             </p>
             <code className="block font-mono text-[11px] leading-relaxed text-ink-muted break-all">
               {token}
@@ -326,8 +347,8 @@ export function FormMenuDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" onClick={handleInsert} disabled={!canInsert}>
-            Insert
+          <Button type="button" variant="primary" onClick={handleSubmit} disabled={!canInsert}>
+            {initial ? 'Save' : 'Insert'}
           </Button>
         </div>
       </DialogContent>

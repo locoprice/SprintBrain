@@ -103,6 +103,75 @@ for (const junk of [null, undefined, '', '{', '}', '{}', '{{', '}}']) {
 
 console.log('OK Template validator passed all ' + vok + ' parity cases');
 
+// ── FORM MENU READER ────────────────────────────────────────────────
+// parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
+// already in a body. Sprintbrain.html calls them directly; the dashboard keeps
+// a mirror in app/src/lib/formMenuToken.ts, and the identical matrix lives in
+// app/src/__tests__/formMenuField.test.ts as MENU_READ_CASES.
+const MENU_READ_CASES = [
+  '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
+  '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
+  '{formmenu: 1980; 1985; name=YEAR; default=1985}',
+  '{formmenu: name=YEAR; 1980; 1985}',
+  '{formmenu: A,B; name=M; default=ZZ}',
+  '{formmenu: A,B,C; name=M; default=A,C}',
+  '{formmenu: A,B}',
+  '{formmenu: red; green; blue}',
+];
+
+if (typeof engine.parseFormMenuToken !== 'function' || typeof engine.findMenuTokenAt !== 'function') {
+  fail('formula-engine no longer exports parseFormMenuToken / findMenuTokenAt');
+}
+
+let rok = 0;
+for (const raw of MENU_READ_CASES) {
+  const cfg = engine.parseFormMenuToken(raw);
+  if (!cfg) fail('parseFormMenuToken(' + JSON.stringify(raw) + ') returned null');
+  // Saving an edited menu must not keep rewriting the body: build() normalises
+  // once, and every save after that has to be a no-op.
+  const once = engine.buildFormMenuToken(cfg);
+  const twice = engine.buildFormMenuToken(engine.parseFormMenuToken(once));
+  if (once !== twice) {
+    fail('menu round-trip is not idempotent for ' + JSON.stringify(raw) +
+      '\n  first:  ' + once + '\n  second: ' + twice);
+  }
+  // What the builder reopens must be the menu the fill form renders.
+  const viaCfg = engine.buildFormFieldCfg(once);
+  const key = Object.keys(viaCfg)[0];
+  if (!key || viaCfg[key].opts !== cfg.options.join('\n')) {
+    fail('reader and buildFormFieldCfg disagree on options for ' + JSON.stringify(raw));
+  }
+  rok++;
+}
+
+for (const junk of ['{formtext: name=G}', '{formmenuish: A}', 'plain text', '{formmenu: A,B', '', null, undefined]) {
+  if (engine.parseFormMenuToken(junk) !== null) {
+    fail('parseFormMenuToken(' + JSON.stringify(junk) + ') should be null');
+  }
+}
+
+// A caret on either brace counts as inside; between two touching menus the
+// earlier one wins. Getting this wrong replaces the wrong span of the body.
+const findBody = 'Hi {formtext: name=G}, pick {formmenu: A,B; name=P} then {formmenu: X,Y}';
+const findCases = [
+  [0, null], [10, null], [54, null],
+  [28, 28], [40, 28], [51, 28],
+  [57, 57], [60, 57], [72, 57],
+  [-5, null], [9999, 57],
+];
+for (const [caret, wantStart] of findCases) {
+  const got = engine.findMenuTokenAt(findBody, caret);
+  const gotStart = got ? got.start : null;
+  if (gotStart !== wantStart) {
+    fail('findMenuTokenAt(caret ' + caret + ') -> start ' + gotStart + ', expected ' + wantStart);
+  }
+  if (got && findBody.slice(got.start, got.end) !== got.raw) {
+    fail('findMenuTokenAt(caret ' + caret + ') returned a range that does not hold its raw text');
+  }
+}
+
+console.log('OK Form menu reader passed all ' + rok + ' cases');
+
 // ── MOBILE FIELD-CONFIG PARITY ──────────────────────────────────────
 // The mobile companion (app/public/mobile/index.html) keeps its own resolver —
 // a known exception to the single-source rule, because it cannot load the
