@@ -1550,7 +1550,13 @@ function renderDetailHtml(s){
               return '<label class="d-opt"><input type="checkbox" data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
             }).join('')+'</div>';
           } else {
-            inp='<select data-fkey="'+esc(k)+'"'+wide+'>'+opts.map(function(o){ return '<option value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+            // A menu with no default= needs the empty first option: without it
+            // the browser preselects option 1, so the field SHOWS a choice while
+            // currentFieldVals still reads '' — "Copy filled" would then drop a
+            // value the user can see. Same guard as content.js and mobile.
+            inp='<select data-fkey="'+esc(k)+'"'+wide+'>'
+              +(picks.length?'':'<option value="">— select —</option>')
+              +opts.map(function(o){ return '<option value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
           }
         } else if(def.type==='date'){
           inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';

@@ -5,6 +5,8 @@
 // that the previous Function()-based smoke test could not exercise (and which had
 // silently regressed in production: {if: OTA_PRICE > 0} never rendered).
 const path = require('path');
+const fs = require('fs');
+const vm = require('vm');
 const engine = require(path.join(__dirname, '..', 'extension', 'formula-engine.js'));
 
 function fail(msg) {
@@ -103,6 +105,32 @@ for (const junk of [null, undefined, '', '{', '}', '{}', '{{', '}}']) {
 
 console.log('OK Template validator passed all ' + vok + ' parity cases');
 
+// ── FILL-FORM PLACEHOLDER PARITY ────────────────────────────────────
+// Three surfaces render a single-choice {formmenu:} as a <select>, and each
+// builds the markup itself. A select with no empty first option is preselected
+// by the browser on option 1 — so the field SHOWS a choice while the surface
+// still reads '' for it, and the pick is silently dropped from the output.
+//
+// popup.js shipped without it from v2.132.0 until this check existed. It is a
+// source assertion rather than a behaviour test because the markup is built
+// inside large DOM-bound render functions, but it pins the exact drift.
+const PLACEHOLDER = '<option value="">— select —</option>';
+const FILL_FORM_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay'],
+  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html'],
+  ['app/public/mobile/index.html', 'mobile companion'],
+];
+
+for (const [rel, label] of FILL_FORM_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  if (!src.includes(PLACEHOLDER)) {
+    fail(rel + ' (' + label + ') no longer emits the "— select —" option.\n' +
+      '  A {formmenu:} with no default= would show option 1 as picked while the\n' +
+      '  surface reads an empty value, dropping the choice from the output.');
+  }
+}
+console.log('OK Fill-form placeholder present on all ' + FILL_FORM_RENDERERS.length + ' renderers');
+
 // ── FORM MENU READER ────────────────────────────────────────────────
 // parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
 // already in a body. Sprintbrain.html calls them directly; the dashboard keeps
@@ -182,9 +210,6 @@ console.log('OK Form menu reader passed all ' + rok + ' cases');
 // The mirrored helpers are pure (no DOM), so they are sliced out of the HTML
 // and run in a throwaway vm context. The slice markers are load-bearing: if
 // either moves, this gate fails loudly rather than silently passing.
-const fs = require('fs');
-const vm = require('vm');
-
 const MOBILE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'public', 'mobile', 'index.html'), 'utf8');
 const SLICE_START = 'var SB_MENU_KEYS=';
