@@ -748,14 +748,8 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
       );
     }
   } else {
-    // Merge dynamic fieldCfg from {formtext/date/menu:} tokens with any explicit snip.fieldCfg.
-    // Explicit snip.fieldCfg wins on conflict, so hand-configured fields are never overridden.
-    var dynCfg = buildFormFieldCfg(snip.body);
-    var hasDyn = Object.keys(dynCfg).length > 0;
-    var effSnip = hasDyn
-      ? Object.assign({}, snip, { fieldCfg: Object.assign({}, dynCfg, snip.fieldCfg || {}) })
-      : snip;
-    showOverlay(el, effSnip, fields, scLen || 0, function() { processing = false; });
+    // showOverlay merges the body-declared field config itself.
+    showOverlay(el, snip, fields, scLen || 0, function() { processing = false; });
   }
 }
 
@@ -1153,7 +1147,15 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
   removeOverlay();
   overlayDone = done;
-  var cfgs  = snip.fieldCfg || {};
+  // Field config the body itself declares via {formtext/date/menu:} tokens,
+  // with any explicit field_cfg on top so a hand-configured field still wins.
+  //
+  // Merged HERE, not at the call sites: three paths open this overlay — the
+  // trigger, the picker, and the right-click context menu — and only the
+  // trigger used to merge. Via the other two a {formmenu:} arrived as a bare
+  // field name and rendered as a plain text box, so the choices could not be
+  // picked at all. Keeping it inside means no future entry point can forget.
+  var cfgs  = Object.assign({}, buildFormFieldCfg(snip.body), snip.fieldCfg || {});
   var _now  = new Date();
   var today = sbFormatDate(_now, 'YYYY-MM-DD');
   var nowTime = sbFormatDate(_now, 'HH:mm');

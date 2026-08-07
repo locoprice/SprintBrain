@@ -131,6 +131,24 @@ for (const [rel, label] of FILL_FORM_RENDERERS) {
 }
 console.log('OK Fill-form placeholder present on all ' + FILL_FORM_RENDERERS.length + ' renderers');
 
+// showOverlay is reached from three places — the trigger, the picker and the
+// right-click context menu. Two of them passed the raw snippet, whose field_cfg
+// is {} for a body-declared menu, so a {formmenu:} rendered as a plain text box
+// and its options could not be picked at all. The merge now lives INSIDE
+// showOverlay; this pins it there so a call site can never own it again.
+const CONTENT_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'extension', 'content', 'content.js'), 'utf8');
+const overlayStart = CONTENT_SRC.indexOf('function showOverlay(');
+if (overlayStart === -1) fail('content.js no longer defines showOverlay');
+const overlayEnd = CONTENT_SRC.indexOf('\nfunction ', overlayStart + 1);
+const overlayBody = CONTENT_SRC.slice(overlayStart, overlayEnd === -1 ? undefined : overlayEnd);
+if (!overlayBody.includes('buildFormFieldCfg(snip.body)')) {
+  fail('showOverlay no longer merges buildFormFieldCfg(snip.body).\n' +
+    '  Every {formmenu:} / {formtext:} / {formdate:} reached through the picker\n' +
+    '  or the context menu would render as a plain text input.');
+}
+console.log('OK showOverlay merges the body-declared field config');
+
 // ── FORM MENU READER ────────────────────────────────────────────────
 // parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
 // already in a body. Sprintbrain.html calls them directly; the dashboard keeps
