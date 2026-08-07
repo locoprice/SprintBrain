@@ -35,6 +35,7 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { findLanguageMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
@@ -430,6 +431,22 @@ export function NewSnippetDialog() {
         if (key && !next[key]) next[key] = issue.message;
       }
       setErrors(next);
+      return;
+    }
+
+    // Guard the language flag before the body reaches a guest. `content` is the
+    // active slot's live text and may be ahead of `bodies`, so check the merged
+    // view — the same shape snippetsApi persists.
+    const mismatch = findLanguageMismatch({
+      ...parsed.data.bodies,
+      [parsed.data.language]: parsed.data.content,
+    });
+    if (mismatch !== null) {
+      // Bring the offending slot on screen. Saving writes every language at
+      // once, so the fault can sit in a variant the user isn't looking at, and
+      // an error about text they cannot see is not an error they can fix.
+      if (mismatch.slot !== form.language) changeLanguage(mismatch.slot);
+      setErrors({ content: mismatch.message });
       return;
     }
 
