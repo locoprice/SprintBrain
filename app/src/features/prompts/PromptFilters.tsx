@@ -3,6 +3,7 @@ import { Check, ChevronDown, Folders, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FolderIcon } from '@/lib/folderIcons';
 import { FolderShareBadge } from '@/features/org/FolderTree';
+import { LabelFilter } from '@/features/labels/LabelFilter';
 import { usePromptStore, useActiveFilterCount } from '@/stores/promptStore';
 import type { Folder, IntentCategory, Prompt, StrategyType } from '@/types/database';
 
@@ -198,7 +199,17 @@ function FolderChips() {
   );
 }
 
-export const PromptFilters = memo(function PromptFilters() {
+interface PromptFiltersProps {
+  /**
+   * Open the label manager. Passed down from the page rather than read from
+   * uiStore: this module is imported by a pure-logic test for
+   * `visiblePromptFolders`, and uiStore's theme bootstrap touches localStorage
+   * at module load.
+   */
+  onManageLabels: () => void;
+}
+
+export const PromptFilters = memo(function PromptFilters({ onManageLabels }: PromptFiltersProps) {
   const filters = usePromptStore((s) => s.filters);
   const setFilters = usePromptStore((s) => s.setFilters);
   const resetFilters = usePromptStore((s) => s.resetFilters);
@@ -240,6 +251,11 @@ export const PromptFilters = memo(function PromptFilters() {
         value={filters.intent}
         options={INTENTS}
         onSelect={(intent) => setFilters({ intent })}
+      />
+      <LabelFilter
+        selected={filters.labels}
+        onChange={(labels) => setFilters({ labels })}
+        onManage={onManageLabels}
       />
 
       {/* Clear */}

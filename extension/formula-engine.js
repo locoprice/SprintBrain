@@ -877,6 +877,76 @@
     return out + '}';
   }
 
+  // ── FORM MENU TOKEN READER ──────────────────────────────────────
+  // The inverse of buildFormMenuToken: turns a token already sitting in a body
+  // back into the config a builder can load, so changing a menu's options is an
+  // edit in the builder rather than hand-surgery on the raw token text.
+  //
+  // Options and settings come from _parseMenuSettings — the same parser the
+  // fill form uses — so what a builder shows can never disagree with what
+  // actually expands. The one thing NOT taken from it is the name: an unnamed
+  // menu must stay unnamed here, or re-saving would bake its derived hash in.
+  //
+  // MIRRORED in app/src/lib/formMenuToken.ts (the dashboard cannot import
+  // extension source — app/CLAUDE.md §6). Change both together.
+  var MENU_HEAD_RE = /^\{\s*formmenu\s*:/i;
+
+  function parseFormMenuToken(raw) {
+    var src = _sTrim(String(raw === null || raw === undefined ? '' : raw));
+    var head = MENU_HEAD_RE.exec(src);
+    if (!head || src.charAt(src.length - 1) !== '}') return null;
+
+    var set = _parseMenuSettings(src.slice(head[0].length, src.length - 1));
+    var multiple = /(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(set.attrs);
+    var nameM = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(set.attrs);
+    var colsM = /(?:^|;)\s*cols\s*=\s*(\d+)/i.exec(set.attrs);
+    var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(set.attrs);
+
+    // Only declared options can be preselected, and a single-choice menu holds
+    // one — the same rules buildFormFieldCfg applies, so the builder opens on
+    // exactly the selection the fill form would show.
+    var picks = defM ? formMenuPicks(defM[1]).filter(function(d){
+      return set.options.indexOf(d) !== -1;
+    }) : [];
+    if (!multiple) picks = picks.slice(0, 1);
+
+    var cols = colsM ? parseInt(colsM[1], 10) : 0;
+    return {
+      options:  set.options,
+      selected: picks,
+      name:     nameM ? nameM[1] : '',
+      multiple: multiple,
+      cols:     cols > 0 ? cols : null
+    };
+  }
+
+  /**
+   * The {formmenu:} token containing `caret`, or null. A caret on either brace
+   * counts as inside, so clicking at the very end of a token still finds it.
+   * Between two touching menus the earlier one wins — deterministic, and the
+   * caret is visually at its closing brace.
+   * @returns {{start:number, end:number, raw:string}|null} end is exclusive.
+   */
+  function findMenuTokenAt(body, caret) {
+    var src = (body === null || body === undefined) ? '' : String(body);
+    var pos = typeof caret === 'number' && isFinite(caret) ? caret : 0;
+    if (pos < 0) pos = 0;
+    if (pos > src.length) pos = src.length;
+
+    var i = 0;
+    while (i < src.length) {
+      var open = src.indexOf('{', i);
+      if (open === -1) break;
+      var close = src.indexOf('}', open + 1);
+      if (close === -1) break;
+      var raw = src.slice(open, close + 1);
+      if (!MENU_HEAD_RE.test(raw)) { i = open + 1; continue; }
+      if (pos >= open && pos <= close + 1) return { start: open, end: close + 1, raw: raw };
+      i = close + 1;
+    }
+    return null;
+  }
+
   // ── BUTTON TOKEN WRITER ─────────────────────────────────────────
   // Serializes a {button …}code{/button} token from an insert-dialog config —
   // the inverse of extractButtons(), so every token this writes parses back.
@@ -994,6 +1064,8 @@
     validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
     buildFormMenuToken: buildFormMenuToken,
+    parseFormMenuToken: parseFormMenuToken,
+    findMenuTokenAt:   findMenuTokenAt,
     formMenuPicks:     formMenuPicks,
     buildFormButtonToken: buildFormButtonToken,
     extractButtons:    extractButtons,

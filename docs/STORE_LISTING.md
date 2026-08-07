@@ -1,6 +1,6 @@
 # Chrome Web Store — Submission Copy
 **Extension:** SprintBrain
-**Version:** 2.124.0
+**Version:** 2.142.0
 **Category:** Productivity
 **Language:** English
 **Last revised:** 2026-07-27 (SEO rewrite, then expanded from the full-history audit: Text Blaze compatibility, formula engine depth, analytics, version history)

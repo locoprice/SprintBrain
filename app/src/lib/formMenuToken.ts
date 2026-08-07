@@ -79,6 +79,101 @@ export function buildFormMenuToken(cfg: FormMenuConfig): string {
   return `${out}}`;
 }
 
+/** Named settings a menu token carries; every other segment is an option. */
+const MENU_KEYS = /^\s*(name|default|multiple|cols)\s*=/i;
+const MENU_HEAD = /^\{\s*formmenu\s*:/i;
+
+/**
+ * Splits a token's settings into its options and its named settings. Options
+ * may be `;`-separated (Text Blaze) or comma-separated in one segment (what
+ * `buildFormMenuToken` writes), and named settings may sit anywhere among them.
+ * Mirrors `_parseMenuSettings` in the engine.
+ */
+function parseMenuSettings(rest: string): { options: string[]; attrs: string } {
+  const options: string[] = [];
+  let attrs = '';
+  for (const segment of rest.split(';')) {
+    if (MENU_KEYS.test(segment)) {
+      attrs += `;${segment}`;
+      continue;
+    }
+    for (const part of segment.split(',')) {
+      const option = part.trim();
+      if (option !== '' && !options.includes(option)) options.push(option);
+    }
+  }
+  return { options, attrs };
+}
+
+/**
+ * The inverse of `buildFormMenuToken` — turns a token already in a body back
+ * into the config the dialog can load, so changing a menu's options is an edit
+ * rather than hand-surgery on raw token text. Returns null for anything that
+ * isn't a complete `{formmenu: …}`.
+ *
+ * The name is read straight from `name=` rather than derived: an unnamed menu
+ * must stay unnamed, or re-saving would bake in the key the engine hashes.
+ */
+export function parseFormMenuToken(raw: string): FormMenuConfig | null {
+  const src = raw.trim();
+  const head = MENU_HEAD.exec(src);
+  if (!head || !src.endsWith('}')) return null;
+
+  const { options, attrs } = parseMenuSettings(src.slice(head[0].length, src.length - 1));
+  const multiple = /(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(attrs);
+  const nameMatch = /(?:^|;)\s*name\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(attrs);
+  const colsMatch = /(?:^|;)\s*cols\s*=\s*(\d+)/i.exec(attrs);
+  const defaultMatch = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(attrs);
+
+  // Only declared options can be preselected, and a single-choice menu holds
+  // one — the same rules the fill form applies, so the dialog opens on exactly
+  // the selection that would expand.
+  const picked = defaultMatch
+    ? formMenuPicks(defaultMatch[1] ?? '').filter((option) => options.includes(option))
+    : [];
+  const cols = colsMatch ? Number.parseInt(colsMatch[1] ?? '', 10) : 0;
+
+  return {
+    options,
+    selected: multiple ? picked : picked.slice(0, 1),
+    name: nameMatch?.[1] ?? '',
+    multiple,
+    cols: cols > 0 ? cols : null,
+  };
+}
+
+/** Where a `{formmenu:}` token sits in a body. `end` is exclusive. */
+export interface MenuTokenRange {
+  start: number;
+  end: number;
+  raw: string;
+}
+
+/**
+ * The `{formmenu:}` token containing `caret`, or null. A caret on either brace
+ * counts as inside, so clicking at the very end of a token still finds it.
+ * Between two touching menus the earlier one wins — deterministic, and the
+ * caret is visually at its closing brace.
+ */
+export function findMenuTokenAt(body: string, caret: number): MenuTokenRange | null {
+  const pos = Math.min(Math.max(Number.isFinite(caret) ? caret : 0, 0), body.length);
+  let i = 0;
+  while (i < body.length) {
+    const open = body.indexOf('{', i);
+    if (open === -1) break;
+    const close = body.indexOf('}', open + 1);
+    if (close === -1) break;
+    const raw = body.slice(open, close + 1);
+    if (!MENU_HEAD.test(raw)) {
+      i = open + 1;
+      continue;
+    }
+    if (pos >= open && pos <= close + 1) return { start: open, end: close + 1, raw };
+    i = close + 1;
+  }
+  return null;
+}
+
 /**
  * The next unused `MENU_n` for a body. The dialog prefills this so an inserted
  * menu always carries a working name without the author having to invent one.

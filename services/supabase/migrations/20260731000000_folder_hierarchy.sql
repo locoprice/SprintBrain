@@ -1,17 +1,34 @@
 -- Folder hierarchy · nest folders one under another ("Villa X" > "Preventivi").
 --
--- Adds folders.parent_id and teaches the access helpers to walk ancestors so a
--- share on a parent reaches its whole subtree. Sharing "Villa X" with the team
--- must also share "Villa X > Preventivi" — otherwise a teammate sees the parent
--- and none of its contents.
+-- ⚠ PARTIALLY SUPERSEDED — DO NOT COPY THE ACCESS-HELPER SECTION.
+-- Applied to production 2026-07-31 (version 20260731205853). The two access
+-- helpers it redefines were REVERTED on 2026-08-05 by
+-- 20260805190741_revert_folder_share_inheritance_hotfix.sql after this file
+-- caused a ~2h production outage. The SQL below is left byte-for-byte as it ran,
+-- because rewriting an applied migration breaks reproducibility — but read this
+-- before reusing any of it.
 --
--- Two hard guards, because a self-referencing tree walked inside a SECURITY
--- DEFINER function is a correctness AND availability hazard:
---   1. a BEFORE trigger rejects self-parenting, cycles, and depth > 3
---   2. every recursive walk is depth-capped independently, so even a cycle
---      introduced out-of-band (direct SQL, restore) cannot spin a policy check
+-- WHAT WENT WRONG. app.can_read_folder / app.can_write_folder are evaluated
+-- PER ROW by the RLS policies on folders, snippets, prompts and snippet_revisions.
+-- Routing them through app.folder_level_eff -> app.folder_chain put a recursive
+-- CTE on every row of every read. Measured warmed and interleaved on live data:
+-- folder_level 0.313 ms/iter vs folder_level_eff 3.200 ms/iter — 10.2x on the
+-- hottest function in the read path. On nano compute (shared CPU,
+-- max_connections 60, statement_timeout 120s) that was enough to exhaust the
+-- connection pool and wedge Postgres for two hours.
 --
--- NOT APPLIED to the live DB by this file. Apply via MCP/CLI deliberately.
+-- The guards below were aimed at the wrong failure. They correctly prevent
+-- cycles and runaway recursion — the DB never raised 42P17 — but recursion was
+-- never the risk. Per-row COST was, and nothing here bounded that.
+--
+-- IF YOU RE-LAND INHERITANCE: resolve the ancestor closure ONCE PER QUERY, not
+-- once per row — a closure table maintained by trigger, or a single recursive
+-- CTE joined once. Then benchmark it warmed and interleaved (A/B/A/B) before
+-- shipping; a cold instance gives numbers that are worse than useless.
+--
+-- STILL LIVE AND WANTED from this file: folders.parent_id, its index, and the
+-- folders_hierarchy_guard trigger. Those are cheap and carry the whole feature.
+-- app.folder_chain / app.folder_level_eff remain installed but unreferenced.
 
 -- ── schema ───────────────────────────────────────────────────────────────────
 alter table folders
@@ -121,6 +138,12 @@ language sql stable security definer set search_path = public as $$
   limit 1;
 $$;
 
+-- ⚠ THE TWO DEFINITIONS BELOW ARE THE REGRESSION. Both were reverted on
+-- 2026-08-05 by 20260805190741_revert_folder_share_inheritance_hotfix.sql.
+-- They are evaluated PER ROW by RLS on folders/snippets/prompts/snippet_revisions,
+-- so routing them through folder_level_eff put a recursive CTE on every row of
+-- every read (10.2x measured). Do not reinstate this shape — see the file header.
+--
 -- Reads and writes now resolve through the chain. app.folder_level keeps its
 -- direct-only meaning on purpose: fperm_manage gates share administration on it,
 -- and inheriting 'owner' downward would let a grantee re-share a subfolder.
