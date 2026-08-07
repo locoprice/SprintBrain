@@ -39,6 +39,43 @@ export interface Folder {
   description: string | null;
 }
 
+// ── Labels (LABELS-001) ──────────────────────────────────────────────────────
+
+/**
+ * Closed palette key persisted in `labels.color` — never a hex, so every
+ * surface can restyle the vocabulary without a data migration. Resolved by
+ * `lib/labelColors.ts`; registered in docs/DESIGN_SYSTEM.md.
+ */
+export type LabelColor =
+  | 'azure'
+  | 'violet'
+  | 'green'
+  | 'orange'
+  | 'teal'
+  | 'rose'
+  | 'amber'
+  | 'slate';
+
+/**
+ * One entry in the user's label vocabulary. Labels are global in the sense that
+ * matters: a single label is assignable to both snippets and prompts. They are
+ * personal — a shared-folder teammate sees their own labels, not yours.
+ */
+export interface Label {
+  id: Uuid;
+  user_id: Uuid;
+  name: string;
+  color: LabelColor;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime;
+}
+
+/**
+ * Label ids keyed by asset id, read from `snippet_labels` / `prompt_labels`.
+ * An asset absent from the map carries no labels.
+ */
+export type LabelAssignments = ReadonlyMap<string, string[]>;
+
 export type SnippetLanguage = 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
 
 /**

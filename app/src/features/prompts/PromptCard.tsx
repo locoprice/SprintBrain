@@ -3,10 +3,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { Brain, Loader2, Send, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { LabelBadgeList } from '@/components/shared/LabelBadge';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import type { Prompt } from '@/types/database';
 import { useUiStore } from '@/stores/uiStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { resolveLabels } from '@/lib/labelUtils';
 import { assembleBlocks } from '@/lib/promptUtils';
 import { maxPromptUsage, promptStatus } from '@/lib/statusSignals';
 import { evaluatePrompt, promptToEvaluatorInput } from '@/lib/usePromptEvaluator';
@@ -62,6 +65,12 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const pushPromptToNotion = usePromptStore((s) => s.pushPromptToNotion);
   const notionPushingIds = usePromptStore((s) => s.notionPushingIds);
   const resolveUserName = useUserNameResolver();
+  const labelCatalog = useLabelStore((s) => s.labels);
+  const labelAssignments = useLabelStore((s) => s.promptLabels);
+  const labels = useMemo(
+    () => resolveLabels(prompt.id, labelAssignments, labelCatalog),
+    [prompt.id, labelAssignments, labelCatalog],
+  );
   const pushing = notionPushingIds.has(prompt.id);
 
   const preview = getPreviewText(prompt);
@@ -133,6 +142,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
 
       {/* Meta pills */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <LabelBadgeList labels={labels} />
         {prompt.intent_category && (
           <Badge variant="neutral" className="text-[11px]">
             {prompt.intent_category}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
@@ -15,6 +16,7 @@ import {
   selectBenchmarkCohort,
 } from '@/lib/usePromptEvaluator';
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
+import { LabelPicker } from '@/features/labels/LabelPicker';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import type {
   PromptBlock,
@@ -281,6 +283,7 @@ export function PromptBlockEditor() {
   const folders = usePromptStore((s) => s.folders);
   const addPrompt = usePromptStore((s) => s.addPrompt);
   const editPrompt = usePromptStore((s) => s.editPrompt);
+  const setPromptLabels = useLabelStore((s) => s.setPromptLabels);
   const removePrompt = usePromptStore((s) => s.removePrompt);
 
   // The prompt trigger is a user setting (single source of truth: user_metadata,
@@ -310,6 +313,9 @@ export function PromptBlockEditor() {
   const [intentCategory, setIntentCategory] = useState<IntentCategory | null>(null);
   const [outputType, setOutputType] = useState<OutputType | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
+  // Labels are an association, not prompt content — they save alongside the
+  // prompt rather than travelling through PromptFormValues.
+  const [labelIds, setLabelIds] = useState<string[]>([]);
 
   // Intent suggestion
   const [suggestion, setSuggestion] = useState<ClassificationResult | null>(null);
@@ -353,6 +359,9 @@ export function PromptBlockEditor() {
       setIntentCategory(editingPrompt.intent_category);
       setOutputType(editingPrompt.output_type);
       setFolderId(editingPrompt.folder_id);
+      // Read once on open: the picker owns the draft from here, so a background
+      // refresh can't stomp an in-progress edit.
+      setLabelIds(useLabelStore.getState().promptLabels.get(editingPrompt.id) ?? []);
     } else {
       setName('');
       setShortcut('');
@@ -367,6 +376,7 @@ export function PromptBlockEditor() {
       setIntentCategory(null);
       setOutputType(null);
       setFolderId(null);
+      setLabelIds([]);
     }
   }, [isOpen, editingPrompt]);
 
@@ -544,10 +554,13 @@ export function PromptBlockEditor() {
     try {
       if (mode === 'edit' && editingPrompt) {
         await editPrompt(editingPrompt.id, payload);
+        await setPromptLabels(editingPrompt.id, labelIds);
         showToast('Changes saved');
         closeEdit();
       } else {
-        await addPrompt(payload);
+        const created = await addPrompt(payload);
+        // Only after the row exists — the link table has an FK to prompts.
+        await setPromptLabels(created.id, labelIds);
         showToast('Prompt created');
         closeNew();
       }
@@ -788,6 +801,24 @@ export function PromptBlockEditor() {
                 options={folders.map((f) => ({ value: f.id, label: f.name }))}
                 placeholder="No folder"
               />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="prompt-labels" className="mb-1 block text-[10px] text-[#9C9CA6]">
+                Labels <span className="text-[#6A6A73]">· shared with snippets</span>
+              </label>
+              {/* Mounted only while the panel is open. This panel never
+                  unmounts — it slides out via translate — and the picker's menu
+                  is portalled to <body>, so leaving it mounted would strand an
+                  open menu on screen after Save or Close. */}
+              {isOpen && (
+                <LabelPicker
+                  id="prompt-labels"
+                  tone="dark"
+                  value={labelIds}
+                  onChange={setLabelIds}
+                  disabled={saving}
+                />
+              )}
             </div>
           </div>
         </div>

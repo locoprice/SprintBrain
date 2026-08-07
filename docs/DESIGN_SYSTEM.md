@@ -17,7 +17,7 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 >  - Extension + overlay: `extension/shared/tokens/colors_and_type.css`
 >  - Mobile companion: inline `:root` in `app/public/mobile/index.html` (kept in sync with this table)
 >
-> Hard-coded hex values in component files are forbidden outside the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette).
+> Hard-coded hex values in component files are forbidden outside two documented exceptions: the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette), and the **dark prompt-editor vocabulary** in `PromptBlockEditor.tsx` — an untokenized side-panel palette that predates this table. Components rendered *inside* that panel (`LabelPicker`'s `dark` tone) may reuse those exact hexes; they may not invent new ones. Tokenizing the panel is an open follow-up.
 
 ### Neutrals
 
@@ -57,6 +57,25 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 **FR is a first-class language (re-added v2.88.0)** with its own teal palette — distinct from EN, IT, ES, and MULTI so every language pill stays visually unambiguous. It appears in the create/edit language picker; the `Snippet['language']` union already carries it.
 
 **v1.1 changed IT from red `#DC2626` to green `#15803D`** to remove the false signal that Italian = stop / error.
+
+### Label palette (LABELS-001)
+
+The eight colors a user can pick for a label. Labels are one vocabulary shared by snippets and prompts, so the palette is a **closed set** — the DB stores the key (`labels.color`), never a hex, and each surface resolves it. Same contract as `folders.ico`. The dashboard resolver is `app/src/lib/labelColors.ts`; that module is the only place these values may appear.
+
+| Key      | Fg        | Bg        | Border    | Origin                                       |
+| -------- | --------- | --------- | --------- | -------------------------------------------- |
+| `azure`  | `#1B4FD8` | `#EEF2FF` | `#BED0FF` | `primary` / `primary-bg` / `primary-bdr`     |
+| `violet` | `#7C3AED` | `#F5F3FF` | `#DDD6FE` | MULTI language · ToT strategy chip           |
+| `green`  | `#15803D` | `#F0FDF4` | `#BBF7D0` | IT language · Few-shot strategy chip         |
+| `orange` | `#C2410C` | `#FFF7ED` | `#FED7AA` | ES language · One-shot strategy chip         |
+| `teal`   | `#0F766E` | `#F0FDFA` | `#99F6E4` | FR ground, at the **darkened** fg (see below) |
+| `rose`   | `#BE123C` | `#FFF1F2` | `#FECDD3` | RAG strategy chip                            |
+| `amber`  | `#D97706` | `#FFFBEB` | `#FDE68A` | `warning-deep` on `warning-bg`               |
+| `slate`  | `#475569` | `#F1F5F9` | `#CBD5E1` | New neutral — the "no strong signal" label    |
+
+**Label teal is `#0F766E`, not the FR token's `#0D9488`.** A label badge is text, and `#0D9488` on its tint is ~3.6:1 — it passes the 3:1 UI threshold but misses 4.5:1 for text. `#0F766E` is ≈5.3:1 and is the exact value the open "FR contrast darken" follow-up below targets, so the two converge rather than fork.
+
+Badges keep their light tints in dark mode, matching every shipped chip on the dashboard (language pills, strategy chips, `Badge variant="primary"`).
 
 ### Semantic
 

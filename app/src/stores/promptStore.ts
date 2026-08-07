@@ -15,6 +15,8 @@ import { promptsApi } from '@/lib/api/promptsApi';
 import { foldersApi } from '@/lib/api/foldersApi';
 import { permissionsApi } from '@/lib/api/permissionsApi';
 import { buildFolderShares } from '@/lib/folderShares';
+import { matchesLabelFilter } from '@/lib/labelUtils';
+import { useLabelStore } from '@/stores/labelStore';
 import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
 export interface PromptFilters {
@@ -25,6 +27,8 @@ export interface PromptFilters {
   complexity: ComplexityLevel | null;
   executionType: ExecutionType | null;
   outputType: OutputType | null;
+  /** Label ids narrowing the list; empty = no label filter. Catalog lives in labelStore. */
+  labels: string[];
   search: string;
 }
 
@@ -39,6 +43,7 @@ const DEFAULT_FILTERS: PromptFilters = {
   complexity: null,
   executionType: null,
   outputType: null,
+  labels: [],
   search: '',
 };
 
@@ -266,9 +271,13 @@ export function useFilteredPrompts(): Prompt[] {
   const prompts = usePromptStore((s) => s.prompts);
   const filters = usePromptStore((s) => s.filters);
   const selectedFolderId = usePromptStore((s) => s.selectedFolderId);
+  // Assignments live in labelStore because the vocabulary is shared with
+  // snippets; only the active selection above is per-surface.
+  const labelAssignments = useLabelStore((s) => s.promptLabels);
 
   return useMemo(() => prompts.filter((p) => {
     if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
+    if (!matchesLabelFilter(p.id, filters.labels, labelAssignments)) return false;
     if (filters.type !== 'all' && p.type !== filters.type) return false;
     if (filters.strategy && p.strategy_type !== filters.strategy) return false;
     if (filters.intent && p.intent_category !== filters.intent) return false;
@@ -285,7 +294,7 @@ export function useFilteredPrompts(): Prompt[] {
       if (!inName && !inTags && !inIntent && !inContent) return false;
     }
     return true;
-  }), [prompts, filters, selectedFolderId]);
+  }), [prompts, filters, selectedFolderId, labelAssignments]);
 }
 
 export function useActiveFilterCount(): number {
@@ -300,6 +309,7 @@ export function useActiveFilterCount(): number {
   if (filters.complexity) count++;
   if (filters.executionType) count++;
   if (filters.outputType) count++;
+  if (filters.labels.length > 0) count++;
   if (filters.search) count++;
   return count;
 }

@@ -1,21 +1,27 @@
 import { useEffect } from 'react';
 import { Brain, Command, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
 import { PromptCard } from '@/features/prompts/PromptCard';
 import { PromptBlockEditor } from '@/features/prompts/PromptBlockEditor';
 import { PromptFilters } from '@/features/prompts/PromptFilters';
 import { PromptCmdK, usePromptCmdKShortcut } from '@/features/prompts/PromptCmdK';
 import { PromptPreviewModal } from '@/features/prompts/PromptPreviewModal';
 import { useFilteredPrompts, usePromptStore } from '@/stores/promptStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { useUiStore } from '@/stores/uiStore';
 
 export function PromptsPage() {
   const load = usePromptStore((s) => s.load);
+  const loadLabels = useLabelStore((s) => s.load);
+  const labelsLoaded = useLabelStore((s) => s.loaded);
   const prompts = usePromptStore((s) => s.prompts);
   const loading = usePromptStore((s) => s.loading);
   const setCmdKOpen = usePromptStore((s) => s.setCmdKOpen);
   const filtered = useFilteredPrompts();
   const openNewPrompt = useUiStore((s) => s.openNewPrompt);
+  // Stable across renders (zustand action), so PromptFilters stays memoized.
+  const openLabelManager = useUiStore((s) => s.openLabelManager);
   const editorOpen = useUiStore(
     (s) => s.newPromptOpen || s.editPromptId !== null,
   );
@@ -27,6 +33,13 @@ export function PromptsPage() {
       void load();
     }
   }, [load, prompts.length]);
+
+  // Labels load on their own: a failure here costs badges, never the list.
+  useEffect(() => {
+    if (!labelsLoaded) {
+      void loadLabels();
+    }
+  }, [loadLabels, labelsLoaded]);
 
   return (
     // Full-height layout that escapes the parent py-8 padding
@@ -68,7 +81,7 @@ export function PromptsPage() {
 
         {/* Filter toolbar + card grid */}
         <div className="px-8 py-6">
-          <PromptFilters />
+          <PromptFilters onManageLabels={openLabelManager} />
           {loading && prompts.length === 0 ? (
             <div className="flex items-center justify-center py-24">
               <span className="text-sm text-ink-subtle">Loading prompts…</span>
@@ -97,6 +110,7 @@ export function PromptsPage() {
       <PromptBlockEditor />
       <PromptCmdK />
       <PromptPreviewModal />
+      <LabelManagerDialog />
     </div>
   );
 }

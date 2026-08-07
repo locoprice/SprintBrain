@@ -1,5 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { LabelFilter } from '@/features/labels/LabelFilter';
 import { useSnippetStore } from '@/stores/snippetStore';
+import { useUiStore } from '@/stores/uiStore';
 import type { SortColumn } from '@/stores/snippetStore';
 import type { Snippet } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -20,12 +22,15 @@ const SORT_COLUMNS: Array<{ value: SortColumn; label: string }> = [
 export function FilterToolbar() {
   const languageFilter = useSnippetStore((s) => s.languageFilter);
   const setLanguageFilter = useSnippetStore((s) => s.setLanguageFilter);
+  const labelFilter = useSnippetStore((s) => s.labelFilter);
+  const setLabelFilter = useSnippetStore((s) => s.setLabelFilter);
+  const openLabelManager = useUiStore((s) => s.openLabelManager);
   const sortBy = useSnippetStore((s) => s.sortBy);
   const sortDir = useSnippetStore((s) => s.sortDir);
   const setSortBy = useSnippetStore((s) => s.setSortBy);
 
   return (
-    <div className="flex items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
       {/* Language filter chips */}
       <div className="flex items-center gap-1">
         <button
@@ -58,6 +63,14 @@ export function FilterToolbar() {
           </button>
         ))}
       </div>
+
+      <span className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+
+      <LabelFilter
+        selected={labelFilter}
+        onChange={setLabelFilter}
+        onManage={openLabelManager}
+      />
 
       <div className="ml-auto flex items-center gap-0.5">
         <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">

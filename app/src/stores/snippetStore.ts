@@ -5,7 +5,9 @@ import { snippetsApi } from '@/lib/api/snippetsApi';
 import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
 import { useAuthStore } from '@/stores/authStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { buildFolderShares } from '@/lib/folderShares';
+import { matchesLabelFilter } from '@/lib/labelUtils';
 import { subtreeIds } from '@/lib/folderTree';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
@@ -32,6 +34,8 @@ interface SnippetStore {
   sortBy: SortColumn;
   sortDir: SortDir;
   languageFilter: Snippet['language'] | null;
+  /** Label ids narrowing the list; empty = no label filter. The catalog itself lives in labelStore. */
+  labelFilter: string[];
   /** True while a bulk-move network request is in flight. */
   bulkMoving: boolean;
   /** True while a bulk-delete network request is in flight. */
@@ -49,6 +53,7 @@ interface SnippetStore {
   /** Switch sort column; toggles direction when the same column is clicked twice. */
   setSortBy: (col: SortColumn) => void;
   setLanguageFilter: (lang: Snippet['language'] | null) => void;
+  setLabelFilter: (labelIds: string[]) => void;
   /** Move selected snippets to a folder in one network request. Clears selection on success. */
   bulkMoveSnippets: (ids: string[], folderId: string | null) => Promise<void>;
   /** Delete multiple snippets in one network request. Clears selection on success. */
@@ -121,6 +126,7 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   sortBy: 'updated_at',
   sortDir: 'desc',
   languageFilter: null,
+  labelFilter: [],
   bulkMoving: false,
   bulkDeleting: false,
   load: async () => {
@@ -193,6 +199,8 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     })),
 
   setLanguageFilter: (lang) => set({ languageFilter: lang }),
+
+  setLabelFilter: (labelIds) => set({ labelFilter: labelIds }),
 
   bulkMoveSnippets: async (ids, folderId) => {
     if (ids.length === 0) return;
@@ -622,6 +630,10 @@ export function useFilteredSnippets(): SnippetRow[] {
   const folderId = useSnippetStore((s) => s.selectedFolderId);
   const query = useSnippetStore((s) => s.searchQuery.trim().toLowerCase());
   const languageFilter = useSnippetStore((s) => s.languageFilter);
+  const labelFilter = useSnippetStore((s) => s.labelFilter);
+  // Assignments live in labelStore because the vocabulary is shared with
+  // prompts; only the active selection above is per-surface.
+  const labelAssignments = useLabelStore((s) => s.snippetLabels);
   const sortBy = useSnippetStore((s) => s.sortBy);
   const sortDir = useSnippetStore((s) => s.sortDir);
 
@@ -632,6 +644,7 @@ export function useFilteredSnippets(): SnippetRow[] {
   const filtered = snippets.filter((s) => {
     if (scope !== null && (s.folder_id === null || !scope.has(s.folder_id))) return false;
     if (languageFilter !== null && s.language !== languageFilter) return false;
+    if (!matchesLabelFilter(s.id, labelFilter, labelAssignments)) return false;
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;

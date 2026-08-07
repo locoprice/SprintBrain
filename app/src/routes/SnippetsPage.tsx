@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
+import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
 import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
 import { FilterToolbar } from '@/features/snippets/FilterToolbar';
 import { ImportExportButtons, type ImportResult } from '@/features/snippets/ImportExportButtons';
@@ -10,10 +11,13 @@ import { NewSnippetDialog } from '@/features/snippets/NewSnippetDialog';
 import { SnippetFolderTree } from '@/features/snippets/SnippetFolderTree';
 import { SnippetsTable } from '@/features/snippets/SnippetsTable';
 import { VersionHistoryPanel } from '@/features/snippets/VersionHistoryPanel';
+import { useLabelStore } from '@/stores/labelStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 
 export function SnippetsPage() {
   const load = useSnippetStore((s) => s.load);
+  const loadLabels = useLabelStore((s) => s.load);
+  const labelsLoaded = useLabelStore((s) => s.loaded);
   const snippets = useSnippetStore((s) => s.snippets);
   const storeQuery = useSnippetStore((s) => s.searchQuery);
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
@@ -58,9 +62,17 @@ export function SnippetsPage() {
     }
   }, [load, snippets.length]);
 
+  // Labels load on their own: a failure here costs badges, never the library.
+  useEffect(() => {
+    if (!labelsLoaded) {
+      void loadLabels();
+    }
+  }, [loadLabels, labelsLoaded]);
+
   return (
     <>
       <VersionHistoryPanel />
+      <LabelManagerDialog />
       <PageHeader
         breadcrumb={
           selectedFolder ? (

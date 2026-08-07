@@ -40,6 +40,11 @@ interface UiStore {
   openHistory: (id: string) => void;
   closeHistory: () => void;
 
+  // Label manager dialog — opened from the label filter on Snippets or Prompts
+  labelManagerOpen: boolean;
+  openLabelManager: () => void;
+  closeLabelManager: () => void;
+
   // "Getting Started" onboarding modal (sidebar button + auto-shown once)
   onboardingOpen: boolean;
   openOnboarding: () => void;
@@ -83,6 +88,10 @@ export const useUiStore = create<UiStore>((set) => ({
   historySnippetId: null,
   openHistory: (id) => set({ historySnippetId: id }),
   closeHistory: () => set({ historySnippetId: null }),
+
+  labelManagerOpen: false,
+  openLabelManager: () => set({ labelManagerOpen: true }),
+  closeLabelManager: () => set({ labelManagerOpen: false }),
 
   onboardingOpen: false,
   openOnboarding: () => set({ onboardingOpen: true }),

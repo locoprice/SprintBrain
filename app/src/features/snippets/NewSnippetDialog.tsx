@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { LabelPicker } from '@/features/labels/LabelPicker';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ import {
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
   snippetFormSchema,
@@ -174,6 +176,7 @@ export function NewSnippetDialog() {
   const addSnippet              = useSnippetStore((s) => s.addSnippet);
   const editSnippetWithRevision = useSnippetStore((s) => s.editSnippetWithRevision);
   const removeSnippet           = useSnippetStore((s) => s.removeSnippet);
+  const setSnippetLabels        = useLabelStore((s) => s.setSnippetLabels);
 
   const openHistory = useUiStore((s) => s.openHistory);
 
@@ -192,6 +195,10 @@ export function NewSnippetDialog() {
   const open = mode === 'edit' ? editingSnippet !== null : newOpen;
 
   const [form, setForm] = useState<SnippetFormValues>(EMPTY_FORM);
+  // Labels are an association, not snippet content: they save alongside the
+  // snippet but never enter the revision RPC, so assigning one doesn't create a
+  // version entry. Hence local state rather than a SnippetFormValues field.
+  const [labelIds, setLabelIds] = useState<string[]>([]);
   const [altQueryDraft, setAltQueryDraft] = useState('');
   const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -271,8 +278,12 @@ export function NewSnippetDialog() {
         timer_duration_ms:    editingSnippet.timer_duration_ms,
         scarcity_count:       editingSnippet.scarcity_count,
       });
+      // Read once on open: the picker owns the draft from here, so a
+      // background refresh can't stomp an in-progress edit.
+      setLabelIds(useLabelStore.getState().snippetLabels.get(editingSnippet.id) ?? []);
     } else {
       setForm(EMPTY_FORM);
+      setLabelIds([]);
     }
   }, [open, editingSnippet]);
 
@@ -432,9 +443,12 @@ export function NewSnippetDialog() {
           parsed.data,
           editNote.trim() || undefined,
         );
+        await setSnippetLabels(editingSnippet.id, labelIds);
         closeEdit();
       } else {
-        await addSnippet(parsed.data);
+        const created = await addSnippet(parsed.data);
+        // Only after the row exists — the link table has an FK to snippets.
+        await setSnippetLabels(created.id, labelIds);
         closeNew();
       }
     } catch (err) {
@@ -587,6 +601,22 @@ export function NewSnippetDialog() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Labels — the shared snippet/prompt vocabulary (LABELS-001) */}
+            <div>
+              <label htmlFor="snippet-labels" className={FIELD_LABEL}>
+                Labels{' '}
+                <span className="font-normal text-ink-subtle">— shared with prompts</span>
+              </label>
+              <div className="max-w-md">
+                <LabelPicker
+                  id="snippet-labels"
+                  value={labelIds}
+                  onChange={setLabelIds}
+                  disabled={saving}
+                />
               </div>
             </div>
 

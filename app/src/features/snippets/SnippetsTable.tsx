@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, L
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { LabelBadgeList } from '@/components/shared/LabelBadge';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { DND_SNIPPET } from '@/features/org/FolderTree';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
@@ -14,7 +15,9 @@ import {
 } from '@/stores/snippetStore';
 import type { SortColumn } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { resolveLabels } from '@/lib/labelUtils';
 import type { Snippet, SnippetRow } from '@/types/database';
 import {
   baseSnippetName,
@@ -196,9 +199,14 @@ export function SnippetsTable() {
   const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
   const setLanguageFilter = useSnippetStore((s) => s.setLanguageFilter);
+  const setLabelFilter = useSnippetStore((s) => s.setLabelFilter);
   const selectedIds = useSnippetStore((s) => s.selectedIds);
   const setSnippetsSelected = useSnippetStore((s) => s.setSnippetsSelected);
   const openEditSnippet = useUiStore((s) => s.openEditSnippet);
+  // Labels are per row, like every other per-language column here: switching a
+  // grouped row's language switches which variant's labels it shows.
+  const labelCatalog = useLabelStore((s) => s.labels);
+  const labelAssignments = useLabelStore((s) => s.snippetLabels);
   const resolveUserName = useUserNameResolver();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -214,12 +222,13 @@ export function SnippetsTable() {
   const filterQuery = useSnippetStore((s) => s.searchQuery);
   const filterFolder = useSnippetStore((s) => s.selectedFolderId);
   const filterLang = useSnippetStore((s) => s.languageFilter);
+  const filterLabels = useSnippetStore((s) => s.labelFilter);
   const filterSortBy = useSnippetStore((s) => s.sortBy);
   const filterSortDir = useSnippetStore((s) => s.sortDir);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterQuery, filterFolder, filterLang, filterSortBy, filterSortDir]);
+  }, [filterQuery, filterFolder, filterLang, filterLabels, filterSortBy, filterSortDir]);
 
   // Derived pagination values — paginate over groups, not raw rows.
   const totalGroups = groups.length;
@@ -274,6 +283,7 @@ export function SnippetsTable() {
               setQuery('');
               setFolder(null);
               setLanguageFilter(null);
+              setLabelFilter([]);
             }}
           >
             Clear filters
@@ -435,6 +445,9 @@ export function SnippetsTable() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                        <LabelBadgeList
+                          labels={resolveLabels(row.id, labelAssignments, labelCatalog)}
+                        />
                         {row.is_formula ? (
                           <Badge variant="primary">formula</Badge>
                         ) : null}
