@@ -34,7 +34,7 @@ import {
   type FormMenuConfig,
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
-import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { findLanguageMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -200,6 +200,10 @@ export function NewSnippetDialog() {
   // snippet but never enter the revision RPC, so assigning one doesn't create a
   // version entry. Hence local state rather than a SnippetFormValues field.
   const [labelIds, setLabelIds] = useState<string[]>([]);
+  // Last trigger the name filled in. The trigger keeps following the name only
+  // while it still equals this — the moment it doesn't, the user has typed
+  // their own and owns it. A ref, not state: nothing renders from it.
+  const autoTriggerRef = useRef('');
   const [altQueryDraft, setAltQueryDraft] = useState('');
   const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -258,6 +262,8 @@ export function NewSnippetDialog() {
     setConfirmDelete(false);
     setEditNote('');
     setAltQueryDraft('');
+    // A new form starts with the trigger unclaimed, so the name may fill it.
+    autoTriggerRef.current = '';
     if (editingSnippet) {
       // Bodies map drives the textarea — start by trusting the snippet's
       // per-language map, with a fallback so legacy rows (no `bodies` yet)
@@ -387,6 +393,34 @@ export function NewSnippetDialog() {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  /**
+   * Typing a name fills the trigger in, the way ACF fills Field Name from Field
+   * Label — but only until the user takes the trigger over, and only on a new
+   * snippet. An existing trigger is muscle memory and the grouping key for
+   * language variants; renaming it because someone fixed a typo in the title
+   * would silently break both.
+   *
+   * Clearing the trigger hands it back to the name, so there is a way out that
+   * isn't "reopen the dialog".
+   */
+  function handleNameChange(value: string) {
+    const syncing =
+      mode === 'create' &&
+      (form.trigger === '' || form.trigger === autoTriggerRef.current);
+    const derived = syncing ? deriveTriggerFromName(value) : null;
+    if (derived !== null) autoTriggerRef.current = derived;
+
+    setForm((prev) => ({
+      ...prev,
+      name: value,
+      ...(derived !== null ? { trigger: derived } : {}),
+    }));
+    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+    if (derived !== null && errors.trigger) {
+      setErrors((prev) => ({ ...prev, trigger: undefined }));
+    }
   }
 
   // Typing in the textarea writes to BOTH the active language slot and the
@@ -555,7 +589,7 @@ export function NewSnippetDialog() {
                 <Input
                   id="snippet-name"
                   value={form.name}
-                  onChange={(e) => updateField('name', e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="Quote — English"
                   autoFocus
                   disabled={saving}
