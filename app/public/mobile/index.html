@@ -254,17 +254,19 @@ body{
 .snip-info{flex:1;min-width:0}
 .snip-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* One row, always. Wrapping here was the second source of uneven card height:
+   a snippet with five language pills overflowed 219px and spilled onto a second
+   row, so it stood ~22px taller than a single-language one. Pills are capped in
+   the renderer and the folder badge ellipsizes, so the row absorbs overflow
+   horizontally instead of growing. Full detail is in the info sheet. */
 .snip-meta{display:flex;align-items:center;gap:7px;margin-top:4px;
-  flex-wrap:wrap;row-gap:4px}
+  flex-wrap:nowrap;overflow:hidden;min-width:0}
+.snip-meta>.lbadge,.snip-meta>.snip-sc,.snip-meta>.share-badge,.snip-meta>.lbadge-more{flex-shrink:0}
+.snip-meta>.fbadge{min-width:0;flex-shrink:1}
+/* "+2" chip standing in for language pills the row has no space for. */
+.lbadge-more{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;
+  background:var(--bg-alt);color:var(--text3);letter-spacing:.3px}
 .snip-sc{font-family:var(--mono);font-size:12px;color:var(--primary);font-weight:600}
-/* "Last used by" attribution — org-shared cards only. Stacks over two rows so
-   the whole line stays readable on narrow phones: the email (row 1) ellipsizes
-   only as a last resort; date + time (row 2) always fit. */
-.snip-lastuse{font-size:10.5px;font-style:italic;color:var(--text3);margin-top:4px;
-  display:flex;flex-direction:column;gap:1px;min-width:0}
-.snip-lastuse-by{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.snip-lastuse-when{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
 /* Language badges + interactive pills (shared with mockup) */
 .lbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
   text-transform:uppercase;letter-spacing:.3px;display:inline-block}
@@ -2704,24 +2706,35 @@ function pickActiveVariant(g,lang){
 }
 /* Latest use across a group's variants (bodies-model variants share one DB id,
    so the map lookup naturally dedups; sibling rows each have their own). */
-function groupLastUse(g){
+function lastUseOf(variants){
   var best=null;
-  for(var i=0;i<g.variants.length;i++){
-    var lu=lastUseMap[g.variants[i].id];
+  if(!variants)return null;
+  for(var i=0;i<variants.length;i++){
+    var lu=lastUseMap[variants[i].id];
     if(lu&&(!best||new Date(lu.used_at).getTime()>new Date(best.used_at).getTime()))best=lu;
   }
   return best;
 }
-function lastUseLine(lu){
-  if(!lu||!lu.used_at)return '';
+/* Last-use split into label/value pairs for the info sheet. It used to render
+   two stacked lines on the card itself, which only org-shared cards had — so
+   shared cards stood ~2 lines taller than personal ones and the list never
+   settled to one rhythm. The data is unchanged, it just lives one tap away. */
+function lastUseParts(lu){
+  if(!lu||!lu.used_at)return null;
   var d=new Date(lu.used_at);
-  if(isNaN(d.getTime()))return '';
-  var date=_sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear();
-  var time=_sbPad(d.getHours())+':'+_sbPad(d.getMinutes());
-  return '<div class="snip-lastuse">'
-    +'<span class="snip-lastuse-by">Last used by: '+esc(lu.used_by_name||'—')+'</span>'
-    +'<span class="snip-lastuse-when">Date: '+date+' | Time: '+time+'</span>'
-  +'</div>';
+  if(isNaN(d.getTime()))return null;
+  return {
+    by: lu.used_by_name||'—',
+    when: _sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear()
+        +' · '+_sbPad(d.getHours())+':'+_sbPad(d.getMinutes())
+  };
+}
+/* Latest use for the group a snippet belongs to, for the info sheet. Falls back
+   to the snippet's own row when the group index isn't populated yet. */
+function lastUseForSnippet(s){
+  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
+  if(!variants||!variants.length)return lastUseMap[s.id]||null;
+  return lastUseOf(variants);
 }
 function renderList(){
   var el=document.getElementById('snip-list');
@@ -2756,11 +2769,18 @@ function renderList(){
     }
     // Language indicators: static badges (one per variant). The card is a single
     // tap target now — the language is chosen on the detail page, not here.
-    var pills=g.variants.map(function(v){
+    // Cap the pills so the meta row never wraps — a 5-language snippet used to
+    // push the card ~22px taller than a 1-language one. The overflow becomes a
+    // "+N" chip; the full list is the "Languages" row in the info sheet.
+    var MAX_PILLS=2;
+    var shown=g.variants.slice(0,MAX_PILLS);
+    var pills=shown.map(function(v){
       return '<span class="lbadge l'+esc(v.lang||'EN')+'">'+esc(v.lang||'EN')+'</span>';
     }).join('');
-    // "Last used by" — org-shared cards only (RPC only returns those anyway).
-    var luLine=(active.organization_id&&active.folder_id)?lastUseLine(groupLastUse(g)):'';
+    if(g.variants.length>MAX_PILLS){
+      pills+='<span class="lbadge-more" title="'+esc(g.variants.map(function(v){return v.lang||'EN';}).join(' · '))+'">+'
+        +(g.variants.length-MAX_PILLS)+'</span>';
+    }
     var isPin=!!_pins.snips[g.key];
     return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
@@ -2772,7 +2792,6 @@ function renderList(){
           +fbadge
           +sharingBadge(active)
         +'</div>'
-        +luLine
       +'</div>'
       +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
@@ -3292,16 +3311,34 @@ function shareSnippet(s){
   }
 }
 
-/* Read-only snippet info sheet: folder, language, shortcut, size, last update. */
+/* Read-only snippet detail. This is where the per-snippet metadata lives, so the
+   cards in the list can stay one uniform height — anything that varies per
+   snippet belongs here, not on the card. */
 function openSnippetInfo(s){
   var f=getFolderById(s.folder_id);
+  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
   var rows=[
-    ['Folder', f?(f.name||'Folder'):'None'],
-    ['Language', s.lang||'EN'],
+    // Full path, not just the leaf: folders nest, and two properties can each
+    // hold a "Preventivi".
+    ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
+    // One language row, not two: a multilingual snippet lists its variants,
+    // a single-language one names its language. "Language: MULTI" next to
+    // "Languages: EN · IT · ES" said the same thing twice.
+    (variants&&variants.length>1)
+      ? ['Languages', variants.map(function(v){return v.lang||'EN';}).join(' · ')]
+      : ['Language', s.lang||'EN'],
     ['Shortcut', s.shortcut||'—'],
     ['Characters', String((s.body||'').length)],
     ['Updated', s.updated_at?timeAgo(s.updated_at):'—']
   ];
+  var lu=lastUseForSnippet(s);
+  if(lu){
+    var p=lastUseParts(lu);
+    if(p){
+      rows.push(['Last used', p.when]);
+      rows.push(['Last used by', p.by]);
+    }
+  }
   document.getElementById('sb-info-title').textContent=s.title||'Snippet';
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
     return '<div class="sb-info-row"><span class="sb-info-k">'+esc(r[0])
