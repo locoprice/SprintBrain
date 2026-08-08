@@ -254,17 +254,19 @@ body{
 .snip-info{flex:1;min-width:0}
 .snip-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* One row, always. Wrapping here was the second source of uneven card height:
+   a snippet with five language pills overflowed 219px and spilled onto a second
+   row, so it stood ~22px taller than a single-language one. Pills are capped in
+   the renderer and the folder badge ellipsizes, so the row absorbs overflow
+   horizontally instead of growing. Full detail is in the info sheet. */
 .snip-meta{display:flex;align-items:center;gap:7px;margin-top:4px;
-  flex-wrap:wrap;row-gap:4px}
+  flex-wrap:nowrap;overflow:hidden;min-width:0}
+.snip-meta>.lbadge,.snip-meta>.snip-sc,.snip-meta>.share-badge,.snip-meta>.lbadge-more{flex-shrink:0}
+.snip-meta>.fbadge{min-width:0;flex-shrink:1}
+/* "+2" chip standing in for language pills the row has no space for. */
+.lbadge-more{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;
+  background:var(--bg-alt);color:var(--text3);letter-spacing:.3px}
 .snip-sc{font-family:var(--mono);font-size:12px;color:var(--primary);font-weight:600}
-/* "Last used by" attribution — org-shared cards only. Stacks over two rows so
-   the whole line stays readable on narrow phones: the email (row 1) ellipsizes
-   only as a last resort; date + time (row 2) always fit. */
-.snip-lastuse{font-size:10.5px;font-style:italic;color:var(--text3);margin-top:4px;
-  display:flex;flex-direction:column;gap:1px;min-width:0}
-.snip-lastuse-by{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.snip-lastuse-when{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
 /* Language badges + interactive pills (shared with mockup) */
 .lbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
   text-transform:uppercase;letter-spacing:.3px;display:inline-block}
@@ -424,6 +426,14 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right center;
   background-size:16px 16px}
+/* Inline sentence: the control sits inside the prose that surrounds it in the
+   body, so a row reads "Rate Plan: [ Refundable ] per night". Wraps rather than
+   overflowing — a phone row is narrow. */
+.field-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.field-inline .field-in{flex:1 1 140px;width:auto;min-width:0}
+.field-ctx,.field-ctxline{font-size:13px;color:var(--text2);line-height:1.4}
+.field-ctxline{margin:2px 0}
+
 /* multiple=yes — checkboxes rather than a multi-select, which on a phone
    needs a long-press nobody discovers. */
 .field-opts{display:flex;flex-direction:column;gap:10px;margin-top:2px}
@@ -1706,23 +1716,66 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
+/* The field a token declares, or '' when it declares none. Mirrors
+   _tokenFieldKey in extension/formula-engine.js — one rule shared by
+   extractFields and sbFieldContext, so a label can never end up describing a
+   control that is not there. Also drops {else}/{elseif:}/{{double-brace}},
+   which the previous inline rule let through as bogus field names. */
+function sbTokenFieldKey(t){
+  var tLow=t.toLowerCase();
+  if(t.charAt(0)==='='||t.charAt(0)==='{'||
+     t==='endif'||t==='else'||t==='/button'||
+     t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
+     tLow.slice(0,7)==='elseif:'||
+     tLow.slice(0,5)==='time:'||
+     sbIsButtonHead(tLow))return '';
+  if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
+  if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
+  return t;
+}
+
+/* Literal text either side of a field token, so the fill form reads like the
+   snippet instead of labelling a control with a bare key. Clipped at the
+   nearest newline; every other token is a boundary, never content.
+   Mirrors fieldContext in extension/formula-engine.js — keep the two in step
+   or the phone will describe a field differently from the desktop surfaces. */
+var SB_CTX_MAX=40;
+function sbCtxClean(s){
+  return String(s).replace(/\*\*/g,'').replace(/\[\/?(?:blue|yellow|red)\]/g,'')
+    .replace(/\s+/g,' ').replace(/^\s+|\s+$/g,'');
+}
+function sbCtxClip(s,keepTail){
+  if(s.length<=SB_CTX_MAX)return s;
+  return keepTail?'…'+s.slice(s.length-SB_CTX_MAX):s.slice(0,SB_CTX_MAX)+'…';
+}
+function sbFieldContext(body){
+  var src=(body==null)?'':String(body);
+  var re=/\{([^}]+)\}/g,m,toks=[];
+  while((m=re.exec(src))!==null){
+    toks.push({start:m.index,end:m.index+m[0].length,
+               key:sbTokenFieldKey(m[1].replace(/^\s+|\s+$/g,''))});
+  }
+  var out={};
+  for(var i=0;i<toks.length;i++){
+    var tk=toks[i];
+    if(!tk.key||Object.prototype.hasOwnProperty.call(out,tk.key))continue;
+    var before=src.slice(i>0?toks[i-1].end:0,tk.start);
+    var after=src.slice(tk.end,i<toks.length-1?toks[i+1].start:src.length);
+    var nl=before.lastIndexOf('\n');
+    if(nl!==-1)before=before.slice(nl+1);
+    nl=after.indexOf('\n');
+    if(nl!==-1)after=after.slice(0,nl);
+    out[tk.key]={before:sbCtxClip(sbCtxClean(before),true),
+                 after:sbCtxClip(sbCtxClean(after),false)};
+  }
+  return out;
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
-    var t=m[1].replace(/^\s+|\s+$/g,'');
-    if(t.charAt(0)==='='||t==='endif'||
-       t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
-       t.slice(0,5).toLowerCase()==='time:')continue;
-    /* A {gender:} token is not a field — it reads one, so surface that instead. */
-    var key=t,tLow=t.toLowerCase();
-    if(sbIsButtonHead(tLow)||t==='/button')continue;
-    if(sbIsFormToken(tLow)){
-      key=sbFormTokenName(tLow,t.slice(9));
-      if(!key)continue;
-    } else if(tLow.slice(0,7)==='gender:'){
-      key=sbGenderTokenField(t.slice(7));
-      if(!key)continue;
-    }
+    var key=sbTokenFieldKey(m[1].replace(/^\s+|\s+$/g,''));
+    if(!key)continue;
     var dup=false;
     for(var i=0;i<vars.length;i++){if(vars[i]===key){dup=true;break;}}
     if(!dup)vars.push(key);
@@ -2653,24 +2706,35 @@ function pickActiveVariant(g,lang){
 }
 /* Latest use across a group's variants (bodies-model variants share one DB id,
    so the map lookup naturally dedups; sibling rows each have their own). */
-function groupLastUse(g){
+function lastUseOf(variants){
   var best=null;
-  for(var i=0;i<g.variants.length;i++){
-    var lu=lastUseMap[g.variants[i].id];
+  if(!variants)return null;
+  for(var i=0;i<variants.length;i++){
+    var lu=lastUseMap[variants[i].id];
     if(lu&&(!best||new Date(lu.used_at).getTime()>new Date(best.used_at).getTime()))best=lu;
   }
   return best;
 }
-function lastUseLine(lu){
-  if(!lu||!lu.used_at)return '';
+/* Last-use split into label/value pairs for the info sheet. It used to render
+   two stacked lines on the card itself, which only org-shared cards had — so
+   shared cards stood ~2 lines taller than personal ones and the list never
+   settled to one rhythm. The data is unchanged, it just lives one tap away. */
+function lastUseParts(lu){
+  if(!lu||!lu.used_at)return null;
   var d=new Date(lu.used_at);
-  if(isNaN(d.getTime()))return '';
-  var date=_sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear();
-  var time=_sbPad(d.getHours())+':'+_sbPad(d.getMinutes());
-  return '<div class="snip-lastuse">'
-    +'<span class="snip-lastuse-by">Last used by: '+esc(lu.used_by_name||'—')+'</span>'
-    +'<span class="snip-lastuse-when">Date: '+date+' | Time: '+time+'</span>'
-  +'</div>';
+  if(isNaN(d.getTime()))return null;
+  return {
+    by: lu.used_by_name||'—',
+    when: _sbPad(d.getDate())+'/'+_sbPad(d.getMonth()+1)+'/'+d.getFullYear()
+        +' · '+_sbPad(d.getHours())+':'+_sbPad(d.getMinutes())
+  };
+}
+/* Latest use for the group a snippet belongs to, for the info sheet. Falls back
+   to the snippet's own row when the group index isn't populated yet. */
+function lastUseForSnippet(s){
+  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
+  if(!variants||!variants.length)return lastUseMap[s.id]||null;
+  return lastUseOf(variants);
 }
 function renderList(){
   var el=document.getElementById('snip-list');
@@ -2705,11 +2769,18 @@ function renderList(){
     }
     // Language indicators: static badges (one per variant). The card is a single
     // tap target now — the language is chosen on the detail page, not here.
-    var pills=g.variants.map(function(v){
+    // Cap the pills so the meta row never wraps — a 5-language snippet used to
+    // push the card ~22px taller than a 1-language one. The overflow becomes a
+    // "+N" chip; the full list is the "Languages" row in the info sheet.
+    var MAX_PILLS=2;
+    var shown=g.variants.slice(0,MAX_PILLS);
+    var pills=shown.map(function(v){
       return '<span class="lbadge l'+esc(v.lang||'EN')+'">'+esc(v.lang||'EN')+'</span>';
     }).join('');
-    // "Last used by" — org-shared cards only (RPC only returns those anyway).
-    var luLine=(active.organization_id&&active.folder_id)?lastUseLine(groupLastUse(g)):'';
+    if(g.variants.length>MAX_PILLS){
+      pills+='<span class="lbadge-more" title="'+esc(g.variants.map(function(v){return v.lang||'EN';}).join(' · '))+'">+'
+        +(g.variants.length-MAX_PILLS)+'</span>';
+    }
     var isPin=!!_pins.snips[g.key];
     return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
@@ -2721,7 +2792,6 @@ function renderList(){
           +fbadge
           +sharingBadge(active)
         +'</div>'
-        +luLine
       +'</div>'
       +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
@@ -2839,11 +2909,15 @@ function renderDetail(snip,keepVals){
     var _sbToday=sbFormatDate(_sbNow,'YYYY-MM-DD');
     var _sbTime=sbFormatDate(_sbNow,'HH:mm');
     var _sbDT=_sbToday+'T'+_sbTime;
+    var ctxs=sbFieldContext(snip.body||'');
     form.innerHTML=fields.map(function(f){
       var c=cfg[f]||{};
       var lbl=c.label||humanLbl(f);
       var t=fieldType(f,cfg);
       var def=(keepVals&&keepVals[f]!=null&&keepVals[f]!=='')?keepVals[f]:(c.default||'');
+      /* The control is built first and wrapped once below, so every field type
+         gets the surrounding-text treatment without repeating the row markup. */
+      var inp,blockControl=false;
       /* {formmenu:} — pick from the declared options. An options-less menu falls
          through to a plain input rather than rendering an empty control, which
          is what content.js does with the same shape. `cols` is deliberately not
@@ -2854,54 +2928,46 @@ function renderDetail(snip,keepVals){
         if(c.multiple){
           /* A native multi-select needs a long-press to be usable on a phone.
              Checkboxes make "pick several" obvious, and getVals() joins them
-             back into one value. */
-          return '<div class="field-row">'
-            +'<div class="field-lbl">'+esc(lbl)+'</div>'
-            +'<div class="field-opts">'+ddOpts.map(function(o){
-              return '<label class="field-opt">'
-                +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
-                  +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
-                +'<span>'+esc(o)+'</span></label>';
-            }).join('')+'</div>'
-            +'</div>';
-        }
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<select class="field-in field-sel" data-f="'+esc(f)+'">'
+             back into one value. Block-level, so its context goes above/below. */
+          blockControl=true;
+          inp='<div class="field-opts">'+ddOpts.map(function(o){
+            return '<label class="field-opt">'
+              +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
+                +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
+              +'<span>'+esc(o)+'</span></label>';
+          }).join('')+'</div>';
+        }else{
+          inp='<select class="field-in field-sel" data-f="'+esc(f)+'">'
             +(picks.length?'':'<option value="">— select —</option>')
             +ddOpts.map(function(o){
               return '<option value="'+esc(o)+'"'
                 +(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>';
             }).join('')
-          +'</select>'
-          +'</div>';
-      }
-      if(t==='date'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">'
-          +'</div>';
-      }
-      if(t==='time'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def||_sbTime)+'">'
-          +'</div>';
-      }
-      if(t==='datetime'||t==='datetime-local'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def||_sbDT)+'">'
-          +'</div>';
-      }
-      var itype=t==='number'?'number':'text';
-      return '<div class="field-row">'
-        +'<div class="field-lbl">'+esc(lbl)+'</div>'
-        +'<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
+            +'</select>';
+        }
+      }else if(t==='date'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">';
+      }else if(t==='time'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def||_sbTime)+'">';
+      }else if(t==='datetime'||t==='datetime-local'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def||_sbDT)+'">';
+      }else{
+        var itype=t==='number'?'number':'text';
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
           +'inputmode="'+(itype==='number'?'decimal':'text')+'" '
           +'placeholder="'+esc(def||lbl)+'" value="'+esc(def)+'" '
-          +'autocomplete="off" autocorrect="off" spellcheck="false">'
-        +'</div>';
+          +'autocomplete="off" autocorrect="off" spellcheck="false">';
+      }
+      /* Reads like the snippet — "Rate Plan: [ Refundable ] per night". The key
+         label survives only for a field with no prose around it to describe it. */
+      var ctx=ctxs[f]||{before:'',after:''};
+      var pre=ctx.before?'<span class="field-ctx">'+esc(ctx.before)+'</span>':'';
+      var post=ctx.after?'<span class="field-ctx">'+esc(ctx.after)+'</span>':'';
+      var head=(pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>';
+      return '<div class="field-row">'+head+(blockControl
+        ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
+          (post?'<div class="field-ctxline">'+post+'</div>':'')
+        : '<div class="field-inline">'+pre+inp+post+'</div>')+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
       inp.addEventListener('input',updatePrev);
@@ -3245,16 +3311,34 @@ function shareSnippet(s){
   }
 }
 
-/* Read-only snippet info sheet: folder, language, shortcut, size, last update. */
+/* Read-only snippet detail. This is where the per-snippet metadata lives, so the
+   cards in the list can stay one uniform height — anything that varies per
+   snippet belongs here, not on the card. */
 function openSnippetInfo(s){
   var f=getFolderById(s.folder_id);
+  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
   var rows=[
-    ['Folder', f?(f.name||'Folder'):'None'],
-    ['Language', s.lang||'EN'],
+    // Full path, not just the leaf: folders nest, and two properties can each
+    // hold a "Preventivi".
+    ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
+    // One language row, not two: a multilingual snippet lists its variants,
+    // a single-language one names its language. "Language: MULTI" next to
+    // "Languages: EN · IT · ES" said the same thing twice.
+    (variants&&variants.length>1)
+      ? ['Languages', variants.map(function(v){return v.lang||'EN';}).join(' · ')]
+      : ['Language', s.lang||'EN'],
     ['Shortcut', s.shortcut||'—'],
     ['Characters', String((s.body||'').length)],
     ['Updated', s.updated_at?timeAgo(s.updated_at):'—']
   ];
+  var lu=lastUseForSnippet(s);
+  if(lu){
+    var p=lastUseParts(lu);
+    if(p){
+      rows.push(['Last used', p.when]);
+      rows.push(['Last used by', p.by]);
+    }
+  }
   document.getElementById('sb-info-title').textContent=s.title||'Snippet';
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
     return '<div class="sb-info-row"><span class="sb-info-k">'+esc(r[0])

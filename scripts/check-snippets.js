@@ -131,6 +131,24 @@ for (const [rel, label] of FILL_FORM_RENDERERS) {
 }
 console.log('OK Fill-form placeholder present on all ' + FILL_FORM_RENDERERS.length + ' renderers');
 
+// showOverlay is reached from three places — the trigger, the picker and the
+// right-click context menu. Two of them passed the raw snippet, whose field_cfg
+// is {} for a body-declared menu, so a {formmenu:} rendered as a plain text box
+// and its options could not be picked at all. The merge now lives INSIDE
+// showOverlay; this pins it there so a call site can never own it again.
+const CONTENT_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'extension', 'content', 'content.js'), 'utf8');
+const overlayStart = CONTENT_SRC.indexOf('function showOverlay(');
+if (overlayStart === -1) fail('content.js no longer defines showOverlay');
+const overlayEnd = CONTENT_SRC.indexOf('\nfunction ', overlayStart + 1);
+const overlayBody = CONTENT_SRC.slice(overlayStart, overlayEnd === -1 ? undefined : overlayEnd);
+if (!overlayBody.includes('buildFormFieldCfg(snip.body)')) {
+  fail('showOverlay no longer merges buildFormFieldCfg(snip.body).\n' +
+    '  Every {formmenu:} / {formtext:} / {formdate:} reached through the picker\n' +
+    '  or the context menu would render as a plain text input.');
+}
+console.log('OK showOverlay merges the body-declared field config');
+
 // ── FORM MENU READER ────────────────────────────────────────────────
 // parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
 // already in a body. Sprintbrain.html calls them directly; the dashboard keeps
@@ -212,8 +230,8 @@ console.log('OK Form menu reader passed all ' + rok + ' cases');
 // either moves, this gate fails loudly rather than silently passing.
 const MOBILE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'public', 'mobile', 'index.html'), 'utf8');
-const SLICE_START = 'var SB_MENU_KEYS=';
-const SLICE_END = 'function sbIsFormToken(';
+const SLICE_START = 'function sbGenderTokenField(';
+const SLICE_END = 'function extractFields(';
 const sliceFrom = MOBILE_SRC.indexOf(SLICE_START);
 const sliceTo = MOBILE_SRC.indexOf(SLICE_END);
 if (sliceFrom === -1 || sliceTo === -1 || sliceTo <= sliceFrom) {
@@ -228,7 +246,8 @@ try {
 } catch (e) {
   fail('mobile field-config helpers failed to evaluate: ' + e.message);
 }
-for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName']) {
+for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName',
+                  'sbFieldContext', 'sbTokenFieldKey']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
 
@@ -287,3 +306,61 @@ for (const v of ['A, B', 'A,B', ' A ,, B ', '', null, undefined]) {
 }
 
 console.log('OK Mobile field-config parity passed all ' + mok + ' cases');
+
+// ── FIELD CONTEXT PARITY ────────────────────────────────────────────
+// The static text either side of a field is what makes a fill form readable
+// ("Rate Plan: [ Refundable ] per night" rather than "{MENU_1yvog3p}"). Three
+// surfaces render it and mobile derives it independently, so the two
+// implementations are pinned against each other here.
+const CONTEXT_CASES = [
+  'menu {formmenu: aaaaaaaa,bbbbbbbbbbbb,cccccccc}',
+  'Rate Plan: {formmenu: Flex,Saver; name=PLAN} per night, all in.',
+  'Pay {formmenu: Card,Cash; name=PAY} on {formdate: name=WHEN} sharp.',
+  'Line one is long\nDear {NAME},\nnext line here',
+  'Total **{AMOUNT}** [blue]EUR[/blue] due',
+  '{formmenu: a,b}',
+  'Sum {TOTAL}{button label="Go"}TOTAL = 1 + 2{/button} done',
+  'This is a really quite long sentence indeed that runs on {NAME} end',
+  'Repeated {X} then again {X} later',
+  '{if: N > 0}Pick {formmenu: red,green; name=C} now{endif}',
+  'Due {= 1 + 2} on {DATE} sharp',
+  '',
+];
+
+let cok = 0;
+for (const body of CONTEXT_CASES) {
+  const want = engine.fieldContext(body);
+  let got;
+  try {
+    got = mobile.sbFieldContext(body);
+  } catch (e) {
+    fail('mobile sbFieldContext(' + JSON.stringify(body) + ') threw: ' + e.message);
+  }
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    fail('field-context drift for ' + JSON.stringify(body) +
+      '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+  }
+  // A context entry with no field to attach to would label nothing.
+  for (const key of Object.keys(want)) {
+    if (engine.extractFields(body).indexOf(key) === -1) {
+      fail('fieldContext produced key "' + key + '" that extractFields does not surface, for ' +
+        JSON.stringify(body));
+    }
+  }
+  cok++;
+}
+
+// Context must never contain a token's own source — that would show a guest
+// the formula rather than the prose around it.
+for (const body of CONTEXT_CASES) {
+  const ctx = engine.fieldContext(body);
+  for (const key of Object.keys(ctx)) {
+    const both = ctx[key].before + ' ' + ctx[key].after;
+    if (both.indexOf('{') !== -1 || both.indexOf('}') !== -1) {
+      fail('fieldContext leaked token source into "' + key + '" for ' + JSON.stringify(body) +
+        ': ' + JSON.stringify(ctx[key]));
+    }
+  }
+}
+
+console.log('OK Field-context parity passed all ' + cok + ' cases');
