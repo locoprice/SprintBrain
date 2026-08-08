@@ -424,6 +424,14 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right center;
   background-size:16px 16px}
+/* Inline sentence: the control sits inside the prose that surrounds it in the
+   body, so a row reads "Rate Plan: [ Refundable ] per night". Wraps rather than
+   overflowing — a phone row is narrow. */
+.field-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.field-inline .field-in{flex:1 1 140px;width:auto;min-width:0}
+.field-ctx,.field-ctxline{font-size:13px;color:var(--text2);line-height:1.4}
+.field-ctxline{margin:2px 0}
+
 /* multiple=yes — checkboxes rather than a multi-select, which on a phone
    needs a long-press nobody discovers. */
 .field-opts{display:flex;flex-direction:column;gap:10px;margin-top:2px}
@@ -1706,23 +1714,66 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
+/* The field a token declares, or '' when it declares none. Mirrors
+   _tokenFieldKey in extension/formula-engine.js — one rule shared by
+   extractFields and sbFieldContext, so a label can never end up describing a
+   control that is not there. Also drops {else}/{elseif:}/{{double-brace}},
+   which the previous inline rule let through as bogus field names. */
+function sbTokenFieldKey(t){
+  var tLow=t.toLowerCase();
+  if(t.charAt(0)==='='||t.charAt(0)==='{'||
+     t==='endif'||t==='else'||t==='/button'||
+     t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
+     tLow.slice(0,7)==='elseif:'||
+     tLow.slice(0,5)==='time:'||
+     sbIsButtonHead(tLow))return '';
+  if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
+  if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
+  return t;
+}
+
+/* Literal text either side of a field token, so the fill form reads like the
+   snippet instead of labelling a control with a bare key. Clipped at the
+   nearest newline; every other token is a boundary, never content.
+   Mirrors fieldContext in extension/formula-engine.js — keep the two in step
+   or the phone will describe a field differently from the desktop surfaces. */
+var SB_CTX_MAX=40;
+function sbCtxClean(s){
+  return String(s).replace(/\*\*/g,'').replace(/\[\/?(?:blue|yellow|red)\]/g,'')
+    .replace(/\s+/g,' ').replace(/^\s+|\s+$/g,'');
+}
+function sbCtxClip(s,keepTail){
+  if(s.length<=SB_CTX_MAX)return s;
+  return keepTail?'…'+s.slice(s.length-SB_CTX_MAX):s.slice(0,SB_CTX_MAX)+'…';
+}
+function sbFieldContext(body){
+  var src=(body==null)?'':String(body);
+  var re=/\{([^}]+)\}/g,m,toks=[];
+  while((m=re.exec(src))!==null){
+    toks.push({start:m.index,end:m.index+m[0].length,
+               key:sbTokenFieldKey(m[1].replace(/^\s+|\s+$/g,''))});
+  }
+  var out={};
+  for(var i=0;i<toks.length;i++){
+    var tk=toks[i];
+    if(!tk.key||Object.prototype.hasOwnProperty.call(out,tk.key))continue;
+    var before=src.slice(i>0?toks[i-1].end:0,tk.start);
+    var after=src.slice(tk.end,i<toks.length-1?toks[i+1].start:src.length);
+    var nl=before.lastIndexOf('\n');
+    if(nl!==-1)before=before.slice(nl+1);
+    nl=after.indexOf('\n');
+    if(nl!==-1)after=after.slice(0,nl);
+    out[tk.key]={before:sbCtxClip(sbCtxClean(before),true),
+                 after:sbCtxClip(sbCtxClean(after),false)};
+  }
+  return out;
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
-    var t=m[1].replace(/^\s+|\s+$/g,'');
-    if(t.charAt(0)==='='||t==='endif'||
-       t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
-       t.slice(0,5).toLowerCase()==='time:')continue;
-    /* A {gender:} token is not a field — it reads one, so surface that instead. */
-    var key=t,tLow=t.toLowerCase();
-    if(sbIsButtonHead(tLow)||t==='/button')continue;
-    if(sbIsFormToken(tLow)){
-      key=sbFormTokenName(tLow,t.slice(9));
-      if(!key)continue;
-    } else if(tLow.slice(0,7)==='gender:'){
-      key=sbGenderTokenField(t.slice(7));
-      if(!key)continue;
-    }
+    var key=sbTokenFieldKey(m[1].replace(/^\s+|\s+$/g,''));
+    if(!key)continue;
     var dup=false;
     for(var i=0;i<vars.length;i++){if(vars[i]===key){dup=true;break;}}
     if(!dup)vars.push(key);
@@ -2839,11 +2890,15 @@ function renderDetail(snip,keepVals){
     var _sbToday=sbFormatDate(_sbNow,'YYYY-MM-DD');
     var _sbTime=sbFormatDate(_sbNow,'HH:mm');
     var _sbDT=_sbToday+'T'+_sbTime;
+    var ctxs=sbFieldContext(snip.body||'');
     form.innerHTML=fields.map(function(f){
       var c=cfg[f]||{};
       var lbl=c.label||humanLbl(f);
       var t=fieldType(f,cfg);
       var def=(keepVals&&keepVals[f]!=null&&keepVals[f]!=='')?keepVals[f]:(c.default||'');
+      /* The control is built first and wrapped once below, so every field type
+         gets the surrounding-text treatment without repeating the row markup. */
+      var inp,blockControl=false;
       /* {formmenu:} — pick from the declared options. An options-less menu falls
          through to a plain input rather than rendering an empty control, which
          is what content.js does with the same shape. `cols` is deliberately not
@@ -2854,54 +2909,46 @@ function renderDetail(snip,keepVals){
         if(c.multiple){
           /* A native multi-select needs a long-press to be usable on a phone.
              Checkboxes make "pick several" obvious, and getVals() joins them
-             back into one value. */
-          return '<div class="field-row">'
-            +'<div class="field-lbl">'+esc(lbl)+'</div>'
-            +'<div class="field-opts">'+ddOpts.map(function(o){
-              return '<label class="field-opt">'
-                +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
-                  +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
-                +'<span>'+esc(o)+'</span></label>';
-            }).join('')+'</div>'
-            +'</div>';
-        }
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<select class="field-in field-sel" data-f="'+esc(f)+'">'
+             back into one value. Block-level, so its context goes above/below. */
+          blockControl=true;
+          inp='<div class="field-opts">'+ddOpts.map(function(o){
+            return '<label class="field-opt">'
+              +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
+                +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
+              +'<span>'+esc(o)+'</span></label>';
+          }).join('')+'</div>';
+        }else{
+          inp='<select class="field-in field-sel" data-f="'+esc(f)+'">'
             +(picks.length?'':'<option value="">— select —</option>')
             +ddOpts.map(function(o){
               return '<option value="'+esc(o)+'"'
                 +(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>';
             }).join('')
-          +'</select>'
-          +'</div>';
-      }
-      if(t==='date'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">'
-          +'</div>';
-      }
-      if(t==='time'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def||_sbTime)+'">'
-          +'</div>';
-      }
-      if(t==='datetime'||t==='datetime-local'){
-        return '<div class="field-row">'
-          +'<div class="field-lbl">'+esc(lbl)+'</div>'
-          +'<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def||_sbDT)+'">'
-          +'</div>';
-      }
-      var itype=t==='number'?'number':'text';
-      return '<div class="field-row">'
-        +'<div class="field-lbl">'+esc(lbl)+'</div>'
-        +'<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
+            +'</select>';
+        }
+      }else if(t==='date'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">';
+      }else if(t==='time'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def||_sbTime)+'">';
+      }else if(t==='datetime'||t==='datetime-local'){
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def||_sbDT)+'">';
+      }else{
+        var itype=t==='number'?'number':'text';
+        inp='<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
           +'inputmode="'+(itype==='number'?'decimal':'text')+'" '
           +'placeholder="'+esc(def||lbl)+'" value="'+esc(def)+'" '
-          +'autocomplete="off" autocorrect="off" spellcheck="false">'
-        +'</div>';
+          +'autocomplete="off" autocorrect="off" spellcheck="false">';
+      }
+      /* Reads like the snippet — "Rate Plan: [ Refundable ] per night". The key
+         label survives only for a field with no prose around it to describe it. */
+      var ctx=ctxs[f]||{before:'',after:''};
+      var pre=ctx.before?'<span class="field-ctx">'+esc(ctx.before)+'</span>':'';
+      var post=ctx.after?'<span class="field-ctx">'+esc(ctx.after)+'</span>':'';
+      var head=(pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>';
+      return '<div class="field-row">'+head+(blockControl
+        ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
+          (post?'<div class="field-ctxline">'+post+'</div>':'')
+        : '<div class="field-inline">'+pre+inp+post+'</div>')+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
       inp.addEventListener('input',updatePrev);

@@ -46,6 +46,7 @@ interface FormulaEngine {
     cols?: number | null;
   }) => string;
   formMenuPicks: (value: string | null | undefined) => string[];
+  fieldContext: (body: string) => Record<string, { before: string; after: string }>;
   parseFormMenuToken: (raw: string) => FormMenuConfig | null;
   findMenuTokenAt: (body: string, caret: number) => MenuTokenRange | null;
   resolveBody: (body: string, vals: Record<string, unknown>) => string;
@@ -421,6 +422,81 @@ describe('formMenuToken — editing a menu in place', () => {
     expect(editAt(only, 0, (cfg) => ({ ...cfg, selected: ['B'] }))).toBe(
       '{formmenu: A,B; name=M; default=B}',
     );
+  });
+});
+
+// A fill form that labels a control "{MENU_1yvog3p}" tells the operator
+// nothing. fieldContext supplies the prose around each token so the row reads
+// like the snippet. The same matrix is asserted against the mobile mirror in
+// scripts/check-snippets.js as CONTEXT_CASES.
+describe('formula engine — surrounding text for a field', () => {
+  it('takes the static text either side of the token', () => {
+    expect(engine.fieldContext('Rate Plan: {formmenu: Flex,Saver; name=PLAN} per night')).toEqual({
+      PLAN: { before: 'Rate Plan:', after: 'per night' },
+    });
+  });
+
+  it('stops at the neighbouring token, not the neighbouring field', () => {
+    expect(engine.fieldContext('Pay {formmenu: Card,Cash; name=PAY} on {formdate: name=W} sharp')).toEqual({
+      PAY: { before: 'Pay', after: 'on' },
+      W: { before: 'on', after: 'sharp' },
+    });
+  });
+
+  it('never crosses a newline', () => {
+    expect(engine.fieldContext('Some other line\nDear {NAME},\nand more')).toEqual({
+      NAME: { before: 'Dear', after: ',' },
+    });
+  });
+
+  it('strips the markers resolveBody strips, so it quotes what the guest reads', () => {
+    expect(engine.fieldContext('Total **{AMOUNT}** [blue]EUR[/blue] due')).toEqual({
+      AMOUNT: { before: 'Total', after: 'EUR due' },
+    });
+  });
+
+  it('never leaks a {button} code block into a label', () => {
+    const ctx = engine.fieldContext('Sum {TOTAL}{button label="Go"}TOTAL = 1 + 2{/button} done');
+    expect(ctx.TOTAL).toEqual({ before: 'Sum', after: '' });
+  });
+
+  it('truncates a long lead-in from the left, keeping the words nearest the control', () => {
+    const ctx = engine.fieldContext(
+      'This is a really quite long sentence indeed that runs on {NAME} end',
+    );
+    expect(ctx.NAME?.before.startsWith('…')).toBe(true);
+    expect(ctx.NAME?.before.endsWith('runs on')).toBe(true);
+    expect(ctx.NAME?.after).toBe('end');
+  });
+
+  it('returns empty strings when a field stands alone, so the key can be shown instead', () => {
+    const ctx = engine.fieldContext('{formmenu: a,b}');
+    const key = Object.keys(ctx)[0] ?? '';
+    expect(ctx[key]).toEqual({ before: '', after: '' });
+  });
+
+  it('only describes fields extractFields actually surfaces', () => {
+    const body = '{if: N > 0}Pick {formmenu: red,green; name=C} now{endif} at {time: HH:mm}';
+    const fields = engine.extractFields(body);
+    for (const key of Object.keys(engine.fieldContext(body))) {
+      expect(fields, key).toContain(key);
+    }
+  });
+});
+
+// Requirement checked rather than assumed: several menus and formulas in one
+// body must resolve together. This works today; the test stops a future parser
+// change from breaking it silently.
+describe('formula engine — many dynamic pieces in one body', () => {
+  it('resolves menus, formulas, a date token and a plain field at once', () => {
+    const body =
+      'Rate: {formmenu: Flex,Saver; name=PLAN; default=Saver} for {NIGHTS} nights.\n' +
+      'Subtotal {= RATE * NIGHTS} EUR, with tax {= round(RATE * NIGHTS * 1.1)} EUR.\n' +
+      'Extras: {formmenu: Towels,Crib; name=EX; multiple=yes}';
+    expect(engine.extractFields(body)).toEqual(['PLAN', 'NIGHTS', 'EX']);
+    expect(
+      engine.resolveBody(body, { PLAN: 'Flex', NIGHTS: 3, RATE: 100, EX: 'Towels, Crib' }),
+    ).toBe('Rate: Flex for 3 nights.\nSubtotal 300 EUR, with tax 330 EUR.\nExtras: Towels, Crib');
   });
 });
 

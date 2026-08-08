@@ -37,6 +37,7 @@ function logEvent(snip, fieldsFilled) {
 var _SBFE = window.SBFormulaEngine;
 var resolveBody        = _SBFE.resolveBody;
 var extractFields      = _SBFE.extractFields;
+var fieldContext       = _SBFE.fieldContext;
 var buildFormFieldCfg  = _SBFE.buildFormFieldCfg;
 var formMenuPicks      = _SBFE.formMenuPicks;
 var extractButtons     = _SBFE.extractButtons;
@@ -1156,6 +1157,8 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   // field name and rendered as a plain text box, so the choices could not be
   // picked at all. Keeping it inside means no future entry point can forget.
   var cfgs  = Object.assign({}, buildFormFieldCfg(snip.body), snip.fieldCfg || {});
+  // Static text either side of each token, so a row reads like the snippet.
+  var ctxs  = fieldContext(snip.body);
   var _now  = new Date();
   var today = sbFormatDate(_now, 'YYYY-MM-DD');
   var nowTime = sbFormatDate(_now, 'HH:mm');
@@ -1181,6 +1184,9 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
     }
     var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
     var inp;
+    // A checkbox group is block-level, so it cannot sit inside an inline
+    // sentence — its context goes above and below instead.
+    var blockControl = false;
     if (cfg.type === 'dd' && opts.length) {
       // {formmenu: …; cols=N} sizes the field in characters; capped at the
       // overlay width so a long value can never push the panel out of view.
@@ -1189,6 +1195,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
       if (cfg.multiple) {
         // A native multi-select needs ctrl-click to be usable — checkboxes make
         // "pick several" obvious, and getVals() joins them back into one value.
+        blockControl = true;
         inp = '<div class="sb-multi"'+wide+'>' + opts.map(function(o){
           return '<label class="sb-opt"><input type="checkbox" class="sb-inp" data-key="'+key+'" value="'+xesc(o)+'"'+
                  (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
@@ -1210,7 +1217,17 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
     } else {
       inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.default||'')+'">';
     }
-    fhtml += '<div class="sb-field"><label class="sb-lbl">{'+key+'}</label>'+inp+'</div>';
+    // The row reads like the snippet — "Rate Plan: [ Refundable ] per night".
+    // Only a field with no prose around it falls back to its key, which is
+    // otherwise noise: an unnamed menu's key is a hash like MENU_1yvog3p.
+    var ctx  = ctxs[key] || { before: '', after: '' };
+    var pre  = ctx.before ? '<span class="sb-ctx">'+xesc(ctx.before)+'</span>' : '';
+    var post = ctx.after  ? '<span class="sb-ctx">'+xesc(ctx.after)+'</span>'  : '';
+    var lbl  = (pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>';
+    fhtml += '<div class="sb-field">' + lbl + (blockControl
+      ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
+        (post ? '<div class="sb-ctxline">'+post+'</div>' : '')
+      : '<div class="sb-row">'+pre+inp+post+'</div>') + '</div>';
   }
 
   // {button} controls: they set field values, they never print. Rendered after
@@ -2724,6 +2741,12 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
+    // Inline sentence: the control sits in the prose that surrounds it in the
+    // body. Wraps rather than overflowing, since the panel is only 420px.
+    '#sb-overlay .sb-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}' +
+    '#sb-overlay .sb-row .sb-inp{flex:1 1 130px;width:auto;min-width:0;}' +
+    '#sb-overlay .sb-ctx{font-size:12px;color:#52525B;line-height:1.35;}' +
+    '#sb-overlay .sb-ctxline{font-size:12px;color:#52525B;line-height:1.35;}' +
     '#sb-overlay .sb-inp{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:7px 10px;font-size:16px;color:#18181B;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;transition:border-color .15s,box-shadow .15s;}' +
     '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
     '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +

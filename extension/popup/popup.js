@@ -1459,6 +1459,14 @@ function detailButtons(body){
   if(!FE||!FE.extractButtons||!body) return [];
   try{ return FE.extractButtons(body); }catch(e){ return []; }
 }
+// Static text either side of each field token, so a row reads like the snippet
+// instead of labelling a control with a bare key. One engine call, shared with
+// content.js's in-page overlay so both surfaces describe a field identically.
+function detailFieldCtx(body){
+  var FE=window.SBFormulaEngine;
+  if(!FE||!FE.fieldContext||!body) return {};
+  try{ return FE.fieldContext(body); }catch(e){ return {}; }
+}
 // Picked options of a {formmenu:} value ("A, B") \u2014 one parser, shared with
 // content.js's in-page overlay so both surfaces preselect identically.
 function fieldMenuPicks(v){
@@ -1538,14 +1546,18 @@ function renderDetailHtml(s){
   if(isDynamic){
     if(hasFields){
       var form='<div class="d-fields" data-fid="'+esc(s.id)+'">';
+      var ctxs=detailFieldCtx(body);
       fieldKeys.forEach(function(k){
         var def=defs[k], label=k.replace(/_/g,' '), val=(vals[k]!=null?vals[k]:''), inp;
+        // A checkbox group is block-level and cannot sit inside a sentence.
+        var blockControl=false;
         if(def.type==='dd'){
           var opts=(def.opts||'').split('\n').filter(Boolean);
           var picks=fieldMenuPicks(val);
           var wide=def.cols?' style="width:'+def.cols+'ch;max-width:100%"':'';
           if(def.multiple){
             // multiple=yes menus fill as checkboxes — one data-fkey per group.
+            blockControl=true;
             inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
               return '<label class="d-opt"><input type="checkbox" data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
             }).join('')+'</div>';
@@ -1563,7 +1575,17 @@ function renderDetailHtml(s){
         } else {
           inp='<input type="text" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
         }
-        form+='<div class="d-frow"><label>'+esc(label)+'</label>'+inp+'</div>';
+        // Reads like the snippet — "Rate Plan: [ Refundable ] per night". The
+        // key label survives only for a field with no prose around it, which
+        // is otherwise noise: an unnamed menu's key is a hash.
+        var ctx=ctxs[k]||{before:'',after:''};
+        var pre=ctx.before?'<span class="d-ctx">'+esc(ctx.before)+'</span>':'';
+        var post=ctx.after?'<span class="d-ctx">'+esc(ctx.after)+'</span>':'';
+        var lbl=(pre||post)?'':'<label>'+esc(label)+'</label>';
+        form+='<div class="d-frow">'+lbl+(blockControl
+          ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
+            (post?'<div class="d-ctxline">'+post+'</div>':'')
+          : '<div class="d-row">'+pre+inp+post+'</div>')+'</div>';
       });
       // {button} controls — they set field values, they never print.
       var dBtns=detailButtons(body);

@@ -742,34 +742,100 @@
   }
 
   // ── FIELD EXTRACTOR ─────────────────────────────────────────────
+  // The field a token declares, or '' when it declares none. Single source for
+  // extractFields and fieldContext so the two can never disagree about what
+  // counts as a field — a disagreement would label the wrong control.
+  function _tokenFieldKey(t) {
+    if (t.charAt(0) === '=' || t.charAt(0) === '{' ||
+        t === 'endif' || t === 'else' || t === '/button' ||
+        t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
+        t.slice(0,7).toLowerCase() === 'elseif:' ||
+        t.slice(0,5).toLowerCase() === 'time:' ||
+        _isButtonHead(t.toLowerCase())) return '';
+    var tokLow = t.toLowerCase();
+    // A {gender:} token is not a field itself — it reads one, so surface that
+    // field instead. It is usually declared elsewhere too; callers de-duplicate.
+    if (tokLow.slice(0,7) === 'gender:') return sbGenderTokenField(t.slice(7));
+    if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
+      return _formFieldName(tokLow, t.slice(9));
+    }
+    return t;
+  }
+
   // Returns unique field names for the overlay form.
   function extractFields(body) {
     var vars = [], re = /\{([^}]+)\}/g, m;
     while ((m = re.exec(body)) !== null) {
-      var t = m[1].replace(/^\s+|\s+$/g, '');
-      if (t.charAt(0) === '=' || t.charAt(0) === '{' ||
-          t === 'endif' || t === 'else' || t === '/button' ||
-          t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
-          t.slice(0,7).toLowerCase() === 'elseif:' ||
-          t.slice(0,5).toLowerCase() === 'time:' ||
-          _isButtonHead(t.toLowerCase())) continue;
-      var tokLow = t.toLowerCase();
-      var fieldKey = t;
-      // A {gender:} token is not a field itself — it reads one, so surface that
-      // field instead. It is usually declared elsewhere too; the dup check below
-      // keeps the overlay to one input either way.
-      if (tokLow.slice(0,7) === 'gender:') {
-        fieldKey = sbGenderTokenField(t.slice(7));
-        if (!fieldKey) continue;
-      } else if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
-        fieldKey = _formFieldName(tokLow, t.slice(9));
-        if (!fieldKey) continue;
-      }
-      var dup = false;
-      for (var ix = 0; ix < vars.length; ix++) { if (vars[ix] === fieldKey) { dup = true; break; } }
-      if (!dup) vars.push(fieldKey);
+      var key = _tokenFieldKey(m[1].replace(/^\s+|\s+$/g, ''));
+      if (key && vars.indexOf(key) === -1) vars.push(key);
     }
     return vars;
+  }
+
+  // ── FIELD CONTEXT ───────────────────────────────────────────────
+  // The literal text sitting either side of a field token, so a fill form can
+  // read like the snippet — "Rate Plan: [ Refundable ] per night" — instead of
+  // labelling a control with a bare key like {MENU_1yvog3p}.
+  //
+  // Only text between this token and its neighbours counts, clipped at the
+  // nearest newline: what is written on the next line says nothing about the
+  // value chosen on this one. Every other token is a boundary and never
+  // content, so a {button}'s code block and a {= } formula can't leak into a
+  // label as if they were prose.
+  //
+  // MIRRORED in app/public/mobile/index.html (sbFieldContext) — mobile cannot
+  // load this module. scripts/check-snippets.js asserts the two agree.
+  var CTX_MAX = 40;
+
+  // Show what the guest will read: resolveBody strips these markers, so a label
+  // that kept them would quote text that never actually appears.
+  function _ctxClean(s) {
+    return String(s)
+      .replace(/\*\*/g, '')
+      .replace(/\[\/?(?:blue|yellow|red)\]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/^\s+|\s+$/g, '');
+  }
+
+  // `before` truncates from the left and `after` from the right: the words
+  // nearest the control are the ones that explain it.
+  function _ctxClip(s, keepTail) {
+    if (s.length <= CTX_MAX) return s;
+    return keepTail ? '…' + s.slice(s.length - CTX_MAX) : s.slice(0, CTX_MAX) + '…';
+  }
+
+  /**
+   * @param {string} body
+   * @returns {Object} { FIELD_KEY: { before: string, after: string } }
+   */
+  function fieldContext(body) {
+    var src = (body === null || body === undefined) ? '' : String(body);
+    var re = /\{([^}]+)\}/g, m, toks = [];
+    while ((m = re.exec(src)) !== null) {
+      toks.push({
+        start: m.index,
+        end:   m.index + m[0].length,
+        key:   _tokenFieldKey(m[1].replace(/^\s+|\s+$/g, ''))
+      });
+    }
+
+    var out = {};
+    for (var i = 0; i < toks.length; i++) {
+      var tk = toks[i];
+      // First occurrence wins — a field repeated later is the same input.
+      if (!tk.key || Object.prototype.hasOwnProperty.call(out, tk.key)) continue;
+      var before = src.slice(i > 0 ? toks[i - 1].end : 0, tk.start);
+      var after  = src.slice(tk.end, i < toks.length - 1 ? toks[i + 1].start : src.length);
+      var nl = before.lastIndexOf('\n');
+      if (nl !== -1) before = before.slice(nl + 1);
+      nl = after.indexOf('\n');
+      if (nl !== -1) after = after.slice(0, nl);
+      out[tk.key] = {
+        before: _ctxClip(_ctxClean(before), true),
+        after:  _ctxClip(_ctxClean(after), false)
+      };
+    }
+    return out;
   }
 
   // ── FORM FIELD CONFIG BUILDER ───────────────────────────────────
@@ -1061,6 +1127,7 @@
   var API = {
     resolveBody:       resolveBody,
     extractFields:     extractFields,
+    fieldContext:      fieldContext,
     validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
     buildFormMenuToken: buildFormMenuToken,
