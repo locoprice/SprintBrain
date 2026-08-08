@@ -194,7 +194,14 @@ export function LabelPicker({
           <div
             ref={menuRef}
             style={{ top: pos.top, left: pos.left, width: Math.max(pos.width, 220) }}
-            className={cn('fixed z-[9999]', t.menu)}
+            // `pointer-events-auto` is load-bearing, not cosmetic. The snippet
+            // editor is a modal Radix dialog, which sets `pointer-events: none`
+            // on <body> so only the dialog is interactive. This menu is
+            // portalled to <body> — outside the dialog's content node — so it
+            // inherits `none`, and every click passes straight through to
+            // whatever sits behind it. Re-enabling pointer events here is the
+            // same thing Radix does for its own portalled popovers in a dialog.
+            className={cn('pointer-events-auto fixed z-[9999]', t.menu)}
           >
             <input
               ref={inputRef}
