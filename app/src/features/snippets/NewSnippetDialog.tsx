@@ -35,7 +35,7 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
-import { findLanguageMismatch } from '@/lib/languageDetect';
+import { findLanguageMismatch, slotMismatchMessage } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
@@ -75,6 +75,16 @@ const EMPTY_FORM: SnippetFormValues = {
   timer_duration_ms: 0,
   scarcity_count: 0,
 };
+
+/**
+ * How long the body must sit still before the language check gives a verdict.
+ *
+ * The check needs a few words before it says anything, so running it per
+ * keystroke would judge half-typed sentences and flash a message the next
+ * letter retracts. Waiting for a pause means the verdict lands between
+ * thoughts rather than mid-word.
+ */
+const LANGUAGE_CHECK_DELAY_MS = 500;
 
 /**
  * A snippet trigger is a bare token — the extension prepends the trigger prefix
@@ -207,6 +217,10 @@ export function NewSnippetDialog() {
   const [altQueryDraft, setAltQueryDraft] = useState('');
   const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
+  // Language verdict for the slot currently on screen, recomputed as the user
+  // types. Separate from `errors` because nothing here came from a submit: it
+  // must not survive a language switch or block anything on its own.
+  const [liveLanguageError, setLiveLanguageError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -293,6 +307,36 @@ export function NewSnippetDialog() {
       setLabelIds([]);
     }
   }, [open, editingSnippet]);
+
+  // Check the body against its own flag while it is being written, so a wrong
+  // language is caught in the sentence that caused it rather than sprung at
+  // save time — by then the user has finished, and the fix is a re-read of
+  // text they thought was done.
+  //
+  // Only the slot on screen is judged here: an error about a variant the user
+  // cannot see has nothing to act on, so the other slots stay with the submit
+  // guard, which can switch the picker to them.
+  const bodyText = form.content;
+  const bodyLanguage = form.language;
+  useEffect(() => {
+    const pending = slotMismatchMessage(bodyText, bodyLanguage);
+    // Only a complaint waits for the pause. Clearing is immediate, so text
+    // that stops being wrong — reworded, emptied, or a language switch landing
+    // on a slot whose body already fits — drops the message on the spot rather
+    // than half a second later.
+    if (pending === null) {
+      setLiveLanguageError(null);
+      return;
+    }
+    const timer = window.setTimeout(() => setLiveLanguageError(pending), LANGUAGE_CHECK_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [bodyText, bodyLanguage]);
+
+  // One fault, one presentation. A submit error wins because it can be a
+  // schema complaint the live check knows nothing about (an empty body); with
+  // none pending, the live verdict speaks. Both render the same — a wrong
+  // language blocks the save whether it was noticed while typing or at submit.
+  const contentError = errors.content ?? liveLanguageError;
 
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -810,11 +854,11 @@ export function NewSnippetDialog() {
                 disabled={saving}
                 className={cn(
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
-                  errors.content && 'border-danger focus:border-danger focus:ring-danger/20',
+                  contentError && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
                 placeholder="Dear {guest_name}, …"
               />
-              {errors.content && <FieldError message={errors.content} />}
+              {contentError && <FieldError message={contentError} />}
             </div>
 
             {/* Quick insert — split so the rail says what each half does */}

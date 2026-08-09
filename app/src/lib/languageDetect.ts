@@ -245,6 +245,22 @@ export function mismatchMessage(
 }
 
 /**
+ * The complaint for one body filed under `slot`, or null when it is consistent,
+ * too ambiguous to judge, or not a language worth checking.
+ *
+ * The live counterpart to findLanguageMismatch: the editor runs this on the
+ * slot being typed into, while the submit guard sweeps every slot. Same verdict
+ * either way — this one just arrives while the text can still be reworded.
+ */
+export function slotMismatchMessage(body: string, slot: SnippetLanguage): string | null {
+  if (!isDetectable(slot)) return null;
+  if (body.trim().length === 0) return null;
+  const detection = detectLanguage(body);
+  if (detection === null || detection.language === slot) return null;
+  return mismatchMessage(slot, detection.language);
+}
+
+/**
  * First body filed under the wrong language, or null when every slot is either
  * consistent or too ambiguous to judge.
  *

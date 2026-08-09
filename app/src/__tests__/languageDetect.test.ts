@@ -4,6 +4,7 @@ import {
   extractProse,
   findLanguageMismatch,
   mismatchMessage,
+  slotMismatchMessage,
 } from '@/lib/languageDetect';
 import type { SnippetBodies } from '@/types/database';
 
@@ -208,6 +209,53 @@ describe('findLanguageMismatch', () => {
     // Both slots are wrong; EN is checked before ES, so EN is reported.
     const mismatch = findLanguageMismatch({ EN: ES_BODY, ES: EN_BODY });
     expect(mismatch?.slot).toBe('EN');
+  });
+});
+
+// The live check behind the editor's while-typing warning. It judges only the
+// slot on screen, and every null here is a keystroke that must NOT be nagged at.
+describe('slotMismatchMessage', () => {
+  it('flags Italian text filed under English, with the exact message', () => {
+    expect(slotMismatchMessage(IT_BODY, 'EN')).toBe(
+      'Detected language is Italian, but this field requires English text.',
+    );
+  });
+
+  it('passes text that matches its slot', () => {
+    expect(slotMismatchMessage(EN_BODY, 'EN')).toBeNull();
+    expect(slotMismatchMessage(ES_BODY, 'ES')).toBeNull();
+    expect(slotMismatchMessage(IT_BODY, 'IT')).toBeNull();
+    expect(slotMismatchMessage(FR_BODY, 'FR')).toBeNull();
+  });
+
+  it('judges the same body by the slot it is filed under', () => {
+    // The verdict is a relation, not a property of the text: one body is a
+    // fault in the English slot and correct in the Spanish one.
+    expect(slotMismatchMessage(ES_BODY, 'EN')).not.toBeNull();
+    expect(slotMismatchMessage(ES_BODY, 'ES')).toBeNull();
+  });
+
+  it('never judges the MULTI slot', () => {
+    expect(slotMismatchMessage(ES_BODY, 'MULTI')).toBeNull();
+  });
+
+  it('says nothing about an empty or whitespace-only body', () => {
+    expect(slotMismatchMessage('', 'EN')).toBeNull();
+    expect(slotMismatchMessage('   \n  ', 'EN')).toBeNull();
+  });
+
+  it('stays quiet through the first words of a sentence being typed', () => {
+    // Typing "Estimado señor, gracias por su reserva" one word at a time must
+    // not flash a complaint on the way to a verdict.
+    for (const partial of ['E', 'Estimado', 'Estimado señor', 'Estimado señor,']) {
+      expect(slotMismatchMessage(partial, 'EN')).toBeNull();
+    }
+  });
+
+  it('stays quiet on neutral hospitality lines in any slot', () => {
+    expect(slotMismatchMessage('Check-in 15:00 — Check-out 10:00', 'EN')).toBeNull();
+    expect(slotMismatchMessage('Check-in 15:00 — Check-out 10:00', 'ES')).toBeNull();
+    expect(slotMismatchMessage('{guest_name} {property_name} {total_price}', 'FR')).toBeNull();
   });
 });
 
