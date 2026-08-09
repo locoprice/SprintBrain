@@ -48,11 +48,33 @@ img,svg{display:block;max-width:100%}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
   white-space:nowrap;border-radius:var(--r-btn);transition:color .15s,background .15s}
 .nav-link:hover{color:var(--text);background:var(--bg-alt)}
-/* Six items overflow the bar below ~900px and wrap "Sign in" onto two lines.
-   The GitHub star is the most expendable of them, so it goes first. */
+/* The GitHub star is the most expendable nav item, so it's first to go
+   when the bar gets tight below ~900px. */
 @media(max-width:900px){
   .nav-links .btn-github{display:none}
 }
+
+/* ACCOUNT DROPDOWN */
+.nav-account{position:relative}
+.nav-account-trigger{gap:6px}
+.nav-account-chevron{transition:transform .18s ease}
+.nav-account-trigger[aria-expanded="true"] .nav-account-chevron{transform:rotate(180deg)}
+.nav-account-menu{
+  position:absolute;top:calc(100% + 8px);right:0;min-width:180px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  box-shadow:var(--shadow-md);padding:6px;
+  opacity:0;visibility:hidden;transform:translateY(-6px);
+  transition:opacity .16s ease,transform .16s ease,visibility .16s;
+  z-index:60}
+.nav-account-menu.nav-account-open{opacity:1;visibility:visible;transform:translateY(0)}
+.nav-account-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  font-size:14px;font-weight:500;color:var(--text);border-radius:8px;
+  transition:background .15s}
+.nav-account-item:hover{background:var(--bg-alt)}
+.nav-account-item svg{color:var(--text3);flex-shrink:0}
+.nav-account-item-primary{color:var(--primary)}
+.nav-account-item-primary svg{color:var(--primary)}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -823,10 +845,24 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
     <div class="nav-links">
       <a href="#features" class="nav-link">Features</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
-      <a href="https://app.sprintbrain.com/login" class="nav-link">Sign in</a>
       <a href="https://github.com/locoprice/SprintBrain" class="btn btn-github btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star on GitHub</a>
       <a href="https://chromewebstore.google.com/detail/khdpimdpkgmmaimpbfjgglnpaemmopoo" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add to Chrome</a>
-      <a href="https://app.sprintbrain.com/signup" class="btn btn-ghost btn-sm">Sign up</a>
+      <div class="nav-account">
+        <button type="button" class="btn btn-ghost btn-sm nav-account-trigger" id="nav-account-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="nav-account-menu">
+          Account
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="nav-account-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-account-menu" id="nav-account-menu" role="menu" aria-labelledby="nav-account-trigger">
+          <a href="https://app.sprintbrain.com/login" role="menuitem" class="nav-account-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span>Sign in</span>
+          </a>
+          <a href="https://app.sprintbrain.com/signup" role="menuitem" class="nav-account-item nav-account-item-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+            <span>Sign up</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
@@ -1580,6 +1616,33 @@ LeibTour Team</div>
 })();
 
 (function(){
+  var trigger=document.getElementById('nav-account-trigger');
+  var menu=document.getElementById('nav-account-menu');
+  if(!trigger||!menu)return;
+
+  function openMenu(){
+    menu.classList.add('nav-account-open');
+    trigger.setAttribute('aria-expanded','true');
+  }
+  function closeMenu(){
+    menu.classList.remove('nav-account-open');
+    trigger.setAttribute('aria-expanded','false');
+  }
+  function isOpen(){return trigger.getAttribute('aria-expanded')==='true';}
+
+  trigger.addEventListener('click',function(e){
+    e.stopPropagation();
+    isOpen()?closeMenu():openMenu();
+  });
+  document.addEventListener('click',function(e){
+    if(isOpen()&&!menu.contains(e.target)&&e.target!==trigger)closeMenu();
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&isOpen()){closeMenu();trigger.focus();}
+  });
+})();
+
+(function(){
   var cards=document.querySelectorAll('.plat-card');
   cards.forEach(function(card){
     card.addEventListener('mousemove',function(e){
@@ -1743,7 +1806,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.137.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.138.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
