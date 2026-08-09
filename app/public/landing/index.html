@@ -46,8 +46,13 @@ img,svg{display:block;max-width:100%}
   pointer-events:none;user-select:none;flex-shrink:0}
 .nav-links{margin-left:auto;display:flex;align-items:center;gap:8px}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
-  border-radius:var(--r-btn);transition:color .15s,background .15s}
+  white-space:nowrap;border-radius:var(--r-btn);transition:color .15s,background .15s}
 .nav-link:hover{color:var(--text);background:var(--bg-alt)}
+/* Six items overflow the bar below ~900px and wrap "Sign in" onto two lines.
+   The GitHub star is the most expendable of them, so it goes first. */
+@media(max-width:900px){
+  .nav-links .btn-github{display:none}
+}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -60,6 +65,13 @@ img,svg{display:block;max-width:100%}
 .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
 .btn-ghost:hover{background:var(--bg-alt);border-color:#D1D1D6}
 .btn-sm{padding:8px 14px;font-size:13.5px}
+/* GitHub star CTA — a filled card ground keeps it distinct from the transparent
+   .btn-ghost beside it, while staying lighter than the primary so "Add to
+   Chrome" still wins the eye. */
+.btn-github{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn-github:hover{background:var(--bg-alt);border-color:#D1D1D6;transform:translateY(-1px)}
+.btn-github:active{transform:translateY(0)}
+.btn-github svg{flex-shrink:0}
 
 /* HERO */
 .hero{
@@ -197,6 +209,46 @@ img,svg{display:block;max-width:100%}
 .feature h3{font-size:17px;font-weight:700;margin-bottom:8px;letter-spacing:-.3px}
 .feature p{font-size:14.5px;color:var(--text2);line-height:1.55}
 
+
+/* SECURITY */
+.sec{padding:100px 24px 108px;background:var(--bg-alt);border-top:1px solid var(--border)}
+.sec-inner{max-width:var(--max);margin:0 auto}
+.sec-head{text-align:center;margin-bottom:48px}
+.sec-eyebrow{display:inline-block;background:var(--card);border:1px solid var(--border);
+  color:var(--text);padding:6px 16px;border-radius:100px;
+  font-size:12.5px;font-weight:700;letter-spacing:.02em;margin-bottom:20px}
+.sec-head h2{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-1.4px;
+  line-height:1.08;color:var(--text);margin-bottom:16px}
+.sec-head p{font-size:17px;color:var(--text2);max-width:620px;margin:0 auto;line-height:1.6}
+.sec-ctas{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:30px}
+.sec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.sec-card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:28px 24px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.sec-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);
+  border-color:rgba(27,79,216,.18)}
+.sec-icon{width:42px;height:42px;border-radius:12px;background:var(--primary-lt);
+  color:var(--primary);display:flex;align-items:center;justify-content:center;
+  margin-bottom:18px}
+.sec-card h3{font-size:16px;font-weight:700;letter-spacing:-.2px;
+  color:var(--text);margin-bottom:8px}
+.sec-card p{font-size:14px;color:var(--text2);line-height:1.55}
+.sec-strip{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:8px 0;margin-top:42px;font-size:13.5px;color:var(--text3);text-align:center}
+.sec-strip span{padding:0 16px;border-right:1px solid var(--border)}
+.sec-strip span:last-child{border-right:none}
+
+@media(max-width:900px){
+  .sec-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .sec{padding:64px 20px 72px}
+  .sec-head{margin-bottom:34px}
+  .sec-grid{grid-template-columns:1fr;gap:14px}
+  .sec-ctas{flex-direction:column;align-items:stretch}
+  .sec-ctas .btn{width:100%}
+  .sec-strip{margin-top:30px;font-size:12.5px}
+  .sec-strip span{border-right:none;padding:0 10px}
+}
 
 /* FOOTER STATEMENT */
 .foot-statement{background:#0d0d0d;padding:clamp(64px,10vw,120px) clamp(24px,6vw,80px) clamp(72px,11vw,140px);overflow:hidden}
@@ -772,6 +824,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
       <a href="#features" class="nav-link">Features</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
       <a href="https://app.sprintbrain.com/login" class="nav-link">Sign in</a>
+      <a href="https://github.com/locoprice/SprintBrain" class="btn btn-github btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star on GitHub</a>
       <a href="https://chromewebstore.google.com/detail/khdpimdpkgmmaimpbfjgglnpaemmopoo" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add to Chrome</a>
       <a href="https://app.sprintbrain.com/signup" class="btn btn-ghost btn-sm">Sign up</a>
     </div>
@@ -1330,6 +1383,65 @@ LeibTour Team</div>
   </div>
 </section>
 
+<section class="sec">
+  <div class="sec-inner">
+
+    <div class="sec-head">
+      <div class="sec-eyebrow">Security</div>
+      <h2>Built for scale and security</h2>
+      <p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface — whether you're a "team" of one or an org of hundreds.</p>
+      <div class="sec-ctas">
+        <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Get started — it's free</a>
+        <a href="/legal/privacy-policy.html" class="btn btn-ghost">Learn more</a>
+      </div>
+    </div>
+
+    <div class="sec-grid">
+
+      <article class="sec-card">
+        <div class="sec-icon" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <h3>EU data residency</h3>
+        <p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster — they never leave it.</p>
+      </article>
+
+      <article class="sec-card">
+        <div class="sec-icon" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+        </div>
+        <h3>Row-level security</h3>
+        <p>RLS is active on every table. A row you can't read is refused by Postgres — not merely hidden by the UI.</p>
+      </article>
+
+      <article class="sec-card">
+        <div class="sec-icon" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Per-user authentication</h3>
+        <p>Dashboard, extension, and mobile each authenticate as you with your own token — never a shared key.</p>
+      </article>
+
+      <article class="sec-card">
+        <div class="sec-icon" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        </div>
+        <h3>GDPR-aligned handling</h3>
+        <p>Documented collection, retention, and deletion, with a published privacy policy, terms, and cookie policy.</p>
+      </article>
+
+    </div>
+
+    <p class="sec-strip">
+      <span>EU-region database</span>
+      <span>RLS on every table</span>
+      <span>Per-user tokens on all three surfaces</span>
+      <span>Encrypted in transit</span>
+    </p>
+
+  </div>
+</section>
+
 <section class="foot-statement">
   <div class="foot-statement-inner">
     <h2>Type once.<br><span>Use it everywhere.</span></h2>
@@ -1631,7 +1743,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.135.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.136.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date — production has the stamped release month; previews show today.
