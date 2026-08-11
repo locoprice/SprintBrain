@@ -24,6 +24,10 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { LabelPicker } from '@/features/labels/LabelPicker';
+import {
+  LABEL_SUGGESTIONS_ENABLED,
+  LabelSuggestions,
+} from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { cn } from '@/lib/utils';
@@ -712,6 +716,19 @@ export function NewSnippetDialog() {
                   onChange={setLabelIds}
                   disabled={saving}
                 />
+                {LABEL_SUGGESTIONS_ENABLED && (
+                  <LabelSuggestions
+                    draft={{
+                      name: form.name,
+                      body: form.content,
+                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                      language: form.language,
+                    }}
+                    value={labelIds}
+                    onChange={setLabelIds}
+                    disabled={saving}
+                  />
+                )}
               </div>
             </div>
 
