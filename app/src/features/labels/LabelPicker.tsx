@@ -174,7 +174,7 @@ export function LabelPicker({
         {selected.length > 0 ? (
           <span className="flex min-w-0 flex-wrap items-center gap-1">
             {selected.map((label) => (
-              <LabelBadge key={label.id} label={label} />
+              <LabelBadge key={label.id} label={label} onRemove={() => toggle(label.id)} />
             ))}
           </span>
         ) : (

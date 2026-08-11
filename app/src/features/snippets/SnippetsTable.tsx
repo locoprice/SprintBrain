@@ -207,6 +207,7 @@ export function SnippetsTable() {
   // grouped row's language switches which variant's labels it shows.
   const labelCatalog = useLabelStore((s) => s.labels);
   const labelAssignments = useLabelStore((s) => s.snippetLabels);
+  const setSnippetLabels = useLabelStore((s) => s.setSnippetLabels);
   const resolveUserName = useUserNameResolver();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -297,6 +298,15 @@ export function SnippetsTable() {
     e.stopPropagation();
     try {
       await pushSnippetToNotion(id);
+    } catch {
+      // Error surfaces via store.error → page-level banner.
+    }
+  }
+
+  async function handleRemoveLabel(snippetId: string, labelId: string) {
+    const current = labelAssignments.get(snippetId) ?? [];
+    try {
+      await setSnippetLabels(snippetId, current.filter((id) => id !== labelId));
     } catch {
       // Error surfaces via store.error → page-level banner.
     }
@@ -447,6 +457,7 @@ export function SnippetsTable() {
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                         <LabelBadgeList
                           labels={resolveLabels(row.id, labelAssignments, labelCatalog)}
+                          onRemove={(labelId) => void handleRemoveLabel(row.id, labelId)}
                         />
                         {row.is_formula ? (
                           <Badge variant="primary">formula</Badge>
