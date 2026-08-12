@@ -61,7 +61,20 @@ export function buildFolderTree(folders: Folder[]): FolderNode[] {
     };
   }
 
-  return roots.sort(bySortOrder).map((f) => build(f, 1));
+  const nodes = roots.sort(bySortOrder).map((f) => build(f, 1));
+
+  // Every member of a parent_id cycle has a parent that IS in the list, so none
+  // of them lands in `roots` and the entire loop would vanish from the tree —
+  // taking the snippets inside those folders out of reach, with nothing on
+  // screen to explain where they went. Surface whatever the first pass never
+  // reached as a root instead, which is how this function already treats a
+  // folder whose parent is missing. Unreachable while folders_hierarchy_guard
+  // holds; this is the safety net for data written around it.
+  for (const folder of [...folders].sort(bySortOrder)) {
+    if (!seen.has(folder.id)) nodes.push(build(folder, 1));
+  }
+
+  return nodes;
 }
 
 /** Flatten a tree to render order, skipping the subtrees of collapsed folders. */

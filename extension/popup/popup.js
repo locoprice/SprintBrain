@@ -1212,6 +1212,10 @@ function folderChildren(pid){
 function folderTreeOrder(){
   var byId={}; for(var i=0;i<folders.length;i++) byId[folders[i].id]=1;
   var out=[], seen={};
+  function byOrder(a,b){
+    var d=(a.sort_order||0)-(b.sort_order||0);
+    return d!==0 ? d : String(a.name||'').localeCompare(String(b.name||''));
+  }
   function walk(list, depth){
     for(var j=0;j<list.length;j++){
       var f=list[j];
@@ -1226,11 +1230,16 @@ function folderTreeOrder(){
     var f=folders[k], p=folderParent(f);
     if(!p || p===f.id || !byId[p]) roots.push(f);
   }
-  roots.sort(function(a,b){
-    var d=(a.sort_order||0)-(b.sort_order||0);
-    return d!==0 ? d : String(a.name||'').localeCompare(String(b.name||''));
-  });
+  roots.sort(byOrder);
   walk(roots, 1);
+  // Every member of a parent_id cycle has a parent that IS in the list, so none
+  // of them lands in roots and the whole loop would vanish from the rail —
+  // taking its snippets out of reach with nothing on screen to explain why.
+  // Surface anything walk() never reached as a root of its own. Looped rather
+  // than one extra walk: the depth cap can stop a long cycle part-way, leaving
+  // more behind. Mirrors buildFolderTree() in app/src/lib/folderTree.ts.
+  var rest=folders.slice().sort(byOrder);
+  for(var m=0;m<rest.length;m++){ if(!seen[rest[m].id]) walk([rest[m]], 1); }
   return out;
 }
 
