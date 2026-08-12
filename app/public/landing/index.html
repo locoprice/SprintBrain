@@ -87,7 +87,7 @@ img,svg{display:block;max-width:100%}
 .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
 .btn-ghost:hover{background:var(--bg-alt);border-color:#D1D1D6}
 .btn-sm{padding:8px 14px;font-size:13.5px}
-/* GitHub star CTA — a filled card ground keeps it distinct from the transparent
+/* GitHub star CTA: a filled card ground keeps it distinct from the transparent
    .btn-ghost beside it, while staying lighter than the primary so "Add to
    Chrome" still wins the eye. */
 .btn-github{background:var(--card);color:var(--text);border:1px solid var(--border)}
@@ -102,7 +102,7 @@ img,svg{display:block;max-width:100%}
     radial-gradient(ellipse 74% 46% at 50% -6%,rgba(27,79,216,.10) 0%,rgba(27,79,216,0) 64%),
     radial-gradient(ellipse 42% 30% at 84% 4%,rgba(127,168,248,.16) 0%,rgba(127,168,248,0) 62%),
     var(--bg)}
-/* ambient grid wash — fades out toward the edges */
+/* ambient grid wash, fades out toward the edges */
 .hero::before{
   content:"";position:absolute;inset:0;pointer-events:none;
   background-image:
@@ -346,7 +346,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .foot-links{flex-wrap:wrap;gap:6px 14px;font-size:12px}
 }
 
-/* ── FEATURES v2 — dark editorial grid ──────────────────── */
+/* ── FEATURES v2: dark editorial grid ──────────────────── */
 .fs-bg{background:#07080A;color:#fff}
 .fs-section{
   padding:120px 64px 140px;
@@ -407,7 +407,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 .fs-card.fs-hero .fs-card-title{font-size:40px;letter-spacing:-.03em}
 .fs-card.fs-hero .fs-card-body{font-size:16px;max-width:460px}
 
-/* wide card — full-width feature band (Team folders) */
+/* wide card: full-width feature band (Team folders) */
 .fs-card.fs-wide{
   grid-column:span 6;
   flex-direction:row;
@@ -516,7 +516,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .fs-card-title{font-size:26px}
 }
 
-/* ── PLATFORMS v2 — premium 3-surface section ─────────────── */
+/* ── PLATFORMS v2: premium 3-surface section ─────────────── */
 .plat{
   padding:120px 24px 128px;
   background:linear-gradient(168deg,#edf2ff 0%,#fafafa 52%,#f0f5ff 100%);
@@ -562,7 +562,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   border:1px solid rgba(27,79,216,.12);overflow:hidden;
   box-shadow:0 28px 70px rgba(27,79,216,.16),0 4px 14px rgba(0,0,0,.07)}
 
-/* Dashboard — back layer */
+/* Dashboard: back layer */
 .plat-device--dash{
   width:580px;height:206px;border-radius:14px;
   transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px);
@@ -571,7 +571,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   0%,100%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(0)}
   50%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(-13px)}}
 
-/* Extension popup — right, mid-depth */
+/* Extension popup: right, mid-depth */
 .plat-device--popup{
   width:200px;height:240px;border-radius:12px;
   right:calc(50% - 374px);
@@ -581,7 +581,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   0%,100%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(0)}
   50%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(-17px)}}
 
-/* Mobile — left, front */
+/* Mobile: left, front */
 .plat-device--mobile{
   width:110px;height:236px;border-radius:24px;
   left:calc(50% - 374px);
@@ -1253,7 +1253,7 @@ LeibTour Team</div>
     <!-- 3D floating device stack -->
     <div class="plat-stage" aria-hidden="true">
 
-      <!-- Dashboard — back layer -->
+      <!-- Dashboard: back layer -->
       <div class="plat-device plat-device--dash">
         <div class="pd-topbar">
           <span class="pd-dot" style="background:#FF5F57"></span>
@@ -1277,7 +1277,7 @@ LeibTour Team</div>
         </div>
       </div>
 
-      <!-- Extension popup — right, mid depth -->
+      <!-- Extension popup: right, mid depth -->
       <div class="plat-device plat-device--popup">
         <div class="pp-head">
           <div class="pp-logo">S</div>
@@ -1292,7 +1292,7 @@ LeibTour Team</div>
         </div>
       </div>
 
-      <!-- Mobile phone — left, front -->
+      <!-- Mobile phone: left, front -->
       <div class="plat-device plat-device--mobile">
         <div class="pm-notch"><div class="pm-pill"></div></div>
         <div class="pm-hero"><span class="pm-brand">SprintBrain</span></div>
@@ -1425,9 +1425,9 @@ LeibTour Team</div>
     <div class="sec-head">
       <div class="sec-eyebrow">Security</div>
       <h2>Built for scale and security</h2>
-      <p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface — whether you're a "team" of one or an org of hundreds.</p>
+      <p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface, whether you're a "team" of one or an org of hundreds.</p>
       <div class="sec-ctas">
-        <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Get started — it's free</a>
+        <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Get started · it's free</a>
         <a href="/legal/privacy-policy.html" class="btn btn-ghost">Learn more</a>
       </div>
     </div>
@@ -1439,7 +1439,7 @@ LeibTour Team</div>
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </div>
         <h3>EU data residency</h3>
-        <p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster — they never leave it.</p>
+        <p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster. They never leave it.</p>
       </article>
 
       <article class="sec-card">
@@ -1447,7 +1447,7 @@ LeibTour Team</div>
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
         </div>
         <h3>Row-level security</h3>
-        <p>RLS is active on every table. A row you can't read is refused by Postgres — not merely hidden by the UI.</p>
+        <p>RLS is active on every table. A row you can't read is refused by Postgres, not merely hidden by the UI.</p>
       </article>
 
       <article class="sec-card">
@@ -1455,7 +1455,7 @@ LeibTour Team</div>
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
         <h3>Per-user authentication</h3>
-        <p>Dashboard, extension, and mobile each authenticate as you with your own token — never a shared key.</p>
+        <p>Dashboard, extension, and mobile each authenticate as you with your own token, never a shared key.</p>
       </article>
 
       <article class="sec-card">
@@ -1659,7 +1659,7 @@ LeibTour Team</div>
   });
 })();
 
-/* Hero demo — types a trigger, expands it, moves to the next app. The product
+/* Hero demo: types a trigger, expands it, moves to the next app. The product
    selling itself above the fold. Static markup is the no-JS fallback. */
 (function(){
   var typeEl=document.getElementById('demo-type');
@@ -1674,7 +1674,7 @@ LeibTour Team</div>
     {app:'mail.google.com',trigger:'::quote',out:
       'Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team'},
     {app:'web.whatsapp.com',trigger:'::checkin',out:
-      'Hi Marco, check-in opens at 16:00.\n\nThe keys are in the smart lock by the gate — code 4417. Parking and the wifi details are in the guide.\n\nSee you tomorrow!'},
+      'Hi Marco, check-in opens at 16:00.\n\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\n\nSee you tomorrow!'},
     {app:'notion.so',trigger:'::followup',out:
       'Following up on Tuesday’s quote.\n\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\n\nWant me to reserve it?'}
   ];
@@ -1686,7 +1686,7 @@ LeibTour Team</div>
   function at(ms,fn){timers.push(setTimeout(fn,ms));}
   function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-  // Highlight the values a formula would have produced — money and percentages.
+  // Highlight the values a formula would have produced: money and percentages.
   function highlight(line){
     return esc(line).replace(/(€[\d.,]+|\d+%)/g,'<span class="demo-hi">$1</span>');
   }
@@ -1806,10 +1806,10 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.138.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.139.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
-  // Month: always current date — production has the stamped release month; previews show today.
+  // Month: always current date. Production has the stamped release month; previews show today.
   var FALLBACK_MONTH=MONTHS[now.getMonth()]+' '+now.getFullYear();
   var verEl=document.getElementById('foot-ver');
   if(verEl&&verEl.textContent.indexOf('{{')>-1)verEl.textContent=' · '+FALLBACK_VERSION;
