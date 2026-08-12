@@ -16,6 +16,7 @@ import { foldersApi } from '@/lib/api/foldersApi';
 import { permissionsApi } from '@/lib/api/permissionsApi';
 import { buildFolderShares } from '@/lib/folderShares';
 import { matchesLabelFilter } from '@/lib/labelUtils';
+import { expandWithDescendants } from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
 import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
@@ -274,10 +275,18 @@ export function useFilteredPrompts(): Prompt[] {
   // Assignments live in labelStore because the vocabulary is shared with
   // snippets; only the active selection above is per-surface.
   const labelAssignments = useLabelStore((s) => s.promptLabels);
+  const labelCatalog = useLabelStore((s) => s.labels);
+
+  // Picking a parent label also lists what is tagged only with its sub-labels.
+  // Expanded once per render, not inside the per-prompt filter below.
+  const labelScope = useMemo(
+    () => expandWithDescendants(labelCatalog, filters.labels),
+    [labelCatalog, filters.labels],
+  );
 
   return useMemo(() => prompts.filter((p) => {
     if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
-    if (!matchesLabelFilter(p.id, filters.labels, labelAssignments)) return false;
+    if (!matchesLabelFilter(p.id, labelScope, labelAssignments)) return false;
     if (filters.type !== 'all' && p.type !== filters.type) return false;
     if (filters.strategy && p.strategy_type !== filters.strategy) return false;
     if (filters.intent && p.intent_category !== filters.intent) return false;
@@ -294,7 +303,7 @@ export function useFilteredPrompts(): Prompt[] {
       if (!inName && !inTags && !inIntent && !inContent) return false;
     }
     return true;
-  }), [prompts, filters, selectedFolderId, labelAssignments]);
+  }), [prompts, filters, selectedFolderId, labelAssignments, labelScope]);
 }
 
 export function useActiveFilterCount(): number {

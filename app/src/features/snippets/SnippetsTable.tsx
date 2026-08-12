@@ -457,6 +457,7 @@ export function SnippetsTable() {
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                         <LabelBadgeList
                           labels={resolveLabels(row.id, labelAssignments, labelCatalog)}
+                          catalog={labelCatalog}
                           onRemove={(labelId) => void handleRemoveLabel(row.id, labelId)}
                         />
                         {row.is_formula ? (

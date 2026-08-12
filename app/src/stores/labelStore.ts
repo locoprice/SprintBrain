@@ -26,9 +26,16 @@ interface LabelStore {
   error: string | null;
   load: () => Promise<void>;
   clearError: () => void;
-  addLabel: (name: string, color: LabelColor) => Promise<Label>;
-  editLabel: (id: string, patch: { name?: string; color?: LabelColor }) => Promise<Label>;
-  /** Delete a label; mirrors the DB cascade by dropping it from both maps. */
+  /** `parentId` nests the new label under an existing root (LABELS-002). */
+  addLabel: (name: string, color: LabelColor, parentId?: string | null) => Promise<Label>;
+  editLabel: (
+    id: string,
+    patch: { name?: string; color?: LabelColor; parent_id?: string | null },
+  ) => Promise<Label>;
+  /**
+   * Delete a label; mirrors the DB cascade by dropping it from both maps, and
+   * the DB's ON DELETE SET NULL by promoting its sub-labels to root.
+   */
   removeLabel: (id: string) => Promise<void>;
   setSnippetLabels: (snippetId: string, labelIds: string[]) => Promise<void>;
   setPromptLabels: (promptId: string, labelIds: string[]) => Promise<void>;
@@ -101,9 +108,9 @@ export const useLabelStore = create<LabelStore>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  addLabel: async (name, color) => {
+  addLabel: async (name, color, parentId = null) => {
     try {
-      const label = await labelsApi.createLabel(name, color);
+      const label = await labelsApi.createLabel(name, color, parentId);
       set((s) => ({ labels: [...s.labels, label].sort(byName), error: null }));
       return label;
     } catch (err) {
@@ -130,7 +137,12 @@ export const useLabelStore = create<LabelStore>((set, get) => ({
     try {
       await labelsApi.deleteLabel(id);
       set((s) => ({
-        labels: s.labels.filter((l) => l.id !== id),
+        // Promote sub-labels to root rather than losing them, mirroring the
+        // FK's ON DELETE SET NULL. Without this they'd keep pointing at a
+        // deleted parent until the next reload and render as orphans.
+        labels: s.labels
+          .filter((l) => l.id !== id)
+          .map((l) => (l.parent_id === id ? { ...l, parent_id: null } : l)),
         // The FK cascade already removed the rows server-side; mirror it in
         // memory so every badge disappears without a refetch.
         snippetLabels: stripLabel(s.snippetLabels, id),

@@ -22,8 +22,17 @@ export interface LabelsApi {
   listLabels(): Promise<Label[]>;
   /** Every assignment the user owns, in one round trip per asset type. */
   listAssignments(): Promise<LabelAssignmentSets>;
-  createLabel(name: string, color: LabelColor): Promise<Label>;
-  updateLabel(id: string, patch: { name?: string; color?: LabelColor }): Promise<Label>;
+  /** `parentId` nests the new label under an existing root (LABELS-002). */
+  createLabel(name: string, color: LabelColor, parentId?: string | null): Promise<Label>;
+  /**
+   * Patch a label. `parent_id` is tri-state: omitted leaves the parent alone,
+   * `null` moves the label to root, an id nests it. The DB trigger rejects a
+   * move that would breach MAX_LABEL_DEPTH.
+   */
+  updateLabel(
+    id: string,
+    patch: { name?: string; color?: LabelColor; parent_id?: string | null },
+  ): Promise<Label>;
   /** Deleting a label cascades to both link tables (FK `on delete cascade`). */
   deleteLabel(id: string): Promise<void>;
   /** Replace a snippet's labels with exactly `labelIds`. Idempotent. */
@@ -37,11 +46,12 @@ type DbLabel = {
   user_id: string;
   name: string;
   color: string;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
-const LABEL_SELECT = 'id, user_id, name, color, created_at, updated_at';
+const LABEL_SELECT = 'id, user_id, name, color, parent_id, created_at, updated_at';
 
 function dbLabelToLabel(row: DbLabel): Label {
   return {
@@ -49,6 +59,7 @@ function dbLabelToLabel(row: DbLabel): Label {
     user_id: row.user_id,
     name: row.name,
     color: row.color as LabelColor,
+    parent_id: row.parent_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -107,12 +118,12 @@ export const labelsApi: LabelsApi = {
     };
   },
 
-  async createLabel(name, color) {
+  async createLabel(name, color, parentId = null) {
     const userId = await currentUserId();
     const trimmed = normalizeLabelName(name);
     const { data, error } = await supabase
       .from('labels')
-      .insert({ user_id: userId, name: trimmed, color })
+      .insert({ user_id: userId, name: trimmed, color, parent_id: parentId })
       .select(LABEL_SELECT)
       .single();
     if (error) throw labelWriteError(error, trimmed);
@@ -123,6 +134,9 @@ export const labelsApi: LabelsApi = {
     const update: Record<string, unknown> = {};
     if (patch.name !== undefined) update['name'] = normalizeLabelName(patch.name);
     if (patch.color !== undefined) update['color'] = patch.color;
+    // Tri-state: `null` is a real value here (move to root), so only an absent
+    // key means "leave the parent alone".
+    if (patch.parent_id !== undefined) update['parent_id'] = patch.parent_id;
 
     const { data, error } = await supabase
       .from('labels')

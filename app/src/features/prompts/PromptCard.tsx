@@ -152,7 +152,11 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
 
       {/* Meta pills */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <LabelBadgeList labels={labels} onRemove={(labelId) => void handleRemoveLabel(labelId)} />
+        <LabelBadgeList
+          labels={labels}
+          catalog={labelCatalog}
+          onRemove={(labelId) => void handleRemoveLabel(labelId)}
+        />
         {prompt.intent_category && (
           <Badge variant="neutral" className="text-[11px]">
             {prompt.intent_category}

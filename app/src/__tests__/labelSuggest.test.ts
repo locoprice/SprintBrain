@@ -11,6 +11,7 @@ function label(p: Partial<Label> = {}): Label {
     user_id: 'u1',
     name: `Label ${seq}`,
     color: 'azure',
+    parent_id: null,
     created_at: '2026-08-11T00:00:00Z',
     updated_at: '2026-08-11T00:00:00Z',
     ...p,

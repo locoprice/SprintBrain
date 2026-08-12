@@ -77,6 +77,8 @@ The eight colors a user can pick for a label. Labels are one vocabulary shared b
 
 Badges keep their light tints in dark mode, matching every shipped chip on the dashboard (language pills, strategy chips, `Badge variant="primary"`).
 
+**Sub-labels (LABELS-002).** A label may nest one level under another (`labels.parent_id`, max depth 2 — see `app/src/lib/labelTree.ts`). Nesting is rendered as a **14 px indent per level**, the same step the folder rail uses, in the label manager, the picker, and the filter menu. No new tokens: a sub-label draws from the same eight-key palette, and a new child defaults to its parent's key so a family reads as one group. The chip itself always shows the **bare child name** — a table row has no room for a path — with the full `Parent / Child` on hover. Selecting a parent in the filter also matches its children, matching how selecting a parent folder lists its subtree.
+
 ### Semantic
 
 | Token          | Hex       | Usage              |

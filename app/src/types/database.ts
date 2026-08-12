@@ -66,6 +66,13 @@ export interface Label {
   user_id: Uuid;
   name: string;
   color: LabelColor;
+  /**
+   * Parent label, null = root (LABELS-002). Nesting is capped at
+   * MAX_LABEL_DEPTH levels; deleting a parent promotes its children to root
+   * rather than cascading. Resolved client-side by `lib/labelTree.ts` — the
+   * hierarchy never reaches an RLS policy.
+   */
+  parent_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }

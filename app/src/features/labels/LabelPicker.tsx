@@ -4,6 +4,7 @@ import { Check, ChevronDown, Plus, Tag } from 'lucide-react';
 import { LabelBadge } from '@/components/shared/LabelBadge';
 import { DEFAULT_LABEL_COLOR, labelSwatch } from '@/lib/labelColors';
 import { labelNameKey, normalizeLabelName, validateLabelName } from '@/lib/labelUtils';
+import { buildLabelTree, flattenLabelTree, labelPath } from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
 import { cn } from '@/lib/utils';
 
@@ -86,10 +87,20 @@ export function LabelPicker({
   );
 
   const trimmed = normalizeLabelName(query);
+  // Unfiltered, the list is a tree so a sub-label reads as belonging to its
+  // parent. While searching it flattens to plain hits: indenting a child whose
+  // parent was filtered out would point at nothing.
   const matches = useMemo(() => {
-    if (trimmed.length === 0) return labels;
+    if (trimmed.length === 0) {
+      return flattenLabelTree(buildLabelTree(labels)).map((n) => ({
+        label: n.label,
+        depth: n.depth,
+      }));
+    }
     const needle = trimmed.toLowerCase();
-    return labels.filter((l) => l.name.toLowerCase().includes(needle));
+    return labels
+      .filter((l) => l.name.toLowerCase().includes(needle))
+      .map((label) => ({ label, depth: 1 }));
   }, [labels, trimmed]);
 
   // Offer creation only when the typed name isn't already a label — an exact
@@ -174,7 +185,12 @@ export function LabelPicker({
         {selected.length > 0 ? (
           <span className="flex min-w-0 flex-wrap items-center gap-1">
             {selected.map((label) => (
-              <LabelBadge key={label.id} label={label} onRemove={() => toggle(label.id)} />
+              <LabelBadge
+                key={label.id}
+                label={label}
+                path={labelPath(labels, label.id)}
+                onRemove={() => toggle(label.id)}
+              />
             ))}
           </span>
         ) : (
@@ -222,7 +238,7 @@ export function LabelPicker({
             />
 
             <div className="max-h-[220px] overflow-y-auto">
-              {matches.map((label) => {
+              {matches.map(({ label, depth }) => {
                 const active = value.includes(label.id);
                 return (
                   <button
@@ -231,8 +247,9 @@ export function LabelPicker({
                     role="option"
                     aria-selected={active}
                     onClick={() => toggle(label.id)}
+                    style={{ paddingLeft: 10 + (depth - 1) * 14 }}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-xs transition-colors',
+                      'flex w-full items-center gap-2 rounded-[6px] py-1.5 pr-2.5 text-xs transition-colors',
                       t.row,
                     )}
                   >
