@@ -15,6 +15,25 @@ export function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+/**
+ * Words in a snippet body, counted the way a word processor counts them:
+ * whitespace-separated tokens, nothing else.
+ *
+ * Template syntax is deliberately NOT stripped — `{guest_name}` counts as one
+ * word. It resolves to roughly one word when the snippet expands, and a counter
+ * that silently ignored parts of what is on screen would be unexplainable. The
+ * number means "words as written", not "words the guest receives".
+ *
+ * (lib/languageDetect.ts has an extractProse() that does strip placeholders and
+ * digits. That serves language detection, where template tokens are noise; it
+ * would undercount here.)
+ */
+export function countWords(text: string): number {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return 0;
+  return trimmed.split(/\s+/).length;
+}
+
 // Compact integer formatter for KPI cards (1.4k, 12k, 1.2M).
 export function formatCompact(value: number): string {
   if (value < 1000) return String(value);

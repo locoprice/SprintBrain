@@ -30,7 +30,7 @@ import {
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
-import { cn } from '@/lib/utils';
+import { cn, countWords } from '@/lib/utils';
 import {
   findMenuTokenAt,
   nextMenuName,
@@ -341,6 +341,11 @@ export function NewSnippetDialog() {
   // none pending, the live verdict speaks. Both render the same — a wrong
   // language blocks the save whether it was noticed while typing or at submit.
   const contentError = errors.content ?? liveLanguageError;
+
+  // Derived, not state: recomputing a split on every keystroke is cheaper than
+  // keeping a second copy of the body in sync with it. Counts the active
+  // language's body, so it follows the language pill on a translated snippet.
+  const bodyWordCount = countWords(form.content);
 
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -851,9 +856,17 @@ export function NewSnippetDialog() {
             {/* Body — the panel's flexible element: it absorbs whatever height
                 the fixed-size dialog has to spare, and shrinks (never below
                 min-h) before the panel resorts to scrolling. The wrapper's
-                min-h must cover label + gap + the textarea's own 200px floor,
-                or the textarea escapes the wrapper and runs under the chips. */}
-            <div className="flex flex-col gap-1.5 flex-1 min-h-[190px]">
+                min-h must cover label + gap + the textarea's own floor + the
+                footer row, or the textarea escapes the wrapper and runs under
+                the chips.
+                Measured need is ~210.5px: label 16 + its own mb-1.5 (FIELD_LABEL
+                carries a margin *on top of* this flex gap) + 6 gap + textarea
+                160 + 6 gap + footer 16.5. Raised 190 -> 216 when the word count
+                added the footer row; the spare ~5px is deliberate, since label
+                and footer heights come from font metrics that differ per
+                platform and a floor tuned to the exact number would overflow
+                somewhere else. */}
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[216px]">
               <label htmlFor="snippet-content" className={FIELD_LABEL}>
                 Body
               </label>
@@ -875,7 +888,17 @@ export function NewSnippetDialog() {
                 )}
                 placeholder="Dear {guest_name}, …"
               />
-              {contentError && <FieldError message={contentError} />}
+              {/* Footer: the error and the count share one line. Stacking them
+                  would cost the textarea a second row of height for something
+                  that is only ever a few words wide. */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {contentError && <FieldError message={contentError} />}
+                </div>
+                <span className="shrink-0 text-[11px] tabular-nums text-ink-subtle">
+                  {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
+                </span>
+              </div>
             </div>
 
             {/* Quick insert — split so the rail says what each half does */}
