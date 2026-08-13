@@ -9,6 +9,7 @@ import { LoginPage } from '@/routes/LoginPage';
 import { SignupPage } from '@/routes/SignupPage';
 import { AuthCallback } from '@/routes/AuthCallback';
 import { ExtensionLinkPage } from '@/routes/ExtensionLinkPage';
+import { InvitePage } from '@/routes/InvitePage';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { DesktopGate } from '@/components/layout/DesktopGate';
 import { useIsDesktop } from '@/lib/useViewportGate';
@@ -19,6 +20,8 @@ export function App() {
   // On mobile, only auth routes are served so magic links resolve correctly
   // when opened on a phone. The dashboard itself requires ≥1024px — all
   // non-auth paths fall through to DesktopGate which points to /mobile/.
+  // `/invite` is served here too: an invitation email gets opened on a phone
+  // more often than not, and accepting must not require finding a laptop.
   if (!isDesktop) {
     return (
       <BrowserRouter>
@@ -26,6 +29,14 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route
+            path="/invite"
+            element={
+              <AuthGate>
+                <InvitePage />
+              </AuthGate>
+            }
+          />
           <Route path="*" element={<DesktopGate />} />
         </Routes>
       </BrowserRouter>
@@ -46,6 +57,14 @@ export function App() {
           element={
             <AuthGate>
               <ExtensionLinkPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/invite"
+          element={
+            <AuthGate>
+              <InvitePage />
             </AuthGate>
           }
         />
