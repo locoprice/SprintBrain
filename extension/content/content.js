@@ -420,6 +420,22 @@ function checkBuf() {
     }
   }
 
+  // Unique-prefix expansion (v2.148.2): the trigger plus the first letters of a
+  // shortcut expands on its own, as long as only one snippet can still be meant
+  // — "::neo" is enough for NEO BOOKING. An exact match always wins (the loop
+  // above returns first), so "::form" still reaches ::form and never ::forms.
+  // Ambiguous prefixes expand nothing and fall through to the suggestion menu,
+  // where the user picks. Safe only because a match settles before it fires: the
+  // prefix is re-evaluated on every further letter.
+  var typedAfter = _typedAfterTrigger(buf, snippetTrigger);
+  if (typedAfter && typedAfter.length >= MIN_PREFIX_CHARS) {
+    var only = _uniquePrefixSnippet(typedAfter, snippetTrigger);
+    if (only) {
+      _armMatch(only, snippetTrigger.length + typedAfter.length, activeEl);
+      return;
+    }
+  }
+
   // Check configurable snippet trigger (e.g. ::) — debounced pending state
   var snippetSeq = triggerCfg.snippetTrigger || '::';
   if (!triggerPending) {
@@ -475,6 +491,56 @@ function checkBuf() {
     }
     return;
   }
+}
+
+// ── UNIQUE-PREFIX MATCHING ───────────────────────────────────────────
+// Typing the whole shortcut is not required: the trigger plus enough letters to
+// leave one candidate standing expands it. Two letters is the floor — below
+// that almost any library is ambiguous, and "::" would start behaving like a
+// keyboard shortcut for whatever happens to sort first.
+var MIN_PREFIX_CHARS = 2;
+
+// Everything typed since the last trigger sequence, or '' when the buffer holds
+// no live trigger. A space ends a trigger, so "::neo hola" yields nothing.
+function _typedAfterTrigger(b, seq) {
+  var idx = b.lastIndexOf(seq);
+  if (idx === -1) return '';
+  var run = b.slice(idx + seq.length);
+  if (!run || /\s/.test(run)) return '';
+  return run;
+}
+
+// Strip the trigger sequence from a stored shortcut / alternative query, which
+// may or may not carry it baked in ("::air" and "air" are the same trigger).
+function _bareTrigger(s, seq) {
+  var v = String(s == null ? '' : s).trim();
+  return v.indexOf(seq) === 0 ? v.slice(seq.length) : v;
+}
+
+// The single snippet a prefix can still mean, or null when it is ambiguous (or
+// matches nothing). Language variants of the same snippet count as ONE
+// candidate — they are one entry in the picker too, and _findLangVariants opens
+// the language modal after the match, exactly as it does for a full shortcut.
+function _uniquePrefixSnippet(typed, seq) {
+  var q = typed.toLowerCase();
+  var families = {};
+  var order = [];
+  for (var i = 0; i < snippets.length; i++) {
+    var s = snippets[i];
+    var hit = _bareTrigger(s.shortcut, seq).toLowerCase().indexOf(q) === 0;
+    if (!hit) {
+      var aqs = Array.isArray(s.alternative_queries) ? s.alternative_queries : [];
+      for (var j = 0; j < aqs.length && !hit; j++) {
+        if (_bareTrigger(aqs[j], seq).toLowerCase().indexOf(q) === 0) hit = true;
+      }
+    }
+    if (!hit) continue;
+    var base = _bareTrigger(s.shortcut, seq).replace(LANG_SUFFIX_RE, '').toLowerCase();
+    var key = s.lang_group_id ? ('g:' + s.lang_group_id) : ('b:' + base);
+    if (families[key] === undefined) { families[key] = s; order.push(key); }
+    if (order.length > 1) return null;   // ambiguous — let the picker decide
+  }
+  return order.length === 1 ? families[order[0]] : null;
 }
 
 // ── LANGUAGE VARIANT DETECTION ───────────────────────────────────────
@@ -733,9 +799,64 @@ function injectDynamicModal(variables, onConfirm, onCancel) {
 }
 
 // ── MATCH HANDLER ──────────────────────────────────────────────────
+// ── TRIGGER SPAN, MEASURED FROM THE FIELD (v2.148.2) ──────────────
+// How many characters an expansion removes used to be a running count of
+// keystrokes: the matched trigger's length, or the picker's tally of what was
+// typed since it opened. Those counters can drift from the field — a menu that
+// swallows a keystroke, an editor that rewrites what it received, focus moving
+// mid-word — and every drift shows up the same way: part of the trigger is left
+// stranded in the message ("::ne" in front of the snippet).
+//
+// The field is the truth. Read the text in front of the caret, and if the
+// counted span does not start exactly at the trigger sequence, delete back to
+// where the trigger actually begins instead. A whitespace anywhere in that run
+// means the trigger was abandoned mid-message, so the count is left alone.
+
+// Text between the start of the field and the caret, or null when it cannot be
+// read (no selection, selection outside the field, cross-origin, etc.).
+function _textBeforeCaret(el) {
+  try {
+    if (!el) return null;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      if (typeof el.selectionStart !== 'number') return null;
+      return String(el.value == null ? '' : el.value).slice(0, el.selectionStart);
+    }
+    if (!_isCEEl(el)) return null;
+    var host = _ceHost(el);
+    var sel = window.getSelection();
+    if (!host || !sel || !sel.rangeCount) return null;
+    var r = sel.getRangeAt(0);
+    if (host !== r.endContainer && !host.contains(r.endContainer)) return null;
+    var pre = document.createRange();
+    pre.selectNodeContents(host);
+    pre.setEnd(r.endContainer, r.endOffset);
+    return pre.toString();
+  } catch(_) { return null; }
+}
+
+function _fieldTriggerSpan(el, span) {
+  try {
+    var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
+    var before = _textBeforeCaret(el);
+    if (before == null || !seq) return span;
+    // Already reaching the trigger — the count is right, leave it.
+    var start = before.length - span;
+    if (span > 0 && start >= 0 && before.substring(start, start + seq.length) === seq) return span;
+    var tail = before.slice(-MAX_BUF);
+    var idx = tail.lastIndexOf(seq);
+    if (idx === -1) return span;
+    var run = tail.slice(idx);
+    // Never shrink the span, and never reach across a word break: only a
+    // continuous run from the trigger to the caret is the trigger the user typed.
+    if (run.length <= span || /\s/.test(run)) return span;
+    return run.length;
+  } catch(_) { return span; }
+}
+
 function handleMatch(el, snip, scLen) {
   if (processing) return;
   processing = true;
+  scLen = _fieldTriggerSpan(el, scLen);
   var fieldSnapshot = captureFieldState(el, scLen);
   deleteChars(el, scLen, function() {
     var vars = parsePlaceholders(snip.body);
@@ -1897,6 +2018,11 @@ var triggerPickerIdx      = 0;
 var triggerPickerQuery    = '';   // chars typed after trigger opens picker
 var triggerPickerFiltered = [];   // currently visible (filtered) items
 var triggerPickerDeleteLen = 0;   // total chars in field to delete on confirm
+// Typing slowly opens the menu before the shortcut is finished, and from then on
+// the menu owns the keystrokes — so the unique-prefix rule has to hold here too,
+// or the same "::neo" expands by itself when typed fast and waits for Tab when
+// typed slowly. Same settle window, same rule, one behaviour.
+var pickerAutoTimer = null;
                                   // (trigger sequence + every char typed while picker open)
 
 // Get pixel coords of the text cursor — used to position the picker.
@@ -2111,6 +2237,7 @@ function selectTriggerItem(idx) {
   var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
+  dLen = _fieldTriggerSpan(el, dLen);
 
   // Multi-language detection: if the selected snippet has sibling translations,
   // show the language picker modal instead of inserting directly. The modal
@@ -2199,6 +2326,7 @@ function closeTriggerPicker() {
   triggerPickerQuery     = '';
   triggerPickerFiltered  = [];
   triggerPickerDeleteLen = 0;
+  if (pickerAutoTimer) { clearTimeout(pickerAutoTimer); pickerAutoTimer = null; }
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -2276,6 +2404,22 @@ function handleTriggerPickerKey(e) {
         if (idx > -1) selectTriggerItem(idx);
       }, 0);
     }
+    // Snippets: once the typed letters leave a single row standing, that row is
+    // the snippet — expand it when typing settles, exactly as a prefix typed too
+    // fast for the menu to open would have. Requires a genuine prefix match, so
+    // a query that merely appears inside one title still waits for Tab.
+    if (triggerPickerMode === 'snippet') {
+      if (pickerAutoTimer) clearTimeout(pickerAutoTimer);
+      pickerAutoTimer = setTimeout(function() {
+        pickerAutoTimer = null;
+        if (!triggerPickerEl || triggerPickerMode !== 'snippet') return;
+        if (triggerPickerQuery.length < MIN_PREFIX_CHARS) return;
+        if (triggerPickerFiltered.length !== 1) return;
+        var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
+        if (!_uniquePrefixSnippet(triggerPickerQuery, seq)) return;
+        selectTriggerItem(0);
+      }, MATCH_SETTLE_MS);
+    }
     // Return true to short-circuit the main keydown handler so the keystroke
     // isn't accidentally appended to the shortcut buffer (which could match
     // a different snippet while the picker is open).
@@ -2284,6 +2428,9 @@ function handleTriggerPickerKey(e) {
   // Backspace — shrink query, shrink delete span, let backspace go into field
   if (e.key === 'Backspace') {
     if (triggerPickerQuery.length > 0) {
+      // Deleting is the user disagreeing with the menu — never auto-expand into
+      // a correction they are still making.
+      if (pickerAutoTimer) { clearTimeout(pickerAutoTimer); pickerAutoTimer = null; }
       triggerPickerQuery = triggerPickerQuery.slice(0, -1);
       triggerPickerDeleteLen = Math.max(0, triggerPickerDeleteLen - 1);
       _renderPickerItems(triggerPickerQuery);

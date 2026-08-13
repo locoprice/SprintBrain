@@ -93,24 +93,39 @@ const onKeyDown = (listeners.keydown || [])[0];
 if (!onKeyDown) fail('content.js no longer registers a keydown listener');
 
 // ── field model + intercepted expansion ─────────────────────────────
-let field = '';
+// The field is a live textarea model so the REAL handleMatch runs, including
+// the span correction that reads the text in front of the caret. Interception
+// sits one level lower, at deleteChars — the call that finally decides how many
+// characters leave the field.
 let fired = null;   // { id, span, result }
 
-sandbox.handleMatch = function (el, snip, span) {
-  fired = { id: snip.id, span: span, result: field.slice(0, field.length - span) + '<' + snip.id + '>' };
+const target = {
+  tagName: 'TEXTAREA', value: '', selectionStart: 0, selectionEnd: 0,
+  closest: () => null, getAttribute: () => null,
+  getBoundingClientRect: () => RECT,   // the picker anchors to the field's box
+  focus: noop, setSelectionRange: noop,
+};
+
+function setField(text) {
+  target.value = text;
+  target.selectionStart = target.selectionEnd = text.length;
+}
+
+sandbox.deleteChars = function (el, n, cb) {
+  fired = { span: n, result: target.value.slice(0, Math.max(0, target.value.length - n)) };
+  if (cb) cb();
+};
+sandbox._proceedInsert = function (el, snip) {
+  if (fired) { fired.id = snip.id; fired.result += '<' + snip.id + '>'; }
+  sandbox.processing = false;
 };
 sandbox.injectLangModal = function () { fail('unexpected language modal in a single-variant fixture'); };
-
-const target = {
-  tagName: 'TEXTAREA', closest: () => null, getAttribute: () => null,
-  getBoundingClientRect: () => RECT,   // the picker anchors to the field's box
-};
 
 function key(k) {
   let prevented = false;
   onKeyDown({ key: k, target: target, ctrlKey: false, metaKey: false,
               preventDefault: () => { prevented = true; }, stopPropagation: noop });
-  if (!prevented && k.length === 1) field += k;
+  if (!prevented && k.length === 1) setField(target.value + k);
   return prevented;
 }
 
@@ -128,7 +143,7 @@ async function reset() {
   sandbox.triggerPending = false;
   sandbox.triggerAffix = '';
   fired = null;
-  field = '';
+  setField('');
   await wait(60);
 }
 
@@ -146,7 +161,7 @@ const cases = [
     expect: { id: 'time', span: 6, result: '<time>' } },
 
   { name: 'space confirms and is consumed with the trigger',
-    run: async () => { field = 'hola '; await typeText('::time ', FAST); await wait(200); },
+    run: async () => { setField('hola '); await typeText('::time ', FAST); await wait(200); },
     expect: { id: 'time', span: 7, result: 'hola <time>' } },
 
   { name: 'longer shortcut reaches its own snippet ("::forms")',
@@ -172,7 +187,70 @@ const cases = [
   { name: 'Tab confirms an armed match',
     run: async () => { await typeText('::time', FAST); key('Tab'); await wait(120); },
     expect: { id: 'time', span: 6, result: '<time>' } },
+
+  // Unique-prefix expansion — the operator should not have to type a shortcut
+  // in full when only one snippet can still be meant.
+  { name: 'prefix "::neo" expands NEO BOOKING',
+    run: async () => { await typeText('::neo', FAST); await wait(SETTLE); },
+    expect: { id: 'neob', span: 5, result: '<neob>' } },
+
+  { name: 'prefix keeps the text before it intact',
+    run: async () => { setField('hola '); await typeText('::neo', FAST); await wait(SETTLE); },
+    expect: { id: 'neob', span: 5, result: 'hola <neob>' } },
+
+  { name: 'two-letter prefix "::ne" still resolves to one snippet',
+    run: async () => { await typeText('::ne', FAST); await wait(SETTLE); },
+    expect: { id: 'neob', span: 4, result: '<neob>' } },
+
+  { name: 'ambiguous prefix "::fo" expands nothing (form vs forms)',
+    run: async () => { await typeText('::fo', FAST); await wait(SETTLE); },
+    expect: null },
+
+  { name: 'single letter "::n" is below the prefix floor',
+    run: async () => { await typeText('::n', FAST); await wait(SETTLE); },
+    expect: null },
+
+  { name: 'space confirms a prefix too, and is consumed with it',
+    run: async () => { await typeText('::neo ', FAST); await wait(200); },
+    expect: { id: 'neob', span: 6, result: '<neob>' } },
+
+  { name: 'a trigger sitting inside a word expands nothing',
+    run: async () => { await typeText('ratio::xyz', FAST); await wait(SETTLE); },
+    expect: null },
 ];
+
+// ── span correction (measured from the field, not counted) ──────────
+// Every counter that feeds a delete span can drift from the field — a menu that
+// swallows a keystroke, an editor that rewrites what it received. When it does,
+// the deletion must still start at the trigger: the alternative is a piece of
+// the trigger stranded in the message ("::ne" in front of the snippet).
+const spanCases = [
+  { name: 'count 4 short is corrected back to the trigger',
+    value: '::neobooking', span: 8,  expect: 12 },
+  { name: 'count reduced to the bare trigger is corrected',
+    value: '::neob',       span: 2,  expect: 6 },
+  { name: 'text before the trigger is never touched',
+    value: 'hola ::neob',  span: 2,  expect: 6 },
+  { name: 'a correct count is left alone',
+    value: 'hola ::time',  span: 6,  expect: 6 },
+  { name: 'a trailing space confirmed the trigger — count stands',
+    value: 'hola ::time ', span: 7,  expect: 7 },
+  { name: 'no trigger in front of the caret — count stands',
+    value: 'plain text',   span: 4,  expect: 4 },
+  { name: 'a word break means the trigger was abandoned — count stands',
+    value: '::neo hola',   span: 4,  expect: 4 },
+];
+
+function runSpanCases() {
+  for (const c of spanCases) {
+    setField(c.value);
+    const got = sandbox._fieldTriggerSpan(target, c.span);
+    if (got !== c.expect) {
+      fail('span case "' + c.name + '" -> got ' + got + ', expected ' + c.expect +
+        '\n  field ' + JSON.stringify(c.value) + ', counted span ' + c.span);
+    }
+  }
+}
 
 (async () => {
   for (const c of cases) {
@@ -197,5 +275,14 @@ const cases = [
         ', expected ' + JSON.stringify(c.expect.result));
     }
   }
-  console.log('OK Trigger expansion passed all ' + cases.length + ' cases');
+  runSpanCases();
+  // selectTriggerItem feeds the picker's own tally into the same deletion, so it
+  // must correct it too — an untested call site is how the residue came back.
+  const pickerFn = CONTENT_SRC.slice(CONTENT_SRC.indexOf('function selectTriggerItem('));
+  if (!pickerFn.slice(0, pickerFn.indexOf('\nfunction ')).includes('_fieldTriggerSpan(el, dLen)')) {
+    fail('selectTriggerItem no longer corrects the picker delete span against the field.\n' +
+      '  Confirming from the suggestion menu would clip the wrong characters and\n' +
+      '  leave part of the trigger in the message.');
+  }
+  console.log('OK Trigger expansion passed all ' + (cases.length + spanCases.length + 1) + ' cases');
 })();
