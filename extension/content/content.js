@@ -495,10 +495,10 @@ function checkBuf() {
 
 // ── UNIQUE-PREFIX MATCHING ───────────────────────────────────────────
 // Typing the whole shortcut is not required: the trigger plus enough letters to
-// leave one candidate standing expands it. Two letters is the floor — below
-// that almost any library is ambiguous, and "::" would start behaving like a
-// keyboard shortcut for whatever happens to sort first.
-var MIN_PREFIX_CHARS = 2;
+// leave one candidate standing expands it. Three letters is the floor — two is
+// short enough to fire while the user is still deciding what to type, and in a
+// growing library a two-letter opening rarely stays unambiguous for long.
+var MIN_PREFIX_CHARS = 3;
 
 // Everything typed since the last trigger sequence, or '' when the buffer holds
 // no live trigger. A space ends a trigger, so "::neo hola" yields nothing.

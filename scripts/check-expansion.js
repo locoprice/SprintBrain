@@ -198,16 +198,20 @@ const cases = [
     run: async () => { setField('hola '); await typeText('::neo', FAST); await wait(SETTLE); },
     expect: { id: 'neob', span: 5, result: 'hola <neob>' } },
 
-  { name: 'two-letter prefix "::ne" still resolves to one snippet',
-    run: async () => { await typeText('::ne', FAST); await wait(SETTLE); },
-    expect: { id: 'neob', span: 4, result: '<neob>' } },
+  { name: 'ambiguous prefix "::for" expands nothing (form vs forms)',
+    run: async () => { await typeText('::for', FAST); await wait(SETTLE); },
+    expect: null },
 
-  { name: 'ambiguous prefix "::fo" expands nothing (form vs forms)',
-    run: async () => { await typeText('::fo', FAST); await wait(SETTLE); },
+  { name: 'two letters "::ne" are below the prefix floor',
+    run: async () => { await typeText('::ne', FAST); await wait(SETTLE); },
     expect: null },
 
   { name: 'single letter "::n" is below the prefix floor',
     run: async () => { await typeText('::n', FAST); await wait(SETTLE); },
+    expect: null },
+
+  { name: 'the floor also holds when the menu is already open (slow typing)',
+    run: async () => { await typeText('::ne', 260); await wait(SETTLE); },
     expect: null },
 
   { name: 'space confirms a prefix too, and is consumed with it',
