@@ -27,17 +27,33 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-// Where the invitation link lands. Taken from an allow-list, never from the
-// request, so a forged Origin header cannot turn an invite into an open
-// redirect. Anything unrecognized falls back to production.
-const ALLOWED_ORIGINS = ['https://app.sprintbrain.com', 'http://localhost:5173'];
-const DEFAULT_ORIGIN = 'https://app.sprintbrain.com';
+// Where the invitation link lands. Always production, never the caller's
+// Origin: the invitee is a different person on a different machine, so a
+// localhost link is dead on arrival — and there is one Supabase project, so an
+// invitation created from a dev server is in the same database the production
+// dashboard reads. Honoring Origin only ever produced a broken email.
+const DASHBOARD_ORIGIN = 'https://app.sprintbrain.com';
 
 const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // matches the column default
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type OrgRole = 'admin' | 'manager' | 'member';
 const ROLES: OrgRole[] = ['admin', 'manager', 'member'];
+
+/**
+ * The inviter's name, from the key the dashboard actually writes.
+ * settingsApi.editProfile stores it as `full_name` and reads it back as
+ * `full_name ?? name` — nothing anywhere writes `display_name`. Falls back to
+ * the full email rather than its handle: this string is read by someone outside
+ * the team, where a complete address is a trust signal and a handle is not.
+ */
+function pickName(metadata: Record<string, unknown> | undefined, email: string): string {
+  for (const key of ['full_name', 'name']) {
+    const value = metadata?.[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return email;
+}
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -173,12 +189,8 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Send the email ───────────────────────────────────────────────
-  const requestOrigin = req.headers.get('Origin') ?? '';
-  const base = ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : DEFAULT_ORIGIN;
-  const redirectTo = `${base}/auth/callback?next=/invite`;
-
-  const inviterName =
-    (user.user_metadata?.display_name as string | undefined)?.trim() || user.email;
+  const redirectTo = `${DASHBOARD_ORIGIN}/auth/callback?next=/invite`;
+  const inviterName = pickName(user.user_metadata, user.email);
 
   let emailError: string | null = null;
 
