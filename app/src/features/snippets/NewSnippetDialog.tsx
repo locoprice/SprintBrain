@@ -8,6 +8,7 @@ import {
   Pencil,
   Pin,
   Plus,
+  TextCursorInput,
   Trash2,
   X,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import {
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
+import { FormTextDialog } from '@/features/snippets/FormTextDialog';
 import { cn, countWords } from '@/lib/utils';
 import {
   findMenuTokenAt,
@@ -38,6 +40,7 @@ import {
   type FormMenuConfig,
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
+import { nextTextName } from '@/lib/formTextToken';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { findLanguageMismatch, slotMismatchMessage } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -119,10 +122,10 @@ interface QuickInsert {
 }
 
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'guest_name',    value: '{guest_name}',           variant: 'default', group: 'field',
-    hint: "The guest's name — inserts {guest_name}" },
-  { label: 'property_name', value: '{property_name}',        variant: 'default', group: 'field',
-    hint: 'The property name — inserts {property_name}' },
+  // guest_name and property_name were dropped in v2.150.0: both are plain text
+  // fields, and the {formtext} builder writes any of them by name. The two date
+  // chips stay — `DATE` in the name is what makes the fill form render a date
+  // picker (content.js auto-detect), which a text field cannot replace.
   { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default', group: 'field',
     hint: 'Arrival date — inserts {checkin_date}' },
   { label: 'checkout_date', value: '{checkout_date}',        variant: 'default', group: 'field',
@@ -240,6 +243,8 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Text-field builder — writes a {formtext:} token at the cursor.
+  const [textFieldOpen, setTextFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
@@ -917,9 +922,21 @@ export function NewSnippetDialog() {
                   ))}
 
                   {/* Field builders open a dialog instead of pasting a literal —
-                      a menu needs its options before the token means anything.
+                      a field needs its name before the token means anything, and
+                      an unnamed {formtext:} expands to nothing at all.
                       With the caret inside a menu the same chip edits it, so
                       changing the choices never means retyping raw token text. */}
+                  <button
+                    type="button"
+                    onClick={() => setTextFieldOpen(true)}
+                    disabled={saving}
+                    title="A line of text to fill in — opens the builder"
+                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                  >
+                    <TextCursorInput className="h-3 w-3" />
+                    {'{formtext}'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={openMenuBuilder}
@@ -981,6 +998,13 @@ export function NewSnippetDialog() {
                 </div>
               </div>
             </div>
+
+            <FormTextDialog
+              open={textFieldOpen}
+              onOpenChange={setTextFieldOpen}
+              suggestedName={nextTextName(form.content)}
+              onInsert={insertAtCursor}
+            />
 
             <FormMenuDialog
               open={menuFieldOpen}
