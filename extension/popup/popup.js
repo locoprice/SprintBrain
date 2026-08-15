@@ -88,6 +88,10 @@ var DB = {
           var st = sm[s.id] || { uses: 0, fills: 0, last_used: null };
           return {
             id: s.id, title: s.title, shortcut: s.shortcut || '',
+            // Owner of the row — accessible_snippets() returns your own rows
+            // plus teammates' rows from shared folders, and this is the only
+            // field that tells them apart (library stats, snippet-stats.js).
+            user_id: s.user_id || null,
             body: s.body || '', lang: s.lang || 'EN',
             bodies: (s.bodies && typeof s.bodies === 'object') ? s.bodies : {},
             folder: s.folder_id || '', fieldCfg: s.field_cfg || {}, lang_group_id: s.lang_group_id || s.id,
@@ -1168,19 +1172,24 @@ function _runNotionSync(cb, force) {
 }
 
 // UI REFRESH
-function groupCount(arr){ var seen={}; var n=0; for(var i=0;i<arr.length;i++){ var gid=arr[i].lang_group_id||arr[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
+// Every count on both surfaces comes from the shared core — a snippet with four
+// translations is one snippet here, in Sprintbrain.html and in the folder
+// badges. See extension/shared/snippet-stats.js for the grouping rule.
+function groupCount(arr){ return SBSnippetStats.count(arr); }
+function libraryStats(){ return SBSnippetStats.stats(snips, SB_CURRENT_USER_ID); }
 function refreshUI(){
   var tp=gi('tp'); if(tp && activeMode!=='prompts') tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
-  var gc=groupCount(snips);
-  var mcs=gi('mct-snip'); if(mcs) mcs.textContent=gc;
+  var st=libraryStats();
+  var mcs=gi('mct-snip'); if(mcs) mcs.textContent=st.total;
   var mcp=gi('mct-prmpt'); if(mcp) mcp.textContent=prompts.length;
+  var ls=gi('lib-stats'); if(ls) ls.textContent=SBSnippetStats.statsLine(st);
   renderFolders();
   if(activeMode==='prompts') renderPrompts(gi('sq')?gi('sq').value:'');
   else renderList(gi('sq')?gi('sq').value:'');
 }
 
 // FOLDERS
-function folderCount(fid){ var seen={}; var n=0; for(var i=0;i<snips.length;i++){ if((snips[i].folder||'')!==fid) continue; var gid=snips[i].lang_group_id||snips[i].id; if(!seen[gid]){ seen[gid]=1; n++; } } return n; }
+function folderCount(fid){ return groupCount(snips.filter(function(s){ return (s.folder||'')===fid; })); }
 
 function findFolder(id){ for(var i=0;i<folders.length;i++){ if(folders[i].id===id) return folders[i]; } return null; }
 function findPrompt(id){ for(var i=0;i<prompts.length;i++){ if(prompts[i].id===id) return prompts[i]; } return null; }
@@ -1270,13 +1279,7 @@ function inFolderSubtree(sfid, fid){
 function folderCountDeep(fid){
   var ids=folderSubtree(fid), inSet={};
   for(var i=0;i<ids.length;i++) inSet[ids[i]]=1;
-  var seen={}, n=0;
-  for(var j=0;j<snips.length;j++){
-    if(!inSet[snips[j].folder||'']) continue;
-    var gid=snips[j].lang_group_id||snips[j].id;
-    if(!seen[gid]){ seen[gid]=1; n++; }
-  }
-  return n;
+  return groupCount(snips.filter(function(s){ return !!inSet[s.folder||'']; }));
 }
 
 function folderDepth(fid){
@@ -1640,19 +1643,20 @@ var STAT_SVG={
   broken:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
 };
 
-// Expansions per language group, keyed by lang_group_id.
+// Expansions per snippet group, keyed by the shared core's group key.
 //
-// Summed over DISTINCT rows: a translated snippet is several rows sharing a
-// group id and each is expanded under its own id, so counting one row splits
-// the total (`time` is four variants). Always built from the FULL library, never
-// the filtered view, so searching or switching folders can't change which
-// snippets earn a trophy — and so a variant hidden by the current folder filter
-// still counts toward its group.
-function groupExpansions(list){
+// Summed over DISTINCT rows: a translated snippet is several rows and each is
+// expanded under its own id, so counting one row splits the total (`time` is
+// four variants). Always built from an index over the FULL library, never the
+// filtered view, so searching or switching folders can't change which snippets
+// earn a trophy — and so a variant hidden by the current folder filter still
+// counts toward its group.
+function groupExpansions(idx){
   var totals={};
-  list.forEach(function(s){
-    var gid=s.lang_group_id||s.id;
-    totals[gid]=(totals[gid]||0)+(s.expansions||0);
+  idx.groups.forEach(function(g){
+    var sum=0;
+    g.rows.forEach(function(s){ sum+=(s.expansions||0); });
+    totals[g.key]=sum;
   });
   return totals;
 }
@@ -1718,7 +1722,8 @@ function renderList(q){
 
   filtered.sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   var groups=groupSnips(filtered);
-  var libTotals=groupExpansions(snips);
+  var libIdx=SBSnippetStats.index(snips);
+  var libTotals=groupExpansions(libIdx);
   var libMax=maxGroupExpansions(libTotals);
   var h='';
   groups.forEach(function(g){
@@ -1726,7 +1731,7 @@ function renderList(q){
     var variants=findVariants(s);
     var langs=Object.keys(variants);
     var lb=langs.length>1 ? 'MULTI' : (s.lang||'EN');
-    var groupUses=libTotals[s.lang_group_id||s.id]||0;
+    var groupUses=libTotals[libIdx.keyOf[s.id]]||0;
     // "151 expansions" rather than a bare "\u00D7151": this list has no column
     // header to explain the number, and "expansions" is the precise word \u2014
     // snippet_stats counts popup copies, which is a different metric entirely.
@@ -1929,6 +1934,7 @@ function copyPrompt(pid){
 function setMode(m) {
   activeMode = m;
   var srow       = document.querySelector('.srow');
+  var libStats   = gi('lib-stats');
   var snipChips  = gi('snip-chips');
   var snipMain   = gi('snip-main');
   var pMain      = gi('prompt-main');
@@ -1948,6 +1954,7 @@ function setMode(m) {
 
   if (m === 'prompts') {
     if (srow) srow.classList.add('pmode');
+    if (libStats) libStats.style.display = 'none';
     if (snipChips) snipChips.style.display = 'none';
     if (snipMain) snipMain.style.display = 'none';
     if (pMain) pMain.className = 'p-main on';
@@ -1956,6 +1963,7 @@ function setMode(m) {
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
+    if (libStats) libStats.style.display = '';
     if (snipChips) snipChips.style.display = '';
     if (snipMain) snipMain.style.display = '';
     if (pMain) pMain.className = 'p-main';
@@ -2093,15 +2101,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-// GROUPING for extension list
+// GROUPING for extension list — one row per snippet, translations folded in.
 function groupSnips(arr) {
-  var groups = []; var seen = {};
-  arr.forEach(function(s) {
-    var gid = s.lang_group_id || s.id;
-    if (!seen[gid]) { seen[gid] = {master:s, variants:{}}; groups.push(seen[gid]); }
-    seen[gid].variants[s.lang] = s;
-  });
-  return groups;
+  return SBSnippetStats.index(arr).groups;
 }
 
 // LANGUAGE VARIANT SYSTEM v2.4
@@ -2125,18 +2127,15 @@ function bodyVariants(snip){
   return out;
 }
 
-// Non-empty languages a single row carries in its `bodies` map.
-function bodyLangs(snip){
-  var b = snip && snip.bodies;
-  if(!b || typeof b !== 'object') return [];
-  return LANGS.filter(function(l){ return typeof b[l] === 'string' && b[l].trim(); });
-}
-
 function findVariants(snip){
   if(!snip) return {};
-  var gid = snip.lang_group_id || snip.id;
   var v = {};
-  snips.forEach(function(s){ if((s.lang_group_id||s.id)===gid) v[s.lang]=s; });
+  var g = SBSnippetStats.groupFor(snips, snip);
+  var rows = g ? g.rows : [snip];
+  // First row per language wins, then the snippet being viewed reclaims its own
+  // language — opening a row must always show that row's body.
+  rows.forEach(function(s){ if(!v[s.lang]) v[s.lang]=s; });
+  v[snip.lang] = snip;
   // Dashboard single-row model: surface languages embedded in the bodies map.
   // Real sibling rows (legacy lang_group_id model) take precedence when both exist.
   var emb = bodyVariants(snip);
