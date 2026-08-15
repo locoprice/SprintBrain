@@ -284,5 +284,27 @@ export function findLanguageMismatch(bodies: SnippetBodies): LanguageMismatch | 
   return null;
 }
 
+/**
+ * The complaint for a whole snippet as the editor holds it, or null when it has
+ * nothing to answer for. `content` is the active slot's live text, which runs
+ * ahead of `bodies` between keystrokes, so it is merged in before the sweep.
+ *
+ * A snippet flagged MULTI is never checked. MULTI *means* a deliberate mix —
+ * one body carrying two or more languages — so there is no slot in it that can
+ * be the wrong language, and the sweep has nothing to say that the author did
+ * not already decide. Checking it anyway blocked the exact snippet the flag
+ * exists for: text typed before the flag is switched stays behind in whichever
+ * slot was active (the form opens on EN), and the sweep reads that leftover
+ * rather than the MULTI body the author is looking at.
+ */
+export function snippetMismatch(
+  language: SnippetLanguage,
+  bodies: SnippetBodies,
+  content: string,
+): LanguageMismatch | null {
+  if (language === 'MULTI') return null;
+  return findLanguageMismatch({ ...bodies, [language]: content });
+}
+
 /** Re-exported for callers that hold a `SnippetLanguage` and need to narrow it. */
 export { isDetectable };

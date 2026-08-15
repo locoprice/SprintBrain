@@ -5,6 +5,7 @@ import {
   findLanguageMismatch,
   mismatchMessage,
   slotMismatchMessage,
+  snippetMismatch,
 } from '@/lib/languageDetect';
 import type { SnippetBodies } from '@/types/database';
 
@@ -264,5 +265,46 @@ describe('mismatchMessage', () => {
     expect(mismatchMessage('IT', 'FR')).toBe(
       'Detected language is French, but this field requires Italian text.',
     );
+  });
+});
+
+describe('snippetMismatch', () => {
+  // One body carrying an Italian lead-in and the Spanish text it introduces —
+  // the case the MULTI flag exists for. It reads as Spanish to the detector,
+  // because the Spanish half is the longer one.
+  const MIXED = [
+    'caro ospite,',
+    '',
+    'ti spiego come funziona le regole del no-show. Ti incollo di seguito il',
+    'testo della legge originale.',
+    '',
+    'Una persona que ha reservado y decide no presentarse sin avisar o cancelar,',
+    'está sujeta a una penalización. No obstante, la sanción queda a criterio del',
+    'establecimiento. Normalmente corresponde al coste de la primera noche y el',
+    'importe se carga en la tarjeta de crédito del cliente.',
+  ].join('\n');
+
+  it('never complains about a MULTI snippet', () => {
+    expect(snippetMismatch('MULTI', { MULTI: MIXED }, MIXED)).toBeNull();
+  });
+
+  it('never complains about a MULTI snippet over a slot left behind by the picker', () => {
+    // The regression: the form opens on EN, so text pasted before the flag is
+    // switched to Multi stays in bodies.EN. The sweep read that leftover and
+    // blocked the save with a complaint about English — a slot the author never
+    // meant to fill. A MULTI snippet answers for none of its slots.
+    expect(snippetMismatch('MULTI', { EN: MIXED, MULTI: MIXED }, MIXED)).toBeNull();
+  });
+
+  it('still guards a snippet that names a single language', () => {
+    const found = snippetMismatch('EN', { EN: MIXED }, MIXED);
+    expect(found?.slot).toBe('EN');
+    expect(found?.detected).toBe('ES');
+  });
+
+  it('reads the live body over a stale one in the same slot', () => {
+    // `content` is what the textarea holds now; `bodies` can trail it by a
+    // keystroke. The verdict must come from what is on screen.
+    expect(snippetMismatch('ES', { ES: 'Estimado señor, gracias por su reserva' }, '')).toBeNull();
   });
 });
