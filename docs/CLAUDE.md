@@ -368,7 +368,8 @@ python3 -m http.server 8080
 CI runs on push to `develop` and checks:
 1. `extension/manifest.json` version == `app/package.json` version
 2. Formula syntax via `scripts/check-snippets.js`
-3. File structure assertions
+3. Trigger expansion via `scripts/check-expansion.js` — when a typed trigger fires and how much it deletes
+4. File structure assertions
 
 ### Branch Strategy
 | Branch | Purpose |

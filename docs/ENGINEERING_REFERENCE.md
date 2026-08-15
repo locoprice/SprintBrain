@@ -41,7 +41,8 @@ SprintBrain/
 │
 ├── scripts/                           # Node.js CI helper scripts
 │   ├── check-version.js               # Enforces manifest ≈ package.json version parity
-│   └── check-snippets.js              # Validates formula/template syntax
+│   ├── check-snippets.js              # Validates formula/template syntax
+│   └── check-expansion.js            # Pins when a typed trigger expands + its delete span
 │
 └── docs/                              # Architecture + workflow documentation
     ├── CLAUDE.md                      # Extension AI dev reference (vanilla JS rules)
@@ -68,7 +69,8 @@ Runs on every push to `develop`. Three gates must pass:
 
 1. **Version parity** — `scripts/check-version.js` verifies `extension/manifest.json` version matches `app/package.json`. Both must be kept in sync; increment together.
 2. **Formula validation** — `scripts/check-snippets.js` validates snippet template/formula syntax.
-3. **File structure** — Asserts `extension/manifest.json`, `app/index.html`, and `app/package.json` exist.
+3. **Trigger expansion** — `scripts/check-expansion.js` pins when a typed trigger expands and how many characters it removes (a shortcut that opens a longer word must not fire mid-word).
+4. **File structure** — Asserts `extension/manifest.json`, `app/index.html`, and `app/package.json` exist.
 
 ### Dashboard build (Netlify)
 Auto-deploys from `main` via `netlify.toml` (`base = "app"`, publishes `dist/`).

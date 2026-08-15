@@ -66,6 +66,13 @@ export interface Label {
   user_id: Uuid;
   name: string;
   color: LabelColor;
+  /**
+   * Parent label, null = root (LABELS-002). Nesting is capped at
+   * MAX_LABEL_DEPTH levels; deleting a parent promotes its children to root
+   * rather than cascading. Resolved client-side by `lib/labelTree.ts` — the
+   * hierarchy never reaches an RLS policy.
+   */
+  parent_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
@@ -323,6 +330,46 @@ export interface OrgMember {
   email: string;
   display_name: string;
   role: OrgRole;
+}
+
+/** Lifecycle of an `organization_invitations` row. */
+export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
+
+/** A sent invitation, as an admin sees it (`org_invitations` RPC). */
+export interface OrgInvitation {
+  id: Uuid;
+  email: string;
+  role: OrgRole;
+  status: InvitationStatus;
+  expires_at: IsoDateTime;
+  created_at: IsoDateTime;
+  /** Display name of whoever sent it. Null if that account is gone. */
+  invited_by_name: string | null;
+}
+
+/**
+ * An invitation waiting on the signed-in user (`my_pending_invitations` RPC).
+ * Matched on their verified email, so it never carries a token.
+ */
+export interface PendingInvitation {
+  id: Uuid;
+  organization_id: Uuid;
+  org_name: string;
+  org_slug: string | null;
+  role: OrgRole;
+  invited_by_name: string | null;
+  expires_at: IsoDateTime;
+  created_at: IsoDateTime;
+}
+
+/** Outcome of the `invite-member` edge function. */
+export interface InviteResult {
+  status: 'sent';
+  /** Whether the invitee already had a SprintBrain account. */
+  account: 'new' | 'existing';
+  /** False when the invitation was stored but the email did not go out. */
+  emailed: boolean;
+  emailError: string | null;
 }
 
 /** A single grant row from `folder_permissions`. */

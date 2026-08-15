@@ -58,8 +58,10 @@ export function AuthCallback() {
 
   if (status === 'authed') {
     // On mobile viewports the dashboard is inaccessible — redirect to the
-    // mobile companion app instead. `next` is dashboard-only so it is ignored.
-    if (window.matchMedia('(max-width: 1023px)').matches) {
+    // mobile companion app instead. `next` is dashboard-only so it is ignored,
+    // except /invite: that page is served on phones precisely because that is
+    // where an invitation email usually gets opened.
+    if (window.matchMedia('(max-width: 1023px)').matches && !next.startsWith('/invite')) {
       window.location.replace('/mobile/');
       return null;
     }

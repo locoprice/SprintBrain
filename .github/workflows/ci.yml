@@ -26,6 +26,9 @@ jobs:
       - name: Snippet engine check
         run: node scripts/check-snippets.js
 
+      - name: Trigger expansion check
+        run: node scripts/check-expansion.js
+
       - name: File structure check
         run: |
           test -f extension/manifest.json

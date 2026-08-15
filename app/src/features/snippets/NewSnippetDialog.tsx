@@ -8,6 +8,7 @@ import {
   Pencil,
   Pin,
   Plus,
+  TextCursorInput,
   Trash2,
   X,
 } from 'lucide-react';
@@ -24,9 +25,14 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { LabelPicker } from '@/features/labels/LabelPicker';
+import {
+  LABEL_SUGGESTIONS_ENABLED,
+  LabelSuggestions,
+} from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
-import { cn } from '@/lib/utils';
+import { FormTextDialog } from '@/features/snippets/FormTextDialog';
+import { cn, countWords } from '@/lib/utils';
 import {
   findMenuTokenAt,
   nextMenuName,
@@ -34,8 +40,9 @@ import {
   type FormMenuConfig,
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
+import { nextTextName } from '@/lib/formTextToken';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
-import { findLanguageMismatch } from '@/lib/languageDetect';
+import { findLanguageMismatch, slotMismatchMessage } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
@@ -77,6 +84,16 @@ const EMPTY_FORM: SnippetFormValues = {
 };
 
 /**
+ * How long the body must sit still before the language check gives a verdict.
+ *
+ * The check needs a few words before it says anything, so running it per
+ * keystroke would judge half-typed sentences and flash a message the next
+ * letter retracts. Waiting for a pause means the verdict lands between
+ * thoughts rather than mid-word.
+ */
+const LANGUAGE_CHECK_DELAY_MS = 500;
+
+/**
  * A snippet trigger is a bare token — the extension prepends the trigger prefix
  * (::) at match time (see content.js: `snippetTrigger + sc`), so it must never
  * be stored here. Strip anything that isn't a letter, number, hyphen, or
@@ -105,10 +122,10 @@ interface QuickInsert {
 }
 
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'guest_name',    value: '{guest_name}',           variant: 'default', group: 'field',
-    hint: "The guest's name — inserts {guest_name}" },
-  { label: 'property_name', value: '{property_name}',        variant: 'default', group: 'field',
-    hint: 'The property name — inserts {property_name}' },
+  // guest_name and property_name were dropped in v2.150.0: both are plain text
+  // fields, and the {formtext} builder writes any of them by name. The two date
+  // chips stay — `DATE` in the name is what makes the fill form render a date
+  // picker (content.js auto-detect), which a text field cannot replace.
   { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default', group: 'field',
     hint: 'Arrival date — inserts {checkin_date}' },
   { label: 'checkout_date', value: '{checkout_date}',        variant: 'default', group: 'field',
@@ -207,6 +224,10 @@ export function NewSnippetDialog() {
   const [altQueryDraft, setAltQueryDraft] = useState('');
   const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
+  // Language verdict for the slot currently on screen, recomputed as the user
+  // types. Separate from `errors` because nothing here came from a submit: it
+  // must not survive a language switch or block anything on its own.
+  const [liveLanguageError, setLiveLanguageError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -222,6 +243,8 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Text-field builder — writes a {formtext:} token at the cursor.
+  const [textFieldOpen, setTextFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
@@ -293,6 +316,41 @@ export function NewSnippetDialog() {
       setLabelIds([]);
     }
   }, [open, editingSnippet]);
+
+  // Check the body against its own flag while it is being written, so a wrong
+  // language is caught in the sentence that caused it rather than sprung at
+  // save time — by then the user has finished, and the fix is a re-read of
+  // text they thought was done.
+  //
+  // Only the slot on screen is judged here: an error about a variant the user
+  // cannot see has nothing to act on, so the other slots stay with the submit
+  // guard, which can switch the picker to them.
+  const bodyText = form.content;
+  const bodyLanguage = form.language;
+  useEffect(() => {
+    const pending = slotMismatchMessage(bodyText, bodyLanguage);
+    // Only a complaint waits for the pause. Clearing is immediate, so text
+    // that stops being wrong — reworded, emptied, or a language switch landing
+    // on a slot whose body already fits — drops the message on the spot rather
+    // than half a second later.
+    if (pending === null) {
+      setLiveLanguageError(null);
+      return;
+    }
+    const timer = window.setTimeout(() => setLiveLanguageError(pending), LANGUAGE_CHECK_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [bodyText, bodyLanguage]);
+
+  // One fault, one presentation. A submit error wins because it can be a
+  // schema complaint the live check knows nothing about (an empty body); with
+  // none pending, the live verdict speaks. Both render the same — a wrong
+  // language blocks the save whether it was noticed while typing or at submit.
+  const contentError = errors.content ?? liveLanguageError;
+
+  // Derived, not state: recomputing a split on every keystroke is cheaper than
+  // keeping a second copy of the body in sync with it. Counts the active
+  // language's body, so it follows the language pill on a translated snippet.
+  const bodyWordCount = countWords(form.content);
 
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -668,6 +726,19 @@ export function NewSnippetDialog() {
                   onChange={setLabelIds}
                   disabled={saving}
                 />
+                {LABEL_SUGGESTIONS_ENABLED && (
+                  <LabelSuggestions
+                    draft={{
+                      name: form.name,
+                      body: form.content,
+                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                      language: form.language,
+                    }}
+                    value={labelIds}
+                    onChange={setLabelIds}
+                    disabled={saving}
+                  />
+                )}
               </div>
             </div>
 
@@ -790,9 +861,17 @@ export function NewSnippetDialog() {
             {/* Body — the panel's flexible element: it absorbs whatever height
                 the fixed-size dialog has to spare, and shrinks (never below
                 min-h) before the panel resorts to scrolling. The wrapper's
-                min-h must cover label + gap + the textarea's own 200px floor,
-                or the textarea escapes the wrapper and runs under the chips. */}
-            <div className="flex flex-col gap-1.5 flex-1 min-h-[190px]">
+                min-h must cover label + gap + the textarea's own floor + the
+                footer row, or the textarea escapes the wrapper and runs under
+                the chips.
+                Measured need is ~210.5px: label 16 + its own mb-1.5 (FIELD_LABEL
+                carries a margin *on top of* this flex gap) + 6 gap + textarea
+                160 + 6 gap + footer 16.5. Raised 190 -> 216 when the word count
+                added the footer row; the spare ~5px is deliberate, since label
+                and footer heights come from font metrics that differ per
+                platform and a floor tuned to the exact number would overflow
+                somewhere else. */}
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[216px]">
               <label htmlFor="snippet-content" className={FIELD_LABEL}>
                 Body
               </label>
@@ -810,11 +889,21 @@ export function NewSnippetDialog() {
                 disabled={saving}
                 className={cn(
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
-                  errors.content && 'border-danger focus:border-danger focus:ring-danger/20',
+                  contentError && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
                 placeholder="Dear {guest_name}, …"
               />
-              {errors.content && <FieldError message={errors.content} />}
+              {/* Footer: the error and the count share one line. Stacking them
+                  would cost the textarea a second row of height for something
+                  that is only ever a few words wide. */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {contentError && <FieldError message={contentError} />}
+                </div>
+                <span className="shrink-0 text-[11px] tabular-nums text-ink-subtle">
+                  {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
+                </span>
+              </div>
             </div>
 
             {/* Quick insert — split so the rail says what each half does */}
@@ -833,9 +922,21 @@ export function NewSnippetDialog() {
                   ))}
 
                   {/* Field builders open a dialog instead of pasting a literal —
-                      a menu needs its options before the token means anything.
+                      a field needs its name before the token means anything, and
+                      an unnamed {formtext:} expands to nothing at all.
                       With the caret inside a menu the same chip edits it, so
                       changing the choices never means retyping raw token text. */}
+                  <button
+                    type="button"
+                    onClick={() => setTextFieldOpen(true)}
+                    disabled={saving}
+                    title="A line of text to fill in — opens the builder"
+                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                  >
+                    <TextCursorInput className="h-3 w-3" />
+                    {'{formtext}'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={openMenuBuilder}
@@ -897,6 +998,13 @@ export function NewSnippetDialog() {
                 </div>
               </div>
             </div>
+
+            <FormTextDialog
+              open={textFieldOpen}
+              onOpenChange={setTextFieldOpen}
+              suggestedName={nextTextName(form.content)}
+              onInsert={insertAtCursor}
+            />
 
             <FormMenuDialog
               open={menuFieldOpen}

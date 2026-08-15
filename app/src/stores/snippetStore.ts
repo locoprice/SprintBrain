@@ -9,6 +9,7 @@ import { useLabelStore } from '@/stores/labelStore';
 import { buildFolderShares } from '@/lib/folderShares';
 import { matchesLabelFilter } from '@/lib/labelUtils';
 import { subtreeIds } from '@/lib/folderTree';
+import { expandWithDescendants } from '@/lib/labelTree';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -634,6 +635,7 @@ export function useFilteredSnippets(): SnippetRow[] {
   // Assignments live in labelStore because the vocabulary is shared with
   // prompts; only the active selection above is per-surface.
   const labelAssignments = useLabelStore((s) => s.snippetLabels);
+  const labelCatalog = useLabelStore((s) => s.labels);
   const sortBy = useSnippetStore((s) => s.sortBy);
   const sortDir = useSnippetStore((s) => s.sortDir);
 
@@ -641,10 +643,15 @@ export function useFilteredSnippets(): SnippetRow[] {
   // with the rolled-up badge in the folder rail.
   const scope = folderId === null ? null : subtreeIds(folders, folderId);
 
+  // Same contract for labels: picking "Booking" also lists what is tagged only
+  // "Booking / Cancellation". Expanded ONCE here rather than inside the filter
+  // below, which runs per snippet.
+  const labelScope = expandWithDescendants(labelCatalog, labelFilter);
+
   const filtered = snippets.filter((s) => {
     if (scope !== null && (s.folder_id === null || !scope.has(s.folder_id))) return false;
     if (languageFilter !== null && s.language !== languageFilter) return false;
-    if (!matchesLabelFilter(s.id, labelFilter, labelAssignments)) return false;
+    if (!matchesLabelFilter(s.id, labelScope, labelAssignments)) return false;
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;

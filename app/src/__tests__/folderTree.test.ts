@@ -52,11 +52,25 @@ describe('buildFolderTree', () => {
     expect(roots[0]?.depth).toBe(1);
   });
 
-  it('does not recurse forever on a parent_id cycle', () => {
+  // Both halves matter. Terminating was never the hard part — the `seen` guard
+  // handles that — but every member of a cycle has a parent that IS in the
+  // list, so none becomes a root and a naive build drops the whole loop. The
+  // folders (and the snippets filed in them) would silently leave the UI.
+  it('still renders both folders in a parent_id cycle, without recursing forever', () => {
     const a = folder('a', 'A', 'b');
     const b = folder('b', 'B', 'a');
-    const roots = buildFolderTree([a, b]);
-    expect(flattenTree(roots).length).toBeLessThanOrEqual(2);
+    const rendered = flattenTree(buildFolderTree([a, b])).map((n) => n.folder.id);
+    expect(rendered.sort()).toEqual(['a', 'b']);
+  });
+
+  it('renders a longer cycle in full', () => {
+    const ring = [
+      folder('a', 'A', 'c'),
+      folder('b', 'B', 'a'),
+      folder('c', 'C', 'b'),
+    ];
+    const rendered = flattenTree(buildFolderTree(ring)).map((n) => n.folder.id);
+    expect(rendered.sort()).toEqual(['a', 'b', 'c']);
   });
 
   it('ignores a folder pointing at itself', () => {
@@ -64,6 +78,21 @@ describe('buildFolderTree', () => {
     const roots = buildFolderTree([self]);
     expect(roots).toHaveLength(1);
     expect(roots[0]?.children).toHaveLength(0);
+  });
+
+  // The invariant behind all of the above, stated once against messy data: a
+  // folder must always be reachable, whatever parent_id claims.
+  it('renders every folder exactly once, whatever the parent ids say', () => {
+    const messy = [
+      ...TREE,
+      folder('orphan', 'Orphan', 'gone'),
+      folder('self', 'Self', 'self'),
+      folder('ring1', 'Ring1', 'ring2'),
+      folder('ring2', 'Ring2', 'ring1'),
+    ];
+    const ids = flattenTree(buildFolderTree(messy)).map((n) => n.folder.id);
+    expect(ids).toHaveLength(messy.length);
+    expect(new Set(ids).size).toBe(messy.length);
   });
 });
 

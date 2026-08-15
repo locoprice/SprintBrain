@@ -274,6 +274,68 @@ var triggerDebounceTimer = null;
 var TRIGGER_MIN_CHARS = 1;     // show suggestions after ::x (non-destructive, so safe)
 var TRIGGER_DEBOUNCE_MS = 120; // short — the picker never touches the field anymore
 
+// ── MATCH SETTLE WINDOW (v2.148.1) ────────────────────────────────
+// A shortcut that is also the start of a longer word used to fire the instant
+// it matched: typing "::neobooking" expanded "::neob" at the sixth character
+// and left "ooking" stranded in the field — and on contenteditable hosts those
+// stray characters landed inside the selection the expansion had set, so the
+// delete span slid onto the message the user had already written.
+//
+// A match is now ARMED rather than expanded. It fires when typing settles, and
+// one more letter drops it so a longer trigger gets its turn ("::forms" now
+// reaches ::forms instead of ::form). Whitespace, Tab and Enter end the word,
+// so they expand straight away — nobody waits who does not want to.
+var armedMatch = null;   // { snip, expectedLen, el, bufLen }
+var armedTimer = null;
+var MATCH_SETTLE_MS = 350;
+
+function _cancelArmed() {
+  if (armedTimer) { clearTimeout(armedTimer); armedTimer = null; }
+  armedMatch = null;
+}
+
+function _armMatch(snip, expectedLen, el) {
+  _cancelArmed();
+  // The matched character never reached the pending-picker bookkeeping — the
+  // match branch returns before it. Count it here, so that if the match is
+  // dropped a moment later the picker's delete span still covers every
+  // character the user typed (one short leaves a stray ":" behind).
+  if (triggerPending) triggerAffix += buf.slice(-1);
+  // The picker must not open over an armed match: its key handler swallows
+  // keystrokes, and those are exactly what decides whether the match survives.
+  if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+  armedMatch = { snip: snip, expectedLen: expectedLen, el: el, bufLen: buf.length };
+  armedTimer = setTimeout(function() { _fireArmed(0); }, MATCH_SETTLE_MS);
+}
+
+// trailing: characters typed after the trigger that the expansion must remove
+// along with it — the space that confirmed the match. 0 for the settle timer
+// and for Tab/Enter, which never reach the field.
+function _fireArmed(trailing) {
+  var a = armedMatch;
+  _cancelArmed();
+  if (!a || processing) return;
+  buf = '';
+  triggerPending = false;
+  triggerPendingMode = null;
+  triggerAffix = '';
+  if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
+  var span = a.expectedLen + (trailing || 0);
+  var variantsMap = _findLangVariants(a.snip);
+  if (Object.keys(variantsMap).length > 1) {
+    // Do NOT pre-delete the trigger here. For contenteditable hosts,
+    // deleteChars only SETS a non-collapsed selection (it relies on the
+    // immediate next insertText to consume it). Opening the modal steals
+    // focus and destroys that selection — so the trigger text survives.
+    // Instead, defer deletion to handleMatch (called when the user picks
+    // a language) where deleteChars + insertText fire atomically.
+    processing = true;
+    injectLangModal(variantsMap, a.el, span);
+  } else {
+    handleMatch(a.el, a.snip, span);
+  }
+}
+
 function addKey(k) {
   if (k.length !== 1) return;
   buf += k;
@@ -297,6 +359,19 @@ function checkBuf() {
   var sanitized = buf.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').replace(/\u00A0/g, ' ').replace(/[\u201C\u201D]/g, '"');
   if (sanitized !== buf) buf = sanitized;
 
+  // A match is armed and waiting out the settle window. Another letter means
+  // the user is still typing a longer word, so drop it and let the buffer keep
+  // growing. Whitespace ends the word: expand now, and take the terminator with
+  // the trigger: leaving it behind would shift the delete span by one and
+  // strand a ":" in the field.
+  if (armedMatch) {
+    var extra = buf.length - armedMatch.bufLen;
+    if (extra > 0) {
+      if (/^\s+$/.test(buf.slice(armedMatch.bufLen))) { _fireArmed(extra); return; }
+      _cancelArmed();
+    }
+  }
+
   // Snippet matching contract (v2.24.0):
   //   Every snippet expansion REQUIRES the user to type the configured
   //   snippet trigger (default "::") immediately before the shortcut.
@@ -312,6 +387,10 @@ function checkBuf() {
   //   In both cases the matched length is exactly what was typed, so we
   //   never delete more or fewer characters than the user produced.
   //
+  //   A match does not expand on the spot — it is armed and settles first
+  //   (see _armMatch), because a shortcut can be the opening of a longer word
+  //   the user is still typing.
+  //
   //   Multi-language (v2.26.0): _findLangVariants() detects sibling
   //   translations via lang_group_id (when set) or shortcut-base heuristic
   //   (strips trailing EN/ES/IT/FR/MULTI). Applied in BOTH checkBuf() and
@@ -323,23 +402,7 @@ function checkBuf() {
     if (!sc) continue;
     var expected = sc.indexOf(snippetTrigger) === 0 ? sc : snippetTrigger + sc;
     if (expected.length <= buf.length && buf.slice(-expected.length).toLowerCase() === expected.toLowerCase()) {
-      buf = '';
-      triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-      if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-      var matched = snippets[i];
-      var variantsMap = _findLangVariants(matched);
-      if (Object.keys(variantsMap).length > 1) {
-        // Do NOT pre-delete the trigger here. For contenteditable hosts,
-        // deleteChars only SETS a non-collapsed selection (it relies on the
-        // immediate next insertText to consume it). Opening the modal steals
-        // focus and destroys that selection — so the trigger text survives.
-        // Instead, defer deletion to handleMatch (called when the user picks
-        // a language) where deleteChars + insertText fire atomically.
-        processing = true;
-        injectLangModal(variantsMap, activeEl, expected.length);
-      } else {
-        handleMatch(activeEl, matched, expected.length);
-      }
+      _armMatch(snippets[i], expected.length, activeEl);
       return;
     }
     // Also match against alternative_queries (ALTERNATIVE-QUERIES-001).
@@ -351,19 +414,25 @@ function checkBuf() {
       if (!aq) continue;
       var aqExpected = aq.indexOf(snippetTrigger) === 0 ? aq : snippetTrigger + aq;
       if (aqExpected.length <= buf.length && buf.slice(-aqExpected.length).toLowerCase() === aqExpected.toLowerCase()) {
-        buf = '';
-        triggerPending = false; triggerPendingMode = null; triggerAffix = '';
-        if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
-        var aqMatched = snippets[i];
-        var aqVariantsMap = _findLangVariants(aqMatched);
-        if (Object.keys(aqVariantsMap).length > 1) {
-          processing = true;
-          injectLangModal(aqVariantsMap, activeEl, aqExpected.length);
-        } else {
-          handleMatch(activeEl, aqMatched, aqExpected.length);
-        }
+        _armMatch(snippets[i], aqExpected.length, activeEl);
         return;
       }
+    }
+  }
+
+  // Unique-prefix expansion (v2.148.2): the trigger plus the first letters of a
+  // shortcut expands on its own, as long as only one snippet can still be meant
+  // — "::neo" is enough for NEO BOOKING. An exact match always wins (the loop
+  // above returns first), so "::form" still reaches ::form and never ::forms.
+  // Ambiguous prefixes expand nothing and fall through to the suggestion menu,
+  // where the user picks. Safe only because a match settles before it fires: the
+  // prefix is re-evaluated on every further letter.
+  var typedAfter = _typedAfterTrigger(buf, snippetTrigger);
+  if (typedAfter && typedAfter.length >= MIN_PREFIX_CHARS) {
+    var only = _uniquePrefixSnippet(typedAfter, snippetTrigger);
+    if (only) {
+      _armMatch(only, snippetTrigger.length + typedAfter.length, activeEl);
+      return;
     }
   }
 
@@ -422,6 +491,56 @@ function checkBuf() {
     }
     return;
   }
+}
+
+// ── UNIQUE-PREFIX MATCHING ───────────────────────────────────────────
+// Typing the whole shortcut is not required: the trigger plus enough letters to
+// leave one candidate standing expands it. Three letters is the floor — two is
+// short enough to fire while the user is still deciding what to type, and in a
+// growing library a two-letter opening rarely stays unambiguous for long.
+var MIN_PREFIX_CHARS = 3;
+
+// Everything typed since the last trigger sequence, or '' when the buffer holds
+// no live trigger. A space ends a trigger, so "::neo hola" yields nothing.
+function _typedAfterTrigger(b, seq) {
+  var idx = b.lastIndexOf(seq);
+  if (idx === -1) return '';
+  var run = b.slice(idx + seq.length);
+  if (!run || /\s/.test(run)) return '';
+  return run;
+}
+
+// Strip the trigger sequence from a stored shortcut / alternative query, which
+// may or may not carry it baked in ("::air" and "air" are the same trigger).
+function _bareTrigger(s, seq) {
+  var v = String(s == null ? '' : s).trim();
+  return v.indexOf(seq) === 0 ? v.slice(seq.length) : v;
+}
+
+// The single snippet a prefix can still mean, or null when it is ambiguous (or
+// matches nothing). Language variants of the same snippet count as ONE
+// candidate — they are one entry in the picker too, and _findLangVariants opens
+// the language modal after the match, exactly as it does for a full shortcut.
+function _uniquePrefixSnippet(typed, seq) {
+  var q = typed.toLowerCase();
+  var families = {};
+  var order = [];
+  for (var i = 0; i < snippets.length; i++) {
+    var s = snippets[i];
+    var hit = _bareTrigger(s.shortcut, seq).toLowerCase().indexOf(q) === 0;
+    if (!hit) {
+      var aqs = Array.isArray(s.alternative_queries) ? s.alternative_queries : [];
+      for (var j = 0; j < aqs.length && !hit; j++) {
+        if (_bareTrigger(aqs[j], seq).toLowerCase().indexOf(q) === 0) hit = true;
+      }
+    }
+    if (!hit) continue;
+    var base = _bareTrigger(s.shortcut, seq).replace(LANG_SUFFIX_RE, '').toLowerCase();
+    var key = s.lang_group_id ? ('g:' + s.lang_group_id) : ('b:' + base);
+    if (families[key] === undefined) { families[key] = s; order.push(key); }
+    if (order.length > 1) return null;   // ambiguous — let the picker decide
+  }
+  return order.length === 1 ? families[order[0]] : null;
 }
 
 // ── LANGUAGE VARIANT DETECTION ───────────────────────────────────────
@@ -680,9 +799,64 @@ function injectDynamicModal(variables, onConfirm, onCancel) {
 }
 
 // ── MATCH HANDLER ──────────────────────────────────────────────────
+// ── TRIGGER SPAN, MEASURED FROM THE FIELD (v2.148.2) ──────────────
+// How many characters an expansion removes used to be a running count of
+// keystrokes: the matched trigger's length, or the picker's tally of what was
+// typed since it opened. Those counters can drift from the field — a menu that
+// swallows a keystroke, an editor that rewrites what it received, focus moving
+// mid-word — and every drift shows up the same way: part of the trigger is left
+// stranded in the message ("::ne" in front of the snippet).
+//
+// The field is the truth. Read the text in front of the caret, and if the
+// counted span does not start exactly at the trigger sequence, delete back to
+// where the trigger actually begins instead. A whitespace anywhere in that run
+// means the trigger was abandoned mid-message, so the count is left alone.
+
+// Text between the start of the field and the caret, or null when it cannot be
+// read (no selection, selection outside the field, cross-origin, etc.).
+function _textBeforeCaret(el) {
+  try {
+    if (!el) return null;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      if (typeof el.selectionStart !== 'number') return null;
+      return String(el.value == null ? '' : el.value).slice(0, el.selectionStart);
+    }
+    if (!_isCEEl(el)) return null;
+    var host = _ceHost(el);
+    var sel = window.getSelection();
+    if (!host || !sel || !sel.rangeCount) return null;
+    var r = sel.getRangeAt(0);
+    if (host !== r.endContainer && !host.contains(r.endContainer)) return null;
+    var pre = document.createRange();
+    pre.selectNodeContents(host);
+    pre.setEnd(r.endContainer, r.endOffset);
+    return pre.toString();
+  } catch(_) { return null; }
+}
+
+function _fieldTriggerSpan(el, span) {
+  try {
+    var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
+    var before = _textBeforeCaret(el);
+    if (before == null || !seq) return span;
+    // Already reaching the trigger — the count is right, leave it.
+    var start = before.length - span;
+    if (span > 0 && start >= 0 && before.substring(start, start + seq.length) === seq) return span;
+    var tail = before.slice(-MAX_BUF);
+    var idx = tail.lastIndexOf(seq);
+    if (idx === -1) return span;
+    var run = tail.slice(idx);
+    // Never shrink the span, and never reach across a word break: only a
+    // continuous run from the trigger to the caret is the trigger the user typed.
+    if (run.length <= span || /\s/.test(run)) return span;
+    return run.length;
+  } catch(_) { return span; }
+}
+
 function handleMatch(el, snip, scLen) {
   if (processing) return;
   processing = true;
+  scLen = _fieldTriggerSpan(el, scLen);
   var fieldSnapshot = captureFieldState(el, scLen);
   deleteChars(el, scLen, function() {
     var vars = parsePlaceholders(snip.body);
@@ -844,6 +1018,11 @@ function _ceHost(el) {
     n = n.parentElement;
   }
   return el;
+}
+
+function _isCEEl(el) {
+  return !!(el && (el.isContentEditable || (el.getAttribute &&
+    (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''))));
 }
 
 function _selectionInside(sel, el) {
@@ -1139,9 +1318,21 @@ var overlayDone = null;
 // that selection — so the trigger survives until doInsert removes it here. 0 for
 // textarea/input (trigger already stripped) and for the selection-suggest path.
 var overlayTriggerLen = 0;
+// Caret position (character offset within the contenteditable host) at the
+// moment the overlay opened — the end of the trigger. Recovering the trigger
+// from the LIVE selection at insert time is not enough: the overlay took focus,
+// and focusing a contenteditable again drops the caret at the start of the
+// editor, so the walk backwards found nothing. The snippet then landed at the
+// top of the field and the whole trigger survived at the end. -1 when unknown.
+var overlayCaretCO = -1;
 
 function showOverlay(targetEl, snip, fields, scLen, done) {
   overlayTriggerLen = scLen || 0;
+  // Read the caret BEFORE the overlay exists: deleteChars has just selected the
+  // trigger, so the selection end is exactly where the user was typing.
+  overlayCaretCO = (overlayTriggerLen > 0 && targetEl && _isCEEl(targetEl))
+    ? _ceCaretCharOffset(_ceHost(targetEl))
+    : -1;
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -1421,10 +1612,21 @@ function doInsert(targetEl, snip) {
     // Re-select the trigger and replace it atomically while the selection is live
     // — exactly how the no-field CE path inserts. Without this the literal
     // ::trigger survives and nothing is inserted.
-    deleteChars(targetEl, overlayTriggerLen, function() {
+    //
+    // Prefer the caret offset recorded when the overlay opened: walking back from
+    // the LIVE caret only works in editors that restore their own selection on
+    // focus. A plain contenteditable puts the caret back at the start, so the walk
+    // found nothing and the trigger stayed in the field. deleteChars remains the
+    // fallback for editors whose DOM offsets we could not read.
+    if (_ceRestoreTriggerRange(targetEl, overlayCaretCO, overlayTriggerLen)) {
       insertText(targetEl, text);
       celebrateSyncCE();
-    });
+    } else {
+      deleteChars(targetEl, overlayTriggerLen, function() {
+        insertText(targetEl, text);
+        celebrateSyncCE();
+      });
+    }
   } else if (isCE) {
     // CE with no captured trigger (context-menu / selection-suggest): nothing to
     // strip, so insert at the live caret now and celebrate with Undo.
@@ -1533,6 +1735,31 @@ function _ceCharOffsetToPoint(host, target) {
     acc += len;
   }
   return { node: host, offset: host.childNodes ? host.childNodes.length : 0 };
+}
+
+// Re-select the N characters ending at a caret offset captured earlier, so the
+// next insertText replaces them. Used when the live selection can no longer be
+// trusted because a modal held focus in between (the field overlay). Returns
+// false when the offset is unusable, leaving the caller its live-selection path.
+function _ceRestoreTriggerRange(el, caretCO, n) {
+  try {
+    if (typeof caretCO !== 'number' || caretCO < n || n <= 0) return false;
+    var host = _ceHost(el);
+    if (!host) return false;
+    if (document.activeElement !== el && !document.activeElement.contains(el)) {
+      try { el.focus(); } catch(_) {}
+    }
+    var sp = _ceCharOffsetToPoint(host, caretCO - n);
+    var ep = _ceCharOffsetToPoint(host, caretCO);
+    var r = document.createRange();
+    r.setStart(sp.node, sp.offset);
+    r.setEnd(ep.node, ep.offset);
+    if (r.collapsed || r.toString().length !== n) return false;
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return true;
+  } catch(_) { return false; }
 }
 
 function captureFieldState(el, triggerLen) {
@@ -1791,6 +2018,11 @@ var triggerPickerIdx      = 0;
 var triggerPickerQuery    = '';   // chars typed after trigger opens picker
 var triggerPickerFiltered = [];   // currently visible (filtered) items
 var triggerPickerDeleteLen = 0;   // total chars in field to delete on confirm
+// Typing slowly opens the menu before the shortcut is finished, and from then on
+// the menu owns the keystrokes — so the unique-prefix rule has to hold here too,
+// or the same "::neo" expands by itself when typed fast and waits for Tab when
+// typed slowly. Same settle window, same rule, one behaviour.
+var pickerAutoTimer = null;
                                   // (trigger sequence + every char typed while picker open)
 
 // Get pixel coords of the text cursor — used to position the picker.
@@ -1798,6 +2030,17 @@ var triggerPickerDeleteLen = 0;   // total chars in field to delete on confirm
 // cursor shifts (typically to the previous line) before the picker appears
 // and subsequent insertions land at the wrong position.
 function _getCaretCoords(el) {
+  // A focused <textarea>/<input> keeps its caret in its own internal model:
+  // window.getSelection() reports a position in the DOCUMENT (BODY), so Method 1
+  // measures a 0x0 rect and Method 2 runs — and its span insertion mutates the
+  // DOM, which resets the field's caret to 0. Everything typed after the picker
+  // opened then landed at the START of the message, and the delete span on
+  // insert took the wrong characters with it. Anchor these fields to their own
+  // box: nothing about the page DOM is touched.
+  if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+    var box = el.getBoundingClientRect();
+    return { x: box.left, y: box.bottom };
+  }
   // Method 1: getBoundingClientRect() on a collapsed Range — zero DOM mutations.
   // A collapsed range in Chrome returns the caret rect (width:0, height:lineHeight).
   try {
@@ -1994,6 +2237,7 @@ function selectTriggerItem(idx) {
   var dLen  = triggerPickerDeleteLen || 0;
   closeTriggerPicker();
   if (!el) return;
+  dLen = _fieldTriggerSpan(el, dLen);
 
   // Multi-language detection: if the selected snippet has sibling translations,
   // show the language picker modal instead of inserting directly. The modal
@@ -2082,6 +2326,7 @@ function closeTriggerPicker() {
   triggerPickerQuery     = '';
   triggerPickerFiltered  = [];
   triggerPickerDeleteLen = 0;
+  if (pickerAutoTimer) { clearTimeout(pickerAutoTimer); pickerAutoTimer = null; }
   triggerPending = false;
   triggerPendingMode = null;
   triggerAffix = '';
@@ -2159,6 +2404,22 @@ function handleTriggerPickerKey(e) {
         if (idx > -1) selectTriggerItem(idx);
       }, 0);
     }
+    // Snippets: once the typed letters leave a single row standing, that row is
+    // the snippet — expand it when typing settles, exactly as a prefix typed too
+    // fast for the menu to open would have. Requires a genuine prefix match, so
+    // a query that merely appears inside one title still waits for Tab.
+    if (triggerPickerMode === 'snippet') {
+      if (pickerAutoTimer) clearTimeout(pickerAutoTimer);
+      pickerAutoTimer = setTimeout(function() {
+        pickerAutoTimer = null;
+        if (!triggerPickerEl || triggerPickerMode !== 'snippet') return;
+        if (triggerPickerQuery.length < MIN_PREFIX_CHARS) return;
+        if (triggerPickerFiltered.length !== 1) return;
+        var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
+        if (!_uniquePrefixSnippet(triggerPickerQuery, seq)) return;
+        selectTriggerItem(0);
+      }, MATCH_SETTLE_MS);
+    }
     // Return true to short-circuit the main keydown handler so the keystroke
     // isn't accidentally appended to the shortcut buffer (which could match
     // a different snippet while the picker is open).
@@ -2167,6 +2428,9 @@ function handleTriggerPickerKey(e) {
   // Backspace — shrink query, shrink delete span, let backspace go into field
   if (e.key === 'Backspace') {
     if (triggerPickerQuery.length > 0) {
+      // Deleting is the user disagreeing with the menu — never auto-expand into
+      // a correction they are still making.
+      if (pickerAutoTimer) { clearTimeout(pickerAutoTimer); pickerAutoTimer = null; }
       triggerPickerQuery = triggerPickerQuery.slice(0, -1);
       triggerPickerDeleteLen = Math.max(0, triggerPickerDeleteLen - 1);
       _renderPickerItems(triggerPickerQuery);
@@ -2582,6 +2846,8 @@ document.addEventListener('selectionchange', function() {
 
 // Close picker on outside click/tap or page scroll
 document.addEventListener('mousedown', function(e) {
+  // The caret is about to move — an armed match would expand at the new spot.
+  _cancelArmed();
   if (triggerPickerEl && !triggerPickerEl.contains(e.target)) {
     setTimeout(function() { closeTriggerPicker(); }, 100);
   }
@@ -2619,6 +2885,25 @@ document.addEventListener('keydown', function(e) {
   // Skip our own elements
   if (t && t.closest && t.closest('#sb-overlay')) return;
   if (t && t.closest && t.closest('#sb-celebrate')) return;
+
+  // An armed match is one keystroke from expanding. Tab and Enter end the word,
+  // so they confirm it immediately — the settle window only exists to catch a
+  // longer word, and these two rule that out. Enter is consumed so a chat
+  // composer sends the expanded message, never the raw trigger; press it again
+  // to send. Editing and navigation keys mean the caret is moving away, so the
+  // match is dropped. Printable characters are decided in checkBuf, once they
+  // have actually landed in the field.
+  if (armedMatch) {
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      _fireArmed(0);
+      return;
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'Delete' ||
+        ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].indexOf(e.key) > -1) {
+      _cancelArmed();
+    }
+  }
 
   // Cancel pending trigger on Escape
   if (triggerPending && e.key === 'Escape') {
@@ -2672,6 +2957,7 @@ document.addEventListener('keydown', function(e) {
 // of whether the browser populates InputEvent.inputType.
 document.addEventListener('paste', function() {
   isPasting = true;
+  _cancelArmed();
   buf = '';
   triggerPending = false;
   triggerPendingMode = null;

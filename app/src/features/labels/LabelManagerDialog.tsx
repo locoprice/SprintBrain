@@ -15,6 +15,13 @@ import {
   labelSwatch,
 } from '@/lib/labelColors';
 import { LABEL_NAME_MAX, normalizeLabelName, validateLabelName } from '@/lib/labelUtils';
+import {
+  buildLabelTree,
+  canCreateUnder,
+  canNestUnder,
+  childrenOf,
+  flattenLabelTree,
+} from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
@@ -54,12 +61,17 @@ function ColorStrip({
   );
 }
 
+/** Indent per nesting level, matching the folder rail. */
+const INDENT_PX = 14;
+
 interface LabelRowProps {
   label: Label;
   usage: number;
+  /** 1-based; a root label is depth 1. Drives the indent only. */
+  depth: number;
 }
 
-function LabelRow({ label, usage }: LabelRowProps) {
+function LabelRow({ label, usage, depth }: LabelRowProps) {
   const labels = useLabelStore((s) => s.labels);
   const editLabel = useLabelStore((s) => s.editLabel);
   const removeLabel = useLabelStore((s) => s.removeLabel);
@@ -73,6 +85,12 @@ function LabelRow({ label, usage }: LabelRowProps) {
   useEffect(() => {
     setName(label.name);
   }, [label.name]);
+
+  const kids = childrenOf(labels, label.id);
+  // canNestUnder already rejects self, non-root targets, and any label that has
+  // children of its own — so an empty list IS the "cannot be moved" case.
+  const eligibleParents = labels.filter((l) => canNestUnder(labels, label.id, l.id));
+  const canMove = eligibleParents.length > 0 || label.parent_id !== null;
 
   async function commitName() {
     const next = normalizeLabelName(name);
@@ -110,6 +128,19 @@ function LabelRow({ label, usage }: LabelRowProps) {
     }
   }
 
+  async function pickParent(parentId: string | null) {
+    if (parentId === label.parent_id) return;
+    setBusy(true);
+    try {
+      await editLabel(label.id, { parent_id: parentId });
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Move failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDelete() {
     setBusy(true);
     try {
@@ -123,13 +154,25 @@ function LabelRow({ label, usage }: LabelRowProps) {
 
   if (confirmDelete) {
     return (
-      <div className="flex items-center gap-3 rounded-[10px] border border-danger/30 bg-danger/5 px-3 py-2">
+      <div
+        style={{ marginLeft: (depth - 1) * INDENT_PX }}
+        className="flex items-center gap-3 rounded-[10px] border border-danger/30 bg-danger/5 px-3 py-2"
+      >
         <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
         <p className="min-w-0 flex-1 text-xs text-danger">
           Delete “{label.name}”?{' '}
           {usage > 0 && (
             <span className="text-danger/80">
               It will be removed from {usage} item{usage === 1 ? '' : 's'}.
+            </span>
+          )}
+          {/* The DB promotes children rather than cascading; say so, because
+              "delete the parent" otherwise reads as "delete the branch". */}
+          {kids.length > 0 && (
+            <span className="text-danger/80">
+              {' '}
+              Its {kids.length} sub-label{kids.length === 1 ? '' : 's'} will move to the top
+              level, not be deleted.
             </span>
           )}
         </p>
@@ -154,7 +197,10 @@ function LabelRow({ label, usage }: LabelRowProps) {
   }
 
   return (
-    <div className="rounded-[10px] border border-line px-3 py-2">
+    <div
+      style={{ marginLeft: (depth - 1) * INDENT_PX }}
+      className="rounded-[10px] border border-line px-3 py-2"
+    >
       <div className="flex items-center gap-3">
         <input
           type="text"
@@ -181,6 +227,25 @@ function LabelRow({ label, usage }: LabelRowProps) {
             labelSwatch(label.color).text,
           )}
         />
+        <select
+          aria-label={`Parent of ${label.name}`}
+          value={label.parent_id ?? ''}
+          disabled={busy || !canMove}
+          title={
+            canMove
+              ? 'Nest this label under another'
+              : 'Move its sub-labels out first — nesting is limited to 2 levels'
+          }
+          onChange={(e) => void pickParent(e.target.value === '' ? null : e.target.value)}
+          className="w-[104px] shrink-0 rounded-[8px] border border-line bg-card px-1.5 py-1 text-[11px] text-ink-muted focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="">No parent</option>
+          {eligibleParents.map((parent) => (
+            <option key={parent.id} value={parent.id}>
+              {parent.name}
+            </option>
+          ))}
+        </select>
         <span className="shrink-0 text-[11px] tabular-nums text-ink-subtle">
           {usage > 0 ? `${usage} item${usage === 1 ? '' : 's'}` : 'unused'}
         </span>
@@ -216,6 +281,7 @@ export function LabelManagerDialog() {
 
   const [draft, setDraft] = useState('');
   const [color, setColor] = useState<LabelColor>(DEFAULT_LABEL_COLOR);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const draftRef = useRef<HTMLInputElement>(null);
@@ -224,9 +290,24 @@ export function LabelManagerDialog() {
     if (!open) {
       setDraft('');
       setColor(DEFAULT_LABEL_COLOR);
+      setParentId(null);
       setError(null);
     }
   }, [open]);
+
+  // Rows in tree order: a parent, then its sub-labels indented beneath it.
+  const rows = useMemo(() => flattenLabelTree(buildLabelTree(labels)), [labels]);
+  // Any root can take a new child — a brand-new label has none of its own.
+  const parentOptions = useMemo(
+    () => labels.filter((l) => canCreateUnder(labels, l.id)),
+    [labels],
+  );
+
+  // A chosen parent no longer existing (deleted in another tab) would silently
+  // create a root instead; drop the selection so the control matches reality.
+  useEffect(() => {
+    if (parentId !== null && !labels.some((l) => l.id === parentId)) setParentId(null);
+  }, [labels, parentId]);
 
   /** How many snippets + prompts each label is on — the cost of deleting it. */
   const usage = useMemo(() => {
@@ -245,9 +326,12 @@ export function LabelManagerDialog() {
     }
     setCreating(true);
     try {
-      await addLabel(draft, color);
+      await addLabel(draft, color, parentId);
       setDraft('');
       setColor(DEFAULT_LABEL_COLOR);
+      // Parent is deliberately kept: adding several sub-labels to the same
+      // parent in a row is the common case, and re-picking it each time is
+      // the kind of small friction that makes people stop nesting.
       setError(null);
       draftRef.current?.focus();
     } catch (err) {
@@ -289,6 +373,32 @@ export function LabelManagerDialog() {
             }}
             className="h-8 flex-1"
           />
+          <select
+            aria-label="Parent label"
+            value={parentId ?? ''}
+            disabled={creating || parentOptions.length === 0}
+            title={
+              parentOptions.length === 0
+                ? 'Create a label first — sub-labels need a parent'
+                : 'Create this as a sub-label of an existing one'
+            }
+            onChange={(e) => {
+              const next = e.target.value === '' ? null : e.target.value;
+              setParentId(next);
+              // Inherit the parent's colour so a family reads as one group at a
+              // glance. Still editable — the strip sits right beside this.
+              const parent = next === null ? null : labels.find((l) => l.id === next);
+              if (parent) setColor(parent.color);
+            }}
+            className="h-8 w-[116px] shrink-0 rounded-[8px] border border-line bg-card px-1.5 text-[11px] text-ink-muted focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">No parent</option>
+            {parentOptions.map((parent) => (
+              <option key={parent.id} value={parent.id}>
+                {parent.name}
+              </option>
+            ))}
+          </select>
           <ColorStrip value={color} onPick={setColor} disabled={creating} />
           <button
             type="button"
@@ -315,8 +425,13 @@ export function LabelManagerDialog() {
           </p>
         ) : (
           <div className="flex max-h-[46vh] flex-col gap-2 overflow-y-auto pr-0.5">
-            {labels.map((label) => (
-              <LabelRow key={label.id} label={label} usage={usage.get(label.id) ?? 0} />
+            {rows.map((node) => (
+              <LabelRow
+                key={node.label.id}
+                label={node.label}
+                usage={usage.get(node.label.id) ?? 0}
+                depth={node.depth}
+              />
             ))}
           </div>
         )}

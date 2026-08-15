@@ -67,6 +67,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const resolveUserName = useUserNameResolver();
   const labelCatalog = useLabelStore((s) => s.labels);
   const labelAssignments = useLabelStore((s) => s.promptLabels);
+  const setPromptLabels = useLabelStore((s) => s.setPromptLabels);
   const labels = useMemo(
     () => resolveLabels(prompt.id, labelAssignments, labelCatalog),
     [prompt.id, labelAssignments, labelCatalog],
@@ -117,6 +118,15 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     void pushPromptToNotion(prompt.id);
   }
 
+  async function handleRemoveLabel(labelId: string) {
+    const current = labelAssignments.get(prompt.id) ?? [];
+    try {
+      await setPromptLabels(prompt.id, current.filter((id) => id !== labelId));
+    } catch {
+      // Error surfaces via store.error → page-level banner.
+    }
+  }
+
   return (
     <Card
       onClick={() => openEditPrompt(prompt.id)}
@@ -142,7 +152,11 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
 
       {/* Meta pills */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <LabelBadgeList labels={labels} />
+        <LabelBadgeList
+          labels={labels}
+          catalog={labelCatalog}
+          onRemove={(labelId) => void handleRemoveLabel(labelId)}
+        />
         {prompt.intent_category && (
           <Badge variant="neutral" className="text-[11px]">
             {prompt.intent_category}

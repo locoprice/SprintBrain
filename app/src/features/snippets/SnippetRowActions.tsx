@@ -1,9 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, Copy, Pencil, Power, Settings, Trash2 } from 'lucide-react';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Copy,
+  Pencil,
+  Power,
+  Settings2,
+  Settings,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import type { SnippetRow } from '@/types/database';
 import { useSnippetStore } from '@/stores/snippetStore';
+import { useLabelStore } from '@/stores/labelStore';
 import { useUiStore } from '@/stores/uiStore';
+import { labelSwatch } from '@/lib/labelColors';
+import { buildLabelTree, flattenLabelTree, labelPath } from '@/lib/labelTree';
+import { resolveLabels } from '@/lib/labelUtils';
 import { cn } from '@/lib/utils';
 
 interface SnippetRowActionsProps {
@@ -32,12 +48,34 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const toggleActive = useSnippetStore((s) => s.toggleActive);
 
+  const openLabelManager = useUiStore((s) => s.openLabelManager);
+  const labels = useLabelStore((s) => s.labels);
+  const labelAssignments = useLabelStore((s) => s.snippetLabels);
+  const setSnippetLabels = useLabelStore((s) => s.setSnippetLabels);
+
   const gearRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [working, setWorking] = useState(false);
+  // The menu drills down rather than flying a submenu out sideways: it is
+  // already portalled with viewport clamping, and a second floating layer would
+  // need its own edge maths for no gain at this size.
+  const [view, setView] = useState<'actions' | 'labels'>('actions');
+  const [labelBusy, setLabelBusy] = useState<string | null>(null);
+
+  // Resolved against the catalog, not the raw id list. An id whose label is
+  // gone must not be counted (it is invisible in the list below, so the badge
+  // would disagree with it) and must not be written back either: the assignment
+  // write upserts exactly this set, and a dangling id fails the FK — which
+  // would break the next toggle, not just the display.
+  const assignedLabels = useMemo(
+    () => resolveLabels(snippet.id, labelAssignments, labels),
+    [snippet.id, labelAssignments, labels],
+  );
+  const assigned = useMemo(() => assignedLabels.map((l) => l.id), [assignedLabels]);
+  const labelRows = useMemo(() => flattenLabelTree(buildLabelTree(labels)), [labels]);
 
   // Position the menu relative to the gear button on every open. We measure
   // after first render so the menu's own size can be subtracted from the
@@ -62,7 +100,10 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     }
     el.style.left = `${nextX}px`;
     el.style.top = `${nextY}px`;
-  }, [open, anchor]);
+    // `view` is a dependency because drilling into the label list changes the
+    // menu's height — without re-measuring, a tall list runs off the bottom of
+    // the viewport instead of flipping above the gear.
+  }, [open, anchor, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -90,10 +131,13 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     };
   }, [open]);
 
-  // Reset the delete-confirm latch whenever the menu closes so the next open
-  // starts from a clean state.
+  // Reset the delete-confirm latch and the drill-down whenever the menu closes
+  // so the next open starts from a clean state.
   useEffect(() => {
-    if (!open) setConfirmDelete(false);
+    if (!open) {
+      setConfirmDelete(false);
+      setView('actions');
+    }
   }, [open]);
 
   function handleEdit(e: React.MouseEvent) {
@@ -133,6 +177,28 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     } finally {
       setWorking(false);
     }
+  }
+
+  // Writes straight through, like the × on a row badge does — there is no
+  // draft to hold here, and a menu that needed a Save button would be worse.
+  // The menu stays open: assigning two labels in a row is the normal case.
+  async function toggleLabel(labelId: string) {
+    const next = assigned.includes(labelId)
+      ? assigned.filter((id) => id !== labelId)
+      : [...assigned, labelId];
+    setLabelBusy(labelId);
+    try {
+      await setSnippetLabels(snippet.id, next);
+    } catch {
+      // Error surfaces via store.error → page-level banner.
+    } finally {
+      setLabelBusy(null);
+    }
+  }
+
+  function handleManageLabels() {
+    setOpen(false);
+    openLabelManager();
   }
 
   async function handleDelete() {
@@ -191,32 +257,101 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <MenuItem
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="History"
-              onClick={handleHistory}
-              disabled={working}
-            />
-            <MenuItem
-              icon={<Copy className="h-3.5 w-3.5" />}
-              label="Clone"
-              onClick={handleClone}
-              disabled={working}
-            />
-            <MenuItem
-              icon={<Power className="h-3.5 w-3.5" />}
-              label={snippet.is_active ? 'Disable' : 'Enable'}
-              onClick={handleToggleActive}
-              disabled={working}
-            />
-            <div className="my-1 h-px bg-line" />
-            <MenuItem
-              icon={<Trash2 className="h-3.5 w-3.5" />}
-              label={confirmDelete ? 'Click again to confirm' : 'Delete'}
-              onClick={handleDelete}
-              disabled={working}
-              danger
-            />
+            {view === 'actions' ? (
+              <>
+                <MenuItem
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  label="History"
+                  onClick={handleHistory}
+                  disabled={working}
+                />
+                <MenuItem
+                  icon={<Copy className="h-3.5 w-3.5" />}
+                  label="Clone"
+                  onClick={handleClone}
+                  disabled={working}
+                />
+                <MenuItem
+                  icon={<Tag className="h-3.5 w-3.5" />}
+                  label="Label as"
+                  onClick={() => setView('labels')}
+                  disabled={working}
+                  trailing={
+                    <span className="flex items-center gap-1 text-[11px] tabular-nums text-ink-subtle">
+                      {assigned.length > 0 && assigned.length}
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  }
+                />
+                <MenuItem
+                  icon={<Power className="h-3.5 w-3.5" />}
+                  label={snippet.is_active ? 'Disable' : 'Enable'}
+                  onClick={handleToggleActive}
+                  disabled={working}
+                />
+                <div className="my-1 h-px bg-line" />
+                <MenuItem
+                  icon={<Trash2 className="h-3.5 w-3.5" />}
+                  label={confirmDelete ? 'Click again to confirm' : 'Delete'}
+                  onClick={handleDelete}
+                  disabled={working}
+                  danger
+                />
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setView('actions')}
+                  className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink transition-colors hover:bg-bg-alt"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+                  <span className="flex-1 truncate">Label as</span>
+                </button>
+                <div className="my-1 h-px bg-line" />
+
+                {labelRows.length === 0 ? (
+                  <p className="px-2.5 py-2 text-[12px] leading-snug text-ink-subtle">
+                    No labels yet. Create one below, then it appears here for every snippet.
+                  </p>
+                ) : (
+                  <div className="max-h-[240px] overflow-y-auto">
+                    {labelRows.map(({ label, depth }) => {
+                      const on = assigned.includes(label.id);
+                      return (
+                        <button
+                          key={label.id}
+                          type="button"
+                          role="menuitemcheckbox"
+                          aria-checked={on}
+                          disabled={labelBusy !== null}
+                          title={depth > 1 ? labelPath(labels, label.id) : undefined}
+                          onClick={() => void toggleLabel(label.id)}
+                          style={{ paddingLeft: 10 + (depth - 1) * 14 }}
+                          className="flex w-full items-center gap-2 rounded-[8px] py-1.5 pr-2.5 text-left text-[13px] text-ink transition-colors hover:bg-bg-alt disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <span
+                            className={cn(
+                              'h-2.5 w-2.5 shrink-0 rounded-full',
+                              labelSwatch(label.color).dot,
+                            )}
+                          />
+                          <span className="min-w-0 flex-1 truncate">{label.name}</span>
+                          {on && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="my-1 h-px bg-line" />
+                <MenuItem
+                  icon={<Settings2 className="h-3.5 w-3.5" />}
+                  label="Manage labels"
+                  onClick={handleManageLabels}
+                />
+              </>
+            )}
           </div>,
           document.body,
         )}
@@ -230,9 +365,11 @@ interface MenuItemProps {
   onClick: () => void | Promise<void>;
   disabled?: boolean;
   danger?: boolean;
+  /** Right-aligned adornment — a count, a chevron into a sub-view. */
+  trailing?: React.ReactNode;
 }
 
-function MenuItem({ icon, label, onClick, disabled, danger }: MenuItemProps) {
+function MenuItem({ icon, label, onClick, disabled, danger, trailing }: MenuItemProps) {
   return (
     <button
       type="button"
@@ -247,6 +384,7 @@ function MenuItem({ icon, label, onClick, disabled, danger }: MenuItemProps) {
     >
       <span className={cn('shrink-0', danger ? 'text-danger' : 'text-ink-subtle')}>{icon}</span>
       <span className="flex-1 truncate">{label}</span>
+      {trailing !== undefined && <span className="shrink-0">{trailing}</span>}
     </button>
   );
 }

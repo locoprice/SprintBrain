@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Settings2, Tag } from 'lucide-react';
 import { labelSwatch } from '@/lib/labelColors';
+import { buildLabelTree, flattenLabelTree, labelPath } from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,10 @@ export function LabelFilter({ selected, onChange, onManage }: LabelFilterProps) 
   const labels = useLabelStore((s) => s.labels);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Sub-labels sit under their parent, so the shape of the vocabulary is
+  // visible where it is used rather than only in the manager.
+  const rows = useMemo(() => flattenLabelTree(buildLabelTree(labels)), [labels]);
 
   useEffect(() => {
     if (!open) return;
@@ -102,7 +107,7 @@ export function LabelFilter({ selected, onChange, onManage }: LabelFilterProps) 
             </p>
           ) : (
             <div className="max-h-[260px] overflow-y-auto">
-              {labels.map((label) => {
+              {rows.map(({ label, depth }) => {
                 const on = selected.includes(label.id);
                 return (
                   <button
@@ -111,7 +116,13 @@ export function LabelFilter({ selected, onChange, onManage }: LabelFilterProps) 
                     role="menuitemcheckbox"
                     aria-checked={on}
                     onClick={() => toggle(label.id)}
-                    className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-xs text-ink transition-colors hover:bg-bg-alt"
+                    title={
+                      depth > 1
+                        ? labelPath(labels, label.id)
+                        : 'Selecting this also matches its sub-labels'
+                    }
+                    style={{ paddingLeft: 10 + (depth - 1) * 14 }}
+                    className="flex w-full items-center gap-2 rounded-[8px] py-1.5 pr-2.5 text-xs text-ink transition-colors hover:bg-bg-alt"
                   >
                     <span
                       className={cn('h-2.5 w-2.5 shrink-0 rounded-full', labelSwatch(label.color).dot)}

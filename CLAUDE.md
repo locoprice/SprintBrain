@@ -20,6 +20,18 @@
 
 ---
 
+## 🌍 Industry-Neutral — Non-Negotiable
+**SprintBrain ships to every industry, not to hospitality.** A law firm, a clinic, a repair shop and a rental host must each open the product and find it built for them. Hospitality is where the product was born and where its first users are; it is not what the product may look like.
+
+- **Nothing the product seeds may name a vertical.** Field chips, sample bodies, placeholder text, onboarding copy, mock fixtures and keyword suggestions stay generic — no guest, property, check-in / check-out, nights, booking, reservation, stay. What a user writes in their own snippets is theirs; the product must not put that vocabulary there first.
+- **Generic formulas only.** Every formula, field and example the product ships works unchanged in any industry. Vertical wording belongs in marketing copy, never in the editor.
+- **Quantities are numeric fields.** Price, total, count, duration, quantity — declared as a numeric field, never as a text field, and never as a text field a formula happens to add up.
+- **Never rewrite user data to satisfy this.** Snippets already written keep working exactly as written. The rule governs what SprintBrain ships, not what people typed into it.
+
+> **Open gap — the numeric rule cannot be satisfied yet.** No body token declares a numeric field: `buildFormFieldCfg` recognises `{formtext:}` / `{formdate:}` / `{formmenu:}` only, and the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and the mobile app, and by neither the popup nor `Sprintbrain.html`. Closing this needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the two missing renderers. Until it lands, say so rather than shipping a quantity as text and calling it done.
+
+---
+
 ## 🛠️ Engineering Workflow
 Senior-engineer method — **Explore → Plan → Implement → Verify** (never collapse Explore into Implement), surgical edits, read-before-edit, investigate-before-referencing. Full definition: engineer's global `~/.claude/CLAUDE.md`.
 
@@ -37,6 +49,8 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Disabling lint/type rules to force builds passing.
 - Inventing APIs, schemas, or dependencies — verify existence before use.
 - Skipping validation, tests, or verification steps.
+- Vertical vocabulary in anything the product ships — see 🌍 Industry-Neutral.
+- Declaring a quantity as a text field.
 
 ---
 
@@ -51,6 +65,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Keep bundle size and runtime performance under control.
 - Explain risky or destructive operations before applying them.
 - Proactively flag regressions, performance, architectural, and security risks you spot.
+- Keep every shipped field, formula, example and suggestion industry-neutral (🌍).
 
 ---
 
@@ -74,7 +89,7 @@ npm run build
 
 ### Before every commit — Extension (vanilla JS)
 No build step. Gates:
-- `node --check` on every changed `.js`; `node scripts/check-version.js` and `node scripts/check-snippets.js` green.
+- `node --check` on every changed `.js`; `node scripts/check-version.js`, `node scripts/check-snippets.js` and `node scripts/check-expansion.js` green.
 - Manual smoke test: trigger expansion, overlay, formula calculation, context menu.
 - No `console.log` debug statements committed; reload at `chrome://extensions` and confirm no service-worker errors.
 
@@ -110,7 +125,7 @@ At the end of every **successfully completed** task, prepare a push to `develop`
 **Preconditions (all must hold — otherwise do NOT push; fix or report instead):**
 1. **Verification gates pass.**
    - `app/`: `npm run lint`, `npm run typecheck`, `npm run build` all green.
-   - extension: `node --check` on every changed `.js`, plus `node scripts/check-version.js` and `node scripts/check-snippets.js` green.
+   - extension: `node --check` on every changed `.js`, plus `node scripts/check-version.js`, `node scripts/check-snippets.js` and `node scripts/check-expansion.js` green.
 2. **Version bumped** in `extension/manifest.json` **and** `app/package.json`, kept in parity.
 3. **Genuine task completion** — never mid-task, never on a failed or abandoned attempt.
 

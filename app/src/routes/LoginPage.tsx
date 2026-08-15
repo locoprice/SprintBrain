@@ -38,10 +38,13 @@ export function LoginPage() {
   const next = params.get('next') || '/';
 
   if (status === 'authed') {
-    // Phones land here from a magic link — hand them to the mobile companion.
+    // Phones land here from a magic link — hand them to the mobile companion,
+    // unless they were on their way to answer a team invitation, which renders
+    // at any width.
     if (
       typeof window !== 'undefined' &&
-      window.matchMedia('(max-width: 1023px)').matches
+      window.matchMedia('(max-width: 1023px)').matches &&
+      !next.startsWith('/invite')
     ) {
       window.location.replace('/mobile/');
       return null;
