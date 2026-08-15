@@ -102,7 +102,6 @@ function row(over: Partial<SnippetRow> = {}): SnippetRow {
     content: 'Hi {guest}',
     bodies: { EN: 'Hi {guest}' },
     triggers: ['quote'],
-    tags: [],
     is_formula: false,
     formula: null,
     variables: {},

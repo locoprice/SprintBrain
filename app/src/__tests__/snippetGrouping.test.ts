@@ -20,7 +20,6 @@ function snippet(
     content: '',
     bodies: {},
     triggers: [trigger],
-    tags: [],
     is_formula: false,
     formula: null,
     variables: {},

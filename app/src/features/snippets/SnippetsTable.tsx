@@ -463,11 +463,6 @@ export function SnippetsTable() {
                         {row.is_formula ? (
                           <Badge variant="primary">formula</Badge>
                         ) : null}
-                        {row.tags.slice(0, 2).map((t) => (
-                          <Badge key={t} variant="outline">
-                            {t}
-                          </Badge>
-                        ))}
                         {row.alternative_queries.slice(0, 3).map((q) => (
                           <span
                             key={q}

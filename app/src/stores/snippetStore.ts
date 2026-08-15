@@ -655,7 +655,6 @@ export function useFilteredSnippets(): SnippetRow[] {
     if (query.length === 0) return true;
     if (s.name.toLowerCase().includes(query)) return true;
     if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;
-    if (s.tags.some((t) => t.toLowerCase().includes(query))) return true;
     if (s.alternative_queries.some((q) => q.toLowerCase().includes(query))) return true;
     return false;
   });

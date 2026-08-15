@@ -42,7 +42,6 @@ const MOCK_SNIPPET: SnippetRow = {
   content: 'Hello world',
   bodies: { EN: 'Hello world' },
   triggers: ['hw'],
-  tags: [],
   is_formula: false,
   formula: null,
   variables: {},

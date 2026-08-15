@@ -114,8 +114,6 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts):
     bodies,
     // Schema has a single `shortcut`; dashboard expects an array.
     triggers: row.shortcut ? [row.shortcut] : [],
-    // `tags` doesn't exist in the Supabase schema yet.
-    tags: [],
     // Derived: body contains a formula placeholder.
     is_formula: body.includes('{='),
     formula: null,

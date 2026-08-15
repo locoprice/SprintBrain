@@ -100,7 +100,6 @@ export interface Snippet {
   content: string;
   bodies: SnippetBodies;
   triggers: string[];
-  tags: string[];
   is_formula: boolean;
   formula: string | null;
   variables: Record<string, unknown>;

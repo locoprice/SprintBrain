@@ -91,7 +91,6 @@ const SNIPPET_A: SnippetRow = {
   content: 'aaa',
   bodies: { EN: 'aaa' },
   triggers: ['a'],
-  tags: [],
   is_formula: false,
   formula: null,
   variables: {},
