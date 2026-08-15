@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ChevronDown,
   Clock,
+  Eye,
   History,
   MousePointerClick,
   Pencil,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +56,15 @@ import {
 
 // Each language is a first-class picker option with its own color (FR re-added v2.88.0).
 const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
+
+/**
+ * What Multi is for, on the button itself. The four language slots explain
+ * themselves; Multi does not, and the two things a user cannot guess are that
+ * it holds a single mixed body and that no language check runs on it.
+ */
+const MULTI_HINT =
+  'One body, any mix of languages. No language check here. ' +
+  'Use EN, IT, ES or FR for separate translations.';
 
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
 const LANG_CONFIG: Record<
@@ -1064,6 +1075,18 @@ export function NewSnippetDialog() {
                       )}
                     >
                       {cfg.label}
+                      {/* Multi carries its own hint: the only slot whose
+                          meaning isn't given away by its label. Sits left so it
+                          never collides with the filled-slot dot on the right. */}
+                      {lang === 'MULTI' && (
+                        <Tooltip
+                          label={MULTI_HINT}
+                          placement="top"
+                          className="absolute left-2 top-0 bottom-0 flex items-center text-ink-subtle hover:text-ink transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" aria-hidden />
+                        </Tooltip>
+                      )}
                       {showDot && (
                         <span
                           aria-hidden
