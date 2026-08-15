@@ -96,6 +96,7 @@ const SNIPPET_A: SnippetRow = {
   variables: {},
   folder_id: null,
   language: 'EN',
+  lang_group_id: null,
   notion_page_id: null,
   pinned: false,
   is_active: true,

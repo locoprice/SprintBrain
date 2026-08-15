@@ -107,12 +107,15 @@ export interface Snippet {
   language: SnippetLanguage;
   /**
    * Curated cross-language grouping key (nullable in DB). Variants that share
-   * it are one logical snippet. The extension and mobile app group on this key;
-   * the dashboard table currently groups by base trigger only (snippetGrouping.ts)
-   * and does not read this field — honoring it for full cross-surface parity is a
-   * tracked follow-up.
+   * it are one logical snippet. All three surfaces group on it and fall back to
+   * the base-trigger heuristic only when it is null — see `snippetGroupKey`.
+   *
+   * Required, not optional: it was optional while `snippetsApi` omitted it from
+   * its select, so the dashboard silently grouped every row by trigger alone
+   * and no type error ever surfaced. Keep it required so a surface that forgets
+   * to map it fails to compile.
    */
-  lang_group_id?: string | null;
+  lang_group_id: string | null;
   notion_page_id: string | null;
   pinned: boolean;
   /**
