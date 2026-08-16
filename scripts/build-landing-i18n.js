@@ -42,6 +42,14 @@ function rel(p) {
   return path.relative(ROOT, p).split(path.sep).join('/');
 }
 
+// Windows checkouts (core.autocrlf=true) can materialize these files with
+// CRLF even though the committed blob and every string in this file are LF.
+// Normalize on read so a fresh `git checkout` doesn't read as spurious drift
+// or defeat the hreflang dedup below; every write stays pure LF regardless.
+function readText(file) {
+  return fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+}
+
 function listLocales() {
   if (!fs.existsSync(LOCALES)) return [];
   return fs
@@ -59,6 +67,12 @@ function hreflangBlock(langs) {
   lines.push(`<link rel="alternate" hreflang="x-default" href="${CANONICAL}">`);
   return lines.join('\n');
 }
+
+// Matches any run of hreflang <link> tags regardless of which languages they
+// list, so adding or removing a locale replaces the old block instead of
+// stacking a second one next to it (an exact-string match on the *new* block
+// can't find the *old* one once the language set has changed).
+const HREFLANG_RUN = /(?:<link rel="alternate" hreflang="[^"]*" href="[^"]*">\n)+/;
 
 function translate(html, locale, lang) {
   let out = html;
@@ -92,10 +106,11 @@ function translate(html, locale, lang) {
 
 function withHreflang(html, langs) {
   const block = hreflangBlock(langs);
+  const stripped = html.replace(HREFLANG_RUN, '');
   const marker = '<link rel="icon" type="image/png" sizes="128x128"';
-  const at = html.indexOf(marker);
+  const at = stripped.indexOf(marker);
   if (at === -1) throw new Error('could not find the icon links to anchor hreflang to');
-  return html.slice(0, at) + block + '\n' + html.slice(at);
+  return stripped.slice(0, at) + block + '\n' + stripped.slice(at);
 }
 
 function main() {
@@ -107,15 +122,12 @@ function main() {
     return;
   }
 
-  const source = fs.readFileSync(SOURCE, 'utf8');
+  const source = readText(SOURCE);
   let failed = false;
 
   // The English source carries the same hreflang set, so search engines see a
   // reciprocal cluster. It is written in place rather than generated.
-  const englishWanted = withHreflang(
-    source.split(hreflangBlock(langs) + '\n').join(''),
-    langs,
-  );
+  const englishWanted = withHreflang(source, langs);
   if (source !== englishWanted) {
     if (check) {
       console.error(`X    ${rel(SOURCE)} hreflang block is missing or stale -> run: node scripts/build-landing-i18n.js`);
@@ -128,14 +140,14 @@ function main() {
     console.log(`OK   ${rel(SOURCE)} hreflang in sync`);
   }
 
-  const base = fs.readFileSync(SOURCE, 'utf8');
+  const base = readText(SOURCE);
 
   for (const lang of langs) {
     const locale = JSON.parse(fs.readFileSync(path.join(LOCALES, `${lang}.json`), 'utf8'));
     const target = path.join(LANDING, lang, 'index.html');
     const desired = translate(base, locale, lang);
 
-    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+    const existing = fs.existsSync(target) ? readText(target) : null;
     if (existing === desired) {
       console.log(`OK   ${rel(target)} in sync`);
       continue;

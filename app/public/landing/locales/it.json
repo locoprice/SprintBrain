@@ -12,6 +12,11 @@
       "count": 1
     },
     {
+      "find": "      <div class=\"nav-lang\">\n        <button type=\"button\" class=\"btn btn-ghost btn-sm nav-lang-trigger\" id=\"nav-lang-trigger\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"nav-lang-menu\">\n          EN\n          <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"nav-lang-chevron\"><polyline points=\"6 9 12 15 18 9\"/></svg>\n        </button>\n        <div class=\"nav-lang-menu\" id=\"nav-lang-menu\" role=\"menu\" aria-labelledby=\"nav-lang-trigger\">\n          <span class=\"nav-lang-item nav-lang-item-current\" role=\"menuitem\" aria-current=\"true\">\n            <svg class=\"nav-lang-check\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"/></svg>\n            English\n          </span>\n          <a href=\"/it/\" hreflang=\"it\" role=\"menuitem\" class=\"nav-lang-item\">\n            <span class=\"nav-lang-check\" aria-hidden=\"true\"></span>\n            Italiano\n          </a>\n          <a href=\"/es/\" hreflang=\"es\" role=\"menuitem\" class=\"nav-lang-item\">\n            <span class=\"nav-lang-check\" aria-hidden=\"true\"></span>\n            Español\n          </a>\n        </div>\n      </div>",
+      "replace": "      <div class=\"nav-lang\">\n        <button type=\"button\" class=\"btn btn-ghost btn-sm nav-lang-trigger\" id=\"nav-lang-trigger\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"nav-lang-menu\">\n          IT\n          <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"nav-lang-chevron\"><polyline points=\"6 9 12 15 18 9\"/></svg>\n        </button>\n        <div class=\"nav-lang-menu\" id=\"nav-lang-menu\" role=\"menu\" aria-labelledby=\"nav-lang-trigger\">\n          <a href=\"/\" hreflang=\"en\" role=\"menuitem\" class=\"nav-lang-item\">\n            <span class=\"nav-lang-check\" aria-hidden=\"true\"></span>\n            English\n          </a>\n          <span class=\"nav-lang-item nav-lang-item-current\" role=\"menuitem\" aria-current=\"true\">\n            <svg class=\"nav-lang-check\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"/></svg>\n            Italiano\n          </span>\n          <a href=\"/es/\" hreflang=\"es\" role=\"menuitem\" class=\"nav-lang-item\">\n            <span class=\"nav-lang-check\" aria-hidden=\"true\"></span>\n            Español\n          </a>\n        </div>\n      </div>",
+      "count": 1
+    },
+    {
       "find": "<a href=\"#features\" class=\"nav-link\">Features</a>",
       "replace": "<a href=\"#features\" class=\"nav-link\">Funzioni</a>",
       "count": 1
@@ -24,11 +29,6 @@
     {
       "find": "</svg>Add to Chrome</a>",
       "replace": "</svg>Aggiungi a Chrome</a>",
-      "count": 1
-    },
-    {
-      "find": "<a href=\"/it/\" class=\"nav-link nav-lang\" hreflang=\"it\" title=\"Leggi in italiano\">IT</a>",
-      "replace": "<a href=\"/\" class=\"nav-link nav-lang\" hreflang=\"en\" title=\"Read in English\">EN</a>",
       "count": 1
     },
     {
@@ -108,7 +108,7 @@
     },
     {
       "find": "        Everything text expansion should be.\n        <em>Plus the two things it isn't.</em>",
-      "replace": "        Tutto quello che l'espansione di testo dovrebbe essere.\n        <em>Più le due cose che non è.</em>",
+      "replace": "        Tutto quello che un Text Expander ha da offrire.\n        <em>E molto altro ancora.</em>",
       "count": 1
     },
     {

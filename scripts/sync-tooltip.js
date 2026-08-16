@@ -30,8 +30,16 @@ function rel(p) {
   return path.relative(ROOT, p).split(path.sep).join('/');
 }
 
+// Windows checkouts (core.autocrlf=true) can materialize these files with
+// CRLF even though the committed blob and every string built here are LF.
+// Normalize on read so a fresh `git checkout` doesn't read as spurious drift;
+// every write stays pure LF regardless of local line-ending state.
+function readText(file) {
+  return fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+}
+
 function apply(file, source, check) {
-  let html = fs.readFileSync(file, 'utf8');
+  let html = readText(file);
   const desired = block(source);
   const start = html.indexOf(BEGIN);
   const stop = html.indexOf(END);
@@ -54,7 +62,7 @@ function apply(file, source, check) {
 
 function main() {
   const check = process.argv.includes('--check');
-  const source = fs.readFileSync(SOURCE, 'utf8');
+  const source = readText(SOURCE);
   let failed = false;
 
   for (const file of TARGETS) {
