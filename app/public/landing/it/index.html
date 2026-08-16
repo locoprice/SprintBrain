@@ -7,6 +7,7 @@
 <title>SprintBrain: espansione di testo con formule</title>
 <meta name="description" content="Estensione Chrome che espande gli snippet, calcola formule al loro interno e condivide folder con il team. Sincronizzata su Chrome, web e mobile per chi scrive ogni giorno le stesse cose.">
 <link rel="alternate" hreflang="en" href="https://sprintbrain.com/">
+<link rel="alternate" hreflang="es" href="https://sprintbrain.com/es/">
 <link rel="alternate" hreflang="it" href="https://sprintbrain.com/it/">
 <link rel="alternate" hreflang="x-default" href="https://sprintbrain.com/">
 <link rel="icon" type="image/png" sizes="128x128" href="/icon128.png">
@@ -51,11 +52,6 @@ img,svg{display:block;max-width:100%}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
   white-space:nowrap;border-radius:var(--r-btn);transition:color .15s,background .15s}
 .nav-link:hover{color:var(--text);background:var(--bg-alt)}
-/* Language switcher: a bordered two-letter chip so it reads as a control
-   rather than as one more destination in the nav. Existing tokens only. */
-.nav-lang{padding:6px 10px;font-size:13px;font-weight:600;letter-spacing:.02em;
-  border:1px solid var(--border);color:var(--text2)}
-.nav-lang:hover{color:var(--text);background:var(--bg-alt);border-color:#D1D1D6}
 /* The GitHub star is the most expendable nav item, so it's first to go
    when the bar gets tight below ~900px. */
 @media(max-width:900px){
@@ -83,6 +79,31 @@ img,svg{display:block;max-width:100%}
 .nav-account-item svg{color:var(--text3);flex-shrink:0}
 .nav-account-item-primary{color:var(--primary)}
 .nav-account-item-primary svg{color:var(--primary)}
+
+/* LANGUAGE DROPDOWN
+   A toggle chip worked for two languages; a third makes it ambiguous which
+   language a click lands on, so this reuses the account dropdown's pattern
+   (same tokens, same interaction) rather than stretching a binary toggle. */
+.nav-lang{position:relative}
+.nav-lang-trigger{gap:6px}
+.nav-lang-chevron{transition:transform .18s ease}
+.nav-lang-trigger[aria-expanded="true"] .nav-lang-chevron{transform:rotate(180deg)}
+.nav-lang-menu{
+  position:absolute;top:calc(100% + 8px);right:0;min-width:150px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  box-shadow:var(--shadow-md);padding:6px;
+  opacity:0;visibility:hidden;transform:translateY(-6px);
+  transition:opacity .16s ease,transform .16s ease,visibility .16s;
+  z-index:60}
+.nav-lang-menu.nav-lang-open{opacity:1;visibility:visible;transform:translateY(0)}
+.nav-lang-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  font-size:14px;font-weight:500;color:var(--text2);border-radius:8px;
+  transition:background .15s}
+.nav-lang-item:not(.nav-lang-item-current):hover{color:var(--text);background:var(--bg-alt)}
+.nav-lang-check{width:14px;height:14px;flex-shrink:0}
+.nav-lang-item-current{color:var(--primary);font-weight:600;cursor:default}
+.nav-lang-item-current .nav-lang-check{color:var(--primary)}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -339,10 +360,6 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .section{padding:64px 20px}
   .nav-inner{padding:12px 16px;gap:12px}
   .nav-link,.nav-links .btn-primary svg{display:none}
-  /* The language switcher survives the mobile nav cull: it is the only way
-     back to the other language, and hiding it strands a reader on a page
-     they cannot leave. Two characters, so it costs almost no width. */
-  .nav-links .nav-lang{display:block;padding:5px 8px}
   .demo-body{padding:22px 18px 24px}
   .demo{margin-top:0;box-shadow:0 12px 34px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06)}
   .demo-output{min-height:150px;font-size:14px}
@@ -857,7 +874,26 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
     <div class="nav-links">
       <a href="#features" class="nav-link">Funzioni</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
-      <a href="/" class="nav-link nav-lang" hreflang="en" title="Read in English">EN</a>
+      <div class="nav-lang">
+        <button type="button" class="btn btn-ghost btn-sm nav-lang-trigger" id="nav-lang-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="nav-lang-menu">
+          IT
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="nav-lang-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-lang-menu" id="nav-lang-menu" role="menu" aria-labelledby="nav-lang-trigger">
+          <a href="/" hreflang="en" role="menuitem" class="nav-lang-item">
+            <span class="nav-lang-check" aria-hidden="true"></span>
+            English
+          </a>
+          <span class="nav-lang-item nav-lang-item-current" role="menuitem" aria-current="true">
+            <svg class="nav-lang-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Italiano
+          </span>
+          <a href="/es/" hreflang="es" role="menuitem" class="nav-lang-item">
+            <span class="nav-lang-check" aria-hidden="true"></span>
+            Español
+          </a>
+        </div>
+      </div>
       <a href="https://github.com/locoprice/SprintBrain" class="btn btn-github btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star su GitHub</a>
       <a href="https://chromewebstore.google.com/detail/khdpimdpkgmmaimpbfjgglnpaemmopoo" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Aggiungi a Chrome</a>
       <div class="nav-account">
@@ -1656,6 +1692,39 @@ LeibTour Team</div>
 })();
 
 (function(){
+  var trigger=document.getElementById('nav-lang-trigger');
+  var menu=document.getElementById('nav-lang-menu');
+  if(!trigger||!menu)return;
+
+  function openMenu(){
+    var acctMenu=document.getElementById('nav-account-menu');
+    var acctTrigger=document.getElementById('nav-account-trigger');
+    if(acctMenu&&acctTrigger&&acctTrigger.getAttribute('aria-expanded')==='true'){
+      acctMenu.classList.remove('nav-account-open');
+      acctTrigger.setAttribute('aria-expanded','false');
+    }
+    menu.classList.add('nav-lang-open');
+    trigger.setAttribute('aria-expanded','true');
+  }
+  function closeMenu(){
+    menu.classList.remove('nav-lang-open');
+    trigger.setAttribute('aria-expanded','false');
+  }
+  function isOpen(){return trigger.getAttribute('aria-expanded')==='true';}
+
+  trigger.addEventListener('click',function(e){
+    e.stopPropagation();
+    isOpen()?closeMenu():openMenu();
+  });
+  document.addEventListener('click',function(e){
+    if(isOpen()&&!menu.contains(e.target)&&e.target!==trigger)closeMenu();
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&isOpen()){closeMenu();trigger.focus();}
+  });
+})();
+
+(function(){
   var cards=document.querySelectorAll('.plat-card');
   cards.forEach(function(card){
     card.addEventListener('mousemove',function(e){
@@ -1819,7 +1888,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.154.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.155.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.
