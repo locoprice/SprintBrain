@@ -160,6 +160,48 @@ Motion is transform/opacity only, so frames stay on the compositor. Timings are 
 
 Both surfaces drop every animation under `prefers-reduced-motion` and keep the static glyph in the same box, so nothing reflows between modes.
 
+### Tooltip (TOOLTIP-001)
+
+One tooltip for the whole product, matching the Avada element. The values are Avada's own, read off a live theme-fusion tooltip because the Avada documentation publishes the option list and no CSS.
+
+| Property | Value |
+| --- | --- |
+| Background | `rgba(33, 33, 33, 0.97)` |
+| Text | `rgb(209, 209, 210)` |
+| Radius | `4 px` |
+| Padding | `3 px 8 px` |
+| Max width | `200 px` |
+| Font size / line height | `12 px` / `1.4` |
+| Text align | `center` |
+| Opacity when shown | `0.9` |
+| Transition | `opacity .3s linear` |
+| Arrow | 5 px solid triangle in the background colour |
+| z-index | `2030` |
+
+These are deliberately **not** tokenised. They mirror an external design system, and a token would drift from it the first time the palette moves. Do not repoint them at `--ink` or `--card`.
+
+**Placement** defaults to `top` and flips to the opposite side when that side has no room, the way every Bootstrap-derived tooltip behaves. Flipping is what keeps a hint triggered from a header off the element it describes. After flipping the box is clamped into the viewport and the arrow stays on the trigger, so a nudged box still points at the right thing.
+
+**Two implementations, one spec:**
+
+| Surface | Implementation |
+| --- | --- |
+| Dashboard (React) | `app/src/components/ui/tooltip.tsx`, `<Tooltip label="…" placement="top">`. Portalled, because every panel that hosts one scrolls and would clip it. Tracks the trigger per frame. |
+| Popup, `Sprintbrain.html` | `extension/shared/tooltip.js` via `<script src>` |
+| `/mobile/`, landing site | the same file, inlined between `SB_TOOLTIP` markers |
+
+`/mobile/` is a single-file app and the landing site is a separate Netlify site rooted at `app/public/landing/`, so neither can reach `extension/` at runtime. Their copies are generated, never hand-edited:
+
+```bash
+node scripts/sync-tooltip.js
+```
+
+`node scripts/sync-tooltip.js --check` fails if a copy has drifted. Run it after any edit to `extension/shared/tooltip.js`.
+
+**Usage.** On the vanilla surfaces nothing needs tagging: any element carrying a `title` is upgraded on hover, and the attribute is moved to `data-sb-tip` so the browser's own bubble never appears. Elements rendered later work for free, since the listeners are delegated on the document. Force a side with `data-sb-tip-pos`, opt out with `data-sb-tip-skip`. `title` is left alone on `iframe`, `svg`, `link` and `abbr`, where it is an accessibility label rather than a hint.
+
+Keep the text short. Avada centres it inside 200 px, so a sentence or two reads well and a paragraph does not.
+
 ## Surface-specific rules (v1.1)
 
 - **Dashboard topbar** spans the full width (60 px) above sidebar + main. Brand square (28 px, `--primary` solid) on the left.

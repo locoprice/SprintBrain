@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ChevronDown,
   Clock,
+  Eye,
   History,
   MousePointerClick,
   Pencil,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +44,7 @@ import {
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
-import { findLanguageMismatch, slotMismatchMessage } from '@/lib/languageDetect';
+import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
@@ -54,6 +56,15 @@ import {
 
 // Each language is a first-class picker option with its own color (FR re-added v2.88.0).
 const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
+
+/**
+ * What Multi is for, on the button itself. The four language slots explain
+ * themselves; Multi does not, and the two things a user cannot guess are that
+ * it holds a single mixed body and that no language check runs on it.
+ */
+const MULTI_HINT =
+  'One body, any mix of languages. No language check here. ' +
+  'Use EN, IT, ES or FR for separate translations.';
 
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
 const LANG_CONFIG: Record<
@@ -526,13 +537,14 @@ export function NewSnippetDialog() {
       return;
     }
 
-    // Guard the language flag before the body reaches a guest. `content` is the
-    // active slot's live text and may be ahead of `bodies`, so check the merged
-    // view — the same shape snippetsApi persists.
-    const mismatch = findLanguageMismatch({
-      ...parsed.data.bodies,
-      [parsed.data.language]: parsed.data.content,
-    });
+    // Guard the language flag before the body reaches a reader. Returns null
+    // for a MULTI snippet, which is a deliberate mix and has no single correct
+    // language — see snippetMismatch.
+    const mismatch = snippetMismatch(
+      parsed.data.language,
+      parsed.data.bodies,
+      parsed.data.content,
+    );
     if (mismatch !== null) {
       // Bring the offending slot on screen. Saving writes every language at
       // once, so the fault can sit in a variant the user isn't looking at, and
@@ -1063,6 +1075,18 @@ export function NewSnippetDialog() {
                       )}
                     >
                       {cfg.label}
+                      {/* Multi carries its own hint: the only slot whose
+                          meaning isn't given away by its label. Sits left so it
+                          never collides with the filled-slot dot on the right. */}
+                      {lang === 'MULTI' && (
+                        <Tooltip
+                          label={MULTI_HINT}
+                          placement="top"
+                          className="absolute left-2 top-0 bottom-0 flex items-center text-ink-subtle hover:text-ink transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" aria-hidden />
+                        </Tooltip>
+                      )}
                       {showDot && (
                         <span
                           aria-hidden

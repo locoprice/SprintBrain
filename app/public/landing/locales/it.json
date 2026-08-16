@@ -1,0 +1,705 @@
+{
+  "lang": "it",
+  "entries": [
+    {
+      "find": "<title>SprintBrain: Text expansion with formulas</title>",
+      "replace": "<title>SprintBrain: espansione di testo con formule</title>",
+      "count": 1
+    },
+    {
+      "find": "Chrome extension that expands snippets, runs formulas inside them, and shares folders with your team. Synced across Chrome, web, and mobile for operators who type the same things every day.",
+      "replace": "Estensione Chrome che espande gli snippet, calcola formule al loro interno e condivide folder con il team. Sincronizzata su Chrome, web e mobile per chi scrive ogni giorno le stesse cose.",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"#features\" class=\"nav-link\">Features</a>",
+      "replace": "<a href=\"#features\" class=\"nav-link\">Funzioni</a>",
+      "count": 1
+    },
+    {
+      "find": "</svg>Star on GitHub</a>",
+      "replace": "</svg>Star su GitHub</a>",
+      "count": 1
+    },
+    {
+      "find": "</svg>Add to Chrome</a>",
+      "replace": "</svg>Aggiungi a Chrome</a>",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"/it/\" class=\"nav-link nav-lang\" hreflang=\"it\" title=\"Leggi in italiano\">IT</a>",
+      "replace": "<a href=\"/\" class=\"nav-link nav-lang\" hreflang=\"en\" title=\"Read in English\">EN</a>",
+      "count": 1
+    },
+    {
+      "find": "<span>Sign in</span>",
+      "replace": "<span>Accedi</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>Sign up</span>",
+      "replace": "<span>Registrati</span>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"hero-eyebrow\">Chrome Extension · {{EXT_VERSION}}</div>",
+      "replace": "<div class=\"hero-eyebrow\">Estensione Chrome · {{EXT_VERSION}}</div>",
+      "count": 1
+    },
+    {
+      "find": "Type once.<br><span>Use it everywhere.</span>",
+      "replace": "Scrivilo una volta.<br><span>Usalo ovunque.</span>",
+      "count": 2
+    },
+    {
+      "find": "<p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>",
+      "replace": "<p>Snippet, formule e prompt che si espandono ovunque tu scriva. Una sola libreria, sincronizzata su Chrome e mobile.</p>",
+      "count": 1
+    },
+    {
+      "find": "<p class=\"hero-slogan\">Stress the model, not yourself.</p>",
+      "replace": "<p class=\"hero-slogan\">Stressa il modello, non te stesso.</p>",
+      "count": 1
+    },
+    {
+      "find": "        No credit card required\n",
+      "replace": "        Nessuna carta di credito\n",
+      "count": 1
+    },
+    {
+      "find": "        Works in Gmail, Notion &amp; Slack\n",
+      "replace": "        Funziona in Gmail, Notion e Slack\n",
+      "count": 1
+    },
+    {
+      "find": "        Set up in 2 minutes\n",
+      "replace": "        Pronto in 2 minuti\n",
+      "count": 1
+    },
+    {
+      "find": "        Add to Chrome\n      </a>",
+      "replace": "        Aggiungi a Chrome\n      </a>",
+      "count": 1
+    },
+    {
+      "find": "class=\"btn btn-ghost\">Open mobile app</a>",
+      "replace": "class=\"btn btn-ghost\">Apri l'app mobile</a>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"demo-label\">You type</div>",
+      "replace": "<div class=\"demo-label\">Tu scrivi</div>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"demo-label\">SprintBrain writes</div>",
+      "replace": "<div class=\"demo-label\">SprintBrain scrive</div>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"trusted-label\">Trusted by operators at</span>",
+      "replace": "<span class=\"trusted-label\">Scelto dagli operatori di</span>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"fs-eb\">What's inside</div>",
+      "replace": "<div class=\"fs-eb\">Cosa c'è dentro</div>",
+      "count": 1
+    },
+    {
+      "find": "        Everything text expansion should be.\n        <em>Plus the two things it isn't.</em>",
+      "replace": "        Tutto quello che l'espansione di testo dovrebbe essere.\n        <em>Più le due cose che non è.</em>",
+      "count": 1
+    },
+    {
+      "find": "        A drop-in replacement for <b>TextBlaze</b>, <b>TextExpander</b>, and <b>Magical</b>, with\n        live formulas and a reusable prompt library on top.",
+      "replace": "        Un sostituto diretto di <b>TextBlaze</b>, <b>TextExpander</b> e <b>Magical</b>, con in più\n        formule dal vivo e una libreria di prompt riutilizzabili.",
+      "count": 1
+    },
+    {
+      "find": "</span>01 · Triggers</div>",
+      "replace": "</span>01 · Trigger</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'01 · Triggers',",
+      "replace": "tag:'01 · Trigger',",
+      "count": 1
+    },
+    {
+      "find": "</span>02 · Formulas</div>",
+      "replace": "</span>02 · Formule</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'02 · Formulas',",
+      "replace": "tag:'02 · Formule',",
+      "count": 1
+    },
+    {
+      "find": "</span>03 · Prompts</div>",
+      "replace": "</span>03 · Prompt</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'03 · Prompts',",
+      "replace": "tag:'03 · Prompt',",
+      "count": 1
+    },
+    {
+      "find": "</span>04 · Cloud sync</div>",
+      "replace": "</span>04 · Sync cloud</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'04 · Cloud sync',",
+      "replace": "tag:'04 · Sync cloud',",
+      "count": 1
+    },
+    {
+      "find": "</span>05 · Notion sync</div>",
+      "replace": "</span>05 · Sync Notion</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'05 · Notion sync',",
+      "replace": "tag:'05 · Sync Notion',",
+      "count": 1
+    },
+    {
+      "find": "</span>08 · Security</div>",
+      "replace": "</span>08 · Sicurezza</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'08 · Security',",
+      "replace": "tag:'08 · Sicurezza',",
+      "count": 1
+    },
+    {
+      "find": "</span>09 · Team workspace</div>",
+      "replace": "</span>09 · Spazio team</div>",
+      "count": 1
+    },
+    {
+      "find": "tag:'09 · Team workspace',",
+      "replace": "tag:'09 · Spazio team',",
+      "count": 1
+    },
+    {
+      "find": "Type a short tag. Watch a full template appear.",
+      "replace": "Scrivi un tag breve. Guarda comparire un template intero.",
+      "count": 2
+    },
+    {
+      "find": "Real math, inline.",
+      "replace": "Calcoli veri, inline.",
+      "count": 2
+    },
+    {
+      "find": "A library of reusable prompts.",
+      "replace": "Una libreria di prompt riutilizzabili.",
+      "count": 2
+    },
+    {
+      "find": "One library. Every surface.",
+      "replace": "Una libreria. Su ogni superficie.",
+      "count": 2
+    },
+    {
+      "find": "Edit where your team already works.",
+      "replace": "Modifica dove il team lavora già.",
+      "count": 2
+    },
+    {
+      "find": "Your library, on any phone.",
+      "replace": "La tua libreria, su qualsiasi telefono.",
+      "count": 2
+    },
+    {
+      "find": "See what your team actually types.",
+      "replace": "Scopri cosa scrive davvero il team.",
+      "count": 2
+    },
+    {
+      "find": "Your account, on your terms.",
+      "replace": "Il tuo account, alle tue condizioni.",
+      "count": 2
+    },
+    {
+      "find": "Share a folder. Your team types from it.",
+      "replace": "Condividi un folder. Il team scrive da lì.",
+      "count": 2
+    },
+    {
+      "find": "          <code>::quote</code> expands into a <b>200-word multilingual quote</b>.\n          Works in Gmail, Notion, Slack, your CRM. Anywhere you can type, or from\n          the <b>right-click menu</b> when you'd rather pick than type.",
+      "replace": "          <code>::quote</code> si espande in un <b>preventivo multilingua di 200 parole</b>.\n          Funziona in Gmail, Notion, Slack, nel tuo CRM. Ovunque tu possa scrivere, oppure dal\n          <b>menu tasto destro</b> quando preferisci scegliere invece di digitare.",
+      "count": 1
+    },
+    {
+      "find": "          <b>Totals, discounts, fees, net prices</b>: calculated the instant a template expands.\n          Conditionals, date tokens, and greetings that agree with the guest's name.\n          CSP-safe parser, no <code>eval</code>.",
+      "replace": "          <b>Totali, sconti, commissioni, prezzi netti</b>: calcolati nell'istante in cui il template si espande.\n          Condizionali, token di data e formule di saluto che concordano con il nome dell'ospite.\n          Parser CSP-safe, nessun <code>eval</code>.",
+      "count": 1
+    },
+    {
+      "find": "          One-shot and few-shot prompts for <b>ChatGPT</b>, <b>Claude</b>, and any model, stored\n          next to your templates. Type <code>\"\"\"</code> to browse them, or give a prompt its own\n          shortcut and expand it straight into the box.",
+      "replace": "          Prompt one-shot e few-shot per <b>ChatGPT</b>, <b>Claude</b> e qualsiasi modello, salvati\n          accanto ai tuoi template. Scrivi <code>\"\"\"</code> per sfogliarli, oppure assegna a un prompt la sua\n          shortcut ed espandilo direttamente nel campo.",
+      "count": 1
+    },
+    {
+      "find": "          Backed by <b>Supabase</b>, encrypted at rest. Write once in the dashboard; the extension\n          and your phone read the same library, refreshed in the background and again every time\n          you open them.",
+      "replace": "          Basata su <b>Supabase</b>, cifrata a riposo. Scrivi una volta nella dashboard: l'estensione\n          e il telefono leggono la stessa libreria, aggiornata in background e di nuovo ogni volta\n          che le apri.",
+      "count": 1
+    },
+    {
+      "find": "          Mirror a <b>Notion database</b> as your library, one-way or two-way. Reviewers comment in\n          Notion; expansions update in the extension within the minute.",
+      "replace": "          Rispecchia un <b>database Notion</b> come libreria, in una o due direzioni. I revisori commentano su\n          Notion e le espansioni si aggiornano nell'estensione entro un minuto.",
+      "count": 1
+    },
+    {
+      "find": "          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,\n          no download. Pin what you use daily, fill a snippet's fields, and copy the finished text.",
+      "replace": "          Sfoglia, cerca e copia da <b>iOS</b> e <b>Android</b> nel browser. Senza computer,\n          senza download. Fissa in alto quello che usi ogni giorno, compila i campi di uno snippet e copia il testo finito.",
+      "count": 1
+    },
+    {
+      "find": "          Every expansion is counted. <b>Top triggers</b>, usage over time, and a contribution\n          heatmap show which snippets earn their place, and which ones nobody has touched in weeks.",
+      "replace": "          Ogni espansione viene contata. <b>Trigger più usati</b>, andamento nel tempo e una heatmap dei\n          contributi mostrano quali snippet si guadagnano il posto e quali nessuno tocca da settimane.",
+      "count": 1
+    },
+    {
+      "find": "          See every signed-in device, review recent login activity, and <b>sign out everywhere</b>\n          in one click. Each surface holds its own session, so revoking one doesn't lock you out of\n          the rest.",
+      "replace": "          Vedi ogni dispositivo connesso, controlla gli accessi recenti ed <b>esci da tutti i dispositivi</b>\n          con un clic. Ogni superficie ha la sua sessione, quindi revocarne una non ti blocca fuori dalle\n          altre.",
+      "count": 1
+    },
+    {
+      "find": "            Share a folder with the <b>whole team</b> or <b>specific teammates</b>, at\n            <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. Every snippet, formula, and prompt\n            inside it shows up in their dashboard and extension the moment you share. Each one\n            carries <b>who wrote it and who touched it last</b>, and the whole workspace wears your\n            company logo and cover.",
+      "replace": "            Condividi un folder con <b>tutto il team</b> o con <b>persone specifiche</b>, con accesso\n            <b>View</b>, <b>Edit</b> o <b>Owner</b>. Ogni snippet, formula e prompt\n            al suo interno compare nella loro dashboard e nella loro estensione nel momento in cui condividi. Ognuno\n            porta con sé <b>chi lo ha scritto e chi lo ha modificato per ultimo</b>, e tutto lo spazio di lavoro indossa il\n            logo e la copertina della tua azienda.",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-lbl\">Nights × rate</span>",
+      "replace": "<span class=\"fs-lbl\">Notti × tariffa</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-lbl\">City tax</span>",
+      "replace": "<span class=\"fs-lbl\">Tassa di soggiorno</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-lbl\">Total due</span>",
+      "replace": "<span class=\"fs-lbl\">Totale dovuto</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"pp-name\">Greeting</span>",
+      "replace": "<span class=\"pp-name\">Saluto</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"pp-name\">Quote</span>",
+      "replace": "<span class=\"pp-name\">Preventivo</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"pp-name\">Reply</span>",
+      "replace": "<span class=\"pp-name\">Risposta</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-share-name\">Booking quotes</span>",
+      "replace": "<span class=\"fs-share-name\">Preventivi</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-share-scope\">Whole team</span>",
+      "replace": "<span class=\"fs-share-scope\">Tutto il team</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-share-name\">Email templates</span>",
+      "replace": "<span class=\"fs-share-name\">Template email</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-share-scope\">3 teammates</span>",
+      "replace": "<span class=\"fs-share-scope\">3 persone</span>",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about triggers\"",
+      "replace": "aria-label=\"Scopri di più sui trigger\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about formulas\"",
+      "replace": "aria-label=\"Scopri di più sulle formule\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about prompts\"",
+      "replace": "aria-label=\"Scopri di più sui prompt\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about cloud sync\"",
+      "replace": "aria-label=\"Scopri di più sul sync cloud\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about Notion sync\"",
+      "replace": "aria-label=\"Scopri di più sul sync Notion\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about mobile\"",
+      "replace": "aria-label=\"Scopri di più su mobile\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about analytics\"",
+      "replace": "aria-label=\"Scopri di più sugli analytics\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about security\"",
+      "replace": "aria-label=\"Scopri di più sulla sicurezza\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Learn more about the team workspace\"",
+      "replace": "aria-label=\"Scopri di più sullo spazio team\"",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Close\"",
+      "replace": "aria-label=\"Chiudi\"",
+      "count": 1
+    },
+    {
+      "find": "      No app to download\n",
+      "replace": "      Nessuna app da scaricare\n",
+      "count": 1
+    },
+    {
+      "find": "<h2 class=\"plat-title\">One account.<br><span>Three surfaces.</span></h2>",
+      "replace": "<h2 class=\"plat-title\">Un solo account.<br><span>Tre superfici.</span></h2>",
+      "count": 1
+    },
+    {
+      "find": "<p class=\"plat-sub\">SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once. Your snippets and formulas are everywhere, instantly.</p>",
+      "replace": "<p class=\"plat-sub\">SprintBrain arriva come estensione Chrome, dashboard web e sito mobile. Accedi una volta sola. I tuoi snippet e le tue formule sono ovunque, all'istante.</p>",
+      "count": 1
+    },
+    {
+      "find": "<h3>Chrome Extension</h3>",
+      "replace": "<h3>Estensione Chrome</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>One-click install from the Chrome Web Store. The popup puts every snippet at your fingertips while you type, in Gmail, Slack, Notion, your CRM, anywhere.</p>",
+      "replace": "<p>Installazione in un clic dal Chrome Web Store. Il popup ti mette ogni snippet a portata di mano mentre scrivi, in Gmail, Slack, Notion, nel tuo CRM, ovunque.</p>",
+      "count": 1
+    },
+    {
+      "find": "          Ready to install\n",
+      "replace": "          Pronta da installare\n",
+      "count": 1
+    },
+    {
+      "find": "<h3>Web Dashboard</h3>",
+      "replace": "<h3>Dashboard web</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>Manage your full library from any browser. Create folders, write snippets with live formulas, share folders with your team, review analytics, and configure Notion sync. Nothing to install.</p>",
+      "replace": "<p>Gestisci l'intera libreria da qualsiasi browser. Crea folder, scrivi snippet con formule dal vivo, condividi folder con il team, controlla gli analytics e configura il sync Notion. Niente da installare.</p>",
+      "count": 1
+    },
+    {
+      "find": "          Lives in your browser\n",
+      "replace": "          Vive nel tuo browser\n",
+      "count": 1
+    },
+    {
+      "find": "<h3>Mobile Website</h3>",
+      "replace": "<h3>Sito mobile</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>",
+      "replace": "<p>Sfoglia, cerca e copia snippet su iOS o Android, direttamente da Safari o Chrome. Nessun download, nessuno app store. Apri un URL e sei dentro.</p>",
+      "count": 1
+    },
+    {
+      "find": "          No download required\n",
+      "replace": "          Nessun download richiesto\n",
+      "count": 1
+    },
+    {
+      "find": "<p class=\"plat-note\">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</p>",
+      "replace": "<p class=\"plat-note\">Un account &nbsp;·&nbsp; Tre superfici &nbsp;·&nbsp; Sempre sincronizzati</p>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"ps-eyebrow\">Partner Stories</div>",
+      "replace": "<div class=\"ps-eyebrow\">Storie dei partner</div>",
+      "count": 1
+    },
+    {
+      "find": "<h2>Where SprintBrain runs every day.</h2>",
+      "replace": "<h2>Dove SprintBrain gira ogni giorno.</h2>",
+      "count": 1
+    },
+    {
+      "find": "<p>Real hospitality operators delivering faster guest communications and sharper pricing, without switching tools.</p>",
+      "replace": "<p>Operatori dell'ospitalità veri, che comunicano con gli ospiti più in fretta e con prezzi più precisi, senza cambiare strumento.</p>",
+      "count": 1
+    },
+    {
+      "find": "          Vacation Rental Operator\n",
+      "replace": "          Operatore di case vacanza\n",
+      "count": 1
+    },
+    {
+      "find": "<p class=\"ps-desc\">Ibiza's destination management company, handling vacation rentals and hospitality services since 2005. Guest communications go out in three languages, every day, without switching apps: pricing quotes, check-in details, follow-ups.</p>",
+      "replace": "<p class=\"ps-desc\">La destination management company di Ibiza, che gestisce case vacanza e servizi di ospitalità dal 2005. Le comunicazioni agli ospiti partono in tre lingue, ogni giorno, senza cambiare app: preventivi, dettagli di check-in, follow-up.</p>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"ps-highlight-label\">Key use case</span>",
+      "replace": "<span class=\"ps-highlight-label\">Caso d'uso principale</span>",
+      "count": 2
+    },
+    {
+      "find": "<span class=\"ps-highlight-value\">Multilingual guest communications in EN, ES &amp; IT. Expanded in under a second.</span>",
+      "replace": "<span class=\"ps-highlight-value\">Comunicazioni agli ospiti in EN, ES e IT. Espanse in meno di un secondo.</span>",
+      "count": 1
+    },
+    {
+      "find": "          B2B Travel Platform\n",
+      "replace": "          Piattaforma travel B2B\n",
+      "count": 1
+    },
+    {
+      "find": "<p class=\"ps-desc\">A professional B2B travel network giving agents access to exclusive, wholesale hotel rates unavailable on public OTAs. SprintBrain handles the high volume of quote requests and booking confirmations, consistently branded, every time.</p>",
+      "replace": "<p class=\"ps-desc\">Un network travel B2B professionale che dà agli agenti accesso a tariffe alberghiere wholesale non disponibili sulle OTA pubbliche. SprintBrain regge l'alto volume di richieste di preventivo e conferme di prenotazione, sempre con lo stesso brand.</p>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"ps-highlight-value\">Pricing quotes with live formula calculations. Zero manual recalculation.</span>",
+      "replace": "<span class=\"ps-highlight-value\">Preventivi con calcoli dal vivo. Zero ricalcoli manuali.</span>",
+      "count": 1
+    },
+    {
+      "find": "<div class=\"sec-eyebrow\">Security</div>",
+      "replace": "<div class=\"sec-eyebrow\">Sicurezza</div>",
+      "count": 1
+    },
+    {
+      "find": "<h2>Built for scale and security</h2>",
+      "replace": "<h2>Costruito per scalare e per proteggere</h2>",
+      "count": 1
+    },
+    {
+      "find": "<p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface, whether you're a \"team\" of one or an org of hundreds.</p>",
+      "replace": "<p>SprintBrain cresce con il tuo team senza allentare quello che protegge i tuoi dati. Gli accessi sono applicati dal database stesso, non solo dall'interfaccia, che tu sia un \"team\" di una persona o un'organizzazione da centinaia.</p>",
+      "count": 1
+    },
+    {
+      "find": "class=\"btn btn-primary\">Get started · it's free</a>",
+      "replace": "class=\"btn btn-primary\">Inizia ora · è gratis</a>",
+      "count": 1
+    },
+    {
+      "find": "class=\"btn btn-ghost\">Learn more</a>",
+      "replace": "class=\"btn btn-ghost\">Scopri di più</a>",
+      "count": 1
+    },
+    {
+      "find": "<h3>EU data residency</h3>",
+      "replace": "<h3>Dati residenti in UE</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster. They never leave it.</p>",
+      "replace": "<p>I tuoi snippet, prompt e formule vivono in un cluster Postgres in regione UE. Non ne escono mai.</p>",
+      "count": 1
+    },
+    {
+      "find": "<p>RLS is active on every table. A row you can't read is refused by Postgres, not merely hidden by the UI.</p>",
+      "replace": "<p>La RLS è attiva su ogni tabella. Una riga che non puoi leggere viene rifiutata da Postgres, non semplicemente nascosta dall'interfaccia.</p>",
+      "count": 1
+    },
+    {
+      "find": "<h3>Per-user authentication</h3>",
+      "replace": "<h3>Autenticazione per utente</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>Dashboard, extension, and mobile each authenticate as you with your own token, never a shared key.</p>",
+      "replace": "<p>Dashboard, estensione e mobile si autenticano come te con un token tuo, mai con una chiave condivisa.</p>",
+      "count": 1
+    },
+    {
+      "find": "<h3>GDPR-aligned handling</h3>",
+      "replace": "<h3>Gestione allineata al GDPR</h3>",
+      "count": 1
+    },
+    {
+      "find": "<p>Documented collection, retention, and deletion, with a published privacy policy, terms, and cookie policy.</p>",
+      "replace": "<p>Raccolta, conservazione e cancellazione documentate, con privacy policy, termini e cookie policy pubblicati.</p>",
+      "count": 1
+    },
+    {
+      "find": "<span>EU-region database</span>",
+      "replace": "<span>Database in regione UE</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>RLS on every table</span>",
+      "replace": "<span>RLS su ogni tabella</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>Per-user tokens on all three surfaces</span>",
+      "replace": "<span>Token per utente su tutte e tre le superfici</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>Encrypted in transit</span>",
+      "replace": "<span>Cifrato in transito</span>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"foot-support-label\">Supported by</span>",
+      "replace": "<span class=\"foot-support-label\">Con il supporto di</span>",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\">Support</a>",
+      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\">Supporto</a>",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"/legal/terms-and-conditions.html\">Terms</a>",
+      "replace": "<a href=\"/legal/terms-and-conditions.html\">Termini</a>",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"/legal/cookie-policy.html\">Cookies</a>",
+      "replace": "<a href=\"/legal/cookie-policy.html\">Cookie</a>",
+      "count": 1
+    },
+    {
+      "find": "rel=\"noopener\">Status</a>",
+      "replace": "rel=\"noopener\">Stato</a>",
+      "count": 1
+    },
+    {
+      "find": "<span id=\"foot-updated\"> · Updated {{RELEASE_MONTH}}</span>",
+      "replace": "<span id=\"foot-updated\"> · Aggiornato {{RELEASE_MONTH}}</span>",
+      "count": 1
+    },
+    {
+      "find": "updEl.textContent=' · Updated '+FALLBACK_MONTH;",
+      "replace": "updEl.textContent=' · Aggiornato '+FALLBACK_MONTH;",
+      "count": 1
+    },
+    {
+      "find": "body:'Any shortcut prefixed with <code>::</code> triggers an instant expansion, inside <b>Gmail</b>, <b>Notion</b>, <b>Slack</b>, your CRM, or any web app where you type. No clipboard juggling, no copy-paste.'",
+      "replace": "body:'Qualsiasi shortcut preceduta da <code>::</code> fa scattare un\\'espansione istantanea, dentro <b>Gmail</b>, <b>Notion</b>, <b>Slack</b>, il tuo CRM o qualsiasi web app in cui scrivi. Niente giochi di appunti, niente copia-incolla.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>How it works</strong>Type <code>::quote</code> and press Space or Tab. SprintBrain replaces the tag with the full template in under 50&nbsp;ms. Field-level, no page reload, no extension overlay visible to anyone else.'",
+      "replace": "detail:'<strong>Come funziona</strong>Scrivi <code>::quote</code> e premi Spazio o Tab. SprintBrain sostituisce il tag con il template completo in meno di 50&nbsp;ms. A livello di campo, senza ricaricare la pagina e senza overlay dell\\'estensione visibile ad altri.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Embed live calculations directly in your templates: <code>{{= NIGHTS * RATE }}</code> resolves the moment the snippet expands, using named fields like <code>{{NIGHTS}}</code> that you fill in at expansion time. A <b>CSP-safe custom parser</b>, zero <code>eval</code>, zero risk.'",
+      "replace": "body:'Incorpora calcoli dal vivo direttamente nei template: <code>{{= NIGHTS * RATE }}</code> si risolve nel momento in cui lo snippet si espande, usando campi con nome come <code>{{NIGHTS}}</code> che compili al momento dell\\'espansione. Un <b>parser custom CSP-safe</b>, zero <code>eval</code>, zero rischi.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>Supported operations</strong>Addition, subtraction, multiplication, division, rounding (<code>round</code>, <code>floor</code>, <code>ceil</code>, <code>abs</code>, <code>min</code>, <code>max</code>), local variables, and date/time tokens. Conditionals branch with <code>{if:}</code>, <code>{elseif:}</code> and <code>{else}</code>. Greetings inflect on their own: <b>Querido</b> before a woman&rsquo;s name prints <b>Querida</b>.'",
+      "replace": "detail:'<strong>Operazioni supportate</strong>Addizione, sottrazione, moltiplicazione, divisione, arrotondamenti (<code>round</code>, <code>floor</code>, <code>ceil</code>, <code>abs</code>, <code>min</code>, <code>max</code>), variabili locali e token di data e ora. I condizionali si diramano con <code>{if:}</code>, <code>{elseif:}</code> e <code>{else}</code>. Le formule di saluto si flettono da sole: <b>Querido</b> davanti a un nome femminile stampa <b>Querida</b>.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Store your best <b>one-shot and few-shot prompts</b> next to your templates and expand them the same way, into <b>ChatGPT</b>, <b>Claude</b>, Gemini, or any model UI. No more re-writing the same instruction from scratch.'",
+      "replace": "body:'Conserva i tuoi migliori <b>prompt one-shot e few-shot</b> accanto ai template ed espandili allo stesso modo, dentro <b>ChatGPT</b>, <b>Claude</b>, Gemini o qualsiasi interfaccia di modello. Basta riscrivere la stessa istruzione da zero.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>Two ways to reach them</strong>Type <code>\"\"\"</code> to open the prompt picker and choose, or give a prompt its own shortcut and expand it straight into the box. Prompts are written in the dashboard, where the whole team draws from the same quality baseline.'",
+      "replace": "detail:'<strong>Due modi per raggiungerli</strong>Scrivi <code>\"\"\"</code> per aprire il selettore dei prompt e scegliere, oppure assegna a un prompt la sua shortcut ed espandilo direttamente nel campo. I prompt si scrivono nella dashboard, dove tutto il team attinge dallo stesso livello di qualità.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Your snippet library lives in <b>Supabase</b>, encrypted at rest. Edit on your laptop and the extension, the dashboard, and your phone all read the same rows. No manual export/import, no stale copies to reconcile.'",
+      "replace": "body:'La tua libreria di snippet vive in <b>Supabase</b>, cifrata a riposo. Modifichi dal computer e l\\'estensione, la dashboard e il telefono leggono tutti le stesse righe. Nessun export/import manuale, nessuna copia vecchia da riconciliare.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>How it refreshes</strong>The dashboard writes straight to Supabase. The extension pulls a fresh copy every time you open the popup, on browser start, and on a background refresh every few minutes; the mobile app reads live on load.'",
+      "replace": "detail:'<strong>Come si aggiorna</strong>La dashboard scrive direttamente su Supabase. L\\'estensione scarica una copia fresca ogni volta che apri il popup, all\\'avvio del browser e a ogni aggiornamento in background dopo pochi minuti; l\\'app mobile legge dal vivo al caricamento.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Connect a <b>Notion database</b> as the source of truth for your library. Reviewers comment in Notion; SprintBrain pulls the updates into the extension within the minute, <b>one-way or two-way</b>.'",
+      "replace": "body:'Collega un <b>database Notion</b> come fonte di verità per la tua libreria. I revisori commentano su Notion e SprintBrain porta gli aggiornamenti nell\\'estensione entro un minuto, <b>in una o due direzioni</b>.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>Setup</strong>Paste your Notion integration token and database ID in Settings → Notion Sync. SprintBrain maps columns to snippet fields automatically and runs incremental pulls on a timer.'",
+      "replace": "detail:'<strong>Configurazione</strong>Incolla il token di integrazione Notion e l\\'ID del database in Settings → Notion Sync. SprintBrain mappa le colonne sui campi degli snippet in automatico ed esegue letture incrementali a intervalli.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet from the same library.'",
+      "replace": "body:'Apri <code>app.sprintbrain.com/mobile</code> in <b>Safari o Chrome</b> su qualsiasi dispositivo iOS o Android. Nessun download, nessuno app store. Sfoglia, cerca e copia con un tap qualsiasi snippet dalla stessa libreria.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>Built for one hand</strong>Add it to your home screen for instant launch. Pin the snippets you use daily to the top, switch between language variants on the detail page, fill any fields, and copy the finished text straight to your clipboard.'",
+      "replace": "detail:'<strong>Pensata per una mano sola</strong>Aggiungila alla schermata home per aprirla all\\'istante. Fissa in alto gli snippet che usi ogni giorno, passa da una variante di lingua all\\'altra nella pagina di dettaglio, compila i campi e copia il testo finito direttamente negli appunti.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Every expansion is counted, so the library stops being guesswork. <b>Top triggers</b>, usage over time, and a contribution heatmap show what earns its place and what nobody has touched in weeks.'",
+      "replace": "body:'Ogni espansione viene contata, così la libreria smette di essere un\\'ipotesi. <b>Trigger più usati</b>, andamento nel tempo e una heatmap dei contributi mostrano cosa si guadagna il posto e cosa nessuno tocca da settimane.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>What you get</strong>A 14-day usage chart, a ranked top-triggers table, and a GitHub-style activity heatmap, all built from real expansion events rather than estimates.'",
+      "replace": "detail:'<strong>Cosa ottieni</strong>Un grafico di utilizzo a 14 giorni, una tabella ordinata dei trigger più usati e una heatmap di attività in stile GitHub, tutto costruito su eventi di espansione reali invece che su stime.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Sign in with a <b>magic link or an emailed code</b>, no password to leak. Choose whether the session is remembered or ends when you close the browser.'",
+      "replace": "body:'Accedi con un <b>magic link o un codice via email</b>, nessuna password che possa trapelare. Scegli se la sessione viene ricordata o se finisce quando chiudi il browser.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>Devices and activity</strong>Settings &rarr; Security lists every signed-in device with its last-seen time, shows recent login activity, and lets you <b>sign out everywhere</b> in one click. Each surface holds its own session, so signing the extension out never touches the dashboard.'",
+      "replace": "detail:'<strong>Dispositivi e attività</strong>Settings &rarr; Security elenca ogni dispositivo connesso con l\\'ora dell\\'ultimo accesso, mostra gli accessi recenti e ti fa <b>uscire da tutti i dispositivi</b> con un clic. Ogni superficie ha la sua sessione, quindi disconnettere l\\'estensione non tocca mai la dashboard.'",
+      "count": 1
+    },
+    {
+      "find": "body:'Right-click any folder and <b>Share with team</b>: pick the <b>whole team</b> or <b>specific teammates</b>, each at <b>View</b>, <b>Edit</b>, or <b>Owner</b> access. The folder is the boundary: every snippet, formula, and prompt inside it inherits the access you grant.'",
+      "replace": "body:'Fai clic destro su un folder e scegli <b>Share with team</b>: seleziona <b>tutto il team</b> o <b>persone specifiche</b>, ognuna con accesso <b>View</b>, <b>Edit</b> o <b>Owner</b>. Il folder è il confine: ogni snippet, formula e prompt al suo interno eredita l\\'accesso che concedi.'",
+      "count": 1
+    },
+    {
+      "find": "detail:'<strong>One place to manage it</strong>Sharing is managed in the dashboard; shared folders appear for every teammate in the extension and web library automatically, enforced server-side by row-level security. A globe marks team-wide folders; a people icon marks folders shared with named teammates. Every asset records who created it and who edited it last, and admins can put the company logo and a team cover on the workspace. Private folders stay private.'",
+      "replace": "detail:'<strong>Un solo posto per gestirla</strong>La condivisione si gestisce nella dashboard; i folder condivisi compaiono in automatico per ogni membro del team nell\\'estensione e nella libreria web, applicati lato server dalla row-level security. Un mappamondo segna i folder di tutto il team; un\\'icona con le persone segna i folder condivisi con membri specifici. Ogni elemento registra chi lo ha creato e chi lo ha modificato per ultimo, e gli admin possono mettere il logo aziendale e una copertina del team sullo spazio di lavoro. I folder privati restano privati.'",
+      "count": 1
+    },
+    {
+      "find": "var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];",
+      "replace": "var MONTHS=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];",
+      "count": 1
+    }
+  ]
+}

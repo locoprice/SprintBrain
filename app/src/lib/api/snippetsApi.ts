@@ -48,6 +48,7 @@ type DbSnippetJoined = {
   body: string;
   bodies: Record<string, unknown> | null;
   lang: string;
+  lang_group_id: string | null;
   folder_id: string | null;
   field_cfg: Record<string, unknown> | null;
   sort_order: number;
@@ -114,14 +115,13 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts):
     bodies,
     // Schema has a single `shortcut`; dashboard expects an array.
     triggers: row.shortcut ? [row.shortcut] : [],
-    // `tags` doesn't exist in the Supabase schema yet.
-    tags: [],
     // Derived: body contains a formula placeholder.
     is_formula: body.includes('{='),
     formula: null,
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
     language,
+    lang_group_id: row.lang_group_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     is_active: row.is_active ?? true,
@@ -161,7 +161,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
+  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
 
 /**
  * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.

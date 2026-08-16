@@ -28,8 +28,25 @@ export function baseSnippetName(name: string): string {
   return name.replace(/\s*(?:EN|ES|IT|FR|MULTI)$/i, '').trim() || name;
 }
 
+/**
+ * Grouping key for one row. An explicit `lang_group_id` wins; only rows without
+ * one fall back to the base-trigger heuristic. Mirrors the extension
+ * (`content.js` `_findLangVariants`) and the mobile companion (`groupKey`), so
+ * the same variants collapse into one row on all three surfaces.
+ *
+ * Group ids are namespaced with `g:` because they are trigger-shaped in
+ * practice (`altern`, `discount`, `quoteEN`) and would otherwise collide with a
+ * base-trigger key. Triggers are `[a-zA-Z0-9_-]` plus an optional `::` prefix
+ * and can never contain a colon, so the namespace is unambiguous.
+ */
+export function snippetGroupKey(row: SnippetRow): string {
+  const groupId = row.lang_group_id?.trim();
+  if (groupId) return `g:${groupId.toLowerCase()}`;
+  return baseTrigger(row.triggers[0] ?? '').toLowerCase() || row.id;
+}
+
 export interface SnippetGroup {
-  /** Stable grouping key — lowercased base trigger (falls back to the row id). */
+  /** Stable grouping key — `g:<lang_group_id>`, else lowercased base trigger, else the row id. */
   key: string;
   /** First row in input order — drives group ordering and the displayed name. */
   master: SnippetRow;
@@ -42,19 +59,18 @@ export interface SnippetGroup {
 }
 
 /**
- * Collapse translated variants of the same snippet into one group, keyed by the
- * trigger with its trailing language code stripped. Input order is preserved so
- * an upstream sort still drives group ordering. Rows that share a base trigger
- * but the same language keep the first occurrence in `byLang`; the duplicate
- * stays in `variants` so bulk selection still reaches it.
+ * Collapse translated variants of the same snippet into one group — see
+ * `snippetGroupKey` for how a row's group is chosen. Input order is preserved
+ * so an upstream sort still drives group ordering. Rows that land in the same
+ * group with the same language keep the first occurrence in `byLang`; the
+ * duplicate stays in `variants` so bulk selection still reaches it.
  */
 export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
   const groups: SnippetGroup[] = [];
   const index = new Map<string, SnippetGroup>();
 
   for (const row of rows) {
-    const trigger = row.triggers[0] ?? '';
-    const key = baseTrigger(trigger).toLowerCase() || row.id;
+    const key = snippetGroupKey(row);
     let group = index.get(key);
     if (group === undefined) {
       group = { key, master: row, variants: [], byLang: new Map(), languages: [] };

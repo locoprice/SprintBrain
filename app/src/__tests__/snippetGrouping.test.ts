@@ -4,6 +4,7 @@ import {
   baseSnippetName,
   groupSnippetsByLanguage,
   resolveActiveVariant,
+  snippetGroupKey,
 } from '@/lib/snippetGrouping';
 import type { SnippetLanguage, SnippetRow } from '@/types/database';
 
@@ -12,6 +13,7 @@ function snippet(
   trigger: string,
   language: SnippetLanguage,
   name: string,
+  langGroupId: string | null = null,
 ): SnippetRow {
   return {
     id,
@@ -20,12 +22,12 @@ function snippet(
     content: '',
     bodies: {},
     triggers: [trigger],
-    tags: [],
     is_formula: false,
     formula: null,
     variables: {},
     folder_id: null,
     language,
+    lang_group_id: langGroupId,
     notion_page_id: null,
     pinned: false,
     is_active: true,
@@ -127,6 +129,64 @@ describe('groupSnippetsByLanguage', () => {
     const groups = groupSnippetsByLanguage([orphan]);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.key).toBe('o1');
+  });
+});
+
+// The rows below mirror live Supabase data (pulled via SQL) where the base
+// trigger and lang_group_id disagree — the two shapes the trigger heuristic
+// alone got wrong on 43 of 140 production snippets.
+describe('groupSnippetsByLanguage — lang_group_id', () => {
+  it('keeps distinct lang_group_ids apart when their triggers share a base', () => {
+    // ::quoteEN/ES/FR/IT are one snippet (group "quoteEN"); a separate
+    // ::quoteES snippet carries its own group. Both base to ::quote, so
+    // grouping on the trigger alone collapsed all of them into one row — and
+    // because two rows claim ES, `byLang` kept only the first and the second
+    // ES snippet became unreachable from the language switcher.
+    const groups = groupSnippetsByLanguage([
+      snippet('q1', '::quoteEN', 'EN', 'ESTIMATE B2C', 'quoteEN'),
+      snippet('q2', '::quoteES', 'ES', 'ESTIMATE B2C ES', 'quoteEN'),
+      snippet('q3', '::quoteES', 'ES', 'PRESUPUESTO B2C', 'quoteES'),
+    ]);
+    expect(groups.map((g) => g.key)).toEqual(['g:quoteen', 'g:quotees']);
+    expect(groups[0]!.variants).toHaveLength(2);
+    expect(groups[1]!.variants).toHaveLength(1);
+    // The shadowed snippet is now reachable as its own group's ES variant.
+    expect(groups[1]!.byLang.get('ES')?.name).toBe('PRESUPUESTO B2C');
+  });
+
+  it('collapses one lang_group_id whose triggers disagree on the :: prefix', () => {
+    const groups = groupSnippetsByLanguage([
+      snippet('a1', '::altern', 'EN', 'ALTERNATIVA', 'altern'),
+      snippet('a2', '::altern', 'IT', 'ALTERNATIVA', 'altern'),
+      snippet('a3', 'altern', 'MULTI', 'ALTERNATIVA', 'altern'),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.key).toBe('g:altern');
+    expect(groups[0]!.variants).toHaveLength(3);
+    expect(groups[0]!.languages).toEqual(['EN', 'IT', 'MULTI']);
+  });
+
+  it('uses the trigger heuristic only for rows without a group id', () => {
+    const groups = groupSnippetsByLanguage([
+      snippet('g1', '::alpha', 'EN', 'Grouped', 'gid-1'),
+      snippet('n1', '::betaEN', 'EN', 'Ungrouped'),
+      snippet('n2', '::betaES', 'ES', 'Ungrouped'),
+    ]);
+    expect(groups.map((g) => g.key)).toEqual(['g:gid-1', '::beta']);
+    expect(groups[1]!.variants).toHaveLength(2);
+  });
+});
+
+describe('snippetGroupKey', () => {
+  it('prefers the lang_group_id, namespaced and lowercased', () => {
+    expect(snippetGroupKey(snippet('s1', '::quoteEN', 'EN', 'Q', 'quoteEN'))).toBe('g:quoteen');
+  });
+  it('ignores a blank lang_group_id', () => {
+    expect(snippetGroupKey(snippet('s1', '::quoteEN', 'EN', 'Q', '   '))).toBe('::quote');
+  });
+  it('falls back to the base trigger, then to the row id', () => {
+    expect(snippetGroupKey(snippet('s1', '::quoteEN', 'EN', 'Q'))).toBe('::quote');
+    expect(snippetGroupKey({ ...snippet('s1', '', 'EN', 'Q'), triggers: [] })).toBe('s1');
   });
 });
 

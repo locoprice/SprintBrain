@@ -78,6 +78,9 @@ html,body{
 .mode-tab.on .mc{background:var(--sb-azure-bg);color:var(--sb-azure)}
 
 /* ── SEARCH ── */
+/* Library breakdown — same string Sprintbrain.html prints under its Snippets
+   KPI, so the two surfaces cannot report different numbers. */
+.lib-stats{flex-shrink:0;padding:0 16px 4px;background:var(--sb-bg);font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow{height:56px;flex-shrink:0;padding:6px 16px;display:flex;gap:8px;align-items:center;background:var(--sb-bg)}
 .search-wrap{position:relative;flex:1;display:flex;align-items:center}
 .search-wrap>svg{position:absolute;left:12px;width:16px;height:16px;stroke:var(--sb-ink-subtle);fill:none;stroke-width:2;stroke-linecap:round;pointer-events:none}
@@ -446,6 +449,9 @@ html,body{
     </div>
   </div>
 
+  <!-- LIBRARY BREAKDOWN -->
+  <div class="lib-stats" id="lib-stats"></div>
+
   <!-- SEARCH -->
   <div class="srow">
     <div class="search-wrap">
@@ -532,6 +538,8 @@ html,body{
   </div>
 </div>
 
+<script src="../shared/tooltip.js"></script>
+<script src="../shared/snippet-stats.js"></script>
 <script src="../auth/auth.js"></script>
 <script src="../services/notion-sync/notion-sync.js"></script>
 <script src="sync-deletion.js"></script>

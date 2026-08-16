@@ -29,6 +29,12 @@ jobs:
       - name: Trigger expansion check
         run: node scripts/check-expansion.js
 
+      - name: Tooltip parity check
+        run: node scripts/sync-tooltip.js --check
+
+      - name: Landing translation parity check
+        run: node scripts/build-landing-i18n.js --check
+
       - name: File structure check
         run: |
           test -f extension/manifest.json

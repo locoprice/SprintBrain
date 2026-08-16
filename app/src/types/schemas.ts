@@ -32,7 +32,6 @@ export const snippetSchema = z.object({
   content: z.string(),
   bodies: snippetBodiesSchema,
   triggers: z.array(z.string()),
-  tags: z.array(z.string()),
   alternative_queries: z.array(z.string()),
   is_formula: z.boolean(),
   formula: z.string().nullable(),

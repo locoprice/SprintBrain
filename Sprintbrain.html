@@ -4,8 +4,10 @@
   Presentation is native (Notion/Linear-style, canonical Azure design system).
   Business logic is the SHARED core: this page loads the SAME extension scripts
   behind the chrome-shim and drives auth + Supabase data + model helpers through
-  them (window.DB, sbRequestOtp/sbVerifyOtp, uid, groupSnips, bodyLangs,
-  folderCount). No logic fork. Supabase is the single source of truth; a write
+  them (window.DB, sbRequestOtp/sbVerifyOtp, uid, groupSnips, findVariants,
+  folderCount, SBSnippetStats). No logic fork — the library counts on this page
+  come from the same call the popup makes, so the two cannot report different
+  numbers. Supabase is the single source of truth; a write
   here reaches the extension popup on its next load/sync. The Composer view is a
   live formula/template tester on the shared extension/formula-engine.js.
 -->
@@ -774,8 +776,10 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.150.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.154.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
+<script src="extension/shared/tooltip.js"></script>
+<script src="extension/shared/snippet-stats.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
 <script src="extension/popup/sync-deletion.js"></script>
@@ -899,13 +903,16 @@
   }
 
   function renderKpis(){
-    var snipN = groupCount(window.snips || []);
+    // Library numbers come from the shared core (extension/shared/snippet-stats.js),
+    // the same call the popup makes — total, personal, shared and owners cannot
+    // drift between the two surfaces.
+    var lib = SBSnippetStats.stats(window.snips || [], window.SB_CURRENT_USER_ID);
     var promN = (window.prompts || []).length;
     var foldN = (window.folders || []).length;
     var topUses = 0;
     (window.snips || []).forEach(function(s){ var u = s.stats && s.stats.uses ? s.stats.uses : 0; if (u > topUses) topUses = u; });
     var cards = [
-      { lbl:'Snippets', v:snipN, ic:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', f:'across '+foldN+' folder'+(foldN!==1?'s':'') },
+      { lbl:'Snippets', v:lib.total, ic:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', f:SBSnippetStats.statsLine(lib) },
       { lbl:'Prompts', v:promN, ic:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', f:'authored in dashboard' },
       { lbl:'Folders', v:foldN, ic:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>', f:'organize your library' },
       { lbl:'Top uses', v:topUses, ic:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', f:'most-used snippet' }
@@ -1073,7 +1080,9 @@
     var h = '';
     groups.forEach(function(g){
       var s = g.master;
-      var langs = bodyLangs(s);
+      // Same source as the popup's badge: sibling rows AND the single-row
+      // `bodies` map, so one grouped row reports every language it carries.
+      var langs = Object.keys(findVariants(s));
       var lb = langs.length > 1 ? 'MULTI' : (s.lang || 'EN');
       var st = s.stats || { uses:0 };
       var usesTxt = st.uses ? ('<span class="nv-stat uses">×'+st.uses+'</span>') : '<span class="nv-stat">Never used</span>';
@@ -1678,6 +1687,10 @@
     } else {
       var id = uid();
       obj = { id:id, title:title, shortcut:sc, body:body, lang:lang, bodies:bodies, folder:folder,
+        // Stamped locally too: the library breakdown reads user_id to tell your
+        // snippets from a teammate's, and a fresh row must count as personal
+        // before the next reload.
+        user_id: window.SB_CURRENT_USER_ID || null,
         fieldCfg:{}, lang_group_id:id, sort_order:(window.snips||[]).length + 1,
         enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs, scarcity_count:urgSc,
         alternative_queries:alt, notion_page_id:null, manually_edited:true, ai_generated:false, pinned:false,
