@@ -42,6 +42,14 @@ function rel(p) {
   return path.relative(ROOT, p).split(path.sep).join('/');
 }
 
+// Windows checkouts (core.autocrlf=true) can materialize these files with
+// CRLF even though the committed blob and every string in this file are LF.
+// Normalize on read so a fresh `git checkout` doesn't read as spurious drift
+// or defeat the hreflang dedup below; every write stays pure LF regardless.
+function readText(file) {
+  return fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+}
+
 function listLocales() {
   if (!fs.existsSync(LOCALES)) return [];
   return fs
@@ -107,7 +115,7 @@ function main() {
     return;
   }
 
-  const source = fs.readFileSync(SOURCE, 'utf8');
+  const source = readText(SOURCE);
   let failed = false;
 
   // The English source carries the same hreflang set, so search engines see a
@@ -128,14 +136,14 @@ function main() {
     console.log(`OK   ${rel(SOURCE)} hreflang in sync`);
   }
 
-  const base = fs.readFileSync(SOURCE, 'utf8');
+  const base = readText(SOURCE);
 
   for (const lang of langs) {
     const locale = JSON.parse(fs.readFileSync(path.join(LOCALES, `${lang}.json`), 'utf8'));
     const target = path.join(LANDING, lang, 'index.html');
     const desired = translate(base, locale, lang);
 
-    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+    const existing = fs.existsSync(target) ? readText(target) : null;
     if (existing === desired) {
       console.log(`OK   ${rel(target)} in sync`);
       continue;

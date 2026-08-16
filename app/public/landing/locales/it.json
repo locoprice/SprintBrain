@@ -108,7 +108,7 @@
     },
     {
       "find": "        Everything text expansion should be.\n        <em>Plus the two things it isn't.</em>",
-      "replace": "        Tutto quello che l'espansione di testo dovrebbe essere.\n        <em>Più le due cose che non è.</em>",
+      "replace": "        Tutto quello che un Text Expander ha da offrire.\n        <em>E molto altro ancora.</em>",
       "count": 1
     },
     {
