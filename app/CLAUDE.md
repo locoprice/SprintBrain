@@ -46,6 +46,7 @@ The SprintBrain dashboard is a **desktop-only single-page application** served a
 | Router | `react-router-dom` v6 |
 | Validation | Zod (`src/types/schemas.ts`) |
 | Charts | Recharts |
+| i18n | `i18next` + `react-i18next` + `i18next-browser-languagedetector` (`src/i18n/`) |
 
 **Adding a dependency requires explicit approval.** Bump `package.json` in the same commit that introduces the import.
 
@@ -91,6 +92,13 @@ app/
 │   │   ├── prompts/           # PromptCard, PromptBlockEditor, PromptFilters (toolbar
 │   │   │                      #   with prompt-only folder chips — no folder rail)
 │   │   └── settings/          # NotionSyncPanel, AccountPanel, IntegrationsPanel
+│   ├── i18n/                  # react-i18next setup (en / es / it)
+│   │   ├── index.ts           # Instance: detector + React binding + <html lang> sync
+│   │   ├── config.ts          # Browser-free init options (also used by the test)
+│   │   ├── resources.ts       # Bundles the locale JSON into i18next resources
+│   │   ├── languages.ts       # Locale roster, endonyms, tag narrowing
+│   │   ├── i18next.d.ts       # Types `t()` against the English catalogue
+│   │   └── locales/<lng>/common.json   # Translation files (hand-edited)
 │   ├── stores/                # Zustand: snippet, prompt, analytics, settings, auth, ui
 │   ├── lib/
 │   │   ├── api/               # Service layer (live Supabase + mock stubs)
@@ -187,7 +195,8 @@ The **shared-core dashboard** `Sprintbrain.html` (repo root) and its `extension/
 
 - Do not import from extension source files (`extension/`) into the React app — they share no runtime with it. (Exception: `vite.config.ts`'s `nativeDashboardPlugin` copies them into `dist/` at build time for the separate static `Sprintbrain.html` page — a file copy, not a React import.)
 - The `.eq('user_id', currentUserId)` filters in `lib/api` are redundant with RLS (which already enforces per-user isolation on every table), but they also decide which rows the dashboard surfaces. **Phase B** intentionally dropped them from `snippetsApi.listSnippets` / `listFolders` so folders shared with the user (and their snippets) surface via RLS. The **write/patch** helpers dropped them too (2026-07-12): keeping `.eq('user_id')` as an owner scope made a non-owner member's write to a *shared-folder* asset silently match 0 rows — a delete/edit looked applied but the row survived the next refresh. `app.can_write_folder` (RLS) is now the sole write gate; `deleteSnippet` / `bulkDeleteSnippets` `.select('id')` and throw a clear permission error when RLS matches no row, rather than no-op'ing. `duplicateSnippet` still calls `currentUserId()` — but only to stamp the inserted copy's `user_id`, not to filter.
-- Do not introduce mobile breakpoints, dark mode, or i18n in this iteration.
+- Do not introduce mobile breakpoints in this iteration.
+- Do not hard-code user-facing copy in a component once its surface is translated — add the key to `src/i18n/locales/en/common.json`, mirror it into `es` and `it`, and read it with `useTranslation()`. `src/__tests__/i18n.test.ts` fails the build when a locale drifts.
 - Do not edit the design tokens in `tailwind.config.ts` without updating both the dashboard and the legacy landing in `public/landing/index.html` to stay coherent.
 - Do not run `npm install` at the repo root — install only inside `app/`.
 - Do not commit the Supabase publishable key anywhere else (it's already in `src/lib/supabase.ts`; don't duplicate into `.env` files).

@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "workspace": "Workspace",
+    "snippets": "Snippets",
+    "prompts": "Prompts",
+    "team": "Team",
+    "analytics": "Analytics",
+    "composer": "Composer",
+    "gettingStarted": "Getting Started",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
+  },
+  "account": {
+    "fallbackName": "Account",
+    "settings": "Settings",
+    "investorRelations": "Investor relations",
+    "reportBug": "Report a bug",
+    "github": "GitHub",
+    "systemStatus": "System status",
+    "logOut": "Log out",
+    "loggingOut": "Signing out…"
+  },
+  "language": {
+    "groupLabel": "Language",
+    "switchTo": "Switch to {{language}}"
+  }
+}

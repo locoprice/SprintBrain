@@ -2,6 +2,7 @@ import { CheckCircle2, Command, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { UserDropdown } from '@/components/layout/UserDropdown';
 import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 
@@ -76,6 +77,8 @@ export function Topbar() {
           <CheckCircle2 className="h-3.5 w-3.5" />
           {lastSyncLabel}
         </div>
+
+        <LanguageSwitcher />
 
         <ThemeToggle />
 

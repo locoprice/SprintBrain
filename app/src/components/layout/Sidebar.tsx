@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Activity,
   ArrowUpRight,
@@ -45,8 +46,10 @@ function navClass({ isActive }: { isActive: boolean }): string {
 
 /** Filled count pill (active) or muted bg-alt pill (inactive). Used on nav rows. */
 function NavCountPill({ count, active }: { count: number; active: boolean }) {
+  const { t } = useTranslation();
   return (
     <span
+      aria-label={t('nav.itemCount', { count })}
       className={cn(
         'ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
         active ? 'bg-primary text-white' : 'bg-bg-alt text-ink-subtle',
@@ -57,21 +60,27 @@ function NavCountPill({ count, active }: { count: number; active: boolean }) {
   );
 }
 
-/** Derive a friendly display name from the Supabase user object. */
+/**
+ * Derive a friendly display name from the Supabase user object.
+ * `fallback` is passed in rather than hard-coded so the function stays pure and
+ * free of translation concerns.
+ */
 function pickDisplayName(
   metadata: Record<string, unknown> | undefined,
   email: string | undefined,
+  fallback: string,
 ): string {
   const name = metadata?.['full_name'] ?? metadata?.['name'];
   if (typeof name === 'string' && name.trim()) return name;
   if (email) return email.split('@')[0] ?? email;
-  return 'Account';
+  return fallback;
 }
 
 const MENU_ITEM =
   'flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50';
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const snippetCount = useSnippetStore((s) => s.snippets.length);
@@ -85,15 +94,15 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   const email = user?.email ?? '';
-  const displayName = pickDisplayName(user?.user_metadata, email);
+  const displayName = pickDisplayName(user?.user_metadata, email, t('account.fallbackName'));
   const initial = displayName.slice(0, 1).toUpperCase();
   const avatarUrl = pickHttpsUrl(user?.user_metadata, 'avatar_url');
 
   const PRIMARY: NavItem[] = [
-    { to: '/', label: 'Snippets', icon: Type, end: true, count: snippetCount },
-    { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
-    { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount },
-    { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { to: '/', label: t('nav.snippets'), icon: Type, end: true, count: snippetCount },
+    { to: '/prompts', label: t('nav.prompts'), icon: Sparkles, count: promptCount },
+    { to: '/team', label: t('nav.team'), icon: Users, count: sharedFolderCount },
+    { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
   ];
 
   useEffect(() => {
@@ -127,7 +136,7 @@ export function Sidebar() {
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
       <nav className="shrink-0 px-3 pt-5 pb-4">
         <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-          Workspace
+          {t('nav.workspace')}
         </div>
         <div className="flex flex-col gap-0.5">
           {PRIMARY.map((item) => (
@@ -153,7 +162,7 @@ export function Sidebar() {
             className={navClass({ isActive: false })}
           >
             <FlaskConical className="h-4 w-4" />
-            <span>Composer</span>
+            <span>{t('nav.composer')}</span>
             <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-ink-subtle" />
           </a>
 
@@ -164,7 +173,7 @@ export function Sidebar() {
             className={cn(navClass({ isActive: false }), 'w-full text-left')}
           >
             <PlayCircle className="h-4 w-4" />
-            <span>Getting Started</span>
+            <span>{t('nav.gettingStarted')}</span>
           </button>
         </div>
       </nav>
@@ -194,7 +203,7 @@ export function Sidebar() {
             <div className="border-t border-white/[0.08]">
               <button type="button" onClick={onSettings} className={MENU_ITEM}>
                 <Settings className="h-4 w-4 text-[#8E8E93]" />
-                Settings
+                {t('account.settings')}
               </button>
             </div>
 
@@ -209,7 +218,7 @@ export function Sidebar() {
                   className={MENU_ITEM}
                 >
                   <Briefcase className="h-4 w-4 text-[#8E8E93]" />
-                  Investor relations
+                  {t('account.investorRelations')}
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
@@ -222,7 +231,7 @@ export function Sidebar() {
                   className={MENU_ITEM}
                 >
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
-                  Report a bug
+                  {t('account.reportBug')}
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
@@ -235,7 +244,7 @@ export function Sidebar() {
                   className={MENU_ITEM}
                 >
                   <Github className="h-4 w-4 text-[#8E8E93]" />
-                  GitHub
+                  {t('account.github')}
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
@@ -248,7 +257,7 @@ export function Sidebar() {
                   className={MENU_ITEM}
                 >
                   <Activity className="h-4 w-4 text-[#8E8E93]" />
-                  System status
+                  {t('account.systemStatus')}
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
@@ -263,7 +272,7 @@ export function Sidebar() {
                 className={MENU_ITEM}
               >
                 <LogOut className="h-4 w-4 text-[#8E8E93]" />
-                {signingOut ? 'Signing out…' : 'Log out'}
+                {signingOut ? t('account.loggingOut') : t('account.logOut')}
               </button>
             </div>
           </div>

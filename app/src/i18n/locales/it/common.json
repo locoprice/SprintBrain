@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "workspace": "Area di lavoro",
+    "snippets": "Frammenti",
+    "prompts": "Prompt",
+    "team": "Team",
+    "analytics": "Analisi",
+    "composer": "Compositore",
+    "gettingStarted": "Per iniziare",
+    "itemCount_one": "{{count}} elemento",
+    "itemCount_other": "{{count}} elementi"
+  },
+  "account": {
+    "fallbackName": "Account",
+    "settings": "Impostazioni",
+    "investorRelations": "Relazioni con gli investitori",
+    "reportBug": "Segnala un problema",
+    "github": "GitHub",
+    "systemStatus": "Stato del sistema",
+    "logOut": "Esci",
+    "loggingOut": "Disconnessione…"
+  },
+  "language": {
+    "groupLabel": "Lingua",
+    "switchTo": "Passa a {{language}}"
+  }
+}
