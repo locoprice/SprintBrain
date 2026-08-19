@@ -34,7 +34,10 @@ function sbSetSession(s, cb) {
 
 function sbClearSession(cb) {
   _sbRefreshing = null;
-  chrome.storage.local.remove(['sb_session', 'sb_remember_until'], function() {
+  // The snippet and prompt caches go with the session. They are the signed-in
+  // user's data, and leaving them behind kept the in-page picker serving a full
+  // library to whoever used the browser next.
+  chrome.storage.local.remove(['sb_session', 'sb_remember_until', 'snippets', 'sb_prompts'], function() {
     if (cb) cb();
     try {
       chrome.runtime.sendMessage({ type: 'auth_changed' });

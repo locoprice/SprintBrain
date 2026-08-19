@@ -688,12 +688,41 @@ chrome.runtime.onMessage.addListener(function(msg) {
   if (msg && msg.type === 'auth_changed') { initMenus(); sbRefreshActionIcon(); }
 });
 
+// ── LEGACY SEED / ROAMING-KEY PURGE ──────────────────────────────
+// Two things had to leave the browser on update:
+//   1. chrome.storage.sync copies of 'snippets' and 'notionCfg'. sync roams to
+//      every Chrome signed into the same Google account, so snippet content and
+//      a Notion API key travelled between profiles. Credentials never belong in
+//      sync; the local copy is authoritative and the migration reads already ran.
+//   2. The snippet cache of an install with no session. Builds up to v2.156.0
+//      seeded a real snippet library into chrome.storage.local for signed-out
+//      installs, and a sign-out left the previous session's cache in place, so
+//      the picker served a library to someone with no account. Signed-in installs
+//      are untouched: their cache is their own data.
+function sbPurgeLegacyLocalData() {
+  try {
+    chrome.storage.sync.remove(['snippets', 'notionCfg'], function() {
+      if (chrome.runtime.lastError) { /* key may not exist */ }
+    });
+    chrome.storage.local.get('sb_session', function(d) {
+      var signedIn = !!(d && d.sb_session && d.sb_session.user_id);
+      if (signedIn) return;
+      chrome.storage.local.remove(['snippets', 'sb_prompts'], function() {
+        if (chrome.runtime.lastError) { /* key may not exist */ }
+      });
+    });
+  } catch (e) {
+    console.error('[SprintBrain BG] Legacy purge failed:', e.message);
+  }
+}
+
 // Build on install + create sync alarm
 chrome.runtime.onInstalled.addListener(function(details) {
   chrome.alarms.create('sb_sync_alarm', {
     delayInMinutes: 1,
     periodInMinutes: 5
   });
+  sbPurgeLegacyLocalData();
   initMenus();
   sbRefreshActionIcon();
 });
@@ -783,7 +812,10 @@ function bgNotionSync() {
         chrome.storage.sync.get('notionCfg', function (sd) {
           var sCfg = sd && sd.notionCfg ? sd.notionCfg : null;
           if (!sCfg || !sCfg.apiKey || !sCfg.dbId) return;
-          chrome.storage.local.set({sb_notion_cfg: sCfg});
+          chrome.storage.local.set({sb_notion_cfg: sCfg}, function() {
+            // Drop the roaming copy: an API key must not sit in storage.sync.
+            chrome.storage.sync.remove('notionCfg');
+          });
           _bgRunSync(sCfg);
         });
         return;

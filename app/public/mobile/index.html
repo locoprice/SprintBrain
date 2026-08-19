@@ -2671,12 +2671,24 @@ function buildGroups(arr){
   }
   return order.map(function(k){
     var g=map[k];
-    // Real sibling rows (legacy lang_group_id model) already supply their own
-    // variants and take precedence; only expand the bodies map for a lone row.
-    if(g.variants.length===1){
-      var ex=bodyVariants(g.variants[0]);
-      if(ex.length>1)g.variants=ex;
-    }
+    /* One variant per language, whatever the group's shape. Real sibling rows
+       (legacy lang_group_id model) take precedence and the first row for a
+       language wins; the `bodies` map of every row then fills the languages no
+       row covers. Expanding bodies only for a lone row was wrong twice over: a
+       group with duplicate same-language siblings rendered one pill per row
+       (the same language twice), and a language that lived only inside a
+       bodies map never appeared at all once the group had two or more rows. */
+    var byLang={},merged=[];
+    g.variants.forEach(function(row){
+      var l=row.lang||'EN';
+      if(!byLang[l]){ byLang[l]=row; merged.push(row); }
+    });
+    g.variants.forEach(function(row){
+      bodyVariants(row).forEach(function(v){
+        if(!byLang[v.lang]){ byLang[v.lang]=v; merged.push(v); }
+      });
+    });
+    g.variants=merged;
     g.variants.sort(function(a,b){ return langRank(a.lang)-langRank(b.lang); });
     return g;
   });

@@ -266,6 +266,9 @@ function loadNotionCfg(cb) {
         if (old && old.notionCfg) {
           notionCfg = old.notionCfg;
           saveNotionCfg();
+          // Drop the roaming copy: storage.sync follows the Google account to
+          // every Chrome it signs into, and this object holds an API key.
+          chrome.storage.sync.remove('notionCfg');
         }
         if (cb) cb();
       });
@@ -474,7 +477,7 @@ var CHANGELOG = [
     changes:[
       {type:'fix', text:'Team Sync button restored in Settings — moves personal snippets and prompts into the team-shared folder via the Phase B folder ACL, so all org members can see them through accessible_snippets()'},
       {type:'fix', text:'DB.loadPrompts() no longer filters by user_id — RLS now returns both personal and org-shared prompts in a single query'},
-      {type:'fix', text:'Supabase migration adds leibtour@gmail.com to LeibTour org (admin) — was omitted from B1, blocking visible-to-team resolution via can_read_folder()'}
+      {type:'fix', text:'Supabase migration adds the workspace owner to their org as admin, which was omitted from B1 and blocked visible-to-team resolution via can_read_folder()'}
     ]},
   { version:'v2.57.0', date:'2026-06-03', label:'feat: roomier popup + one-click Dashboard link + dashboard prompts in the """ picker',
     changes:[
@@ -1020,15 +1023,28 @@ function boot() {
 
         if (age < 600000 && alarmSnippets.length > 0) {
           alarmSnippets.forEach(function(ns) {
-            var exists = false;
+            // Match on id first, then on notion_page_id AND lang. Every language
+            // variant of a Notion page shares one notion_page_id, so matching on
+            // it alone collapsed a whole multi-language group onto its first row:
+            // the last language synced won and the others lost their body.
+            // Mirrors the comparator in _runNotionSync below.
+            var idx = -1;
             for (var i = 0; i < snips.length; i++) {
-              if (snips[i].notion_page_id === ns.notion_page_id ||
-                  snips[i].id === ns.id) {
-                snips[i] = Object.assign({}, snips[i], ns);
-                exists = true; break;
+              if (snips[i].id === ns.id) { idx = i; break; }
+            }
+            if (idx === -1 && ns.notion_page_id) {
+              for (var k = 0; k < snips.length; k++) {
+                if (snips[k].notion_page_id === ns.notion_page_id &&
+                    (snips[k].lang || 'EN') === (ns.lang || 'EN')) { idx = k; break; }
               }
             }
-            if (!exists) snips.push(ns);
+            if (idx > -1) {
+              // Keep the local row's id: an incoming variant carries the Notion
+              // id, and letting it through renamed the row out of its group.
+              snips[idx] = Object.assign({}, snips[idx], ns, { id: snips[idx].id });
+            } else {
+              snips.push(ns);
+            }
           });
           syncSnippets();
           refreshUI();
@@ -1091,7 +1107,7 @@ function _runNotionSync(cb, force) {
                                         var existing = snips[existingIdx];
                                         if (!existing.manually_edited &&
                                             (existing.title !== ns.title || existing.body !== ns.body || existing.shortcut !== ns.shortcut)) {
-                                                      snips[existingIdx] = Object.assign({}, existing, ns);
+                                                      snips[existingIdx] = Object.assign({}, existing, ns, { id: existing.id });
                                                       DB.upsertSnippet(snips[existingIdx]);
                                                       changed = true;
                                         }
@@ -2137,9 +2153,15 @@ function findVariants(snip){
   rows.forEach(function(s){ if(!v[s.lang]) v[s.lang]=s; });
   v[snip.lang] = snip;
   // Dashboard single-row model: surface languages embedded in the bodies map.
-  // Real sibling rows (legacy lang_group_id model) take precedence when both exist.
-  var emb = bodyVariants(snip);
-  Object.keys(emb).forEach(function(l){ if(!v[l]) v[l] = emb[l]; });
+  // Real sibling rows (legacy lang_group_id model) take precedence when both
+  // exist. Every row in the group is expanded, not just the one being viewed:
+  // a group can hold sibling rows for ES/IT while EN lives only inside another
+  // row's bodies, and reading one row's map dropped that language from the
+  // editor tabs and the language picker.
+  rows.forEach(function(r){
+    var emb = bodyVariants(r);
+    Object.keys(emb).forEach(function(l){ if(!v[l]) v[l] = emb[l]; });
+  });
   return v;
 }
 
