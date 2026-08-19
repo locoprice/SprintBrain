@@ -29,8 +29,17 @@ jobs:
       - name: Trigger expansion check
         run: node scripts/check-expansion.js
 
+      - name: Language variant + shipped content check
+        run: node scripts/check-lang-variants.js
+
+      - name: Snippet grouping check
+        run: node scripts/check-snippet-stats.js
+
       - name: Tooltip parity check
         run: node scripts/sync-tooltip.js --check
+
+      - name: Snippet grouping parity check
+        run: node scripts/sync-snippet-stats.js --check
 
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check

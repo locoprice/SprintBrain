@@ -51,11 +51,18 @@
    * Collapse rows into snippet groups.
    *
    * Returns { groups, keyOf, byKey }:
-   *   groups — [{ key, master, owner, rows, byLang }] in input order; `master`
-   *            is the first row of the group, so an upstream sort still drives
-   *            ordering.
+   *   groups — [{ key, stableKey, master, owner, rows, byLang }] in input
+   *            order; `master` is the first row of the group, so an upstream
+   *            sort still drives ordering.
    *   keyOf  — row id -> group key, for callers that hold a single row.
    *   byKey  — group key -> group.
+   *
+   * `key` follows `master`, so it moves when the caller re-sorts its input. That
+   * is fine for a lookup built and thrown away inside one render, and wrong for
+   * anything written to disk. `stableKey` is derived from the group's smallest
+   * row id instead, so it survives a re-sort and a reload — use it whenever a
+   * group identity is persisted (the mobile companion keys pins and the chosen
+   * language by it).
    */
   function index(rows) {
     var list = Array.isArray(rows) ? rows : [];
@@ -101,6 +108,16 @@
       g.rows.push(list[i]);
       if (g.byLang[list[i].lang] === undefined) g.byLang[list[i].lang] = list[i];
       keyOf[String(list[i].id)] = key;
+    }
+
+    // Smallest row id wins the stable key. Membership decides it, not order.
+    for (i = 0; i < groups.length; i++) {
+      var rows = groups[i].rows, low = String(rows[0].id), j;
+      for (j = 1; j < rows.length; j++) {
+        var rid = String(rows[j].id);
+        if (rid < low) low = rid;
+      }
+      groups[i].stableKey = 'sg:' + low;
     }
 
     return { groups: groups, keyOf: keyOf, byKey: byKey };

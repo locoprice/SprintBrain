@@ -476,6 +476,30 @@ function _bareTrigger(s, seq) {
   return v.indexOf(seq) === 0 ? v.slice(seq.length) : v;
 }
 
+// Which snippet group a row belongs to. The rule lives in
+// shared/snippet-stats.js (loaded ahead of this file by the manifest) so the
+// content script, the popup, Sprintbrain.html and the mobile companion collapse
+// variants identically. The copy that used to live here merged rows across
+// owners and stripped a trailing language code that was not the row's own
+// language, so "wait" (FR) shed an "IT" it never had and became a variant of
+// "WA". Two different people's snippets, one of which then expanded in place
+// of the other.
+//
+// `snippets` is only ever reassigned, never mutated, so its identity is a safe
+// cache key for the index.
+var _grpIdxSrc = null, _grpIdx = null;
+function _snipIndex() {
+  if (_grpIdx && _grpIdxSrc === snippets) return _grpIdx;
+  _grpIdxSrc = snippets;
+  _grpIdx = SBSnippetStats.index(snippets);
+  return _grpIdx;
+}
+function _groupKeyOf(s) {
+  if (!s) return '';
+  var idx = _snipIndex();
+  return idx.keyOf[String(s.id)] || ('row:' + s.id);
+}
+
 // The single snippet a prefix can still mean, or null when it is ambiguous (or
 // matches nothing). Language variants of the same snippet count as ONE
 // candidate — they are one entry in the picker too, and _findLangVariants opens
@@ -494,10 +518,9 @@ function _uniquePrefixSnippet(typed, seq) {
       }
     }
     if (!hit) continue;
-    var base = _bareTrigger(s.shortcut, seq).replace(LANG_SUFFIX_RE, '').toLowerCase();
-    var key = s.lang_group_id ? ('g:' + s.lang_group_id) : ('b:' + base);
+    var key = _groupKeyOf(s);
     if (families[key] === undefined) { families[key] = s; order.push(key); }
-    if (order.length > 1) return null;   // ambiguous — let the picker decide
+    if (order.length > 1) return null;   // ambiguous, let the picker decide
   }
   return order.length === 1 ? families[order[0]] : null;
 }
@@ -527,23 +550,12 @@ function _bodiesViews(row) {
 }
 
 function _findLangVariants(item) {
-  // Collect the group's sibling rows first (lang_group_id, falling back to the
-  // shortcut base), then reduce them to one entry per language.
-  var rows = [];
-  var i;
-  if (item.lang_group_id) {
-    for (i = 0; i < snippets.length; i++) {
-      if (snippets[i].lang_group_id === item.lang_group_id) rows.push(snippets[i]);
-    }
-  }
-  if (rows.length <= 1) {
-    rows = [];
-    var base = (item.shortcut || '').replace(LANG_SUFFIX_RE, '');
-    for (i = 0; i < snippets.length; i++) {
-      if ((snippets[i].shortcut || '').replace(LANG_SUFFIX_RE, '') === base) rows.push(snippets[i]);
-    }
-  }
-  if (!rows.length) rows = [item];
+  // The group's sibling rows, then reduced to one entry per language. Group
+  // membership comes from the shared rule (see _groupKeyOf), which joins
+  // lang_group_id and trigger-base transitively and never crosses owners.
+  var idx = _snipIndex();
+  var g = idx.byKey[idx.keyOf[String(item.id)]];
+  var rows = (g && g.rows && g.rows.length) ? g.rows : [item];
 
   // FIRST row per language wins, not the last. Duplicate same-language siblings
   // exist in real data (a re-import created a second row per language), and
@@ -2097,25 +2109,7 @@ function _renderPickerItems(query) {
       })
     : allItems.slice();
 
-  if (triggerPickerMode === 'snippet') {
-    var seen = {};
-    var deduped = [];
-    for (var di = 0; di < filtered.length; di++) {
-      var s = filtered[di];
-      var base = (s.shortcut || '').replace(LANG_SUFFIX_RE, '');
-      var gid  = s.lang_group_id || null;
-      var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
-      if (seen[key] !== undefined) {
-        if (!LANG_SUFFIX_RE.test(s.shortcut || '')) {
-          deduped[seen[key]] = s;
-        }
-        continue;
-      }
-      seen[key] = deduped.length;
-      deduped.push(s);
-    }
-    filtered = deduped;
-  }
+  if (triggerPickerMode === 'snippet') filtered = _dedupByLangBase(filtered);
   triggerPickerFiltered = filtered;
 
   var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
@@ -2539,14 +2533,15 @@ function matchSelectionTriggers(selText) {
 }
 
 // Collapse sibling language variants (quoteEN/quoteES/quoteIT) into a single
-// row — the language picker modal handles the per-language choice on insert.
+// row. The language picker modal handles the per-language choice on insert.
+// Grouping comes from the shared rule (see _groupKeyOf); the row whose shortcut
+// carries no language code represents the group, so the picker shows "::air"
+// rather than whichever of "::airIT" / "::airES" happened to come first.
 function _dedupByLangBase(list) {
   var seen = {}, out = [];
   for (var i = 0; i < list.length; i++) {
     var s = list[i];
-    var base = (s.shortcut || s.id || '').replace(LANG_SUFFIX_RE, '');
-    var gid  = s.lang_group_id || null;
-    var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
+    var key = _groupKeyOf(s);
     if (seen[key] !== undefined) {
       if (!LANG_SUFFIX_RE.test(s.shortcut || '')) out[seen[key]] = s;
       continue;
