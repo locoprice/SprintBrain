@@ -3,6 +3,7 @@ import {
   baseTrigger,
   baseSnippetName,
   groupSnippetsByLanguage,
+  resolveActiveLanguage,
   resolveActiveVariant,
   snippetGroupKey,
 } from '@/lib/snippetGrouping';
@@ -196,11 +197,15 @@ describe('resolveActiveVariant', () => {
   it('defaults to the English variant', () => {
     expect(resolveActiveVariant(bg, undefined).id).toBe('b1');
   });
-  it('honors an explicit variant id', () => {
-    expect(resolveActiveVariant(bg, 'b2').id).toBe('b2');
+  it('honors an explicit language', () => {
+    expect(resolveActiveVariant(bg, 'ES').id).toBe('b2');
   });
-  it('falls back to English when the active id is stale', () => {
-    expect(resolveActiveVariant(bg, 'gone').id).toBe('b1');
+  it('falls back to English when the language is absent from the group', () => {
+    const noFr = groupSnippetsByLanguage([
+      snippet('n1', '::nofr', 'EN', 'NO FR'),
+      snippet('n2', '::nofr', 'IT', 'NO FR'),
+    ]);
+    expect(resolveActiveVariant(noFr[0]!, 'FR').id).toBe('n1');
   });
   it('falls back to the master when no English variant exists', () => {
     const noEn = groupSnippetsByLanguage([
@@ -208,5 +213,64 @@ describe('resolveActiveVariant', () => {
       snippet('w2', '::withdraw', 'IT', 'RITIRARE'),
     ]);
     expect(resolveActiveVariant(noEn[0]!, undefined).id).toBe('w1');
+  });
+});
+
+// The dashboard writes ONE row per snippet and keeps every translation in that
+// row's `bodies` map. Reading `language` alone reported those snippets as
+// monolingual: TIME held EN/ES/FR/IT and showed two pills, BUDGET STAY held
+// EN/ES/IT and showed none at all (live data, 2026-08-19 — 25 of 70 groups).
+describe('groupSnippetsByLanguage — languages stored in bodies', () => {
+  function withBodies(row: SnippetRow, bodies: Record<string, string>): SnippetRow {
+    return { ...row, bodies };
+  }
+
+  it('surfaces languages that exist only in the bodies map', () => {
+    const [group] = groupSnippetsByLanguage([
+      withBodies(snippet('t1', '::time', 'ES', 'TIME'), {
+        EN: 'english', ES: 'spanish', FR: 'french', IT: 'italian',
+      }),
+    ]);
+    expect(group!.languages).toEqual(['EN', 'ES', 'IT', 'FR']);
+  });
+
+  it('maps a bodies-only language to the row that holds the text', () => {
+    const [group] = groupSnippetsByLanguage([
+      withBodies(snippet('t1', '::time', 'ES', 'TIME'), { ES: 'spanish', FR: 'french' }),
+    ]);
+    expect(group!.byLang.get('FR')!.id).toBe('t1');
+    expect(resolveActiveVariant(group!, 'FR').id).toBe('t1');
+  });
+
+  it('lets a real sibling row win over another row bodies slot', () => {
+    const [group] = groupSnippetsByLanguage([
+      withBodies(snippet('t1', '::time', 'ES', 'TIME'), { ES: 'spanish', IT: 'from bodies' }),
+      snippet('t2', '::time', 'IT', 'TIME'),
+    ]);
+    expect(group!.byLang.get('IT')!.id).toBe('t2');
+  });
+
+  it('ignores empty and whitespace-only bodies slots', () => {
+    const [group] = groupSnippetsByLanguage([
+      withBodies(snippet('t1', '::time', 'EN', 'TIME'), { EN: 'english', FR: '', IT: '   ' }),
+    ]);
+    expect(group!.languages).toEqual(['EN']);
+  });
+});
+
+describe('resolveActiveLanguage', () => {
+  it('keeps a requested language the group actually has', () => {
+    const [group] = groupSnippetsByLanguage([
+      { ...snippet('t1', '::time', 'ES', 'TIME'), bodies: { ES: 'es', FR: 'fr' } },
+    ]);
+    expect(resolveActiveLanguage(group!, 'FR')).toBe('FR');
+  });
+  it('drops a requested language the group does not have', () => {
+    const [group] = groupSnippetsByLanguage([snippet('t1', '::time', 'EN', 'TIME')]);
+    expect(resolveActiveLanguage(group!, 'FR')).toBe('EN');
+  });
+  it('falls back to the master language when there is no English', () => {
+    const [group] = groupSnippetsByLanguage([snippet('t1', '::time', 'IT', 'TIME')]);
+    expect(resolveActiveLanguage(group!, undefined)).toBe('IT');
   });
 });

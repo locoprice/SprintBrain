@@ -1196,6 +1196,7 @@ export function NewSnippetDialog() {
                   About
                 </p>
                 <AssetAttribution
+                  assetId={editingSnippet.id}
                   createdBy={editingSnippet.user_id}
                   updatedBy={editingSnippet.updated_by}
                   updatedAt={editingSnippet.updated_at}

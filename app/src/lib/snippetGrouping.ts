@@ -59,11 +59,35 @@ export interface SnippetGroup {
 }
 
 /**
+ * Every language a single row actually carries: the row's own language plus
+ * each non-empty slot in its `bodies` map. A snippet written in the dashboard
+ * is ONE row holding all its translations, so reading `language` alone reports
+ * a four-language snippet as monolingual.
+ */
+function rowLanguages(row: SnippetRow): SnippetLanguage[] {
+  const out: SnippetLanguage[] = [row.language];
+  for (const lang of LANG_ORDER) {
+    const text = row.bodies[lang];
+    if (typeof text === 'string' && text.trim() !== '' && !out.includes(lang)) {
+      out.push(lang);
+    }
+  }
+  return out;
+}
+
+/**
  * Collapse translated variants of the same snippet into one group — see
  * `snippetGroupKey` for how a row's group is chosen. Input order is preserved
  * so an upstream sort still drives group ordering. Rows that land in the same
  * group with the same language keep the first occurrence in `byLang`; the
  * duplicate stays in `variants` so bulk selection still reaches it.
+ *
+ * Both multilingual models are folded together. Sibling rows (one row per
+ * language, legacy `lang_group_id`) take precedence, then any language that
+ * exists only inside a row's `bodies` map fills the gaps — that second pass is
+ * what stops a single-row snippet from rendering as monolingual. The extension
+ * and the mobile companion resolve variants the same way; see
+ * `_findLangVariants` in extension/content/content.js.
  */
 export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
   const groups: SnippetGroup[] = [];
@@ -84,6 +108,13 @@ export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
   }
 
   for (const group of groups) {
+    // Real rows already claimed their language above; fill what only `bodies`
+    // carries, mapping it to the row that holds the text.
+    for (const row of group.variants) {
+      for (const lang of rowLanguages(row)) {
+        if (!group.byLang.has(lang)) group.byLang.set(lang, row);
+      }
+    }
     const present = LANG_ORDER.filter((l) => group.byLang.has(l));
     // Defensive: surface any language not in the canonical list (shouldn't happen).
     for (const v of group.variants) {
@@ -96,16 +127,28 @@ export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
 }
 
 /**
- * Resolve which variant a grouped row should display. Honors the user's
- * explicit language switch, then falls back to English, then the master row.
+ * Resolve which language a grouped row should display. Honors the user's
+ * explicit switch, then falls back to English, then the master row's language.
+ *
+ * Selection is keyed by LANGUAGE, not by row id: a single row can back several
+ * languages through its `bodies` map, so an id cannot say which one is meant.
+ */
+export function resolveActiveLanguage(
+  group: SnippetGroup,
+  requested: SnippetLanguage | undefined,
+): SnippetLanguage {
+  if (requested !== undefined && group.byLang.has(requested)) return requested;
+  if (group.byLang.has('EN')) return 'EN';
+  return group.master.language;
+}
+
+/**
+ * The row backing the group's active language — the edit / action target, and
+ * the source of every row-level column (folder, updated, usage).
  */
 export function resolveActiveVariant(
   group: SnippetGroup,
-  activeId: string | undefined,
+  activeLang: SnippetLanguage | undefined,
 ): SnippetRow {
-  if (activeId !== undefined) {
-    const picked = group.variants.find((v) => v.id === activeId);
-    if (picked !== undefined) return picked;
-  }
-  return group.byLang.get('EN') ?? group.master;
+  return group.byLang.get(resolveActiveLanguage(group, activeLang)) ?? group.master;
 }
