@@ -35,6 +35,9 @@ jobs:
       - name: Snippet grouping check
         run: node scripts/check-snippet-stats.js
 
+      - name: Storage residency check
+        run: node scripts/check-storage.js
+
       - name: Tooltip parity check
         run: node scripts/sync-tooltip.js --check
 

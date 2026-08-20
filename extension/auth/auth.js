@@ -268,8 +268,9 @@ function sbCurrentUserId(cb) {
 // The snippet/prompt trigger settings live in user_metadata
 // (trigger_snippet_seq / trigger_prompt_seq / *_key) — the SAME fields the web
 // dashboard reads and writes (see app/src/lib/api/settingsApi.ts). The extension
-// mirrors them into chrome.storage.sync.triggerCfg, the local cache content.js
-// reads, so a change on either surface reflects on the other.
+// mirrors them into chrome.storage.local.triggerCfg, the local cache content.js
+// reads, so a change on either surface reflects on the other. user_metadata is
+// what carries the setting between devices; the cache never leaves this profile.
 
 // Map the user_metadata trigger fields onto the triggerCfg cache and persist.
 // Only overwrites keys the metadata actually carries (an unset field keeps its
@@ -277,7 +278,7 @@ function sbCurrentUserId(cb) {
 // chrome.storage.onChanged (which content.js listens to for live updates).
 function sbApplyTriggerMetadata(meta) {
   if (!meta || typeof meta !== 'object') return;
-  chrome.storage.sync.get('triggerCfg', function(d) {
+  chrome.storage.local.get('triggerCfg', function(d) {
     var cur = (d && d.triggerCfg) ? d.triggerCfg : {};
     var next = {
       snippetTrigger:       cur.snippetTrigger       || '::',
@@ -292,7 +293,7 @@ function sbApplyTriggerMetadata(meta) {
     if (meta.trigger_prompt_key  === 'Tab' || meta.trigger_prompt_key  === 'Enter') next.promptActivationKey  = meta.trigger_prompt_key;
     if (next.snippetTrigger !== cur.snippetTrigger || next.promptTrigger !== cur.promptTrigger ||
         next.snippetActivationKey !== cur.snippetActivationKey || next.promptActivationKey !== cur.promptActivationKey) {
-      try { chrome.storage.sync.set({ triggerCfg: next }); } catch(e) {}
+      try { chrome.storage.local.set({ triggerCfg: next }); } catch(e) {}
     }
   });
 }

@@ -171,15 +171,15 @@ function loadUserPrefs(cb) {
       if (p.aiModel) userPrefs.aiModel = p.aiModel;
       if (p.aiApiKey) userPrefs.aiApiKey = p.aiApiKey;
     }
-    // Sync default language to chrome.storage.sync for content.js
-    try { chrome.storage.sync.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
+    // Mirror the default language into the cache content.js reads.
+    try { chrome.storage.local.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
     if (cb) cb();
   });
 }
 
 function saveUserPrefs() {
   chrome.storage.local.set({ sb_user_prefs: userPrefs });
-  try { chrome.storage.sync.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
+  try { chrome.storage.local.set({ sb_default_lang: userPrefs.defaultLang }); } catch(e) {}
 }
 
 // DEFAULT DATA
@@ -208,12 +208,12 @@ var loaded          = false;  // true once the authoritative Supabase load resol
 var listAnimated    = false;  // entrance animation runs once, on first data render
 var searchAllFolders= false;  // "search all folders" escape from a folder-scoped miss
 
-// TRIGGER CONFIGURATION — synced via chrome.storage.sync + Notion
+// TRIGGER CONFIGURATION — cached in chrome.storage.local, owned by user_metadata
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
 
 function loadTriggerCfg(cb) {
   try {
-    chrome.storage.sync.get('triggerCfg', function(d) {
+    chrome.storage.local.get('triggerCfg', function(d) {
       if (d && d.triggerCfg) {
         if (d.triggerCfg.snippetTrigger) triggerCfg.snippetTrigger = d.triggerCfg.snippetTrigger;
         if (d.triggerCfg.promptTrigger) triggerCfg.promptTrigger = d.triggerCfg.promptTrigger;
@@ -240,7 +240,7 @@ function applyTriggerCfgToInputs() {
   var mgp = gi('mglyph-prmpt'); if (mgp) mgp.textContent = triggerCfg.promptTrigger;
 }
 function saveTriggerCfg() {
-  try { chrome.storage.sync.set({triggerCfg: triggerCfg}); } catch(e) {}
+  try { chrome.storage.local.set({triggerCfg: triggerCfg}); } catch(e) {}
 }
 function validateTriggerSeq(seq) {
   if (!seq || typeof seq !== 'string') return false;
@@ -327,10 +327,10 @@ function show(id){
 }
 
 function loadTrigger(cb){
-  try{ chrome.storage.sync.get('trigger',function(d){ if(d&&d.trigger) trig=d.trigger; if(cb) cb(); }); }
+  try{ chrome.storage.local.get('trigger',function(d){ if(d&&d.trigger) trig=d.trigger; if(cb) cb(); }); }
   catch(e){ if(cb) cb(); }
 }
-function saveTrigger(){ try{ chrome.storage.sync.set({trigger:trig}); }catch(e){} }
+function saveTrigger(){ try{ chrome.storage.local.set({trigger:trig}); }catch(e){} }
 // Snippets are stored in chrome.storage.local (5MB) because the array exceeds
 // chrome.storage.sync's 8KB per-item limit, causing silent write failures.
 // Cross-device sync is handled by Supabase, not chrome.storage.sync.

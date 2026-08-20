@@ -150,12 +150,13 @@ function resolveVariant(variants, preferred) {
 }
 
 // ── LOAD FROM STORAGE ──────────────────────────────────────────────
-// Snippets live in chrome.storage.local (5MB) because the array exceeds
-// chrome.storage.sync's 8KB per-item limit (silent failure otherwise).
-// Small settings (trigger, triggerCfg, default lang) remain in sync so
-// they roam across devices. Cross-device snippet sync goes through Supabase.
+// Everything lives in chrome.storage.local. Snippets because the array exceeds
+// chrome.storage.sync's 8KB per-item limit (silent failure otherwise); the small
+// settings because storage.sync roams to every Chrome signed into the same
+// Google account and nothing here needs to. Cross-device sync of both the
+// library and the trigger settings goes through Supabase.
 try {
-  chrome.storage.sync.get(['trigger','triggerCfg','sb_default_lang'], function(data) {
+  chrome.storage.local.get(['trigger','triggerCfg','sb_default_lang'], function(data) {
     try {
       if (data && data.trigger) trigger = data.trigger;
       if (data && data.sb_default_lang) defaultLang = data.sb_default_lang;
@@ -194,7 +195,7 @@ try {
 
   chrome.storage.onChanged.addListener(function(changes, areaName) {
     try {
-      // Snippets only fire from local (areaName === 'local'); small settings from sync.
+      // Every key this listener cares about now fires from local.
       // A cleared cache (sign-out) arrives with no newValue and must empty the
       // in-memory list, otherwise the picker keeps serving the signed-out user
       // the library from the session that just ended.
