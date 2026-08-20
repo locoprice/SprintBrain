@@ -249,6 +249,11 @@
   .nv-langtab .dot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sb-ok);display:none}
   .nv-langtab.has-content .dot{display:block}
   .nv-langtab.on .dot{background:rgba(255,255,255,.7)}
+  .nv-body-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:6px}
+  .nv-body-clear{padding:2px 8px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:500;cursor:pointer;transition:all .12s}
+  .nv-body-clear:hover,.nv-body-clear.armed{border-color:var(--sb-danger-bdr);background:var(--sb-danger-bg);color:var(--sb-danger)}
+  .nv-body-clear:disabled{opacity:.4;cursor:default;border-color:var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle)}
+  .nv-body-count{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums}
   .nv-chips{display:flex;flex-direction:column;gap:10px;margin-top:9px}
   .nv-chiprow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
   .nv-chipgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -613,6 +618,10 @@
           <button class="nv-langtab" data-lang="FR" type="button">FR<span class="dot"></span></button>
         </div>
         <textarea id="nv-f-body" placeholder="Dear {guest_name},&#10;&#10;Your message…"></textarea>
+        <div class="nv-body-foot">
+          <button type="button" id="nv-f-clear" class="nv-body-clear" title="Delete this language's body. The snippet is saved without that language, not with an empty one.">Clear</button>
+          <span class="nv-body-count" id="nv-f-count">0 words</span>
+        </div>
         <div class="nv-chips" id="nv-chips">
           <div>
             <div class="nv-chiplbl">Fields <span>— filled in when the snippet expands · type <code>{any_name}</code> for your own</span></div>
@@ -776,7 +785,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.162.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.163.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1237,10 +1246,44 @@
     });
   }
   function switchLang(l){
-    edBuf[edActive] = $('nv-f-body').value;
+    // A slot the user emptied is deleted rather than kept as '': carrying a
+    // blank across the switch is what turned a wiped language back into an
+    // empty translation on save.
+    var cur = $('nv-f-body').value;
+    if (cur) edBuf[edActive] = cur; else delete edBuf[edActive];
     edActive = l;
     $('nv-f-body').value = (typeof edBuf[l] === 'string') ? edBuf[l] : '';
-    renderLangTabs(); $('nv-f-body').focus();
+    edClearArmed = false;
+    renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
+  }
+
+  // Body footer: word count + Clear. The count mirrors countWords in
+  // app/src/lib/utils.ts so both surfaces report the same number.
+  var edClearArmed = false;
+  function bodyWords(text){
+    var t = (text || '').trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
+  function renderBodyFoot(){
+    var v = $('nv-f-body').value || '', n = bodyWords(v), btn = $('nv-f-clear');
+    $('nv-f-count').textContent = n + (n === 1 ? ' word' : ' words');
+    // Nothing to delete on an empty slot, and an armable button that does
+    // nothing reads as broken.
+    btn.disabled = v.length === 0;
+    var armed = edClearArmed && !btn.disabled;
+    btn.classList.toggle('armed', armed);
+    btn.textContent = armed ? 'Click again to clear' : 'Clear';
+  }
+  /* Wipe the language on screen. The slot leaves edBuf instead of going blank,
+     so the save writes a snippet that never carried that translation and every
+     reader sees one fewer language. Other languages are untouched, and nothing
+     is written until Save. First click arms, second clears. */
+  function clearActiveLang(){
+    if (!edClearArmed) { edClearArmed = true; renderBodyFoot(); return; }
+    delete edBuf[edActive];
+    $('nv-f-body').value = '';
+    edClearArmed = false;
+    renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
   function renderAltTags(){
     var c = $('nv-alt-tags'); c.innerHTML = '';
@@ -1272,7 +1315,8 @@
       edBuf[edActive] = (typeof ab[edActive] === 'string') ? ab[edActive] : (snip.body || '');
     }
     $('nv-f-body').value = (typeof edBuf[edActive] === 'string') ? edBuf[edActive] : '';
-    renderLangTabs();
+    edClearArmed = false;
+    renderLangTabs(); renderBodyFoot();
     // alternative queries
     edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
     renderAltTags(); $('nv-f-alt').value = '';
@@ -1297,6 +1341,7 @@
     var ta = $('nv-f-body'), s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
     ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
+    edClearArmed = false; renderBodyFoot();
   }
 
   /* Swap the body text between two offsets — the edit path for a token already
@@ -1305,6 +1350,7 @@
     var ta = $('nv-f-body');
     ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
     ta.focus(); ta.selectionStart = ta.selectionEnd = start + text.length;
+    edClearArmed = false; renderBodyFoot();
   }
   $('nv-chips').addEventListener('click', function(e){
     var c = e.target.closest('[data-c]'); if (!c) return;
@@ -1660,6 +1706,10 @@
   $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
   $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
   $('nv-f-shortcut').addEventListener('input', updatePreview);
+  // Typing disarms Clear: one left armed from before the edit would otherwise
+  // wipe text the user has just written on a single click.
+  $('nv-f-body').addEventListener('input', function(){ edClearArmed = false; renderBodyFoot(); });
+  $('nv-f-clear').addEventListener('click', clearActiveLang);
   $('nv-f-cancel').addEventListener('click', closeEditor);
   $('nv-modal-bg').addEventListener('click', function(e){ if (e.target === $('nv-modal-bg')) closeEditor(); });
   $('nv-f-save').addEventListener('click', function(){
@@ -1669,8 +1719,11 @@
     if (!title) { toast('Title is required'); $('nv-f-title').focus(); return; }
     if (!word) { toast('Shortcut is required'); $('nv-f-shortcut').focus(); return; }
     commitAltDraft();
-    edBuf[edActive] = $('nv-f-body').value;
     var lang = edActive, body = $('nv-f-body').value, sc = trigChar() + word;
+    // Mirrors the dashboard's `content` rule: the language on screen must carry
+    // text, or the row saves as a stub claiming a translation it does not have.
+    if (!body.trim()) { toast('Body is required'); $('nv-f-body').focus(); return; }
+    edBuf[edActive] = body;
     var bodies = {}; LANG_LIST.forEach(function(l){ var t = edBuf[l]; if (typeof t === 'string' && t.trim()) bodies[l] = t; });
     var urgEnabled = $('nv-f-urg').checked;
     var urgDurMs = Math.max(1, parseInt($('nv-f-urg-dur').value, 10) || 30) * 60000;
