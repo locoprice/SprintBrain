@@ -133,27 +133,30 @@ interface QuickInsert {
   hint: string;
 }
 
+// Every chip has to read as built for the reader's own trade, whichever that is:
+// a clinic, a repair shop and a law firm each open this rail and find their own
+// words in it. So nothing here names an industry (see the root CLAUDE.md).
+//
+// guest_name and property_name were dropped in v2.150.0: both are plain text
+// fields, and the {formtext} builder writes any of them by name. `nights` went
+// the same way. The two date chips stay, because `DATE` in the name is what
+// makes the fill form render a date picker (content.js auto-detect), which a
+// plain text field cannot replace.
 const QUICK_INSERTS: QuickInsert[] = [
-  // guest_name and property_name were dropped in v2.150.0: both are plain text
-  // fields, and the {formtext} builder writes any of them by name. The two date
-  // chips stay — `DATE` in the name is what makes the fill form render a date
-  // picker (content.js auto-detect), which a text field cannot replace.
-  { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default', group: 'field',
-    hint: 'Arrival date — inserts {checkin_date}' },
-  { label: 'checkout_date', value: '{checkout_date}',        variant: 'default', group: 'field',
-    hint: 'Departure date — inserts {checkout_date}' },
+  { label: 'start_date',    value: '{start_date}',           variant: 'default', group: 'field',
+    hint: 'Start date. Inserts {start_date}, which fills as a date picker' },
+  { label: 'end_date',      value: '{end_date}',             variant: 'default', group: 'field',
+    hint: 'End date. Inserts {end_date}, which fills as a date picker' },
   { label: 'total_price',   value: '{total_price}',          variant: 'default', group: 'field',
-    hint: 'Total price of the stay — inserts {total_price}' },
-  { label: 'nights',        value: '{nights}',               variant: 'default', group: 'field',
-    hint: 'Number of nights — inserts {nights}' },
+    hint: 'Total amount. Inserts {total_price}' },
   { label: 'phone',         value: '{phone_number}',         variant: 'default', group: 'field',
-    hint: 'Phone number — inserts {phone_number}' },
+    hint: 'Phone number. Inserts {phone_number}' },
   { label: 'review_link',   value: '{review_link}',          variant: 'default', group: 'field',
-    hint: 'Link to your review page — inserts {review_link}' },
+    hint: 'Link to your review page. Inserts {review_link}' },
   { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
-    hint: 'Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}' },
+    hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
-    hint: 'Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}' },
+    hint: 'Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}' },
 ];
 
 const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
@@ -934,7 +937,7 @@ export function NewSnippetDialog() {
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
                   contentError && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
-                placeholder="Dear {guest_name}, …"
+                placeholder="Dear {first_name}, …"
               />
               {/* Footer: the error and the count share one line. Stacking them
                   would cost the textarea a second row of height for something
