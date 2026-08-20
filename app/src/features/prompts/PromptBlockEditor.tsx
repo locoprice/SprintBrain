@@ -845,6 +845,7 @@ export function PromptBlockEditor() {
             </p>
             <AssetAttribution
               tone="dark"
+              assetId={editingPrompt.id}
               createdBy={editingPrompt.user_id}
               updatedBy={editingPrompt.updated_by}
               updatedAt={editingPrompt.updated_at}

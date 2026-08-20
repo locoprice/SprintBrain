@@ -27,6 +27,10 @@ const ENGINE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'extension', 'formula-engine.js'), 'utf8');
 const CONTENT_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'extension', 'content', 'content.js'), 'utf8');
+// content.js groups language variants through the shared rule, which the
+// manifest loads ahead of it. The gate has to load it in the same order.
+const STATS_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'extension', 'shared', 'snippet-stats.js'), 'utf8');
 
 // Mirrors the production shapes that collide: a shortcut that opens a longer
 // word ("neob"), a shortcut that is the prefix of another ("form"/"forms"), and
@@ -79,6 +83,7 @@ vm.createContext(sandbox);
 
 try {
   vm.runInContext(ENGINE_SRC, sandbox);
+  vm.runInContext(STATS_SRC, sandbox);
   vm.runInContext(CONTENT_SRC, sandbox);
 } catch (e) {
   fail('content.js failed to evaluate in the gate context: ' + e.message);

@@ -46,57 +46,19 @@ var parsePlaceholders  = _SBFE.parsePlaceholders;
 var interpolateSnippet = _SBFE.interpolateSnippet;
 var sbFormatDate       = _SBFE.sbFormatDate;
 
-// ── DEFAULT SNIPPETS ───────────────────────────────────────────────
-// Sprintbrain Snippets — imported from Text Blaze
-// Groups: PRESUPUESTOS (5) + RESERVATION MGMT (15)
-// Total: 20 snippets
-var DEFAULT_SNIPPETS = [
-  // ── PRESUPUESTOS ──────────────────────────────────────────────────
-  {id:'quoteEN', shortcut:'/quoteEN', title:'💰 ESTIMATE B2C ver. 3.6', lang:'EN', cat:'PRESUPUESTOS',
-   body:'📋 QUOTATION SENT h.[TIME_HH:MM] · [DATE_DD/MM/YYYY]\nValid for 3 hours.\n\nYour request: [ENQUIRE_FORM]\n🔗Property: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN DD/MM/YYYY]\nCheck-out: [CHECKOUT DD/MM/YYYY]\n\nRoom: Studio (no terrace)\nCala Llonga area\nRate Plan: NOT Refundable - always cheaper\nPayment methods: Credit / Debit card +3%\n\n★ Your Price: [YOUR_PRICE]€ (extra savings when you choose how to pay)\n\n- Bank Transfer: [YOUR_PRICE - 25]€ ❤️ Loved by our guests\n- Card: [YOUR_PRICE × 1.03]€\n\nOriginal Accommodation Price: [OTA_PRICE]€\n✓ You save: [OTA_PRICE - YOUR_PRICE]€\n✓ You also save: OTA service fees (typically 12-18%)\n✓ Discount codes: Not valid\n✓ Payment terms: Full payment upon confirmation\n\nCANCELLATION POLICY\n⚠️ NON-REFUNDABLE — Generally offer a lower price compared to refundable fares, but they come with stricter cancellation policies.\n\n📎 Full cancellation terms → leibtour.com/policy\n❓ FAQ & booking process → leibtour.com/faqs/booking-process\n\nNote:\n1. Only 1 unit(s) left at this rate. The price will increase.\n2. COMBO DEALS: book the accommodation and save on Car Hire: zero excess, zero deposit, full insurance.'},
-  {id:'quoteES', shortcut:'/quoteES', title:'💰 PRESUPUESTO B2C', lang:'ES', cat:'PRESUPUESTOS',
-   body:'📋 PRESUPUESTO ENVIADO h.[HH:mm] · [DD/MM/YYYY]\nVálido por 3 horas.\n\nTu solicitud: [ENQUIRE_FORM]\n🔗Alojamiento: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN]\nCheck-out: [CHECKOUT]\n\nHabitación: Estudio (sin terraza) zona Cala Llonga\nTarifa: NO Reembolsable - siempre más barata\nMétodos de pago: Tarjeta de crédito / débito +3%\n\nPrecio original del alojamiento: [OTA_PRICE]€\n★ Tu precio: [YOUR_PRICE]€\n✓ Ahorras: [OTA_PRICE - YOUR_PRICE]€\n✓ También ahorras: comisiones de servicio OTA (normalmente 12-18%)\n✓ Códigos de descuento: No válidos\n✓ Condiciones de pago: Pago completo a la confirmación\n\nOPCIONES DE PAGO\n- Transferencia bancaria: [YOUR_PRICE - 25]€ ❤️ La preferida por nuestros huéspedes\n- Tarjeta: [YOUR_PRICE × 1.03]€\n\nPOLÍTICA DE CANCELACIÓN\n⚠️ NO REEMBOLSABLE — Precio más bajo. Pago inmediato. Sin cancelación.\n\n📎 Condiciones completas de cancelación → leibtour.com/policy\n❓ Preguntas frecuentes → leibtour.com/faqs/booking-process\n\nNota:\n1. Solo queda 1 unidad a esta tarifa. Tarifas dinámicas, el precio subirá.\n2. COMBO DEALS: reserva el alojamiento y ahorra en también en alquiler de Coche: sin franquicia, sin depósito, seguro a todo riesgo incluido.'},
-  {id:'quoteIT', shortcut:'/quoteIT', title:'💰 PREVENTIVO B2C', lang:'IT', cat:'PRESUPUESTOS',
-   body:'📋 PREVENTIVO INVIATO 🕑 [HH:mm] · [DD/MM/YYYY]\nValido per 3 ore.\n\nLa tua richiesta: [ENQUIRE_FORM]\n🔗Alloggio: https://www.leibtour.com/stays/\n\nCheck-in: [CHECKIN]\nCheck-out: [CHECKOUT]\n\nCamera: Monolocale (senza terrazza) zona Cala Llonga\nTariffa: NON Rimborsabile - sempre più conveniente\nMetodi di pagamento: Carta di credito / debito +3%\n\nPrezzo originale: [OTA_PRICE]€\n★ La tua tariffa: [YOUR_PRICE]€\n✓ Risparmi: [OTA_PRICE - YOUR_PRICE]€\n✓ Risparmi anche: commissioni di servizio OTA (solitamente 12-18%)\n✓ Codici sconto: Non validi\n✓ Condizioni di pagamento: Pagamento completo alla conferma\n\nOPZIONI DI PAGAMENTO\n- Bonifico: [YOUR_PRICE - 25]€ ❤️ Preferito dai nostri ospiti\n- Carta: [YOUR_PRICE × 1.03]€\n\nPOLITICA DI CANCELLAZIONE\n⚠️ NON RIMBORSABILE — Prezzo più basso, cancellazione non consentita.\n\n📎 Condizioni complete di cancellazione → leibtour.com/policy\n❓ FAQ → leibtour.com/faqs/booking-process\n\nNote:\n- Ultima unità disponibile. Tariffa dinamica, il prezzo salirà.\n- COMBO DEALS prenota l\'alloggio e risparmia anche su noleggio auto: nessuna franchigia, zero deposito, assicurazione casco inclusa.'},
-  {id:'neob', shortcut:'/neob', title:'💻 NEO BOOKING', lang:'ES', cat:'PRESUPUESTOS',
-   body:'Buenos días [NOMBRE_PROVEEDOR]:\n\nSoy Valentina y paso otra reserva LeibTour 🎉\n\nSi necesitais cualquier cosa estoy a completa disposición :)\n\nSi el cliente rellena el formulario Real Decreto os envio su DNI/Pasaporte para hacer un pre-checkin.\n\nNecesitaríamos factura por favor.\n\nEl cliente debe ecotasa y sabe que tiene que abonarla a su llegada.\n\nPosiblemente darles a los huespedes una buena habitacion en la planta mas alta disponible :)\n\nEn cuanto a la configuración de las camas, son amigos, por lo tanto necesitan camas individuales 🛏️🛏️\n\nHasta la próxima reserva ♡'},
-  {id:'locoprice', shortcut:'/locoprice', title:'CLIENTE CERCA ACCOMMODATION', lang:'MULTI', cat:'PRESUPUESTOS',
-   body:'I suggest you find something online and share the link with us. We can offer you a B2B quotation on any accommodation worldwide: https://www.locoprice.com/better-price/.\n\nShare any offer you might find online, and we will provide you with a better B2B quotation for any accommodation worldwide.\n\n---\n\nTi suggerisco di cercare qualcosa online e di mandarmi il link. Possiamo offrirti un preventivo B2B per qualsiasi tipo di alloggio in tutto il mondo: https://www.locoprice.com/better-price/.\n\n---\n\nTe aconsejo que busque algo por internet y nos comparta el enlace. Podemos ofrecerte una cotización B2B en cualquier alojamiento a nivel mundial: https://www.locoprice.com/better-price/'},
-  // ── RESERVATION MGMT ──────────────────────────────────────────────
-  {id:'followup', shortcut:'/followup', title:'FOLLOW UP', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Hey there! Any update for me? Did you finally book your accommodation in Ibiza? Please let me know since I have several properties around the island :D\n\nI will be more than happy to assist you.\n\nRegards\n\n---\n\n¡Hola! ¿Tienes alguna novedad para mí? ¿Finalmente reservaste tu alojamiento en Ibiza? Por favor, avísame ya que tengo varias propiedades en la isla :D\n\nEstaré más que encantado de ayudarte.\n\nSaludos\n\n---\n\nCiao! Hai qualche novità per me? Hai finalmente prenotato il tuo alloggio a Ibiza? Fammi sapere :D\n\nCerca sul web Leibtour (pagina Contatti) e sarò più che felice di aiutarti...\n\nUn saluto'},
-  {id:'cal', shortcut:'/cal', title:'CALENDAR AND PRICE NO UPDATE', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Hola :)\nPara evitar cualquier malentendido y asegurar que tengas la mejor experiencia, te explicamos en detalle cómo funciona nuestro proceso de reserva...\n\n### VERY IMPORTANT – PLEASE READ!\n\n☎ Before sending your booking request ALWAYS CONTACT US to check availability\n🛏️ The look of the apartment can be slightly different from the images\n⛔ Do NOT pay for the reservation before confirming with us\n📅 Our calendars are almost always open because we have alternative properties available\n☀ During high summer season many accommodations have a variable minimum stay\n\n---> Por estos motivos LeibTour NO TRABAJA con reservas inmediata sino solo bajo petición!\n---> 100% normal: Mira porfa los terminos y condiciones\n---> Te aconsejo que vuelvas a buscar activando el filtro solo de las propiedades con "reservas inmediatas" en 2 clicks te ahorras mucho tiempo ;)'},
-  {id:'notavail', shortcut:'/notavail', title:'NO DISPONIBILITÀ', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Hi. Unfortunately, the accommodation you selected is not available. However, I can suggest an alternative option.\n\n---\n\nHola. Lamentablemente, no tenemos disponibilidad para las fechas seleccionadas. Sin embargo, puedo ofrecerte una opción alternativa. Estaba mirando ahora la disponibilidad y en tus fechas este apartamento esta vendido :(. Si quieres, te miro la disponibilidad por otro apartamento pero no lo tenemos publicado en airbnb (solo Leibtour).\n\nHazme saber\n\nEspero noticias\n\nLeibtour Team\n\n---\n\nCiao. Purtroppo non abbiamo disponibilità per le date selezionate. Tuttavia, posso proporti un\'opzione alternativa.'},
-  {id:'price', shortcut:'/price', title:'PREZZO NON AGGIORNATO', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Dear (___) the price displayed is not up to date.\nIf you wish to proceed, please withdraw your current booking request.\n[I will then update the price and you\'ll be able to resubmit your booking request with the correct amount.] / [Then I will send you the offer with the updated price.]\n\n---\n\nQuerido (___) el precio mostrado no está actualizado. Si deseas proceder con la reserva, por favor retira primero la solicitud.\n[Luego podrás volver a enviar la solicitud de reserva con el importe correcto.] / [Luego te enviaré la oferta con el precio actualizado.]\n\n---\n\nCaro (___) il prezzo non è aggiornato. Se desideri procedere con la prenotazione, ti prego di ritirare prima la richiesta. [Dopo aver corretto il prezzo, potrai inviare nuovamente la richiesta.] / [Successivamente ti invierò l\'offerta con il prezzo aggiornato.]'},
-  {id:'time', shortcut:'/time', title:'TIME', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Dear ### I\'ll get back to you shortly, I still need to check the quotation and availability... Now I\'m busy with another guest on LeibTour who is booking for tomorrow. Ok? thanks for your patience ☺️\n\n---\n\nQuerido ###, enseguida te respondo, todavía tengo que averiguar el precio y la disponibilidad... Ahora estoy ocupada con otro huésped en LeibTour que está reservando para mañana. ¿De acuerdo? Gracias por tu paciencia ☺️\n\n---\n\nCaro ###, ti rispondo a breve, devo ancora verificare se il prezzo e la disponibilità sono corretti... Adesso sono impegnata con un altro ospite su LeibTour che sta prenotando per domani. Va bene? Grazie per la tua pazienza ☺️'},
-  {id:'withdraw', shortcut:'/withdraw', title:'RITIRARE LA RICHIESTA', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Kindly withdraw your current booking request so Airbnb can release the pending balance pre-authorized on your account. I can\'t do it because I don\'t have the permissions and my boss is not in the office now.\n\nThe refund is instant. For any questions regarding the payment contact Airbnb guest support since we didn\'t accept the reservation and we don\'t handle payments.\n\nYou can withdraw your booking request directly from your Airbnb account. Simply go to the reservation settings and you will find the option to cancel your pending request.\n\n---\n\nDe todos modos, puedes retirar la solicitud pendiente en cualquier momento para que Airbnb te desbloquee el importe. No puedo hacerlo yo porque no tengo los permisos y mi jefe no se encuentra en la ofi ahora.\n\nLa devolucion es instantánea. Para cualquier pregunta relacionada con el pago contacta directamente con la asistencia de Airbnb.\n\n---\n\nIn ogni caso puoi ritirare la richiesta di prenotazione in qualsiasi momento, Airbnb ti restituirà subito l\'importo pre-autorizzato. Il rimborso è istantaneo.'},
-  {id:'altern', shortcut:'/altern', title:'ALTERNATIVA', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'1) Alternativa 2 unità:\n\nBefore we proceed, may I ask if you would be open to considering the option of splitting your group into two separate units?\n---\n¿Estarías disponible para valorar la opción de dividirse en dos unidades?\n---\nSaresti disponibile a valutare la possibilità di dividervi in due unità?\n\n2) Alternativa stessa zona o altra zona:\n\nMay I ask if you are looking for something in the same area or if you would also consider another zone?\n---\n¿Puedo preguntarte si estás buscando algo en la misma zona o si también considerarías otra área?\n---\nPosso chiederti se stai cercando qualcosa nella stessa zona o se prenderesti in considerazione anche un\'altra area?'},
-  {id:'budgetstay', shortcut:'/budgetstay', title:'BUDGET STAY - NO A/C', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Before we proceed with your booking, could you please confirm that you\'ve read and understood this is a budget studio/one (1) bedroom apartment without air conditioning?\n\n☝ VERY IMPORTANT ☝\nThis is a budget accommodation so be prepared to find a modest but comfortable place. The average price per night in this area is more than double. You are saving a lot of money :)\n\n---\n\nPrima di procedere con la tua prenotazione, puoi confermare che si tratta di uno studio economico senza aria condizionata?\n\n☝ IMPORTANTE ☝\nEssendo un alloggio modesto, preparati a trovare un luogo semplice ma confortevole. Stai risparmiando un botto di soldi :)\n\n---\n\nAntes de continuar con tu reserva, ¿puedes confirmar que se trata de un estudio económico sin aire acondicionado?\n\n☝MUY IMPORTANTE ☝\nSe trata de un alojamiento modesto. El precio medio por noche en esta zona es más del doble. Estás ahorrando un paston :)'},
-  {id:'minstay', shortcut:'/minstay', title:'MINIMUM STAY', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'For the selected property, there is a minimum stay requirement of several nights. If your dates are flexible or if you\'re interested, I\'d be happy to suggest some alternative options.\n\n---\n\nPara el alojamiento que has elegido, hay un requisito de estancia mínima de varias noches. Si tus fechas no cumplen con este requisito, puedo proponerte alternativas similares. ¿Te gustaría que te envíe otras opciones?\n\n---\n\nPer la struttura che hai scelto è previsto un soggiorno minimo di più notti. Se le tue date non rispettano questo requisito, posso comunque proporti alternative simili. Vuoi che ti invii altre opzioni?'},
-  {id:'discount', shortcut:'/discount', title:'DISCOUNT', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'Hello! Thank you very much for your request! I have availability and I can accept you.\nBefore doing so, I just wanted to ask if you are interested in getting a small discount on your Airbnb booking. In that case, please look me up online as Leibtour (Contact Us) as soon as possible. Otherwise, I will go ahead and accept the pending request.\n\nSince we are a company based in Ibiza, I can also offer my guests exclusive rates on car, motorbike, and bicycle rentals, as well as ferry tickets to Formentera and all other excursions, activities, and entrances to Ibiza\'s clubs.\n\nP.S. Simply add my listing to your Airbnb favorites by clicking on the little heart in the upper right corner of the ad ;) Best regards.\n\n---\n\nHola! Muchas gracias por tu solicitud! Tengo disponibilidad y puedo aceptarte.\nAntes de hacerlo, ¿estás interesado en conseguir un descuentillo en la reserva de Airbnb? Búscame en la web como Leibtour (Contact Us) lo antes posible. De lo contrario, aceptaré la solicitud pendiente.\n\n---\n\nCiao! Grazie mille per la tua richiesta! Ho disponibilità e posso accettarti.\nPrima di farlo, sei interessato ad ottenere un piccolo sconto sulla prenotazione di Airbnb? Cercami sul web come Leibtour (Contact Us) il prima possibile.'},
-  {id:'forms', shortcut:'/forms', title:'JOT FORM', lang:'ES', cat:'RESERVATION MGMT',
-   body:'Porfa rellena el siguiente formulario https://www.leibtour.com/car-rental/car-quotations/ y en la mayor brevedad te enviaremos un par de presupuestos.'},
-  {id:'salb2b', shortcut:'/salb2b', title:'SALUDOS B2B', lang:'ES', cat:'RESERVATION MGMT',
-   body:'★ Muchas gracias y hasta pronto.\n\n★★ Gracias por tu ayuda y colaboracion, espero verte pronto. Un fuerte abrazo.\n\n★★★ Con todo mi corazon mil gracias ♥ Es un verdadero placer trabajar con gente como tu. Te mando un fuerte abrazo!!!\n\n1. Quedo a vuestra disposición para cualquier consulta. ¡Muchas gracias por vuestra colaboración!\n2. Como siempre, agradecemos vuestra profesionalidad.\n3. Gracias por la atención. Quedamos a la espera de vuestra confirmación.\n4. Os agradecemos la colaboración de siempre.\n5. Muchas gracias por gestionar esta reserva con la eficiencia de siempre. ¡Un saludo cordial!\n6. Agradecemos vuestra rápida gestión.\n7. Como siempre, es un placer trabajar con vosotros.\n8. Gracias por vuestra disponibilidad y profesionalidad.\n9. Os enviamos un cordial saludo y agradecemos vuestra excelente colaboración. ¡Hasta la próxima!\n10. Muchas gracias por todo. ¡Un abrazo del equipo LeibTour!'},
-  {id:'salb2c', shortcut:'/salb2c', title:'SALUDOS B2C', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'1) Cliente ospite con noi:\nHello, how are you? Thank you for choosing us, it\'s truly a pleasure to have you as our guest. ❤️🎉\nHola, ¿cómo estás? Gracias por elegirnos, es realmente un placer tenerte como nuestro huésped. ❤️🎉\nCiao, come stai? Grazie per averci scelto, per noi è davvero un piacere averti come ospite. ❤️🎉\n\n2) Cliente non presente ma aperti ad ospitarlo altrove:\nHello, how are you? We would have been happy to have you as our guest, and we\'re always glad to welcome you. 😉❤️\nHola, ¿cómo estás? Nos habría encantado tenerte como huésped. 😉❤️\nCiao, come stai? Ci avrebbe fatto piacere averti come ospite. 😉❤️\n\n3) Cliente impossibilitato ad essere ospitato:\nHello, how are you? We\'re sorry we couldn\'t welcome you this time, but you will always be very welcome in the future. 😉❤️\nHola, ¿cómo estás? Lamentamos no haber podido recibirte esta vez, pero siempre serás muy bienvenido. 😉❤️\nCiao, come stai? Ci dispiace non averti potuto accogliere questa volta. 😉❤️'},
-  {id:'address', shortcut:'/address', title:'INDIRIZZO', lang:'MULTI', cat:'RESERVATION MGMT',
-   body:'You\'ll receive an automatic e-mail with GPS coordinates and full address 2 days before your arrival. For privacy and security reasons the address will be shown only after the booking.\n\nRead our FAQ: https://www.leibtour.com/faqs/booking-process/\n\n---\n\nRecibirás un correo electrónico con las coordenadas GPS y la dirección completa 2 días antes de tu llegada. Por razones de privacidad y seguridad, la dirección se mostrará solo después de la reserva.\n\nAqui tienes las preguntas frecuentes: https://www.leibtour.com/faqs/booking-process/\n\n---\n\nRiceverai un\'e-mail automatica con le coordinate GPS e l\'indirizzo completo 2 giorni prima del tuo arrivo. Per motivi di privacy e sicurezza, l\'indirizzo sarà mostrato solo dopo la prenotazione.\n\nLeggi le FAQ: https://www.leibtour.com/faqs/booking-process/'},
-  {id:'firm', shortcut:'/firm', title:'Valenx (firma)', lang:'ES', cat:'RESERVATION MGMT',
-   body:'Valentina P.\n[Reservations department LeibTour]'}
-];
+// ── DEFAULT SNIPPETS ──────────────────────────────────
+// Intentionally empty, and it must stay that way. Anything listed here ships
+// inside the extension bundle, so a signed-out install renders it in the
+// picker and every installer can read it. Snippet content arrives from
+// Supabase after sign-in: popup.js writes the chrome.storage.local cache that
+// this file reads. An empty library is the correct signed-out state.
+var DEFAULT_SNIPPETS = [];
 
 // ── STATE ──────────────────────────────────────────────────────────
 var snippets = DEFAULT_SNIPPETS.slice();
+// Mirrors chrome.storage.local 'sb_session' so the picker can tell an empty
+// library apart from a signed-out one and say which it is.
+var hasSession = false;
 var trigger  = '::';
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
@@ -188,12 +150,13 @@ function resolveVariant(variants, preferred) {
 }
 
 // ── LOAD FROM STORAGE ──────────────────────────────────────────────
-// Snippets live in chrome.storage.local (5MB) because the array exceeds
-// chrome.storage.sync's 8KB per-item limit (silent failure otherwise).
-// Small settings (trigger, triggerCfg, default lang) remain in sync so
-// they roam across devices. Cross-device snippet sync goes through Supabase.
+// Everything lives in chrome.storage.local. Snippets because the array exceeds
+// chrome.storage.sync's 8KB per-item limit (silent failure otherwise); the small
+// settings because storage.sync roams to every Chrome signed into the same
+// Google account and nothing here needs to. Cross-device sync of both the
+// library and the trigger settings goes through Supabase.
 try {
-  chrome.storage.sync.get(['trigger','triggerCfg','sb_default_lang'], function(data) {
+  chrome.storage.local.get(['trigger','triggerCfg','sb_default_lang'], function(data) {
     try {
       if (data && data.trigger) trigger = data.trigger;
       if (data && data.sb_default_lang) defaultLang = data.sb_default_lang;
@@ -212,23 +175,16 @@ try {
 
   chrome.storage.local.get('snippets', function(data) {
     try {
-      if (data && data.snippets && data.snippets.length > 0) {
-        snippets = data.snippets;
-      } else {
-        // Migration: check if sync has a stale snippets copy from pre-v2.15.0
-        chrome.storage.sync.get('snippets', function(sd) {
-          if (sd && sd.snippets && sd.snippets.length > 0) {
-            snippets = sd.snippets;
-            chrome.storage.local.set({snippets: snippets}, function() {
-              chrome.storage.sync.remove('snippets');
-            });
-          } else {
-            snippets = DEFAULT_SNIPPETS.slice();
-            chrome.storage.local.set({snippets: snippets});
-          }
-        });
-      }
+      // The local cache is the only snippet source. A chrome.storage.sync copy
+      // is never adopted: sync roams across every Chrome signed into the same
+      // Google account, so it carried one account's snippets to another.
+      // background.js drops the legacy key on update.
+      snippets = (data && Array.isArray(data.snippets)) ? data.snippets : [];
     } catch(e) {}
+  });
+
+  chrome.storage.local.get('sb_session', function(data) {
+    try { hasSession = !!(data && data.sb_session && data.sb_session.user_id); } catch(e) {}
   });
 
   chrome.storage.local.get('sb_prompts', function(data) {
@@ -239,8 +195,12 @@ try {
 
   chrome.storage.onChanged.addListener(function(changes, areaName) {
     try {
-      // Snippets only fire from local (areaName === 'local'); small settings from sync.
-      if (changes.snippets && changes.snippets.newValue) snippets = changes.snippets.newValue;
+      // Every key this listener cares about now fires from local.
+      // A cleared cache (sign-out) arrives with no newValue and must empty the
+      // in-memory list, otherwise the picker keeps serving the signed-out user
+      // the library from the session that just ended.
+      if (changes.snippets) snippets = Array.isArray(changes.snippets.newValue) ? changes.snippets.newValue : [];
+      if (changes.sb_session) hasSession = !!(changes.sb_session.newValue && changes.sb_session.newValue.user_id);
       if (changes.sb_prompts && Array.isArray(changes.sb_prompts.newValue)) userPrompts = changes.sb_prompts.newValue;
       if (changes.trigger  && changes.trigger.newValue)  trigger  = changes.trigger.newValue;
       if (changes.sb_default_lang && changes.sb_default_lang.newValue) defaultLang = changes.sb_default_lang.newValue;
@@ -517,6 +477,30 @@ function _bareTrigger(s, seq) {
   return v.indexOf(seq) === 0 ? v.slice(seq.length) : v;
 }
 
+// Which snippet group a row belongs to. The rule lives in
+// shared/snippet-stats.js (loaded ahead of this file by the manifest) so the
+// content script, the popup, Sprintbrain.html and the mobile companion collapse
+// variants identically. The copy that used to live here merged rows across
+// owners and stripped a trailing language code that was not the row's own
+// language, so "wait" (FR) shed an "IT" it never had and became a variant of
+// "WA". Two different people's snippets, one of which then expanded in place
+// of the other.
+//
+// `snippets` is only ever reassigned, never mutated, so its identity is a safe
+// cache key for the index.
+var _grpIdxSrc = null, _grpIdx = null;
+function _snipIndex() {
+  if (_grpIdx && _grpIdxSrc === snippets) return _grpIdx;
+  _grpIdxSrc = snippets;
+  _grpIdx = SBSnippetStats.index(snippets);
+  return _grpIdx;
+}
+function _groupKeyOf(s) {
+  if (!s) return '';
+  var idx = _snipIndex();
+  return idx.keyOf[String(s.id)] || ('row:' + s.id);
+}
+
 // The single snippet a prefix can still mean, or null when it is ambiguous (or
 // matches nothing). Language variants of the same snippet count as ONE
 // candidate — they are one entry in the picker too, and _findLangVariants opens
@@ -535,10 +519,9 @@ function _uniquePrefixSnippet(typed, seq) {
       }
     }
     if (!hit) continue;
-    var base = _bareTrigger(s.shortcut, seq).replace(LANG_SUFFIX_RE, '').toLowerCase();
-    var key = s.lang_group_id ? ('g:' + s.lang_group_id) : ('b:' + base);
+    var key = _groupKeyOf(s);
     if (families[key] === undefined) { families[key] = s; order.push(key); }
-    if (order.length > 1) return null;   // ambiguous — let the picker decide
+    if (order.length > 1) return null;   // ambiguous, let the picker decide
   }
   return order.length === 1 ? families[order[0]] : null;
 }
@@ -548,44 +531,50 @@ var LANG_FLAGS = { EN: '🇬🇧', IT: '🇮🇹', ES: '🇪🇸', FR: '🇫🇷
 var LANG_NAMES = { EN: 'English', IT: 'Italiano', ES: 'Español', FR: 'Français', MULTI: 'Multi' };
 var LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
 
+// Expand one row's `bodies` map (dashboard single-row model) into language-keyed
+// views that share the row but carry each language's own body, so the picker can
+// offer every translation and handleMatch inserts the right one.
+function _bodiesViews(row) {
+  var out = {};
+  var b = row && row.bodies;
+  if (!b || typeof b !== 'object') return out;
+  Object.keys(b).forEach(function (l) {
+    var txt = b[l];
+    if (typeof txt !== 'string' || !txt.trim()) return;
+    var view = {};
+    for (var k in row) view[k] = row[k];
+    view.lang = l;
+    view.body = txt;
+    out[l] = view;
+  });
+  return out;
+}
+
 function _findLangVariants(item) {
+  // The group's sibling rows, then reduced to one entry per language. Group
+  // membership comes from the shared rule (see _groupKeyOf), which joins
+  // lang_group_id and trigger-base transitively and never crosses owners.
+  var idx = _snipIndex();
+  var g = idx.byKey[idx.keyOf[String(item.id)]];
+  var rows = (g && g.rows && g.rows.length) ? g.rows : [item];
+
+  // FIRST row per language wins, not the last. Duplicate same-language siblings
+  // exist in real data (a re-import created a second row per language), and
+  // letting the last one win made the visible variant depend on row order.
   var map = {};
-  if (item.lang_group_id) {
-    var rawGid = item.lang_group_id;
-    for (var i = 0; i < snippets.length; i++) {
-      if (snippets[i].lang_group_id === rawGid &&
-          snippets[i].body && snippets[i].body.trim()) {
-        map[snippets[i].lang] = snippets[i];
-      }
-    }
-  }
-  if (Object.keys(map).length <= 1) {
-    map = {};
-    var base = (item.shortcut || '').replace(LANG_SUFFIX_RE, '');
-    for (var j = 0; j < snippets.length; j++) {
-      var cb = (snippets[j].shortcut || '').replace(LANG_SUFFIX_RE, '');
-      if (cb === base && snippets[j].body && snippets[j].body.trim()) {
-        map[snippets[j].lang] = snippets[j];
-      }
-    }
-  }
-  // Dashboard single-row model: per-language content lives in the item's `bodies`
-  // map rather than across sibling rows. Expand it into language-keyed views that
-  // share the same row but carry each language's body, so the picker can offer
-  // every translation and handleMatch inserts the right one.
-  if (Object.keys(map).length <= 1 && item.bodies && typeof item.bodies === 'object') {
-    var bmap = {};
-    Object.keys(item.bodies).forEach(function (l) {
-      var txt = item.bodies[l];
-      if (typeof txt !== 'string' || !txt.trim()) return;
-      var view = {};
-      for (var k in item) view[k] = item[k];
-      view.lang = l;
-      view.body = txt;
-      bmap[l] = view;
+  rows.forEach(function (r) {
+    if (r.body && r.body.trim() && !map[r.lang]) map[r.lang] = r;
+  });
+  // Then fill the gaps from every row's `bodies` map. This runs whatever the
+  // group size is: a group can hold sibling rows for ES/IT while EN exists only
+  // inside a row's bodies, and gating this on a single-row group dropped that
+  // language from the picker entirely.
+  rows.forEach(function (r) {
+    var views = _bodiesViews(r);
+    Object.keys(views).forEach(function (l) {
+      if (!map[l]) map[l] = views[l];
     });
-    if (Object.keys(bmap).length > 1) map = bmap;
-  }
+  });
   return map;
 }
 
@@ -1880,12 +1869,12 @@ function restoreFieldState(snapshot) {
 var MSGS = [
   {e:'🎉',h:'Message ready!',s:'Your fingers thank you.'},
   {e:'⚡',h:'Lightning fast!',s:'Zero typos, zero stress.'},
-  {e:'🚀',h:'Message launched!',s:'LeibTour efficiency at its best.'},
+  {e:'🚀',h:'Message launched!',s:'That took one keystroke.'},
   {e:'🏆',h:'Champion move!',s:'TextBlaze who? You don\'t need them.'},
   {e:'✨',h:'Perfectly crafted!',s:'Copy, switch, paste. Done.'},
-  {e:'🌴',h:'Ibiza speed!',s:'More time for the beach.'},
-  {e:'💪',h:'Like a pro!',s:'Your guests will love this.'},
-  {e:'🎯',h:'Bullseye!',s:'Right message, right guest, right now.'}
+  {e:'⏱️',h:'Time saved!',s:'Spend it on something better.'},
+  {e:'💪',h:'Like a pro!',s:'Your customers will notice.'},
+  {e:'🎯',h:'Bullseye!',s:'Right message, right person, right now.'}
 ];
 
 function showCelebration(text, onConfirm, onUndo) {
@@ -2121,25 +2110,7 @@ function _renderPickerItems(query) {
       })
     : allItems.slice();
 
-  if (triggerPickerMode === 'snippet') {
-    var seen = {};
-    var deduped = [];
-    for (var di = 0; di < filtered.length; di++) {
-      var s = filtered[di];
-      var base = (s.shortcut || '').replace(LANG_SUFFIX_RE, '');
-      var gid  = s.lang_group_id || null;
-      var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
-      if (seen[key] !== undefined) {
-        if (!LANG_SUFFIX_RE.test(s.shortcut || '')) {
-          deduped[seen[key]] = s;
-        }
-        continue;
-      }
-      seen[key] = deduped.length;
-      deduped.push(s);
-    }
-    filtered = deduped;
-  }
+  if (triggerPickerMode === 'snippet') filtered = _dedupByLangBase(filtered);
   triggerPickerFiltered = filtered;
 
   var itemsEl = triggerPickerEl.querySelector('.sb-tp-items');
@@ -2165,7 +2136,16 @@ function _renderPickerItems(query) {
       + '</div>';
   }
   if (!triggerPickerFiltered.length) {
-    h = '<div style="padding:16px 12px;font-size:13px;color:#A1A1AA;text-align:center">No matches</div>';
+    // An empty library and a query that matched nothing are different problems,
+    // and the signed-out case is the common one: say what to do about it.
+    var emptyMsg = 'No matches';
+    if (!allItems.length) {
+      emptyMsg = hasSession
+        ? 'No snippets yet. Create one in the dashboard.'
+        : 'Sign in from the SprintBrain toolbar icon to load your snippets.';
+    }
+    h = '<div style="padding:16px 12px;font-size:13px;color:#A1A1AA;text-align:center;line-height:1.45">'
+      + xesc(emptyMsg) + '</div>';
   }
   itemsEl.innerHTML = h;
   triggerPickerIdx = 0;
@@ -2554,14 +2534,15 @@ function matchSelectionTriggers(selText) {
 }
 
 // Collapse sibling language variants (quoteEN/quoteES/quoteIT) into a single
-// row — the language picker modal handles the per-language choice on insert.
+// row. The language picker modal handles the per-language choice on insert.
+// Grouping comes from the shared rule (see _groupKeyOf); the row whose shortcut
+// carries no language code represents the group, so the picker shows "::air"
+// rather than whichever of "::airIT" / "::airES" happened to come first.
 function _dedupByLangBase(list) {
   var seen = {}, out = [];
   for (var i = 0; i < list.length; i++) {
     var s = list[i];
-    var base = (s.shortcut || s.id || '').replace(LANG_SUFFIX_RE, '');
-    var gid  = s.lang_group_id || null;
-    var key  = gid ? ('g:' + gid) : ('b:' + base.toLowerCase());
+    var key = _groupKeyOf(s);
     if (seen[key] !== undefined) {
       if (!LANG_SUFFIX_RE.test(s.shortcut || '')) out[seen[key]] = s;
       continue;

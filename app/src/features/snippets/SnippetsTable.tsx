@@ -18,10 +18,11 @@ import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { resolveLabels } from '@/lib/labelUtils';
-import type { Snippet, SnippetRow } from '@/types/database';
+import type { Snippet, SnippetLanguage, SnippetRow } from '@/types/database';
 import {
   baseSnippetName,
   groupSnippetsByLanguage,
+  resolveActiveLanguage,
   resolveActiveVariant,
   type SnippetGroup,
 } from '@/lib/snippetGrouping';
@@ -78,24 +79,24 @@ function LangPill({ lang }: { lang: Snippet['language'] }) {
  */
 function LangSwitcher({
   group,
-  activeId,
+  activeLang,
   onSelect,
 }: {
   group: SnippetGroup;
-  activeId: string;
-  onSelect: (id: string) => void;
+  activeLang: SnippetLanguage;
+  onSelect: (lang: SnippetLanguage) => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
       {group.languages.map((lang) => {
         const variant = group.byLang.get(lang);
         if (variant === undefined) return null;
-        const isActive = variant.id === activeId;
+        const isActive = lang === activeLang;
         return (
           <button
             key={lang}
             type="button"
-            onClick={() => onSelect(variant.id)}
+            onClick={() => onSelect(lang)}
             aria-pressed={isActive}
             title={`Show ${LANG_LABEL[lang]} version`}
             className={cn(
@@ -213,7 +214,7 @@ export function SnippetsTable() {
 
   // Active language variant per group key — drives which variant's metadata and
   // edit target a grouped row shows. Defaults (no entry) resolve to EN/master.
-  const [activeByKey, setActiveByKey] = useState<Record<string, string>>({});
+  const [activeByKey, setActiveByKey] = useState<Record<string, SnippetLanguage>>({});
 
   // Pagination state
   const [pageSize, setPageSize] = useState<PageSize>(25);
@@ -371,7 +372,8 @@ export function SnippetsTable() {
             // lang, folder, updated, usage) and is the edit / push / action
             // target. The displayed name comes from the master and stays put
             // when the user switches language.
-            const row = resolveActiveVariant(group, activeByKey[group.key]);
+            const activeLang = resolveActiveLanguage(group, activeByKey[group.key]);
+            const row = resolveActiveVariant(group, activeLang);
             const trigger = row.triggers[0] ?? '';
             const isLast = i === pageGroups.length - 1;
             const multiLang = group.languages.length > 1;
@@ -491,13 +493,13 @@ export function SnippetsTable() {
                   {multiLang ? (
                     <LangSwitcher
                       group={group}
-                      activeId={row.id}
-                      onSelect={(id) =>
-                        setActiveByKey((prev) => ({ ...prev, [group.key]: id }))
+                      activeLang={activeLang}
+                      onSelect={(lang) =>
+                        setActiveByKey((prev) => ({ ...prev, [group.key]: lang }))
                       }
                     />
                   ) : (
-                    <LangPill lang={row.language} />
+                    <LangPill lang={activeLang} />
                   )}
                 </td>
                 <td className="px-5 py-3 text-ink-muted">{row.folder_name ?? '—'}</td>

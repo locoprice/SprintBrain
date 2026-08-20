@@ -1288,6 +1288,202 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
 <div id="sb-toast" role="status" aria-live="polite"></div>
 
+<!-- SB_SNIPPET_STATS:BEGIN (generated from extension/shared/snippet-stats.js by scripts/sync-snippet-stats.js, do not edit) -->
+<script>
+// SNIPPET LIBRARY COUNTING — one rule for "how many snippets do I have".
+//
+// A translated snippet is not one row. The legacy model gives its language
+// siblings a shared `lang_group_id`; the dashboard model keeps one row and puts
+// the translations in `bodies`. Counting rows therefore counts a snippet once
+// per language, and every surface that shows a number has to collapse the rows
+// the same way — otherwise the popup, Sprintbrain.html and the dashboard each
+// report a different library size for the same account.
+//
+// The rule, in order:
+//   1. Rows never merge across owners. Sharing a folder never moves ownership
+//      (Phase B stamps organization_id, it does not reassign user_id), so two
+//      teammates whose triggers happen to collide stay two snippets.
+//   2. Rows carrying the same explicit `lang_group_id` are one snippet.
+//   3. Rows whose triggers share a base are one snippet. The base drops the
+//      trigger prefix ("::air" and "air" are the same trigger) and a trailing
+//      language code — but only when that code is the row's OWN language.
+//      Without that guard "wait" (FR) sheds its "IT" and merges with "WA".
+//
+// Both joins are transitive, which is what makes the counts right on real data:
+// `::quoteEN` and `::quoteES` sit under two different lang_group_ids in
+// production and are still one snippet with four translations.
+(function (root) {
+  'use strict';
+
+  var LANG_SUFFIX_RE = /(EN|ES|IT|FR|MULTI)$/i;
+
+  // A stored shortcut may or may not carry the trigger baked in.
+  function bareShortcut(sc) {
+    return String(sc == null ? '' : sc).trim().replace(/^[^a-zA-Z0-9]+/, '');
+  }
+
+  // Grouping base of a row's trigger, lowercased. '' when it has no trigger.
+  function baseTrigger(row) {
+    var sc = bareShortcut(row && row.shortcut);
+    if (!sc) return '';
+    var m = sc.match(LANG_SUFFIX_RE);
+    if (m) {
+      var head = sc.slice(0, sc.length - m[1].length);
+      var lang = String((row && row.lang) || '').toUpperCase();
+      if (head && m[1].toUpperCase() === lang) return head.toLowerCase();
+    }
+    return sc.toLowerCase();
+  }
+
+  function ownerOf(row) {
+    return String((row && row.user_id) || '');
+  }
+
+  /**
+   * Collapse rows into snippet groups.
+   *
+   * Returns { groups, keyOf, byKey }:
+   *   groups — [{ key, stableKey, master, owner, rows, byLang }] in input
+   *            order; `master` is the first row of the group, so an upstream
+   *            sort still drives ordering.
+   *   keyOf  — row id -> group key, for callers that hold a single row.
+   *   byKey  — group key -> group.
+   *
+   * `key` follows `master`, so it moves when the caller re-sorts its input. That
+   * is fine for a lookup built and thrown away inside one render, and wrong for
+   * anything written to disk. `stableKey` is derived from the group's smallest
+   * row id instead, so it survives a re-sort and a reload — use it whenever a
+   * group identity is persisted (the mobile companion keys pins and the chosen
+   * language by it).
+   */
+  function index(rows) {
+    var list = Array.isArray(rows) ? rows : [];
+    var parent = new Array(list.length);
+    var i;
+
+    function find(n) {
+      while (parent[n] !== n) { parent[n] = parent[parent[n]]; n = parent[n]; }
+      return n;
+    }
+    // The lower index wins the root, so the first row of a group stays master.
+    function union(a, b) {
+      a = find(a); b = find(b);
+      if (a === b) return;
+      if (a < b) parent[b] = a; else parent[a] = b;
+    }
+
+    var firstByGid = {}, firstByBase = {};
+    for (i = 0; i < list.length; i++) {
+      parent[i] = i;
+      var row = list[i], owner = ownerOf(row);
+      var gid = (row && row.lang_group_id) ? String(row.lang_group_id) : '';
+      if (gid) {
+        var gk = 'u:' + owner + '|g:' + gid;
+        if (firstByGid[gk] === undefined) firstByGid[gk] = i; else union(firstByGid[gk], i);
+      }
+      var base = baseTrigger(row);
+      if (base) {
+        var bk = 'u:' + owner + '|b:' + base;
+        if (firstByBase[bk] === undefined) firstByBase[bk] = i; else union(firstByBase[bk], i);
+      }
+    }
+
+    var groups = [], byKey = {}, keyOf = {};
+    for (i = 0; i < list.length; i++) {
+      var rootRow = list[find(i)];
+      var key = 'grp:' + String(rootRow.id);
+      var g = byKey[key];
+      if (!g) {
+        g = byKey[key] = { key: key, master: rootRow, owner: ownerOf(rootRow), rows: [], byLang: {} };
+        groups.push(g);
+      }
+      g.rows.push(list[i]);
+      if (g.byLang[list[i].lang] === undefined) g.byLang[list[i].lang] = list[i];
+      keyOf[String(list[i].id)] = key;
+    }
+
+    // Smallest row id wins the stable key. Membership decides it, not order.
+    for (i = 0; i < groups.length; i++) {
+      var rows = groups[i].rows, low = String(rows[0].id), j;
+      for (j = 1; j < rows.length; j++) {
+        var rid = String(rows[j].id);
+        if (rid < low) low = rid;
+      }
+      groups[i].stableKey = 'sg:' + low;
+    }
+
+    return { groups: groups, keyOf: keyOf, byKey: byKey };
+  }
+
+  /** Snippets in `rows`, translations counted once. */
+  function count(rows) {
+    return index(rows).groups.length;
+  }
+
+  /** The group a row belongs to within `rows`, or null. */
+  function groupFor(rows, row) {
+    if (!row) return null;
+    var idx = (rows && rows.groups) ? rows : index(rows);
+    return idx.byKey[idx.keyOf[String(row.id)]] || null;
+  }
+
+  /**
+   * Library breakdown for the signed-in user.
+   *
+   * personal — snippets you own (including your own that you share out; sharing
+   *            a folder does not make a snippet somebody else's).
+   * shared   — snippets owned by a teammate, reaching you through a shared
+   *            folder. Disjoint from `personal`, so the two always sum to
+   *            `total`.
+   * owners   — how many different teammates those shared snippets come from.
+   *
+   * With no signed-in user the library cannot be attributed, so everything
+   * counts as personal rather than inventing teammates.
+   */
+  function stats(rows, currentUserId) {
+    var groups = index(rows).groups;
+    var me = String(currentUserId || '');
+    var out = { total: groups.length, personal: 0, shared: 0, owners: 0 };
+    var seen = {};
+    for (var i = 0; i < groups.length; i++) {
+      var owner = groups[i].owner;
+      if (!me || !owner || owner === me) { out.personal++; continue; }
+      out.shared++;
+      if (!seen[owner]) { seen[owner] = 1; out.owners++; }
+    }
+    return out;
+  }
+
+  /** The one breakdown string both surfaces render, so they cannot drift. */
+  function statsLine(s) {
+    var line = s.personal + ' personal';
+    if (s.shared > 0) {
+      line += ' · ' + s.shared + ' shared from ' + s.owners + (s.owners === 1 ? ' person' : ' people');
+    }
+    return line;
+  }
+
+  var API = {
+    baseTrigger: baseTrigger,
+    index: index,
+    count: count,
+    groupFor: groupFor,
+    stats: stats,
+    statsLine: statsLine
+  };
+
+  // UMD: browser globals, CommonJS (the node gate), AMD.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = API;
+  } else if (typeof define === 'function' && define.amd) {
+    define(function () { return API; });
+  } else {
+    root.SBSnippetStats = API;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
+</script>
+<!-- SB_SNIPPET_STATS:END -->
 <script>
 var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
@@ -2129,24 +2325,39 @@ function folderIcon(f){
   return _FOLDER_SVGS[resolveFolderIcoKey((f&&f.ico)||'')];
 }
 /* ── LANG-VARIANT GROUPING KEY ────────────────────────────
-   Group by lang_group_id when present, else fall back to the trigger with its
-   trailing language code stripped — mirroring the dashboard (snippetGrouping.ts)
-   and the extension content script (_findLangVariants). Dashboard-authored
-   variants don't set lang_group_id, so without this fallback they never
-   collapsed into one card on mobile. */
-var LANG_SUFFIX_RE=/(?:EN|ES|IT|FR|MULTI)$/i;
+   The rule is not defined here. It lives in extension/shared/snippet-stats.js,
+   inlined above by scripts/sync-snippet-stats.js, so the popup, Sprintbrain.html
+   and this app collapse variants identically instead of drifting apart.
+
+   Mobile used to hand-roll the key and got it wrong three ways: it merged rows
+   across owners, it stripped a trailing language code even when that code was
+   not the row's own language (so "wait" (FR) shed an "IT" it never had and
+   merged with "WA"), and it returned a raw lang_group_id that collided with a
+   base trigger spelled the same way. On real data eight groups collapsed two
+   different people's snippets into one card, which then rendered one snippet's
+   name over another snippet's folder.
+
+   The key is `stableKey`, derived from group membership rather than input
+   order, because _pins and _langPref persist it to localStorage and a re-sort
+   must not silently move somebody's pins onto a different snippet. */
+var _grpIdxSrc=null,_grpIdx=null;
+function snipIndex(){
+  // allSnips is only ever reassigned, never mutated, so identity is a safe
+  // cache key. Re-indexing on every card of every render is not.
+  if(_grpIdx&&_grpIdxSrc===allSnips)return _grpIdx;
+  _grpIdxSrc=allSnips;
+  _grpIdx=SBSnippetStats.index(allSnips);
+  return _grpIdx;
+}
 function groupKey(s){
-  if(s.lang_group_id)return s.lang_group_id;
-  var base=(s.shortcut||'').replace(LANG_SUFFIX_RE,'');
-  return base?base.toLowerCase():s.id;
+  if(!s)return '';
+  var idx=snipIndex();
+  var g=idx.byKey[idx.keyOf[String(s.id)]];
+  // A row the index has never seen stands alone rather than joining a group.
+  return g?g.stableKey:('sg:'+s.id);
 }
 function groupCount(arr){
-  var seen={},n=0;
-  for(var i=0;i<arr.length;i++){
-    var gid=groupKey(arr[i]);
-    if(!seen[gid]){seen[gid]=1;n++;}
-  }
-  return n;
+  return SBSnippetStats.count(arr);
 }
 function folderCount(fid){
   var seen={},n=0;
@@ -2671,12 +2882,28 @@ function buildGroups(arr){
   }
   return order.map(function(k){
     var g=map[k];
-    // Real sibling rows (legacy lang_group_id model) already supply their own
-    // variants and take precedence; only expand the bodies map for a lone row.
-    if(g.variants.length===1){
-      var ex=bodyVariants(g.variants[0]);
-      if(ex.length>1)g.variants=ex;
-    }
+    /* One variant per language, whatever the group's shape. Real sibling rows
+       (legacy lang_group_id model) take precedence and the first row for a
+       language wins; the `bodies` map of every row then fills the languages no
+       row covers. Expanding bodies only for a lone row was wrong twice over: a
+       group with duplicate same-language siblings rendered one pill per row
+       (the same language twice), and a language that lived only inside a
+       bodies map never appeared at all once the group had two or more rows. */
+    var byLang={},merged=[];
+    g.variants.forEach(function(row){
+      var l=row.lang||'EN';
+      if(!byLang[l]){ byLang[l]=row; merged.push(row); }
+    });
+    g.variants.forEach(function(row){
+      bodyVariants(row).forEach(function(v){
+        if(!byLang[v.lang]){ byLang[v.lang]=v; merged.push(v); }
+      });
+    });
+    /* A row dropped here is a same-owner, same-trigger, same-language duplicate
+       (the 2026-04-21 re-import left pairs of them), so showing one is right.
+       It is not lost: the shared index keeps every row on the group, which is
+       where last-use reads them from. */
+    g.variants=merged;
     g.variants.sort(function(a,b){ return langRank(a.lang)-langRank(b.lang); });
     return g;
   });
@@ -2703,15 +2930,27 @@ function groupMatches(g,q,folder,lang){
   }
   return false;
 }
-function pickActiveVariant(g,lang){
+/* Which variant a card shows. A card standing in a folder's list has to show a
+   variant that actually lives in that folder: `groupMatches` admits a group as
+   soon as ANY variant is in the folder, so without this constraint the card
+   rendered a sibling from somewhere else and printed one snippet's name and
+   shortcut over a different folder's row. Inside that constraint the explicit
+   language filter wins, then the language last chosen for this group, then
+   canonical language order. */
+function pickActiveVariant(g,lang,folder){
+  var pool=g.variants;
+  if(folder&&folder!=='ALL'){
+    var inFolder=pool.filter(function(v){ return inFolderSubtree(v.folder_id,folder); });
+    if(inFolder.length) pool=inFolder;
+  }
   if(lang&&lang!=='ALL'){
-    for(var i=0;i<g.variants.length;i++){ if(g.variants[i].lang===lang) return g.variants[i]; }
+    for(var i=0;i<pool.length;i++){ if(pool[i].lang===lang) return pool[i]; }
   }
   var pref=g.key&&_langPref[g.key];
   if(pref){
-    for(var j=0;j<g.variants.length;j++){ if(g.variants[j].lang===pref) return g.variants[j]; }
+    for(var j=0;j<pool.length;j++){ if(pool[j].lang===pref) return pool[j]; }
   }
-  return g.variants[0];
+  return pool[0];
 }
 /* Latest use across a group's variants (bodies-model variants share one DB id,
    so the map lookup naturally dedups; sibling rows each have their own). */
@@ -2738,12 +2977,15 @@ function lastUseParts(lu){
         +' · '+_sbPad(d.getHours())+':'+_sbPad(d.getMinutes())
   };
 }
-/* Latest use for the group a snippet belongs to, for the info sheet. Falls back
-   to the snippet's own row when the group index isn't populated yet. */
+/* Latest use for the group a snippet belongs to, for the info sheet. Reads the
+   shared index rather than the render-scoped one: it holds every row of the
+   group, including a duplicate the card list collapses away, and it is right
+   before the first render instead of only after it. */
 function lastUseForSnippet(s){
-  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
-  if(!variants||!variants.length)return lastUseMap[s.id]||null;
-  return lastUseOf(variants);
+  var idx=snipIndex();
+  var g=idx.byKey[idx.keyOf[String(s.id)]];
+  if(g&&g.rows&&g.rows.length)return lastUseOf(g.rows);
+  return lastUseMap[s.id]||null;
 }
 function renderList(){
   var el=document.getElementById('snip-list');
@@ -2763,7 +3005,7 @@ function renderList(){
     return;
   }
   el.innerHTML=groups.map(function(g){
-    var active=pickActiveVariant(g,curLang);
+    var active=pickActiveVariant(g,curLang,curFolder);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
     _groupIndex[g.key]=g.variants;
     var fbadge='';
