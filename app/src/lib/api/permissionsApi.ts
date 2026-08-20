@@ -80,6 +80,37 @@ async function ensureFolderInOrg(folderId: string, orgId: string, userId: string
   if (promptErr) throw promptErr;
 }
 
+/**
+ * Undo `ensureFolderInOrg` once the folder's last grant is gone.
+ *
+ * `organization_id` is not merely a label: `app.folder_level` returns 'owner'
+ * to every admin of that org while it is set, BEFORE it looks at any grant. So
+ * a folder that keeps the stamp after its last share is revoked stays fully
+ * readable and writable by every org admin, while the UI reports it as private.
+ * That is how a car-rental folder owned by one account stayed visible to
+ * another long after its share was removed.
+ *
+ * Clearing the folder is enough: the `app.cascade_folder_org` trigger pushes
+ * the new value down to the folder's snippets and prompts.
+ *
+ * Only runs when NO grants remain. A folder that is still shared with anyone
+ * keeps its stamp, because that stamp is what the remaining grants hang on.
+ */
+async function unshareFolderIfLastGrant(folderId: string): Promise<void> {
+  const { count, error: countErr } = await supabase
+    .from('folder_permissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('folder_id', folderId);
+  if (countErr) throw countErr;
+  if ((count ?? 0) > 0) return;
+
+  const { error } = await supabase
+    .from('folders')
+    .update({ organization_id: null })
+    .eq('id', folderId);
+  if (error) throw error;
+}
+
 export const permissionsApi: PermissionsApi = {
   async listGrants(folderId) {
     const { data, error } = await supabase
@@ -133,7 +164,18 @@ export const permissionsApi: PermissionsApi = {
   },
 
   async revokeGrant(grantId) {
+    // Read the folder before the row goes, so the last-grant check below knows
+    // which folder to clean up.
+    const { data: grant, error: readErr } = await supabase
+      .from('folder_permissions')
+      .select('folder_id')
+      .eq('id', grantId)
+      .maybeSingle();
+    if (readErr) throw readErr;
+
     const { error } = await supabase.from('folder_permissions').delete().eq('id', grantId);
     if (error) throw error;
+
+    if (grant !== null) await unshareFolderIfLastGrant(grant.folder_id);
   },
 };

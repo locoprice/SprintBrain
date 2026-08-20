@@ -32,6 +32,23 @@
 
 ---
 
+## 🌐 Landing Translations — Human-Written Only, Non-Negotiable
+**The landing page ships in English, Italian and Spanish. Claude never writes the Italian or the Spanish.** Marketing copy carries the brand voice and is read by prospects and investors; a machine translation that is merely "correct" is not good enough, and a wrong one is public.
+
+**The rule:** whenever new text or new content is added to the English source `app/public/landing/index.html`, **stop and ask Valentina or Alessandro for the Italian and Spanish**. They supply a 100% accurate translation. Paste what they give you, verbatim, into the locale files. Do not translate it yourself, do not paraphrase what they send, and do not fill a gap with a placeholder while waiting.
+
+**How it fits the build:**
+- English source: `app/public/landing/index.html` (the only file where new copy is authored).
+- Locale files: `app/public/landing/locales/{it,es}.json` — a list of `{find, replace, count}` exact-string swaps.
+- Generator: `node scripts/build-landing-i18n.js` writes `app/public/landing/{it,es}/index.html`. `--check` is a CI gate.
+- The `count` assertion is what makes this safe: reword English copy without updating a locale and the build **fails naming the stale key**, rather than silently leaving English on a translated page. Treat that failure as the prompt to go ask for the translation.
+
+**Corollary:** never "fix" a failing translation gate by editing the `find` string to match the new English while leaving `replace` stale. That defeats the gate and ships mixed-language copy. Adding a language = one new `<lang>.json`, never a hand-copied HTML file.
+
+> Exception, and only this one: strings that are identical in the target language (brand names, `Mobile`, `Analytics`) need no entry at all. Everything a reader actually reads as prose goes to a human.
+
+---
+
 ## 🛠️ Engineering Workflow
 Senior-engineer method — **Explore → Plan → Implement → Verify** (never collapse Explore into Implement), surgical edits, read-before-edit, investigate-before-referencing. Full definition: engineer's global `~/.claude/CLAUDE.md`.
 
@@ -51,6 +68,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Skipping validation, tests, or verification steps.
 - Vertical vocabulary in anything the product ships — see 🌍 Industry-Neutral.
 - Declaring a quantity as a text field.
+- Writing or guessing landing-page copy in Italian or Spanish — see 🌐 Landing Translations. Ask for it.
 
 ---
 

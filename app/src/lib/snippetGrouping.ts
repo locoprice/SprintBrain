@@ -1,21 +1,46 @@
 import type { SnippetLanguage, SnippetRow } from '@/types/database';
 
 /**
- * Trailing language code on a trigger or title. Mirrors the Chrome extension's
- * `LANG_SUFFIX_RE` (`extension/content/content.js`) so the dashboard collapses
- * the exact same variants the extension's language picker does:
- *   - `::quoteEN` + `::quoteES`  → share the base `::quote`
- *   - `::air` + `::airEN`        → share the base `::air`
+ * Trailing language code on a trigger or title. Mirrors the canonical rule in
+ * `extension/shared/snippet-stats.js`, which the popup, Sprintbrain.html, the
+ * mobile companion and the content script all run, so every surface collapses
+ * the same variants:
+ *   - `::quoteEN` + `::quoteES`  → share the base `quote`
+ *   - `::air` + `::airEN`        → share the base `air`
  *   - `::budgetstay` (no suffix) → groups with its same-trigger siblings
  */
-const LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
+const LANG_SUFFIX_RE = /(EN|ES|IT|FR|MULTI)$/i;
 
 /** Canonical language order for variant pills and active-variant fallback. */
 const LANG_ORDER: SnippetLanguage[] = ['EN', 'ES', 'IT', 'FR', 'MULTI'];
 
-/** Strip a trailing language code from a trigger to get its grouping base. */
-export function baseTrigger(trigger: string): string {
-  return trigger.replace(LANG_SUFFIX_RE, '');
+/** A stored trigger may or may not carry the trigger prefix baked in. */
+function bareTrigger(trigger: string): string {
+  return trigger.trim().replace(/^[^a-zA-Z0-9]+/, '');
+}
+
+/**
+ * Grouping base of a row's trigger, lowercased. Drops the trigger prefix
+ * (`::air` and `air` are the same trigger) and a trailing language code — but
+ * only when that code is the row's OWN language.
+ *
+ * That guard is the whole point. Without it `wait` (a French snippet) sheds an
+ * "IT" it never had, bases to `wa`, and merges with the unrelated `WA`. On live
+ * data that put one person's snippet name and folder onto another person's
+ * card.
+ */
+export function baseTrigger(row: SnippetRow): string {
+  const trigger = bareTrigger(row.triggers[0] ?? '');
+  if (trigger === '') return '';
+  const match = trigger.match(LANG_SUFFIX_RE);
+  if (match !== null) {
+    const suffix = match[1] ?? '';
+    const head = trigger.slice(0, trigger.length - suffix.length);
+    if (head !== '' && suffix.toUpperCase() === row.language.toUpperCase()) {
+      return head.toLowerCase();
+    }
+  }
+  return trigger.toLowerCase();
 }
 
 /**
@@ -30,23 +55,36 @@ export function baseSnippetName(name: string): string {
 
 /**
  * Grouping key for one row. An explicit `lang_group_id` wins; only rows without
- * one fall back to the base-trigger heuristic. Mirrors the extension
- * (`content.js` `_findLangVariants`) and the mobile companion (`groupKey`), so
- * the same variants collapse into one row on all three surfaces.
+ * one fall back to the base-trigger heuristic.
+ *
+ * Every key is namespaced by owner. Sharing a folder does not move ownership
+ * (Phase B stamps `organization_id`, it does not reassign `user_id`), so two
+ * teammates whose triggers happen to collide are two snippets, not one. Without
+ * this, live data merged `WA` (owned by one admin) with `wait` (owned by
+ * another) and the card rendered one person's name over the other's folder.
  *
  * Group ids are namespaced with `g:` because they are trigger-shaped in
  * practice (`altern`, `discount`, `quoteEN`) and would otherwise collide with a
- * base-trigger key. Triggers are `[a-zA-Z0-9_-]` plus an optional `::` prefix
- * and can never contain a colon, so the namespace is unambiguous.
+ * base-trigger key spelled the same way. On live data a row with
+ * `lang_group_id: 'budgetstay'` merged with two unrelated rows triggered
+ * `budgetstay`, across three folders and two owners.
+ *
+ * Note this is deliberately NOT the extension's rule, which also joins gid and
+ * base transitively so `::quoteEN` and `::quoteES` under two different group
+ * ids become one snippet. Here they stay apart, so a second ES row is never
+ * shadowed out of the language switcher. The two surfaces can therefore report
+ * different library counts for the same account.
  */
 export function snippetGroupKey(row: SnippetRow): string {
+  const owner = `u:${row.user_id}`;
   const groupId = row.lang_group_id?.trim();
-  if (groupId) return `g:${groupId.toLowerCase()}`;
-  return baseTrigger(row.triggers[0] ?? '').toLowerCase() || row.id;
+  if (groupId !== undefined && groupId !== '') return `${owner}|g:${groupId.toLowerCase()}`;
+  const base = baseTrigger(row);
+  return base !== '' ? `${owner}|b:${base}` : `${owner}|r:${row.id}`;
 }
 
 export interface SnippetGroup {
-  /** Stable grouping key — `g:<lang_group_id>`, else lowercased base trigger, else the row id. */
+  /** Grouping key — see `snippetGroupKey`. Owner-namespaced. */
   key: string;
   /** First row in input order — drives group ordering and the displayed name. */
   master: SnippetRow;
@@ -59,11 +97,35 @@ export interface SnippetGroup {
 }
 
 /**
+ * Every language a single row actually carries: the row's own language plus
+ * each non-empty slot in its `bodies` map. A snippet written in the dashboard
+ * is ONE row holding all its translations, so reading `language` alone reports
+ * a four-language snippet as monolingual.
+ */
+function rowLanguages(row: SnippetRow): SnippetLanguage[] {
+  const out: SnippetLanguage[] = [row.language];
+  for (const lang of LANG_ORDER) {
+    const text = row.bodies[lang];
+    if (typeof text === 'string' && text.trim() !== '' && !out.includes(lang)) {
+      out.push(lang);
+    }
+  }
+  return out;
+}
+
+/**
  * Collapse translated variants of the same snippet into one group — see
  * `snippetGroupKey` for how a row's group is chosen. Input order is preserved
  * so an upstream sort still drives group ordering. Rows that land in the same
  * group with the same language keep the first occurrence in `byLang`; the
  * duplicate stays in `variants` so bulk selection still reaches it.
+ *
+ * Both multilingual models are folded together. Sibling rows (one row per
+ * language, legacy `lang_group_id`) take precedence, then any language that
+ * exists only inside a row's `bodies` map fills the gaps — that second pass is
+ * what stops a single-row snippet from rendering as monolingual. The extension
+ * and the mobile companion resolve variants the same way; see
+ * `_findLangVariants` in extension/content/content.js.
  */
 export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
   const groups: SnippetGroup[] = [];
@@ -71,9 +133,10 @@ export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
 
   for (const row of rows) {
     const key = snippetGroupKey(row);
-    let group = index.get(key);
-    if (group === undefined) {
-      group = { key, master: row, variants: [], byLang: new Map(), languages: [] };
+    const existing = index.get(key);
+    const group: SnippetGroup =
+      existing ?? { key, master: row, variants: [], byLang: new Map(), languages: [] };
+    if (existing === undefined) {
       index.set(key, group);
       groups.push(group);
     }
@@ -84,6 +147,13 @@ export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
   }
 
   for (const group of groups) {
+    // Real rows already claimed their language above; fill what only `bodies`
+    // carries, mapping it to the row that holds the text.
+    for (const row of group.variants) {
+      for (const lang of rowLanguages(row)) {
+        if (!group.byLang.has(lang)) group.byLang.set(lang, row);
+      }
+    }
     const present = LANG_ORDER.filter((l) => group.byLang.has(l));
     // Defensive: surface any language not in the canonical list (shouldn't happen).
     for (const v of group.variants) {
@@ -96,16 +166,28 @@ export function groupSnippetsByLanguage(rows: SnippetRow[]): SnippetGroup[] {
 }
 
 /**
- * Resolve which variant a grouped row should display. Honors the user's
- * explicit language switch, then falls back to English, then the master row.
+ * Resolve which language a grouped row should display. Honors the user's
+ * explicit switch, then falls back to English, then the master row's language.
+ *
+ * Selection is keyed by LANGUAGE, not by row id: a single row can back several
+ * languages through its `bodies` map, so an id cannot say which one is meant.
+ */
+export function resolveActiveLanguage(
+  group: SnippetGroup,
+  requested: SnippetLanguage | undefined,
+): SnippetLanguage {
+  if (requested !== undefined && group.byLang.has(requested)) return requested;
+  if (group.byLang.has('EN')) return 'EN';
+  return group.master.language;
+}
+
+/**
+ * The row backing the group's active language — the edit / action target, and
+ * the source of every row-level column (folder, updated, usage).
  */
 export function resolveActiveVariant(
   group: SnippetGroup,
-  activeId: string | undefined,
+  activeLang: SnippetLanguage | undefined,
 ): SnippetRow {
-  if (activeId !== undefined) {
-    const picked = group.variants.find((v) => v.id === activeId);
-    if (picked !== undefined) return picked;
-  }
-  return group.byLang.get('EN') ?? group.master;
+  return group.byLang.get(resolveActiveLanguage(group, activeLang)) ?? group.master;
 }

@@ -43,6 +43,7 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
+import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -242,6 +243,9 @@ export function NewSnippetDialog() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Clear is armed by the first click and fires on the second, the same
+  // two-step Delete uses. Wiping a translation is not undoable from here.
+  const [confirmClear, setConfirmClear] = useState(false);
   // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
   const [menuFieldOpen, setMenuFieldOpen] = useState(false);
   // Body caret, tracked so the menu chip can offer Edit when it sits inside a
@@ -294,6 +298,7 @@ export function NewSnippetDialog() {
     setErrors({});
     setSubmitError(null);
     setConfirmDelete(false);
+    setConfirmClear(false);
     setEditNote('');
     setAltQueryDraft('');
     // A new form starts with the trigger unclaimed, so the name may fill it.
@@ -303,7 +308,9 @@ export function NewSnippetDialog() {
       // per-language map, with a fallback so legacy rows (no `bodies` yet)
       // still surface their existing single body under the active language.
       const initialBodies: SnippetFormValues['bodies'] = { ...editingSnippet.bodies };
-      if (!initialBodies[editingSnippet.language]) {
+      // Guarded on a non-empty body: a row whose active language is blank must
+      // open with that slot absent, not seeded with an empty string.
+      if (!initialBodies[editingSnippet.language] && editingSnippet.content.length > 0) {
         initialBodies[editingSnippet.language] = editingSnippet.content;
       }
       setForm({
@@ -499,9 +506,12 @@ export function NewSnippetDialog() {
     setForm((prev) => ({
       ...prev,
       content: value,
-      bodies: { ...prev.bodies, [prev.language]: value },
+      bodies: setBodySlot(prev.bodies, prev.language, value),
     }));
     if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+    // Typing disarms Clear: one left armed from before the edit would otherwise
+    // wipe text the user has just written on a single click.
+    if (confirmClear) setConfirmClear(false);
   }
 
   // Switching language: snapshot the current textarea into the OLD language's
@@ -510,7 +520,9 @@ export function NewSnippetDialog() {
   function changeLanguage(nextLang: SnippetFormValues['language']) {
     setForm((prev) => {
       if (prev.language === nextLang) return prev;
-      const snapshot = { ...prev.bodies, [prev.language]: prev.content };
+      // setBodySlot, not a spread: a slot the user emptied must leave the map
+      // rather than travel with it as '' and come back as a blank translation.
+      const snapshot = setBodySlot(prev.bodies, prev.language, prev.content);
       return {
         ...prev,
         language: nextLang,
@@ -520,6 +532,25 @@ export function NewSnippetDialog() {
     });
     if (errors.language) setErrors((prev) => ({ ...prev, language: undefined }));
     if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+    setConfirmClear(false);
+  }
+
+  /**
+   * Wipe the language currently on screen. The slot is deleted from `bodies`,
+   * not blanked, so the save writes a row that never carried the translation
+   * and every reader (extension, mobile, Notion push) sees one fewer language.
+   * Other languages are untouched, and nothing is written until Save.
+   */
+  function clearActiveLanguage() {
+    setForm((prev) => ({
+      ...prev,
+      content: '',
+      bodies: clearBodySlot(prev.bodies, prev.language),
+    }));
+    setErrors((prev) => ({ ...prev, content: undefined }));
+    setLiveLanguageError(null);
+    setConfirmClear(false);
+    contentRef.current?.focus();
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -912,9 +943,30 @@ export function NewSnippetDialog() {
                 <div className="min-w-0">
                   {contentError && <FieldError message={contentError} />}
                 </div>
-                <span className="shrink-0 text-[11px] tabular-nums text-ink-subtle">
-                  {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
-                </span>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  {/* Clear sits left of the count so the count keeps the right
+                      edge it has always had. Disabled on an already-empty slot:
+                      there is nothing to delete and an armable button that does
+                      nothing reads as broken. */}
+                  <button
+                    type="button"
+                    onClick={() => (confirmClear ? clearActiveLanguage() : setConfirmClear(true))}
+                    disabled={saving || form.content.length === 0}
+                    title={`Delete the ${form.language} body. The snippet is saved without that language, not with an empty one.`}
+                    className={cn(
+                      'rounded-[6px] border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
+                      // Same danger vocabulary as the footer's Delete.
+                      confirmClear
+                        ? 'border-danger/30 bg-danger/5 text-danger'
+                        : 'border-line bg-card text-ink-subtle hover:border-danger/30 hover:bg-danger/5 hover:text-danger',
+                    )}
+                  >
+                    {confirmClear ? 'Click again to clear' : 'Clear'}
+                  </button>
+                  <span className="text-[11px] tabular-nums text-ink-subtle">
+                    {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1196,6 +1248,7 @@ export function NewSnippetDialog() {
                   About
                 </p>
                 <AssetAttribution
+                  assetId={editingSnippet.id}
                   createdBy={editingSnippet.user_id}
                   updatedBy={editingSnippet.updated_by}
                   updatedAt={editingSnippet.updated_at}
