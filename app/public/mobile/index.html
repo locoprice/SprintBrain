@@ -1882,6 +1882,13 @@ function sbBodyFieldCfg(body){
       var picks=defVal?defVal.split(',').map(function(d){return d.trim();})
         .filter(function(d){return opts.indexOf(d)!==-1;}):[];
       if(!multi)picks=picks.slice(0,1);
+      /* A single-choice menu that declares no usable default opens on its first
+         option rather than on an empty one. "None" is not an answer the grammar
+         can express here: one option has to win. Left empty, a menu the operator
+         never touched copied out as nothing and the sentence around it shipped
+         with a hole in it. `multiple=yes` is exempt — picking none of several is
+         a real answer there. Mirrors buildFormFieldCfg in the engine. */
+      if(!multi&&!picks.length&&opts.length)picks=[opts[0]];
       var menu={type:'dd',opts:opts.join('\n'),default:picks.join(', ')};
       if(multi)menu.multiple=true;
       if(colsM){var cols=parseInt(colsM[1],10);if(cols>0)menu.cols=cols;}

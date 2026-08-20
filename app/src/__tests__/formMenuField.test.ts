@@ -133,13 +133,13 @@ describe('formMenuToken — writer', () => {
 describe('formMenuField — Text Blaze syntax compatibility', () => {
   it('keeps every option when they are semicolon-separated', () => {
     expect(engine.buildFormFieldCfg('{formmenu: test a; test b; test c; name=choice}')).toEqual({
-      choice: { type: 'dd', opts: 'test a\ntest b\ntest c', default: '' },
+      choice: { type: 'dd', opts: 'test a\ntest b\ntest c', default: 'test a' },
     });
   });
 
   it('accepts named settings before the options', () => {
     expect(engine.buildFormFieldCfg('{formmenu: name=choice; test a; test b}')).toEqual({
-      choice: { type: 'dd', opts: 'test a\ntest b', default: '' },
+      choice: { type: 'dd', opts: 'test a\ntest b', default: 'test a' },
     });
   });
 
@@ -179,6 +179,33 @@ describe('formMenuField — Text Blaze syntax compatibility', () => {
 
   it('does not invent a field for a menu with no options at all', () => {
     expect(engine.buildFormFieldCfg('{formmenu: }')).toEqual({});
+  });
+});
+
+// A single-choice menu the operator never touched used to resolve to nothing,
+// so the sentence around it shipped with a hole in it. None of the menus in the
+// account carried a default=, because the insert dialog preselected nothing.
+describe('formMenuField — an unanswered menu still answers', () => {
+  it('opens a single-choice menu on its first option', () => {
+    const body = "il n'est pas possible d'effectuer {formmenu: un check-in anticipé,un check-out tardif}, car…";
+    const cfg = engine.buildFormFieldCfg(body);
+    const key = Object.keys(cfg)[0] ?? '';
+    expect(cfg[key]?.default).toBe('un check-in anticipé');
+    expect(engine.resolveBody(body, { [key]: cfg[key]?.default ?? '' })).toBe(
+      "il n'est pas possible d'effectuer un check-in anticipé, car…",
+    );
+  });
+
+  it('prefers a declared default over the first option', () => {
+    expect(engine.buildFormFieldCfg('{formmenu: A,B,C; name=M; default=C}').M?.default).toBe('C');
+  });
+
+  it('falls back when the declared default names an option that is gone', () => {
+    expect(engine.buildFormFieldCfg('{formmenu: A,B; name=M; default=ZZ}').M?.default).toBe('A');
+  });
+
+  it('leaves a multiple=yes menu empty — picking none of several is an answer', () => {
+    expect(engine.buildFormFieldCfg('{formmenu: A,B; name=M; multiple=yes}').M?.default).toBe('');
   });
 });
 
