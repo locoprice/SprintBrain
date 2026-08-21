@@ -93,6 +93,17 @@ img,svg{display:block;max-width:100%}
 .nav-account-item-primary{color:var(--primary)}
 .nav-account-item-primary svg{color:var(--primary)}
 
+/* MOBILE MENU (hamburger + full-screen drawer). Hidden above 640px, where
+   .nav-account carries the same destinations in a compact popover instead.
+   Rules that size and open the drawer live in the 640px media query below;
+   these two just keep both controls out of the way until then. */
+.nav-burger{display:none;align-items:center;justify-content:center;
+  width:38px;height:38px;border-radius:var(--r-btn);flex-shrink:0;
+  background:transparent;border:1px solid var(--border);color:var(--text);
+  cursor:pointer;transition:background .15s,border-color .15s}
+.nav-burger:hover{background:var(--bg-alt);border-color:#D1D1D6}
+.nav-drawer{display:none}
+
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
   padding:11px 20px;font-size:15px;font-weight:600;border-radius:var(--r-btn);
@@ -360,6 +371,33 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .section{padding:64px 20px}
   .nav-inner{padding:12px 16px;gap:12px}
   .nav-link,.nav-links .btn-primary svg{display:none}
+  .nav-account{display:none}
+  .nav-burger{display:inline-flex}
+  .nav-drawer{
+    display:flex;flex-direction:column;
+    position:fixed;inset:0;z-index:100;
+    background:var(--card);padding:14px 16px 20px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    opacity:0;visibility:hidden;transform:translateY(-10px);
+    transition:opacity .2s ease,transform .2s ease,visibility .2s ease}
+  .nav-drawer.nav-drawer-open{opacity:1;visibility:visible;transform:translateY(0)}
+  body.nav-drawer-locked{overflow:hidden}
+  .nav-drawer-head{display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+  .nav-drawer-close{display:grid;place-items:center;
+    width:38px;height:38px;border-radius:var(--r-btn);
+    background:transparent;border:1px solid var(--border);color:var(--text2);
+    cursor:pointer;transition:background .15s,color .15s}
+  .nav-drawer-close:hover{background:var(--bg-alt);color:var(--text)}
+  .nav-drawer-links{display:flex;flex-direction:column;padding:4px 0}
+  .nav-drawer-links>a{display:flex;align-items:center;gap:12px;
+    padding:16px 4px;font-size:17px;font-weight:600;color:var(--text);
+    border-bottom:1px solid var(--border)}
+  .nav-drawer-links>a:last-child{border-bottom:none}
+  .nav-drawer-links>a svg{color:var(--text3);flex-shrink:0}
+  .nav-drawer-links>a:hover{background:var(--bg-alt)}
+  .nav-drawer-ctas{display:flex;gap:10px;margin-top:auto;padding-top:20px}
+  .nav-drawer-ctas .btn{flex:1;padding:13px 16px}
   .demo-body{padding:22px 18px 24px}
   .demo{margin-top:0;box-shadow:0 12px 34px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06)}
   .demo-output{min-height:150px;font-size:14px}
@@ -892,9 +930,48 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
           </a>
         </div>
       </div>
+      <button type="button" class="nav-burger" id="nav-burger" aria-haspopup="dialog" aria-expanded="false" aria-controls="nav-drawer" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </div>
 </nav>
+
+<!-- Mobile drawer (≤640px only). Deliberately a sibling of <nav>, not nested
+     inside it: .nav sets backdrop-filter for its frosted sticky bar, and
+     like `filter`, that makes .nav the containing block for any
+     position:fixed descendant — inset:0 would then fill .nav's own ~62px
+     bar instead of the viewport. Keep this outside .nav.
+     The Features/Mobile/GitHub/Sign-in/Add-to-Chrome/Sign-up fragments below
+     are byte-identical to their desktop counterparts in <nav> on purpose:
+     app/public/landing/locales/{it,es}.json matches translations by exact
+     substring, so reusing the same fragment here just needs its locale
+     `count` bumped to 2 instead of asking for a second translation of text
+     that already has one. Keep it that way if you touch this block. -->
+<div class="nav-drawer" id="nav-drawer" role="dialog" aria-modal="true" aria-labelledby="nav-drawer-title" aria-hidden="true">
+  <div class="nav-drawer-head">
+    <a href="/" class="brand">
+      <div class="brand-logo"><img src="leib-tour-icon.png" alt="SprintBrain" draggable="false"></div>
+      <span class="brand-name" id="nav-drawer-title">SprintBrain</span>
+    </a>
+    <button type="button" class="nav-drawer-close" id="nav-drawer-close" aria-label="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="nav-drawer-links">
+    <a href="#features" class="nav-link">Features</a>
+    <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
+    <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star on GitHub</a>
+    <a href="https://app.sprintbrain.com/login">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      <span>Sign in</span>
+    </a>
+  </div>
+  <div class="nav-drawer-ctas">
+    <a href="https://chromewebstore.google.com/detail/khdpimdpkgmmaimpbfjgglnpaemmopoo" class="btn btn-primary" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add to Chrome</a>
+    <a href="https://app.sprintbrain.com/signup" class="btn btn-ghost"><span>Sign up</span></a>
+  </div>
+</div>
 
 <section class="hero">
   <div class="hero-inner">
@@ -1677,6 +1754,55 @@ LeibTour Team</div>
 })();
 
 (function(){
+  var burger=document.getElementById('nav-burger');
+  var drawer=document.getElementById('nav-drawer');
+  var closeBtn=document.getElementById('nav-drawer-close');
+  if(!burger||!drawer||!closeBtn)return;
+
+  function isOpen(){return burger.getAttribute('aria-expanded')==='true';}
+
+  // Chromium applies a mouse click's own "focus the clicked element" default
+  // action after the click handler returns, on a delay that outlasts one
+  // requestAnimationFrame — so a same-tick or single-rAF focus() call to a
+  // *different* element gets silently overridden a moment later. Two nested
+  // rAFs reliably land after that default action instead of racing it.
+  function focusAfterClick(el){
+    requestAnimationFrame(function(){requestAnimationFrame(function(){el.focus();});});
+  }
+
+  function openDrawer(){
+    drawer.classList.add('nav-drawer-open');
+    drawer.setAttribute('aria-hidden','false');
+    burger.setAttribute('aria-expanded','true');
+    document.body.classList.add('nav-drawer-locked');
+    focusAfterClick(closeBtn);
+  }
+  function closeDrawer(){
+    drawer.classList.remove('nav-drawer-open');
+    drawer.setAttribute('aria-hidden','true');
+    burger.setAttribute('aria-expanded','false');
+    document.body.classList.remove('nav-drawer-locked');
+  }
+
+  burger.addEventListener('click',function(){
+    isOpen()?closeDrawer():openDrawer();
+  });
+  closeBtn.addEventListener('click',function(){
+    closeDrawer();
+    focusAfterClick(burger);
+  });
+  drawer.querySelectorAll('a').forEach(function(link){
+    link.addEventListener('click',closeDrawer);
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&isOpen()){closeDrawer();burger.focus();}
+  });
+  window.addEventListener('resize',function(){
+    if(isOpen()&&window.innerWidth>640)closeDrawer();
+  });
+})();
+
+(function(){
   var cards=document.querySelectorAll('.plat-card');
   cards.forEach(function(card){
     card.addEventListener('mousemove',function(e){
@@ -1840,7 +1966,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.165.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.166.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.
