@@ -816,6 +816,49 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .fm-dialog{padding:28px 24px 24px}
   .fm-title{font-size:22px}}
 
+/* ── CONTACT MODAL ───────────────────────────────────────
+   Deliberately light, unlike the dark .fm-* feature modals above: it frames a
+   JotForm embed, which renders on its own white ground, and a dark frame
+   around a white form reads as a rendering fault. Nothing here loads until
+   the visitor actually opens it — the iframe gets its src on first open, so
+   a reader who never asks for the form never pays for the third-party
+   request. */
+.cm-backdrop{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.45);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  opacity:0;visibility:hidden;
+  transition:opacity .2s ease,visibility .2s ease}
+.cm-backdrop.cm-open{opacity:1;visibility:visible}
+body.cm-locked{overflow:hidden}
+.cm-dialog{
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  width:100%;max-width:640px;
+  overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.06);
+  transform:translateY(12px) scale(.98);
+  transition:transform .22s cubic-bezier(.23,1,.32,1)}
+.cm-backdrop.cm-open .cm-dialog{transform:none}
+.cm-close{
+  position:absolute;top:12px;right:12px;z-index:1;
+  width:32px;height:32px;border-radius:var(--r-btn);
+  background:var(--card);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;
+  display:grid;place-items:center;
+  transition:background .15s,color .15s}
+.cm-close:hover{background:var(--bg-alt);color:var(--text)}
+/* The embed scrolls inside its own box rather than growing the dialog, so the
+   modal never outgrows the viewport and needs no height-listener script. */
+.cm-frame{display:block;width:100%;height:min(78vh,620px);border:0;background:var(--card)}
+@media(max-width:600px){
+  .cm-backdrop{padding:12px}
+  .cm-frame{height:min(82vh,560px)}}
+
 /* ── PARTNER SPOTLIGHT ─────────────────────────────────────── */
 .ps{
   padding:100px 24px 112px;
@@ -1608,7 +1651,7 @@ LeibTour Team</div>
     <div class="foot-links">
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
       <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener">GitHub</a>
-      <a href="mailto:sprintbrainapp@gmail.com">Support</a>
+      <a href="mailto:sprintbrainapp@gmail.com" id="contact-open">Support</a>
       <a href="/legal/privacy-policy.html">Privacy</a>
       <a href="/legal/terms-and-conditions.html">Terms</a>
       <a href="/legal/cookie-policy.html">Cookies</a>
@@ -1631,6 +1674,19 @@ LeibTour Team</div>
     <h2 class="fm-title" id="fm-title"></h2>
     <p class="fm-body" id="fm-body"></p>
     <div class="fm-detail" id="fm-detail"></div>
+  </div>
+</div>
+
+<!-- Contact modal. The dialog carries no prose of its own: it is labelled by
+     the footer link that opens it and the embed supplies its own heading, so
+     adding the form needed no new copy for the translated pages. The iframe
+     src and title are set in JS on first open (see the contact modal IIFE). -->
+<div class="cm-backdrop" id="cm-backdrop" role="dialog" aria-modal="true" aria-labelledby="contact-open" aria-hidden="true">
+  <div class="cm-dialog">
+    <button type="button" class="cm-close" id="cm-close" aria-label="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <iframe class="cm-frame" id="cm-frame" loading="lazy" allow="geolocation; microphone; camera; fullscreen"></iframe>
   </div>
 </div>
 
@@ -1802,6 +1858,49 @@ LeibTour Team</div>
   });
 })();
 
+/* Contact modal: frames the JotForm contact form so asking a question never
+   costs a page. The footer link keeps its mailto href as the no-JS fallback. */
+(function(){
+  var FORM_SRC='https://form.jotform.com/32942454514858';
+  var trigger=document.getElementById('contact-open');
+  var backdrop=document.getElementById('cm-backdrop');
+  var closeBtn=document.getElementById('cm-close');
+  var frame=document.getElementById('cm-frame');
+  if(!trigger||!backdrop||!closeBtn||!frame)return;
+
+  function isOpen(){return backdrop.classList.contains('cm-open');}
+  // Same two-frame deferral the drawer needs: a click's own focus default
+  // lands after one rAF and would otherwise steal focus back.
+  function focusAfterClick(el){
+    requestAnimationFrame(function(){requestAnimationFrame(function(){el.focus();});});
+  }
+
+  function openModal(){
+    if(!frame.getAttribute('src')){
+      frame.setAttribute('src',FORM_SRC);
+      // Name the frame from the link that opened it, so the accessible name
+      // is whatever that page's language already calls it.
+      frame.setAttribute('title',trigger.textContent);
+    }
+    backdrop.classList.add('cm-open');
+    backdrop.setAttribute('aria-hidden','false');
+    document.body.classList.add('cm-locked');
+    focusAfterClick(closeBtn);
+  }
+  function closeModal(){
+    backdrop.classList.remove('cm-open');
+    backdrop.setAttribute('aria-hidden','true');
+    document.body.classList.remove('cm-locked');
+  }
+
+  trigger.addEventListener('click',function(e){e.preventDefault();openModal();});
+  closeBtn.addEventListener('click',function(){closeModal();focusAfterClick(trigger);});
+  backdrop.addEventListener('click',function(e){if(e.target===backdrop)closeModal();});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&isOpen()){closeModal();trigger.focus();}
+  });
+})();
+
 (function(){
   var cards=document.querySelectorAll('.plat-card');
   cards.forEach(function(card){
@@ -1966,7 +2065,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.166.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v2.167.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

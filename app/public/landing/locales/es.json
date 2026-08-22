@@ -354,7 +354,7 @@
     {
       "find": "aria-label=\"Close\"",
       "replace": "aria-label=\"Cerrar\"",
-      "count": 2
+      "count": 3
     },
     {
       "find": "aria-label=\"Menu\"",
@@ -562,8 +562,8 @@
       "count": 1
     },
     {
-      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\">Support</a>",
-      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\">Soporte</a>",
+      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Support</a>",
+      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Soporte</a>",
       "count": 1
     },
     {

@@ -374,7 +374,7 @@
     {
       "find": "aria-label=\"Close\"",
       "replace": "aria-label=\"Chiudi\"",
-      "count": 2
+      "count": 3
     },
     {
       "find": "      No app to download\n",
@@ -577,8 +577,8 @@
       "count": 1
     },
     {
-      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\">Support</a>",
-      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\">Supporto</a>",
+      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Support</a>",
+      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Supporto</a>",
       "count": 1
     },
     {
