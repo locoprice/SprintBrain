@@ -34,6 +34,15 @@ These scripts are **not safe to apply until specific auth events happen**.
 | `20260421120001_backfill_alex_ownership.sql` | Alex completes first magic-link login with `b2b@leibtour.com` | Alex pastes + runs in SQL editor once |
 | `20260421120002_copy_alex_to_valentina.sql` | Valentina completes first magic-link login with `valentina@leibtour.com` | Alex pastes + runs in SQL editor once |
 
+## Working memory (MEMORY-001)
+
+| File | Status | Notes |
+|---|---|---|
+| `20260822000000_working_memory.sql` | ✅ applied 2026-08-22 | `memory_shards`, `memory_steps`, the two label link tables, hashed `memory_tokens`, `memory_issue_token()` and the three token-authenticated `memory_mcp_*` readers. Purely additive: no existing table, policy or function touched. Reuses the `labels` vocabulary rather than adding a second tag namespace. Two fixes landed before apply: `position` is reserved in a `returns table` list (renamed `sort_order`), and the readers cannot be `STABLE` because they call a resolver that writes `last_used_at`. |
+| `20260822010000_working_memory_resolve_once.sql` | ✅ applied 2026-08-22 | **Fixes a live defect in the migration above.** The readers had `app.memory_resolve_token(p_token)` in the WHERE clause, and a VOLATILE function there is evaluated once PER ROW: 200 shards meant 200 SHA-256 hashes per request, and an account with zero shards never resolved the token at all, so `last_used_at` never updated. Rewritten in plpgsql to resolve once into a local. Signatures unchanged, so no client update. |
+
+> ⚠ The three `memory_mcp_*` functions are granted to `anon`, which the security advisor flags as `anon_security_definer_function_executable`. That is intentional: an MCP server is headless and authenticates by presenting a token on every call. None of the three accepts a user id, so there is no parameter to vary in order to read another account. Worth a second opinion before this reaches customers.
+
 ## How to run a deferred script
 
 1. Open https://supabase.com/dashboard/project/eyowustlbqujaimaxggt/sql/new

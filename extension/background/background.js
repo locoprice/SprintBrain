@@ -64,6 +64,58 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 });
 
+// ── MEMORY-001: working-memory reads for the composer picker ──────
+//
+// Two calls, deliberately. memory_index returns everything the ranking needs
+// (name, summary, token_estimate, labels) and NO bodies, so opening the picker
+// is cheap no matter how large the library is. Bodies are fetched only for the
+// shards a step's budget actually admits.
+//
+// These go through supaFetch, so they carry the user's own session and RLS
+// decides what comes back. The token-authenticated memory_mcp_* functions are
+// for the headless MCP server, which has no session; the extension has one and
+// must not use a shared secret instead.
+function memoryIndex() {
+  return Promise.all([
+    supaFetch('memory_steps',
+      'select=key,name,token_budget,sort_order,memory_step_labels(label_id,weight)&order=sort_order.asc'),
+    supaFetch('memory_shards',
+      'select=id,name,summary,token_estimate,pinned,priority,memory_shard_labels(label_id)')
+  ]).then(function(res) {
+    return { steps: res[0] || [], shards: res[1] || [] };
+  });
+}
+
+function memoryBodies(ids) {
+  if (!ids || !ids.length) return Promise.resolve([]);
+  var list = ids.map(function(id) { return String(id).replace(/[^0-9a-fA-F-]/g, ''); })
+                .filter(Boolean);
+  if (!list.length) return Promise.resolve([]);
+  return supaFetch('memory_shards', 'select=id,name,body&id=in.(' + list.join(',') + ')');
+}
+
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+  if (!msg) return;
+
+  if (msg.type === 'memory_index') {
+    memoryIndex().then(function(data) {
+      try { sendResponse({ ok: true, data: data }); } catch(e) {}
+    }, function() {
+      try { sendResponse({ ok: false }); } catch(e) {}
+    });
+    return true;
+  }
+
+  if (msg.type === 'memory_bodies') {
+    memoryBodies(msg.ids).then(function(rows) {
+      try { sendResponse({ ok: true, rows: rows }); } catch(e) {}
+    }, function() {
+      try { sendResponse({ ok: false }); } catch(e) {}
+    });
+    return true;
+  }
+});
+
 // ── AUTH-EXT-002/003: accept session handoff from the dashboard ───
 // externally_connectable in manifest already restricts senders to the dashboard
 // origin; we double-check the URL prefix as defense in depth.
