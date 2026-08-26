@@ -37,4 +37,41 @@ if (!landing.includes('{{EXT_VERSION}}')) {
   );
 }
 
-console.log("OK Version:", extVersion);
+// Sprintbrain.html carries its own manifest literal, read by the popup logic core
+// through the chrome-shim. It was stamped by hand and checked by nobody, which is
+// the same gap that let services/mcp-memory sit three versions behind.
+const vanilla = fs.readFileSync('Sprintbrain.html', 'utf8');
+const vanillaMatch = vanilla.match(/__SB_MANIFEST__\s*=\s*\{[^}]*version:\s*'([^']+)'/);
+if (!vanillaMatch) {
+  fail("__SB_MANIFEST__ version literal not found in Sprintbrain.html");
+}
+if (vanillaMatch[1] !== extVersion) {
+  fail(
+    "Version mismatch -> Sprintbrain.html __SB_MANIFEST__: " + vanillaMatch[1] +
+    ", extension: " + extVersion,
+  );
+}
+
+// The MCP memory server ships its version twice: once for npm, once in the
+// handshake every MCP client reads. Both must match the release.
+const mcpPkg = JSON.parse(fs.readFileSync('services/mcp-memory/package.json', 'utf8'));
+if (mcpPkg.version !== extVersion) {
+  fail(
+    "Version mismatch -> services/mcp-memory/package.json: " + mcpPkg.version +
+    ", extension: " + extVersion,
+  );
+}
+
+const mcpSource = fs.readFileSync('services/mcp-memory/src/index.ts', 'utf8');
+const mcpMatch = mcpSource.match(/SERVER_VERSION\s*=\s*'([^']+)'/);
+if (!mcpMatch) {
+  fail("SERVER_VERSION constant not found in services/mcp-memory/src/index.ts");
+}
+if (mcpMatch[1] !== extVersion) {
+  fail(
+    "Version mismatch -> services/mcp-memory SERVER_VERSION: " + mcpMatch[1] +
+    ", extension: " + extVersion,
+  );
+}
+
+console.log("OK Version:", extVersion, "(5 stamps in parity)");

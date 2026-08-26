@@ -18,7 +18,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22.18+ is required: check-memory-parity.js imports engine.ts directly
+          # and relies on Node's native TypeScript type stripping, the same
+          # mechanism services/mcp-memory runs on.
+          node-version: 22
 
       - name: Version parity check
         run: node scripts/check-version.js
@@ -43,6 +46,9 @@ jobs:
 
       - name: Snippet grouping parity check
         run: node scripts/sync-snippet-stats.js --check
+
+      - name: Working memory parity check
+        run: node scripts/check-memory-parity.js
 
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
