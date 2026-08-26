@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/shared/Avatar';
+import { CreateTeamPanel } from '@/features/org/CreateTeamPanel';
 import { cn } from '@/lib/utils';
 import type { Folder, FolderPermission, OrgMember, PermissionLevel } from '@/types/database';
 import { permissionsApi, type ShareTarget } from '@/lib/api/permissionsApi';
@@ -206,10 +207,11 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
             <Loader2 className="h-4 w-4 animate-spin" /> Loading your team…
           </div>
         ) : !activeOrg ? (
-          <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-5 text-sm text-ink-muted">
-            You’re not part of a team yet. Folder sharing becomes available once you belong to an
-            organization.
-          </div>
+          // Offer the way through rather than stating the rule and stopping.
+          // Creating the team here re-renders this modal straight into the
+          // sharing UI, so the folder the user came to share is still the one
+          // in front of them.
+          <CreateTeamPanel compact />
         ) : (
           <div className="flex flex-col gap-4">
             {/* Add people */}

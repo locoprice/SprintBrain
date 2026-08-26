@@ -40,6 +40,15 @@ export interface OrgApi {
    * DB; a future org switcher will let users change the active one.
    */
   getActiveOrg(): Promise<OrganizationSummary | null>;
+  /**
+   * Create an organization and make the caller its admin.
+   *
+   * Runs through the `create_team` RPC rather than two inserts because
+   * `org_insert` and `orgmem_write` deadlock a client-side create: the caller
+   * may insert the organization but not their own membership row, leaving an
+   * org with no members that `org_select` then hides from them.
+   */
+  createTeam(name: string): Promise<OrganizationSummary>;
   /** The member directory for an org the caller belongs to. */
   listMembers(orgId: string): Promise<OrgMember[]>;
   /**
@@ -78,6 +87,18 @@ export const orgApi: OrgApi = {
       myRole: row.role,
       cover: org.cover,
     };
+  },
+
+  async createTeam(name) {
+    const trimmed = name.trim();
+    const { data, error } = await supabase.rpc('create_team', { p_name: trimmed });
+    // The RPC raises human-readable messages (empty name, name too long,
+    // already in a team) — surface them as written rather than remapping.
+    if (error) throw new Error(error.message);
+    if (typeof data !== 'string') throw new Error('Could not create the team. Try again.');
+    // The caller is the only member, so the summary is fully determined here:
+    // no round-trip needed to learn a role we just assigned.
+    return { id: data, name: trimmed, slug: null, myRole: 'admin', cover: null };
   },
 
   async listMembers(orgId) {

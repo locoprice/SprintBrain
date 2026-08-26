@@ -18,6 +18,11 @@ interface OrgStore {
   load: () => Promise<void>;
   /** Force a re-fetch (e.g. after membership changes). */
   refresh: () => Promise<void>;
+  /**
+   * Create a team with the signed-in user as its admin, then adopt it as the
+   * active org so the roster and the share picker light up immediately.
+   */
+  createTeam: (name: string) => Promise<OrganizationSummary>;
   /** Set the team cover to a preset key or null (remove); updates activeOrg in place. */
   setCover: (cover: string | null) => Promise<void>;
   /** Upload a cover image for the active org; updates activeOrg in place. */
@@ -54,6 +59,15 @@ export const useOrgStore = create<OrgStore>((set, get) => ({
         error: err instanceof Error ? err.message : 'Failed to load organization',
       });
     }
+  },
+
+  createTeam: async (name) => {
+    const org = await orgApi.createTeam(name);
+    // Adopt it before refreshing: the org exists the moment the RPC returns,
+    // so a failing directory fetch must not leave the UI teamless.
+    set({ activeOrg: org, members: [], loaded: true, error: null });
+    await get().refresh();
+    return org;
   },
 
   setCover: async (cover) => {
