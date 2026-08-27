@@ -3,6 +3,7 @@ import { AlertCircle, ImagePlus, ImageUp, Trash2, UploadCloud, X } from 'lucide-
 import { cn } from '@/lib/utils';
 import { pickHttpsUrl, COVER_INPUT_ACCEPT, validateCoverSource } from '@/lib/branding';
 import { coverPresetClass, isImageCover, TEAM_COVER_PRESETS } from '@/lib/teamCoverPresets';
+import { TeamSwitcher } from '@/features/org/TeamSwitcher';
 import { useAuthStore } from '@/stores/authStore';
 import { useOrgStore } from '@/stores/orgStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -161,7 +162,16 @@ export function TeamCover() {
           <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
             Team
           </div>
-          <h1 className="mt-0.5 truncate text-2xl font-bold tracking-tight text-ink">{orgName}</h1>
+          {/* The title is the switcher: the name of the team you are looking
+              at is also the control that changes it. Falls back to plain text
+              when the user has no team (the create panel owns that case). */}
+          <h1 className="mt-0.5 max-w-full truncate">
+            {activeOrg ? (
+              <TeamSwitcher name={orgName} />
+            ) : (
+              <span className="text-2xl font-bold tracking-tight text-ink">{orgName}</span>
+            )}
+          </h1>
           <p className="mt-1 text-sm text-ink-muted">{DESCRIPTION}</p>
         </div>
       </div>

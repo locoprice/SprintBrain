@@ -12,6 +12,7 @@ function makeFolder(id: string, name: string): Folder {
     updated_at: '2026-07-12T00:00:00Z',
     parent_id: null,
     description: null,
+    organization_id: null,
   };
 }
 

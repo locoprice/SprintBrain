@@ -30,8 +30,16 @@ const SEND_ERRORS: Record<string, string> = {
 };
 
 export interface InvitationsApi {
-  /** Invite an email address to the caller's organization. */
-  send(email: string, role: OrgRole): Promise<InviteResult>;
+  /**
+   * Invite an email address to one of the caller's organizations.
+   *
+   * `organizationId` names which team, because a person may belong to several
+   * and the dashboard lets them switch. Omitting it falls back, server-side, to
+   * the caller's earliest membership. The edge function authorizes the caller's
+   * own membership row in whichever org is named, so an id never grants access
+   * to a team the caller is not in.
+   */
+  send(email: string, role: OrgRole, organizationId?: string): Promise<InviteResult>;
   /** Open and declined invitations for an org (admins and managers only). */
   listForOrg(orgId: string): Promise<OrgInvitation[]>;
   /** Invitations waiting on the signed-in user, matched on their verified email. */
@@ -61,9 +69,15 @@ async function readErrorCode(error: unknown): Promise<string> {
 }
 
 export const invitationsApi: InvitationsApi = {
-  async send(email, role) {
+  async send(email, role, organizationId) {
     const { data, error } = await supabase.functions.invoke<InviteResult>('invite-member', {
-      body: { email: email.trim().toLowerCase(), role },
+      body: {
+        email: email.trim().toLowerCase(),
+        role,
+        // Omitted rather than sent as undefined/null, so the function's
+        // "no id given" fallback stays a clean absence check.
+        ...(organizationId ? { organizationId } : {}),
+      },
     });
 
     if (error) {

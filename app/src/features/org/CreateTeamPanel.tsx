@@ -13,6 +13,12 @@ interface CreateTeamPanelProps {
    * copy and tightens the spacing, so the modal stays one decision tall.
    */
   compact?: boolean;
+  /**
+   * One line of framing above the field, in compact mode. Each host explains
+   * why it is asking, since the reason differs (sharing a folder vs adding a
+   * second team). Omit for no framing.
+   */
+  blurb?: string;
   /** Called once the team exists, so a host modal can continue its own flow. */
   onCreated?: () => void | Promise<void>;
 }
@@ -33,7 +39,7 @@ function prefillName(metadata: Record<string, unknown> | undefined): string {
  * `orgmem_write` deadlock a client-side create, so the caller could make an
  * organization they could not then join. See the migration for the detail.
  */
-export function CreateTeamPanel({ compact = false, onCreated }: CreateTeamPanelProps) {
+export function CreateTeamPanel({ compact = false, blurb, onCreated }: CreateTeamPanelProps) {
   const user = useAuthStore((s) => s.user);
   const createTeam = useOrgStore((s) => s.createTeam);
   const showToast = useUiStore((s) => s.showToast);
@@ -86,11 +92,7 @@ export function CreateTeamPanel({ compact = false, onCreated }: CreateTeamPanelP
         </header>
       )}
 
-      {compact && (
-        <p className="text-xs text-ink-muted">
-          Sharing needs a team. Create one now and this folder is ready to share.
-        </p>
-      )}
+      {compact && blurb !== undefined && <p className="text-xs text-ink-muted">{blurb}</p>}
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-2">
         <label

@@ -26,6 +26,7 @@ function folder(id: string, name: string, parent_id: string | null, sort_order =
     updated_at: '2026-07-31T00:00:00.000Z',
     parent_id,
     description: null,
+    organization_id: null,
   };
 }
 

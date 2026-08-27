@@ -37,6 +37,12 @@ export interface Folder {
   parent_id: string | null;
   /** Optional one-line note shown under the folder title. */
   description: string | null;
+  /**
+   * Which team this folder was shared into, or null while it is still personal.
+   * A folder belongs to ONE team: once stamped, further sharing targets this
+   * org, never whatever team the user has since switched to.
+   */
+  organization_id: string | null;
 }
 
 // ── Labels (LABELS-001) ──────────────────────────────────────────────────────

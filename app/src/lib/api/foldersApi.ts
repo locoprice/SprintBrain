@@ -33,10 +33,11 @@ type DbFolder = {
   updated_at: string;
   parent_id: string | null;
   description: string | null;
+  organization_id: string | null;
 };
 
 const FOLDER_SELECT =
-  'id, user_id, name, ico, sort_order, updated_at, parent_id, description';
+  'id, user_id, name, ico, sort_order, updated_at, parent_id, description, organization_id';
 
 function dbFolderToFolder(row: DbFolder): Folder {
   return {
@@ -48,6 +49,7 @@ function dbFolderToFolder(row: DbFolder): Folder {
     updated_at: row.updated_at,
     parent_id: row.parent_id ?? null,
     description: row.description ?? null,
+    organization_id: row.organization_id ?? null,
   };
 }
 
