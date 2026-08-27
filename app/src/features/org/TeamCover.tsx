@@ -165,7 +165,10 @@ export function TeamCover() {
           {/* The title is the switcher: the name of the team you are looking
               at is also the control that changes it. Falls back to plain text
               when the user has no team (the create panel owns that case). */}
-          <h1 className="mt-0.5 max-w-full truncate">
+          {/* No `truncate` here: it sets overflow:hidden, which clipped the
+              switcher's dropdown and cut the team name short well before it
+              ran out of room. The switcher handles its own overflow. */}
+          <h1 className="mt-0.5 max-w-full">
             {activeOrg ? (
               <TeamSwitcher name={orgName} />
             ) : (
