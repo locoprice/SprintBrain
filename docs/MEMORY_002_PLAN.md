@@ -1,7 +1,7 @@
 # MEMORY-002: SprintBrain Memory, spaces, retrieval, and a writable MCP surface
 
-**Status**: In progress. S0 and S1 shipped; S2 is next. Section 13 records every change made
-against this plan while building it.
+**Status**: In progress. S0, S1 and S2 shipped; S3 is next. Section 13 records every change
+made against this plan while building it.
 **Relationship to MEMORY-001**: extends it. Nothing shipped in v2.168.0 is replaced.
 **Drafted**: 2026-08-23, for review by Valentina and Alessandro.
 
@@ -559,7 +559,7 @@ version bump across all four stamps.
 | --- | --- | --- | --- |
 | **S0** ✅ | 2.170.0 | Version parity for `services/mcp-memory` and `Sprintbrain.html`; `check-version.js` covers both; CI moves to Node 22 and runs `check-memory-parity.js` | Shipped. 5 stamps checked, each negative-tested; parity step in the workflow |
 | **S1** ✅ | 2.171.0 | Migration: spaces, kinds, metadata, content hash, soft delete, versions table with an atomic save RPC, audit log, token scopes and rate limiting. Extension filters trashed shards | Shipped. Applied to production and verified by 23 probes inside a rolled-back transaction |
-| **S2** | 2.172.0 | `/memory` route: spaces index and space detail, item CRUD via "Add text"; types, API module, store | Create, edit, trash, restore a space and an item end to end in the preview |
+| **S2** ✅ | 2.172.0 | `/memory` route: spaces index and space detail, item CRUD via "Add text", trash and restore; types, API module, store | Shipped. Driven end to end against production in the preview, then the test rows removed |
 | **S3** | 2.173.0 | Documents: private bucket, upload, chunking into shards, `source_id` and `chunk_index`, source attribution | A 200 KB file uploads, chunks, and every chunk stays under the 20,000 character cap |
 | **S4** | 2.174.0 | Version history panel over the versions written since S1 | Editing an item twice shows versions 1 and 2; restore works |
 | **S5** | 2.175.0 | Import and export: JSON, Markdown, CSV, TXT, SBMF | Round-trip test asserts byte-identical bodies and preserved labels |
@@ -650,3 +650,25 @@ metadata cap, the audit action shape, token scope denial, the rate limit raising
 unknown token still yielding rows rather than an error, trashed shards disappearing from
 both MCP read functions, name reuse after trashing, and cross-account isolation on both the
 read path and the save RPC.
+
+**S2 differs from section 9 in five places, each for a reason.**
+
+- **No All / Mine / Shared tabs.** Sharing does not exist until S9, so two of the three
+  tabs would be permanently empty and the third would be every space. They arrive with the
+  feature they describe.
+- **The third tile is Tokens, not Storage.** A byte count is a number nobody acts on. The
+  token total is the exact figure a step's budget is measured against, read from the same
+  generated column the engine uses, so it is both more useful and not an estimate.
+- **Upload file is present but disabled**, labelled so, rather than hidden. The pair of drop
+  targets is the layout, and hiding one until S3 would move everything twice.
+- **The item editor is a dialog, not a right-hand panel.** The panel pattern in
+  `PromptBlockEditor` couples the page layout to a 520px offset. A dialog needs no such
+  coupling, and the Context preview panel in S7 is the thing that genuinely wants that slot.
+- **Spaces have their own icon vocabulary** in `features/memory/spaceIcon.tsx` rather than
+  reusing `FOLDER_ICON_KEYS`. That vocabulary is hand-projected into three surfaces, so
+  adding one key there means editing three files in sync. Spaces are dashboard-only, so
+  theirs stays local until a second surface needs it.
+
+**One wart found in the preview and fixed:** the spaces count rendered "0 spaces" beside the
+loading line, which reads as an answer before there is one. It is now held back until the
+first load completes.

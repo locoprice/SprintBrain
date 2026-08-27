@@ -3,6 +3,8 @@ import { DashboardLayout } from '@/routes/DashboardLayout';
 import { SnippetsPage } from '@/routes/SnippetsPage';
 import { AnalyticsPage } from '@/routes/AnalyticsPage';
 import { PromptsPage } from '@/routes/PromptsPage';
+import { MemoryPage } from '@/routes/MemoryPage';
+import { MemorySpacePage } from '@/routes/MemorySpacePage';
 import { TeamPage } from '@/routes/TeamPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 import { LoginPage } from '@/routes/LoginPage';
@@ -80,6 +82,8 @@ export function App() {
           <Route index element={<SnippetsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/prompts" element={<PromptsPage />} />
+          <Route path="/memory" element={<MemoryPage />} />
+          <Route path="/memory/:spaceId" element={<MemorySpacePage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
