@@ -1,6 +1,7 @@
 # MEMORY-002: SprintBrain Memory, spaces, retrieval, and a writable MCP surface
 
-**Status**: Plan. No code written yet.
+**Status**: In progress. S0 and S1 shipped; S2 is next. Section 13 records every change made
+against this plan while building it.
 **Relationship to MEMORY-001**: extends it. Nothing shipped in v2.168.0 is replaced.
 **Drafted**: 2026-08-23, for review by Valentina and Alessandro.
 
@@ -556,16 +557,16 @@ version bump across all four stamps.
 
 | Slice | Version | Contents | Done when |
 | --- | --- | --- | --- |
-| **S0** | 2.169.0 | Version parity for `services/mcp-memory`; `check-version.js` covers it; CI moves to Node 22 and runs `check-memory-parity.js` | `node scripts/check-version.js` green with the new file; parity step visible in a CI run |
-| **S1** | 2.170.0 | Migration: spaces, shares, kinds, metadata, soft delete, versions table, audit log, token scopes and rate limiting. Types, API module, zustand store. No UI | Migration applies to a Supabase branch; RLS probes confirm cross-account denial; `npm run typecheck` green |
-| **S2** | 2.171.0 | `/memory` route: spaces index and space detail, item CRUD via "Add text" | Create, edit, delete a space and an item end to end in the preview; screenshots attached |
-| **S3** | 2.172.0 | Documents: private bucket, upload, chunking into shards, source attribution | A 200 KB file uploads, chunks, and every chunk stays under the 20,000 character cap |
-| **S4** | 2.173.0 | Versioning: save-with-revision function, history panel | Editing an item twice yields versions 1 and 2, restore works |
-| **S5** | 2.174.0 | Import and export: JSON, Markdown, CSV, TXT, SBMF | Round-trip test asserts byte-identical bodies and preserved labels |
-| **S6** | 2.175.0 | Hybrid search, lexical arms only, plus the search UI | `memory_search` returns sane rankings on a seeded fixture; accent-insensitive and typo-tolerant cases covered by tests |
-| **S7** | 2.176.0 | Context Builder in `engine.ts` and `memory-pack.js`, new parity fixtures, preview panel | Parity gate green with the new fixtures; determinism test passes over 100 runs |
-| **S8** | 2.177.0 | MCP: scopes, rate limiting, `list_spaces`, `search_memory`, `build_context`, `save_memory`, `export_space`; Connect modal; token UI | All tools exercised against a branch database from a real MCP client; over-limit call returns the back-off error |
-| **S9** | 2.178.0 | GDPR purge, space sharing, access-control UI | Purge removes every referencing row and the storage object; audit tombstone present with no body text |
+| **S0** ✅ | 2.170.0 | Version parity for `services/mcp-memory` and `Sprintbrain.html`; `check-version.js` covers both; CI moves to Node 22 and runs `check-memory-parity.js` | Shipped. 5 stamps checked, each negative-tested; parity step in the workflow |
+| **S1** ✅ | 2.171.0 | Migration: spaces, kinds, metadata, content hash, soft delete, versions table with an atomic save RPC, audit log, token scopes and rate limiting. Extension filters trashed shards | Shipped. Applied to production and verified by 23 probes inside a rolled-back transaction |
+| **S2** | 2.172.0 | `/memory` route: spaces index and space detail, item CRUD via "Add text"; types, API module, store | Create, edit, trash, restore a space and an item end to end in the preview |
+| **S3** | 2.173.0 | Documents: private bucket, upload, chunking into shards, `source_id` and `chunk_index`, source attribution | A 200 KB file uploads, chunks, and every chunk stays under the 20,000 character cap |
+| **S4** | 2.174.0 | Version history panel over the versions written since S1 | Editing an item twice shows versions 1 and 2; restore works |
+| **S5** | 2.175.0 | Import and export: JSON, Markdown, CSV, TXT, SBMF | Round-trip test asserts byte-identical bodies and preserved labels |
+| **S6** | 2.176.0 | Hybrid search, lexical arms only, plus the search UI. Adds `search_tsv`, `pg_trgm`, `unaccent` | `memory_search` returns sane rankings on a seeded fixture; accent-insensitive and typo-tolerant cases covered by tests |
+| **S7** | 2.177.0 | Context Builder in `engine.ts` and `memory-pack.js`, new parity fixtures, preview panel | Parity gate green with the new fixtures; determinism test passes over 100 runs |
+| **S8** | 2.178.0 | MCP: `list_spaces`, `search_memory`, `build_context`, `save_memory`, `export_space` on the scopes and rate limit built in S1; Connect modal; token UI | All tools exercised from a real MCP client; over-limit call returns the back-off error |
+| **S9** | 2.179.0 | GDPR purge, `memory_space_shares` and the non-owner read path, access-control UI | Purge removes every referencing row and the storage object; audit tombstone present with no body text |
 | **S10** | gated | pgvector, provider integration, per-space opt-in, backfill | Only after the provider decision in D4 |
 
 ---
@@ -597,3 +598,55 @@ version bump across all four stamps.
    is a larger feature and belongs in its own ticket.
 4. **Team memory.** D2 allows an owner to share a space read-only. Whether a shared space
    may be written to by teammates is a product decision, not a technical one.
+
+---
+
+## 13. Changes against this plan, and why
+
+Recorded as the work lands, so the plan stays honest rather than aspirational.
+
+**Versions shifted by one.** A concurrent session claimed 2.169.0 while S0 was in
+progress. Every slice moved up. The working tree is shared, so check `origin/develop`
+before assuming a version is free.
+
+**S1 lost three things it was scoped to carry.**
+
+- `memory_space_shares` moved wholly to S9. S1 would have created a table that granted
+  nothing, since the non-owner read path was already scheduled for S9. Half a feature in
+  the schema is worse than none.
+- `source_id` and `chunk_index` moved to S3, where `memory_documents` exists to reference.
+- `search_tsv`, `pg_trgm` and `unaccent` moved to S6, where something reads them. Adding a
+  generated column later costs a table rewrite, which is why `content_hash` stayed in S1:
+  deduplication and import both need it, and it is cheapest to add while the table is
+  empty. The search column is a bigger object and S6 still lands before real volume.
+
+**S1 gained one thing.** `extension/background/background.js` now filters
+`deleted_at=is.null` on both memory reads. Without it, the first item anyone trashed in S2
+would still have been offered by the extension's Context pill.
+
+**Two defects found by probing, not by reading.**
+
+- **Grants did not match either migration's stated intent.** Supabase's default privileges
+  grant ALL on every new table in `public` to `authenticated`, and a GRANT is additive, so
+  the explicit grant lists in MEMORY-001 and in S1 never took anything away.
+  `memory_tokens` said "no INSERT" and had INSERT; `memory_shard_versions` said
+  append-only and had UPDATE and DELETE. Nothing was actually exposed, because RLS refuses
+  any command with no policy and cross-account isolation was verified directly, but the
+  defence-in-depth layer was missing. Fixed for all eight memory tables in
+  `20260823130000_memory_grants_least_privilege.sql`. **Every future migration in this
+  feature must REVOKE before it GRANTs**, or the gap reopens on the next new table.
+- **Restore can collide with a reused name.** The unique index on shard and space names is
+  partial on `deleted_at is null`, so trashing an item frees its name. Trash "notes",
+  create a new "notes", then restore the old one and the restore fails on a unique
+  violation. That is the right trade (a trashed item must not squat a name), but S2's
+  restore action has to detect the collision and either refuse with a clear message or
+  offer a rename. It must not surface a raw database error.
+
+**How S1 was verified.** 23 probes ran against production inside a transaction that was
+rolled back by design, confirmed afterwards by every memory table still reading zero rows.
+They covered the default space being created on demand, version numbering, audit entries
+staying free of body text, the content hash tracking the body, the closed `kind` set, the
+metadata cap, the audit action shape, token scope denial, the rate limit raising PT429, an
+unknown token still yielding rows rather than an error, trashed shards disappearing from
+both MCP read functions, name reuse after trashing, and cross-account isolation on both the
+read path and the save RPC.

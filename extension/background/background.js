@@ -79,8 +79,12 @@ function memoryIndex() {
   return Promise.all([
     supaFetch('memory_steps',
       'select=key,name,token_budget,sort_order,memory_step_labels(label_id,weight)&order=sort_order.asc'),
+    // deleted_at=is.null keeps trashed shards out of the picker. RLS still shows
+    // them to their owner, deliberately, so the dashboard can list a trash view;
+    // filtering is each surface's job, and the memory_mcp_* functions do the
+    // same for the MCP server.
     supaFetch('memory_shards',
-      'select=id,name,summary,token_estimate,pinned,priority,memory_shard_labels(label_id)')
+      'select=id,name,summary,token_estimate,pinned,priority,memory_shard_labels(label_id)&deleted_at=is.null')
   ]).then(function(res) {
     return { steps: res[0] || [], shards: res[1] || [] };
   });
@@ -91,7 +95,8 @@ function memoryBodies(ids) {
   var list = ids.map(function(id) { return String(id).replace(/[^0-9a-fA-F-]/g, ''); })
                 .filter(Boolean);
   if (!list.length) return Promise.resolve([]);
-  return supaFetch('memory_shards', 'select=id,name,body&id=in.(' + list.join(',') + ')');
+  return supaFetch('memory_shards',
+    'select=id,name,body&deleted_at=is.null&id=in.(' + list.join(',') + ')');
 }
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
