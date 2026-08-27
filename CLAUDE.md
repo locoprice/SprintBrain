@@ -107,7 +107,7 @@ npm run build
 
 ### Before every commit — Extension (vanilla JS)
 No build step. Gates:
-- `node --check` on every changed `.js`; `node scripts/check-version.js`, `node scripts/check-snippets.js` and `node scripts/check-expansion.js` green.
+- `node --check` on every changed `.js`; `node scripts/check-version.js`, `node scripts/check-snippets.js`, `node scripts/check-expansion.js` and `node scripts/check-memory-parity.js` green.
 - Manual smoke test: trigger expansion, overlay, formula calculation, context menu.
 - No `console.log` debug statements committed; reload at `chrome://extensions` and confirm no service-worker errors.
 
@@ -143,7 +143,7 @@ At the end of every **successfully completed** task, prepare a push to `develop`
 **Preconditions (all must hold — otherwise do NOT push; fix or report instead):**
 1. **Verification gates pass.**
    - `app/`: `npm run lint`, `npm run typecheck`, `npm run build` all green.
-   - extension: `node --check` on every changed `.js`, plus `node scripts/check-version.js`, `node scripts/check-snippets.js` and `node scripts/check-expansion.js` green.
+   - extension: `node --check` on every changed `.js`, plus `node scripts/check-version.js`, `node scripts/check-snippets.js`, `node scripts/check-expansion.js` and `node scripts/check-memory-parity.js` green.
 2. **Version bumped** in `extension/manifest.json` **and** `app/package.json`, kept in parity.
 3. **Genuine task completion** — never mid-task, never on a failed or abandoned attempt.
 

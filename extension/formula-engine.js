@@ -877,6 +877,14 @@
           ? defVal.split(',').map(_sTrim).filter(function(d){ return opts.indexOf(d) !== -1; })
           : [];
         if (!multi) picks = picks.slice(0, 1);
+        // A single-choice menu that declares no usable default opens on its
+        // first option rather than on an empty one. "None" is not an answer the
+        // grammar can express here: one option has to win. Left empty, a menu
+        // the operator never touched resolved to nothing and the sentence
+        // around it shipped with a hole in it ("...pas possible d'effectuer ,
+        // car..."). A `multiple=yes` menu is exempt — picking none of several
+        // is a real answer there.
+        if (!multi && !picks.length && opts.length) picks = [opts[0]];
         var menu = { type: 'dd', opts: opts.join('\n'), default: picks.join(', ') };
         if (multi) menu.multiple = true;
         if (colsM) {

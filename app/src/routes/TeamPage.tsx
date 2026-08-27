@@ -1,6 +1,7 @@
 import { Children, useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, FileText, Globe, Search, Share2, Sparkles, Users } from 'lucide-react';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { CreateTeamPanel } from '@/features/org/CreateTeamPanel';
 import { FolderShareModal } from '@/features/org/FolderShareModal';
 import { InviteMemberPanel } from '@/features/org/InviteMemberPanel';
 import { TeamCover } from '@/features/org/TeamCover';
@@ -41,6 +42,7 @@ export function TeamPage() {
 
   const members = useOrgStore((s) => s.members);
   const activeOrg = useOrgStore((s) => s.activeOrg);
+  const orgLoaded = useOrgStore((s) => s.loaded);
   const loadOrg = useOrgStore((s) => s.load);
 
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
@@ -199,7 +201,12 @@ export function TeamPage() {
           <InviteMemberPanel org={activeOrg} />
         )}
 
-        {!hasShared ? (
+        {/* No team yet: offer the one action that unblocks everything else.
+            Showing the sharing guide here would instruct a flow that ends in a
+            modal refusing to share. */}
+        {orgLoaded && !activeOrg ? (
+          <CreateTeamPanel />
+        ) : !hasShared ? (
           <TeamSharingGuide />
         ) : (
           <>

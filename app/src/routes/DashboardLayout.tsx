@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
+import { ContactModal } from '@/components/layout/ContactModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
 import { PendingInviteBanner } from '@/features/org/PendingInviteBanner';
 import { Toast } from '@/components/ui/Toast';
@@ -26,6 +27,7 @@ export function DashboardLayout() {
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const closeOnboarding = useUiStore((s) => s.closeOnboarding);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Reflect the company logo (Settings → Branding) as the browser-tab favicon,
   // matching the extension toolbar + Sprintbrain.html; brand mark when unset.
@@ -95,6 +97,13 @@ export function DashboardLayout() {
               </a>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setContactOpen(true)}
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                Support
+              </button>
               <a
                 href="https://sprintbrain.com/legal/privacy-policy.html"
                 target="_blank"
@@ -125,6 +134,7 @@ export function DashboardLayout() {
         </div>
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
       <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} />
       <Toast />
     </div>

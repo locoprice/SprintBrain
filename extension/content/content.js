@@ -3130,3 +3130,71 @@ function _proceedContextInsert(el, snip) {
   }
 }
 
+
+// ── MEMORY-001: working-memory composer picker ───────────────────────────────
+//
+// Mounts only on the AI chat hosts memory-picker.js knows about, and only once
+// the account actually has a step configured. A pill that opens onto "nothing
+// here" on every page would be worse than no pill.
+
+// Replace the whole composer, rather than inserting at the caret. The picker
+// prepends context to what is already typed, so it hands over the full new
+// value and this writes it as one edit, which keeps Undo to a single restore.
+function sbMemorySetComposer(el, text) {
+  if (!el) return;
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+    el.focus();
+    el.value = text;
+    try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
+    try { el.setSelectionRange(text.length, text.length); } catch(e) {}
+    return;
+  }
+
+  // contenteditable: select everything, then let the paste path replace it.
+  // _cePasteInsert consumes the selection with execCommand before dispatching,
+  // which is the only sequence Lexical honours (see the v2.122.0 contract).
+  var host = _ceHost(el) || el;
+  host.focus();
+  try {
+    var range = document.createRange();
+    range.selectNodeContents(host);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch(e) {}
+
+  if (!_cePasteInsert(el, text)) insertText(el, text);
+}
+
+(function sbInitMemoryPicker() {
+  if (typeof SBMemoryPicker === 'undefined' || typeof SBMemoryPack === 'undefined') return;
+  if (!SBMemoryPicker.hostConfig(location.hostname)) return;
+
+  function ask(type, payload, cb) {
+    try {
+      chrome.runtime.sendMessage(Object.assign({ type: type }, payload || {}), function(res) {
+        if (chrome.runtime.lastError || !res || !res.ok) { cb(new Error('unavailable')); return; }
+        cb(null, res);
+      });
+    } catch(e) { cb(e); }
+  }
+
+  ask('memory_index', null, function(err, res) {
+    if (err || !res.data || !res.data.steps.length) return;
+
+    var steps = res.data.steps.map(SBMemoryPack.stepFromRow);
+    var shards = res.data.shards.map(SBMemoryPack.shardFromRow);
+
+    var picker = SBMemoryPicker.create({
+      getIndex: function(cb) { cb(null, { steps: steps, shards: shards }); },
+      getBodies: function(ids, cb) {
+        ask('memory_bodies', { ids: ids }, function(e, r) {
+          if (e) { cb(e); return; }
+          cb(null, r.rows || []);
+        });
+      },
+      insertText: sbMemorySetComposer
+    });
+    picker.mount();
+  });
+}());

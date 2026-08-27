@@ -517,6 +517,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-info-k{font-size:13px;color:var(--text2);font-weight:600;flex-shrink:0}
 .sb-info-v{font-size:14px;color:var(--text);font-weight:600;text-align:right;
   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Tap-to-copy id row: same tap feedback as the sheet action list. */
+.sb-info-row[data-copy]{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sb-info-row[data-copy]:active{background:var(--bg-alt)}
+.sb-info-mono{font-family:var(--mono);font-size:12px;color:var(--primary)}
 
 /* ── EDIT MODAL ──────────────────────────────── */
 .sb-edit-modal{
@@ -1882,6 +1886,13 @@ function sbBodyFieldCfg(body){
       var picks=defVal?defVal.split(',').map(function(d){return d.trim();})
         .filter(function(d){return opts.indexOf(d)!==-1;}):[];
       if(!multi)picks=picks.slice(0,1);
+      /* A single-choice menu that declares no usable default opens on its first
+         option rather than on an empty one. "None" is not an answer the grammar
+         can express here: one option has to win. Left empty, a menu the operator
+         never touched copied out as nothing and the sentence around it shipped
+         with a hole in it. `multiple=yes` is exempt — picking none of several is
+         a real answer there. Mirrors buildFormFieldCfg in the engine. */
+      if(!multi&&!picks.length&&opts.length)picks=[opts[0]];
       var menu={type:'dd',opts:opts.join('\n'),default:picks.join(', ')};
       if(multi)menu.multiple=true;
       if(colsM){var cols=parseInt(colsM[1],10);if(cols>0)menu.cols=cols;}
@@ -2116,6 +2127,11 @@ var allSnips=[], allFolders=[], curSnip=null, curVariants=[], curLang='ALL', cur
    snippet_events would otherwise hide teammates' usage). Fail-open: an empty
    map only hides the "Last used by" line. */
 var lastUseMap={};
+/* owner_id → display name, for every snippet the caller can read (own +
+   org-shared). From the accessible_owners() RPC (SECURITY DEFINER — RLS on
+   auth.users would otherwise block resolving a teammate's name at all).
+   Fail-open: an empty map falls back to the raw id in the info sheet. */
+var ownerNameMap={};
 function myDisplayName(){
   var u=SESSION&&SESSION.user;
   if(!u)return '';
@@ -2214,9 +2230,15 @@ function loadSnips(){
   var uFetch=fetch(SUPA+'/rest/v1/rpc/shared_snippet_last_use',{headers:authHeaders()})
     .then(function(r){return r.ok?r.json():[];})
     .catch(function(){return [];});
+  // Owner attribution (personal + org-shared) for the info sheet. Same
+  // fail-open contract: an error just means the info sheet falls back to the
+  // raw id instead of a name.
+  var oFetch=fetch(SUPA+'/rest/v1/rpc/accessible_owners',{headers:authHeaders()})
+    .then(function(r){return r.ok?r.json():[];})
+    .catch(function(){return [];});
 
-  Promise.all([sFetch,fFetch,uFetch]).then(function(res){
-    var d=res[0], f=res[1], uses=res[2];
+  Promise.all([sFetch,fFetch,uFetch,oFetch]).then(function(res){
+    var d=res[0], f=res[1], uses=res[2], owners=res[3];
     if(!Array.isArray(d))throw new Error('bad');
     allSnips=d;
     allFolders=Array.isArray(f)?f:[];
@@ -2224,6 +2246,12 @@ function loadSnips(){
     if(Array.isArray(uses)){
       uses.forEach(function(u){
         if(u&&u.snippet_id)lastUseMap[u.snippet_id]={used_at:u.used_at,used_by_name:u.used_by_name||''};
+      });
+    }
+    ownerNameMap={};
+    if(Array.isArray(owners)){
+      owners.forEach(function(o){
+        if(o&&o.owner_id)ownerNameMap[o.owner_id]=o.owner_name||'';
       });
     }
     // prune curFolder if it no longer exists
@@ -3568,10 +3596,17 @@ function shareSnippet(s){
 function openSnippetInfo(s){
   var f=getFolderById(s.folder_id);
   var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
+  // Owner is user_id, which Phase B's tenancy trigger makes immutable — there
+  // is no separate "creator" here, ownership never transfers, sharing is
+  // folder-ACL only. One row covers both. Falls back to the raw id if the
+  // owner fetch failed or the name map has not loaded yet, rather than
+  // showing nothing.
+  var ownerLabel=(s.user_id&&ownerNameMap[s.user_id])||s.user_id||'—';
   var rows=[
     // Full path, not just the leaf: folders nest, and two properties can each
     // hold a "Preventivi".
     ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
+    ['Owner', ownerLabel],
     // One language row, not two: a multilingual snippet lists its variants,
     // a single-language one names its language. "Language: MULTI" next to
     // "Languages: EN · IT · ES" said the same thing twice.
@@ -3590,10 +3625,16 @@ function openSnippetInfo(s){
       rows.push(['Last used by', p.by]);
     }
   }
+  // ID last: the least glanceable, most technical fact here, kept for support
+  // and API use. Tappable — a full id does not fit the row, so read-by-eye is
+  // not the point; copy is.
+  rows.push(['ID', s.id]);
   document.getElementById('sb-info-title').textContent=s.title||'Snippet';
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
-    return '<div class="sb-info-row"><span class="sb-info-k">'+esc(r[0])
-      +'</span><span class="sb-info-v">'+esc(r[1])+'</span></div>';
+    var isId=r[0]==='ID';
+    return '<div class="sb-info-row"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
+      +'<span class="sb-info-k">'+esc(r[0])+'</span>'
+      +'<span class="sb-info-v'+(isId?' sb-info-mono':'')+'">'+esc(r[1])+'</span></div>';
   }).join('');
   var sh=document.getElementById('sb-info-sheet');
   sh.classList.remove('sb-hidden');
@@ -3994,12 +4035,17 @@ function setupSheetDrag(sheetEl,closeFn){
   });
 })();
 
-/* Snippet info sheet: backdrop + drag dismiss. */
+/* Snippet info sheet: backdrop + drag dismiss, plus tap-to-copy on the id row. */
 (function(){
   var sheet=document.getElementById('sb-info-sheet');
   if(!sheet)return;
   sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',closeSnippetInfo);
   setupSheetDrag(sheet,closeSnippetInfo);
+  document.getElementById('sb-info-body').addEventListener('click',function(e){
+    var row=e.target.closest('[data-copy]');
+    if(!row)return;
+    copyText(row.getAttribute('data-copy'),function(){showToast('ID copied ✓');});
+  });
 })();
 
 /* ── LOGOUT BUTTON ──────────────────────────────── */

@@ -270,6 +270,10 @@ const fieldCfgCases = [
   // A default naming an option that no longer exists must be dropped.
   '{formmenu: A,B; name=M; default=ZZ}',
   '{formmenu: A,B; name=M; cols=20}',
+  // No usable default: a single-choice menu falls back to its first option, a
+  // multiple one stays empty. Asserted explicitly below as well as for parity.
+  '{formmenu: A,B; name=M}',
+  '{formmenu: A,B; name=M; multiple=yes}',
   // Unnamed menus key off the token itself — the hash must agree exactly.
   '{formmenu: A,B}',
   '{formmenu: name=M}',
@@ -306,6 +310,35 @@ for (const v of ['A, B', 'A,B', ' A ,, B ', '', null, undefined]) {
 }
 
 console.log('OK Mobile field-config parity passed all ' + mok + ' cases');
+
+// ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
+// A single-choice menu with no usable default used to configure an empty value,
+// so a snippet expanded without touching it dropped the choice and shipped the
+// sentence with a hole ("...pas possible d'effectuer , car..."). It now opens on
+// its first option. A `multiple=yes` menu keeps the empty default: picking none
+// of several is a real answer. Asserted on both surfaces, not just for parity.
+const FALLBACK_CASES = [
+  ['{formmenu: A,B; name=M}', 'A'],
+  ['{formmenu: A,B; name=M; default=ZZ}', 'A'],
+  ['{formmenu: A,B; name=M; default=B}', 'B'],
+  ['{formmenu: A,B; name=M; multiple=yes}', ''],
+  ['{formmenu: un check-in anticipé,un check-out tardif}', 'un check-in anticipé'],
+];
+for (const [body, want] of FALLBACK_CASES) {
+  for (const [label, build] of [['engine', engine.buildFormFieldCfg],
+                                ['mobile', mobile.sbBodyFieldCfg]]) {
+    const cfg = build(body);
+    const key = Object.keys(cfg)[0];
+    if (!key) fail(label + ' produced no field for ' + JSON.stringify(body));
+    if (cfg[key].default !== want) {
+      fail(label + ' menu default for ' + JSON.stringify(body) +
+        '\n  want: ' + JSON.stringify(want) +
+        '\n  got:  ' + JSON.stringify(cfg[key].default));
+    }
+  }
+}
+console.log('OK Unanswered menu falls back to its first option (' +
+  FALLBACK_CASES.length + ' cases × 2 surfaces)');
 
 // ── FIELD CONTEXT PARITY ────────────────────────────────────────────
 // The static text either side of a field is what makes a fill form readable

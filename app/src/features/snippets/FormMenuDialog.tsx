@@ -86,7 +86,11 @@ export function FormMenuDialog({
     }
     nextId.current = STARTING_ROWS;
     setRows(Array.from({ length: STARTING_ROWS }, (_, i) => ({ id: i + 1, label: '' })));
-    setSelectedIds([]);
+    // The first choice starts ticked, so a new menu is written with an explicit
+    // `default=` rather than relying on the engine's fallback. It also shows the
+    // author, in the token preview, exactly which option a menu nobody touches
+    // will expand to.
+    setSelectedIds([1]);
     // Left blank like Text Blaze: `suggestedName` is only the placeholder, so a
     // name is something you opt into rather than something to clear.
     setName('');
@@ -107,8 +111,11 @@ export function FormMenuDialog({
     setSelectedIds((prev) => prev.filter((s) => s !== id));
   }
 
-  // Single-choice menus hold one preselection; a second click clears it, because
-  // "no default" is a valid menu (the field then opens on "— select —").
+  // Single-choice menus hold one preselection; a second click clears it, which
+  // writes a token with no `default=`. On a `multiple` menu that means it opens
+  // with nothing ticked. On a single-choice one the engine still opens it on the
+  // first option: one option has to win, so "no default" is not a state a
+  // single-choice menu can actually be in.
   function toggleSelected(id: number) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((s) => s !== id);

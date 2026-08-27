@@ -10,8 +10,12 @@
 // GoTrue issues a token-hash link that opens in any browser, which is the whole
 // point of an invitation.
 //
-// The target org is derived from the caller's own membership — never taken from
-// the request body — so a member cannot invite people into someone else's team.
+// The target org may be named in the request body (the dashboard supports
+// several teams per person), but it is only ever honored by looking up the
+// CALLER'S OWN membership row in that org. An id naming a team the caller does
+// not belong to matches nothing and is rejected, so a member still cannot
+// invite people into someone else's team. Omitting the id falls back to the
+// earliest membership, which keeps pre-switcher clients working unchanged.
 //
 // Environment secrets (all injected automatically by the runtime):
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
@@ -90,7 +94,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Input ────────────────────────────────────────────────────────
-  let body: { email?: unknown; role?: unknown };
+  let body: { email?: unknown; role?: unknown; organizationId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -99,6 +103,12 @@ Deno.serve(async (req: Request) => {
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const role = (typeof body.role === 'string' ? body.role : 'member') as OrgRole;
+  // Which team to invite into. Optional: a client that predates the team
+  // switcher sends nothing and still targets its single (earliest) membership.
+  const requestedOrg =
+    typeof body.organizationId === 'string' && body.organizationId !== ''
+      ? body.organizationId
+      : null;
 
   if (!EMAIL_RE.test(email)) {
     return json({ error: 'invalid_email' }, 400);
@@ -113,14 +123,24 @@ Deno.serve(async (req: Request) => {
   const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
   // ── The caller's org + their standing in it ──────────────────────
-  // Earliest membership = the active org, matching orgApi.getActiveOrg().
-  const { data: membership, error: memberError } = await serviceClient
+  //
+  // The org id may now come from the body, because the dashboard lets a person
+  // belong to several teams and switch between them. That does NOT weaken the
+  // original guarantee: the row below is still looked up by (organization_id,
+  // user_id = the CALLER), so an id naming someone else's team simply matches
+  // no membership and returns no_organization. What is authorized is the
+  // caller's own standing in the team they named, never the id itself.
+  //
+  // With no id (a client from before the switcher) this falls back to the
+  // earliest membership, which is the single team such a client can see.
+  const membershipQuery = serviceClient
     .from('organization_members')
     .select('organization_id, role, organizations(name)')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq('user_id', user.id);
+
+  const { data: membership, error: memberError } = await (requestedOrg
+    ? membershipQuery.eq('organization_id', requestedOrg).maybeSingle()
+    : membershipQuery.order('created_at', { ascending: true }).limit(1).maybeSingle());
 
   if (memberError) {
     return json({ error: 'invite_failed', detail: memberError.message }, 500);

@@ -617,7 +617,7 @@
           <button class="nv-langtab" data-lang="ES" type="button">ES<span class="dot"></span></button>
           <button class="nv-langtab" data-lang="FR" type="button">FR<span class="dot"></span></button>
         </div>
-        <textarea id="nv-f-body" placeholder="Dear {guest_name},&#10;&#10;Your message…"></textarea>
+        <textarea id="nv-f-body" placeholder="Dear {first_name},&#10;&#10;Your message…"></textarea>
         <div class="nv-body-foot">
           <button type="button" id="nv-f-clear" class="nv-body-clear" title="Delete this language's body. The snippet is saved without that language, not with an empty one.">Clear</button>
           <span class="nv-body-count" id="nv-f-count">0 words</span>
@@ -626,14 +626,11 @@
           <div>
             <div class="nv-chiplbl">Fields <span>— filled in when the snippet expands · type <code>{any_name}</code> for your own</span></div>
             <div class="nv-chiprow">
-              <span class="nv-chip" data-c="{guest_name}" title="The guest's name — inserts {guest_name}">guest_name</span>
-              <span class="nv-chip" data-c="{property_name}" title="The property name — inserts {property_name}">property_name</span>
-              <span class="nv-chip" data-c="{checkin_date}" title="Arrival date — inserts {checkin_date}">checkin_date</span>
-              <span class="nv-chip" data-c="{checkout_date}" title="Departure date — inserts {checkout_date}">checkout_date</span>
-              <span class="nv-chip" data-c="{total_price}" title="Total price of the stay — inserts {total_price}">total_price</span>
-              <span class="nv-chip" data-c="{nights}" title="Number of nights — inserts {nights}">nights</span>
-              <span class="nv-chip" data-c="{phone_number}" title="Phone number — inserts {phone_number}">phone</span>
-              <span class="nv-chip" data-c="{review_link}" title="Link to your review page — inserts {review_link}">review_link</span>
+              <span class="nv-chip" data-c="{start_date}" title="Start date. Inserts {start_date}, which fills as a date picker">start_date</span>
+              <span class="nv-chip" data-c="{end_date}" title="End date. Inserts {end_date}, which fills as a date picker">end_date</span>
+              <span class="nv-chip" data-c="{total_price}" title="Total amount. Inserts {total_price}">total_price</span>
+              <span class="nv-chip" data-c="{phone_number}" title="Phone number. Inserts {phone_number}">phone</span>
+              <span class="nv-chip" data-c="{review_link}" title="Link to your review page. Inserts {review_link}">review_link</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
             </div>
           </div>
@@ -652,8 +649,8 @@
             <div>
               <div class="nv-chiplbl">Logic <span>— worked out on its own</span></div>
               <div class="nv-chiprow">
-                <span class="nv-chip f" data-c="{=A - B}" title="Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}">{=formula}</span>
-                <span class="nv-chip c" data-c="{if:A > 0}text{endif}" title="Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}">{if:cond}</span>
+                <span class="nv-chip f" data-c="{=A - B}" title="Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}">{=formula}</span>
+                <span class="nv-chip c" data-c="{if:A > 0}text{endif}" title="Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}">{if:cond}</span>
               </div>
             </div>
           </div>
@@ -785,7 +782,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '2.163.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.0.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>

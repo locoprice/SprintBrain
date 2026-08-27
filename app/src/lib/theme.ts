@@ -3,7 +3,16 @@ export type ThemePreference = 'light' | 'dark' | 'auto';
 const STORAGE_KEY = 'sprintbrain-theme';
 
 export function getStoredTheme(): ThemePreference {
-  return (localStorage.getItem(STORAGE_KEY) as ThemePreference) ?? 'auto';
+  // Runs at module load, from the uiStore initializer. Storage is not always
+  // reachable there: a browser with site data blocked throws on access, and the
+  // vitest 'node' environment has no localStorage at all, which took down every
+  // suite that transitively imports the store. 'auto' is the same default a
+  // first-time visitor gets, so falling back costs nothing.
+  try {
+    return (localStorage.getItem(STORAGE_KEY) as ThemePreference) ?? 'auto';
+  } catch {
+    return 'auto';
+  }
 }
 
 function getSystemTheme(): 'light' | 'dark' {

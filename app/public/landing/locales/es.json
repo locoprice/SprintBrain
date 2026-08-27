@@ -19,27 +19,27 @@
     {
       "find": "<a href=\"#features\" class=\"nav-link\">Features</a>",
       "replace": "<a href=\"#features\" class=\"nav-link\">Funciones</a>",
-      "count": 1
+      "count": 2
     },
     {
       "find": "</svg>Star on GitHub</a>",
       "replace": "</svg>Star en GitHub</a>",
-      "count": 1
+      "count": 2
     },
     {
       "find": "</svg>Add to Chrome</a>",
       "replace": "</svg>Añadir a Chrome</a>",
-      "count": 1
+      "count": 2
     },
     {
       "find": "<span>Sign in</span>",
       "replace": "<span>Iniciar sesión</span>",
-      "count": 1
+      "count": 2
     },
     {
       "find": "<span>Sign up</span>",
       "replace": "<span>Regístrate</span>",
-      "count": 1
+      "count": 2
     },
     {
       "find": "<div class=\"hero-eyebrow\">Chrome Extension · {{EXT_VERSION}}</div>",
@@ -354,6 +354,11 @@
     {
       "find": "aria-label=\"Close\"",
       "replace": "aria-label=\"Cerrar\"",
+      "count": 3
+    },
+    {
+      "find": "aria-label=\"Menu\"",
+      "replace": "aria-label=\"Menú\"",
       "count": 1
     },
     {
@@ -557,8 +562,8 @@
       "count": 1
     },
     {
-      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\">Support</a>",
-      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\">Soporte</a>",
+      "find": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Support</a>",
+      "replace": "<a href=\"mailto:sprintbrainapp@gmail.com\" id=\"contact-open\">Soporte</a>",
       "count": 1
     },
     {

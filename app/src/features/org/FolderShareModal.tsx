@@ -10,9 +10,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/shared/Avatar';
+import { CreateTeamPanel } from '@/features/org/CreateTeamPanel';
 import { cn } from '@/lib/utils';
 import type { Folder, FolderPermission, OrgMember, PermissionLevel } from '@/types/database';
 import { permissionsApi, type ShareTarget } from '@/lib/api/permissionsApi';
+import { orgApi } from '@/lib/api/orgApi';
 import { useOrgStore } from '@/stores/orgStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -42,6 +44,7 @@ const WHOLE_TEAM = '__org__';
 
 export function FolderShareModal({ folder, onClose, onShared }: FolderShareModalProps) {
   const activeOrg = useOrgStore((s) => s.activeOrg);
+  const orgs = useOrgStore((s) => s.orgs);
   const members = useOrgStore((s) => s.members);
   const orgLoading = useOrgStore((s) => s.loading);
   const loadOrg = useOrgStore((s) => s.load);
@@ -87,12 +90,6 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
     };
   }, [folder]);
 
-  const memberById = useMemo(() => {
-    const map = new Map<string, OrgMember>();
-    for (const m of members) map.set(m.user_id, m);
-    return map;
-  }, [members]);
-
   // The whole-org grant cannot escalate to "owner" (that would make every member
   // an owner); individual members may be granted owner.
   const allowedLevels: PermissionLevel[] =
@@ -104,12 +101,59 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [principal]);
 
+  // A folder belongs to ONE team. Once `organization_id` is stamped, every
+  // further share targets THAT team, not whichever team the user has since
+  // switched to — otherwise a folder stamped into team A could be granted to
+  // team B, leaving A's admins with owner rights over something shared with B
+  // and neither team able to see the whole picture.
+  const targetOrg = useMemo(() => {
+    if (!folder) return null;
+    if (folder.organization_id === null) return activeOrg;
+    return orgs.find((o) => o.id === folder.organization_id) ?? null;
+  }, [folder, activeOrg, orgs]);
+
+  /** True when this folder lives in a team other than the one now selected. */
+  const inOtherTeam =
+    targetOrg !== null && activeOrg !== null && targetOrg.id !== activeOrg.id;
+
   const canManage =
-    !!folder && (folder.user_id === currentUserId || activeOrg?.myRole === 'admin');
+    !!folder && (folder.user_id === currentUserId || targetOrg?.myRole === 'admin');
+
+  // The store's directory is the ACTIVE team's. When the folder lives in a
+  // different team, that list names the wrong people, so fetch the right one.
+  const [otherMembers, setOtherMembers] = useState<OrgMember[]>([]);
+  useEffect(() => {
+    if (!inOtherTeam || !targetOrg) {
+      setOtherMembers([]);
+      return;
+    }
+    let cancelled = false;
+    orgApi
+      .listMembers(targetOrg.id)
+      .then((rows) => {
+        if (!cancelled) setOtherMembers(rows);
+      })
+      // Non-fatal: whole-team sharing still works, the person picker is simply
+      // empty rather than wrong.
+      .catch(() => {
+        if (!cancelled) setOtherMembers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inOtherTeam, targetOrg]);
+
+  const effectiveMembers = inOtherTeam ? otherMembers : members;
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, OrgMember>();
+    for (const m of effectiveMembers) map.set(m.user_id, m);
+    return map;
+  }, [effectiveMembers]);
 
   const selectableMembers = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return members
+    return effectiveMembers
       .filter((m) => m.user_id !== currentUserId)
       .filter(
         (m) =>
@@ -117,7 +161,7 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
           m.display_name.toLowerCase().includes(q) ||
           m.email.toLowerCase().includes(q),
       );
-  }, [members, currentUserId, query]);
+  }, [effectiveMembers, currentUserId, query]);
 
   function nameFor(userId: string): string {
     if (userId === currentUserId) return 'You';
@@ -127,7 +171,7 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
 
   function principalLabel(g: FolderPermission): string {
     if (g.principal_type === 'organization')
-      return `Whole team${activeOrg ? ` · ${activeOrg.name}` : ''}`;
+      return `Whole team${targetOrg ? ` · ${targetOrg.name}` : ''}`;
     if (g.principal_type === 'team') return 'A team';
     return nameFor(g.principal_id);
   }
@@ -145,18 +189,18 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
   }
 
   async function handleShare() {
-    if (!folder || !activeOrg) return;
+    if (!folder || !targetOrg) return;
     const target: ShareTarget =
       principal === WHOLE_TEAM
-        ? { principalType: 'organization', principalId: activeOrg.id, level }
+        ? { principalType: 'organization', principalId: targetOrg.id, level }
         : { principalType: 'user', principalId: principal, level };
     setWorking(true);
     setError(null);
     setJustShared(null);
     try {
-      await permissionsApi.shareFolder(folder.id, activeOrg.id, target);
+      await permissionsApi.shareFolder(folder.id, targetOrg.id, target);
       await refreshGrants();
-      setJustShared(principal === WHOLE_TEAM ? `Whole team · ${activeOrg.name}` : nameFor(principal));
+      setJustShared(principal === WHOLE_TEAM ? `Whole team · ${targetOrg.name}` : nameFor(principal));
       // The folder + its assets may have just moved into the org — refresh the
       // host surface so shared rows surface immediately.
       await onShared?.();
@@ -197,19 +241,34 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
             Share “{folder?.name ?? ''}”
           </DialogTitle>
           <DialogDescription>
-            Everyone you add can use everything inside this folder — instantly, in their extension.
+            Everyone you add can use everything inside this folder, instantly, in their extension.
           </DialogDescription>
         </DialogHeader>
 
-        {!activeOrg && orgLoading ? (
+        {inOtherTeam && targetOrg && (
+          <div className="flex items-start gap-2 rounded-[10px] border border-line bg-bg-alt px-3 py-2.5 text-xs text-ink-muted">
+            <Globe className="mt-px h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+            <span>
+              This folder belongs to{' '}
+              <span className="font-semibold text-ink">{targetOrg.name}</span>, so it is shared
+              there. A folder stays with one team.
+            </span>
+          </div>
+        )}
+
+        {!targetOrg && orgLoading ? (
           <div className="flex items-center gap-2 py-6 text-sm text-ink-muted">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading your team…
           </div>
-        ) : !activeOrg ? (
-          <div className="rounded-[12px] border border-line bg-bg-alt px-4 py-5 text-sm text-ink-muted">
-            You’re not part of a team yet. Folder sharing becomes available once you belong to an
-            organization.
-          </div>
+        ) : !targetOrg ? (
+          // Offer the way through rather than stating the rule and stopping.
+          // Creating the team here re-renders this modal straight into the
+          // sharing UI, so the folder the user came to share is still the one
+          // in front of them.
+          <CreateTeamPanel
+            compact
+            blurb="Sharing needs a team. Create one now and this folder is ready to share."
+          />
         ) : (
           <div className="flex flex-col gap-4">
             {/* Add people */}
@@ -237,7 +296,7 @@ export function FolderShareModal({ folder, onClose, onShared }: FolderShareModal
                         <Globe className="h-3.5 w-3.5" />
                       </span>
                     }
-                    title={`Whole team · ${activeOrg.name}`}
+                    title={`Whole team · ${targetOrg.name}`}
                     subtitle="Everyone in your organization"
                   />
                   {selectableMembers.map((m) => (

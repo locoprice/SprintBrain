@@ -37,6 +37,7 @@ const FOLDER: Folder = {
   updated_at: '2026-06-19T00:00:00Z',
   parent_id: null,
   description: null,
+  organization_id: null,
 };
 
 const PROMPT_IN_FOLDER: Prompt = {
