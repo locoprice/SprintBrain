@@ -14,3 +14,10 @@ export const RESOURCE_LINKS: Record<
   github: 'https://github.com/locoprice/SprintBrain/issues',
   status: 'https://sprintbrain.instatus.com/',
 };
+
+/**
+ * The support form, opened from the footer rather than the sidebar, which is
+ * why it sits beside RESOURCE_LINKS instead of inside it. Both are framed by
+ * `JotFormModal`; neither opens a tab.
+ */
+export const SUPPORT_FORM_URL = 'https://form.jotform.com/32942454514858';
