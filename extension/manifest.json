@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SprintBrain",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "AI prompt library and text expander. Free team sharing, dynamic snippets with live formulas, and two-way Notion sync.",
   "permissions": [
     "storage",
@@ -15,7 +15,9 @@
     "https://api.notion.com/*"
   ],
   "externally_connectable": {
-    "matches": ["https://app.sprintbrain.com/*"]
+    "matches": [
+      "https://app.sprintbrain.com/*"
+    ]
   },
   "background": {
     "service_worker": "background/background.js"
@@ -29,7 +31,9 @@
         "formula-engine.js",
         "shared/snippet-stats.js",
         "shared/memory-pack.js",
+        "shared/memory-chunk.js",
         "content/memory-picker.js",
+        "content/chat-capture.js",
         "content/content.js"
       ],
       "run_at": "document_idle",

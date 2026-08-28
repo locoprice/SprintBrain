@@ -3043,6 +3043,30 @@ document.addEventListener('input', function(e) {
 
 
 
+// ── CHAT CAPTURE HANDLER ──────────────────────────────────────────
+// The popup asks for the conversation on this page so it can be saved as
+// memory. Kept as its own listener rather than a branch inside the context-menu
+// one below, because that listener is fire-and-forget and never calls
+// sendResponse; mixing a request/response exchange into it would mean either
+// returning true from a handler that usually has nothing to send, or leaving
+// this one unable to reply.
+//
+// Answers synchronously. Reading the DOM needs no await, so returning true here
+// would hold a port open for nothing.
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+  if (!msg || msg.type !== 'SB_CAPTURE_CHAT') return;
+  try {
+    var api = window.SBChatCapture;
+    if (!api) { sendResponse({ ok: false, reason: 'unavailable' }); return; }
+    var captured = api.capture();
+    if (!captured) { sendResponse({ ok: false, reason: 'no_conversation' }); return; }
+    sendResponse({ ok: true, data: { meta: captured, blocks: api.toBlocks(captured) } });
+  } catch (e) {
+    sendResponse({ ok: false, reason: 'error' });
+  }
+});
+
+
 // ── CONTEXT MENU MESSAGE HANDLER ──────────────────────────────────
 // Receives snippet from background.js when user clicks context menu
 chrome.runtime.onMessage.addListener(function(msg) {

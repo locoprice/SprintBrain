@@ -308,6 +308,36 @@ html,body{
 .btn.p:focus-visible,.btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 .btn.p svg{width:15px;height:15px}
 
+/* ── SAVE THIS CHAT (capture card) ── */
+.cap-card{
+  margin:10px 16px 0;padding:10px 12px;border-radius:var(--sb-r-md);
+  background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);
+}
+.cap-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.cap-title{font-size:var(--sb-fs-12);font-weight:700;color:var(--sb-azure);flex-shrink:0}
+.cap-meta{
+  font-size:var(--sb-fs-10);color:var(--sb-ink-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cap-row{display:flex;align-items:center;gap:8px}
+.cap-sel{
+  flex:1;min-width:0;height:30px;padding:0 8px;font-family:inherit;
+  font-size:var(--sb-fs-11);color:var(--sb-ink);background:var(--sb-bg);
+  border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);outline:none;cursor:pointer;
+}
+.cap-sel:focus{border-color:var(--sb-azure)}
+.cap-btn{
+  height:30px;padding:0 14px;flex-shrink:0;font-family:inherit;
+  font-size:var(--sb-fs-11);font-weight:600;color:#fff;cursor:pointer;
+  background:var(--sb-azure);border:1px solid var(--sb-azure);border-radius:var(--sb-r-sm);
+  transition:background var(--sb-dur-fast);
+}
+.cap-btn:hover:not(:disabled){background:var(--sb-azure-dark)}
+.cap-btn:disabled{opacity:.55;cursor:default}
+.cap-note{font-size:var(--sb-fs-10);color:var(--sb-ink-muted);line-height:1.5;margin-top:6px}
+.cap-note:empty{display:none}
+.cap-note.err{color:var(--sb-danger)}
+
 /* ── SETTINGS PANE ── */
 .set-hdr{height:60px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--sb-bg);border-bottom:1px solid var(--sb-line)}
 .set-hdr .set-title{flex:1;font-size:var(--sb-fs-16);font-weight:700;color:var(--sb-ink)}
@@ -436,6 +466,20 @@ html,body{
     </button>
   </div>
 
+  <!-- SAVE THIS CHAT — only rendered when the active tab is a supported AI chat
+       thread. Hidden on every other page, so the popup gains nothing to ignore. -->
+  <div class="cap-card" id="cap-card" style="display:none">
+    <div class="cap-head">
+      <span class="cap-title">Save this chat</span>
+      <span class="cap-meta" id="cap-meta"></span>
+    </div>
+    <div class="cap-row">
+      <select class="cap-sel" id="cap-space" aria-label="Memory space to save into"></select>
+      <button class="cap-btn" id="cap-save" type="button">Save</button>
+    </div>
+    <div class="cap-note" id="cap-note"></div>
+  </div>
+
   <!-- SEGMENTED CONTROL -->
   <div class="seg-wrap">
     <div class="seg" id="mode-seg" role="tablist" aria-label="Snippets or Prompts">
@@ -540,6 +584,7 @@ html,body{
 
 <script src="../shared/tooltip.js"></script>
 <script src="../shared/snippet-stats.js"></script>
+<script src="../shared/memory-chunk.js"></script>
 <script src="../auth/auth.js"></script>
 <script src="../services/notion-sync/notion-sync.js"></script>
 <script src="sync-deletion.js"></script>

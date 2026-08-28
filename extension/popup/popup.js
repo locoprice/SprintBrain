@@ -2311,6 +2311,10 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       signOutBtn.addEventListener('click', function() { window.sbSignOut(); });
     }
     if (!booted) { booted = true; boot(); }
+    // Runs after a session exists, because the capture card reads memory_spaces
+    // and writes through the user's own JWT. Self-guarding: it hides itself on
+    // any page that is not a supported chat thread.
+    try { if (window.sbInitChatCapture) window.sbInitChatCapture(); } catch(e) {}
   }
 
   primary.addEventListener('click', function() {
@@ -2414,4 +2418,158 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       showGate();
     });
   };
+})();
+
+// ── SAVE THIS CHAT ────────────────────────────────────────────────────────────
+//
+// Captures the conversation on the active tab and stores it as memory items.
+//
+// Why this lives in the popup, given popup.js is the read-only launcher: the
+// v2.87.0 refactor moved snippet and folder MANAGEMENT to the dashboard, which
+// could own it because the dashboard can reach the same rows. Capture is not
+// management and has no such option. Only the extension can see your ChatGPT
+// tab, so this is the one surface where the action is possible at all.
+//
+// Degrades to nothing on Sprintbrain.html. chrome-shim's tabs.query reports no
+// tabs, so the card stays hidden and never asks for a conversation that a web
+// page could not read anyway.
+(function() {
+  'use strict';
+
+  // Chunks are written one at a time, not in parallel. memory_save_shard takes
+  // a FOR UPDATE lock and assigns version numbers, and concurrent writes of
+  // parts of one transcript would race for no gain on a handful of rows.
+  //
+  // ⚠ supaFetch RESOLVES ON HTTP ERRORS. It logs the body and resolves with the
+  // Response either way, so the status has to be checked explicitly here or a
+  // rejected write reports success.
+  function saveSequentially(items, index, done) {
+    if (index >= items.length) { done(null, items.length); return; }
+    supaFetch('rpc/memory_save_shard', 'POST', items[index], '')
+      .then(function(r) {
+        if (!r || !r.ok) { done(new Error('http_' + (r && r.status)), index); return; }
+        saveSequentially(items, index + 1, done);
+      })
+      .catch(function(err) { done(err, index); });
+  }
+
+  function initCapture() {
+    var card = document.getElementById('cap-card');
+    if (!card || card._wired) return;
+
+    var metaEl  = document.getElementById('cap-meta');
+    var selEl   = document.getElementById('cap-space');
+    var saveEl  = document.getElementById('cap-save');
+    var noteEl  = document.getElementById('cap-note');
+    if (!metaEl || !selEl || !saveEl || !noteEl) return;
+
+    function note(text, isError) {
+      noteEl.textContent = text || '';
+      noteEl.className = 'cap-note' + (isError ? ' err' : '');
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      var tab = tabs && tabs[0];
+      // id < 0 is the shim's synthetic tab: no page to talk to.
+      if (!tab || typeof tab.id !== 'number' || tab.id < 0) return;
+
+      chrome.tabs.sendMessage(tab.id, { type: 'SB_CAPTURE_CHAT' }, function(res) {
+        // Not a supported chat, no thread on screen, or no content script here.
+        // In every case the right answer is to show nothing.
+        if (chrome.runtime.lastError || !res || !res.ok || !res.data) return;
+
+        var meta   = res.data.meta;
+        var blocks = res.data.blocks || [];
+        if (!blocks.length) return;
+
+        card._wired = true;
+        card.style.display = '';
+        metaEl.textContent = meta.host + ' · ' + meta.turns.length + ' messages';
+        metaEl.title = meta.title;
+
+        supaFetch('memory_spaces', 'GET', null,
+                  'select=id,name&deleted_at=is.null&order=is_default.desc,name.asc')
+          .then(function(r) { return r && r.ok ? r.json() : []; })
+          .then(function(spaces) {
+            if (!spaces || !spaces.length) {
+              selEl.style.display = 'none';
+              saveEl.disabled = true;
+              note('Create a memory space in the dashboard first.');
+              return;
+            }
+            selEl.innerHTML = '';
+            for (var i = 0; i < spaces.length; i++) {
+              var opt = document.createElement('option');
+              opt.value = spaces[i].id;
+              opt.textContent = spaces[i].name;
+              selEl.appendChild(opt);
+            }
+          })
+          .catch(function() {
+            saveEl.disabled = true;
+            note('Could not load your spaces.', true);
+          });
+
+        saveEl.addEventListener('click', function() {
+          if (saveEl.disabled) return;
+          var spaceId = selEl.value;
+          if (!spaceId) return;
+
+          var chunker = window.SBMemoryChunk;
+          if (!chunker) { note('Chunker unavailable.', true); return; }
+
+          var packed = chunker.chunkBlocks(blocks);
+          var parts  = packed.chunks;
+          if (!parts.length) { note('Nothing to save.', true); return; }
+
+          // Names are unique per user among live rows, so a bare title collides
+          // the second time the same chat is saved. The timestamp is what keeps
+          // re-saving a conversation an append rather than an error.
+          var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+          var base  = meta.title.slice(0, 40);
+
+          var payloads = [];
+          for (var i = 0; i < parts.length; i++) {
+            var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
+            payloads.push({
+              p_shard_id: null,
+              p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
+              p_summary: (meta.host + ' conversation, ' + meta.turns.length + ' messages').slice(0, 280),
+              p_body: parts[i],
+              p_editor_display: 'Extension',
+              p_space_id: spaceId,
+              p_kind: 'conversation',
+              // The source URL is the one piece of provenance worth keeping:
+              // it is how someone gets back to the original thread later.
+              p_metadata: { source_url: meta.url, host: meta.host, part: i + 1, parts: parts.length },
+              p_pinned: false,
+              p_priority: 0,
+              p_edit_note: null,
+              p_surface: 'extension'
+            });
+          }
+
+          saveEl.disabled = true;
+          saveEl.textContent = 'Saving…';
+          note('');
+
+          saveSequentially(payloads, 0, function(err, count) {
+            if (err) {
+              saveEl.disabled = false;
+              saveEl.textContent = 'Save';
+              note(count > 0 ? 'Saved ' + count + ' of ' + payloads.length + ', then failed.'
+                             : 'Could not save this chat.', true);
+              return;
+            }
+            saveEl.textContent = 'Saved';
+            var detail = payloads.length > 1 ? ' as ' + payloads.length + ' items' : '';
+            note('Saved to memory' + detail +
+                 (packed.forced ? '. ' + packed.forced + ' long message(s) were split mid-paragraph.' : '.'));
+          });
+        });
+      });
+    });
+  }
+
+  window.sbInitChatCapture = initCapture;
 })();
