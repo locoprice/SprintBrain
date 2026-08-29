@@ -1372,22 +1372,22 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
       // overlay width so a long value can never push the panel out of view.
       var wide = cfg.cols ? ' style="width:'+cfg.cols+'ch;max-width:100%"' : '';
       var picked = formMenuPicks(cfg.default);
-      if (cfg.multiple) {
-        // A native multi-select needs ctrl-click to be usable — checkboxes make
-        // "pick several" obvious, and getVals() joins them back into one value.
-        blockControl = true;
-        inp = '<div class="sb-multi"'+wide+'>' + opts.map(function(o){
-          return '<label class="sb-opt"><input type="checkbox" class="sb-inp" data-key="'+key+'" value="'+xesc(o)+'"'+
-                 (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
-        }).join('') + '</div>';
-      } else {
-        inp = '<select class="sb-inp" data-key="'+key+'"'+wide+'>' +
-          (picked.length ? '' : '<option value="">— select —</option>') +
-          opts.map(function(o){
-            return '<option value="'+xesc(o)+'"'+(picked.indexOf(o) >= 0 ? ' selected' : '')+'>'+xesc(o)+'</option>';
-          }).join('') +
-          '</select>';
-      }
+      // Every option is on screen, for both kinds of menu. A <select> hid the
+      // choices behind a control most people did not read as a menu at all:
+      // they saw one word sitting in a box and typed over it. Checkboxes for a
+      // multiple menu, radios for a single one, so the shape of the control is
+      // what says how many you may pick, and nothing has to be opened to find
+      // out what is on offer. Both are block-level, so the prose around the
+      // token goes above and below rather than beside it.
+      blockControl = true;
+      var oType = cfg.multiple ? 'checkbox' : 'radio';
+      // Radios need a group name, or every single-choice menu in one form would
+      // share a group and picking in either would clear the other.
+      var oName = cfg.multiple ? '' : ' name="sb-'+xesc(key)+'"';
+      inp = '<div class="sb-multi"'+wide+'>' + opts.map(function(o){
+        return '<label class="sb-opt"><input type="'+oType+'" class="sb-inp"'+oName+' data-key="'+key+'" value="'+xesc(o)+'"'+
+               (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
+      }).join('') + '</div>';
     } else if (cfg.type === 'date') {
       inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||today)+'">';
     } else if (cfg.type === 'time') {
@@ -1489,6 +1489,19 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
           var target = el.querySelector('.sb-inp[data-key="' + name + '"]');
           if (!target) { errs.push('No field called ' + name); continue; }
           if (target.type === 'checkbox') { errs.push(name + ' is a multi-choice menu'); continue; }
+          // A single-choice menu is a radio group now: tick the option that
+          // matches. Writing to .value would rewrite the first radio's own
+          // value, silently changing one of the choices on offer.
+          if (target.type === 'radio') {
+            var want = String(res.values[name]);
+            var group = el.querySelectorAll('.sb-inp[type="radio"][data-key="' + name + '"]');
+            var matched = false;
+            for (var r = 0; r < group.length; r++) {
+              if (group[r].value === want) { group[r].checked = true; matched = true; }
+            }
+            if (!matched) errs.push(name + ' has no option "' + want + '"');
+            continue;
+          }
           target.value = String(res.values[name]);
         }
         if (errBox) {
@@ -1555,6 +1568,12 @@ function getVals() {
     if (el.type === 'checkbox') {
       if (!groups[k]) groups[k] = [];
       if (el.checked) groups[k].push(el.value);
+    } else if (el.type === 'radio') {
+      // A single-choice menu is a radio group sharing one data-key. Seed the key
+      // before looking at checked, so a group with nothing ticked reads '' and
+      // does not drop out of the values entirely.
+      if (v[k] === undefined) v[k] = '';
+      if (el.checked) v[k] = el.value;
     } else {
       v[k] = el.value;
     }
@@ -3023,11 +3042,15 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-actbtn:hover{background:#E0EAFF;}' +
     '#sb-overlay .sb-actbtn:active{transform:scale(.97);}' +
     '#sb-overlay .sb-btnerr{color:#DC2626;font-size:11px;line-height:1.5;padding-top:2px;}' +
-    '#sb-overlay .sb-multi{display:flex;flex-wrap:wrap;gap:6px;box-sizing:border-box;}' +
-    '#sb-overlay .sb-opt{display:inline-flex;align-items:center;gap:6px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:6px 10px;font-size:13px;color:#18181B;cursor:pointer;min-height:32px;touch-action:manipulation;}' +
-    '#sb-overlay .sb-opt:hover{border-color:#BED0FF;}' +
-    '#sb-overlay .sb-opt input.sb-inp{width:auto;padding:0;margin:0;background:none;border:none;box-shadow:none;accent-color:#1B4FD8;cursor:pointer;min-height:0;}' +
-    '#sb-overlay .sb-opt:has(input:checked){background:#EEF2FF;border-color:#BED0FF;color:#1B4FD8;}' +
+    // One option per line, each a plain row: the circle says "pick one of
+    // these" the way a paper form does. Wrapped pills read as tags or filters,
+    // not as a question waiting for an answer, and a long option had to be
+    // hunted for across a wrapped line.
+    '#sb-overlay .sb-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box;}' +
+    '#sb-overlay .sb-opt{display:flex;align-items:center;gap:10px;background:transparent;border:none;border-radius:8px;padding:4px 6px;font-size:13px;color:#18181B;cursor:pointer;min-height:32px;touch-action:manipulation;transition:background .12s;}' +
+    '#sb-overlay .sb-opt:hover{background:#F4F4F5;}' +
+    '#sb-overlay .sb-opt input.sb-inp{width:auto;padding:0;margin:0;flex:none;background:none;border:none;box-shadow:none;accent-color:#1B4FD8;cursor:pointer;min-height:0;}' +
+    '#sb-overlay .sb-opt:has(input:checked){color:#1B4FD8;font-weight:600;}' +
     '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:8px;background:#FAFAFA;}' +
     '#sb-overlay .sb-insert{padding:8px 18px;background:#1B4FD8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
@@ -3041,6 +3064,30 @@ document.addEventListener('input', function(e) {
   document.head.appendChild(s);
 })();
 
+
+
+// ── CHAT CAPTURE HANDLER ──────────────────────────────────────────
+// The popup asks for the conversation on this page so it can be saved as
+// memory. Kept as its own listener rather than a branch inside the context-menu
+// one below, because that listener is fire-and-forget and never calls
+// sendResponse; mixing a request/response exchange into it would mean either
+// returning true from a handler that usually has nothing to send, or leaving
+// this one unable to reply.
+//
+// Answers synchronously. Reading the DOM needs no await, so returning true here
+// would hold a port open for nothing.
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+  if (!msg || msg.type !== 'SB_CAPTURE_CHAT') return;
+  try {
+    var api = window.SBChatCapture;
+    if (!api) { sendResponse({ ok: false, reason: 'unavailable' }); return; }
+    var captured = api.capture();
+    if (!captured) { sendResponse({ ok: false, reason: 'no_conversation' }); return; }
+    sendResponse({ ok: true, data: { meta: captured, blocks: api.toBlocks(captured) } });
+  } catch (e) {
+    sendResponse({ ok: false, reason: 'error' });
+  }
+});
 
 
 // ── CONTEXT MENU MESSAGE HANDLER ──────────────────────────────────

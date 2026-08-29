@@ -193,6 +193,8 @@ export interface Prompt {
   blocks: PromptBlock[] | null;
   folder_id: Uuid | null;
   notion_page_id: string | null;
+  /** Pin-to-top flag (prompts.pinned). Same shared-column semantics as Snippet.pinned. */
+  pinned: boolean;
   updated_at: IsoDateTime;
   /** Last modifier — same DB-stamped semantics as Snippet.updated_by. */
   updated_by: Uuid | null;

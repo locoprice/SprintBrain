@@ -1923,6 +1923,55 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
+/* Greeting for the local time of day. MIRRORED from extension/formula-engine.js
+   (GREETING_WORDS / sbGreetingSlot / sbGreetingText). The phone cannot load
+   that module, so the table lives here too and scripts/check-snippets.js pins
+   the two against each other across all 24 hours.
+
+     morning 05:00 to 11:59 · afternoon 12:00 to 17:59
+     evening 18:00 to 21:59 · night 22:00 to 04:59 */
+var SB_GREETING_WORDS={
+  EN:{morning:'Good morning',afternoon:'Good afternoon',evening:'Good evening',night:'Good night'},
+  IT:{morning:'Buongiorno',afternoon:'Buon pomeriggio',evening:'Buonasera',night:'Buona notte'},
+  ES:{morning:'Buenos días',afternoon:'Buenas tardes',evening:'Buenas noches',night:'Buenas noches'},
+  FR:{morning:'Bonjour',afternoon:'Bonjour',evening:'Bonsoir',night:'Bonne nuit'}
+};
+var SB_GREETING_SLOTS=['morning','afternoon','evening','night'];
+function sbGreetingSlot(hour){
+  var h=Math.floor(Number(hour));
+  if(!isFinite(h))return 'night';
+  if(h>=5&&h<12)return 'morning';
+  if(h>=12&&h<18)return 'afternoon';
+  if(h>=18&&h<22)return 'evening';
+  return 'night';
+}
+function sbGreetingText(hour,lang,overrides){
+  var slot=sbGreetingSlot(hour);
+  if(overrides&&Object.prototype.hasOwnProperty.call(overrides,slot))return String(overrides[slot]);
+  return (SB_GREETING_WORDS[String(lang||'').toUpperCase()]||SB_GREETING_WORDS.EN)[slot];
+}
+/* Bare {greeting} or {greeting: …}, so a field named "greetings" stays a field. */
+function sbIsGreetingHead(tokLow){
+  if(tokLow.slice(0,8)!=='greeting')return false;
+  return tokLow.length===8||tokLow.charAt(8)===':';
+}
+function sbGreetingRest(tok){
+  var c=tok.indexOf(':');
+  return c===-1?'':tok.slice(c+1);
+}
+function sbResolveGreetingToken(rest,opts){
+  var parts=String(rest).split(';'),lang='',overrides={};
+  for(var i=0;i<parts.length;i++){
+    var eq=parts[i].indexOf('=');
+    if(eq===-1)continue;
+    var k=parts[i].slice(0,eq).replace(/^\s+|\s+$/g,'').toLowerCase();
+    var v=parts[i].slice(eq+1).replace(/^\s+|\s+$/g,'');
+    if(k==='lang')lang=v;
+    else if(SB_GREETING_SLOTS.indexOf(k)!==-1)overrides[k]=v;
+  }
+  return sbGreetingText(new Date().getHours(),lang||(opts&&opts.lang)||'',overrides);
+}
+
 /* The field a token declares, or '' when it declares none. Mirrors
    _tokenFieldKey in extension/formula-engine.js — one rule shared by
    extractFields and sbFieldContext, so a label can never end up describing a
@@ -1935,7 +1984,7 @@ function sbTokenFieldKey(t){
      t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
      tLow.slice(0,7)==='elseif:'||
      tLow.slice(0,5)==='time:'||
-     sbIsButtonHead(tLow))return '';
+     sbIsButtonHead(tLow)||sbIsGreetingHead(tLow))return '';
   if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
   if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
   return t;
@@ -2087,6 +2136,12 @@ function resolveBody(body,vals,opts){
         i=cl+1;continue;
       }
 
+      /* {greeting[: lang=IT][; morning=…][; night=…]} resolves on its own */
+      if(sbIsGreetingHead(tok.toLowerCase())){
+        out+=sbResolveGreetingToken(sbGreetingRest(tok),opts);
+        i=cl+1;continue;
+      }
+
       var tokLow=tok.toLowerCase();
 
       /* {button …}code{/button} — never printed */
@@ -2152,32 +2207,74 @@ function rememberLang(gkey,lang){
   try{localStorage.setItem('sb_mob_langpref',JSON.stringify(_langPref));}catch(e){}
 }
 
-/* Pinned rows — personal, device-local view preference (same pattern as
-   _langPref), keyed per user so a shared device never leaks pins across
-   accounts. Snippets pin by group key (all language variants pin together);
-   prompts pin by row id. Pinned rows float to the top of their list. */
-var PIN_KEY='sb_mob_pins';
-var _pins={snips:{},prompts:{}};
-function loadPins(){
-  _pins={snips:{},prompts:{}};
-  try{
-    var all=JSON.parse(localStorage.getItem(PIN_KEY)||'{}')||{};
-    var mine=all[USER_ID];
-    if(mine){_pins.snips=mine.snips||{};_pins.prompts=mine.prompts||{};}
-  }catch(e){}
+/* Pinned rows float to the top of their list. The flag is persisted on the
+   row itself — snippets.pinned and prompts.pinned — the same columns the
+   desktop dashboard and Sprintbrain.html write, so a pin survives a reload and
+   shows on every surface. (It used to live in localStorage under 'sb_mob_pins',
+   which the mobile browser evicted on its own, losing the pin.) */
+
+/* Group stable-keys that have at least one pinned language row, for the list
+   sort. Built once per render; groupKey() reads the cached snipIndex(). */
+function pinnedSnipKeys(){
+  var set={};
+  for(var i=0;i<allSnips.length;i++){
+    if(allSnips[i].pinned)set[groupKey(allSnips[i])]=1;
+  }
+  return set;
 }
-function savePins(){
-  try{
-    var all=JSON.parse(localStorage.getItem(PIN_KEY)||'{}')||{};
-    all[USER_ID]={snips:_pins.snips,prompts:_pins.prompts};
-    localStorage.setItem(PIN_KEY,JSON.stringify(all));
-  }catch(e){}
+function isSnipPinned(s){
+  var idx=snipIndex();
+  var g=idx.byKey[idx.keyOf[String(s.id)]];
+  var rows=(g&&g.rows&&g.rows.length)?g.rows:[s];
+  for(var i=0;i<rows.length;i++){ if(rows[i].pinned)return true; }
+  return false;
 }
-function togglePin(map,key){
-  if(!key)return;
-  if(map[key]){delete map[key];showToast('Unpinned');}
-  else{map[key]=1;showToast('Pinned ✓');}
-  savePins();
+/* Toggle the whole language group as a unit — every row gets the flag, so the
+   group pins whichever row another surface happens to read. Optimistic; rolls
+   back on a failed save. */
+function toggleSnippetPin(s){
+  var idx=snipIndex();
+  var g=idx.byKey[idx.keyOf[String(s.id)]];
+  var rows=(g&&g.rows&&g.rows.length)?g.rows:[s];
+  var ids=rows.map(function(r){return r.id;});
+  var next=true;
+  for(var i=0;i<rows.length;i++){ if(rows[i].pinned){ next=false; break; } }
+  var prev={};
+  rows.forEach(function(r){ prev[r.id]=!!r.pinned; });
+  // Reassign allSnips rather than mutate — snipIndex() caches on array identity.
+  allSnips=allSnips.map(function(r){
+    return ids.indexOf(r.id)>-1?Object.assign({},r,{pinned:next}):r;
+  });
+  try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
+  renderList();
+  showToast(next?'Pinned ✓':'Unpinned');
+  fetch(SUPA+'/rest/v1/snippets?id=in.('+ids.map(encodeURIComponent).join(',')+')',{
+    method:'PATCH',
+    headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+    body:JSON.stringify({pinned:next})
+  })
+    .then(function(r){ if(handle401(r))throw new Error('401'); if(!r.ok)throw new Error('pin'); })
+    .catch(function(){
+      allSnips=allSnips.map(function(r){
+        return (r.id in prev)?Object.assign({},r,{pinned:prev[r.id]}):r;
+      });
+      try{localStorage.setItem('sb_mob_cache',JSON.stringify(allSnips));}catch(e){}
+      renderList();
+      showToast('Could not save pin');
+    });
+}
+/* Prompt pin — one owner row, same PATCH shape as promptMarkUsed. */
+function togglePromptPin(p){
+  var next=!p.pinned;
+  p.pinned=next;
+  renderPromptList();
+  showToast(next?'Pinned ✓':'Unpinned');
+  fetch(SUPA+'/rest/v1/prompts?id=eq.'+encodeURIComponent(p.id)
+      +'&user_id=eq.'+encodeURIComponent(USER_ID),
+    {method:'PATCH',headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+     body:JSON.stringify({pinned:next})})
+    .then(function(r){ if(handle401(r))throw new Error('401'); if(!r.ok)throw new Error('pin'); })
+    .catch(function(){ p.pinned=!next; renderPromptList(); showToast('Could not save pin'); });
 }
 /* Lucide "pin" — same icon vocabulary as the dashboard (lucide-react). */
 var PIN_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
@@ -2193,7 +2290,7 @@ var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pst
    round-trips every field (blocks, thinking_mode, etc.) without data loss. */
 var PROMPT_SELECT='id,name,content,type,tags,strategy_type,thinking_mode,preferred_model,'
   +'complexity_level,execution_type,intent_category,output_type,blocks,folder_id,'
-  +'organization_id,created_at,updated_at,last_used_at';
+  +'organization_id,created_at,updated_at,last_used_at,pinned';
 var FOLDER_SHARED_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
 /* ── LOAD ───────────────────────────────────────── */
@@ -2366,8 +2463,8 @@ function folderIcon(f){
    name over another snippet's folder.
 
    The key is `stableKey`, derived from group membership rather than input
-   order, because _pins and _langPref persist it to localStorage and a re-sort
-   must not silently move somebody's pins onto a different snippet. */
+   order, because _langPref persists it to localStorage and a re-sort must not
+   silently move somebody's saved language onto a different snippet. */
 var _grpIdxSrc=null,_grpIdx=null;
 function snipIndex(){
   // allSnips is only ever reassigned, never mutated, so identity is a safe
@@ -2594,7 +2691,7 @@ function renderPromptList(){
   var filtered=filterPrompts(q);
   // Pinned prompts float to the top; each half keeps its updated_at order.
   var pinnedP=[],restP=[];
-  filtered.forEach(function(p){(_pins.prompts[p.id]?pinnedP:restP).push(p);});
+  filtered.forEach(function(p){(p.pinned?pinnedP:restP).push(p);});
   filtered=pinnedP.concat(restP);
 
   // Header count (always total) + live result counter (only while searching).
@@ -2651,7 +2748,7 @@ function renderPromptList(){
     var preview=cleaned.slice(0,120);
     if(cleaned.length>120)preview+='…';
     var when=p.last_used_at?('Used '+timeAgo(p.last_used_at)):'Never used';
-    var isPin=!!_pins.prompts[p.id];
+    var isPin=!!p.pinned;
     return '<div class="prompt-card'+(isPin?' is-pinned':'')+'" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
       +'<div class="prompt-icon">'+folderIcon(getFolderById(p.folder_id))+'</div>'
       +'<div class="prompt-info">'
@@ -2723,7 +2820,7 @@ function openPromptSheet(pid){
   sheetPrompt=p;
   document.getElementById('sb-prompt-sheet-title').textContent=p.name||'Prompt';
   var pinLbl=document.getElementById('sb-prompt-pin-lbl');
-  if(pinLbl)pinLbl.textContent=_pins.prompts[p.id]?'Unpin':'Pin to top';
+  if(pinLbl)pinLbl.textContent=p.pinned?'Unpin':'Pin to top';
   var sh=document.getElementById('sb-prompt-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
@@ -2754,6 +2851,7 @@ function duplicatePrompt(p){
     intent_category:p.intent_category||null,
     output_type:p.output_type||null,
     blocks:p.blocks||null,
+    pinned:false,
     updated_at:now
   };
   fetch(SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT,
@@ -3024,8 +3122,9 @@ function renderList(){
     return groupMatches(g,q,curFolder,curLang);
   });
   // Pinned groups float to the top; each half keeps its existing order.
+  var _pk=pinnedSnipKeys();
   var pinnedGroups=[],restGroups=[];
-  groups.forEach(function(g){(_pins.snips[g.key]?pinnedGroups:restGroups).push(g);});
+  groups.forEach(function(g){(_pk[g.key]?pinnedGroups:restGroups).push(g);});
   groups=pinnedGroups.concat(restGroups);
   document.getElementById('cnt').textContent=groupCount(allSnips);
   if(!groups.length){
@@ -3060,7 +3159,7 @@ function renderList(){
       pills+='<span class="lbadge-more" title="'+esc(g.variants.map(function(v){return v.lang||'EN';}).join(' · '))+'">+'
         +(g.variants.length-MAX_PILLS)+'</span>';
     }
-    var isPin=!!_pins.snips[g.key];
+    var isPin=!!_pk[g.key];
     return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
@@ -3204,26 +3303,21 @@ function renderDetail(snip,keepVals){
       var ddOpts=(c.opts||'').split('\n').filter(function(o){return o.trim()!=='';});
       if(t==='dd'&&ddOpts.length){
         var picks=sbFormMenuPicks(def);
-        if(c.multiple){
-          /* A native multi-select needs a long-press to be usable on a phone.
-             Checkboxes make "pick several" obvious, and getVals() joins them
-             back into one value. Block-level, so its context goes above/below. */
-          blockControl=true;
-          inp='<div class="field-opts">'+ddOpts.map(function(o){
-            return '<label class="field-opt">'
-              +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
-                +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
-              +'<span>'+esc(o)+'</span></label>';
-          }).join('')+'</div>';
-        }else{
-          inp='<select class="field-in field-sel" data-f="'+esc(f)+'">'
-            +(picks.length?'':'<option value="">— select —</option>')
-            +ddOpts.map(function(o){
-              return '<option value="'+esc(o)+'"'
-                +(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>';
-            }).join('')
-            +'</select>';
-        }
+        /* Every option is on screen, for both kinds of menu. A <select> hid the
+           choices behind a control most people did not read as a menu at all,
+           and on a phone it opens a wheel that covers the message. Checkboxes
+           for a multiple menu, radios for a single one. Both are block-level,
+           so the prose around the token goes above and below. */
+        blockControl=true;
+        var oType=c.multiple?'checkbox':'radio';
+        /* Radios need a group name or two menus in one form share a group. */
+        var oName=c.multiple?'':' name="f-'+esc(f)+'"';
+        inp='<div class="field-opts">'+ddOpts.map(function(o){
+          return '<label class="field-opt">'
+            +'<input class="field-in" type="'+oType+'"'+oName+' data-f="'+esc(f)+'" '
+              +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
+            +'<span>'+esc(o)+'</span></label>';
+        }).join('')+'</div>';
       }else if(t==='date'){
         inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">';
       }else if(t==='time'){
@@ -3272,6 +3366,14 @@ function readFields(coerce){
     if(i.type==='checkbox'){
       if(!groups[f])groups[f]=[];
       if(i.checked)groups[f].push(i.value);
+      return;
+    }
+    /* A single-choice menu is a radio group sharing one data-f. Seed the key
+       before looking at checked, so a group with nothing ticked reads '' rather
+       than dropping out of the values. Never coerced: an option is a label. */
+    if(i.type==='radio'){
+      if(v[f]===undefined)v[f]='';
+      if(i.checked)v[f]=i.value;
       return;
     }
     var val=i.value;
@@ -3443,7 +3545,7 @@ function openBottomSheet(id){
   sheetSnip=s;
   document.getElementById('sb-sheet-snippet-title').textContent=s.title||s.id;
   var pinLbl=document.getElementById('sb-sheet-pin-lbl');
-  if(pinLbl)pinLbl.textContent=_pins.snips[groupKey(s)]?'Unpin':'Pin to top';
+  if(pinLbl)pinLbl.textContent=isSnipPinned(s)?'Unpin':'Pin to top';
   var sh=document.getElementById('sb-bottom-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
@@ -3524,9 +3626,8 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       logSnipUse(s,0);
       closeBottomSheet();
     }else if(act==='pin'){
-      togglePin(_pins.snips,groupKey(s));
+      toggleSnippetPin(s);
       closeBottomSheet();
-      renderList();
     }else if(act==='share'){
       shareSnippet(s);
     }else if(act==='info'){
@@ -4029,7 +4130,7 @@ function setupSheetDrag(sheetEl,closeFn){
     var act=li.getAttribute('data-paction');
     var p=sheetPrompt;
     if(act==='copy'){promptCopy(p);closePromptSheet();}
-    else if(act==='pin'){togglePin(_pins.prompts,p.id);closePromptSheet();renderPromptList();}
+    else if(act==='pin'){togglePromptPin(p);closePromptSheet();}
     else if(act==='duplicate'){duplicatePrompt(p);}
     else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
   });
@@ -4391,7 +4492,7 @@ function applyCompanyBrand(){
   });
 }
 if(requireAuth()){
-  applyHeroName();applyCompanyBrand();loadPins();loadSnips();sbCheckAlive();
+  applyHeroName();applyCompanyBrand();loadSnips();sbCheckAlive();
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible')sbCheckAlive();
   });

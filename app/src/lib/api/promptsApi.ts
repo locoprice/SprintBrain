@@ -7,6 +7,8 @@ export interface PromptsApi {
   createPrompt(payload: PromptFormValues): Promise<Prompt>;
   updatePrompt(id: string, patch: Partial<PromptFormValues>) : Promise<Prompt>;
   deletePrompt(id: string): Promise<void>;
+  /** Toggle the pinned flag without touching other fields. */
+  setPinned(id: string, pinned: boolean): Promise<Prompt>;
   /** Atomically counts one execution; returns the authoritative new total. */
   markUsed(id: string): Promise<{ usage_count: number; last_used_at: string }>;
   /** Push prompt to the team Notion DB via Edge Function; writes notion_page_id back. */
@@ -33,6 +35,7 @@ type DbPrompt = {
   blocks: PromptBlock[] | null;
   folder_id: string | null;
   notion_page_id: string | null;
+  pinned: boolean | null;
   updated_at: string;
   updated_by: string | null;
   last_used_at: string | null;
@@ -44,7 +47,7 @@ const PROMPT_SELECT = [
   'id', 'user_id', 'name', 'content', 'shortcut', 'type', 'tags',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'execution_type', 'intent_category', 'output_type', 'blocks',
-  'folder_id', 'notion_page_id', 'updated_at', 'updated_by', 'last_used_at',
+  'folder_id', 'notion_page_id', 'pinned', 'updated_at', 'updated_by', 'last_used_at',
   'usage_count', 'is_malformed',
 ].join(', ');
 
@@ -67,6 +70,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     blocks: row.blocks ?? null,
     folder_id: row.folder_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
+    pinned: row.pinned ?? false,
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? null,
     last_used_at: row.last_used_at,
@@ -163,6 +167,19 @@ export const promptsApi: PromptsApi = {
       .eq('id', id)
       .eq('user_id', userId);
     if (error) throw error;
+  },
+
+  async setPinned(id, pinned) {
+    const userId = await currentUserId();
+    const { data, error } = await supabase
+      .from('prompts')
+      .update({ pinned })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select(PROMPT_SELECT)
+      .single();
+    if (error) throw error;
+    return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
   async markUsed(id) {

@@ -58,6 +58,7 @@ const PROMPT_IN_FOLDER: Prompt = {
   blocks: null,
   folder_id: 'folder-1',
   notion_page_id: null,
+  pinned: false,
   updated_at: '2026-06-19T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,

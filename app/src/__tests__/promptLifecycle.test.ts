@@ -41,6 +41,7 @@ const BASE_PROMPT: Prompt = {
   blocks: null,
   folder_id: null,
   notion_page_id: null,
+  pinned: false,
   updated_at: '2026-06-19T00:00:00Z',
   updated_by: 'user-001',
   last_used_at: null,

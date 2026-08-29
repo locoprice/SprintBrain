@@ -1,7 +1,7 @@
 # MEMORY-002: SprintBrain Memory, spaces, retrieval, and a writable MCP surface
 
-**Status**: In progress. S0, S1 and S2 shipped; S3 is next. Section 13 records every change
-made against this plan while building it.
+**Status**: In progress. S0, S1 and S2 shipped, plus chat capture (v3.1.0, section 14) which
+was not in the slice list. S3 is next. Section 13 records every change made while building.
 **Relationship to MEMORY-001**: extends it. Nothing shipped in v2.168.0 is replaced.
 **Drafted**: 2026-08-23, for review by Valentina and Alessandro.
 
@@ -593,9 +593,9 @@ version bump across all four stamps.
    else is.
 2. **Document size ceiling.** A per-space storage quota is not in this plan. Suggested
    default: 25 MB per space, 5 MB per file.
-3. **Conversation import.** The `conversation` kind is defined but nothing produces it yet.
-   Options: paste a transcript, or an extension capture on supported chat hosts. The second
-   is a larger feature and belongs in its own ticket.
+3. ~~**Conversation import.**~~ **Answered 2026-08-27 (v3.1.0).** The extension capture
+   option shipped: the popup shows a "Save this chat" card on a supported thread, and writes
+   the transcript into a chosen space as `conversation` items. See section 14.
 4. **Team memory.** D2 allows an owner to share a space read-only. Whether a shared space
    may be written to by teammates is a product decision, not a technical one.
 
@@ -672,3 +672,48 @@ read path and the save RPC.
 **One wart found in the preview and fixed:** the spaces count rendered "0 spaces" beside the
 loading line, which reads as an answer before there is one. It is now held back until the
 first load completes.
+
+---
+
+## 14. Chat capture (v3.1.0), outside the original slice list
+
+Not one of S0 to S10. It came from a direct request after S2 shipped, and it answers open
+decision 3 rather than any planned slice.
+
+**What it does.** On a supported AI chat thread, the extension popup shows a "Save this
+chat" card: the detected conversation, a space picker, and a save button. Saving writes the
+transcript into that space as `conversation` items, chunked when it exceeds the body cap.
+
+**Why the popup, given popup.js is the read-only launcher.** The v2.87.0 refactor moved
+snippet and folder MANAGEMENT to the dashboard, which could own it because the dashboard
+reaches the same rows. Capture is not management and has no such alternative: only the
+extension can see a ChatGPT tab. Different concern, same file. It degrades to nothing on
+`Sprintbrain.html`, where chrome-shim's `tabs.query` reports no tabs and the card never
+renders.
+
+**Two sites, not eight.** `chat-capture.js` recognises ChatGPT and Claude only, because
+those are the two whose markup was read directly. Unlike `memory-picker.js`, which finds a
+composer and can fall back to "largest visible editable in the lower viewport", a message
+thread has no structural fallback. When the selectors miss, capture returns null and the
+popup shows nothing, rather than guessing at the biggest block of text on the page. Saving
+a sidebar into someone's memory is the failure worth avoiding; refusing is recoverable.
+
+**The chunker is shared, not local.** `extension/shared/memory-chunk.js` splits on turn
+boundaries, then paragraph, then line, and reports when it had to cut mid-paragraph. S3's
+document upload has the identical problem and must reuse it, or the same file will chunk
+differently depending on whether it arrived as an upload or a transcript. `node
+scripts/check-memory-chunk.js` gates it, and the invariant that matters is that every chunk
+fits under `memory_shards_body_length`: a chunk that does not is a mid-save HTTP 400, not a
+degraded save.
+
+**Two bugs found by reading rather than assuming.** The popup's `supaFetch` resolves with
+the raw `Response` and resolves on HTTP errors too, so the first draft both treated a
+`Response` as an array and reported failed writes as successes. Both fixed against the house
+pattern (`r.ok ? r.json() : []`).
+
+**What is verified and what is not.** Verified: the chunker (12 cases), the extraction path
+against ChatGPT- and Claude-shaped DOM in a real browser, that `Prefer:
+resolution=merge-duplicates,return=minimal` is accepted on an RPC, and that the card's tokens
+resolve to the canonical palette. **Not verified: the selectors against the live sites**,
+because that needs a logged-in ChatGPT session. They are the part most likely to rot, and the
+first thing to check if capture stops finding a conversation.

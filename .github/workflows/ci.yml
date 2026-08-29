@@ -50,6 +50,9 @@ jobs:
       - name: Working memory parity check
         run: node scripts/check-memory-parity.js
 
+      - name: Memory chunk + chat capture check
+        run: node scripts/check-memory-chunk.js
+
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 

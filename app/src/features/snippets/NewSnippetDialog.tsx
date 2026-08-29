@@ -67,6 +67,21 @@ const MULTI_HINT =
   'One body, any mix of languages. No language check here. ' +
   'Use EN, IT, ES or FR for separate translations.';
 
+// The body placeholder's opening word in the language the tab is set to, so an
+// empty EN slot doesn't sit there suggesting "Dear" for an Italian message.
+// Same address words as GENDER_WORDS' unmarked (masculine) form in
+// extension/formula-engine.js (Caro / Querido / Cher) — reused, not invented,
+// so the placeholder and the {gender:} chip never disagree on the word.
+// MULTI carries no single language, so it falls back to English like
+// {greeting} does for the same slot.
+const BODY_PLACEHOLDER: Record<SnippetFormValues['language'], string> = {
+  EN:    'Dear {first_name}, …',
+  IT:    'Caro {first_name}, …',
+  ES:    'Querido {first_name}, …',
+  FR:    'Cher {first_name}, …',
+  MULTI: 'Dear / Caro / Querido {first_name}, …',
+};
+
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
 const LANG_CONFIG: Record<
   SnippetFormValues['language'],
@@ -157,6 +172,8 @@ const QUICK_INSERTS: QuickInsert[] = [
     hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
     hint: 'Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}' },
+  { label: '{greeting}',    value: '{greeting}',             variant: 'cond',    group: 'logic',
+    hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
 ];
 
 const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
@@ -937,7 +954,7 @@ export function NewSnippetDialog() {
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
                   contentError && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
-                placeholder="Dear {first_name}, …"
+                placeholder={BODY_PLACEHOLDER[form.language]}
               />
               {/* Footer: the error and the count share one line. Stacking them
                   would cost the textarea a second row of height for something

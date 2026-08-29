@@ -105,31 +105,73 @@ for (const junk of [null, undefined, '', '{', '}', '{}', '{{', '}}']) {
 
 console.log('OK Template validator passed all ' + vok + ' parity cases');
 
-// ── FILL-FORM PLACEHOLDER PARITY ────────────────────────────────────
-// Three surfaces render a single-choice {formmenu:} as a <select>, and each
-// builds the markup itself. A select with no empty first option is preselected
-// by the browser on option 1 — so the field SHOWS a choice while the surface
-// still reads '' for it, and the pick is silently dropped from the output.
+// ── FILL-FORM MENU CONTROL PARITY ───────────────────────────────────
+// Four surfaces render a {formmenu:} fill form, and each builds the markup
+// itself. Every one of them must show all the options at once: checkboxes for
+// a multiple menu, radios for a single one.
 //
-// popup.js shipped without it from v2.132.0 until this check existed. It is a
-// source assertion rather than a behaviour test because the markup is built
-// inside large DOM-bound render functions, but it pins the exact drift.
-const PLACEHOLDER = '<option value="">— select —</option>';
-const FILL_FORM_RENDERERS = [
-  ['extension/content/content.js', 'in-page overlay'],
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html'],
-  ['app/public/mobile/index.html', 'mobile companion'],
+// This replaced a <select>, which failed twice over. It hid the choices behind
+// a control people did not read as a menu, and a select with no empty first
+// option is preselected by the browser on option 1 — so the field SHOWED a
+// choice while the surface still read '' for it, and the pick was dropped from
+// the output. Radios cannot drift that way: a ticked radio is the value read,
+// and nothing ticked reads ''.
+//
+// Sprintbrain.html's composer is checked here too. It has its own renderer and
+// the old placeholder check never covered it, so it carried that exact bug.
+//
+// Source assertions rather than behaviour tests, because the markup is built
+// inside large DOM-bound render functions, but they pin the exact drift.
+const MENU_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay',
+    "cfg.multiple ? 'checkbox' : 'radio'", ' name="sb-'],
+  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+    "def.multiple?'checkbox':'radio'", ' name="d-'],
+  ['app/public/mobile/index.html', 'mobile companion',
+    "c.multiple?'checkbox':'radio'", ' name="f-'],
+  ['Sprintbrain.html', 'composer',
+    "def.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
 ];
 
-for (const [rel, label] of FILL_FORM_RENDERERS) {
+for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
   const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
-  if (!src.includes(PLACEHOLDER)) {
-    fail(rel + ' (' + label + ') no longer emits the "— select —" option.\n' +
-      '  A {formmenu:} with no default= would show option 1 as picked while the\n' +
-      '  surface reads an empty value, dropping the choice from the output.');
+  if (!src.includes(typeMarker)) {
+    fail(rel + ' (' + label + ') no longer picks the control by menu kind.\n' +
+      '  A single-choice {formmenu:} must render as radios showing every option,\n' +
+      '  not as a dropdown that hides them. Expected to find: ' + typeMarker);
+  }
+  if (!src.includes(nameMarker)) {
+    fail(rel + ' (' + label + ') no longer names its radio group.\n' +
+      '  Without a name= every single-choice menu in one fill form shares a\n' +
+      '  group, so picking in one silently clears the other. Expected: ' + nameMarker);
+  }
+  if (src.includes('— select —')) {
+    fail(rel + ' (' + label + ') still emits a "— select —" option.\n' +
+      '  The dropdown was replaced by an always-visible option list; a leftover\n' +
+      '  select means one surface drifted back.');
   }
 }
-console.log('OK Fill-form placeholder present on all ' + FILL_FORM_RENDERERS.length + ' renderers');
+console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' fill-form surfaces');
+
+// The options are stacked one per line, never wrapped pills: a row of pills
+// reads as tags or filters rather than as a question waiting for an answer.
+// Each surface styles its own list, so the layout is pinned on all of them.
+const MENU_OPTION_CSS = [
+  ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
+  ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
+  ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
+  ['Sprintbrain.html', 'composer', '.nv-comp-multi{display:flex;flex-direction:column'],
+  ['app/public/mobile/index.html', 'mobile companion', '.field-opts{display:flex;flex-direction:column'],
+];
+
+for (const [rel, label, marker] of MENU_OPTION_CSS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  if (!src.includes(marker)) {
+    fail(rel + ' (' + label + ') no longer stacks the menu options one per line.\n' +
+      '  Expected to find: ' + marker);
+  }
+}
+console.log('OK Menu options stack one per line on all ' + MENU_OPTION_CSS.length + ' surfaces');
 
 // showOverlay is reached from three places — the trigger, the picker and the
 // right-click context menu. Two of them passed the raw snippet, whose field_cfg
@@ -397,3 +439,135 @@ for (const body of CONTEXT_CASES) {
 }
 
 console.log('OK Field-context parity passed all ' + cok + ' cases');
+
+// ── TIME-OF-DAY GREETING ────────────────────────────────────────────
+// {greeting} prints the words for the hour it is sent, in the snippet's own
+// language. The table is duplicated on the phone for the same reason every
+// other resolver is (mobile cannot load the engine), so it is pinned here hour
+// by hour: a drift means the desktop opens a message with "Buonasera" while the
+// phone opens the same snippet with "Good evening".
+for (const fn of ['sbGreetingSlot', 'sbGreetingText', 'sbIsGreetingHead']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+if (typeof engine.sbGreetingText !== 'function' || typeof engine.sbGreetingSlot !== 'function') {
+  fail('formula-engine no longer exports sbGreetingSlot / sbGreetingText');
+}
+
+// The four thresholds, stated as the boundaries rather than as sample hours:
+// each pair is the last hour of one slot and the first of the next.
+const SLOT_BOUNDS = [
+  [0, 'night'], [4, 'night'], [5, 'morning'], [11, 'morning'],
+  [12, 'afternoon'], [17, 'afternoon'], [18, 'evening'], [21, 'evening'],
+  [22, 'night'], [23, 'night'],
+];
+for (const [hour, want] of SLOT_BOUNDS) {
+  for (const [label, slot] of [['engine', engine.sbGreetingSlot], ['mobile', mobile.sbGreetingSlot]]) {
+    if (slot(hour) !== want) {
+      fail(label + ' put hour ' + hour + ' in "' + slot(hour) + '", expected "' + want + '"');
+    }
+  }
+}
+
+// Spanish shares one phrase across evening and night, French across morning and
+// afternoon. Both are the language, so a "fix" that de-duplicates them is a bug.
+const GREETING_SPEC = {
+  EN: ['Good morning', 'Good afternoon', 'Good evening', 'Good night'],
+  IT: ['Buongiorno', 'Buon pomeriggio', 'Buonasera', 'Buona notte'],
+  ES: ['Buenos días', 'Buenas tardes', 'Buenas noches', 'Buenas noches'],
+  FR: ['Bonjour', 'Bonjour', 'Bonsoir', 'Bonne nuit'],
+};
+const SLOT_HOUR = { morning: 9, afternoon: 15, evening: 20, night: 2 };
+const SLOT_ORDER = ['morning', 'afternoon', 'evening', 'night'];
+for (const lang of Object.keys(GREETING_SPEC)) {
+  SLOT_ORDER.forEach((slot, idx) => {
+    const want = GREETING_SPEC[lang][idx];
+    const got = engine.sbGreetingText(SLOT_HOUR[slot], lang);
+    if (got !== want) {
+      fail('greeting ' + lang + '/' + slot + ' -> ' + JSON.stringify(got) +
+        ', expected ' + JSON.stringify(want));
+    }
+  });
+}
+
+// Every hour, every language, plus the shapes that have to degrade rather than
+// throw: an unknown language falls back to English, an override wins, and one
+// declared empty prints nothing.
+const OVERRIDE_CASES = [
+  undefined,
+  {},
+  { morning: 'Guten Morgen', afternoon: 'Guten Tag', evening: 'Guten Abend', night: 'Gute Nacht' },
+  { night: '' },
+  { evening: 'Boa noite' },
+];
+let gok = 0;
+for (let hour = 0; hour < 24; hour++) {
+  for (const lang of ['EN', 'IT', 'ES', 'FR', 'en', 'it', 'MULTI', 'DE', '', null, undefined]) {
+    for (const ov of OVERRIDE_CASES) {
+      const want = engine.sbGreetingText(hour, lang, ov);
+      const got = mobile.sbGreetingText(hour, lang, ov);
+      if (got !== want) {
+        fail('greeting drift at hour ' + hour + ' lang ' + JSON.stringify(lang) +
+          ' overrides ' + JSON.stringify(ov) +
+          '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+      }
+      if (typeof want !== 'string') fail('greeting returned a non-string at hour ' + hour);
+      gok++;
+    }
+  }
+}
+
+// An unknown language must land on English, never on nothing.
+for (const lang of ['MULTI', 'DE', '', null, undefined, 'nonsense']) {
+  if (engine.sbGreetingText(9, lang) !== 'Good morning') {
+    fail('greeting for unknown language ' + JSON.stringify(lang) + ' did not fall back to English');
+  }
+}
+
+// A greeting resolves itself, so it must never surface as a field to fill in,
+// on either surface. A field genuinely named {greetings} still must. The engine
+// keeps _tokenFieldKey private, so it is read through extractFields; mobile
+// exposes the rule itself (extractFields sits outside the sliced region).
+const KEY_CASES = [
+  ['greeting', ''],
+  ['greeting: lang=ES', ''],
+  ['GREETING', ''],
+  ['Greeting: lang=IT', ''],
+  ['greetings', 'greetings'],
+  ['NAME', 'NAME'],
+];
+for (const [tok, want] of KEY_CASES) {
+  const got = mobile.sbTokenFieldKey(tok);
+  if (got !== want) {
+    fail('mobile sbTokenFieldKey(' + JSON.stringify(tok) + ') -> ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want));
+  }
+  const viaEngine = engine.extractFields('{' + tok + '}');
+  const engineKey = viaEngine.length ? viaEngine[0] : '';
+  if (engineKey !== want) {
+    fail('engine extractFields({' + tok + '}) -> ' + JSON.stringify(viaEngine) +
+      ', expected ' + (want ? JSON.stringify([want]) : '[]'));
+  }
+}
+
+// The token is actually wired into resolveBody, asserted against the clock the
+// engine itself reads. Re-run if the hour ticks between the two reads, so the
+// gate cannot flake once an hour.
+let wired = null;
+for (let attempt = 0; attempt < 3 && wired === null; attempt++) {
+  const before = new Date().getHours();
+  const out = engine.resolveBody('{greeting: lang=IT}!', {});
+  if (new Date().getHours() === before) wired = [out, engine.sbGreetingText(before, 'IT') + '!'];
+}
+if (wired === null) fail('could not read the clock twice within one hour');
+if (wired[0] !== wired[1]) {
+  fail('resolveBody("{greeting: lang=IT}!") -> ' + JSON.stringify(wired[0]) +
+    ', expected ' + JSON.stringify(wired[1]) + ': the token is not wired into the resolver');
+}
+
+// opts.lang is the snippet's language; a lang= on the token overrides it.
+const nowSlotEN = engine.sbGreetingText(new Date().getHours(), 'EN');
+if (engine.resolveBody('{greeting}', {}, { lang: 'MULTI' }) !== nowSlotEN) {
+  fail('a MULTI body did not fall back to English');
+}
+
+console.log('OK Time-of-day greeting parity passed all ' + gok + ' hour/language cases');

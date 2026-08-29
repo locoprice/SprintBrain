@@ -854,10 +854,10 @@ body.cm-locked{overflow:hidden}
 .cm-close:hover{background:var(--bg-alt);color:var(--text)}
 /* The embed scrolls inside its own box rather than growing the dialog, so the
    modal never outgrows the viewport and needs no height-listener script. */
-.cm-frame{display:block;width:100%;height:min(78vh,620px);border:0;background:var(--card)}
+.cm-frame{display:block;width:100%;height:min(85vh,720px);border:0;background:var(--card)}
 @media(max-width:600px){
   .cm-backdrop{padding:12px}
-  .cm-frame{height:min(82vh,560px)}}
+  .cm-frame{height:min(88vh,620px)}}
 
 /* ── PARTNER SPOTLIGHT ─────────────────────────────────────── */
 .ps{
@@ -955,6 +955,7 @@ body.cm-locked{overflow:hidden}
     <div class="nav-links">
       <a href="#features" class="nav-link">Funciones</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
+      <a href="mailto:sprintbrainapp@gmail.com" class="nav-link" id="nav-contact-open">Contacto</a>
       <a href="https://github.com/locoprice/SprintBrain" class="btn btn-github btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star en GitHub</a>
       <a href="https://chromewebstore.google.com/detail/khdpimdpkgmmaimpbfjgglnpaemmopoo" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Añadir a Chrome</a>
       <div class="nav-account">
@@ -1677,11 +1678,11 @@ LeibTour Team</div>
   </div>
 </div>
 
-<!-- Contact modal. The dialog carries no prose of its own: it is labelled by
-     the footer link that opens it and the embed supplies its own heading, so
-     adding the form needed no new copy for the translated pages. The iframe
-     src and title are set in JS on first open (see the contact modal IIFE). -->
-<div class="cm-backdrop" id="cm-backdrop" role="dialog" aria-modal="true" aria-labelledby="contact-open" aria-hidden="true">
+<!-- Contact modal. The dialog carries no prose of its own: it takes its
+     accessible name in JS from the control that opened it (see the contact
+     modal IIFE), and the embed supplies its own heading, so adding the form
+     needed no new copy for the translated pages. -->
+<div class="cm-backdrop" id="cm-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="cm-dialog">
     <button type="button" class="cm-close" id="cm-close" aria-label="Cerrar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -1859,14 +1860,16 @@ LeibTour Team</div>
 })();
 
 /* Contact modal: frames the JotForm contact form so asking a question never
-   costs a page. The footer link keeps its mailto href as the no-JS fallback. */
+   costs a page. Every opener keeps its mailto href as the no-JS fallback. */
 (function(){
   var FORM_SRC='https://form.jotform.com/32942454514858';
-  var trigger=document.getElementById('contact-open');
+  var triggers=document.querySelectorAll('#contact-open,#nav-contact-open');
   var backdrop=document.getElementById('cm-backdrop');
   var closeBtn=document.getElementById('cm-close');
   var frame=document.getElementById('cm-frame');
-  if(!trigger||!backdrop||!closeBtn||!frame)return;
+  if(!triggers.length||!backdrop||!closeBtn||!frame)return;
+
+  var opener=null;
 
   function isOpen(){return backdrop.classList.contains('cm-open');}
   // Same two-frame deferral the drawer needs: a click's own focus default
@@ -1875,13 +1878,16 @@ LeibTour Team</div>
     requestAnimationFrame(function(){requestAnimationFrame(function(){el.focus();});});
   }
 
-  function openModal(){
-    if(!frame.getAttribute('src')){
-      frame.setAttribute('src',FORM_SRC);
-      // Name the frame from the link that opened it, so the accessible name
-      // is whatever that page's language already calls it.
-      frame.setAttribute('title',trigger.textContent);
-    }
+  function openModal(from){
+    opener=from;
+    if(!frame.getAttribute('src'))frame.setAttribute('src',FORM_SRC);
+    // Name the frame and the dialog from the control that opened them, so the
+    // accessible name is whatever that page's language already calls it. Uses
+    // aria-label, not aria-labelledby on an opener: they are mailto: anchors
+    // and name computation renders one as the raw address
+    // ("Mail to sprintbrainapp@gmail.com") instead of its text.
+    frame.setAttribute('title',from.textContent);
+    backdrop.setAttribute('aria-label',from.textContent);
     backdrop.classList.add('cm-open');
     backdrop.setAttribute('aria-hidden','false');
     document.body.classList.add('cm-locked');
@@ -1893,11 +1899,13 @@ LeibTour Team</div>
     document.body.classList.remove('cm-locked');
   }
 
-  trigger.addEventListener('click',function(e){e.preventDefault();openModal();});
-  closeBtn.addEventListener('click',function(){closeModal();focusAfterClick(trigger);});
+  triggers.forEach(function(t){
+    t.addEventListener('click',function(e){e.preventDefault();openModal(t);});
+  });
+  closeBtn.addEventListener('click',function(){closeModal();if(opener)focusAfterClick(opener);});
   backdrop.addEventListener('click',function(e){if(e.target===backdrop)closeModal();});
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'&&isOpen()){closeModal();trigger.focus();}
+    if(e.key==='Escape'&&isOpen()){closeModal();if(opener)opener.focus();}
   });
 })();
 
@@ -2065,7 +2073,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.0.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.3.2';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

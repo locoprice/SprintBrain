@@ -70,6 +70,8 @@ interface PromptStore {
   addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
   removePrompt: (id: string) => Promise<void>;
+  /** Toggle the pinned flag on a prompt. Optimistic; rolls back on failure. */
+  togglePin: (id: string) => Promise<void>;
   markUsed: (id: string) => void;
   /** Create a folder and add it to the store. */
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
@@ -219,6 +221,32 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
     }
   },
 
+  togglePin: async (id) => {
+    const target = get().prompts.find((p) => p.id === id);
+    if (!target) return;
+    const next = !target.pinned;
+    // Optimistic update.
+    set((s) => ({
+      prompts: s.prompts.map((p) => (p.id === id ? { ...p, pinned: next } : p)),
+    }));
+    try {
+      const row = await promptsApi.setPinned(id, next);
+      set((s) => ({
+        prompts: s.prompts.map((p) => (p.id === id ? row : p)),
+        error: null,
+      }));
+    } catch (err) {
+      // Rollback on failure.
+      set((s) => ({
+        prompts: s.prompts.map((p) =>
+          p.id === id ? { ...p, pinned: target.pinned } : p,
+        ),
+        error: err instanceof Error ? err.message : 'Failed to toggle pin',
+      }));
+      throw err;
+    }
+  },
+
   markUsed: (id) => {
     // Optimistic bump so the card updates on click, then reconciled against the
     // count the RPC actually committed — concurrent uses from another surface
@@ -284,26 +312,34 @@ export function useFilteredPrompts(): Prompt[] {
     [labelCatalog, filters.labels],
   );
 
-  return useMemo(() => prompts.filter((p) => {
-    if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
-    if (!matchesLabelFilter(p.id, labelScope, labelAssignments)) return false;
-    if (filters.type !== 'all' && p.type !== filters.type) return false;
-    if (filters.strategy && p.strategy_type !== filters.strategy) return false;
-    if (filters.intent && p.intent_category !== filters.intent) return false;
-    if (filters.model && p.preferred_model !== filters.model) return false;
-    if (filters.complexity && p.complexity_level !== filters.complexity) return false;
-    if (filters.executionType && p.execution_type !== filters.executionType) return false;
-    if (filters.outputType && p.output_type !== filters.outputType) return false;
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      const inName = p.name.toLowerCase().includes(q);
-      const inTags = p.tags.some((t) => t.toLowerCase().includes(q));
-      const inIntent = (p.intent_category ?? '').toLowerCase().includes(q);
-      const inContent = p.content.toLowerCase().includes(q);
-      if (!inName && !inTags && !inIntent && !inContent) return false;
-    }
-    return true;
-  }), [prompts, filters, selectedFolderId, labelAssignments, labelScope]);
+  return useMemo(() => {
+    const list = prompts.filter((p) => {
+      if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
+      if (!matchesLabelFilter(p.id, labelScope, labelAssignments)) return false;
+      if (filters.type !== 'all' && p.type !== filters.type) return false;
+      if (filters.strategy && p.strategy_type !== filters.strategy) return false;
+      if (filters.intent && p.intent_category !== filters.intent) return false;
+      if (filters.model && p.preferred_model !== filters.model) return false;
+      if (filters.complexity && p.complexity_level !== filters.complexity) return false;
+      if (filters.executionType && p.execution_type !== filters.executionType) return false;
+      if (filters.outputType && p.output_type !== filters.outputType) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        const inName = p.name.toLowerCase().includes(q);
+        const inTags = p.tags.some((t) => t.toLowerCase().includes(q));
+        const inIntent = (p.intent_category ?? '').toLowerCase().includes(q);
+        const inContent = p.content.toLowerCase().includes(q);
+        if (!inName && !inTags && !inIntent && !inContent) return false;
+      }
+      return true;
+    });
+    // Pinned prompts float to the top; the sort is stable so each half keeps
+    // its incoming order (updated_at desc from the store).
+    return [...list].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return 0;
+    });
+  }, [prompts, filters, selectedFolderId, labelAssignments, labelScope]);
 }
 
 export function useActiveFilterCount(): number {

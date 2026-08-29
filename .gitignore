@@ -18,5 +18,8 @@ Thumbs.db
 # Session scratch — multi-session task progress, never commit
 _progress.md
 
+# MCP client config — carries the memory server's personal access token. Never commit.
+.mcp.json
+
 # Extension build artifacts (sprintbrain_vX.Y.Z.zip from packaging)
 *.zip

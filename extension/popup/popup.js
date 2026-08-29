@@ -153,7 +153,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at&order=updated_at.desc'
+      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -1583,21 +1583,17 @@ function renderDetailHtml(s){
           var opts=(def.opts||'').split('\n').filter(Boolean);
           var picks=fieldMenuPicks(val);
           var wide=def.cols?' style="width:'+def.cols+'ch;max-width:100%"':'';
-          if(def.multiple){
-            // multiple=yes menus fill as checkboxes — one data-fkey per group.
-            blockControl=true;
-            inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
-              return '<label class="d-opt"><input type="checkbox" data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
-            }).join('')+'</div>';
-          } else {
-            // A menu with no default= needs the empty first option: without it
-            // the browser preselects option 1, so the field SHOWS a choice while
-            // currentFieldVals still reads '' — "Copy filled" would then drop a
-            // value the user can see. Same guard as content.js and mobile.
-            inp='<select data-fkey="'+esc(k)+'"'+wide+'>'
-              +(picks.length?'':'<option value="">— select —</option>')
-              +opts.map(function(o){ return '<option value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
-          }
+          // Every option is on screen, for both kinds of menu. A <select> hid
+          // the choices behind a control most people did not read as a menu.
+          // Checkboxes for a multiple menu, radios for a single one; both are
+          // block-level, so the prose around the token goes above and below.
+          blockControl=true;
+          var oType=def.multiple?'checkbox':'radio';
+          // Radios need a group name or two menus in one form share a group.
+          var oName=def.multiple?'':' name="d-'+esc(k)+'"';
+          inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
+            return '<label class="d-opt"><input type="'+oType+'"'+oName+' data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
+          }).join('')+'</div>';
         } else if(def.type==='date'){
           inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
         } else {
@@ -1844,6 +1840,17 @@ function runDetailButton(btn){
     var target=box.querySelector('[data-fkey="'+name+'"]');
     if(!target){ errs.push('No field called '+name); continue; }
     if(target.type==='checkbox'){ errs.push(name+' is a multi-choice menu'); continue; }
+    // A single-choice menu is a radio group: tick the matching option rather
+    // than writing over the first radio's value, which would rewrite a choice.
+    if(target.type==='radio'){
+      var want=String(res.values[name]), matched=false;
+      box.querySelectorAll('input[type=radio][data-fkey="'+name+'"]').forEach(function(r){
+        if(r.value===want){ r.checked=true; matched=true; }
+      });
+      if(matched) detailFieldVals[name]=want;
+      else errs.push(name+' has no option "'+want+'"');
+      continue;
+    }
     target.value=String(res.values[name]);
     detailFieldVals[name]=target.value;
   }
@@ -1911,6 +1918,9 @@ function renderPrompts(q) {
     el.innerHTML = '<div class="p-empty">'+(q?'No prompts match &ldquo;'+esc(q)+'&rdquo;':'No prompts yet.<br>Create and edit prompts in the <strong>dashboard</strong>.')+'</div>';
     return;
   }
+  // Pinned prompts float to the top (pin is set on the dashboard or mobile);
+  // slice first so the shared `prompts` array is never reordered in place.
+  filtered = filtered.slice().sort(function(a, b) { return (b.pinned?1:0) - (a.pinned?1:0); });
   var pt = triggerCfg.promptTrigger || '"""';
   var h = '';
   filtered.forEach(function(p) {
@@ -2311,6 +2321,10 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       signOutBtn.addEventListener('click', function() { window.sbSignOut(); });
     }
     if (!booted) { booted = true; boot(); }
+    // Runs after a session exists, because the capture card reads memory_spaces
+    // and writes through the user's own JWT. Self-guarding: it hides itself on
+    // any page that is not a supported chat thread.
+    try { if (window.sbInitChatCapture) window.sbInitChatCapture(); } catch(e) {}
   }
 
   primary.addEventListener('click', function() {
@@ -2414,4 +2428,158 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
       showGate();
     });
   };
+})();
+
+// ── SAVE THIS CHAT ────────────────────────────────────────────────────────────
+//
+// Captures the conversation on the active tab and stores it as memory items.
+//
+// Why this lives in the popup, given popup.js is the read-only launcher: the
+// v2.87.0 refactor moved snippet and folder MANAGEMENT to the dashboard, which
+// could own it because the dashboard can reach the same rows. Capture is not
+// management and has no such option. Only the extension can see your ChatGPT
+// tab, so this is the one surface where the action is possible at all.
+//
+// Degrades to nothing on Sprintbrain.html. chrome-shim's tabs.query reports no
+// tabs, so the card stays hidden and never asks for a conversation that a web
+// page could not read anyway.
+(function() {
+  'use strict';
+
+  // Chunks are written one at a time, not in parallel. memory_save_shard takes
+  // a FOR UPDATE lock and assigns version numbers, and concurrent writes of
+  // parts of one transcript would race for no gain on a handful of rows.
+  //
+  // ⚠ supaFetch RESOLVES ON HTTP ERRORS. It logs the body and resolves with the
+  // Response either way, so the status has to be checked explicitly here or a
+  // rejected write reports success.
+  function saveSequentially(items, index, done) {
+    if (index >= items.length) { done(null, items.length); return; }
+    supaFetch('rpc/memory_save_shard', 'POST', items[index], '')
+      .then(function(r) {
+        if (!r || !r.ok) { done(new Error('http_' + (r && r.status)), index); return; }
+        saveSequentially(items, index + 1, done);
+      })
+      .catch(function(err) { done(err, index); });
+  }
+
+  function initCapture() {
+    var card = document.getElementById('cap-card');
+    if (!card || card._wired) return;
+
+    var metaEl  = document.getElementById('cap-meta');
+    var selEl   = document.getElementById('cap-space');
+    var saveEl  = document.getElementById('cap-save');
+    var noteEl  = document.getElementById('cap-note');
+    if (!metaEl || !selEl || !saveEl || !noteEl) return;
+
+    function note(text, isError) {
+      noteEl.textContent = text || '';
+      noteEl.className = 'cap-note' + (isError ? ' err' : '');
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      var tab = tabs && tabs[0];
+      // id < 0 is the shim's synthetic tab: no page to talk to.
+      if (!tab || typeof tab.id !== 'number' || tab.id < 0) return;
+
+      chrome.tabs.sendMessage(tab.id, { type: 'SB_CAPTURE_CHAT' }, function(res) {
+        // Not a supported chat, no thread on screen, or no content script here.
+        // In every case the right answer is to show nothing.
+        if (chrome.runtime.lastError || !res || !res.ok || !res.data) return;
+
+        var meta   = res.data.meta;
+        var blocks = res.data.blocks || [];
+        if (!blocks.length) return;
+
+        card._wired = true;
+        card.style.display = '';
+        metaEl.textContent = meta.host + ' · ' + meta.turns.length + ' messages';
+        metaEl.title = meta.title;
+
+        supaFetch('memory_spaces', 'GET', null,
+                  'select=id,name&deleted_at=is.null&order=is_default.desc,name.asc')
+          .then(function(r) { return r && r.ok ? r.json() : []; })
+          .then(function(spaces) {
+            if (!spaces || !spaces.length) {
+              selEl.style.display = 'none';
+              saveEl.disabled = true;
+              note('Create a memory space in the dashboard first.');
+              return;
+            }
+            selEl.innerHTML = '';
+            for (var i = 0; i < spaces.length; i++) {
+              var opt = document.createElement('option');
+              opt.value = spaces[i].id;
+              opt.textContent = spaces[i].name;
+              selEl.appendChild(opt);
+            }
+          })
+          .catch(function() {
+            saveEl.disabled = true;
+            note('Could not load your spaces.', true);
+          });
+
+        saveEl.addEventListener('click', function() {
+          if (saveEl.disabled) return;
+          var spaceId = selEl.value;
+          if (!spaceId) return;
+
+          var chunker = window.SBMemoryChunk;
+          if (!chunker) { note('Chunker unavailable.', true); return; }
+
+          var packed = chunker.chunkBlocks(blocks);
+          var parts  = packed.chunks;
+          if (!parts.length) { note('Nothing to save.', true); return; }
+
+          // Names are unique per user among live rows, so a bare title collides
+          // the second time the same chat is saved. The timestamp is what keeps
+          // re-saving a conversation an append rather than an error.
+          var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+          var base  = meta.title.slice(0, 40);
+
+          var payloads = [];
+          for (var i = 0; i < parts.length; i++) {
+            var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
+            payloads.push({
+              p_shard_id: null,
+              p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
+              p_summary: (meta.host + ' conversation, ' + meta.turns.length + ' messages').slice(0, 280),
+              p_body: parts[i],
+              p_editor_display: 'Extension',
+              p_space_id: spaceId,
+              p_kind: 'conversation',
+              // The source URL is the one piece of provenance worth keeping:
+              // it is how someone gets back to the original thread later.
+              p_metadata: { source_url: meta.url, host: meta.host, part: i + 1, parts: parts.length },
+              p_pinned: false,
+              p_priority: 0,
+              p_edit_note: null,
+              p_surface: 'extension'
+            });
+          }
+
+          saveEl.disabled = true;
+          saveEl.textContent = 'Saving…';
+          note('');
+
+          saveSequentially(payloads, 0, function(err, count) {
+            if (err) {
+              saveEl.disabled = false;
+              saveEl.textContent = 'Save';
+              note(count > 0 ? 'Saved ' + count + ' of ' + payloads.length + ', then failed.'
+                             : 'Could not save this chat.', true);
+              return;
+            }
+            saveEl.textContent = 'Saved';
+            var detail = payloads.length > 1 ? ' as ' + payloads.length + ' items' : '';
+            note('Saved to memory' + detail +
+                 (packed.forced ? '. ' + packed.forced + ' long message(s) were split mid-paragraph.' : '.'));
+          });
+        });
+      });
+    });
+  }
+
+  window.sbInitChatCapture = initCapture;
 })();

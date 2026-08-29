@@ -23,8 +23,13 @@ export interface SnippetsApi {
   createSnippetsBatch(items: SnippetFormValues[]): Promise<SnippetRow[]>;
   updateSnippet(id: string, patch: Partial<SnippetFormValues>): Promise<SnippetRow>;
   deleteSnippet(id: string): Promise<void>;
-  /** Toggle pinned flag without touching other fields. */
-  setPinned(id: string, pinned: boolean): Promise<SnippetRow>;
+  /**
+   * Toggle the pinned flag without touching other fields. Accepts a list so a
+   * multilingual snippet pins as a group — every surface (mobile, popup,
+   * Sprintbrain.html) reads "pinned" as an all-or-nothing group property.
+   * Returns only the rows RLS let it write.
+   */
+  setPinned(ids: string | string[], pinned: boolean): Promise<SnippetRow[]>;
   /** Toggle is_active flag without touching other fields. */
   setActive(id: string, isActive: boolean): Promise<SnippetRow>;
   /** Insert a copy of an existing snippet with a "(copy)" name suffix. */
@@ -383,15 +388,17 @@ export const snippetsApi: SnippetsApi = {
     return foldersApi.deleteFolder(id);
   },
 
-  async setPinned(id, pinned) {
+  async setPinned(ids, pinned) {
+    const list = Array.isArray(ids) ? ids : [ids];
+    // No `updated_at` bump: a pin is a view preference, not a content edit, so it
+    // must not restamp `updated_by` or reorder "recently modified".
     const { data, error } = await supabase
       .from('snippets')
-      .update({ pinned, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select(SNIPPET_SELECT)
-      .single();
+      .update({ pinned })
+      .in('id', list)
+      .select(SNIPPET_SELECT);
     if (error) throw error;
-    return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
+    return ((data ?? []) as unknown as DbSnippetJoined[]).map((r) => dbSnippetToSnippetRow(r));
   },
 
   async setActive(id, isActive) {

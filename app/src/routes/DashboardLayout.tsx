@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
-import { ContactModal } from '@/components/layout/ContactModal';
+import { JotFormModal } from '@/components/layout/JotFormModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
 import { PendingInviteBanner } from '@/features/org/PendingInviteBanner';
 import { Toast } from '@/components/ui/Toast';
@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useCompanyFavicon } from '@/lib/useCompanyFavicon';
 import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
+import { SUPPORT_FORM_URL } from '@/lib/links';
 
 const ONBOARDING_SEEN_KEY = 'sb_onboarding_seen';
 
@@ -134,7 +135,12 @@ export function DashboardLayout() {
         </div>
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
-      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
+      <JotFormModal
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        src={SUPPORT_FORM_URL}
+        title="Support"
+      />
       <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} />
       <Toast />
     </div>

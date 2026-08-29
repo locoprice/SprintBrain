@@ -9,6 +9,7 @@ import { useLabelStore } from '@/stores/labelStore';
 import { buildFolderShares } from '@/lib/folderShares';
 import { matchesLabelFilter } from '@/lib/labelUtils';
 import { subtreeIds } from '@/lib/folderTree';
+import { snippetGroupKey } from '@/lib/snippetGrouping';
 import { expandWithDescendants } from '@/lib/labelTree';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
@@ -315,27 +316,39 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   },
 
   togglePin: async (id) => {
-    const target = get().snippets.find((s) => s.id === id);
+    const all = get().snippets;
+    const target = all.find((s) => s.id === id);
     if (!target) return;
     const next = !target.pinned;
+    // Pin the whole language group, not just the acted-on row. Mobile and
+    // Sprintbrain.html do the same, so "pinned" stays an all-or-nothing group
+    // property on every surface. A single-row (bodies-model) snippet is a group
+    // of one. The group key is owner-namespaced, so this never spans owners.
+    const key = snippetGroupKey(target);
+    const groupIds = all.filter((s) => snippetGroupKey(s) === key).map((s) => s.id);
     // Optimistic update.
     set((s) => ({
-      snippets: s.snippets.map((sn) => (sn.id === id ? { ...sn, pinned: next } : sn)),
+      snippets: s.snippets.map((sn) =>
+        groupIds.includes(sn.id) ? { ...sn, pinned: next } : sn,
+      ),
     }));
     try {
-      const row = await snippetsApi.setPinned(id, next);
-      const folder = get().folders.find((f) => f.id === row.folder_id);
+      const rows = await snippetsApi.setPinned(groupIds, next);
+      const byId = new Map(rows.map((r) => [r.id, r]));
       set((s) => ({
-        snippets: s.snippets.map((sn) =>
-          sn.id === id ? { ...row, folder_name: row.folder_name ?? folder?.name ?? null } : sn,
-        ),
+        snippets: s.snippets.map((sn) => {
+          const row = byId.get(sn.id);
+          if (row === undefined) return sn;
+          const folder = s.folders.find((f) => f.id === row.folder_id);
+          return { ...row, folder_name: row.folder_name ?? folder?.name ?? null };
+        }),
         error: null,
       }));
     } catch (err) {
       // Rollback on failure.
       set((s) => ({
         snippets: s.snippets.map((sn) =>
-          sn.id === id ? { ...sn, pinned: target.pinned } : sn,
+          groupIds.includes(sn.id) ? { ...sn, pinned: target.pinned } : sn,
         ),
         error: err instanceof Error ? err.message : 'Failed to toggle pin',
       }));
