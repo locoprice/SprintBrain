@@ -1923,6 +1923,55 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
+/* Greeting for the local time of day. MIRRORED from extension/formula-engine.js
+   (GREETING_WORDS / sbGreetingSlot / sbGreetingText). The phone cannot load
+   that module, so the table lives here too and scripts/check-snippets.js pins
+   the two against each other across all 24 hours.
+
+     morning 05:00 to 11:59 · afternoon 12:00 to 17:59
+     evening 18:00 to 21:59 · night 22:00 to 04:59 */
+var SB_GREETING_WORDS={
+  EN:{morning:'Good morning',afternoon:'Good afternoon',evening:'Good evening',night:'Good night'},
+  IT:{morning:'Buongiorno',afternoon:'Buon pomeriggio',evening:'Buonasera',night:'Buona notte'},
+  ES:{morning:'Buenos días',afternoon:'Buenas tardes',evening:'Buenas noches',night:'Buenas noches'},
+  FR:{morning:'Bonjour',afternoon:'Bonjour',evening:'Bonsoir',night:'Bonne nuit'}
+};
+var SB_GREETING_SLOTS=['morning','afternoon','evening','night'];
+function sbGreetingSlot(hour){
+  var h=Math.floor(Number(hour));
+  if(!isFinite(h))return 'night';
+  if(h>=5&&h<12)return 'morning';
+  if(h>=12&&h<18)return 'afternoon';
+  if(h>=18&&h<22)return 'evening';
+  return 'night';
+}
+function sbGreetingText(hour,lang,overrides){
+  var slot=sbGreetingSlot(hour);
+  if(overrides&&Object.prototype.hasOwnProperty.call(overrides,slot))return String(overrides[slot]);
+  return (SB_GREETING_WORDS[String(lang||'').toUpperCase()]||SB_GREETING_WORDS.EN)[slot];
+}
+/* Bare {greeting} or {greeting: …}, so a field named "greetings" stays a field. */
+function sbIsGreetingHead(tokLow){
+  if(tokLow.slice(0,8)!=='greeting')return false;
+  return tokLow.length===8||tokLow.charAt(8)===':';
+}
+function sbGreetingRest(tok){
+  var c=tok.indexOf(':');
+  return c===-1?'':tok.slice(c+1);
+}
+function sbResolveGreetingToken(rest,opts){
+  var parts=String(rest).split(';'),lang='',overrides={};
+  for(var i=0;i<parts.length;i++){
+    var eq=parts[i].indexOf('=');
+    if(eq===-1)continue;
+    var k=parts[i].slice(0,eq).replace(/^\s+|\s+$/g,'').toLowerCase();
+    var v=parts[i].slice(eq+1).replace(/^\s+|\s+$/g,'');
+    if(k==='lang')lang=v;
+    else if(SB_GREETING_SLOTS.indexOf(k)!==-1)overrides[k]=v;
+  }
+  return sbGreetingText(new Date().getHours(),lang||(opts&&opts.lang)||'',overrides);
+}
+
 /* The field a token declares, or '' when it declares none. Mirrors
    _tokenFieldKey in extension/formula-engine.js — one rule shared by
    extractFields and sbFieldContext, so a label can never end up describing a
@@ -1935,7 +1984,7 @@ function sbTokenFieldKey(t){
      t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
      tLow.slice(0,7)==='elseif:'||
      tLow.slice(0,5)==='time:'||
-     sbIsButtonHead(tLow))return '';
+     sbIsButtonHead(tLow)||sbIsGreetingHead(tLow))return '';
   if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
   if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
   return t;
@@ -2084,6 +2133,12 @@ function resolveBody(body,vals,opts){
       if(tok.slice(0,7).toLowerCase()==='gender:'){
         gLock=out.length;
         out+=sbResolveGenderToken(tok.slice(7),vals,opts);
+        i=cl+1;continue;
+      }
+
+      /* {greeting[: lang=IT][; morning=…][; night=…]} resolves on its own */
+      if(sbIsGreetingHead(tok.toLowerCase())){
+        out+=sbResolveGreetingToken(sbGreetingRest(tok),opts);
         i=cl+1;continue;
       }
 

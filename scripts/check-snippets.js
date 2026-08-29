@@ -397,3 +397,135 @@ for (const body of CONTEXT_CASES) {
 }
 
 console.log('OK Field-context parity passed all ' + cok + ' cases');
+
+// ── TIME-OF-DAY GREETING ────────────────────────────────────────────
+// {greeting} prints the words for the hour it is sent, in the snippet's own
+// language. The table is duplicated on the phone for the same reason every
+// other resolver is (mobile cannot load the engine), so it is pinned here hour
+// by hour: a drift means the desktop opens a message with "Buonasera" while the
+// phone opens the same snippet with "Good evening".
+for (const fn of ['sbGreetingSlot', 'sbGreetingText', 'sbIsGreetingHead']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+if (typeof engine.sbGreetingText !== 'function' || typeof engine.sbGreetingSlot !== 'function') {
+  fail('formula-engine no longer exports sbGreetingSlot / sbGreetingText');
+}
+
+// The four thresholds, stated as the boundaries rather than as sample hours:
+// each pair is the last hour of one slot and the first of the next.
+const SLOT_BOUNDS = [
+  [0, 'night'], [4, 'night'], [5, 'morning'], [11, 'morning'],
+  [12, 'afternoon'], [17, 'afternoon'], [18, 'evening'], [21, 'evening'],
+  [22, 'night'], [23, 'night'],
+];
+for (const [hour, want] of SLOT_BOUNDS) {
+  for (const [label, slot] of [['engine', engine.sbGreetingSlot], ['mobile', mobile.sbGreetingSlot]]) {
+    if (slot(hour) !== want) {
+      fail(label + ' put hour ' + hour + ' in "' + slot(hour) + '", expected "' + want + '"');
+    }
+  }
+}
+
+// Spanish shares one phrase across evening and night, French across morning and
+// afternoon. Both are the language, so a "fix" that de-duplicates them is a bug.
+const GREETING_SPEC = {
+  EN: ['Good morning', 'Good afternoon', 'Good evening', 'Good night'],
+  IT: ['Buongiorno', 'Buon pomeriggio', 'Buonasera', 'Buona notte'],
+  ES: ['Buenos días', 'Buenas tardes', 'Buenas noches', 'Buenas noches'],
+  FR: ['Bonjour', 'Bonjour', 'Bonsoir', 'Bonne nuit'],
+};
+const SLOT_HOUR = { morning: 9, afternoon: 15, evening: 20, night: 2 };
+const SLOT_ORDER = ['morning', 'afternoon', 'evening', 'night'];
+for (const lang of Object.keys(GREETING_SPEC)) {
+  SLOT_ORDER.forEach((slot, idx) => {
+    const want = GREETING_SPEC[lang][idx];
+    const got = engine.sbGreetingText(SLOT_HOUR[slot], lang);
+    if (got !== want) {
+      fail('greeting ' + lang + '/' + slot + ' -> ' + JSON.stringify(got) +
+        ', expected ' + JSON.stringify(want));
+    }
+  });
+}
+
+// Every hour, every language, plus the shapes that have to degrade rather than
+// throw: an unknown language falls back to English, an override wins, and one
+// declared empty prints nothing.
+const OVERRIDE_CASES = [
+  undefined,
+  {},
+  { morning: 'Guten Morgen', afternoon: 'Guten Tag', evening: 'Guten Abend', night: 'Gute Nacht' },
+  { night: '' },
+  { evening: 'Boa noite' },
+];
+let gok = 0;
+for (let hour = 0; hour < 24; hour++) {
+  for (const lang of ['EN', 'IT', 'ES', 'FR', 'en', 'it', 'MULTI', 'DE', '', null, undefined]) {
+    for (const ov of OVERRIDE_CASES) {
+      const want = engine.sbGreetingText(hour, lang, ov);
+      const got = mobile.sbGreetingText(hour, lang, ov);
+      if (got !== want) {
+        fail('greeting drift at hour ' + hour + ' lang ' + JSON.stringify(lang) +
+          ' overrides ' + JSON.stringify(ov) +
+          '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+      }
+      if (typeof want !== 'string') fail('greeting returned a non-string at hour ' + hour);
+      gok++;
+    }
+  }
+}
+
+// An unknown language must land on English, never on nothing.
+for (const lang of ['MULTI', 'DE', '', null, undefined, 'nonsense']) {
+  if (engine.sbGreetingText(9, lang) !== 'Good morning') {
+    fail('greeting for unknown language ' + JSON.stringify(lang) + ' did not fall back to English');
+  }
+}
+
+// A greeting resolves itself, so it must never surface as a field to fill in,
+// on either surface. A field genuinely named {greetings} still must. The engine
+// keeps _tokenFieldKey private, so it is read through extractFields; mobile
+// exposes the rule itself (extractFields sits outside the sliced region).
+const KEY_CASES = [
+  ['greeting', ''],
+  ['greeting: lang=ES', ''],
+  ['GREETING', ''],
+  ['Greeting: lang=IT', ''],
+  ['greetings', 'greetings'],
+  ['NAME', 'NAME'],
+];
+for (const [tok, want] of KEY_CASES) {
+  const got = mobile.sbTokenFieldKey(tok);
+  if (got !== want) {
+    fail('mobile sbTokenFieldKey(' + JSON.stringify(tok) + ') -> ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want));
+  }
+  const viaEngine = engine.extractFields('{' + tok + '}');
+  const engineKey = viaEngine.length ? viaEngine[0] : '';
+  if (engineKey !== want) {
+    fail('engine extractFields({' + tok + '}) -> ' + JSON.stringify(viaEngine) +
+      ', expected ' + (want ? JSON.stringify([want]) : '[]'));
+  }
+}
+
+// The token is actually wired into resolveBody, asserted against the clock the
+// engine itself reads. Re-run if the hour ticks between the two reads, so the
+// gate cannot flake once an hour.
+let wired = null;
+for (let attempt = 0; attempt < 3 && wired === null; attempt++) {
+  const before = new Date().getHours();
+  const out = engine.resolveBody('{greeting: lang=IT}!', {});
+  if (new Date().getHours() === before) wired = [out, engine.sbGreetingText(before, 'IT') + '!'];
+}
+if (wired === null) fail('could not read the clock twice within one hour');
+if (wired[0] !== wired[1]) {
+  fail('resolveBody("{greeting: lang=IT}!") -> ' + JSON.stringify(wired[0]) +
+    ', expected ' + JSON.stringify(wired[1]) + ': the token is not wired into the resolver');
+}
+
+// opts.lang is the snippet's language; a lang= on the token overrides it.
+const nowSlotEN = engine.sbGreetingText(new Date().getHours(), 'EN');
+if (engine.resolveBody('{greeting}', {}, { lang: 'MULTI' }) !== nowSlotEN) {
+  fail('a MULTI body did not fall back to English');
+}
+
+console.log('OK Time-of-day greeting parity passed all ' + gok + ' hour/language cases');

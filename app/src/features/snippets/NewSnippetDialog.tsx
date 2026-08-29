@@ -157,6 +157,8 @@ const QUICK_INSERTS: QuickInsert[] = [
     hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
     hint: 'Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}' },
+  { label: '{greeting}',    value: '{greeting}',             variant: 'cond',    group: 'logic',
+    hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
 ];
 
 const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';

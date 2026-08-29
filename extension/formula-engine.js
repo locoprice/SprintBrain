@@ -13,6 +13,7 @@
 //   {formmenu: opt1,opt2; name=VAR[; default=opt1][; multiple=yes][; cols=N]}  — dropdown field
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
 //   {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}  — gendered word
+//   {greeting[: lang=ES][; morning=…][; night=…]}  (greeting for the local time of day)
 //   {button label="Text" [trim=yes|no|left|right]}CODE{/button}  — action button
 //
 // {button} renders in the fill form, never in the output. CODE is one or more
@@ -146,6 +147,83 @@
       if (!da || !db) return '0';
       return String((db.getTime() - da.getTime()) / sbDatetimeDiffUnitMs(unit));
     });
+  }
+
+  // ── TIME-OF-DAY GREETINGS ───────────────────────────────────────
+  // {greeting} opens a message with the right words for the hour it is sent, in
+  // the language the snippet is written in. Four slots, read off the clock of
+  // the machine sending it:
+  //
+  //   morning    05:00 to 11:59
+  //   afternoon  12:00 to 17:59
+  //   evening    18:00 to 21:59
+  //   night      22:00 to 04:59
+  //
+  // Spanish says "Buenas noches" for both evening and night, and French says
+  // "Bonjour" for both morning and afternoon. Those are the languages, not a
+  // duplicated line.
+  //
+  // A language with no table falls back to English rather than printing
+  // nothing, and any slot can be overridden inline. That is how a body
+  // written in a language with no table still reads correctly:
+  //   {greeting: morning=Guten Morgen; evening=Guten Abend; night=Gute Nacht}
+  var GREETING_WORDS = {
+    EN: { morning: 'Good morning', afternoon: 'Good afternoon',  evening: 'Good evening',  night: 'Good night' },
+    IT: { morning: 'Buongiorno',   afternoon: 'Buon pomeriggio', evening: 'Buonasera',     night: 'Buona notte' },
+    ES: { morning: 'Buenos días',  afternoon: 'Buenas tardes',   evening: 'Buenas noches', night: 'Buenas noches' },
+    FR: { morning: 'Bonjour',      afternoon: 'Bonjour',         evening: 'Bonsoir',       night: 'Bonne nuit' }
+  };
+  var GREETING_SLOTS = ['morning', 'afternoon', 'evening', 'night'];
+
+  function sbGreetingSlot(hour) {
+    var h = Math.floor(Number(hour));
+    if (!isFinite(h)) return 'night';
+    if (h >= 5  && h < 12) return 'morning';
+    if (h >= 12 && h < 18) return 'afternoon';
+    if (h >= 18 && h < 22) return 'evening';
+    return 'night';
+  }
+
+  /**
+   * The greeting for an hour. Exported so the four thresholds are testable
+   * without moving the clock. An override wins over the table for the slot it
+   * names. One declared empty prints nothing, which is a real choice rather
+   * than a missing value.
+   */
+  function sbGreetingText(hour, lang, overrides) {
+    var slot = sbGreetingSlot(hour);
+    if (overrides && Object.prototype.hasOwnProperty.call(overrides, slot)) {
+      return String(overrides[slot]);
+    }
+    return (GREETING_WORDS[String(lang || '').toUpperCase()] || GREETING_WORDS.EN)[slot];
+  }
+
+  // Bare {greeting} or {greeting: …}, so a field named "greetings" stays a field.
+  function _isGreetingHead(tokLow) {
+    if (tokLow.slice(0, 8) !== 'greeting') return false;
+    return tokLow.length === 8 || tokLow.charAt(8) === ':';
+  }
+
+  function _greetingRest(tok) {
+    var c = tok.indexOf(':');
+    return c === -1 ? '' : tok.slice(c + 1);
+  }
+
+  // {greeting[: lang=IT][; morning=…][; afternoon=…][; evening=…][; night=…]}
+  // `lang` overrides the snippet's own language, which is what a mixed-language
+  // body needs: every line in it shares one language setting.
+  function sbResolveGreetingToken(rest, opts) {
+    var parts = String(rest).split(';');
+    var lang = '', overrides = {};
+    for (var i = 0; i < parts.length; i++) {
+      var eq = parts[i].indexOf('=');
+      if (eq === -1) continue;
+      var k = _sTrim(parts[i].slice(0, eq)).toLowerCase();
+      var v = _sTrim(parts[i].slice(eq + 1));
+      if (k === 'lang') lang = v;
+      else if (GREETING_SLOTS.indexOf(k) !== -1) overrides[k] = v;
+    }
+    return sbGreetingText(new Date().getHours(), lang || (opts && opts.lang) || '', overrides);
   }
 
   // ── GENDER-AWARE GREETINGS ──────────────────────────────────────
@@ -546,6 +624,10 @@
           out += sbResolveGenderToken(tok.slice(7), vals, opts);
           i = cl+1; continue;
         }
+        if (_isGreetingHead(tokLow)) {
+          out += sbResolveGreetingToken(_greetingRest(tok), opts);
+          i = cl+1; continue;
+        }
         if (tok.slice(0,3) === 'if:') {
           var cond = tok.slice(3).replace(/^\s+|\s+$/g, '');
           var ei = '{endif}', eidx = body.indexOf(ei, cl+1);
@@ -751,7 +833,8 @@
         t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
         t.slice(0,7).toLowerCase() === 'elseif:' ||
         t.slice(0,5).toLowerCase() === 'time:' ||
-        _isButtonHead(t.toLowerCase())) return '';
+        _isButtonHead(t.toLowerCase()) ||
+        _isGreetingHead(t.toLowerCase())) return '';
     var tokLow = t.toLowerCase();
     // A {gender:} token is not a field itself — it reads one, so surface that
     // field instead. It is usually declared elsewhere too; callers de-duplicate.
@@ -1152,6 +1235,8 @@
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,
+    sbGreetingSlot:    sbGreetingSlot,
+    sbGreetingText:    sbGreetingText,
     sbParseTimeToken:  sbParseTimeToken
   };
 
