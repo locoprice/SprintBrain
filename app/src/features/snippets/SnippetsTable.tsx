@@ -391,6 +391,8 @@ export function SnippetsTable() {
             // Expansions across every language variant — the row represents the
             // whole group, so the count it shows has to as well.
             const groupUsage = sumUsage(group.variants);
+            // Pin is a group property: any variant pinned marks the whole group.
+            const groupPinned = group.variants.some((v) => v.pinned);
             return (
               <tr
                 key={group.key}
@@ -440,7 +442,7 @@ export function SnippetsTable() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 truncate font-medium text-ink">
-                        {row.pinned && (
+                        {groupPinned && (
                           <Pin
                             className="h-3 w-3 shrink-0 fill-primary text-primary"
                             aria-label="Pinned"

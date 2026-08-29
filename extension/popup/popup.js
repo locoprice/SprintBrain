@@ -153,7 +153,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at&order=updated_at.desc'
+      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -1918,6 +1918,9 @@ function renderPrompts(q) {
     el.innerHTML = '<div class="p-empty">'+(q?'No prompts match &ldquo;'+esc(q)+'&rdquo;':'No prompts yet.<br>Create and edit prompts in the <strong>dashboard</strong>.')+'</div>';
     return;
   }
+  // Pinned prompts float to the top (pin is set on the dashboard or mobile);
+  // slice first so the shared `prompts` array is never reordered in place.
+  filtered = filtered.slice().sort(function(a, b) { return (b.pinned?1:0) - (a.pinned?1:0); });
   var pt = triggerCfg.promptTrigger || '"""';
   var h = '';
   filtered.forEach(function(p) {

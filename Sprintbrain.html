@@ -785,7 +785,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.1', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.2', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1192,6 +1192,9 @@
         || (p.intent_category||'').toLowerCase().indexOf(q) > -1
         || (p.tags||[]).some(function(t){ return (t||'').toLowerCase().indexOf(q) > -1; });
     });
+    // Pinned prompts float to the top (pin is set on the dashboard or mobile;
+    // read-only here). Same sort form as the snippet list above.
+    filtered.sort(function(a,b){ return (b.pinned?1:0) - (a.pinned?1:0); });
     $('nv-list-sub').textContent = filtered.length + ' shown';
     if (!filtered.length) {
       $('nv-list').innerHTML = '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
@@ -1202,7 +1205,9 @@
       var type = (p.type || 'one-shot').replace(/_/g,'-');
       var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
       var tags = (p.tags||[]).slice(0,3).map(function(t){ return '<span class="p-tag">'+ec(t)+'</span>'; }).join('');
-      h += '<div class="nv-row" data-pid="'+ec(p.id)+'"><div class="nv-row-main">'
+      h += '<div class="nv-row" data-pid="'+ec(p.id)+'">'
+        + (p.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
+        + '<div class="nv-row-main">'
         + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
         + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span>'+tags+'</div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
@@ -1777,10 +1782,18 @@
   $('nv-f-delete').addEventListener('click', function(){ var s = nvEditId ? findSnip(nvEditId) : null; if (s) { closeEditor(); deleteSnip(s); } });
 
   function togglePin(s){
-    s.pinned = !s.pinned;
-    var obj = {}; for (var k in s) obj[k] = s[k];
-    DB.upsertSnippet(obj);
-    renderMain(); toast(s.pinned ? 'Pinned to top' : 'Unpinned');
+    // Pin the whole language group so every surface agrees — the dashboard and
+    // the mobile app do the same. A single-row snippet is a group of one.
+    var next = !s.pinned;
+    var g = (typeof SBSnippetStats !== 'undefined' && SBSnippetStats.groupFor)
+      ? SBSnippetStats.groupFor(window.snips || [], s) : null;
+    var rows = (g && g.rows && g.rows.length) ? g.rows : [s];
+    rows.forEach(function(r){
+      r.pinned = next;
+      var obj = {}; for (var k in r) obj[k] = r[k];
+      DB.upsertSnippet(obj);
+    });
+    renderMain(); toast(next ? 'Pinned to top' : 'Unpinned');
   }
   function deleteSnip(s){
     if (!window.confirm('Delete "' + (s.title||'this snippet') + '"? This cannot be undone.')) return;

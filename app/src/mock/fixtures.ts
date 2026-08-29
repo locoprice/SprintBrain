@@ -508,6 +508,7 @@ const NULL_PROMPT_META = {
   blocks: null,
   folder_id: null,
   notion_page_id: null,
+  pinned: false,
   usage_count: 0,
   is_malformed: false,
 } as const;

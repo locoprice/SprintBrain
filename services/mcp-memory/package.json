@@ -1,6 +1,6 @@
 {
   "name": "sprintbrain-mcp-memory",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "private": true,
   "type": "module",
   "description": "SprintBrain working-memory MCP server. Attaches and detaches memory shards per step, inside a token budget.",

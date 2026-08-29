@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Brain, Loader2, Send, Zap } from 'lucide-react';
+import { Brain, Loader2, Pin, Send, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LabelBadgeList } from '@/components/shared/LabelBadge';
@@ -62,6 +62,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const openEditPrompt = useUiStore((s) => s.openEditPrompt);
   const openPromptPreview = useUiStore((s) => s.openPromptPreview);
   const markUsed = usePromptStore((s) => s.markUsed);
+  const togglePin = usePromptStore((s) => s.togglePin);
   const pushPromptToNotion = usePromptStore((s) => s.pushPromptToNotion);
   const notionPushingIds = usePromptStore((s) => s.notionPushingIds);
   const resolveUserName = useUserNameResolver();
@@ -116,6 +117,11 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   function handleNotionPush(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation();
     void pushPromptToNotion(prompt.id);
+  }
+
+  function handlePin(e: React.MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    void togglePin(prompt.id);
   }
 
   async function handleRemoveLabel(labelId: string) {
@@ -194,6 +200,20 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
             {lastUsed}
           </span>
           <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handlePin}
+              title={prompt.pinned ? 'Unpin' : 'Pin to top'}
+              aria-pressed={prompt.pinned}
+              className={
+                'inline-flex h-7 w-7 items-center justify-center rounded-[8px] border transition-colors ' +
+                (prompt.pinned
+                  ? 'border-primary-light bg-primary-light text-primary hover:bg-primary-light/70'
+                  : 'border-line bg-card text-ink-muted hover:border-primary/40 hover:text-primary')
+              }
+            >
+              <Pin className={'h-3 w-3' + (prompt.pinned ? ' fill-current' : '')} />
+            </button>
             <button
               type="button"
               onClick={handleNotionPush}
