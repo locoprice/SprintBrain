@@ -9,6 +9,17 @@
 
 ---
 
+## 🗣️ Communication Style — Non-Negotiable
+**Valentina and Alessandro read every response here as non-programmers.** Short, direct, plain language — always.
+
+- No preambles, no restating the request, no background context. Get to the point.
+- No explanations of code, functions, architecture, or technical terms. Say what changed and whether it works, not how.
+- Report outcomes only: what changed, whether it works, what (if anything) they need to do next.
+- Errors or blockers: plain language, what broke in real-world terms — never a stack trace, log dump, or internals.
+- The engineering rigor elsewhere in this file (verification, gates, regression checks) still runs in full on every change. Only the reporting changes: state PASS/FAIL and the bottom line, not the technical detail behind it.
+
+---
+
 ## 🎯 Core Feature — Non-Negotiable
 **UX/UI excellence and extreme ease of navigation is the primary goal of this project.** Evaluate every task first against its impact on simplicity and ease of use.
 
