@@ -783,7 +783,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.2.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.2.1', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1221,6 +1221,23 @@
   // language. Urgency + alternative_queries persisted exactly as the popup does.
   var LANG_LIST = (typeof LANGS !== 'undefined') ? LANGS : ['EN','ES','IT','FR'];
   var edBuf = {}, edActive = 'EN', edAlt = [];
+  // The body placeholder's opening word in the active tab's language, so an
+  // empty ES slot doesn't sit there suggesting "Dear" for a Spanish message.
+  // Same address words as GENDER_WORDS' unmarked (masculine) form in
+  // extension/formula-engine.js (Caro / Querido / Cher) -- reused, not
+  // invented, so the placeholder and the {gender:} chip never disagree.
+  // MULTI carries no single language, so it falls back to English like
+  // {greeting} does for the same slot.
+  var BODY_PLACEHOLDER = {
+    EN: 'Dear {first_name},\n\nYour message…',
+    IT: 'Caro {first_name},\n\nYour message…',
+    ES: 'Querido {first_name},\n\nYour message…',
+    FR: 'Cher {first_name},\n\nYour message…',
+    MULTI: 'Dear {first_name},\n\nYour message…'
+  };
+  function setBodyPlaceholder(lang){
+    $('nv-f-body').placeholder = BODY_PLACEHOLDER[lang] || BODY_PLACEHOLDER.EN;
+  }
 
   function folderOptions(current){
     var h = '<option value="">— No folder —</option>';
@@ -1251,6 +1268,7 @@
     if (cur) edBuf[edActive] = cur; else delete edBuf[edActive];
     edActive = l;
     $('nv-f-body').value = (typeof edBuf[l] === 'string') ? edBuf[l] : '';
+    setBodyPlaceholder(l);
     edClearArmed = false;
     renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
@@ -1313,6 +1331,7 @@
       edBuf[edActive] = (typeof ab[edActive] === 'string') ? ab[edActive] : (snip.body || '');
     }
     $('nv-f-body').value = (typeof edBuf[edActive] === 'string') ? edBuf[edActive] : '';
+    setBodyPlaceholder(edActive);
     edClearArmed = false;
     renderLangTabs(); renderBodyFoot();
     // alternative queries
