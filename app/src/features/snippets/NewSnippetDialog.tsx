@@ -79,7 +79,7 @@ const BODY_PLACEHOLDER: Record<SnippetFormValues['language'], string> = {
   IT:    'Caro {first_name}, …',
   ES:    'Querido {first_name}, …',
   FR:    'Cher {first_name}, …',
-  MULTI: 'Dear {first_name}, …',
+  MULTI: 'Dear / Caro / Querido {first_name}, …',
 };
 
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette

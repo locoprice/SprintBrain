@@ -783,7 +783,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.2.1', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.2.2', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1233,7 +1233,7 @@
     IT: 'Caro {first_name},\n\nYour message…',
     ES: 'Querido {first_name},\n\nYour message…',
     FR: 'Cher {first_name},\n\nYour message…',
-    MULTI: 'Dear {first_name},\n\nYour message…'
+    MULTI: 'Dear / Caro / Querido {first_name},\n\nYour message…'
   };
   function setBodyPlaceholder(lang){
     $('nv-f-body').placeholder = BODY_PLACEHOLDER[lang] || BODY_PLACEHOLDER.EN;
