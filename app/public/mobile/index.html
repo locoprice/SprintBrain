@@ -3259,26 +3259,21 @@ function renderDetail(snip,keepVals){
       var ddOpts=(c.opts||'').split('\n').filter(function(o){return o.trim()!=='';});
       if(t==='dd'&&ddOpts.length){
         var picks=sbFormMenuPicks(def);
-        if(c.multiple){
-          /* A native multi-select needs a long-press to be usable on a phone.
-             Checkboxes make "pick several" obvious, and getVals() joins them
-             back into one value. Block-level, so its context goes above/below. */
-          blockControl=true;
-          inp='<div class="field-opts">'+ddOpts.map(function(o){
-            return '<label class="field-opt">'
-              +'<input class="field-in" type="checkbox" data-f="'+esc(f)+'" '
-                +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
-              +'<span>'+esc(o)+'</span></label>';
-          }).join('')+'</div>';
-        }else{
-          inp='<select class="field-in field-sel" data-f="'+esc(f)+'">'
-            +(picks.length?'':'<option value="">— select —</option>')
-            +ddOpts.map(function(o){
-              return '<option value="'+esc(o)+'"'
-                +(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>';
-            }).join('')
-            +'</select>';
-        }
+        /* Every option is on screen, for both kinds of menu. A <select> hid the
+           choices behind a control most people did not read as a menu at all,
+           and on a phone it opens a wheel that covers the message. Checkboxes
+           for a multiple menu, radios for a single one. Both are block-level,
+           so the prose around the token goes above and below. */
+        blockControl=true;
+        var oType=c.multiple?'checkbox':'radio';
+        /* Radios need a group name or two menus in one form share a group. */
+        var oName=c.multiple?'':' name="f-'+esc(f)+'"';
+        inp='<div class="field-opts">'+ddOpts.map(function(o){
+          return '<label class="field-opt">'
+            +'<input class="field-in" type="'+oType+'"'+oName+' data-f="'+esc(f)+'" '
+              +'value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'>'
+            +'<span>'+esc(o)+'</span></label>';
+        }).join('')+'</div>';
       }else if(t==='date'){
         inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def||_sbToday)+'">';
       }else if(t==='time'){
@@ -3327,6 +3322,14 @@ function readFields(coerce){
     if(i.type==='checkbox'){
       if(!groups[f])groups[f]=[];
       if(i.checked)groups[f].push(i.value);
+      return;
+    }
+    /* A single-choice menu is a radio group sharing one data-f. Seed the key
+       before looking at checked, so a group with nothing ticked reads '' rather
+       than dropping out of the values. Never coerced: an option is a label. */
+    if(i.type==='radio'){
+      if(v[f]===undefined)v[f]='';
+      if(i.checked)v[f]=i.value;
       return;
     }
     var val=i.value;

@@ -105,31 +105,73 @@ for (const junk of [null, undefined, '', '{', '}', '{}', '{{', '}}']) {
 
 console.log('OK Template validator passed all ' + vok + ' parity cases');
 
-// ── FILL-FORM PLACEHOLDER PARITY ────────────────────────────────────
-// Three surfaces render a single-choice {formmenu:} as a <select>, and each
-// builds the markup itself. A select with no empty first option is preselected
-// by the browser on option 1 — so the field SHOWS a choice while the surface
-// still reads '' for it, and the pick is silently dropped from the output.
+// ── FILL-FORM MENU CONTROL PARITY ───────────────────────────────────
+// Four surfaces render a {formmenu:} fill form, and each builds the markup
+// itself. Every one of them must show all the options at once: checkboxes for
+// a multiple menu, radios for a single one.
 //
-// popup.js shipped without it from v2.132.0 until this check existed. It is a
-// source assertion rather than a behaviour test because the markup is built
-// inside large DOM-bound render functions, but it pins the exact drift.
-const PLACEHOLDER = '<option value="">— select —</option>';
-const FILL_FORM_RENDERERS = [
-  ['extension/content/content.js', 'in-page overlay'],
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html'],
-  ['app/public/mobile/index.html', 'mobile companion'],
+// This replaced a <select>, which failed twice over. It hid the choices behind
+// a control people did not read as a menu, and a select with no empty first
+// option is preselected by the browser on option 1 — so the field SHOWED a
+// choice while the surface still read '' for it, and the pick was dropped from
+// the output. Radios cannot drift that way: a ticked radio is the value read,
+// and nothing ticked reads ''.
+//
+// Sprintbrain.html's composer is checked here too. It has its own renderer and
+// the old placeholder check never covered it, so it carried that exact bug.
+//
+// Source assertions rather than behaviour tests, because the markup is built
+// inside large DOM-bound render functions, but they pin the exact drift.
+const MENU_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay',
+    "cfg.multiple ? 'checkbox' : 'radio'", ' name="sb-'],
+  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+    "def.multiple?'checkbox':'radio'", ' name="d-'],
+  ['app/public/mobile/index.html', 'mobile companion',
+    "c.multiple?'checkbox':'radio'", ' name="f-'],
+  ['Sprintbrain.html', 'composer',
+    "def.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
 ];
 
-for (const [rel, label] of FILL_FORM_RENDERERS) {
+for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
   const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
-  if (!src.includes(PLACEHOLDER)) {
-    fail(rel + ' (' + label + ') no longer emits the "— select —" option.\n' +
-      '  A {formmenu:} with no default= would show option 1 as picked while the\n' +
-      '  surface reads an empty value, dropping the choice from the output.');
+  if (!src.includes(typeMarker)) {
+    fail(rel + ' (' + label + ') no longer picks the control by menu kind.\n' +
+      '  A single-choice {formmenu:} must render as radios showing every option,\n' +
+      '  not as a dropdown that hides them. Expected to find: ' + typeMarker);
+  }
+  if (!src.includes(nameMarker)) {
+    fail(rel + ' (' + label + ') no longer names its radio group.\n' +
+      '  Without a name= every single-choice menu in one fill form shares a\n' +
+      '  group, so picking in one silently clears the other. Expected: ' + nameMarker);
+  }
+  if (src.includes('— select —')) {
+    fail(rel + ' (' + label + ') still emits a "— select —" option.\n' +
+      '  The dropdown was replaced by an always-visible option list; a leftover\n' +
+      '  select means one surface drifted back.');
   }
 }
-console.log('OK Fill-form placeholder present on all ' + FILL_FORM_RENDERERS.length + ' renderers');
+console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' fill-form surfaces');
+
+// The options are stacked one per line, never wrapped pills: a row of pills
+// reads as tags or filters rather than as a question waiting for an answer.
+// Each surface styles its own list, so the layout is pinned on all of them.
+const MENU_OPTION_CSS = [
+  ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
+  ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
+  ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
+  ['Sprintbrain.html', 'composer', '.nv-comp-multi{display:flex;flex-direction:column'],
+  ['app/public/mobile/index.html', 'mobile companion', '.field-opts{display:flex;flex-direction:column'],
+];
+
+for (const [rel, label, marker] of MENU_OPTION_CSS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  if (!src.includes(marker)) {
+    fail(rel + ' (' + label + ') no longer stacks the menu options one per line.\n' +
+      '  Expected to find: ' + marker);
+  }
+}
+console.log('OK Menu options stack one per line on all ' + MENU_OPTION_CSS.length + ' surfaces');
 
 // showOverlay is reached from three places — the trigger, the picker and the
 // right-click context menu. Two of them passed the raw snippet, whose field_cfg

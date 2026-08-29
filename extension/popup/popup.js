@@ -1583,21 +1583,17 @@ function renderDetailHtml(s){
           var opts=(def.opts||'').split('\n').filter(Boolean);
           var picks=fieldMenuPicks(val);
           var wide=def.cols?' style="width:'+def.cols+'ch;max-width:100%"':'';
-          if(def.multiple){
-            // multiple=yes menus fill as checkboxes — one data-fkey per group.
-            blockControl=true;
-            inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
-              return '<label class="d-opt"><input type="checkbox" data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
-            }).join('')+'</div>';
-          } else {
-            // A menu with no default= needs the empty first option: without it
-            // the browser preselects option 1, so the field SHOWS a choice while
-            // currentFieldVals still reads '' — "Copy filled" would then drop a
-            // value the user can see. Same guard as content.js and mobile.
-            inp='<select data-fkey="'+esc(k)+'"'+wide+'>'
-              +(picks.length?'':'<option value="">— select —</option>')
-              +opts.map(function(o){ return '<option value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
-          }
+          // Every option is on screen, for both kinds of menu. A <select> hid
+          // the choices behind a control most people did not read as a menu.
+          // Checkboxes for a multiple menu, radios for a single one; both are
+          // block-level, so the prose around the token goes above and below.
+          blockControl=true;
+          var oType=def.multiple?'checkbox':'radio';
+          // Radios need a group name or two menus in one form share a group.
+          var oName=def.multiple?'':' name="d-'+esc(k)+'"';
+          inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
+            return '<label class="d-opt"><input type="'+oType+'"'+oName+' data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
+          }).join('')+'</div>';
         } else if(def.type==='date'){
           inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
         } else {
@@ -1844,6 +1840,17 @@ function runDetailButton(btn){
     var target=box.querySelector('[data-fkey="'+name+'"]');
     if(!target){ errs.push('No field called '+name); continue; }
     if(target.type==='checkbox'){ errs.push(name+' is a multi-choice menu'); continue; }
+    // A single-choice menu is a radio group: tick the matching option rather
+    // than writing over the first radio's value, which would rewrite a choice.
+    if(target.type==='radio'){
+      var want=String(res.values[name]), matched=false;
+      box.querySelectorAll('input[type=radio][data-fkey="'+name+'"]').forEach(function(r){
+        if(r.value===want){ r.checked=true; matched=true; }
+      });
+      if(matched) detailFieldVals[name]=want;
+      else errs.push(name+' has no option "'+want+'"');
+      continue;
+    }
     target.value=String(res.values[name]);
     detailFieldVals[name]=target.value;
   }
