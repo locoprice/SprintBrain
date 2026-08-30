@@ -176,7 +176,8 @@ const QUICK_INSERTS: QuickInsert[] = [
     hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
 ];
 
-const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
+const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracking-widest';
+const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
 
 const FIELD_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
 const SELECT_CLASS =
@@ -698,7 +699,95 @@ export function NewSnippetDialog() {
           noValidate
           className="flex flex-1 overflow-hidden min-h-0"
         >
-          {/* ── LEFT PANEL: main editor ── */}
+          {/* ── LEFT PANEL: insert chips ── */}
+          {/* The three groups sit here rather than under the body. At 260px
+              they stack in one column, and the editor keeps the vertical space
+              they used to take from it. */}
+          <div className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
+
+            {/* Fields */}
+            <div className="p-4 border-b border-line">
+              <p className={SIDEBAR_LABEL}>Fields</p>
+              <p className={SIDEBAR_HINT}>
+                Filled in when the snippet expands. Type{' '}
+                <code className="font-mono text-primary/80">{'{any_name}'}</code> for your own.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_INSERTS.filter((qi) => qi.group === 'field').map((qi) => (
+                  <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                ))}
+
+                {/* Field builders open a dialog instead of pasting a literal:
+                    a field needs its name before the token means anything, and
+                    an unnamed {formtext:} expands to nothing at all.
+                    With the caret inside a menu the same chip edits it, so
+                    changing the choices never means retyping raw token text. */}
+                <button
+                  type="button"
+                  onClick={() => setTextFieldOpen(true)}
+                  disabled={saving}
+                  title="A line of text to fill in. Opens the builder."
+                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                >
+                  <TextCursorInput className="h-3 w-3" />
+                  {'{formtext}'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openMenuBuilder}
+                  disabled={saving}
+                  title={
+                    menuAtCaret
+                      ? 'Edit the menu the cursor is in. Its choices load into the builder.'
+                      : 'A list of choices to pick from. Opens the builder. Put the cursor inside an existing menu to edit it.'
+                  }
+                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                >
+                  {menuAtCaret ? (
+                    <Pencil className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                  {menuAtCaret ? 'Edit menu' : '{formmenu}'}
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 border-b border-line">
+              <p className={SIDEBAR_LABEL}>Actions</p>
+              <p className={SIDEBAR_HINT}>Clicked while filling. Never printed.</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActionButtonOpen(true)}
+                  disabled={saving}
+                  title="Build an action button. Changes field values when clicked."
+                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                >
+                  <MousePointerClick className="h-3 w-3" />
+                  {'{button}'}
+                </button>
+              </div>
+            </div>
+
+            {/* Logic */}
+            <div className="flex-1 p-4">
+              <p className={SIDEBAR_LABEL}>Logic</p>
+              <p className={SIDEBAR_HINT}>Worked out on its own.</p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
+                  <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── PANEL DIVIDER ── */}
+          <div className="w-px bg-line shrink-0" />
+
+          {/* ── CENTER PANEL: main editor ── */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-3 min-w-0">
 
             {/* Name + Trigger + Folder — one row. None of the three needs the
@@ -776,157 +865,160 @@ export function NewSnippetDialog() {
               </div>
             </div>
 
-            {/* Labels — the shared snippet/prompt vocabulary (LABELS-001) */}
-            <div>
-              <label htmlFor="snippet-labels" className={FIELD_LABEL}>
-                Labels{' '}
-                <span className="font-normal text-ink-subtle">— shared with prompts</span>
-              </label>
-              <div className="max-w-md">
-                <LabelPicker
-                  id="snippet-labels"
-                  value={labelIds}
-                  onChange={setLabelIds}
-                  disabled={saving}
-                />
-                {LABEL_SUGGESTIONS_ENABLED && (
-                  <LabelSuggestions
-                    draft={{
-                      name: form.name,
-                      body: form.content,
-                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
-                      language: form.language,
-                    }}
+            {/* Labels + Alternative queries share one row. Neither needs the
+                full panel width, and pairing them hands the body the vertical
+                space the second row used to cost it. */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Labels — the shared snippet/prompt vocabulary (LABELS-001) */}
+              <div>
+                <label htmlFor="snippet-labels" className={FIELD_LABEL}>
+                  Labels{' '}
+                  <span className="font-normal text-ink-subtle">(shared with prompts)</span>
+                </label>
+                <div>
+                  <LabelPicker
+                    id="snippet-labels"
                     value={labelIds}
                     onChange={setLabelIds}
                     disabled={saving}
                   />
-                )}
+                  {LABEL_SUGGESTIONS_ENABLED && (
+                    <LabelSuggestions
+                      draft={{
+                        name: form.name,
+                        body: form.content,
+                        folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                        language: form.language,
+                      }}
+                      value={labelIds}
+                      onChange={setLabelIds}
+                      disabled={saving}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Alternative Queries */}
-            <div>
-              <label className={FIELD_LABEL}>
-                Alternative queries{' '}
-                <span className="font-normal text-ink-subtle">— synonyms for context matching</span>
-                {mode === 'edit' && (
-                  <span
-                    className="ml-1.5 font-normal text-ink-subtle"
-                    title="This field is per-language variant. To apply the same queries to EN, IT, ES versions of this snippet, open each variant and save — the extension's language picker will fire automatically once any variant matches."
-                  >
-                    ⓘ per variant
-                  </span>
-                )}
-              </label>
+              {/* Alternative Queries */}
+              <div>
+                <label className={FIELD_LABEL}>
+                  Alternative queries{' '}
+                  <span className="font-normal text-ink-subtle">(synonyms)</span>
+                  {mode === 'edit' && (
+                    <span
+                      className="ml-1.5 font-normal text-ink-subtle"
+                      title="This field is per-language variant. To apply the same queries to EN, IT, ES versions of this snippet, open each variant and save — the extension's language picker will fire automatically once any variant matches."
+                    >
+                      ⓘ per variant
+                    </span>
+                  )}
+                </label>
 
-              {/* Added tags */}
-              {form.alternative_queries.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {form.alternative_queries.map((q, idx) => {
-                    const hasConflict = conflictingQueries.has(q);
-                    return (
-                      <span
-                        key={idx}
-                        title={hasConflict ? `"${q}" is already a primary trigger on another snippet` : undefined}
-                        className={cn(
-                          'inline-flex items-center gap-1 h-7 rounded-[6px] border px-2 text-xs font-medium',
-                          hasConflict
-                            ? 'border-warning/60 bg-warning/10 text-warning'
-                            : 'border-primary-bdr bg-primary-bg text-primary',
-                        )}
-                      >
-                        {hasConflict && <AlertCircle className="h-3 w-3 shrink-0" />}
-                        {q}
-                        <button
-                          type="button"
-                          disabled={saving}
-                          aria-label={`Remove "${q}"`}
-                          onClick={() =>
-                            updateField(
-                              'alternative_queries',
-                              form.alternative_queries.filter((_, i) => i !== idx),
-                            )
-                          }
+                {/* Added tags */}
+                {form.alternative_queries.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {form.alternative_queries.map((q, idx) => {
+                      const hasConflict = conflictingQueries.has(q);
+                      return (
+                        <span
+                          key={idx}
+                          title={hasConflict ? `"${q}" is already a primary trigger on another snippet` : undefined}
                           className={cn(
-                            'transition-colors disabled:opacity-50',
-                            hasConflict ? 'text-warning/60 hover:text-warning' : 'text-primary/60 hover:text-primary',
+                            'inline-flex items-center gap-1 h-7 rounded-[6px] border px-2 text-xs font-medium',
+                            hasConflict
+                              ? 'border-warning/60 bg-warning/10 text-warning'
+                              : 'border-primary-bdr bg-primary-bg text-primary',
                           )}
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+                          {hasConflict && <AlertCircle className="h-3 w-3 shrink-0" />}
+                          {q}
+                          <button
+                            type="button"
+                            disabled={saving}
+                            aria-label={`Remove "${q}"`}
+                            onClick={() =>
+                              updateField(
+                                'alternative_queries',
+                                form.alternative_queries.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className={cn(
+                              'transition-colors disabled:opacity-50',
+                              hasConflict ? 'text-warning/60 hover:text-warning' : 'text-primary/60 hover:text-primary',
+                            )}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
-              {/* Conflict warning banner */}
-              {conflictingQueries.size > 0 && (
-                <div className="flex items-start gap-1.5 rounded-[8px] border border-warning/40 bg-warning/8 px-2.5 py-2 text-xs text-warning mb-1.5">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
-                  <span>
-                    {conflictingQueries.size === 1
-                      ? `"${[...conflictingQueries][0]}" matches another snippet's primary trigger — expansion may be ambiguous.`
-                      : `${conflictingQueries.size} tags conflict with existing primary triggers — expansion may be ambiguous.`}
-                  </span>
-                </div>
-              )}
+                {/* Conflict warning banner */}
+                {conflictingQueries.size > 0 && (
+                  <div className="flex items-start gap-1.5 rounded-[8px] border border-warning/40 bg-warning/8 px-2.5 py-2 text-xs text-warning mb-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                    <span>
+                      {conflictingQueries.size === 1
+                        ? `"${[...conflictingQueries][0]}" matches another snippet's primary trigger — expansion may be ambiguous.`
+                        : `${conflictingQueries.size} tags conflict with existing primary triggers — expansion may be ambiguous.`}
+                    </span>
+                  </div>
+                )}
 
-              {/* Text input */}
-              <Input
-                id="snippet-alt-queries"
-                className="max-w-md"
-                value={altQueryDraft}
-                onChange={(e) => setAltQueryDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    const tag = altQueryDraft.trim().toLowerCase().replace(/,/g, '');
-                    if (tag && !form.alternative_queries.includes(tag)) {
-                      updateField('alternative_queries', [...form.alternative_queries, tag]);
+                {/* Text input */}
+                <Input
+                  id="snippet-alt-queries"
+                  value={altQueryDraft}
+                  onChange={(e) => setAltQueryDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const tag = altQueryDraft.trim().toLowerCase().replace(/,/g, '');
+                      if (tag && !form.alternative_queries.includes(tag)) {
+                        updateField('alternative_queries', [...form.alternative_queries, tag]);
+                      }
+                      setAltQueryDraft('');
+                    } else if (e.key === 'Backspace' && altQueryDraft === '' && form.alternative_queries.length > 0) {
+                      updateField(
+                        'alternative_queries',
+                        form.alternative_queries.slice(0, -1),
+                      );
                     }
-                    setAltQueryDraft('');
-                  } else if (e.key === 'Backspace' && altQueryDraft === '' && form.alternative_queries.length > 0) {
-                    updateField(
-                      'alternative_queries',
-                      form.alternative_queries.slice(0, -1),
-                    );
-                  }
-                }}
-                placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
-                disabled={saving}
-              />
+                  }}
+                  placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
+                  disabled={saving}
+                />
 
-              {/* Auto-suggestions */}
-              {suggestedQueries.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span className="text-[10px] font-medium text-ink-subtle shrink-0">Suggested:</span>
-                  {suggestedQueries.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      disabled={saving}
-                      onClick={() => {
-                        if (!form.alternative_queries.includes(s)) {
-                          updateField('alternative_queries', [...form.alternative_queries, s]);
-                        }
-                      }}
-                      className="inline-flex h-6 items-center rounded-[6px] border border-line bg-bg-alt px-2 text-[11px] text-ink-muted transition-colors hover:border-primary/40 hover:bg-primary-bg hover:text-primary disabled:opacity-50"
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {/* Auto-suggestions */}
+                {suggestedQueries.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-medium text-ink-subtle shrink-0">Suggested:</span>
+                    {suggestedQueries.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          if (!form.alternative_queries.includes(s)) {
+                            updateField('alternative_queries', [...form.alternative_queries, s]);
+                          }
+                        }}
+                        className="inline-flex h-6 items-center rounded-[6px] border border-line bg-bg-alt px-2 text-[11px] text-ink-muted transition-colors hover:border-primary/40 hover:bg-primary-bg hover:text-primary disabled:opacity-50"
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Body — the panel's flexible element: it absorbs whatever height
                 the fixed-size dialog has to spare, and shrinks (never below
                 min-h) before the panel resorts to scrolling. The wrapper's
                 min-h must cover label + gap + the textarea's own floor + the
-                footer row, or the textarea escapes the wrapper and runs under
-                the chips.
+                footer row, or the textarea escapes the wrapper.
                 Measured need is ~210.5px: label 16 + its own mb-1.5 (FIELD_LABEL
                 carries a margin *on top of* this flex gap) + 6 gap + textarea
                 160 + 6 gap + footer 16.5. Raised 190 -> 216 when the word count
@@ -986,99 +1078,6 @@ export function NewSnippetDialog() {
                   <span className="text-[11px] tabular-nums text-ink-subtle">
                     {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick insert — split so the rail says what each half does */}
-            <div className="flex flex-col gap-3">
-              <div>
-                <span className={CHIP_GROUP_LABEL}>
-                  Fields{' '}
-                  <span className="font-normal text-ink-subtle">
-                    — filled in when the snippet expands · type{' '}
-                    <code className="font-mono text-primary/80">{'{any_name}'}</code> for your own
-                  </span>
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_INSERTS.filter((qi) => qi.group === 'field').map((qi) => (
-                    <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                  ))}
-
-                  {/* Field builders open a dialog instead of pasting a literal —
-                      a field needs its name before the token means anything, and
-                      an unnamed {formtext:} expands to nothing at all.
-                      With the caret inside a menu the same chip edits it, so
-                      changing the choices never means retyping raw token text. */}
-                  <button
-                    type="button"
-                    onClick={() => setTextFieldOpen(true)}
-                    disabled={saving}
-                    title="A line of text to fill in — opens the builder"
-                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                  >
-                    <TextCursorInput className="h-3 w-3" />
-                    {'{formtext}'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={openMenuBuilder}
-                    disabled={saving}
-                    title={
-                      menuAtCaret
-                        ? 'Edit the menu the cursor is in — its choices load into the builder'
-                        : 'A list of choices to pick from — opens the builder. Put the cursor inside an existing menu to edit it.'
-                    }
-                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                  >
-                    {menuAtCaret ? (
-                      <Pencil className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                    {menuAtCaret ? 'Edit menu' : '{formmenu}'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Actions and Logic are one and two chips — side by side they
-                  cost one row instead of two, which is what lets the whole
-                  panel fit without scrolling on target viewports. */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className={CHIP_GROUP_LABEL}>
-                    Actions{' '}
-                    <span className="font-normal text-ink-subtle">
-                      — clicked while filling; never print
-                    </span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setActionButtonOpen(true)}
-                      disabled={saving}
-                      title="Build an action button — changes field values when clicked"
-                      className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                    >
-                      <MousePointerClick className="h-3 w-3" />
-                      {'{button}'}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <span className={CHIP_GROUP_LABEL}>
-                    Logic{' '}
-                    <span className="font-normal text-ink-subtle">
-                      — worked out on its own
-                    </span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
-                      <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
