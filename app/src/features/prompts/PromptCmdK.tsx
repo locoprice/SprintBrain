@@ -36,7 +36,6 @@ function getMatchScore(prompt: Prompt, query: string): number {
   let score = 0;
   if (prompt.name.toLowerCase().includes(q)) score += 3;
   else if (fuzzyMatch(prompt.name, q)) score += 1;
-  if (prompt.tags.some((t) => t.toLowerCase().includes(q))) score += 2;
   if ((prompt.intent_category ?? '').toLowerCase().includes(q)) score += 1;
   return score;
 }

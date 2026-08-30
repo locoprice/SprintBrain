@@ -153,7 +153,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,shortcut,type,tags,intent_category,last_used_at,pinned&order=updated_at.desc'
+      'select=id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -350,7 +350,7 @@ function syncSnippets(){
 // Push the dashboard Prompt List to chrome.storage.local so the content
 // script's """ picker can merge it with its built-in Base Prompts. Mirrors
 // syncSnippets(); maps the public.prompts row shape to the picker's item shape
-// (name -> title, content -> body, tags -> alternative_queries for search).
+// (name -> title, content -> body).
 function syncPrompts(){
   try{
     var mapped = (prompts||[]).map(function(p){
@@ -358,8 +358,7 @@ function syncPrompts(){
         id: p.id,
         title: p.name || 'Untitled',
         body: p.content || '',
-        shortcut: p.shortcut || '',
-        alternative_queries: Array.isArray(p.tags) ? p.tags : []
+        shortcut: p.shortcut || ''
       };
     });
     chrome.storage.local.set({sb_prompts:mapped}, function(){
@@ -1909,8 +1908,7 @@ function renderPrompts(q) {
     var lq = q.toLowerCase().replace(/^"+/,'').trim();
     filtered = prompts.filter(function(p) {
       return (p.name||'').toLowerCase().indexOf(lq) !== -1 ||
-             (p.intent_category||'').toLowerCase().indexOf(lq) !== -1 ||
-             (p.tags||[]).some(function(t){ return (t||'').toLowerCase().indexOf(lq) !== -1; });
+             (p.intent_category||'').toLowerCase().indexOf(lq) !== -1;
     });
   }
   if (ct) ct.textContent = prompts.length;
@@ -1929,13 +1927,10 @@ function renderPrompts(q) {
     var scHtml = p.shortcut
       ? '<span class="p-sc"><span class="isc-pfx">'+esc(pt)+'</span>'+esc(shortWord(p.shortcut))+'</span>'
       : '';
-    var tags = (p.tags||[]).slice(0,3).map(function(t){
-      return '<span class="p-tagpill">'+esc(t)+'</span>';
-    }).join('');
     h += '<div class="p-item" data-pid="'+esc(p.id)+'" tabindex="-1" role="button" aria-label="'+esc(p.name||'Untitled')+' — copy prompt">'
       + '<div class="p-body">'
       + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</div>'
-      + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+scHtml+tags+'</div>'
+      + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+scHtml+'</div>'
       + '</div>'
       + '<button class="p-copy" type="button" title="Copy prompt" aria-label="Copy prompt"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'
       + '</div>';

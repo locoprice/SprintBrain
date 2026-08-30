@@ -162,7 +162,6 @@
   .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
   .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
   .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
-  .p-tag{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:1px 7px}
 
   /* ── Auth gate ── */
   .nv-auth{position:fixed;inset:0;background:var(--sb-bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:32px}
@@ -785,7 +784,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.2', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.3', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1189,8 +1188,7 @@
     var q = nvSearch.toLowerCase().replace(/^"+/, '').trim();
     var filtered = (window.prompts || []).filter(function(p){
       return !q || (p.name||'').toLowerCase().indexOf(q) > -1
-        || (p.intent_category||'').toLowerCase().indexOf(q) > -1
-        || (p.tags||[]).some(function(t){ return (t||'').toLowerCase().indexOf(q) > -1; });
+        || (p.intent_category||'').toLowerCase().indexOf(q) > -1;
     });
     // Pinned prompts float to the top (pin is set on the dashboard or mobile;
     // read-only here). Same sort form as the snippet list above.
@@ -1204,12 +1202,11 @@
     filtered.forEach(function(p){
       var type = (p.type || 'one-shot').replace(/_/g,'-');
       var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
-      var tags = (p.tags||[]).slice(0,3).map(function(t){ return '<span class="p-tag">'+ec(t)+'</span>'; }).join('');
       h += '<div class="nv-row" data-pid="'+ec(p.id)+'">'
         + (p.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main">'
         + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
-        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span>'+tags+'</div></div>'
+        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span></div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
     });
     $('nv-list').innerHTML = h;

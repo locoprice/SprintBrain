@@ -2288,8 +2288,8 @@ var allPrompts=[], promptSearch='';
 var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pstrat-Few-shot','One-shot':'pstrat-One-shot','RAG':'pstrat-RAG','Agentic':'pstrat-Agentic'};
 /* Full column set — kept in parity with the desktop promptsApi so Duplicate
    round-trips every field (blocks, thinking_mode, etc.) without data loss. */
-var PROMPT_SELECT='id,name,content,type,tags,strategy_type,thinking_mode,preferred_model,'
-  +'complexity_level,execution_type,intent_category,output_type,blocks,folder_id,'
+var PROMPT_SELECT='id,name,content,type,strategy_type,thinking_mode,preferred_model,'
+  +'complexity_level,intent_category,output_type,blocks,folder_id,'
   +'organization_id,created_at,updated_at,last_used_at,pinned';
 var FOLDER_SHARED_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
@@ -2672,7 +2672,6 @@ function filterPrompts(q){
     if((p.name||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.content||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.intent_category||'').toLowerCase().indexOf(q)>-1)return true;
-    if(Array.isArray(p.tags)&&p.tags.some(function(t){return String(t).toLowerCase().indexOf(q)>-1;}))return true;
     return false;
   });
 }
@@ -2842,12 +2841,10 @@ function duplicatePrompt(p){
     name:(p.name||'Prompt')+' (copy)',
     content:p.content||'',
     type:p.type||'one-shot',
-    tags:Array.isArray(p.tags)?p.tags:[],
     strategy_type:p.strategy_type||null,
     thinking_mode:p.thinking_mode||null,
     preferred_model:p.preferred_model||null,
     complexity_level:p.complexity_level||null,
-    execution_type:p.execution_type||null,
     intent_category:p.intent_category||null,
     output_type:p.output_type||null,
     blocks:p.blocks||null,
