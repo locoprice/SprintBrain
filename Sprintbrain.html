@@ -629,9 +629,6 @@
             <div class="nv-chiprow">
               <span class="nv-chip" data-c="{start_date}" title="Start date. Inserts {start_date}, which fills as a date picker">start_date</span>
               <span class="nv-chip" data-c="{end_date}" title="End date. Inserts {end_date}, which fills as a date picker">end_date</span>
-              <span class="nv-chip" data-c="{total_price}" title="Total amount. Inserts {total_price}">total_price</span>
-              <span class="nv-chip" data-c="{phone_number}" title="Phone number. Inserts {phone_number}">phone</span>
-              <span class="nv-chip" data-c="{review_link}" title="Link to your review page. Inserts {review_link}">review_link</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
             </div>
           </div>
@@ -697,11 +694,6 @@
           <div class="nv-menu-hint" style="margin-top:2px">Whether the user can select multiple items</div>
         </div>
         <label class="nv-switch"><input type="checkbox" id="nv-menu-multi"><span class="nv-slider"></span></label>
-      </div>
-      <div class="nv-field">
-        <label>Cols</label>
-        <input id="nv-menu-cols" inputmode="numeric" placeholder="auto" style="width:110px" autocomplete="off">
-        <div class="nv-menu-hint">The width of the field in columns of text</div>
       </div>
       <div class="nv-menu-prev"><span>Inserts</span><code id="nv-menu-token"></code></div>
     </div>
@@ -784,7 +776,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.4', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.5', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1383,6 +1375,10 @@
      SBFormulaEngine.buildFormMenuToken, so the two surfaces cannot drift. */
   var MENU_START_ROWS = 3;
   var menuRows = [], menuSel = [], menuSeq = 0, menuDragId = null;
+  /* No longer editable here, matching the dashboard builder: `cols` only
+     widened the options box in character units and the mobile app ignored it.
+     Held so reopening a menu written with cols=N writes it back unchanged. */
+  var menuCols = '';
   /* Range of the token being edited, or null when building a new one. */
   var menuEditRange = null;
 
@@ -1425,7 +1421,7 @@
       selected: menuRows.filter(function(r){ return menuSel.indexOf(r.id) > -1; }).map(function(r){ return r.label; }),
       name: $('nv-menu-name').value,
       multiple: menuMulti(),
-      cols: $('nv-menu-cols').value
+      cols: menuCols
     });
   }
 
@@ -1564,12 +1560,12 @@
       }
       if (!menuRows.length) menuRows.push({ id: ++menuSeq, label: '' });
       $('nv-menu-multi').checked = cfg.multiple;
-      $('nv-menu-cols').value = cfg.cols === null ? '' : String(cfg.cols);
+      menuCols = cfg.cols === null ? '' : String(cfg.cols);
       $('nv-menu-name').value = cfg.name;
     } else {
       for (var i = 0; i < MENU_START_ROWS; i++) menuRows.push({ id: ++menuSeq, label: '' });
       $('nv-menu-multi').checked = false;
-      $('nv-menu-cols').value = '';
+      menuCols = '';
       /* Blank, with the next free MENU_n only as the placeholder — a name is
          something you opt into, not something to clear (Text Blaze parity). */
       $('nv-menu-name').value = '';
@@ -1592,10 +1588,6 @@
   });
   $('nv-menu-add').addEventListener('click', menuAddRow);
   $('nv-menu-name').addEventListener('input', menuSync);
-  $('nv-menu-cols').addEventListener('input', function(){
-    this.value = this.value.replace(/[^0-9]/g, '');
-    menuSync();
-  });
   $('nv-menu-multi').addEventListener('change', function(){
     /* Single choice carries one default — collapse the extra picks. */
     if (!menuMulti()) menuSel = menuSel.slice(0, 1);

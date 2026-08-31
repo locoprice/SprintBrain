@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
-  ChevronDown,
   Clock,
   Eye,
   History,
+  Info,
   MousePointerClick,
   Pencil,
   Pin,
   Plus,
-  TextCursorInput,
   Trash2,
   X,
 } from 'lucide-react';
@@ -25,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
@@ -131,15 +131,17 @@ function sanitizeTrigger(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-// Quick Insert: mirrors the Sprintbrain.html chip rail. Each entry inserts
-// `value` at the cursor position in the body textarea.
+// Quick Insert: each entry inserts `value` at the cursor position in the body
+// textarea. Only `logic` entries are left here — every field type now has its
+// own toggle in the rail, which explains it before inserting it. The `field`
+// half of the union stays because that is still what the group means, not
+// because anything currently fills it.
 //
-// Grouped because the two halves behave differently and the flat row never said
-// so: a `field` becomes an input to fill when the snippet expands, while `logic`
-// resolves on its own.
+// Note this no longer mirrors the Sprintbrain.html chip rail: that surface
+// still shows the five original field chips.
 //
-// Every entry carries a `hint` — a token name is not an explanation, and `phone`
-// inserting {phone_number} is only obvious once someone tells you.
+// Every entry carries a `hint`: a token name is not an explanation, and what
+// {if:cond} does with the text around it is only obvious once someone tells you.
 interface QuickInsert {
   label: string;
   value: string;
@@ -154,20 +156,17 @@ interface QuickInsert {
 //
 // guest_name and property_name were dropped in v2.150.0: both are plain text
 // fields, and the {formtext} builder writes any of them by name. `nights` went
-// the same way. The two date chips stay, because `DATE` in the name is what
-// makes the fill form render a date picker (content.js auto-detect), which a
-// plain text field cannot replace.
+// the same way, and `phone` and `review_link` followed for the same reason:
+// neither name means anything to the engine, both resolve to a plain text
+// field, and the builder writes either one by name. Bodies already holding
+// {phone_number} or {review_link} keep working untouched, since an unrecognised
+// name has always fallen through to a text field.
+//
+// The two date fields left this list for the Date/Time toggle below, which
+// inserts them with the explanation attached; they are not gone, because `DATE`
+// in the name is what makes the fill form render a date picker (content.js
+// auto-detect), which a plain text field cannot replace.
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'start_date',    value: '{start_date}',           variant: 'default', group: 'field',
-    hint: 'Start date. Inserts {start_date}, which fills as a date picker' },
-  { label: 'end_date',      value: '{end_date}',             variant: 'default', group: 'field',
-    hint: 'End date. Inserts {end_date}, which fills as a date picker' },
-  { label: 'total_price',   value: '{total_price}',          variant: 'default', group: 'field',
-    hint: 'Total amount. Inserts {total_price}' },
-  { label: 'phone',         value: '{phone_number}',         variant: 'default', group: 'field',
-    hint: 'Phone number. Inserts {phone_number}' },
-  { label: 'review_link',   value: '{review_link}',          variant: 'default', group: 'field',
-    hint: 'Link to your review page. Inserts {review_link}' },
   { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
     hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
@@ -177,7 +176,37 @@ const QUICK_INSERTS: QuickInsert[] = [
 ];
 
 const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracking-widest';
+
+// Avada centres tooltip text inside 200px, so this says what a field IS and
+// sends the reader to the group for the rest. Each group already carries its
+// own description and per-input instructions; repeating them here would give
+// us two copies to keep in step and an unreadable wall of centred text.
+const FIELDS_HINT =
+  'A field is a blank you fill in when the snippet expands. Insert one from a group below and it becomes a box in the fill form. Open a group to see what it does.';
 const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
+
+// The four inputs the menu builder actually offers, so the rail explains the
+// dialog before it opens rather than after.
+const MENU_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Values',
+    hint: 'The options the menu offers. Tick one to preselect it.' },
+  { label: 'Selection',
+    hint: 'Single Choice fills as radio buttons, Multiple Choice as checkboxes.' },
+  { label: 'Name',
+    hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
+];
+
+// The picker a field gets is decided by its name, not by any setting: content.js
+// splits the name on non-letters, uppercases it, and looks for DATETIME / DATE /
+// TIME among the parts (see the auto-detect in content.js). That is the whole
+// rule, and it is what makes one Date/Time group the honest place for these.
+const DATE_TIME_FIELDS: { label: string; value: string; hint: string }[] = [
+  { label: '{start_date}', value: '{start_date}',
+    hint: 'Opens a calendar when the snippet expands. Fine on its own, or paired with {end_date} for a range.' },
+  { label: '{end_date}', value: '{end_date}',
+    hint: 'The closing date of a range. Reads as the partner of {start_date}.' },
+];
+
 
 const FIELD_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
 const SELECT_CLASS =
@@ -703,55 +732,142 @@ export function NewSnippetDialog() {
           {/* The three groups sit here rather than under the body. At 260px
               they stack in one column, and the editor keeps the vertical space
               they used to take from it. */}
-          <div className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
+          <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
 
             {/* Fields */}
             <div className="p-4 border-b border-line">
-              <p className={SIDEBAR_LABEL}>Fields</p>
-              <p className={SIDEBAR_HINT}>
-                Filled in when the snippet expands. Type{' '}
-                <code className="font-mono text-primary/80">{'{any_name}'}</code> for your own.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_INSERTS.filter((qi) => qi.group === 'field').map((qi) => (
-                  <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                ))}
-
-                {/* Field builders open a dialog instead of pasting a literal:
-                    a field needs its name before the token means anything, and
-                    an unnamed {formtext:} expands to nothing at all.
-                    With the caret inside a menu the same chip edits it, so
-                    changing the choices never means retyping raw token text. */}
-                <button
-                  type="button"
-                  onClick={() => setTextFieldOpen(true)}
-                  disabled={saving}
-                  title="A line of text to fill in. Opens the builder."
-                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Fields</p>
+                <Tooltip
+                  label={FIELDS_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
                 >
-                  <TextCursorInput className="h-3 w-3" />
-                  {'{formtext}'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={openMenuBuilder}
-                  disabled={saving}
-                  title={
-                    menuAtCaret
-                      ? 'Edit the menu the cursor is in. Its choices load into the builder.'
-                      : 'A list of choices to pick from. Opens the builder. Put the cursor inside an existing menu to edit it.'
-                  }
-                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                >
-                  {menuAtCaret ? (
-                    <Pencil className="h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
-                  {menuAtCaret ? 'Edit menu' : '{formmenu}'}
-                </button>
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
               </div>
+
+              <Toggle
+                label="Date/Time"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <div className="flex flex-wrap gap-1.5">
+                    {DATE_TIME_FIELDS.map((f, i) => (
+                      <Button
+                        key={f.value}
+                        type="button"
+                        size="sm"
+                        variant={i === 0 ? 'primary' : 'ghost'}
+                        disabled={saving}
+                        onClick={() => insertAtCursor(f.value)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Dates and times fill as a picker instead of a text box, and the field
+                  name is what decides which one. A name containing{' '}
+                  <code className="font-mono text-primary/80">date</code> opens a calendar,
+                  <code className="font-mono text-primary/80"> time</code> a clock, and{' '}
+                  <code className="font-mono text-primary/80">datetime</code> both. The rule
+                  holds for any name you invent, so{' '}
+                  <code className="font-mono text-primary/80">{'{delivery_date}'}</code>{' '}
+                  behaves exactly like the two below.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {DATE_TIME_FIELDS.map((f) => (
+                    <div key={f.value}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
+              <Toggle
+                label="Text"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => setTextFieldOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Name and insert
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  One line someone types in when the snippet expands. Unlike a date, a
+                  text field is nothing without a name: an unnamed{' '}
+                  <code className="font-mono text-primary/80">{'{formtext:}'}</code> is
+                  dropped when the snippet runs, which is why the button below asks for
+                  the name first instead of pasting a bare token.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Name</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      What the field is called in the fill form. Arrives prefilled with the
+                      next free TEXT_n, so you can accept it or type your own.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Default</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. Prefills the box, so the common answer is already there and
+                      only the exception needs typing.
+                    </dd>
+                  </div>
+                </dl>
+              </Toggle>
+
+              {/* The builder opens a dialog instead of pasting a literal: the
+                  options have to exist before the token means anything. With the
+                  caret inside a menu the same button edits it, so changing the
+                  choices never means retyping raw token text. */}
+              <Toggle
+                label="Choice"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={openMenuBuilder}
+                  >
+                    {menuAtCaret ? (
+                      <Pencil className="mr-1 h-3 w-3" />
+                    ) : (
+                      <Plus className="mr-1 h-3 w-3" />
+                    )}
+                    {menuAtCaret ? 'Edit this menu' : 'Build the menu'}
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  A list of options, picked when the snippet expands. Every option is
+                  listed in the fill form rather than hidden behind a dropdown, so the
+                  choice is visible without opening anything.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {MENU_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
             </div>
 
             {/* Actions */}
@@ -782,7 +898,7 @@ export function NewSnippetDialog() {
                 ))}
               </div>
             </div>
-          </div>
+          </ToggleGroup>
 
           {/* ── PANEL DIVIDER ── */}
           <div className="w-px bg-line shrink-0" />
