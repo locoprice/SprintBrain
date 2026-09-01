@@ -59,6 +59,29 @@ import {
 const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
 
 /**
+ * A snippet name is read back as plain text everywhere else: the extension
+ * picker, the popup list, the mobile rows, each of which lays the name out in
+ * a fixed-height line that a pictograph breaks. Emoji and the joiners, keycaps,
+ * flags and skin tones that build them are dropped as they are typed or
+ * pasted. Letters in any script, digits, spaces and punctuation pass through.
+ */
+const NAME_EMOJI =
+  /[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Emoji_Modifier}\u{FE0F}\u{20E3}\u{200D}]/gu;
+
+function sanitizeName(value: string): string {
+  return value.replace(NAME_EMOJI, '');
+}
+
+/**
+ * Alternative queries are stored on the row being edited, not on the language
+ * group, which is the one thing about the field a user cannot see.
+ */
+const VARIANT_HINT =
+  'These queries belong to this language variant only. To use the same ones in ' +
+  'EN, IT or ES, open each variant and save. The language picker fires as soon ' +
+  'as any variant matches.';
+
+/**
  * What Multi is for, on the button itself. The four language slots explain
  * themselves; Multi does not, and the two things a user cannot guess are that
  * it holds a single mixed body and that no language check runs on it.
@@ -531,7 +554,8 @@ export function NewSnippetDialog() {
    * Clearing the trigger hands it back to the name, so there is a way out that
    * isn't "reopen the dialog".
    */
-  function handleNameChange(value: string) {
+  function handleNameChange(raw: string) {
+    const value = sanitizeName(raw);
     const syncing =
       mode === 'create' &&
       (form.trigger === '' || form.trigger === autoTriggerRef.current);
@@ -1020,12 +1044,13 @@ export function NewSnippetDialog() {
                   Alternative queries{' '}
                   <span className="font-normal text-ink-subtle">(synonyms)</span>
                   {mode === 'edit' && (
-                    <span
-                      className="ml-1.5 font-normal text-ink-subtle"
-                      title="This field is per-language variant. To apply the same queries to EN, IT, ES versions of this snippet, open each variant and save — the extension's language picker will fire automatically once any variant matches."
+                    <Tooltip
+                      label={VARIANT_HINT}
+                      placement="top"
+                      className="ml-1.5 font-normal text-ink-subtle hover:text-ink transition-colors"
                     >
                       ⓘ per variant
-                    </span>
+                    </Tooltip>
                   )}
                 </label>
 
