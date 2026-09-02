@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
+  Brain,
   Briefcase,
   Bug,
   FlaskConical,
@@ -19,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import { pickHttpsUrl } from '@/lib/branding';
 import { RESOURCE_LINKS } from '@/lib/links';
+import { JotFormModal } from '@/components/layout/JotFormModal';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
@@ -89,6 +91,9 @@ export function Sidebar() {
   const companyLogoUrl = useSettingsStore((s) => s.profile?.company_logo_url ?? null);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Owned here rather than lifted: the trigger lives in this menu and nothing
+  // else opens it. The dialog is fixed-position, so it still covers the app.
+  const [bugOpen, setBugOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
@@ -101,6 +106,9 @@ export function Sidebar() {
   const PRIMARY: NavItem[] = [
     { to: '/', label: t('nav.snippets'), icon: Type, end: true, count: snippetCount },
     { to: '/prompts', label: t('nav.prompts'), icon: Sparkles, count: promptCount },
+    // No count pill: the spaces list is loaded by the Memory page itself, and
+    // pulling that store into the sidebar would make every page fetch it.
+    { to: '/memory', label: t('nav.memory'), icon: Brain },
     { to: '/team', label: t('nav.team'), icon: Users, count: sharedFolderCount },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
   ];
@@ -222,18 +230,21 @@ export function Sidebar() {
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
                 </a>
               )}
+              {/* A form, not a destination: it opens in a modal, so this row
+                  carries no arrow. The arrow on its siblings is what tells you
+                  which rows actually leave the app. */}
               {RESOURCE_LINKS.bugs && (
-                <a
-                  href={RESOURCE_LINKS.bugs}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMenuOpen(false)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setBugOpen(true);
+                  }}
                   className={MENU_ITEM}
                 >
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
                   {t('account.reportBug')}
-                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
-                </a>
+                </button>
               )}
               {RESOURCE_LINKS.github && (
                 <a
@@ -303,6 +314,12 @@ export function Sidebar() {
           </div>
         </button>
       </div>
+      <JotFormModal
+        open={bugOpen}
+        onClose={() => setBugOpen(false)}
+        src={RESOURCE_LINKS.bugs ?? ''}
+        title="Report a bug"
+      />
     </aside>
   );
 }

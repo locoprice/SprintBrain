@@ -40,6 +40,23 @@ export interface OrgApi {
    * DB; a future org switcher will let users change the active one.
    */
   getActiveOrg(): Promise<OrganizationSummary | null>;
+  /**
+   * Every organization the caller belongs to, oldest membership first.
+   *
+   * No RPC needed: `org_select` and `orgmem_select` already admit exactly the
+   * caller's own memberships, so RLS does the scoping. The team switcher reads
+   * this; `getActiveOrg` is the same query truncated to the first row.
+   */
+  listMyOrgs(): Promise<OrganizationSummary[]>;
+  /**
+   * Create an organization and make the caller its admin.
+   *
+   * Runs through the `create_team` RPC rather than two inserts because
+   * `org_insert` and `orgmem_write` deadlock a client-side create: the caller
+   * may insert the organization but not their own membership row, leaving an
+   * org with no members that `org_select` then hides from them.
+   */
+  createTeam(name: string): Promise<OrganizationSummary>;
   /** The member directory for an org the caller belongs to. */
   listMembers(orgId: string): Promise<OrgMember[]>;
   /**
@@ -55,29 +72,50 @@ export interface OrgApi {
 
 export const orgApi: OrgApi = {
   async getActiveOrg() {
+    // The oldest membership, which is the default team until the user picks
+    // another one. `listMyOrgs` is the source of truth for the whole list.
+    return (await this.listMyOrgs())[0] ?? null;
+  },
+
+  async listMyOrgs() {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
-    if (!user) return null;
+    if (!user) return [];
 
     const { data, error } = await supabase
       .from('organization_members')
       .select('role, organizations(id, name, slug, cover)')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(1);
+      .order('created_at', { ascending: true });
     if (error) throw error;
 
-    const row = (data ?? [])[0] as MembershipRow | undefined;
-    if (!row || !row.organizations) return null;
-    const org = Array.isArray(row.organizations) ? row.organizations[0] : row.organizations;
-    if (!org) return null;
-    return {
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      myRole: row.role,
-      cover: org.cover,
-    };
+    const out: OrganizationSummary[] = [];
+    for (const row of (data ?? []) as MembershipRow[]) {
+      if (!row.organizations) continue;
+      // supabase-js may surface the to-one relation either way (see MembershipRow).
+      const org = Array.isArray(row.organizations) ? row.organizations[0] : row.organizations;
+      if (!org) continue;
+      out.push({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        myRole: row.role,
+        cover: org.cover,
+      });
+    }
+    return out;
+  },
+
+  async createTeam(name) {
+    const trimmed = name.trim();
+    const { data, error } = await supabase.rpc('create_team', { p_name: trimmed });
+    // The RPC raises human-readable messages (empty name, name too long,
+    // already in a team) — surface them as written rather than remapping.
+    if (error) throw new Error(error.message);
+    if (typeof data !== 'string') throw new Error('Could not create the team. Try again.');
+    // The caller is the only member, so the summary is fully determined here:
+    // no round-trip needed to learn a role we just assigned.
+    return { id: data, name: trimmed, slug: null, myRole: 'admin', cover: null };
   },
 
   async listMembers(orgId) {

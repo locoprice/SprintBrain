@@ -131,6 +131,7 @@ const PROMPT_A: Prompt = {
   blocks: null,
   folder_id: null,
   notion_page_id: null,
+  pinned: false,
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,

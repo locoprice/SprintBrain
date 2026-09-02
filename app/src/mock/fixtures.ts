@@ -41,6 +41,7 @@ export const mockFolders: Folder[] = [
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
     description: null,
+    organization_id: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000002',
@@ -51,6 +52,7 @@ export const mockFolders: Folder[] = [
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
     description: null,
+    organization_id: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000003',
@@ -61,6 +63,7 @@ export const mockFolders: Folder[] = [
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
     description: null,
+    organization_id: null,
   },
   {
     id: '22222222-0000-4000-8000-000000000004',
@@ -71,6 +74,7 @@ export const mockFolders: Folder[] = [
     updated_at: '2025-12-01T09:00:00Z',
     parent_id: null,
     description: null,
+    organization_id: null,
   },
 ];
 
@@ -504,6 +508,7 @@ const NULL_PROMPT_META = {
   blocks: null,
   folder_id: null,
   notion_page_id: null,
+  pinned: false,
   usage_count: 0,
   is_malformed: false,
 } as const;

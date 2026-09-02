@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
+import { JotFormModal } from '@/components/layout/JotFormModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
 import { PendingInviteBanner } from '@/features/org/PendingInviteBanner';
 import { Toast } from '@/components/ui/Toast';
@@ -10,6 +11,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useCompanyFavicon } from '@/lib/useCompanyFavicon';
 import { APP_VERSION, RELEASE_DATE } from '@/lib/appInfo';
+import { SUPPORT_FORM_URL } from '@/lib/links';
 
 const ONBOARDING_SEEN_KEY = 'sb_onboarding_seen';
 
@@ -26,6 +28,7 @@ export function DashboardLayout() {
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const closeOnboarding = useUiStore((s) => s.closeOnboarding);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Reflect the company logo (Settings → Branding) as the browser-tab favicon,
   // matching the extension toolbar + Sprintbrain.html; brand mark when unset.
@@ -95,6 +98,13 @@ export function DashboardLayout() {
               </a>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setContactOpen(true)}
+                className="font-mono text-[10px] text-ink-subtle transition-colors hover:text-primary"
+              >
+                Support
+              </button>
               <a
                 href="https://sprintbrain.com/legal/privacy-policy.html"
                 target="_blank"
@@ -125,6 +135,12 @@ export function DashboardLayout() {
         </div>
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      <JotFormModal
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        src={SUPPORT_FORM_URL}
+        title="Support"
+      />
       <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} />
       <Toast />
     </div>

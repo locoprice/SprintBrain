@@ -4,7 +4,6 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { UserDropdown } from '@/components/layout/UserDropdown';
-import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 
 /**
  * Top bar — design system v1.1.
@@ -81,8 +80,6 @@ export function Topbar() {
         <LanguageSwitcher />
 
         <ThemeToggle />
-
-        <NotificationsDropdown />
 
         <UserDropdown />
       </div>

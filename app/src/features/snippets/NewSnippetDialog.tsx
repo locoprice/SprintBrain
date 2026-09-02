@@ -67,6 +67,21 @@ const MULTI_HINT =
   'One body, any mix of languages. No language check here. ' +
   'Use EN, IT, ES or FR for separate translations.';
 
+// The body placeholder's opening word in the language the tab is set to, so an
+// empty EN slot doesn't sit there suggesting "Dear" for an Italian message.
+// Same address words as GENDER_WORDS' unmarked (masculine) form in
+// extension/formula-engine.js (Caro / Querido / Cher) — reused, not invented,
+// so the placeholder and the {gender:} chip never disagree on the word.
+// MULTI carries no single language, so it falls back to English like
+// {greeting} does for the same slot.
+const BODY_PLACEHOLDER: Record<SnippetFormValues['language'], string> = {
+  EN:    'Dear {first_name}, …',
+  IT:    'Caro {first_name}, …',
+  ES:    'Querido {first_name}, …',
+  FR:    'Cher {first_name}, …',
+  MULTI: 'Dear / Caro / Querido {first_name}, …',
+};
+
 // Inline hex OK per CLAUDE.md — mirrors SnippetsTable.tsx language palette
 const LANG_CONFIG: Record<
   SnippetFormValues['language'],
@@ -133,27 +148,32 @@ interface QuickInsert {
   hint: string;
 }
 
+// Every chip has to read as built for the reader's own trade, whichever that is:
+// a clinic, a repair shop and a law firm each open this rail and find their own
+// words in it. So nothing here names an industry (see the root CLAUDE.md).
+//
+// guest_name and property_name were dropped in v2.150.0: both are plain text
+// fields, and the {formtext} builder writes any of them by name. `nights` went
+// the same way. The two date chips stay, because `DATE` in the name is what
+// makes the fill form render a date picker (content.js auto-detect), which a
+// plain text field cannot replace.
 const QUICK_INSERTS: QuickInsert[] = [
-  // guest_name and property_name were dropped in v2.150.0: both are plain text
-  // fields, and the {formtext} builder writes any of them by name. The two date
-  // chips stay — `DATE` in the name is what makes the fill form render a date
-  // picker (content.js auto-detect), which a text field cannot replace.
-  { label: 'checkin_date',  value: '{checkin_date}',         variant: 'default', group: 'field',
-    hint: 'Arrival date — inserts {checkin_date}' },
-  { label: 'checkout_date', value: '{checkout_date}',        variant: 'default', group: 'field',
-    hint: 'Departure date — inserts {checkout_date}' },
+  { label: 'start_date',    value: '{start_date}',           variant: 'default', group: 'field',
+    hint: 'Start date. Inserts {start_date}, which fills as a date picker' },
+  { label: 'end_date',      value: '{end_date}',             variant: 'default', group: 'field',
+    hint: 'End date. Inserts {end_date}, which fills as a date picker' },
   { label: 'total_price',   value: '{total_price}',          variant: 'default', group: 'field',
-    hint: 'Total price of the stay — inserts {total_price}' },
-  { label: 'nights',        value: '{nights}',               variant: 'default', group: 'field',
-    hint: 'Number of nights — inserts {nights}' },
+    hint: 'Total amount. Inserts {total_price}' },
   { label: 'phone',         value: '{phone_number}',         variant: 'default', group: 'field',
-    hint: 'Phone number — inserts {phone_number}' },
+    hint: 'Phone number. Inserts {phone_number}' },
   { label: 'review_link',   value: '{review_link}',          variant: 'default', group: 'field',
-    hint: 'Link to your review page — inserts {review_link}' },
+    hint: 'Link to your review page. Inserts {review_link}' },
   { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
-    hint: 'Calculate from other fields — e.g. {=OTA_PRICE - YOUR_PRICE}' },
+    hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
-    hint: 'Show text only when a condition is true — e.g. {if:NIGHTS > 3}…{endif}' },
+    hint: 'Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}' },
+  { label: '{greeting}',    value: '{greeting}',             variant: 'cond',    group: 'logic',
+    hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
 ];
 
 const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
@@ -934,7 +954,7 @@ export function NewSnippetDialog() {
                   'w-full flex-1 min-h-[160px] resize-none rounded-[10px] border border-line bg-card px-3.5 py-3 text-sm text-ink font-mono leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
                   contentError && 'border-danger focus:border-danger focus:ring-danger/20',
                 )}
-                placeholder="Dear {guest_name}, …"
+                placeholder={BODY_PLACEHOLDER[form.language]}
               />
               {/* Footer: the error and the count share one line. Stacking them
                   would cost the textarea a second row of height for something
