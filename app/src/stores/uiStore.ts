@@ -58,6 +58,32 @@ interface UiStore {
   // Theme preference — persisted to localStorage, applied to <html data-theme>
   theme: ThemePreference;
   setTheme: (pref: ThemePreference) => void;
+
+  // Snippet editor's live preview panel — a per-device layout preference, so a
+  // narrow screen can put it away and keep it away.
+  snippetPreviewOpen: boolean;
+  setSnippetPreviewOpen: (open: boolean) => void;
+}
+
+const PREVIEW_KEY = 'sprintbrain-snippet-preview';
+
+// Same storage guard as getStoredTheme: a browser with site data blocked throws
+// on access, and the vitest 'node' environment has no localStorage at all.
+// Open is the default, since the preview is the reason the panel exists.
+function getStoredPreviewOpen(): boolean {
+  try {
+    return localStorage.getItem(PREVIEW_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
+
+function storePreviewOpen(open: boolean): void {
+  try {
+    localStorage.setItem(PREVIEW_KEY, open ? 'open' : 'closed');
+  } catch {
+    // Storage unavailable — the preference is per-device convenience only.
+  }
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -105,5 +131,11 @@ export const useUiStore = create<UiStore>((set) => ({
   setTheme: (pref) => {
     applyTheme(pref);
     set({ theme: pref });
+  },
+
+  snippetPreviewOpen: getStoredPreviewOpen(),
+  setSnippetPreviewOpen: (open) => {
+    storePreviewOpen(open);
+    set({ snippetPreviewOpen: open });
   },
 }));

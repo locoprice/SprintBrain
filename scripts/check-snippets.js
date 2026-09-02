@@ -132,11 +132,12 @@ const MENU_RENDERERS = [
     "f.multiple?'checkbox':'radio'", ' name="d-'],
   ['app/public/mobile/index.html', 'mobile companion',
     "c.multiple?'checkbox':'radio'", ' name="f-'],
-  // The composer reads its fields from the shared view model (see
-  // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
-  // assertion is unchanged: the control is still picked by the menu's kind.
-  ['Sprintbrain.html', 'composer',
-    "f.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
+  // The dashboard editor's live preview replaced Sprintbrain.html's composer in
+  // v3.5.0. Same shared view model, same rule: the control is picked by the
+  // menu's kind, and a single-choice group is named so two menus in one form
+  // cannot share it.
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
+    "field.multiple ? 'checkbox' : 'radio'", 'sb-preview-'],
 ];
 
 for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
@@ -166,7 +167,9 @@ const MENU_OPTION_CSS = [
   ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
   ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
   ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
-  ['Sprintbrain.html', 'composer', '.nv-comp-multi{display:flex;flex-direction:column'],
+  // Tailwind, not a stylesheet rule: the option list is the flex column here.
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
+    'flex flex-col gap-0.5'],
   ['app/public/mobile/index.html', 'mobile companion', '.field-opts{display:flex;flex-direction:column'],
 ];
 

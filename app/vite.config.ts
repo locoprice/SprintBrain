@@ -228,6 +228,20 @@ function mobileVersionPlugin(): Plugin {
 // preserved (no committed duplication of the extension code). Served at
 // /Sprintbrain.html with its deps under /extension/*; real files take precedence
 // over the SPA fallback, so they resolve directly.
+//
+// The dashboard's own snippet preview also loads formula-engine.js and
+// shared/fill-form.js from /extension/*, so the middleware below serves the same
+// tree in dev. Without it those two scripts 404 under `npm run dev` and the
+// preview panel can never start.
+
+const EXTENSION_MIME: Record<string, string> = {
+  '.js':   'text/javascript; charset=utf-8',
+  '.css':  'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.svg':  'image/svg+xml',
+  '.png':  'image/png',
+};
 
 function nativeDashboardPlugin(): Plugin {
   const repoRoot = path.resolve(__dirname, '..');
@@ -237,7 +251,41 @@ function nativeDashboardPlugin(): Plugin {
 
   return {
     name: 'sprintbrain-native-dashboard',
-    apply: 'build',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? '').split('?')[0] ?? '';
+        if (!pathname.startsWith('/extension/')) {
+          next();
+          return;
+        }
+
+        // Resolve inside extension/ and confirm it stayed there, so an encoded
+        // traversal can't read the rest of the repo off the dev server.
+        const target = path.resolve(
+          extSrc,
+          decodeURIComponent(pathname.slice('/extension/'.length)),
+        );
+        if (target !== extSrc && !target.startsWith(extSrc + path.sep)) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
+
+        try {
+          const body = fs.readFileSync(target);
+          const mime = EXTENSION_MIME[path.extname(target).toLowerCase()];
+          if (mime) res.setHeader('Content-Type', mime);
+          res.end(body);
+        } catch {
+          // 404 rather than next(): the SPA fallback would answer 200 with
+          // index.html, and a <script src> pointed at that loads "successfully"
+          // and then dies parsing HTML as JS — the least debuggable failure
+          // available. A real 404 names the missing file.
+          res.statusCode = 404;
+          res.end('Not found');
+        }
+      });
+    },
     closeBundle() {
       fs.copyFileSync(htmlSrc, path.join(distDir, 'Sprintbrain.html'));
       fs.cpSync(extSrc, path.join(distDir, 'extension'), { recursive: true });

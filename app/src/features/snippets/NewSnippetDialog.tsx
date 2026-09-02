@@ -6,6 +6,8 @@ import {
   History,
   Info,
   MousePointerClick,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
   Pin,
   Plus,
@@ -34,6 +36,7 @@ import {
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
+import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
 import {
   findMenuTokenAt,
@@ -282,6 +285,10 @@ export function NewSnippetDialog() {
   const setSnippetLabels        = useLabelStore((s) => s.setSnippetLabels);
 
   const openHistory = useUiStore((s) => s.openHistory);
+
+  // Live preview panel — remembered per device, so closing it makes it stay closed.
+  const previewOpen    = useUiStore((s) => s.snippetPreviewOpen);
+  const setPreviewOpen = useUiStore((s) => s.setSnippetPreviewOpen);
 
   // Snippet trigger prefix (e.g. "::") — a user setting, never hardcoded.
   // Shown as a leading affix on the Trigger field so the full shortcut
@@ -724,8 +731,19 @@ export function NewSnippetDialog() {
         panel then has nothing to scroll. The panel keeps overflow-y as the
         safety valve for short windows, with the scrollbar chrome hidden
         (no-scrollbar) like the options rail (v2.129.0).
+
+        Width grows by the preview panel's 320px + its divider when the preview
+        is open, so opening it costs the body textarea nothing on a wide screen.
+        Both widths stay under 94vw; on a screen too narrow to hold the fourth
+        panel the center panel gives up the difference, which is what the
+        toggle is for — and the choice is remembered per device.
       */}
-      <DialogContent className="max-w-[min(94vw,1100px)] p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]">
+      <DialogContent
+        className={cn(
+          'p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]',
+          previewOpen ? 'max-w-[min(94vw,1421px)]' : 'max-w-[min(94vw,1100px)]',
+        )}
+      >
 
         {/* ── Dialog header ── */}
         {/* Title and description share one line — the description is a short
@@ -739,6 +757,22 @@ export function NewSnippetDialog() {
               ? 'Update the name, trigger, or body. Changes sync across every device.'
               : 'Give the snippet a name, a trigger, and a body. It will sync immediately.'}
           </DialogDescription>
+
+          {/* Preview toggle. Sits before the dialog's own close button, which
+              the header's pr-14 already reserves room for. */}
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(!previewOpen)}
+            aria-pressed={previewOpen}
+            className="ml-auto self-center shrink-0 inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-line bg-card px-2.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/30 hover:text-primary"
+          >
+            {previewOpen ? (
+              <PanelRightClose className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Preview
+          </button>
         </DialogHeader>
 
         {/* ── Two-panel body ── */}
@@ -1245,6 +1279,23 @@ export function NewSnippetDialog() {
             />
 
           </div>
+
+          {/* ── PREVIEW PANEL: the body, resolved ── */}
+          {/* Sits next to the textarea rather than in a page of its own: the
+              whole point is seeing the result of the edit you just made. Reads
+              the active language slot, so switching language previews that
+              translation. Runs on extension/shared/fill-form.js — the same code
+              that expands the snippet in Gmail — so it cannot disagree with
+              what the extension produces. */}
+          {previewOpen && (
+            <>
+              <div className="w-px bg-line shrink-0" />
+              <SnippetPreview
+                body={form.content}
+                lang={form.language === 'MULTI' ? '' : form.language}
+              />
+            </>
+          )}
 
           {/* ── PANEL DIVIDER ── */}
           <div className="w-px bg-line shrink-0" />
