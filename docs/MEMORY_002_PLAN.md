@@ -4,7 +4,7 @@
 **Supersedes**: the v2.168.0-era draft of this file, revised 2026-08-27 after the architecture
 review in `docs/MEMORY_ARCHITECTURE_REVIEW.md`. That review's three blockers are accepted and
 are now enforced as principles below.
-**Status**: phases K0 to K3 shipped. P1 is next. Nothing shipped needs undoing.
+**Status**: K0 to K3 and P1 shipped. P2 (candidate generation) is next. Nothing shipped needs undoing.
 
 ---
 
@@ -359,7 +359,7 @@ default off.
 
 Every phase is independently shippable and independently revertible.
 
-### P1. Knowledge view
+### P1. Knowledge view  ✅ shipped v3.4.0
 - **Objective**: one read surface over snippets and memory items. Prompts are excluded (P-1).
 - **Affects**: one migration creating `app.knowledge_index`.
 - **Database**: view only, `security_invoker = true`. No table changes.
