@@ -9,7 +9,6 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Pencil,
-  Pin,
   Plus,
   Trash2,
   X,
@@ -720,29 +719,30 @@ export function NewSnippetDialog() {
       </DialogTrigger>
 
       {/*
-        Override defaults via tailwind-merge:
-          max-w-lg  → max-w-[min(94vw,1100px)]
-          p-6       → p-0
-          gap-4     → gap-0
-          grid      → flex flex-col
+        Override the component defaults: p-6 → p-0, gap-4 → gap-0, grid → flex
+        flex-col, and max-w-lg via the inline maxWidth below.
 
         Height is FIXED (not max-) so the flex column always fills it and the
-        body textarea absorbs the slack — on target desktop viewports the left
-        panel then has nothing to scroll. The panel keeps overflow-y as the
-        safety valve for short windows, with the scrollbar chrome hidden
-        (no-scrollbar) like the options rail (v2.129.0).
+        body textarea absorbs the slack. The left rail scrolls when it has to:
+        Edit mode adds Edit note and About to it, and with the urgency fields
+        expanded that overflows even a full-height dialog.
 
-        Width grows by the preview panel's 320px + its divider when the preview
-        is open, so opening it costs the body textarea nothing on a wide screen.
-        Both widths stay under 94vw; on a screen too narrow to hold the fourth
+        Opening the preview grows the dialog by 321px while the preview panel
+        itself takes only 261px (it matches the 260px insert rail), so the 60px
+        difference falls to the editor: opening the preview costs the body
+        textarea nothing and the two rails frame it evenly.
+        Both widths stay under 94vw; on a screen too narrow to hold the third
         panel the center panel gives up the difference, which is what the
         toggle is for — and the choice is remembered per device.
       */}
       <DialogContent
-        className={cn(
-          'p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]',
-          previewOpen ? 'max-w-[min(94vw,1421px)]' : 'max-w-[min(94vw,1100px)]',
-        )}
+        className="p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]"
+        // Width = the panels actually on screen: the 260px insert rail, the
+        // editor, and 321px more when the preview is open (see above: the
+        // preview itself is 261px of that). An inline value rather than two
+        // Tailwind classes: it is one sum, and it beats the component's own
+        // max-w default without a cn() override.
+        style={{ maxWidth: `min(94vw, ${839 + (previewOpen ? 321 : 0)}px)` }}
       >
 
         {/* ── Dialog header ── */}
@@ -789,8 +789,11 @@ export function NewSnippetDialog() {
           {/* ── LEFT PANEL: insert chips ── */}
           {/* The three groups sit here rather than under the body. At 260px
               they stack in one column, and the editor keeps the vertical space
-              they used to take from it. */}
-          <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
+              they used to take from it. Edit note and About join them at the
+              foot in Edit mode, which is why this rail shows its scrollbar:
+              with the urgency fields expanded it can genuinely overflow, and
+              hidden chrome would leave About silently out of reach. */}
+          <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto flex flex-col bg-bg">
 
             {/* Fields */}
             <div className="p-4 border-b border-line">
@@ -944,6 +947,62 @@ export function NewSnippetDialog() {
                   {'{button}'}
                 </button>
               </div>
+
+              {/* Urgency Timer belongs with the actions: it is the other thing
+                  the snippet does at fill time, not a list-level preference
+                  like Pin to top. Re-indented from the options rail; the two
+                  panels are the same width, so it needs no resizing. */}
+              <div className="mt-2.5 flex flex-col gap-2.5">
+                <OptionToggle
+                  id="snippet-urgency"
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  title="Urgency Timer"
+                  description="Countdown + scarcity"
+                  checked={form.enable_urgency_timer}
+                  onChange={(v) => updateField('enable_urgency_timer', v)}
+                  disabled={saving}
+                />
+
+                {form.enable_urgency_timer && (
+                  <div className="grid gap-2 pl-1 pb-0.5">
+                    <div>
+                      <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
+                        Duration (minutes)
+                      </label>
+                      <Input
+                        id="snippet-timer-minutes"
+                        type="number"
+                        min={0}
+                        value={Math.round(form.timer_duration_ms / 60000)}
+                        onChange={(e) =>
+                          updateField(
+                            'timer_duration_ms',
+                            Math.max(0, Number(e.target.value) || 0) * 60000,
+                          )
+                        }
+                        disabled={saving}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
+                        Scarcity count
+                      </label>
+                      <Input
+                        id="snippet-scarcity"
+                        type="number"
+                        min={0}
+                        value={form.scarcity_count}
+                        onChange={(e) =>
+                          updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
+                        }
+                        disabled={saving}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Logic */}
@@ -956,6 +1015,39 @@ export function NewSnippetDialog() {
                 ))}
               </div>
             </div>
+
+            {/* Edit note — recorded in version history. Sits below Logic, which
+                keeps flex-1 and so pushes both edit-only blocks to the foot of
+                the rail, away from the insert chips. */}
+            {mode === 'edit' && (
+              <div className="shrink-0 border-t border-line p-4">
+                <label htmlFor="snippet-edit-note" className={cn(SIDEBAR_LABEL, 'block mb-2.5')}>
+                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder={'What changed?'}
+                  disabled={saving}
+                  maxLength={200}
+                  className="h-9 text-xs"
+                />
+              </div>
+            )}
+
+            {/* Attribution — who created / last touched this snippet */}
+            {mode === 'edit' && editingSnippet && (
+              <div className="shrink-0 border-t border-line p-4">
+                <p className={cn(SIDEBAR_LABEL, 'mb-2.5')}>About</p>
+                <AssetAttribution
+                  assetId={editingSnippet.id}
+                  createdBy={editingSnippet.user_id}
+                  updatedBy={editingSnippet.updated_by}
+                  updatedAt={editingSnippet.updated_at}
+                />
+              </div>
+            )}
           </ToggleGroup>
 
           {/* ── PANEL DIVIDER ── */}
@@ -1192,19 +1284,72 @@ export function NewSnippetDialog() {
             {/* Body — the panel's flexible element: it absorbs whatever height
                 the fixed-size dialog has to spare, and shrinks (never below
                 min-h) before the panel resorts to scrolling. The wrapper's
-                min-h must cover label + gap + the textarea's own floor + the
-                footer row, or the textarea escapes the wrapper.
-                Measured need is ~210.5px: label 16 + its own mb-1.5 (FIELD_LABEL
-                carries a margin *on top of* this flex gap) + 6 gap + textarea
-                160 + 6 gap + footer 16.5. Raised 190 -> 216 when the word count
-                added the footer row; the spare ~5px is deliberate, since label
-                and footer heights come from font metrics that differ per
-                platform and a floor tuned to the exact number would overflow
-                somewhere else. */}
-            <div className="flex flex-col gap-1.5 flex-1 min-h-[216px]">
-              <label htmlFor="snippet-content" className={FIELD_LABEL}>
-                Body
-              </label>
+                min-h must cover the label/language row + gap + the textarea's
+                own floor + the footer row, or the textarea escapes the wrapper.
+                Measured need is ~216.5px: header row 28 (the language pills
+                set its height) + 6 gap + textarea 160 + 6 gap + footer 16.5.
+                Raised 216 -> 224 when the pills moved onto the label row; the
+                spare ~7px is deliberate, since those heights come from font
+                metrics that differ per platform and a floor tuned to the exact
+                number would overflow somewhere else. */}
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[224px]">
+              {/* Label and language pills share the row: the language a body is
+                  written in belongs next to that body, not in a far panel, and
+                  putting them side by side costs no extra height. */}
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="snippet-content" className={cn(FIELD_LABEL, 'mb-0')}>
+                  Body
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {LANG_PICKER.map((lang) => {
+                    const cfg = LANG_CONFIG[lang];
+                    const isActive = form.language === lang;
+                    // Dot shown next to the label when this language already has
+                    // body text saved (and it isn't the one currently being
+                    // edited), so it's visible at a glance which slots are filled.
+                    const hasContent = (form.bodies[lang] ?? '').length > 0;
+                    const showDot = hasContent && !isActive;
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => changeLanguage(lang)}
+                        style={
+                          isActive
+                            ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
+                            : undefined
+                        }
+                        className={cn(
+                          'relative inline-flex h-7 items-center gap-1 rounded-[8px] border px-3 text-xs font-semibold transition-all disabled:opacity-50',
+                          isActive
+                            ? 'shadow-sm'
+                            : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
+                        )}
+                      >
+                        {/* Multi carries its own hint: the only slot whose
+                            meaning isn't given away by its label. */}
+                        {lang === 'MULTI' && (
+                          <Tooltip
+                            label={MULTI_HINT}
+                            placement="top"
+                            className="inline-flex items-center text-ink-subtle hover:text-ink transition-colors"
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden />
+                          </Tooltip>
+                        )}
+                        {cfg.label}
+                        {showDot && (
+                          <span
+                            aria-hidden
+                            className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <textarea
                 id="snippet-content"
                 ref={contentRef}
@@ -1297,176 +1442,6 @@ export function NewSnippetDialog() {
             </>
           )}
 
-          {/* ── PANEL DIVIDER ── */}
-          <div className="w-px bg-line shrink-0" />
-
-          {/* ── RIGHT PANEL: language + options ── */}
-          <div className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
-
-            {/* Language picker — visual pill tabs matching the extension popup */}
-            <div className="p-4 border-b border-line">
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-3">
-                Language
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {LANG_PICKER.map((lang) => {
-                  const cfg = LANG_CONFIG[lang];
-                  const isActive = form.language === lang;
-                  // Dot shown next to the label when this language already has
-                  // body text saved (and it isn't the one currently being
-                  // edited), so it's visible at a glance which slots are filled.
-                  const hasContent = (form.bodies[lang] ?? '').length > 0;
-                  const showDot = hasContent && !isActive;
-                  return (
-                    <button
-                      key={lang}
-                      type="button"
-                      disabled={saving}
-                      onClick={() => changeLanguage(lang)}
-                      style={
-                        isActive
-                          ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
-                          : undefined
-                      }
-                      className={cn(
-                        'relative h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
-                        // Multi is the odd one out — span both columns so it fills the row.
-                        lang === 'MULTI' && 'col-span-2',
-                        isActive
-                          ? 'shadow-sm'
-                          : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
-                      )}
-                    >
-                      {cfg.label}
-                      {/* Multi carries its own hint: the only slot whose
-                          meaning isn't given away by its label. Sits left so it
-                          never collides with the filled-slot dot on the right. */}
-                      {lang === 'MULTI' && (
-                        <Tooltip
-                          label={MULTI_HINT}
-                          placement="top"
-                          className="absolute left-2 top-0 bottom-0 flex items-center text-ink-subtle hover:text-ink transition-colors"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden />
-                        </Tooltip>
-                      )}
-                      {showDot && (
-                        <span
-                          aria-hidden
-                          className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Options */}
-            <div className="flex-1 p-4 flex flex-col gap-2.5">
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-0.5">
-                Options
-              </p>
-
-              <OptionToggle
-                id="snippet-urgency"
-                icon={<Clock className="h-3.5 w-3.5" />}
-                title="Urgency Timer"
-                description="Countdown + scarcity"
-                checked={form.enable_urgency_timer}
-                onChange={(v) => updateField('enable_urgency_timer', v)}
-                disabled={saving}
-              />
-
-              {form.enable_urgency_timer && (
-                <div className="grid gap-2 pl-1 pb-0.5">
-                  <div>
-                    <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
-                      Duration (minutes)
-                    </label>
-                    <Input
-                      id="snippet-timer-minutes"
-                      type="number"
-                      min={0}
-                      value={Math.round(form.timer_duration_ms / 60000)}
-                      onChange={(e) =>
-                        updateField(
-                          'timer_duration_ms',
-                          Math.max(0, Number(e.target.value) || 0) * 60000,
-                        )
-                      }
-                      disabled={saving}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
-                      Scarcity count
-                    </label>
-                    <Input
-                      id="snippet-scarcity"
-                      type="number"
-                      min={0}
-                      value={form.scarcity_count}
-                      onChange={(e) =>
-                        updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
-                      }
-                      disabled={saving}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <OptionToggle
-                id="snippet-pin"
-                icon={<Pin className="h-3.5 w-3.5" />}
-                title="Pin to top"
-                description="Always shows first"
-                checked={form.pinned}
-                onChange={(v) => updateField('pinned', v)}
-                disabled={saving}
-              />
-            </div>
-
-            {/* Edit note — recorded in version history. Lives in the rail (not
-                the editor panel) so the left column fits without scrolling on
-                target viewports; the rail has the spare height. */}
-            {mode === 'edit' && (
-              <div className="shrink-0 border-t border-line p-4">
-                <label
-                  htmlFor="snippet-edit-note"
-                  className="block text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5"
-                >
-                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={'What changed?'}
-                  disabled={saving}
-                  maxLength={200}
-                  className="h-9 text-xs"
-                />
-              </div>
-            )}
-
-            {/* Attribution — who created / last touched this snippet */}
-            {mode === 'edit' && editingSnippet && (
-              <div className="shrink-0 border-t border-line p-4">
-                <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5">
-                  About
-                </p>
-                <AssetAttribution
-                  assetId={editingSnippet.id}
-                  createdBy={editingSnippet.user_id}
-                  updatedBy={editingSnippet.updated_by}
-                  updatedAt={editingSnippet.updated_at}
-                />
-              </div>
-            )}
-          </div>
         </form>
 
         {/* ── Footer ── */}

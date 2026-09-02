@@ -195,7 +195,9 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
   return (
     <aside
       aria-label="Live preview"
-      className="flex w-[320px] shrink-0 flex-col overflow-hidden bg-bg"
+      // Matches the dialog's insert rail on the other side, so the editor
+      // sits between two equal columns instead of off-centre.
+      className="flex w-[260px] shrink-0 flex-col overflow-hidden bg-bg"
     >
       {/* ── Values ── */}
       {/* Takes the larger share: this pane is the one being operated, and a
@@ -384,7 +386,10 @@ function PreviewField({ field, onChange, onToggleOption }: PreviewFieldProps) {
           className={cn(
             'min-w-0 rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs text-ink transition-colors',
             'placeholder:text-ink-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
-            field.cols ? '' : 'flex-1',
+            // A floor, not a width: long surrounding prose would otherwise
+            // squeeze a flex-1 input down to a few characters. The row wraps,
+            // so the prose gives way and takes the line above instead.
+            field.cols ? '' : 'flex-1 min-w-[7rem]',
           )}
         />
         {after}

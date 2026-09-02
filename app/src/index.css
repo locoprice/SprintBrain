@@ -75,7 +75,7 @@
   }
 
   /* Hide the scrollbar chrome while the element stays scrollable. Used on
-     compact rails (e.g. the snippet dialog's options panel) so short viewports
+     compact rails (e.g. the snippet dialog's editor panel) so short viewports
      don't surface a vertical bar. */
   .no-scrollbar {
     scrollbar-width: none; /* Firefox */
