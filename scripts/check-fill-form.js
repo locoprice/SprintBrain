@@ -46,8 +46,8 @@ console.log('OK Field kind inferred from the name (' + TYPE_CASES.length + ' cas
 
 // ── THE VIEW MODEL EVERY SURFACE READS ──────────────────────────────
 const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps'];
-const FIELD_SHAPE = ['key', 'type', 'options', 'picks', 'multiple', 'cols',
-                     'default', 'value', 'before', 'after', 'block', 'visible'];
+const FIELD_SHAPE = ['key', 'label', 'type', 'options', 'picks', 'multiple',
+                     'cols', 'default', 'value', 'before', 'after', 'block', 'visible'];
 
 const vm1 = ff.fillForm(
   'Hola {NOMBRE}, tu {formmenu: A,B,C; name=PLAN; default=B} para el {CHECKIN_DATE}.',
@@ -104,7 +104,17 @@ const vmCfg = ff.fillForm('Total {AMOUNT}', {}, opt({ fieldCfg: { AMOUNT: { type
 if (vmCfg.fields[0].type !== 'number') {
   fail('a stored field_cfg no longer overrides what the text declares');
 }
-console.log('OK Stored field config overrides the text');
+// A stored label is the field's display name. Only the phone honoured this,
+// and it is part of the documented field_cfg shape, so it travels in the model.
+const vmLbl = ff.fillForm('Total {AMOUNT}', {}, opt({ fieldCfg: { AMOUNT: { label: 'Grand total' } } }));
+if (vmLbl.fields[0].label !== 'Grand total') {
+  fail('a stored field label is no longer carried: ' + JSON.stringify(vmLbl.fields[0].label));
+}
+if (vmCfg.fields[0].label !== '') {
+  fail('a field with no stored label must report an empty one, so each renderer\n' +
+    '  keeps its own way of titling an unnamed field');
+}
+console.log('OK Stored field config and label override the text');
 
 // ── PREVIEW RESOLVES AGAINST WHAT THE FORM SHOWS ────────────────────
 // Not against the raw values argument. A single-choice menu nobody touched

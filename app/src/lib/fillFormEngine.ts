@@ -20,6 +20,12 @@ export type SbFieldType = 'text' | 'date' | 'time' | 'datetime' | 'number' | 'dd
 /** One row of the fill form. Mirrors FIELD_SHAPE in scripts/check-fill-form.js. */
 export interface SbFillField {
   key: string;
+  /**
+   * Display name from a stored field_cfg, or '' when none is set — the renderer
+   * decides how to title an unnamed field, and they deliberately differ (the
+   * overlay prints {KEY}, the phone and this panel humanise it).
+   */
+  label: string;
   type: SbFieldType;
   /** Choices, for `dd` only. */
   options: string[];

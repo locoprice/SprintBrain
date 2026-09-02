@@ -33,8 +33,12 @@
   if (typeof module !== 'undefined' && module.exports) {
     FE = require('../formula-engine.js');
   }
+  // A surface may supply its own engine as root.SBFillFormEngine. The mobile
+  // companion is a single-file app that cannot load extension/formula-engine.js,
+  // so it keeps its own parser and adapts it to this interface. Every other
+  // surface has the real engine on the page already.
   function engine() {
-    return FE || root.SBFormulaEngine || null;
+    return FE || root.SBFillFormEngine || root.SBFormulaEngine || null;
   }
 
   // Fields per form before a step layout would earn its place. Nothing reads
@@ -144,6 +148,10 @@
 
       fields.push({
         key: key,
+        // Display name from a stored field_cfg. Empty when none is set: it is
+        // the renderer that decides how to title an unnamed field, and they do
+        // not agree (the overlay prints {KEY}, the phone humanises it).
+        label: raw.label || '',
         type: type,
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],

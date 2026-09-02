@@ -12,8 +12,9 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Claude Code local config — never commit
-.claude/
+# Claude Code local config — never commit, except the shared team skills
+.claude/*
+!.claude/skills/
 
 # Session scratch — multi-session task progress, never commit
 _progress.md

@@ -318,7 +318,8 @@ interface PreviewFieldProps {
  * takes its context above and below instead of beside it.
  */
 function PreviewField({ field, onChange, onToggleOption }: PreviewFieldProps) {
-  const label = fieldLabel(field.key);
+  // A stored display name wins; otherwise the key, humanised.
+  const label = field.label || fieldLabel(field.key);
   const showBefore = field.before !== '' && !isEchoOfLabel(field.before, label);
   const before = showBefore ? (
     <span className="text-[11px] leading-snug text-ink-muted">{field.before}</span>

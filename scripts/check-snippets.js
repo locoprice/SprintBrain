@@ -117,8 +117,8 @@ console.log('OK Template validator passed all ' + vok + ' parity cases');
 // the output. Radios cannot drift that way: a ticked radio is the value read,
 // and nothing ticked reads ''.
 //
-// Sprintbrain.html's composer is checked here too. It has its own renderer and
-// the old placeholder check never covered it, so it carried that exact bug.
+// The dashboard editor's live preview is checked here too. It has its own
+// renderer, and the composer it replaced carried this exact bug uncovered.
 //
 // Source assertions rather than behaviour tests, because the markup is built
 // inside large DOM-bound render functions, but they pin the exact drift.
@@ -130,8 +130,11 @@ const MENU_RENDERERS = [
   // assertion is unchanged: the control is still picked by the menu's kind.
   ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
     "f.multiple?'checkbox':'radio'", ' name="d-'],
+  // The mobile companion reads its fields from the shared view model (inlined
+  // by scripts/sync-fill-form.js), so its marker names `fld`, not `c`. The
+  // assertion is unchanged: the control is still picked by the menu's kind.
   ['app/public/mobile/index.html', 'mobile companion',
-    "c.multiple?'checkbox':'radio'", ' name="f-'],
+    "fld.multiple?'checkbox':'radio'", ' name="f-'],
   // The dashboard editor's live preview replaced Sprintbrain.html's composer in
   // v3.5.0. Same shared view model, same rule: the control is picked by the
   // menu's kind, and a single-choice group is named so two menus in one form
