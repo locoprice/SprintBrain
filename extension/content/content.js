@@ -1441,8 +1441,7 @@ function showOverlay(targetEl, snip, scLen, done) {
   overlayEl = el;
 
   setTimeout(function() {
-    var first = el.querySelector('.sb-inp');
-    if (first) first.focus();
+    _sbFocus(_sbFirstEmpty(el));
     updatePrev(snip);
     if (document.getElementById('sb-urg-bar')) startUrgTick();
   }, 50);
@@ -1451,7 +1450,24 @@ function showOverlay(targetEl, snip, scLen, done) {
   for (var j = 0; j < inps.length; j++) {
     (function(inp) {
       inp.addEventListener('input',  function(){ updatePrev(snip); });
-      inp.addEventListener('change', function(){ updatePrev(snip); });
+      inp.addEventListener('change', function(){
+        updatePrev(snip);
+        // A radio is a finished answer the moment it is ticked, so the caret
+        // moves to whatever is still empty. Checkboxes are excluded: a multiple
+        // choice menu is not finished by one tick. No key is involved, so this
+        // cannot collide with anything the keyboard already does.
+        if (inp.type === 'radio' && inp.checked) {
+          _sbFocus(_sbNextEmptyAfter(overlayEl, inp.getAttribute('data-key')));
+        }
+      });
+      // Keeps the field being worked in on screen. The panel scrolls its field
+      // area past 88vh, so on a long form the caret could otherwise sit below
+      // the fold. Bound to focus rather than to the move above, so Tab and a
+      // plain click get it too. 'nearest' means a form that already fits on
+      // screen never jumps.
+      inp.addEventListener('focus',  function(){
+        try { inp.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      });
       inp.addEventListener('paste',  function(){ setTimeout(function(){ updatePrev(snip); }, 0); });
     })(inps[j]);
   }
@@ -1540,6 +1556,61 @@ function showOverlay(targetEl, snip, scLen, done) {
 
 function xesc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── FOCUS FLOW ───────────────────────────────────────────────────────
+// Enter is NOT touched. In this overlay it inserts the message, and that two
+// second path is the whole point of the product. What follows only decides
+// where the caret starts and where it goes after a choice is made, so nothing
+// a keyboard user already relies on changes meaning.
+//
+// Tab is not touched either. Making it skip answered fields would be a trap:
+// Tab is a browser primitive and going back to correct a field has to work.
+
+// Typing controls only. A radio or checkbox is answered by clicking it, so it
+// is a destination for the caret, never a stop on the way.
+function _sbTypingInputs(root) {
+  var all = root.querySelectorAll('.sb-inp[data-key]'), out = [];
+  for (var i = 0; i < all.length; i++) {
+    if (all[i].type !== 'radio' && all[i].type !== 'checkbox') out.push(all[i]);
+  }
+  return out;
+}
+
+// Scrolling is handled by the focus listener on every input, so this only has
+// to move the caret and stay quiet when there is nowhere to move it.
+function _sbFocus(inp) {
+  if (!inp) return;
+  try { inp.focus(); } catch (e) {}
+}
+
+// The first field still waiting for an answer, else the first field. Opening on
+// a date that already reads today and making the operator tab past it was the
+// small daily tax this removes.
+function _sbFirstEmpty(root) {
+  var typed = _sbTypingInputs(root);
+  for (var i = 0; i < typed.length; i++) {
+    if (!typed[i].value) return typed[i];
+  }
+  return typed[0] || root.querySelector('.sb-inp');
+}
+
+// After a single-choice menu is answered, the next thing to fill. Only forward,
+// and only past fields that already have a value, so picking an option never
+// drags the caret backwards over work already done.
+function _sbNextEmptyAfter(root, key) {
+  var order = [], all = root.querySelectorAll('.sb-inp[data-key]');
+  for (var i = 0; i < all.length; i++) {
+    var k = all[i].getAttribute('data-key');
+    if (order.indexOf(k) === -1) order.push(k);
+  }
+  var from = order.indexOf(key);
+  if (from === -1) return null;
+  for (var j = from + 1; j < order.length; j++) {
+    var next = root.querySelector('.sb-inp[data-key="' + order[j] + '"]');
+    if (next && next.type !== 'radio' && next.type !== 'checkbox' && !next.value) return next;
+  }
+  return null;
 }
 
 function getVals() {
