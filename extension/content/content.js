@@ -1442,8 +1442,9 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   el.style.cssText =
     'position:fixed!important;top:50%!important;left:50%!important;' +
     'transform:translate(-50%,-50%)!important;z-index:2147483647!important;' +
-    'width:420px!important;max-width:94vw!important;max-height:85vh!important;' +
-    'overflow-y:auto!important;' +
+    'display:flex!important;flex-direction:column!important;' +
+    'width:540px!important;max-width:94vw!important;max-height:88vh!important;' +
+    'overflow:hidden!important;' +
     'box-shadow:0 20px 60px rgba(0,0,0,.28),0 4px 16px rgba(0,0,0,.12)!important;';
 
   var bd = document.createElement('div');
@@ -3019,16 +3020,20 @@ document.addEventListener('input', function(e) {
   s.id = 'sb-styles';
   s.textContent =
     '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
+    // Flex column: header, urgency bar, preview and footer keep their size; the
+    // fields area is the only part that scrolls, and only when a snippet has
+    // more fields than fit in 88vh. A short form shows no scrollbar at all.
+    '#sb-overlay > *{flex:none;}' +
     '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #E4E4E7;}' +
     '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#1B4FD8;}' +
     '#sb-overlay .sb-title{font-size:11px;color:#52525B;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
     '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#A1A1AA;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
     '#sb-overlay .sb-close:hover{color:#18181B;}' +
-    '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
+    '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
     // Inline sentence: the control sits in the prose that surrounds it in the
-    // body. Wraps rather than overflowing, since the panel is only 420px.
+    // body. Wraps rather than overflowing, since the panel is only 540px wide.
     '#sb-overlay .sb-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}' +
     '#sb-overlay .sb-row .sb-inp{flex:1 1 130px;width:auto;min-width:0;}' +
     '#sb-overlay .sb-ctx{font-size:12px;color:#52525B;line-height:1.35;}' +
@@ -3051,7 +3056,7 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-opt:hover{background:#F4F4F5;}' +
     '#sb-overlay .sb-opt input.sb-inp{width:auto;padding:0;margin:0;flex:none;background:none;border:none;box-shadow:none;accent-color:#1B4FD8;cursor:pointer;min-height:0;}' +
     '#sb-overlay .sb-opt:has(input:checked){color:#1B4FD8;font-weight:600;}' +
-    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
+    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:92px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:8px;background:#FAFAFA;}' +
     '#sb-overlay .sb-insert{padding:8px 18px;background:#1B4FD8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
     '#sb-overlay .sb-insert:hover{background:#1440B0;}' +
