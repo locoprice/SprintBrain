@@ -331,6 +331,9 @@
   .nv-comp-actbtn:active{transform:scale(.97)}
   .nv-comp-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
   /* One option per line, each a plain row. Mirrors the detail list above. */
+  .nv-comp-ctx{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);line-height:1.35}
+  .nv-comp-inline{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .nv-comp-inline input{flex:1 1 130px;width:auto;min-width:0}
   .nv-comp-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
   .nv-comp-opt{display:flex;align-items:center;gap:10px;min-height:32px;padding:4px 6px;border:none;border-radius:9px;background:transparent;font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:background .15s}
   .nv-comp-opt:hover{background:var(--sb-bg)}
@@ -776,7 +779,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.7', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.8', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -785,6 +788,7 @@
 <script src="extension/popup/sync-deletion.js"></script>
 <script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
+<script src="extension/shared/fill-form.js"></script>
 
 <!-- ═══ NATIVE DASHBOARD CONTROLLER (presentation only; logic via shared core) ═══ -->
 <script>
@@ -2082,41 +2086,47 @@
 '{endif}\n\n' +
 '📎 Full terms → leibtour.com/policy';
 
-  function compFieldDefs(body){
-    var FE = window.SBFormulaEngine, defs = {};
-    var dynCfg = FE.buildFormFieldCfg(body); for (var k in dynCfg) defs[k] = dynCfg[k];
-    var ph = FE.parsePlaceholders(body); for (var p = 0; p < ph.length; p++) { if (!defs[ph[p]]) defs[ph[p]] = { type:'text', default:'' }; }
-    var sf = FE.extractFields(body); for (var s = 0; s < sf.length; s++) { if (!defs[sf[s]]) defs[sf[s]] = { type:'text', default:'' }; }
-    return defs;
+  /* The composer no longer decides what a field is. extension/shared/fill-form.js
+     answers that for all four fill surfaces, so this function only draws.
+     Moving to it fixed two composer-only gaps in passing: it never showed the
+     words around a field, and it could not render a datetime at all. */
+  function compForm(body, vals){
+    return window.SBFillForm.fillForm(body, vals || {}, {});
   }
-  function compBuildFields(defs){
-    var form = $('nv-comp-fields'), keys = Object.keys(defs);
-    $('nv-comp-count').textContent = keys.length + (keys.length === 1 ? ' field' : ' fields');
-    if (!keys.length) { form.innerHTML = '<p class="nv-comp-empty">No variables detected yet. Start typing a template.</p>'; return; }
+  function compBuildFields(vm){
+    var form = $('nv-comp-fields'), fields = vm.fields;
+    $('nv-comp-count').textContent = fields.length + (fields.length === 1 ? ' field' : ' fields');
+    if (!fields.length) { form.innerHTML = '<p class="nv-comp-empty">No variables detected yet. Start typing a template.</p>'; return; }
     var html = '';
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i], def = defs[key], label = key.replace(/_/g, ' '), inp;
-      if (def.type === 'dd') {
-        var opts = (def.opts || '').split('\n').filter(Boolean);
-        var picks = window.SBFormulaEngine.formMenuPicks(def.default);
-        var wide = def.cols ? ' style="width:' + def.cols + 'ch;max-width:100%"' : '';
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i], key = f.key, label = key.replace(/_/g, ' '), inp;
+      if (f.type === 'dd') {
+        var wide = f.cols ? ' style="width:' + f.cols + 'ch;max-width:100%"' : '';
         // Every option is on screen, for both kinds of menu. A <select> hid the
         // choices behind a control most people did not read as a menu at all.
         // Checkboxes for a multiple menu, radios for a single one. Mirrors the
         // overlay, the popup detail and the mobile fill form.
-        var oType = def.multiple ? 'checkbox' : 'radio';
+        var oType = f.multiple ? 'checkbox' : 'radio';
         // Radios need a group name or two menus in one form share a group.
-        var oName = def.multiple ? '' : ' name="nvc-' + ec(key) + '"';
-        inp = '<div class="nv-comp-multi"' + wide + '>' + opts.map(function(o){
-          return '<label class="nv-comp-opt"><input type="' + oType + '"' + oName + ' data-key="' + ec(key) + '" value="' + ec(o) + '"' + (picks.indexOf(o) >= 0 ? ' checked' : '') + '><span>' + ec(o) + '</span></label>';
+        var oName = f.multiple ? '' : ' name="nvc-' + ec(key) + '"';
+        inp = '<div class="nv-comp-multi"' + wide + '>' + f.options.map(function(o){
+          return '<label class="nv-comp-opt"><input type="' + oType + '"' + oName + ' data-key="' + ec(key) + '" value="' + ec(o) + '"' + (f.picks.indexOf(o) >= 0 ? ' checked' : '') + '><span>' + ec(o) + '</span></label>';
         }).join('') + '</div>';
-      } else if (def.type === 'date') { inp = '<input type="date" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
-      else if (def.type === 'time') { inp = '<input type="time" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
-      else { inp = '<input type="text" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(def.default || '') + '">'; }
-      html += '<div class="nv-comp-frow"><label>' + ec(label) + '</label>' + inp + '</div>';
+      } else {
+        var itype = (f.type === 'date' || f.type === 'time') ? f.type
+                  : (f.type === 'datetime' ? 'datetime-local' : (f.type === 'number' ? 'number' : 'text'));
+        inp = '<input type="' + itype + '" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(f.value || '') + '">';
+      }
+      /* The prose either side of the token, so a row reads like the template.
+         A choice list is block level, so its context goes above and below. */
+      var pre = f.before ? '<span class="nv-comp-ctx">' + ec(f.before) + '</span>' : '';
+      var post = f.after ? '<span class="nv-comp-ctx">' + ec(f.after) + '</span>' : '';
+      html += '<div class="nv-comp-frow"><label>' + ec(label) + '</label>'
+        + (f.block ? pre + inp + post : '<div class="nv-comp-inline">' + pre + inp + post + '</div>')
+        + '</div>';
     }
     /* {button} controls — set field values, never print. */
-    var cbtns = window.SBFormulaEngine.extractButtons($('nv-comp-tpl').value);
+    var cbtns = vm.buttons;
     if (cbtns.length) {
       html += '<div class="nv-comp-btnrow">' + cbtns.map(function(b){
         return '<button type="button" class="nv-comp-actbtn" data-btn="' + ec(b.id) + '">' + ec(b.label) + '</button>';
@@ -2180,32 +2190,28 @@
     return v;
   }
   function compUpdate(){
-    var FE = window.SBFormulaEngine, body = $('nv-comp-tpl').value, out = $('nv-comp-out');
+    var body = $('nv-comp-tpl').value, out = $('nv-comp-out');
     if (!body.trim()) { out.textContent = 'Output appears here as you type.'; out.className = 'nv-comp-out empty'; return; }
-    var vals = compVals();
-    var resolved = FE.interpolateSnippet(body, vals);
-    var result = FE.resolveBody(resolved, vals);
+    /* One resolver for the whole product: the same call the overlay, the popup
+       and the phone make, so the composer can never preview something the
+       other surfaces would not produce. */
+    var result = compForm(body, compVals()).preview;
     out.textContent = result || ''; out.className = 'nv-comp-out' + (result ? '' : ' empty');
   }
   var compRebuildT;
   function compReady(){
     if (composerReady) return;
-    if (!window.SBFormulaEngine) { return; }
+    if (!window.SBFormulaEngine || !window.SBFillForm) { return; }
     composerReady = true;
     $('nv-comp-tpl').addEventListener('input', function(){
       clearTimeout(compRebuildT);
       compRebuildT = setTimeout(function(){
-        var body = $('nv-comp-tpl').value, defs = compFieldDefs(body), prev = compVals();
-        compBuildFields(defs);
-        var ins = $('nv-comp-fields').querySelectorAll('[data-key]');
-        for (var i = 0; i < ins.length; i++) {
-          var k = ins[i].dataset.key;
-          if (prev[k] === undefined) continue;
-          /* Never write .value on a checkbox — that would overwrite the option
-             it stands for. Restore its picked state from the joined value. */
-          if (ins[i].type === 'checkbox') ins[i].checked = window.SBFormulaEngine.formMenuPicks(prev[k]).indexOf(ins[i].value) >= 0;
-          else ins[i].value = prev[k];
-        }
+        /* Editing the template rebuilds the controls, so what was already
+           typed is fed back in as the current values. The view model resolves
+           each field to its entry or its default and marks a menu's picks, so
+           the rebuilt markup carries the state and nothing has to be restored
+           afterwards. A field the edit removed simply stops existing. */
+        compBuildFields(compForm($('nv-comp-tpl').value, compVals()));
         compUpdate();
       }, 150);
     });
@@ -2217,7 +2223,7 @@
       if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function(){ toast('Output copied'); }).catch(function(){ compLegacyCopy(text); }); }
       else { compLegacyCopy(text); }
     });
-    compBuildFields({}); compUpdate();
+    compBuildFields(compForm('', {})); compUpdate();
   }
   function compLegacyCopy(text){
     var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';

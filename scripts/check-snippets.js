@@ -129,8 +129,11 @@ const MENU_RENDERERS = [
     "def.multiple?'checkbox':'radio'", ' name="d-'],
   ['app/public/mobile/index.html', 'mobile companion',
     "c.multiple?'checkbox':'radio'", ' name="f-'],
+  // The composer reads its fields from the shared view model (see
+  // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
+  // assertion is unchanged: the control is still picked by the menu's kind.
   ['Sprintbrain.html', 'composer',
-    "def.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
+    "f.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
 ];
 
 for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
