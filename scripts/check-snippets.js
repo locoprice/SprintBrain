@@ -190,12 +190,19 @@ const overlayStart = CONTENT_SRC.indexOf('function showOverlay(');
 if (overlayStart === -1) fail('content.js no longer defines showOverlay');
 const overlayEnd = CONTENT_SRC.indexOf('\nfunction ', overlayStart + 1);
 const overlayBody = CONTENT_SRC.slice(overlayStart, overlayEnd === -1 ? undefined : overlayEnd);
-if (!overlayBody.includes('buildFormFieldCfg(snip.body)')) {
-  fail('showOverlay no longer merges buildFormFieldCfg(snip.body).\n' +
+// The merge now happens inside extension/shared/fill-form.js, which showOverlay
+// calls with the snippet's own body and stored config. The guarantee is
+// unchanged: no call site supplies the field config, so none can forget it.
+if (!overlayBody.includes('fillForm(snip.body')) {
+  fail('showOverlay no longer builds its own fill-form view model.\n' +
     '  Every {formmenu:} / {formtext:} / {formdate:} reached through the picker\n' +
     '  or the context menu would render as a plain text input.');
 }
-console.log('OK showOverlay merges the body-declared field config');
+if (!overlayBody.includes('fieldCfg: snip.fieldCfg')) {
+  fail('showOverlay no longer passes the snippet\'s stored field_cfg.\n' +
+    '  A hand-configured field would silently lose its type.');
+}
+console.log('OK showOverlay builds the body-declared field config itself');
 
 // ── FORM MENU READER ────────────────────────────────────────────────
 // parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu

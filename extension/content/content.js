@@ -37,14 +37,16 @@ function logEvent(snip, fieldsFilled) {
 var _SBFE = window.SBFormulaEngine;
 var resolveBody        = _SBFE.resolveBody;
 var extractFields      = _SBFE.extractFields;
-var fieldContext       = _SBFE.fieldContext;
-var buildFormFieldCfg  = _SBFE.buildFormFieldCfg;
-var formMenuPicks      = _SBFE.formMenuPicks;
-var extractButtons     = _SBFE.extractButtons;
 var applyButtonCode    = _SBFE.applyButtonCode;
 var parsePlaceholders  = _SBFE.parsePlaceholders;
 var interpolateSnippet = _SBFE.interpolateSnippet;
-var sbFormatDate       = _SBFE.sbFormatDate;
+
+// What the fill form IS — which fields, of what kind, the prose around each,
+// its starting value — is decided by extension/shared/fill-form.js, loaded by
+// manifest.json before this file and shared with the popup, the composer and
+// the phone. The aliases that used to build that here (fieldContext,
+// buildFormFieldCfg, formMenuPicks, extractButtons, sbFormatDate) went with it.
+var _SBFF = window.SBFillForm;
 
 // ── DEFAULT SNIPPETS ──────────────────────────────────
 // Intentionally empty, and it must stay that way. Anything listed here ships
@@ -913,7 +915,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
     }
   } else {
     // showOverlay merges the body-declared field config itself.
-    showOverlay(el, snip, fields, scLen || 0, function() { processing = false; });
+    showOverlay(el, snip, scLen || 0, function() { processing = false; });
   }
 }
 
@@ -1315,7 +1317,7 @@ var overlayTriggerLen = 0;
 // top of the field and the whole trigger survived at the end. -1 when unknown.
 var overlayCaretCO = -1;
 
-function showOverlay(targetEl, snip, fields, scLen, done) {
+function showOverlay(targetEl, snip, scLen, done) {
   overlayTriggerLen = scLen || 0;
   // Read the caret BEFORE the overlay exists: deleteChars has just selected the
   // trigger, so the selection end is exactly where the user was typing.
@@ -1328,41 +1330,25 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
   removeOverlay();
   overlayDone = done;
-  // Field config the body itself declares via {formtext/date/menu:} tokens,
-  // with any explicit field_cfg on top so a hand-configured field still wins.
+  // What the form IS — which fields, of what kind, the prose around each, its
+  // starting value, the action buttons — is decided by
+  // extension/shared/fill-form.js, the one module all four fill surfaces read.
   //
-  // Merged HERE, not at the call sites: three paths open this overlay — the
-  // trigger, the picker, and the right-click context menu — and only the
-  // trigger used to merge. Via the other two a {formmenu:} arrived as a bare
-  // field name and rendered as a plain text box, so the choices could not be
-  // picked at all. Keeping it inside means no future entry point can forget.
-  var cfgs  = Object.assign({}, buildFormFieldCfg(snip.body), snip.fieldCfg || {});
-  // Static text either side of each token, so a row reads like the snippet.
-  var ctxs  = fieldContext(snip.body);
-  var _now  = new Date();
-  var today = sbFormatDate(_now, 'YYYY-MM-DD');
-  var nowTime = sbFormatDate(_now, 'HH:mm');
-  var nowDT = sbFormatDate(_now, 'YYYY-MM-DD') + 'T' + sbFormatDate(_now, 'HH:mm');
+  // Built HERE, not at the call sites: three paths open this overlay, the
+  // trigger, the picker, and the right-click context menu, and only the trigger
+  // used to merge the body-declared config. Via the other two a {formmenu:}
+  // arrived as a bare field name and rendered as a plain text box, so the
+  // choices could not be picked at all. Keeping it inside means no future entry
+  // point can forget.
+  var vm = _SBFF
+    ? _SBFF.fillForm(snip.body, {}, { fieldCfg: snip.fieldCfg || {}, lang: snip.lang })
+    : { fields: [], buttons: [] };
 
   var fhtml = '';
-  for (var i = 0; i < fields.length; i++) {
-    var key = fields[i];
-    var rawCfg = cfgs[key] || {};
-    var cfg = {
-      type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default,
-      multiple: rawCfg.multiple, cols: rawCfg.cols
-    };
-    // Auto-detect date/time/datetime by field name when cfg.type is not set.
-    // Split on non-letters so "TIME_HH:MM" / "DATE_DD/MM/YYYY" still expose
-    // TIME / DATE as standalone tokens.
-    if (!cfg.type) {
-      var toks = String(key).toUpperCase().split(/[^A-Z]+/);
-      if (toks.indexOf('DATETIME') >= 0) cfg.type = 'datetime';
-      else if (toks.indexOf('DATE') >= 0) cfg.type = 'date';
-      else if (toks.indexOf('TIME') >= 0) cfg.type = 'time';
-      else cfg.type = 'text';
-    }
-    var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
+  for (var i = 0; i < vm.fields.length; i++) {
+    var cfg = vm.fields[i];
+    var key = cfg.key;
+    var opts = cfg.options;
     var inp;
     // A checkbox group is block-level, so it cannot sit inside an inline
     // sentence — its context goes above and below instead.
@@ -1371,7 +1357,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
       // {formmenu: …; cols=N} sizes the field in characters; capped at the
       // overlay width so a long value can never push the panel out of view.
       var wide = cfg.cols ? ' style="width:'+cfg.cols+'ch;max-width:100%"' : '';
-      var picked = formMenuPicks(cfg.default);
+      var picked = cfg.picks;
       // Every option is on screen, for both kinds of menu. A <select> hid the
       // choices behind a control most people did not read as a menu at all:
       // they saw one word sitting in a box and typed over it. Checkboxes for a
@@ -1389,20 +1375,19 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
                (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
       }).join('') + '</div>';
     } else if (cfg.type === 'date') {
-      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||today)+'">';
+      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'time') {
-      inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowTime)+'">';
+      inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'datetime' || cfg.type === 'datetime-local') {
-      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowDT)+'">';
+      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else {
-      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.default||'')+'">';
+      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.value)+'">';
     }
     // The row reads like the snippet — "Rate Plan: [ Refundable ] per night".
     // Only a field with no prose around it falls back to its key, which is
     // otherwise noise: an unnamed menu's key is a hash like MENU_1yvog3p.
-    var ctx  = ctxs[key] || { before: '', after: '' };
-    var pre  = ctx.before ? '<span class="sb-ctx">'+xesc(ctx.before)+'</span>' : '';
-    var post = ctx.after  ? '<span class="sb-ctx">'+xesc(ctx.after)+'</span>'  : '';
+    var pre  = cfg.before ? '<span class="sb-ctx">'+xesc(cfg.before)+'</span>' : '';
+    var post = cfg.after  ? '<span class="sb-ctx">'+xesc(cfg.after)+'</span>'  : '';
     var lbl  = (pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>';
     fhtml += '<div class="sb-field">' + lbl + (blockControl
       ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
@@ -1412,7 +1397,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
 
   // {button} controls: they set field values, they never print. Rendered after
   // the inputs they act on, so the cause sits above the effect.
-  var buttons = extractButtons(snip.body);
+  var buttons = vm.buttons;
   if (buttons.length) {
     fhtml += '<div class="sb-btnrow">' + buttons.map(function(b){
       return '<button type="button" class="sb-actbtn" data-btn="'+xesc(b.id)+'">'+xesc(b.label)+'</button>';
@@ -2300,7 +2285,7 @@ function selectTriggerItem(idx) {
           );
         }
       } else {
-        showOverlay(el, item, fields, dLen, function() { processing = false; });
+        showOverlay(el, item, dLen, function() { processing = false; });
       }
     } else {
       insertText(el, item.body || '');
@@ -3178,7 +3163,7 @@ function _proceedContextInsert(el, snip) {
     }
   } else {
     processing = true;
-    showOverlay(el, snip, fields, 0, function() { processing = false; });
+    showOverlay(el, snip, 0, function() { processing = false; });
   }
 }
 
