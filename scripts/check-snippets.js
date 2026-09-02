@@ -125,8 +125,11 @@ console.log('OK Template validator passed all ' + vok + ' parity cases');
 const MENU_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay',
     "cfg.multiple ? 'checkbox' : 'radio'", ' name="sb-'],
+  // The popup detail reads its fields from the shared view model (see
+  // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
+  // assertion is unchanged: the control is still picked by the menu's kind.
   ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
-    "def.multiple?'checkbox':'radio'", ' name="d-'],
+    "f.multiple?'checkbox':'radio'", ' name="d-'],
   ['app/public/mobile/index.html', 'mobile companion',
     "c.multiple?'checkbox':'radio'", ' name="f-'],
   // The composer reads its fields from the shared view model (see

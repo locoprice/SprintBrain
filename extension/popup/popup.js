@@ -1469,47 +1469,31 @@ function detailBody(s, lang, vars){
 // \u2500\u2500 FILL-AND-COPY (read-only resolve; never mutates the snippet) \u2500\u2500\u2500\u2500\u2500
 // Field detection mirrors the dashboard Composer: {formtext/date/menu:}
 // configs, then {{placeholders}}, then bare {fields}.
-function detailFieldDefs(body){
-  var FE=window.SBFormulaEngine; if(!FE||!body) return {};
-  var defs={};
-  try{
-    var dyn=FE.buildFormFieldCfg(body); for(var k in dyn) defs[k]=dyn[k];
-    var ph=FE.parsePlaceholders(body); for(var i=0;i<ph.length;i++){ if(!defs[ph[i]]) defs[ph[i]]={type:'text',default:''}; }
-    var sf=FE.extractFields(body); for(var j=0;j<sf.length;j++){ if(!defs[sf[j]]) defs[sf[j]]={type:'text',default:''}; }
-  }catch(e){}
-  return defs;
+// The detail no longer decides what a field is. extension/shared/fill-form.js
+// answers that for all four fill surfaces: which fields, what kind each is, the
+// prose around it, its effective value, and the resolved preview. This surface
+// gained time, datetime and number fields and today-defaulted dates by moving
+// onto it, and stopped ignoring a stored field_cfg.
+//
+// Degrades to an empty form when the module is missing rather than throwing
+// inside a popup that would then render nothing at all.
+function detailForm(body, lang){
+  var M=window.SBFillForm;
+  if(!M||!body) return { fields:[], buttons:[], preview:body||'', layout:'flat', steps:[] };
+  try{ return M.fillForm(body, detailFieldVals, { lang: lang||'' }); }
+  catch(e){ return { fields:[], buttons:[], preview:body, layout:'flat', steps:[] }; }
 }
-// {button} controls declared by a body. Empty when the engine is unavailable,
-// so the fill form degrades to plain fields rather than throwing.
-function detailButtons(body){
-  var FE=window.SBFormulaEngine;
-  if(!FE||!FE.extractButtons||!body) return [];
-  try{ return FE.extractButtons(body); }catch(e){ return []; }
-}
-// Static text either side of each field token, so a row reads like the snippet
-// instead of labelling a control with a bare key. One engine call, shared with
-// content.js's in-page overlay so both surfaces describe a field identically.
-function detailFieldCtx(body){
-  var FE=window.SBFormulaEngine;
-  if(!FE||!FE.fieldContext||!body) return {};
-  try{ return FE.fieldContext(body); }catch(e){ return {}; }
-}
-// Picked options of a {formmenu:} value ("A, B") \u2014 one parser, shared with
-// content.js's in-page overlay so both surfaces preselect identically.
-function fieldMenuPicks(v){
-  var FE=window.SBFormulaEngine;
-  return FE&&FE.formMenuPicks?FE.formMenuPicks(v):[];
-}
-// Values for a body's fields \u2014 user entry wins, else the field default.
-function currentFieldVals(defs){
-  var vals={}; Object.keys(defs).forEach(function(k){ vals[k]=(detailFieldVals[k]!==undefined)?detailFieldVals[k]:(defs[k].default||''); });
+// Effective values for a body: what the operator entered, else each field's
+// default. Read off the view model so this surface can never disagree with the
+// preview it is showing.
+function detailVals(vm){
+  var vals={};
+  for(var i=0;i<vm.fields.length;i++) vals[vm.fields[i].key]=vm.fields[i].value;
   return vals;
 }
-// Resolve a body with field values through the SAME engine as the in-page
-// ::trigger expansion (formula-engine.js). Falls back to raw if absent.
-function resolveFilled(body, vals, lang){
-  var FE=window.SBFormulaEngine; if(!FE) return body;
-  try{ return FE.resolveBody(FE.interpolateSnippet(body, vals), vals, {lang:lang}); }catch(e){ return body; }
+// Resolve a body through the SAME path as the in-page ::trigger expansion.
+function resolveFilled(body, lang){
+  return detailForm(body, lang).preview;
 }
 // Language of the body currently shown in the detail — the active pill when the
 // snippet has variants, otherwise the snippet's own.
@@ -1524,7 +1508,7 @@ function detailActiveBody(s){
 function updateDetailPreview(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
-  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)), detailActiveLang(s));
+  var out=resolveFilled(body, detailActiveLang(s));
   var wrap=document.querySelector('.detail[data-detail="'+id+'"]');
   var pv=wrap?wrap.querySelector('.d-body'):null;
   if(pv){ pv.textContent=out; if(out.trim()) pv.classList.remove('plain'); else pv.classList.add('plain'); }
@@ -1532,7 +1516,7 @@ function updateDetailPreview(id){
 function copyFilled(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
-  var out=resolveFilled(body, currentFieldVals(detailFieldDefs(body)), detailActiveLang(s));
+  var out=resolveFilled(body, detailActiveLang(s));
   try{ navigator.clipboard.writeText(out||''); }catch(e){}
   showToast('Copied filled text');
 }
@@ -1541,8 +1525,7 @@ function copyFilled(id){
 function copyDetailPrimary(id){
   var s=findSnip(id); if(!s) return;
   var body=detailActiveBody(s);
-  var vals=currentFieldVals(detailFieldDefs(body));
-  if(resolveFilled(body, vals, detailActiveLang(s))!==body) copyFilled(id); else copyBody(id);
+  if(resolveFilled(body, detailActiveLang(s))!==body) copyFilled(id); else copyBody(id);
 }
 
 function renderDetailHtml(s){
@@ -1560,11 +1543,9 @@ function renderDetailHtml(s){
   var scBtn='<button class="d-btn ghost" type="button" data-copysc="'+esc(s.id)+'">Copy shortcut</button>';
   var copyIco='<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
-  var defs=detailFieldDefs(body);
-  var fieldKeys=Object.keys(defs);
-  var hasFields=fieldKeys.length>0;
-  var vals=currentFieldVals(defs);
-  var resolved=resolveFilled(body, vals, active);
+  var vm=detailForm(body, active);
+  var hasFields=vm.fields.length>0;
+  var resolved=vm.preview;
   var isDynamic=hasFields || (resolved!==body);
 
   var h='<div class="detail" data-detail="'+esc(s.id)+'">'
@@ -1573,45 +1554,38 @@ function renderDetailHtml(s){
   if(isDynamic){
     if(hasFields){
       var form='<div class="d-fields" data-fid="'+esc(s.id)+'">';
-      var ctxs=detailFieldCtx(body);
-      fieldKeys.forEach(function(k){
-        var def=defs[k], label=k.replace(/_/g,' '), val=(vals[k]!=null?vals[k]:''), inp;
-        // A checkbox group is block-level and cannot sit inside a sentence.
-        var blockControl=false;
-        if(def.type==='dd'){
-          var opts=(def.opts||'').split('\n').filter(Boolean);
-          var picks=fieldMenuPicks(val);
-          var wide=def.cols?' style="width:'+def.cols+'ch;max-width:100%"':'';
+      vm.fields.forEach(function(f){
+        var k=f.key, label=k.replace(/_/g,' '), val=(f.value!=null?f.value:''), inp;
+        if(f.type==='dd'){
+          var wide=f.cols?' style="width:'+f.cols+'ch;max-width:100%"':'';
           // Every option is on screen, for both kinds of menu. A <select> hid
           // the choices behind a control most people did not read as a menu.
           // Checkboxes for a multiple menu, radios for a single one; both are
           // block-level, so the prose around the token goes above and below.
-          blockControl=true;
-          var oType=def.multiple?'checkbox':'radio';
+          var oType=f.multiple?'checkbox':'radio';
           // Radios need a group name or two menus in one form share a group.
-          var oName=def.multiple?'':' name="d-'+esc(k)+'"';
-          inp='<div class="d-multi"'+wide+'>'+opts.map(function(o){
-            return '<label class="d-opt"><input type="'+oType+'"'+oName+' data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
+          var oName=f.multiple?'':' name="d-'+esc(k)+'"';
+          inp='<div class="d-multi"'+wide+'>'+f.options.map(function(o){
+            return '<label class="d-opt"><input type="'+oType+'"'+oName+' data-fkey="'+esc(k)+'" value="'+esc(o)+'"'+(f.picks.indexOf(o)>=0?' checked':'')+'><span>'+esc(o)+'</span></label>';
           }).join('')+'</div>';
-        } else if(def.type==='date'){
-          inp='<input type="date" data-fkey="'+esc(k)+'" value="'+esc(val)+'">';
         } else {
-          inp='<input type="text" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
+          var itype=(f.type==='date'||f.type==='time')?f.type
+                   :(f.type==='datetime'?'datetime-local':(f.type==='number'?'number':'text'));
+          inp='<input type="'+itype+'" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
         }
         // Reads like the snippet — "Rate Plan: [ Refundable ] per night". The
         // key label survives only for a field with no prose around it, which
         // is otherwise noise: an unnamed menu's key is a hash.
-        var ctx=ctxs[k]||{before:'',after:''};
-        var pre=ctx.before?'<span class="d-ctx">'+esc(ctx.before)+'</span>':'';
-        var post=ctx.after?'<span class="d-ctx">'+esc(ctx.after)+'</span>':'';
+        var pre=f.before?'<span class="d-ctx">'+esc(f.before)+'</span>':'';
+        var post=f.after?'<span class="d-ctx">'+esc(f.after)+'</span>':'';
         var lbl=(pre||post)?'':'<label>'+esc(label)+'</label>';
-        form+='<div class="d-frow">'+lbl+(blockControl
+        form+='<div class="d-frow">'+lbl+(f.block
           ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
             (post?'<div class="d-ctxline">'+post+'</div>':'')
           : '<div class="d-row">'+pre+inp+post+'</div>')+'</div>';
       });
       // {button} controls — they set field values, they never print.
-      var dBtns=detailButtons(body);
+      var dBtns=vm.buttons;
       if(dBtns.length){
         form+='<div class="d-btnrow">'+dBtns.map(function(b){
           return '<button class="d-actbtn" type="button" data-btn="'+esc(b.id)+'">'+esc(b.label)+'</button>';
@@ -1829,10 +1803,10 @@ function runDetailButton(btn){
   var FE=window.SBFormulaEngine; if(!FE||!FE.applyButtonCode) return;
   var box=btn.closest('.d-fields'); if(!box) return;
   var did=box.getAttribute('data-fid'), s=findSnip(did); if(!s) return;
-  var body=detailActiveBody(s), list=detailButtons(body), spec=null;
-  for(var i=0;i<list.length;i++){ if(list[i].id===btn.getAttribute('data-btn')) spec=list[i]; }
+  var body=detailActiveBody(s), vm=detailForm(body, detailActiveLang(s)), spec=null;
+  for(var i=0;i<vm.buttons.length;i++){ if(vm.buttons[i].id===btn.getAttribute('data-btn')) spec=vm.buttons[i]; }
   if(!spec) return;
-  var res=FE.applyButtonCode(spec.statements, currentFieldVals(detailFieldDefs(body)));
+  var res=FE.applyButtonCode(spec.statements, detailVals(vm));
   var errs=spec.errors.concat(res.errors);
   for(var name in res.values){
     if(!Object.prototype.hasOwnProperty.call(res.values,name)) continue;
