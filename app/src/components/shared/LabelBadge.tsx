@@ -8,8 +8,10 @@ interface LabelBadgeProps {
   label: Label;
   className?: string;
   /**
-   * Reveals a hover-expand × that removes this label. Omit for a read-only
-   * badge (e.g. table rows, prompt cards) — those never grow a remove control.
+   * Reveals a hover-expand × that removes this label. Used on snippet rows and
+   * prompt cards. Omit it wherever the badge sits inside another interactive
+   * element, such as the label picker's trigger button: a button nested inside a
+   * button is invalid HTML and the inner control is not reliably reachable.
    * Excluded from tab order (`tabIndex={-1}`): it's a pointer shortcut for
    * something already reachable via the picker's dropdown checkbox, not a new
    * capability that needs its own keyboard path.
