@@ -528,6 +528,93 @@
     return neg ? -n : n;
   }
 
+  // ── NUMBER OUTPUT FORMATTING ────────────────────────────────────
+  // Formatting happens on the way OUT and nowhere else. The value stored, and
+  // the value a formula reads, stay the raw number in every case — otherwise
+  // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1.200,50".
+  //
+  // Intl.NumberFormat was rejected on purpose: its output depends on the
+  // runtime's locale, so the same snippet would print differently in the
+  // browser, on the phone and in the dashboard preview. Five surfaces have to
+  // agree on one string, so the rules are spelled out here instead.
+  //
+  // Symbol goes in front for every currency. Several of these are written after
+  // the number in their home locale, but picking per-currency placement makes
+  // the output depend on which currency was chosen rather than on one rule, and
+  // one rule is what keeps the surfaces honest.
+  var CURRENCIES = {
+    EUR: { symbol: '€',   group: 'dot',   decimals: 2 },
+    USD: { symbol: '$',   group: 'comma', decimals: 2 },
+    GBP: { symbol: '£',   group: 'comma', decimals: 2 },
+    CHF: { symbol: 'CHF', group: 'comma', decimals: 2 },
+    CAD: { symbol: 'CA$', group: 'comma', decimals: 2 },
+    AUD: { symbol: 'A$',  group: 'comma', decimals: 2 },
+    // Yen has no minor unit, so ¥1,200 rather than ¥1,200.00.
+    JPY: { symbol: '¥',   group: 'comma', decimals: 0 }
+  };
+  var DEFAULT_CURRENCY = 'EUR';
+
+  // `decimals` of -1 means "however many the number already has", which is what
+  // percent wants: 15 prints as 15, not 15.00.
+  function _groupNumber(n, style, decimals) {
+    var neg = n < 0, abs = Math.abs(n);
+    var s = decimals >= 0 ? abs.toFixed(decimals) : String(abs);
+    var dot = s.indexOf('.');
+    var whole = dot === -1 ? s : s.slice(0, dot);
+    var frac  = dot === -1 ? '' : s.slice(dot + 1);
+    var gsep = style === 'dot' ? '.' : ',';
+    var dsep = style === 'dot' ? ',' : '.';
+    whole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, gsep);
+    return (neg ? '-' : '') + whole + (frac === '' ? '' : dsep + frac);
+  }
+
+  /**
+   * The printed form of one field value.
+   *
+   * @param {*} raw     what the operator typed
+   * @param {string} format   'plain' | 'currency' | 'percent'
+   * @param {string} currency ISO code, only read when format is 'currency'
+   */
+  function sbFormatNumber(raw, format, currency) {
+    var s = (raw === null || raw === undefined) ? '' : String(raw);
+    // Unanswered prints nothing. Formatting an empty field into "€0.00" would
+    // put a price in a message nobody agreed to.
+    if (s.replace(/\s/g, '') === '') return '';
+    var n = sbToNumber(s);
+    // Present but not a number: print it back verbatim rather than inventing a
+    // formatted zero. The formula path is where that gets surfaced as an error.
+    if (n === null) return s;
+    if (format === 'percent') return _groupNumber(n, 'comma', -1) + '%';
+    if (format === 'currency') {
+      var c = CURRENCIES[String(currency || '').toUpperCase()] || CURRENCIES[DEFAULT_CURRENCY];
+      return c.symbol + _groupNumber(n, c.group, c.decimals);
+    }
+    // Plain prints exactly what was typed, which is what it promises.
+    return s;
+  }
+
+  // Which fields in a body print formatted, and how. Only formats that actually
+  // change the output are listed, so a plain number costs nothing here.
+  //
+  // Reads the body's own tokens. A stored field_cfg override is not consulted:
+  // nothing writes one today, and resolveBody has no route to it.
+  function _numberFormatMap(body) {
+    var cfg = buildFormFieldCfg(body), out = null;
+    for (var k in cfg) {
+      if (!Object.prototype.hasOwnProperty.call(cfg, k)) continue;
+      var f = cfg[k];
+      if (f.type !== 'number' || !f.format || f.format === 'plain') continue;
+      if (!out) out = {};
+      out[k] = { format: f.format, currency: f.currency || DEFAULT_CURRENCY };
+    }
+    return out;
+  }
+
+  function _emitNumber(key, value, numFmt) {
+    var f = numFmt && key ? numFmt[key] : null;
+    return f ? sbFormatNumber(value, f.format, f.currency) : value;
+  }
+
   // ── FORMULA EVALUATOR ───────────────────────────────────────────
   function evalFormula(expr, vals) {
     try {
@@ -608,6 +695,20 @@
   function resolveBody(body, vals, opts) {
     if (!body) return '';
     var out = '', i = 0, gLock = -1;
+    // Which fields print formatted is decided by the WHOLE body, not by the
+    // fragment being resolved: an {if:} branch can print a field declared
+    // outside it. So the map is built once at the outermost call and carried
+    // down. `opts` belongs to the caller, so the carrier is a copy.
+    var _o = opts || {};
+    var numFmt, subOpts;
+    if (Object.prototype.hasOwnProperty.call(_o, '_numFmt')) {
+      numFmt = _o._numFmt; subOpts = _o;
+    } else {
+      numFmt = _numberFormatMap(body);
+      subOpts = {};
+      for (var _k in _o) if (Object.prototype.hasOwnProperty.call(_o, _k)) subOpts[_k] = _o[_k];
+      subOpts._numFmt = numFmt;
+    }
     while (i < body.length) {
       if (body[i] === '{') {
         // Double-brace: {{= EXPR}} or {{VARNAME}}
@@ -670,7 +771,8 @@
         }
         if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
           var fKey = _formFieldName(tokLow, tok.slice(9));
-          out = sbEmitValue(out, fKey && vals[fKey] !== undefined ? vals[fKey] : '', gLock);
+          var fRaw = fKey && vals[fKey] !== undefined ? vals[fKey] : '';
+          out = sbEmitValue(out, _emitNumber(fKey, fRaw, numFmt), gLock);
           i = cl+1; continue;
         }
         if (tokLow.slice(0,7) === 'gender:') {
@@ -692,7 +794,7 @@
             var brOk = false;
             if (br.cond === null) { brOk = true; }
             else { try { var cr = evalCondition(br.cond, vals); brOk = cr !== null && cr !== 0; } catch(e) {} }
-            if (brOk) { out += resolveBody(br.body, vals, opts); break; }
+            if (brOk) { out += resolveBody(br.body, vals, subOpts); break; }
           }
           i = eidx !== -1 ? eidx + ei.length : cl+1; continue;
         }
@@ -700,7 +802,9 @@
           i = cl+1; continue;
         }
         var fval = vals[tok];
-        if (fval !== undefined && fval !== null) out = sbEmitValue(out, fval, gLock);
+        if (fval !== undefined && fval !== null) {
+          out = sbEmitValue(out, _emitNumber(tok, fval, numFmt), gLock);
+        }
         i = cl+1;
       } else {
         out += body[i++];
@@ -1075,13 +1179,18 @@
     }
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
     var fmt = fmtM ? fmtM[1].toLowerCase() : '';
-    return {
-      type: 'number',
-      // Same rule as `type`: `format=dollars` is a mistake to absorb here,
-      // not a format to hand to a renderer that has no idea what it means.
-      format: NUMBER_FORMATS.indexOf(fmt) === -1 ? 'plain' : fmt,
-      'default': _numberDefault(defVal)
-    };
+    // Same rule as `type`: `format=dollars` is a mistake to absorb here,
+    // not a format to hand to a renderer that has no idea what it means.
+    var format = NUMBER_FORMATS.indexOf(fmt) === -1 ? 'plain' : fmt;
+    var out = { type: 'number', format: format, 'default': _numberDefault(defVal) };
+    // `currency` is only meaningful alongside format=currency, so it is not
+    // carried on a plain or percent field where nothing would read it.
+    if (format === 'currency') {
+      var curM = /(?:^|;)\s*currency\s*=\s*([A-Za-z]{3})/i.exec(attrSrc);
+      var cur = curM ? curM[1].toUpperCase() : '';
+      out.currency = Object.prototype.hasOwnProperty.call(CURRENCIES, cur) ? cur : DEFAULT_CURRENCY;
+    }
+    return out;
   }
 
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
@@ -1335,6 +1444,8 @@
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,
     sbToNumber:        sbToNumber,
+    sbFormatNumber:    sbFormatNumber,
+    CURRENCIES:        CURRENCIES,
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,

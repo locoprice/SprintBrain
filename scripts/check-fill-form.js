@@ -46,7 +46,7 @@ console.log('OK Field kind inferred from the name (' + TYPE_CASES.length + ' cas
 
 // ── THE VIEW MODEL EVERY SURFACE READS ──────────────────────────────
 const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps'];
-const FIELD_SHAPE = ['key', 'label', 'type', 'format', 'options', 'picks', 'multiple',
+const FIELD_SHAPE = ['key', 'label', 'type', 'format', 'currency', 'options', 'picks', 'multiple',
                      'cols', 'default', 'value', 'before', 'after', 'block', 'visible'];
 
 const vm1 = ff.fillForm(

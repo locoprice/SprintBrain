@@ -159,6 +159,11 @@
         // output only — the value a formula reads stays the raw number, or
         // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
         format: type === 'number' ? (raw.format || 'plain') : '',
+        // ISO code behind a currency field, so a renderer can show the symbol
+        // beside the input without re-parsing the token. '' for every other
+        // field, and for a number that is not money.
+        currency: type === 'number' && raw.format === 'currency'
+          ? (raw.currency || 'EUR') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,

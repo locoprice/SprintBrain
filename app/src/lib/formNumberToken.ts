@@ -36,11 +36,40 @@ export type NumberFormat = 'plain' | 'currency' | 'percent';
 
 export const NUMBER_FORMATS: readonly NumberFormat[] = ['plain', 'currency', 'percent'];
 
+/**
+ * The currencies a field can be written in, and how each one prints. Mirrors
+ * `CURRENCIES` in `extension/formula-engine.js`, which is what actually formats
+ * the value; this copy exists so the dialog can show the author the symbol
+ * without importing extension source. `formNumberField.test.ts` pins the two
+ * lists against each other.
+ *
+ * The symbol leads in every case. Several of these follow the number in their
+ * home locale, but one placement rule keeps five surfaces printing one string.
+ */
+export const CURRENCIES = {
+  EUR: { symbol: '€', label: 'Euro' },
+  USD: { symbol: '$', label: 'US dollar' },
+  GBP: { symbol: '£', label: 'Pound sterling' },
+  CHF: { symbol: 'CHF', label: 'Swiss franc' },
+  CAD: { symbol: 'CA$', label: 'Canadian dollar' },
+  AUD: { symbol: 'A$', label: 'Australian dollar' },
+  JPY: { symbol: '¥', label: 'Japanese yen' },
+} as const;
+
+export type CurrencyCode = keyof typeof CURRENCIES;
+
+export const CURRENCY_CODES = Object.keys(CURRENCIES) as CurrencyCode[];
+
+/** What a currency field is written in when the author does not say. */
+export const DEFAULT_CURRENCY: CurrencyCode = 'EUR';
+
 export interface FormNumberConfig {
   /** Field name — how the rest of the body refers to the value. */
   name: string;
   /** How the value prints. `plain` writes no `format=` at all. */
   format: NumberFormat;
+  /** Which currency, read only when `format` is `currency`. */
+  currency: CurrencyCode;
   /** Value the field starts with, or '' for an empty field. */
   default: string;
 }
@@ -93,6 +122,12 @@ export function buildFormNumberToken(cfg: FormNumberConfig): string {
   const value = cfg.default.replace(/[;{}]/g, ' ').replace(/\s+/g, '').trim();
   let out = `{formtext: name=${sanitizeNumberName(cfg.name)}; type=number`;
   if (cfg.format !== 'plain') out += `; format=${cfg.format}`;
+  // Only a currency field carries a currency, and only when it is not the
+  // default: a shorter token that parses back the same, since the engine falls
+  // back to EUR for a missing or unrecognised code.
+  if (cfg.format === 'currency' && cfg.currency !== DEFAULT_CURRENCY) {
+    out += `; currency=${cfg.currency}`;
+  }
   if (value !== '') out += `; default=${value}`;
   return `${out}}`;
 }

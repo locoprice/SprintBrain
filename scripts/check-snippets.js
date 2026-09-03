@@ -364,6 +364,13 @@ const fieldCfgCases = [
   // Attribute order must not matter, and case must not either.
   '{formtext: type=number; name=N; format=currency}',
   '{formtext: name=N; TYPE=Number; FORMAT=Currency}',
+  // A currency only rides on a currency field, and an unknown code falls back
+  // rather than printing something nobody chose.
+  '{formtext: name=N; type=number; format=currency; currency=USD}',
+  '{formtext: name=N; type=number; format=currency; currency=jpy}',
+  '{formtext: name=N; type=number; format=currency; currency=XYZ}',
+  '{formtext: name=N; type=number; format=percent; currency=USD}',
+  '{formtext: name=N; type=number; currency=USD}',
   'Hi {formtext: name=G}, plan {formmenu: A,B; name=P; default=B} and {formmenu: X,Y}',
   'no tokens at all',
   '',
@@ -395,6 +402,47 @@ for (const v of ['A, B', 'A,B', ' A ,, B ', '', null, undefined]) {
 }
 
 console.log('OK Mobile field-config parity passed all ' + mok + ' cases');
+
+// ── NUMBER FORMATTING PARITY ────────────────────────────────────────
+// Formatting is what the reader actually sees, so the phone and the engine
+// disagreeing here means one surface quotes a different price from the other.
+// Intl.NumberFormat is deliberately not used on either side: its output follows
+// the runtime locale, which is exactly the drift these cases exist to prevent.
+for (const fn of ['sbFormatNumber', 'sbToNumber', 'sbNumberFormatMap']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+const FMT_CASES = [];
+for (const cur of Object.keys(engine.CURRENCIES)) {
+  for (const raw of ['1200.5', '1.200,50', '1,200.50', '0', '-40', '1000000', '', 'about 300']) {
+    FMT_CASES.push([raw, 'currency', cur]);
+  }
+}
+for (const raw of ['15', '15.5', '0', '', '100', 'n/a']) FMT_CASES.push([raw, 'percent', '']);
+for (const raw of ['1200.5', '', 'abc']) FMT_CASES.push([raw, 'plain', '']);
+
+let fok = 0;
+for (const [raw, format, cur] of FMT_CASES) {
+  const want = engine.sbFormatNumber(raw, format, cur);
+  const got = mobile.sbFormatNumber(raw, format, cur);
+  if (got !== want) {
+    fail('number formatting drift for ' + JSON.stringify([raw, format, cur]) +
+      '\n  engine: ' + JSON.stringify(want) +
+      '\n  mobile: ' + JSON.stringify(got));
+  }
+  fok++;
+}
+
+// An unanswered field must print nothing rather than a formatted zero: a price
+// of "EUR 0.00" in a message nobody agreed to is worse than a visible blank.
+if (engine.sbFormatNumber('', 'currency', 'EUR') !== '') {
+  fail('an empty currency field no longer prints as empty');
+}
+// And unreadable input comes back verbatim rather than as an invented number.
+if (engine.sbFormatNumber('about 300', 'currency', 'EUR') !== 'about 300') {
+  fail('unreadable input is being formatted instead of printed back');
+}
+console.log('OK Number formatting parity passed all ' + fok + ' cases');
 
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,

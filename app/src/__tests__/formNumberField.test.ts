@@ -3,9 +3,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   buildFormNumberToken,
+  CURRENCIES,
+  CURRENCY_CODES,
+  DEFAULT_CURRENCY,
   isValidNumberDefault,
   nextNumberName,
   sanitizeNumberName,
+  type CurrencyCode,
   type NumberFormat,
 } from '@/lib/formNumberToken';
 
@@ -25,6 +29,7 @@ function loadHelper<T>(path: string): T {
 interface FieldCfg {
   type: string;
   format?: string;
+  currency?: string;
   default?: string;
 }
 
@@ -33,6 +38,9 @@ interface FormulaEngine {
   extractFields: (body: string) => string[];
   evalFormula: (expr: string, vals: Record<string, unknown>) => number | null;
   sbToNumber: (raw: unknown) => number | null;
+  sbFormatNumber: (raw: unknown, format: string, currency?: string) => string;
+  resolveBody: (body: string, vals: Record<string, unknown>) => string;
+  CURRENCIES: Record<string, { symbol: string; group: string; decimals: number }>;
 }
 
 const engine = loadHelper<FormulaEngine>(
@@ -41,28 +49,28 @@ const engine = loadHelper<FormulaEngine>(
 
 describe('formNumberToken — writer', () => {
   it('writes a plain number without spelling the default format', () => {
-    expect(buildFormNumberToken({ name: 'NUM_1', format: 'plain', default: '' })).toBe(
+    expect(buildFormNumberToken({ name: 'NUM_1', format: 'plain', currency: 'EUR', default: '' })).toBe(
       '{formtext: name=NUM_1; type=number}',
     );
   });
 
   it('spells currency and percent', () => {
-    expect(buildFormNumberToken({ name: 'TOTAL', format: 'currency', default: '' })).toBe(
+    expect(buildFormNumberToken({ name: 'TOTAL', format: 'currency', currency: 'EUR', default: '' })).toBe(
       '{formtext: name=TOTAL; type=number; format=currency}',
     );
-    expect(buildFormNumberToken({ name: 'VAT', format: 'percent', default: '' })).toBe(
+    expect(buildFormNumberToken({ name: 'VAT', format: 'percent', currency: 'EUR', default: '' })).toBe(
       '{formtext: name=VAT; type=number; format=percent}',
     );
   });
 
   it('carries a default when one is given', () => {
-    expect(buildFormNumberToken({ name: 'QTY', format: 'plain', default: '1' })).toBe(
+    expect(buildFormNumberToken({ name: 'QTY', format: 'plain', currency: 'EUR', default: '1' })).toBe(
       '{formtext: name=QTY; type=number; default=1}',
     );
   });
 
   it('cannot emit a token that breaks the body', () => {
-    const token = buildFormNumberToken({ name: 'A;B{C}', format: 'plain', default: '1;2' });
+    const token = buildFormNumberToken({ name: 'A;B{C}', format: 'plain', currency: 'EUR', default: '1;2' });
     expect(token).toBe('{formtext: name=ABC; type=number; default=12}');
     // One opening brace, one closing: the token cannot have split the body.
     expect(token.match(/[{]/g)).toHaveLength(1);
@@ -92,7 +100,7 @@ describe('formNumberToken — round trip through the real engine', () => {
 
   for (const c of cases) {
     it(`${c.format} with default ${JSON.stringify(c.def)} parses back identically`, () => {
-      const token = buildFormNumberToken({ name: 'N', format: c.format, default: c.def });
+      const token = buildFormNumberToken({ name: 'N', format: c.format, currency: 'EUR', default: c.def });
       const cfg = engine.buildFormFieldCfg(token);
       expect(cfg.N).toBeDefined();
       expect(cfg.N?.type).toBe('number');
@@ -102,7 +110,7 @@ describe('formNumberToken — round trip through the real engine', () => {
   }
 
   it('is a field the engine will render', () => {
-    const token = buildFormNumberToken({ name: 'TOTAL', format: 'currency', default: '' });
+    const token = buildFormNumberToken({ name: 'TOTAL', format: 'currency', currency: 'EUR', default: '' });
     expect(engine.extractFields(token)).toEqual(['TOTAL']);
   });
 
@@ -170,5 +178,111 @@ describe('formNumberToken — naming', () => {
     expect(isValidNumberDefault('€1200')).toBe(false);
     expect(isValidNumberDefault('abc')).toBe(false);
     expect(isValidNumberDefault('.')).toBe(false);
+  });
+});
+
+describe('currency', () => {
+  it('leaves the default currency out of the token, since the engine falls back to it', () => {
+    expect(
+      buildFormNumberToken({ name: 'T', format: 'currency', currency: DEFAULT_CURRENCY, default: '' }),
+    ).toBe('{formtext: name=T; type=number; format=currency}');
+  });
+
+  it('spells any other currency', () => {
+    expect(
+      buildFormNumberToken({ name: 'T', format: 'currency', currency: 'USD', default: '' }),
+    ).toBe('{formtext: name=T; type=number; format=currency; currency=USD}');
+  });
+
+  it('never writes a currency onto a field that has no use for one', () => {
+    for (const format of ['plain', 'percent'] as NumberFormat[]) {
+      const token = buildFormNumberToken({ name: 'T', format, currency: 'USD', default: '' });
+      expect(token).not.toContain('currency=');
+    }
+  });
+
+  it('every code the dialog offers round-trips through the engine', () => {
+    for (const code of CURRENCY_CODES) {
+      const token = buildFormNumberToken({ name: 'T', format: 'currency', currency: code, default: '' });
+      expect(engine.buildFormFieldCfg(token).T?.currency).toBe(code);
+    }
+  });
+
+  // The dialog shows the author a symbol; the engine prints it. Two lists that
+  // disagree would preview one currency and expand another.
+  it('the dialog and the engine agree on every symbol', () => {
+    expect(CURRENCY_CODES.slice().sort()).toEqual(Object.keys(engine.CURRENCIES).sort());
+    for (const code of CURRENCY_CODES) {
+      expect(CURRENCIES[code].symbol).toBe(engine.CURRENCIES[code]?.symbol);
+    }
+  });
+
+  it('an unknown code falls back rather than printing a code nobody chose', () => {
+    const cfg = engine.buildFormFieldCfg('{formtext: name=T; type=number; format=currency; currency=XYZ}');
+    expect(cfg.T?.currency).toBe(DEFAULT_CURRENCY);
+  });
+});
+
+describe('number formatting — output only', () => {
+  const money = (c: CurrencyCode) =>
+    `Total: {formtext: name=T; type=number; format=currency; currency=${c}}`;
+
+  it('prints the symbol, and groups the way that currency is written', () => {
+    expect(engine.resolveBody(money('EUR'), { T: '1200.5' })).toBe('Total: €1.200,50');
+    expect(engine.resolveBody(money('USD'), { T: '1200.5' })).toBe('Total: $1,200.50');
+    expect(engine.resolveBody(money('GBP'), { T: '1200.5' })).toBe('Total: £1,200.50');
+  });
+
+  it('reads what the operator typed, whichever separator they used', () => {
+    expect(engine.resolveBody(money('EUR'), { T: '1.200,50' })).toBe('Total: €1.200,50');
+    expect(engine.resolveBody(money('EUR'), { T: '1,200.50' })).toBe('Total: €1.200,50');
+  });
+
+  it('drops the minor unit for a currency that has none', () => {
+    expect(engine.resolveBody(money('JPY'), { T: '1200' })).toBe('Total: ¥1,200');
+  });
+
+  it('adds the percent sign without inventing decimals', () => {
+    const pct = 'VAT: {formtext: name=V; type=number; format=percent}';
+    expect(engine.resolveBody(pct, { V: '15' })).toBe('VAT: 15%');
+    expect(engine.resolveBody(pct, { V: '15.5' })).toBe('VAT: 15.5%');
+  });
+
+  it('leaves a plain number exactly as typed', () => {
+    expect(engine.resolveBody('Qty: {formtext: name=Q; type=number}', { Q: '1200.5' })).toBe(
+      'Qty: 1200.5',
+    );
+  });
+
+  it('prints nothing for an unanswered field, rather than a price of zero', () => {
+    expect(engine.resolveBody(money('EUR'), { T: '' })).toBe('Total: ');
+  });
+
+  it('prints unreadable input back rather than a formatted zero', () => {
+    expect(engine.resolveBody(money('EUR'), { T: 'about 300' })).toBe('Total: about 300');
+  });
+
+  it('formats a bare reference the same as its declaration', () => {
+    const body = `${money('USD')} again {T}`;
+    expect(engine.resolveBody(body, { T: '99' })).toBe('Total: $99.00 again $99.00');
+  });
+
+  it('formats inside an {if:} branch, where the field is declared outside it', () => {
+    const body = `${money('EUR')}{if: T > 0} due {T}{endif}`;
+    expect(engine.resolveBody(body, { T: '50' })).toBe('Total: €50,00 due €50,00');
+  });
+
+  it('never lets formatting reach a formula', () => {
+    // The whole reason formatting is output-only: a formula reading "€1.200,50"
+    // instead of 1200.5 would break every calculation touching a money field.
+    expect(engine.evalFormula('T * 0.3', { T: '1.200,50' })).toBe(360.15);
+    expect(engine.sbFormatNumber('1200.5', 'currency', 'EUR')).toBe('€1.200,50');
+  });
+
+  it('a phone number is why Number is the wrong type for one', () => {
+    // Not a bug in the formatter, a reason to reach for Text: the leading zero
+    // is gone the moment the value is read as a number.
+    expect(engine.sbToNumber('0612345678')).toBe(612345678);
+    expect(engine.sbToNumber('+39-333-1234567')).toBeNull();
   });
 });

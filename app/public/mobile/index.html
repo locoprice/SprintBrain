@@ -1651,6 +1651,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // output only — the value a formula reads stays the raw number, or
         // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
         format: type === 'number' ? (raw.format || 'plain') : '',
+        // ISO code behind a currency field, so a renderer can show the symbol
+        // beside the input without re-parsing the token. '' for every other
+        // field, and for a number that is not money.
+        currency: type === 'number' && raw.format === 'currency'
+          ? (raw.currency || 'EUR') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -2173,17 +2178,82 @@ function sbNumberDefault(defVal){
   return n===null?'':String(n);
 }
 
+/* NUMBER OUTPUT FORMATTING — mirrors CURRENCIES / _groupNumber / sbFormatNumber
+   / _numberFormatMap in extension/formula-engine.js. Formatting is output only:
+   the value a formula reads stays the raw number. Intl.NumberFormat is avoided
+   on purpose, because its output follows the device locale and the same snippet
+   has to print identically on the phone and in the browser. */
+var SB_CURRENCIES={
+  EUR:{symbol:'€',group:'dot',decimals:2},
+  USD:{symbol:'$',group:'comma',decimals:2},
+  GBP:{symbol:'£',group:'comma',decimals:2},
+  CHF:{symbol:'CHF',group:'comma',decimals:2},
+  CAD:{symbol:'CA$',group:'comma',decimals:2},
+  AUD:{symbol:'A$',group:'comma',decimals:2},
+  JPY:{symbol:'¥',group:'comma',decimals:0}
+};
+var SB_DEFAULT_CURRENCY='EUR';
+
+function sbGroupNumber(n,style,decimals){
+  var neg=n<0,abs=Math.abs(n);
+  var s=decimals>=0?abs.toFixed(decimals):String(abs);
+  var dot=s.indexOf('.');
+  var whole=dot===-1?s:s.slice(0,dot);
+  var frac=dot===-1?'':s.slice(dot+1);
+  var gsep=style==='dot'?'.':',';
+  var dsep=style==='dot'?',':'.';
+  whole=whole.replace(/\B(?=(\d{3})+(?!\d))/g,gsep);
+  return (neg?'-':'')+whole+(frac===''?'':dsep+frac);
+}
+
+function sbFormatNumber(raw,format,currency){
+  var s=(raw===null||raw===undefined)?'':String(raw);
+  /* Unanswered prints nothing: formatting an empty field into a price would put
+     a number in a message nobody agreed to. */
+  if(s.replace(/\s/g,'')==='')return '';
+  var n=sbToNumber(s);
+  /* Present but not a number: print it back rather than inventing a zero. */
+  if(n===null)return s;
+  if(format==='percent')return sbGroupNumber(n,'comma',-1)+'%';
+  if(format==='currency'){
+    var c=SB_CURRENCIES[String(currency||'').toUpperCase()]||SB_CURRENCIES[SB_DEFAULT_CURRENCY];
+    return c.symbol+sbGroupNumber(n,c.group,c.decimals);
+  }
+  return s;
+}
+
+function sbNumberFormatMap(body){
+  var cfg=sbBodyFieldCfg(body),out=null;
+  for(var k in cfg){
+    if(!Object.prototype.hasOwnProperty.call(cfg,k))continue;
+    var f=cfg[k];
+    if(f.type!=='number'||!f.format||f.format==='plain')continue;
+    if(!out)out={};
+    out[k]={format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
+  }
+  return out;
+}
+
+function sbEmitNumber(key,value,numFmt){
+  var f=numFmt&&key?numFmt[key]:null;
+  return f?sbFormatNumber(value,f.format,f.currency):value;
+}
+
 function sbNumberOrTextCfg(attrSrc,defVal){
   var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   /* An unrecognised type is a typo, not a field type the product has. */
   if(!typeM||typeM[1].toLowerCase()!=='number')return {type:'text',default:defVal};
   var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   var fmt=fmtM?fmtM[1].toLowerCase():'';
-  return {
-    type:'number',
-    format:SB_NUMBER_FORMATS.indexOf(fmt)===-1?'plain':fmt,
-    default:sbNumberDefault(defVal)
-  };
+  var format=SB_NUMBER_FORMATS.indexOf(fmt)===-1?'plain':fmt;
+  var out={type:'number',format:format,default:sbNumberDefault(defVal)};
+  /* Only meaningful alongside format=currency. */
+  if(format==='currency'){
+    var curM=/(?:^|;)\s*currency\s*=\s*([A-Za-z]{3})/i.exec(attrSrc);
+    var cur=curM?curM[1].toUpperCase():'';
+    out.currency=Object.prototype.hasOwnProperty.call(SB_CURRENCIES,cur)?cur:SB_DEFAULT_CURRENCY;
+  }
+  return out;
 }
 
 function sbIsFormToken(tokLow){
@@ -2347,6 +2417,16 @@ function mathReplace(s){
 function resolveBody(body,vals,opts){
   if(!body)return '';
   var out='',i=0,gLock=-1;
+  /* Which fields print formatted is decided by the WHOLE body: an {if:} branch
+     can print a field declared outside it. Built once, then carried down on a
+     copy so the caller's opts is never mutated. Mirrors the engine. */
+  var _o=opts||{},numFmt,subOpts;
+  if(Object.prototype.hasOwnProperty.call(_o,'_numFmt')){numFmt=_o._numFmt;subOpts=_o;}
+  else{
+    numFmt=sbNumberFormatMap(body);subOpts={};
+    for(var _k in _o)if(Object.prototype.hasOwnProperty.call(_o,_k))subOpts[_k]=_o[_k];
+    subOpts._numFmt=numFmt;
+  }
   while(i<body.length){
     if(body[i]==='{'){
       var cl=body.indexOf('}',i);
@@ -2362,7 +2442,8 @@ function resolveBody(body,vals,opts){
           var ve=vd.slice(veq+1).replace(/^\s+|\s+$/g,'');
           var vs=ve.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(m){
             if(FUNS[m])return m;
-            return vals[m]!==undefined?String(vals[m]):'0';
+            var mv=sbToNumber(vals[m]);
+            return mv===null?'0':String(mv);
           });
           vs=mathReplace(vs);
           try{
@@ -2376,11 +2457,18 @@ function resolveBody(body,vals,opts){
       /* {=expr} */
       if(tok.charAt(0)==='='){
         var ex=sbResolveDatetimeDiff(tok.slice(1),vals);
+        /* Was parseFloat, which read "1.200,50" as 1.2 and turned "€1.200"
+           into 0 with no error at all — the same defect the engine closed, which
+           had been left live here. sbToNumber returns null for text, and an
+           unreadable input now refuses to answer instead of inventing a total. */
+        var unreadable=false;
         var s=ex.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(n){
           if(FUNS[n])return n;
-          var v=parseFloat(vals[n]);
-          return isNaN(v)?'0':String(v);
+          var v=sbToNumber(vals[n]);
+          if(v===null){unreadable=true;return '0';}
+          return String(v);
         });
+        if(unreadable){out+='';i=cl+1;continue;}
         var stripped=s.replace(/round|floor|ceil|abs|min|max|datetimediff/g,'');
         var fv=null;
         if(/^[0-9+\-*/().\s,]+$/.test(stripped)){
@@ -2404,7 +2492,7 @@ function resolveBody(body,vals,opts){
         var cnd=tok.slice(3).replace(/^\s+|\s+$/g,'');
         var ei='{endif}',eidx=body.indexOf(ei,cl+1);
         var inner=eidx!==-1?body.slice(cl+1,eidx):'';
-        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),opts);
+        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),subOpts);
         i=eidx!==-1?eidx+ei.length:cl+1;continue;
       }
 
@@ -2444,13 +2532,13 @@ function resolveBody(body,vals,opts){
       if(sbIsFormToken(tokLow)){
         var fk=sbFormTokenName(tokLow,tok.slice(9));
         var fkv=fk?vals[fk]:undefined;
-        out=sbEmitValue(out,(fkv!==undefined&&fkv!==null)?fkv:'',gLock);
+        out=sbEmitValue(out,sbEmitNumber(fk,(fkv!==undefined&&fkv!==null)?fkv:'',numFmt),gLock);
         i=cl+1;continue;
       }
 
       /* {FIELD} */
       var fval=vals[tok];
-      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,fval,gLock);
+      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,sbEmitNumber(tok,fval,numFmt),gLock);
       i=cl+1;
     }else{out+=body[i++];}
   }

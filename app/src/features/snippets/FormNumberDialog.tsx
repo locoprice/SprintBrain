@@ -12,8 +12,12 @@ import { Segmented } from '@/components/ui/segmented';
 import { cn } from '@/lib/utils';
 import {
   buildFormNumberToken,
+  CURRENCIES,
+  CURRENCY_CODES,
+  DEFAULT_CURRENCY,
   isValidFieldName,
   isValidNumberDefault,
+  type CurrencyCode,
   type NumberFormat,
 } from '@/lib/formNumberToken';
 
@@ -26,20 +30,22 @@ const FORMAT_OPTIONS: readonly { value: NumberFormat; label: string }[] = [
   { value: 'percent', label: 'Percent' },
 ];
 
-// What each format means. Deliberately says what the choice RECORDS, not what
-// it prints: the formatter and the workspace currency setting are not built, so
-// a currency field still expands as a plain number today. Describing the
-// intended output here would promise the author something the build does not do,
-// and they would read the missing symbol as a bug rather than as unfinished work.
-// When formatting lands, these lines and PENDING_FORMAT_NOTE change together.
+// What each format does on the way out. These describe real behaviour again:
+// the formatter landed with the currency picker, so a currency field prints its
+// symbol and a percent field its sign.
 const FORMAT_HINT: Record<NumberFormat, string> = {
   plain: 'The number exactly as typed. No symbol, no grouping.',
-  currency: 'Marks the value as an amount of money.',
-  percent: 'Marks the value as a percentage. Typing 15 means 15 percent, so a formula reads 15.',
+  currency: 'Prints with the currency symbol and two decimal places.',
+  percent: 'Prints with a trailing %. Typing 15 means 15 percent, so a formula reads 15.',
 };
 
-const PENDING_FORMAT_NOTE =
-  'Saved with the field. Printing the symbol is still being built, so for now the value expands as a plain number.';
+// Number is the wrong type for anything that only looks like a number. A phone
+// number loses its leading zero the moment it is read as one, and cannot hold a
+// "+" or the spaces people write it with, so the box refuses the keystrokes.
+// Same for order references, VAT numbers and postcodes. Saying so here is
+// cheaper than an author discovering it in a message already sent.
+const NOT_A_NUMBER_WARNING =
+  'Phone numbers, order references and postcodes are not numbers. They lose a leading zero and cannot hold + or spaces. Use a Text field for those.';
 
 interface FormNumberDialogProps {
   open: boolean;
@@ -70,6 +76,7 @@ export function FormNumberDialog({
 }: FormNumberDialogProps) {
   const [name, setName] = useState('');
   const [format, setFormat] = useState<NumberFormat>('plain');
+  const [currency, setCurrency] = useState<CurrencyCode>(DEFAULT_CURRENCY);
   const [defaultValue, setDefaultValue] = useState('');
 
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -80,6 +87,7 @@ export function FormNumberDialog({
     if (!open) return;
     setName(suggestedName);
     setFormat('plain');
+    setCurrency(DEFAULT_CURRENCY);
     setDefaultValue('');
   }, [open, suggestedName]);
 
@@ -88,8 +96,8 @@ export function FormNumberDialog({
   const canInsert = nameValid && defaultValid;
 
   const token = useMemo(
-    () => buildFormNumberToken({ name, format, default: defaultValue.trim() }),
-    [name, format, defaultValue],
+    () => buildFormNumberToken({ name, format, currency, default: defaultValue.trim() }),
+    [name, format, currency, defaultValue],
   );
 
   function handleSubmit() {
@@ -154,6 +162,9 @@ export function FormNumberDialog({
                 underscore, starting with a letter — e.g. {suggestedName}.
               </p>
             )}
+            <p className="mt-2 rounded-[8px] border border-line bg-bg-alt px-2.5 py-2 text-[11px] leading-tight text-ink-subtle">
+              {NOT_A_NUMBER_WARNING}
+            </p>
           </div>
 
           {/* ── Format ── */}
@@ -167,12 +178,38 @@ export function FormNumberDialog({
               className="w-full [&>button]:flex-1"
             />
             <p className={HINT}>{FORMAT_HINT[format]}</p>
-            {/* Only the two formats that have something to print carry the note.
-                Plain already prints exactly what it says it does. */}
-            {format !== 'plain' && (
-              <p className="mt-1 text-[11px] text-ink-subtle italic">{PENDING_FORMAT_NOTE}</p>
-            )}
           </div>
+
+          {/* ── Currency ── */}
+          {/* Only for a currency field: on a plain or percent one there is
+              nothing for it to change, and an inert control reads as broken. */}
+          {format === 'currency' && (
+            <div>
+              <label htmlFor="form-number-currency" className={SECTION_LABEL}>
+                Currency
+              </label>
+              <select
+                id="form-number-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                className="h-10 w-full rounded-[10px] border border-line bg-card px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {CURRENCY_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {code} · {CURRENCIES[code].symbol} · {CURRENCIES[code].label}
+                  </option>
+                ))}
+              </select>
+              <p className={HINT}>
+                Prints as{' '}
+                <code className="font-mono text-primary/80">
+                  {CURRENCIES[currency].symbol}
+                  {currency === 'EUR' ? '1.200,50' : currency === 'JPY' ? '1,200' : '1,200.50'}
+                </code>
+                . A formula still reads 1200.5.
+              </p>
+            </div>
+          )}
 
           {/* ── Default ── */}
           <div>
