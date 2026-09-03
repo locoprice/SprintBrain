@@ -5,6 +5,7 @@ import {
   Eye,
   History,
   Info,
+  Languages,
   MousePointerClick,
   PanelRightClose,
   PanelRightOpen,
@@ -48,6 +49,7 @@ import {
 import { nextTextName } from '@/lib/formTextToken';
 import { nextNumberName } from '@/lib/formNumberToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
+import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -350,6 +352,12 @@ export function NewSnippetDialog() {
   // Clear is armed by the first click and fires on the second, the same
   // two-step Delete uses. Wiping a translation is not undoable from here.
   const [confirmClear, setConfirmClear] = useState(false);
+  // Translate: in flight, and the last failure. Overwriting a translation that
+  // already has text is armed by a first click the same way Clear is, since it
+  // replaces work the user may have written by hand.
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [confirmTranslate, setConfirmTranslate] = useState(false);
   // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
   const [menuFieldOpen, setMenuFieldOpen] = useState(false);
   // Body caret, tracked so the menu chip can offer Edit when it sits inside a
@@ -620,6 +628,9 @@ export function NewSnippetDialog() {
     // Typing disarms Clear: one left armed from before the edit would otherwise
     // wipe text the user has just written on a single click.
     if (confirmClear) setConfirmClear(false);
+    // Same reasoning for Translate, which also overwrites the slot.
+    if (confirmTranslate) setConfirmTranslate(false);
+    if (translateError) setTranslateError(null);
   }
 
   // Switching language: snapshot the current textarea into the OLD language's
@@ -641,6 +652,8 @@ export function NewSnippetDialog() {
     if (errors.language) setErrors((prev) => ({ ...prev, language: undefined }));
     if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
     setConfirmClear(false);
+    setConfirmTranslate(false);
+    setTranslateError(null);
   }
 
   /**
@@ -658,7 +671,53 @@ export function NewSnippetDialog() {
     setErrors((prev) => ({ ...prev, content: undefined }));
     setLiveLanguageError(null);
     setConfirmClear(false);
+    setConfirmTranslate(false);
+    setTranslateError(null);
     contentRef.current?.focus();
+  }
+
+  /**
+   * Fill the language on screen by translating the English body (TRANSLATE-001).
+   *
+   * English is the source, always: it is the language the product treats as
+   * primary, and translating a translation compounds whatever the first pass
+   * got wrong. So the button reads from `bodies.EN` rather than from whatever
+   * happens to be in the textarea.
+   *
+   * Placeholders are protected server-side — the model never sees a
+   * SprintBrain token, and a reply that altered one is refused before it
+   * reaches this function. That is why the result can be written straight into
+   * the slot with no further checking here.
+   *
+   * Nothing is saved. The translation lands in the textarea as a draft the user
+   * reads, edits and then saves, exactly as if they had typed it.
+   */
+  async function translateFromEnglish() {
+    const target = form.language;
+    if (target === 'EN' || target === 'MULTI') return;
+
+    const source = (form.bodies.EN ?? '').trim();
+    if (source.length === 0) return;
+
+    // Overwriting existing text takes two clicks, the same as Clear. The first
+    // click only arms it.
+    if (form.content.length > 0 && !confirmTranslate) {
+      setConfirmTranslate(true);
+      return;
+    }
+
+    setTranslating(true);
+    setTranslateError(null);
+    setConfirmTranslate(false);
+    try {
+      const translated = await translateApi.translateBody(source, target as TranslateTarget);
+      updateBody(translated);
+      contentRef.current?.focus();
+    } catch (err) {
+      setTranslateError(err instanceof Error ? err.message : 'Translation failed. Try again.');
+    } finally {
+      setTranslating(false);
+    }
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -1444,8 +1503,41 @@ export function NewSnippetDialog() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   {contentError && <FieldError message={contentError} />}
+                  {!contentError && translateError && <FieldError message={translateError} />}
                 </div>
                 <div className="flex shrink-0 items-center gap-2.5">
+                  {/* Translate fills this slot from the English body. Shown only
+                      on IT/ES/FR: EN is the source, and MULTI is a deliberate
+                      mix with no single target language. Disabled when there is
+                      no English to translate — the title says so, since a
+                      button that does nothing reads as broken. */}
+                  {(form.language === 'IT' ||
+                    form.language === 'ES' ||
+                    form.language === 'FR') && (
+                    <button
+                      type="button"
+                      onClick={() => void translateFromEnglish()}
+                      disabled={saving || translating || (form.bodies.EN ?? '').trim().length === 0}
+                      title={
+                        (form.bodies.EN ?? '').trim().length === 0
+                          ? 'Write the English body first — it is what gets translated.'
+                          : `Translate the English body into ${form.language}. Fields and formulas are kept exactly as they are. Nothing is saved until you press Save.`
+                      }
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-[6px] border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
+                        confirmTranslate
+                          ? 'border-primary/40 bg-primary-bg text-primary'
+                          : 'border-line bg-card text-ink-subtle hover:border-primary/40 hover:bg-primary-bg hover:text-primary',
+                      )}
+                    >
+                      <Languages className="h-3 w-3" aria-hidden />
+                      {translating
+                        ? 'Translating…'
+                        : confirmTranslate
+                          ? 'Click again to replace'
+                          : 'Translate from EN'}
+                    </button>
+                  )}
                   {/* Clear sits left of the count so the count keeps the right
                       edge it has always had. Disabled on an already-empty slot:
                       there is nothing to delete and an armable button that does

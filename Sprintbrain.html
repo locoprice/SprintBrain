@@ -259,6 +259,10 @@
   .nv-body-clear{padding:2px 8px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:500;cursor:pointer;transition:all .12s}
   .nv-body-clear:hover,.nv-body-clear.armed{border-color:var(--sb-danger-bdr);background:var(--sb-danger-bg);color:var(--sb-danger)}
   .nv-body-clear:disabled{opacity:.4;cursor:default;border-color:var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle)}
+  .nv-body-tr{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:500;cursor:pointer;transition:all .12s}
+  .nv-body-tr:hover,.nv-body-tr.armed{border-color:var(--sb-azure-bdr);background:var(--sb-azure-bg);color:var(--sb-azure)}
+  .nv-body-tr:disabled{opacity:.4;cursor:default;border-color:var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle)}
+  .nv-body-tr svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .nv-body-count{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums}
   .nv-chips{display:flex;flex-direction:column;gap:10px;margin-top:9px}
   .nv-chiprow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
@@ -532,6 +536,7 @@
         </div>
         <textarea id="nv-f-body" placeholder="Dear {first_name},&#10;&#10;Your message…"></textarea>
         <div class="nv-body-foot">
+          <button type="button" id="nv-f-translate" class="nv-body-tr" style="display:none"><svg viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg><span id="nv-f-translate-lbl">Translate from EN</span></button>
           <button type="button" id="nv-f-clear" class="nv-body-clear" title="Delete this language's body. The snippet is saved without that language, not with an empty one.">Clear</button>
           <span class="nv-body-count" id="nv-f-count">0 words</span>
         </div>
@@ -731,7 +736,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.11.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.12.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1215,7 +1220,7 @@
     edActive = l;
     $('nv-f-body').value = (typeof edBuf[l] === 'string') ? edBuf[l] : '';
     setBodyPlaceholder(l);
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
 
@@ -1235,6 +1240,111 @@
     var armed = edClearArmed && !btn.disabled;
     btn.classList.toggle('armed', armed);
     btn.textContent = armed ? 'Click again to clear' : 'Clear';
+    renderTranslateBtn();
+  }
+
+  /* ── TRANSLATE (TRANSLATE-001) ──────────────────────────────────
+     Fills the language on screen from the English body. Mirrors
+     translateFromEnglish in app/src/features/snippets/NewSnippetDialog.tsx —
+     same source language, same two-step overwrite, same wording, so the two
+     editors behave identically.
+
+     English is always the source: it is the language the product treats as
+     primary, and translating a translation compounds whatever the first pass
+     got wrong. So this reads edBuf.EN, never the textarea.
+
+     Placeholders are protected server-side — the model never sees a SprintBrain
+     token, and a reply that altered one is refused before it reaches here. */
+  // edGen counts editor openings. A translation still in flight when the user
+  // closes the dialog and opens another snippet must not land in that snippet's
+  // buffer, so every reply checks the generation it was asked under.
+  var edTrArmed = false, edTrBusy = false, edGen = 0;
+
+  function translateSource(){
+    var s = (typeof edBuf.EN === 'string') ? edBuf.EN : '';
+    return s.replace(/^\s+|\s+$/g, '');
+  }
+
+  function renderTranslateBtn(){
+    var btn = $('nv-f-translate'), lbl = $('nv-f-translate-lbl');
+    // EN is the source and MULTI is a deliberate mix, so neither offers this.
+    var shown = (edActive === 'IT' || edActive === 'ES' || edActive === 'FR');
+    btn.style.display = shown ? '' : 'none';
+    if (!shown) { edTrArmed = false; return; }
+    var src = translateSource();
+    btn.disabled = edTrBusy || src.length === 0;
+    // A button that does nothing reads as broken, so say why it is off.
+    btn.title = src.length === 0
+      ? 'Write the English body first — it is what gets translated.'
+      : 'Translate the English body into ' + edActive + '. Fields and formulas are kept exactly as they are. Nothing is saved until you press Save.';
+    var armed = edTrArmed && !btn.disabled;
+    btn.classList.toggle('armed', armed);
+    lbl.textContent = edTrBusy ? 'Translating…' : (armed ? 'Click again to replace' : 'Translate from EN');
+  }
+
+  /* The error the user reads. Codes come from the edge function; the wording
+     matches translateError in app/src/lib/api/translateApi.ts. */
+  function translateMessage(code){
+    if (code === 'anthropic_not_configured') return 'Translation is not configured yet';
+    if (code === 'placeholders_corrupted') return 'The translation changed a field, so it was discarded. Try again';
+    if (code === 'translation_refused') return 'This text could not be translated';
+    if (code === 'source_too_long') return 'This body is too long to translate';
+    if (code === 'empty_source') return 'There is no English text to translate';
+    return 'Could not reach the translation service. Try again';
+  }
+
+  function translateFromEnglish(){
+    if (edTrBusy) return;
+    if (edActive !== 'IT' && edActive !== 'ES' && edActive !== 'FR') return;
+    var src = translateSource();
+    if (!src) return;
+    // Overwriting text already in the slot takes two clicks, the same as Clear.
+    if (($('nv-f-body').value || '').length > 0 && !edTrArmed) {
+      edTrArmed = true; renderTranslateBtn(); return;
+    }
+    edTrArmed = false; edTrBusy = true; renderTranslateBtn();
+    // The language showing may change while the request is in flight, so the
+    // reply is written to the language that was ASKED for, not to whatever is
+    // on screen when it lands. Same for the snippet itself, via edGen.
+    var target = edActive, gen = edGen;
+    sbAuthHeaders(function(err, headers){
+      if (err || !headers) {
+        edTrBusy = false; renderTranslateBtn(); toast('Sign in again to translate'); return;
+      }
+      fetch(SB_SUPA_URL + '/functions/v1/translate-body', {
+        method: 'POST',
+        headers: {
+          'apikey': headers.apikey,
+          'Authorization': headers.Authorization,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ body: src, target: target })
+      }).then(function(r){
+        return r.json().then(function(j){ return { ok: r.ok, j: j }; },
+                             function(){ return { ok: false, j: null }; });
+      }).then(function(res){
+        edTrBusy = false;
+        // A different snippet is open now — this reply belongs to nothing.
+        if (gen !== edGen) return;
+        if (!res.ok || !res.j || !res.j.ok || typeof res.j.translation !== 'string') {
+          renderTranslateBtn();
+          toast(translateMessage(res.j && res.j.error));
+          return;
+        }
+        edBuf[target] = res.j.translation;
+        if (edActive === target) {
+          $('nv-f-body').value = res.j.translation;
+          $('nv-f-body').focus();
+        }
+        edClearArmed = false;
+        renderLangTabs(); renderBodyFoot();
+      }).catch(function(){
+        edTrBusy = false;
+        if (gen !== edGen) return;
+        renderTranslateBtn();
+        toast('Could not reach the translation service. Try again');
+      });
+    });
   }
   /* Wipe the language on screen. The slot leaves edBuf instead of going blank,
      so the save writes a snippet that never carried that translation and every
@@ -1244,7 +1354,7 @@
     if (!edClearArmed) { edClearArmed = true; renderBodyFoot(); return; }
     delete edBuf[edActive];
     $('nv-f-body').value = '';
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
   function renderAltTags(){
@@ -1264,6 +1374,8 @@
   }
   function openEditor(snip){
     nvEditId = snip ? snip.id : null;
+    // Retires any translation still in flight from the previous opening.
+    edGen += 1; edTrBusy = false;
     $('nv-modal-title').textContent = snip ? 'Edit snippet' : 'New snippet';
     $('nv-f-title').value = snip ? (snip.title || '') : '';
     $('nv-f-shortcut').value = snip ? String(snip.shortcut||'').replace(/^[^a-zA-Z0-9]+/,'') : '';
@@ -1278,7 +1390,7 @@
     }
     $('nv-f-body').value = (typeof edBuf[edActive] === 'string') ? edBuf[edActive] : '';
     setBodyPlaceholder(edActive);
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot();
     // alternative queries
     edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
@@ -1304,7 +1416,7 @@
     var ta = $('nv-f-body'), s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
     ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
-    edClearArmed = false; renderBodyFoot();
+    edClearArmed = false; edTrArmed = false; renderBodyFoot();
   }
 
   /* Swap the body text between two offsets — the edit path for a token already
@@ -1313,7 +1425,7 @@
     var ta = $('nv-f-body');
     ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
     ta.focus(); ta.selectionStart = ta.selectionEnd = start + text.length;
-    edClearArmed = false; renderBodyFoot();
+    edClearArmed = false; edTrArmed = false; renderBodyFoot();
   }
   $('nv-chips').addEventListener('click', function(e){
     var c = e.target.closest('[data-c]'); if (!c) return;
@@ -1766,10 +1878,11 @@
   $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
   $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
   $('nv-f-shortcut').addEventListener('input', updatePreview);
-  // Typing disarms Clear: one left armed from before the edit would otherwise
-  // wipe text the user has just written on a single click.
-  $('nv-f-body').addEventListener('input', function(){ edClearArmed = false; renderBodyFoot(); });
+  // Typing disarms Clear and Translate: one left armed from before the edit
+  // would otherwise wipe text the user has just written on a single click.
+  $('nv-f-body').addEventListener('input', function(){ edClearArmed = false; edTrArmed = false; renderBodyFoot(); });
   $('nv-f-clear').addEventListener('click', clearActiveLang);
+  $('nv-f-translate').addEventListener('click', translateFromEnglish);
   $('nv-f-cancel').addEventListener('click', closeEditor);
   $('nv-modal-bg').addEventListener('click', function(e){ if (e.target === $('nv-modal-bg')) closeEditor(); });
   $('nv-f-save').addEventListener('click', function(){
