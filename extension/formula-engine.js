@@ -480,15 +480,69 @@
     return pos === str.length ? result : NaN;
   }
 
+  // ── NUMERIC VALUE READER ────────────────────────────────────────
+  // Every surface hands a formula the raw string an operator typed, so this is
+  // the single place where a typed value becomes a number.
+  //
+  // parseFloat cannot do this job: parseFloat("1.200,50") is 1.2 — not an
+  // error, a plausible and completely wrong number — and that is exactly the
+  // shape SprintBrain's operators write.
+  //
+  //   absent, empty        0        "not answered" is not a wrong answer
+  //   "1200.5"             1200.5
+  //   "1.200,50"           1200.5   both separators present: the LAST is decimal
+  //   "1,200.50"           1200.5
+  //   "1.200.000"          1200000  a separator used twice is grouping
+  //   "1,5"                1.5      ',' reads as a decimal point, exactly like '.'
+  //   "€1.200", "abc"      null     present, but not a number
+  //
+  // A single '.' keeps meaning a decimal point, so nothing that resolves
+  // correctly today changes. A single ',' now does too: "1,200" reads as 1.2
+  // where parseFloat read 1, which was wrong under either reading.
+  //
+  // null is the point of the function: it lets a caller tell "no answer" (0)
+  // from "an answer that is not a number", which the engine used to collapse.
+  function sbToNumber(raw) {
+    if (raw === null || raw === undefined) return 0;
+    if (typeof raw === 'number') return isFinite(raw) ? raw : null;
+    var s = String(raw).replace(/[\s ]/g, '');
+    if (s === '') return 0;
+    var neg = false;
+    if (s.charAt(0) === '+') s = s.slice(1);
+    else if (s.charAt(0) === '-') { neg = true; s = s.slice(1); }
+    if (!/^[0-9.,]+$/.test(s)) return null;
+    var dots = s.split('.').length - 1;
+    var commas = s.split(',').length - 1;
+    var dec = -1;
+    if (dots && commas) dec = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','));
+    else if (dots === 1) dec = s.lastIndexOf('.');
+    else if (commas === 1) dec = s.lastIndexOf(',');
+    var whole = (dec === -1 ? s : s.slice(0, dec)).replace(/[.,]/g, '');
+    var frac = dec === -1 ? '' : s.slice(dec + 1);
+    // Grouping marks are gone by now, so anything left in the fraction is a
+    // third separator: "1.2.3" is not a number in any locale.
+    if (/[.,]/.test(frac)) return null;
+    if (whole === '' && frac === '') return null;
+    var n = parseFloat((whole === '' ? '0' : whole) + (frac === '' ? '' : '.' + frac));
+    if (isNaN(n) || !isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+
   // ── FORMULA EVALUATOR ───────────────────────────────────────────
   function evalFormula(expr, vals) {
     try {
       var s = sbResolveDatetimeDiff(expr, vals);
+      var unreadable = false;
       s = s.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
         if (FUNS[n]) return n;
-        var v = parseFloat(vals[n]);
-        return isNaN(v) ? '0' : String(v);
+        var v = sbToNumber(vals[n]);
+        // Present, but not a number. Substituting 0 here is how a wrong total
+        // used to reach a customer looking exactly like a right one: an input
+        // of "€1.200" made {=TOTAL * 2} resolve to 0 with no error at all.
+        if (v === null) { unreadable = true; return '0'; }
+        return String(v);
       });
+      if (unreadable) return null;
       var r = safeEval(s);
       // !isFinite catches NaN AND ±Infinity (e.g. divide-by-zero like {{= 1/0 }}),
       // so a bad formula resolves to '' instead of leaking the literal "Infinity".
@@ -976,10 +1030,58 @@
         }
         cfg[key] = menu;
       } else {
-        cfg[key] = { type: 'text', default: defVal };
+        cfg[key] = _numberOrTextCfg(_formAttrSrc(tokLow, rest), defVal);
       }
     }
     return cfg;
+  }
+
+  // ── NUMBER FIELD ────────────────────────────────────────────────
+  // A number is declared as an attribute on {formtext:}, not as its own
+  // {formnumber:} token, and that is a deliberate constraint rather than a
+  // shortcut. Every parser reads a token's prefix with a literal slice(9):
+  // 'formtext:', 'formdate:' and 'formmenu:' are all exactly nine characters,
+  // and 'formnumber:' is eleven. A new token would have to land in 24 places
+  // across this file and the phone's copy, in lockstep, before it rendered
+  // anywhere. The attribute costs none of them, and it degrades the right way:
+  // a surface too old to read `type=` still draws a text box, where an
+  // unrecognised token would have dropped the field out of the form entirely.
+  //
+  // The user-facing product hides all of this. Number is its own field type
+  // next to Date/Time, Text and Choice; the shared spelling underneath is an
+  // implementation detail nobody authoring a snippet has to know.
+  var NUMBER_FORMATS = ['plain', 'currency', 'percent'];
+
+  // A declared default has to survive into an <input type="number">, which
+  // rejects the very thing an operator is most likely to have typed: a
+  // default of "1.200,50" would arrive as a blank box. Normalising it here
+  // means every renderer gets a value it can actually show.
+  //
+  // Empty stays empty. sbToNumber reads '' as 0 because an unanswered field
+  // contributes nothing to a sum, but "no default" and "a default of zero"
+  // are different statements about the form and must not collapse.
+  function _numberDefault(defVal) {
+    if (defVal === '') return '';
+    var n = sbToNumber(defVal);
+    return n === null ? '' : String(n);
+  }
+
+  function _numberOrTextCfg(attrSrc, defVal) {
+    var typeM = /(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    // An unrecognised type is a typo, not a field type the product has, so it
+    // reads as the plain text field the token meant before `type` existed.
+    if (!typeM || typeM[1].toLowerCase() !== 'number') {
+      return { type: 'text', default: defVal };
+    }
+    var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    var fmt = fmtM ? fmtM[1].toLowerCase() : '';
+    return {
+      type: 'number',
+      // Same rule as `type`: `format=dollars` is a mistake to absorb here,
+      // not a format to hand to a renderer that has no idea what it means.
+      format: NUMBER_FORMATS.indexOf(fmt) === -1 ? 'plain' : fmt,
+      'default': _numberDefault(defVal)
+    };
   }
 
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
@@ -1232,6 +1334,7 @@
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,
+    sbToNumber:        sbToNumber,
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,

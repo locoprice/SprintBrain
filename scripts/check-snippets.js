@@ -340,6 +340,30 @@ const fieldCfgCases = [
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
   '{formdate: name=CHECKIN; default=2026-08-06}',
+  // NUMBER FIELD — the type and format ride on {formtext:} rather than a token
+  // of their own, so both parsers must read the same attributes off the same
+  // string. This is the drift these cases exist to catch.
+  '{formtext: name=TOTAL; type=number}',
+  '{formtext: name=TOTAL; type=number; format=currency}',
+  '{formtext: name=RATE; type=number; format=percent}',
+  '{formtext: name=N; type=number; format=plain}',
+  // An unknown format is a typo to absorb, not a format to pass on.
+  '{formtext: name=N; type=number; format=dollars}',
+  // An unknown type is not a field type the product has: it stays text.
+  '{formtext: name=N; type=numbr}',
+  '{formtext: name=N; type=text}',
+  // A declared default has to reach an <input type="number"> intact, whichever
+  // way round the operator wrote the separators.
+  '{formtext: name=N; type=number; default=1.200,50}',
+  '{formtext: name=N; type=number; default=1,200.50}',
+  '{formtext: name=N; type=number; default=1200.5}',
+  '{formtext: name=N; type=number; default=-40}',
+  // Zero is an answer; a default that is not a number is not one.
+  '{formtext: name=N; type=number; default=0}',
+  '{formtext: name=N; type=number; default=abc}',
+  // Attribute order must not matter, and case must not either.
+  '{formtext: type=number; name=N; format=currency}',
+  '{formtext: name=N; TYPE=Number; FORMAT=Currency}',
   'Hi {formtext: name=G}, plan {formmenu: A,B; name=P; default=B} and {formmenu: X,Y}',
   'no tokens at all',
   '',

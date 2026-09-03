@@ -1645,6 +1645,12 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // not agree (the overlay prints {KEY}, the phone humanises it).
         label: raw.label || '',
         type: type,
+        // How a number prints once it leaves the form: 'plain', 'currency' or
+        // 'percent'. Always '' for every other kind of field, so a renderer can
+        // read it without first asking what type it is holding. Formatting is
+        // output only — the value a formula reads stays the raw number, or
+        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
+        format: type === 'number' ? (raw.format || 'plain') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -2116,10 +2122,68 @@ function sbBodyFieldCfg(body){
       if(colsM){var cols=parseInt(colsM[1],10);if(cols>0)menu.cols=cols;}
       cfg[key]=menu;
     }else{
-      cfg[key]={type:'text',default:defVal};
+      cfg[key]=sbNumberOrTextCfg(spec?spec.attrs:rest,defVal);
     }
   }
   return cfg;
+}
+
+/* NUMBER FIELD — mirrors _numberOrTextCfg / _numberDefault / NUMBER_FORMATS in
+   extension/formula-engine.js. A number is an attribute on {formtext:} rather
+   than its own token because both parsers read the prefix with a literal
+   slice(9) and 'formnumber:' is eleven characters; the attribute leaves all of
+   that untouched and still degrades to a text box on anything too old to read
+   it. scripts/check-snippets.js asserts this agrees with the engine. */
+var SB_NUMBER_FORMATS=['plain','currency','percent'];
+
+/* Reads a typed value the way an operator wrote it. parseFloat cannot:
+   parseFloat("1.200,50") is 1.2, which is not an error but a plausible and
+   completely wrong number. null means "present, but not a number", which is
+   what lets a caller tell it apart from an unanswered field. */
+function sbToNumber(raw){
+  if(raw===null||raw===undefined)return 0;
+  if(typeof raw==='number')return isFinite(raw)?raw:null;
+  var s=String(raw).replace(/[\s ]/g,'');
+  if(s==='')return 0;
+  var neg=false;
+  if(s.charAt(0)==='+')s=s.slice(1);
+  else if(s.charAt(0)==='-'){neg=true;s=s.slice(1);}
+  if(!/^[0-9.,]+$/.test(s))return null;
+  var dots=s.split('.').length-1,commas=s.split(',').length-1,dec=-1;
+  if(dots&&commas)dec=Math.max(s.lastIndexOf('.'),s.lastIndexOf(','));
+  else if(dots===1)dec=s.lastIndexOf('.');
+  else if(commas===1)dec=s.lastIndexOf(',');
+  var whole=(dec===-1?s:s.slice(0,dec)).replace(/[.,]/g,'');
+  var frac=dec===-1?'':s.slice(dec+1);
+  /* Grouping marks are gone by now, so anything left in the fraction is a
+     third separator: "1.2.3" is not a number in any locale. */
+  if(/[.,]/.test(frac))return null;
+  if(whole===''&&frac==='')return null;
+  var n=parseFloat((whole===''?'0':whole)+(frac===''?'':'.'+frac));
+  if(isNaN(n)||!isFinite(n))return null;
+  return neg?-n:n;
+}
+
+/* Empty stays empty: sbToNumber reads '' as 0 because an unanswered field adds
+   nothing to a sum, but "no default" and "a default of zero" are different
+   statements about the form. */
+function sbNumberDefault(defVal){
+  if(defVal==='')return '';
+  var n=sbToNumber(defVal);
+  return n===null?'':String(n);
+}
+
+function sbNumberOrTextCfg(attrSrc,defVal){
+  var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  /* An unrecognised type is a typo, not a field type the product has. */
+  if(!typeM||typeM[1].toLowerCase()!=='number')return {type:'text',default:defVal};
+  var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  var fmt=fmtM?fmtM[1].toLowerCase():'';
+  return {
+    type:'number',
+    format:SB_NUMBER_FORMATS.indexOf(fmt)===-1?'plain':fmt,
+    default:sbNumberDefault(defVal)
+  };
 }
 
 function sbIsFormToken(tokLow){

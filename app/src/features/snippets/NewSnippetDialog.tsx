@@ -34,6 +34,7 @@ import {
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
+import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
 import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
@@ -45,6 +46,7 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
+import { nextNumberName } from '@/lib/formNumberToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
@@ -217,6 +219,18 @@ const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
+// A number field is the one type that carries a guarantee rather than a
+// picker: whatever is typed is a number by the time a formula reads it, or the
+// formula refuses to answer instead of quietly treating it as zero.
+const NUMBER_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Name',
+    hint: 'What the field is called in the fill form, and how a formula refers to it. Arrives prefilled with the next free NUM_n.' },
+  { label: 'Format',
+    hint: 'Plain, Currency or Percent. It changes how the value prints, never the number a formula reads.' },
+  { label: 'Default',
+    hint: 'Optional. Left blank the field opens empty, which is not the same as starting at 0.' },
+];
+
 const MENU_FIELDS: { label: string; hint: string }[] = [
   { label: 'Values',
     hint: 'The options the menu offers. Tick one to preselect it.' },
@@ -350,6 +364,9 @@ export function NewSnippetDialog() {
   );
   // Text-field builder — writes a {formtext:} token at the cursor.
   const [textFieldOpen, setTextFieldOpen] = useState(false);
+  // Number-field builder — writes a number token at the cursor. Its own type in
+  // the rail; that it shares {formtext:}'s spelling is an engine constraint.
+  const [numberFieldOpen, setNumberFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
@@ -903,6 +920,46 @@ export function NewSnippetDialog() {
                 </dl>
               </Toggle>
 
+              {/* Number is its own field type, not a setting inside Text. The
+                  two share a token spelling underneath because the engine reads
+                  a fixed nine-character prefix and could not take a new one
+                  without 24 call sites moving together — an engine constraint,
+                  and not something an author should ever have to think about. */}
+              <Toggle
+                label="Number"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => setNumberFieldOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Name and insert
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  A quantity — a price, a count, a duration. Unlike a text field it is
+                  guaranteed to be a number by the time a formula reads it, so{' '}
+                  <code className="font-mono text-primary/80">{'{=TOTAL * 2}'}</code>{' '}
+                  either works or says why. Typed as{' '}
+                  <code className="font-mono text-primary/80">1.200,50</code> or{' '}
+                  <code className="font-mono text-primary/80">1,200.50</code>, it reads the
+                  same either way.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {NUMBER_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
               {/* The builder opens a dialog instead of pasting a literal: the
                   options have to exist before the token means anything. With the
                   caret inside a menu the same button edits it, so changing the
@@ -1419,6 +1476,13 @@ export function NewSnippetDialog() {
               open={textFieldOpen}
               onOpenChange={setTextFieldOpen}
               suggestedName={nextTextName(form.content)}
+              onInsert={insertAtCursor}
+            />
+
+            <FormNumberDialog
+              open={numberFieldOpen}
+              onOpenChange={setNumberFieldOpen}
+              suggestedName={nextNumberName(form.content)}
               onInsert={insertAtCursor}
             />
 

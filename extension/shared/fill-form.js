@@ -153,6 +153,12 @@
         // not agree (the overlay prints {KEY}, the phone humanises it).
         label: raw.label || '',
         type: type,
+        // How a number prints once it leaves the form: 'plain', 'currency' or
+        // 'percent'. Always '' for every other kind of field, so a renderer can
+        // read it without first asking what type it is holding. Formatting is
+        // output only — the value a formula reads stays the raw number, or
+        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
+        format: type === 'number' ? (raw.format || 'plain') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
