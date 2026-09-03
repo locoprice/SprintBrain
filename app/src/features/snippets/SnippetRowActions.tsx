@@ -97,6 +97,12 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     const PAD = 8;
     let nextX = anchor.x - mrect.width; // right-align with the gear button
     let nextY = anchor.y;
+    // Clamp both edges, the way FolderContextMenu and SnippetContextMenu do.
+    // The right edge matters now that the table scrolls horizontally: a gear
+    // sitting past the visible part of the scroller anchors the menu off the
+    // side of the screen, and only the left edge was ever being caught.
+    const maxX = window.innerWidth - mrect.width - PAD;
+    if (nextX > maxX) nextX = maxX;
     if (nextX < PAD) nextX = PAD;
     if (nextY + mrect.height + PAD > window.innerHeight) {
       // Flip above the gear if there's not enough room below the row.

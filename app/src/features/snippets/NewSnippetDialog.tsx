@@ -50,6 +50,7 @@ import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtil
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useMinWidth } from '@/lib/useViewportGate';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
@@ -59,6 +60,10 @@ import {
 
 // Each language is a first-class picker option with its own color (FR re-added v2.88.0).
 const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
+
+// The width at which the dialog can afford its third panel: 839px of rail and
+// editor plus the preview's 321px, with 94vw to spare for the backdrop.
+const PREVIEW_MIN_WIDTH = 1280;
 
 /**
  * A snippet name is read back as plain text everywhere else: the extension
@@ -286,7 +291,13 @@ export function NewSnippetDialog() {
   const openHistory = useUiStore((s) => s.openHistory);
 
   // Live preview panel — remembered per device, so closing it makes it stay closed.
-  const previewOpen    = useUiStore((s) => s.snippetPreviewOpen);
+  const previewWanted  = useUiStore((s) => s.snippetPreviewOpen);
+  // Three panels need 1156px and a 1024px screen gives the dialog 963, which
+  // left the editor 439px — the panel being edited, squeezed by the two that
+  // frame it. Below 1280 the preview stands down. The stored preference is
+  // untouched, so it comes back the moment the window is wide enough.
+  const previewFits    = useMinWidth(PREVIEW_MIN_WIDTH);
+  const previewOpen    = previewWanted && previewFits;
   const setPreviewOpen = useUiStore((s) => s.setSnippetPreviewOpen);
 
   // Snippet trigger prefix (e.g. "::") — a user setting, never hardcoded.
@@ -762,8 +773,10 @@ export function NewSnippetDialog() {
               the header's pr-14 already reserves room for. */}
           <button
             type="button"
-            onClick={() => setPreviewOpen(!previewOpen)}
+            onClick={() => setPreviewOpen(!previewWanted)}
             aria-pressed={previewOpen}
+            disabled={!previewFits}
+            title={previewFits ? undefined : 'The window is too narrow for the preview panel'}
             className="ml-auto self-center shrink-0 inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-line bg-card px-2.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/30 hover:text-primary"
           >
             {previewOpen ? (

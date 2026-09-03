@@ -587,7 +587,10 @@ export function PromptBlockEditor() {
 
   return (
     <div
-      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#222227] bg-[#0B0B0E] shadow-[-24px_0_70px_rgba(0,0,0,0.6)] transition-transform duration-200 ${
+      // 520px covers half of a 1024px screen. It narrows to 420px below 2xl,
+      // and PromptsPage reserves the same two widths — the pair must move
+      // together or the list ends up under the drawer.
+      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] 2xl:w-[520px] flex-col overflow-hidden border-l border-[#222227] bg-[#0B0B0E] shadow-[-24px_0_70px_rgba(0,0,0,0.6)] transition-transform duration-200 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
     >

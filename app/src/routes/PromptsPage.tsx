@@ -7,6 +7,7 @@ import { PromptBlockEditor } from '@/features/prompts/PromptBlockEditor';
 import { PromptFilters } from '@/features/prompts/PromptFilters';
 import { PromptCmdK, usePromptCmdKShortcut } from '@/features/prompts/PromptCmdK';
 import { PromptPreviewModal } from '@/features/prompts/PromptPreviewModal';
+import { cn } from '@/lib/utils';
 import { useFilteredPrompts, usePromptStore } from '@/stores/promptStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -41,13 +42,26 @@ export function PromptsPage() {
     }
   }, [loadLabels, labelsLoaded]);
 
+  // Column count follows the space the drawer leaves behind, not a fixed
+  // number: two columns of a narrow remainder is worse than one column that
+  // can be read. With the drawer closed the list still steps down on smaller
+  // screens rather than holding three columns at any width.
+  const gridColumns = editorOpen
+    ? 'grid-cols-1 2xl:grid-cols-2'
+    : 'grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4';
+
   return (
     // Full-height layout that escapes the parent py-8 padding
     <div className="-mx-8 -my-8 flex h-[calc(100vh-60px)] overflow-hidden">
       {/* ── Main content ── */}
       <div
-        className="flex min-w-0 flex-1 flex-col overflow-y-auto"
-        style={editorOpen ? { paddingRight: '520px' } : undefined}
+        className={cn(
+          'flex min-w-0 flex-1 flex-col overflow-y-auto',
+          // Reserve exactly what the drawer covers — same two widths as
+          // PromptBlockEditor. A flat 520px left a 1024px screen 165px of
+          // list, which is 65px per card once the grid splits it.
+          editorOpen && 'pr-[420px] 2xl:pr-[520px]',
+        )}
       >
         {/* Page header */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-bg px-8 py-5">
@@ -93,11 +107,7 @@ export function PromptsPage() {
               description="Adjust your filters or create a new prompt to get started."
             />
           ) : (
-            <div
-              className={`grid gap-5 ${
-                editorOpen ? 'grid-cols-2' : 'grid-cols-3 2xl:grid-cols-4'
-              }`}
-            >
+            <div className={cn('grid gap-5', gridColumns)}>
               {filtered.map((prompt) => (
                 <PromptCard key={prompt.id} prompt={prompt} />
               ))}
