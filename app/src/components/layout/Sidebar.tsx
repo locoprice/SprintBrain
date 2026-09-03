@@ -9,6 +9,7 @@ import {
   Bug,
   Github,
   LogOut,
+  PanelLeft,
   PlayCircle,
   Settings,
   Sparkles,
@@ -80,6 +81,7 @@ export function Sidebar() {
   const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
   const companyLogoUrl = useSettingsStore((s) => s.profile?.company_logo_url ?? null);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
+  const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
   // Owned here rather than lifted: the trigger lives in this menu and nothing
   // else opens it. The dialog is fixed-position, so it still covers the app.
@@ -133,8 +135,22 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
       <nav className="shrink-0 px-3 pt-5 pb-4">
-        <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-          Workspace
+        {/* The collapse control sits on this row, flush with the right edge of
+            the nav count pills. It only exists while the sidebar is on screen;
+            the Topbar carries the same icon once the sidebar is hidden. */}
+        <div className="mb-1 flex items-center justify-between gap-2 px-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+            Workspace
+          </span>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
+          >
+            <PanelLeft className="h-4 w-4" aria-hidden />
+          </button>
         </div>
         <div className="flex flex-col gap-0.5">
           {PRIMARY.map((item) => (

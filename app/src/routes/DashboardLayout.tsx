@@ -27,6 +27,7 @@ export function DashboardLayout() {
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const closeOnboarding = useUiStore((s) => s.closeOnboarding);
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
 
@@ -66,7 +67,7 @@ export function DashboardLayout() {
       <Topbar />
       <PendingInviteBanner />
       <div className="flex min-h-0 min-w-0 flex-1">
-        <Sidebar />
+        {!sidebarCollapsed && <Sidebar />}
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <div className="mx-auto w-full max-w-content px-8 py-8">

@@ -69,6 +69,12 @@ interface UiStore {
   // on a narrow one and open on a wide one until the user says otherwise.
   foldersRailOpen: boolean;
   setFoldersRailOpen: (open: boolean) => void;
+
+  // Workspace sidebar, hidden to give the canvas the full width. Same kind of
+  // per-device layout preference as the folder rail; persisted so a screen that
+  // needs the room keeps it. Starts visible.
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
 const PREVIEW_KEY = 'sprintbrain-snippet-preview';
@@ -121,6 +127,26 @@ function storeFoldersRailOpen(open: boolean): void {
     localStorage.setItem(FOLDERS_RAIL_KEY, open ? 'open' : 'closed');
   } catch {
     // Storage unavailable — the preference is per-device convenience only.
+  }
+}
+
+const SIDEBAR_KEY = 'sprintbrain-sidebar-collapsed';
+
+// Mirrors the folder-rail helpers: a blocked store throws on access and the
+// vitest 'node' environment has no localStorage. Visible is the default.
+function getStoredSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === 'collapsed';
+  } catch {
+    return false;
+  }
+}
+
+function storeSidebarCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded');
+  } catch {
+    // Storage unavailable: the preference is per-device convenience only.
   }
 }
 
@@ -181,5 +207,11 @@ export const useUiStore = create<UiStore>((set) => ({
   setFoldersRailOpen: (open) => {
     storeFoldersRailOpen(open);
     set({ foldersRailOpen: open });
+  },
+
+  sidebarCollapsed: getStoredSidebarCollapsed(),
+  setSidebarCollapsed: (collapsed) => {
+    storeSidebarCollapsed(collapsed);
+    set({ sidebarCollapsed: collapsed });
   },
 }));
