@@ -7,7 +7,6 @@ import type {
   StrategyType,
   PreferredModel,
   ComplexityLevel,
-  ExecutionType,
   IntentCategory,
   OutputType,
 } from '@/types/database';
@@ -26,7 +25,6 @@ export interface PromptFilters {
   intent: IntentCategory | null;
   model: PreferredModel | null;
   complexity: ComplexityLevel | null;
-  executionType: ExecutionType | null;
   outputType: OutputType | null;
   /** Label ids narrowing the list; empty = no label filter. Catalog lives in labelStore. */
   labels: string[];
@@ -42,7 +40,6 @@ const DEFAULT_FILTERS: PromptFilters = {
   intent: null,
   model: null,
   complexity: null,
-  executionType: null,
   outputType: null,
   labels: [],
   search: '',
@@ -321,15 +318,13 @@ export function useFilteredPrompts(): Prompt[] {
       if (filters.intent && p.intent_category !== filters.intent) return false;
       if (filters.model && p.preferred_model !== filters.model) return false;
       if (filters.complexity && p.complexity_level !== filters.complexity) return false;
-      if (filters.executionType && p.execution_type !== filters.executionType) return false;
       if (filters.outputType && p.output_type !== filters.outputType) return false;
       if (filters.search) {
         const q = filters.search.toLowerCase();
         const inName = p.name.toLowerCase().includes(q);
-        const inTags = p.tags.some((t) => t.toLowerCase().includes(q));
         const inIntent = (p.intent_category ?? '').toLowerCase().includes(q);
         const inContent = p.content.toLowerCase().includes(q);
-        if (!inName && !inTags && !inIntent && !inContent) return false;
+        if (!inName && !inIntent && !inContent) return false;
       }
       return true;
     });
@@ -352,7 +347,6 @@ export function useActiveFilterCount(): number {
   if (filters.intent) count++;
   if (filters.model) count++;
   if (filters.complexity) count++;
-  if (filters.executionType) count++;
   if (filters.outputType) count++;
   if (filters.labels.length > 0) count++;
   if (filters.search) count++;

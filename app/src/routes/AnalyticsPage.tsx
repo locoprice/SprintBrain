@@ -68,7 +68,7 @@ export function AnalyticsPage() {
           title="Analytics"
           description="Usage signal across snippets, devices, and time."
         />
-        <div className="grid grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-28 animate-pulse rounded-[16px] bg-card" />
           ))}
@@ -85,7 +85,7 @@ export function AnalyticsPage() {
         description="Usage signal across snippets, devices, and time."
       />
 
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
         <KpiCard
           label="Total snippets"
           value={formatCompact(summary.total_snippets)}
@@ -138,11 +138,14 @@ export function AnalyticsPage() {
         </>
       )}
 
-      <div className="mt-6 grid grid-cols-3 gap-5">
-        <div className="col-span-2">
+      {/* Side by side only once a third of the row can hold the triggers
+          table (321px of min-content). Below that they stack, which is why
+          <main> no longer scrolls sideways on a 1024px screen. */}
+      <div className="mt-6 grid grid-cols-1 2xl:grid-cols-3 gap-5">
+        <div className="2xl:col-span-2">
           <UsageChart data={summary.daily_usage} />
         </div>
-        <div className="col-span-1">
+        <div className="2xl:col-span-1">
           <TopTriggersTable data={summary.top_triggers} />
         </div>
       </div>

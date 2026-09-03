@@ -8,8 +8,14 @@
   folderCount, SBSnippetStats). No logic fork — the library counts on this page
   come from the same call the popup makes, so the two cannot report different
   numbers. Supabase is the single source of truth; a write
-  here reaches the extension popup on its next load/sync. The Composer view is a
-  live formula/template tester on the shared extension/formula-engine.js.
+  here reaches the extension popup on its next load/sync.
+
+  The Composer view lived here until v3.5.0. It was a template tester in a page
+  of its own, disconnected from the library: testing a snippet meant copying its
+  body out of the editor and pasting it into a second app, and the fixes made
+  here could not be saved back. It is now the live preview panel beside the body
+  field in the dashboard editor (app/src/features/snippets/SnippetPreview.tsx),
+  on the same shared extension/shared/fill-form.js it always used.
 -->
 <html lang="en">
 <head>
@@ -162,7 +168,6 @@
   .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
   .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
   .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
-  .p-tag{font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:var(--sb-r-pill);padding:1px 7px}
 
   /* ── Auth gate ── */
   .nv-auth{position:fixed;inset:0;background:var(--sb-bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:32px}
@@ -311,41 +316,6 @@
   .nv-set-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sb-ink-muted);cursor:pointer;margin-top:10px;user-select:none}
   .nv-set-check input{width:16px;height:16px;accent-color:var(--sb-azure)}
 
-  /* ── Composer view (live formula/template tester) ── */
-  .nv-comp{padding:18px 20px;display:flex;flex-direction:column;gap:16px}
-  .nv-comp-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
-  .nv-comp-side{display:flex;flex-direction:column;gap:16px;min-width:0}
-  .nv-comp-pane{background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-  .nv-comp-pane-h{padding:11px 14px;border-bottom:1px solid var(--sb-line);font-size:var(--sb-fs-11);font-weight:700;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:10px}
-  .nv-comp-tools{margin-left:auto;display:flex;gap:6px}
-  .nv-comp-tools .btn{padding:5px 11px;font-size:var(--sb-fs-11)}
-  .nv-comp-count{margin-left:auto;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-iris-bg);border:1px solid var(--sb-iris-bdr);border-radius:var(--sb-r-pill);padding:1px 8px;text-transform:none;letter-spacing:0}
-  .nv-comp-ta{width:100%;min-height:420px;border:none;resize:vertical;padding:14px;font-family:var(--sb-mono);font-size:12px;line-height:1.7;color:var(--sb-ink);background:var(--sb-bg-muted);outline:none}
-  .nv-comp-fields{padding:14px;display:flex;flex-direction:column;gap:11px;max-height:320px;overflow-y:auto}
-  .nv-comp-frow{display:flex;flex-direction:column;gap:4px}
-  .nv-comp-frow>label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
-  .nv-comp-frow input,.nv-comp-frow select{width:100%;border:1px solid var(--sb-line);border-radius:9px;padding:8px 11px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);outline:none;transition:border-color .15s,box-shadow .15s}
-  .nv-comp-frow input:focus,.nv-comp-frow select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
-  .nv-comp-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
-  .nv-comp-actbtn{padding:8px 13px;border:1px solid var(--sb-azure-bdr);border-radius:9px;background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-13);font-weight:600;cursor:pointer;transition:border-color .15s}
-  .nv-comp-actbtn:hover{border-color:var(--sb-azure)}
-  .nv-comp-actbtn:active{transform:scale(.97)}
-  .nv-comp-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
-  /* One option per line, each a plain row. Mirrors the detail list above. */
-  .nv-comp-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
-  .nv-comp-opt{display:flex;align-items:center;gap:10px;min-height:32px;padding:4px 6px;border:none;border-radius:9px;background:transparent;font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:background .15s}
-  .nv-comp-opt:hover{background:var(--sb-bg)}
-  .nv-comp-opt input[type=checkbox],.nv-comp-opt input[type=radio]{width:auto;padding:0;margin:0;flex:none;accent-color:var(--sb-azure);cursor:pointer}
-  .nv-comp-opt:has(input:checked){color:var(--sb-azure);font-weight:600}
-  .nv-comp-empty{font-size:var(--sb-fs-13);color:var(--sb-ink-subtle);line-height:1.6}
-  .nv-comp-out{padding:14px;font-size:var(--sb-fs-13);line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--sb-ink);min-height:180px;background:var(--sb-bg-muted)}
-  .nv-comp-out.empty{color:var(--sb-ink-subtle);font-style:italic}
-  .nv-comp-synx{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px;padding:14px}
-  .nv-comp-synx .it{background:var(--sb-bg-alt);border:1px solid var(--sb-line);border-radius:10px;padding:11px 13px}
-  .nv-comp-synx code{display:block;font-family:var(--sb-mono);font-size:var(--sb-fs-11);color:var(--sb-azure);margin-bottom:4px;word-break:break-word}
-  .nv-comp-synx p{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);line-height:1.5}
-  @media (max-width:860px){ .nv-comp-grid{grid-template-columns:1fr} }
-
   /* ── Changelog modal ── */
   .nv-cl-box{width:460px;max-width:100%;display:flex;flex-direction:column;max-height:85vh}
   .nv-cl-scroll{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
@@ -437,10 +407,6 @@
       <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <span class="nv-name">Prompts</span><span class="nv-cnt" id="nv-cnt-prompt">0</span>
     </div>
-    <div class="nv-item" data-mode="composer" id="nv-nav-composer">
-      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      <span class="nv-name">Composer</span>
-    </div>
     <div class="nv-grp" id="nv-folders-grp">Folders</div>
     <div id="nv-folder-list"></div>
     <div class="nv-side-foot">
@@ -527,61 +493,6 @@
         </div>
       </div>
 
-      <div class="nv-card" id="nv-composer" style="display:none">
-        <div class="nv-card-h"><h2>Composer</h2><span class="sub">Live formula &amp; template tester — same engine as the extension</span></div>
-        <div class="nv-comp">
-          <div class="nv-comp-grid">
-            <div class="nv-comp-pane">
-              <div class="nv-comp-pane-h">Snippet template
-                <div class="nv-comp-tools">
-                  <button class="btn" id="nv-comp-demo" type="button">Load demo</button>
-                  <button class="btn" id="nv-comp-clear" type="button">Clear</button>
-                </div>
-              </div>
-              <textarea id="nv-comp-tpl" class="nv-comp-ta" spellcheck="false" placeholder="Paste a snippet body here. Supports:
-  {{VARIABLE}}                — input placeholder
-  {{= YOUR_PRICE * 0.985 }}   — calculated formula
-  {formtext: name=VAR}        — text field
-  {formdate: name=VAR}        — date field
-  {formmenu: A,B,C; name=VAR} — dropdown
-  {button label=x}P = P * 0.9{/button} — action button
-  {time: DD/MM/YYYY HH:mm}    — current date/time
-  {if: VAR = &quot;value&quot;}…{elseif: …}…{else}…{endif}
-  Querido {NOMBRE}            — greeting agrees with the name"></textarea>
-            </div>
-            <div class="nv-comp-side">
-              <div class="nv-comp-pane">
-                <div class="nv-comp-pane-h">Variables<span class="nv-comp-count" id="nv-comp-count">0 fields</span></div>
-                <div class="nv-comp-fields" id="nv-comp-fields"><p class="nv-comp-empty">No variables detected yet. Start typing a template.</p></div>
-              </div>
-              <div class="nv-comp-pane">
-                <div class="nv-comp-pane-h">Resolved output
-                  <div class="nv-comp-tools"><button class="btn p" id="nv-comp-copy" type="button">Copy</button></div>
-                </div>
-                <div class="nv-comp-out empty" id="nv-comp-out">Output appears here as you type.</div>
-              </div>
-            </div>
-          </div>
-          <div class="nv-comp-pane">
-            <div class="nv-comp-pane-h">Syntax reference</div>
-            <div class="nv-comp-synx">
-              <div class="it"><code>{{YOUR_PRICE}}</code><p>Input placeholder. Shown as a form field.</p></div>
-              <div class="it"><code>{{= YOUR_PRICE * 0.985 }}</code><p>Evaluated math formula. Result shown inline (2 dp).</p></div>
-              <div class="it"><code>{{= round(OTA_PRICE * 0.015) }}</code><p>Built-in functions: round, floor, ceil, abs, min, max.</p></div>
-              <div class="it"><code>{formtext: name=VAR; default=x}</code><p>Text input with optional default value.</p></div>
-              <div class="it"><code>{formdate: name=VAR}</code><p>Date picker input.</p></div>
-              <div class="it"><code>{formmenu: A,B,C; name=VAR}</code><p>Dropdown menu — comma-separated options.</p></div>
-              <div class="it"><code>{button label="10% off"}PRICE = PRICE * 0.9{/button}</code><p>Action button. Sets field values when clicked; never appears in the message. Add <code>trim=left</code> so it leaves no blank line.</p></div>
-              <div class="it"><code>{time: DD/MM/YYYY HH:mm}</code><p>Current date/time formatted inline.</p></div>
-              <div class="it"><code>{if: VAR = "value"}…{endif}</code><p>Conditional block. Supports = == != comparisons.</p></div>
-              <div class="it"><code>{if: …}…{elseif: …}…{else}…{endif}</code><p>Multi-branch conditional. First matching branch is shown.</p></div>
-              <div class="it"><code>{var: TOTAL = PRICE * NIGHTS}</code><p>Local variable computed from other fields.</p></div>
-              <div class="it"><code>Querido {NOMBRE}</code><p>Greetings agree with the name: Lucía gets "Querida", Marco gets "Querido". Works for Querido, Estimado, Bienvenido, Caro, Cher and their pairs. Unknown names keep the word you wrote.</p></div>
-              <div class="it"><code>{gender: NOMBRE; m=invitado; f=invitada; u=invitado/a}</code><p>Any other gendered word. <code>u</code> is the fallback for unisex names like Alex.</p></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </main>
 </div>
@@ -630,9 +541,6 @@
             <div class="nv-chiprow">
               <span class="nv-chip" data-c="{start_date}" title="Start date. Inserts {start_date}, which fills as a date picker">start_date</span>
               <span class="nv-chip" data-c="{end_date}" title="End date. Inserts {end_date}, which fills as a date picker">end_date</span>
-              <span class="nv-chip" data-c="{total_price}" title="Total amount. Inserts {total_price}">total_price</span>
-              <span class="nv-chip" data-c="{phone_number}" title="Phone number. Inserts {phone_number}">phone</span>
-              <span class="nv-chip" data-c="{review_link}" title="Link to your review page. Inserts {review_link}">review_link</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
             </div>
           </div>
@@ -698,11 +606,6 @@
           <div class="nv-menu-hint" style="margin-top:2px">Whether the user can select multiple items</div>
         </div>
         <label class="nv-switch"><input type="checkbox" id="nv-menu-multi"><span class="nv-slider"></span></label>
-      </div>
-      <div class="nv-field">
-        <label>Cols</label>
-        <input id="nv-menu-cols" inputmode="numeric" placeholder="auto" style="width:110px" autocomplete="off">
-        <div class="nv-menu-hint">The width of the field in columns of text</div>
       </div>
       <div class="nv-menu-prev"><span>Inserts</span><code id="nv-menu-token"></code></div>
     </div>
@@ -785,7 +688,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.3.2', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.7.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -794,6 +697,7 @@
 <script src="extension/popup/sync-deletion.js"></script>
 <script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
+<script src="extension/shared/fill-form.js"></script>
 
 <!-- ═══ NATIVE DASHBOARD CONTROLLER (presentation only; logic via shared core) ═══ -->
 <script>
@@ -904,11 +808,6 @@
   // ── Rendering ───────────────────────────────────────────────────────
   function renderAll(){
     renderKpis(); renderNav(); renderFolderList(); renderMain();
-    // Deep-link: open the Composer on first render when the URL requests it (e.g.
-    // /Sprintbrain.html#composer from the React dashboard sidebar). One-shot so a
-    // later in-app reload doesn't override manual navigation; the hashchange
-    // listener below handles live hash updates.
-    if (!_composerDeepLinked && location.hash === '#composer') { _composerDeepLinked = true; openComposer(); }
   }
 
   function renderKpis(){
@@ -936,11 +835,10 @@
   function renderNav(){
     $('nv-cnt-snip').textContent = groupCount(window.snips || []);
     $('nv-cnt-prompt').textContent = (window.prompts || []).length;
-    $('nv-nav-snip').classList.toggle('on', !settingsOpen && !composerOpen && nvMode === 'snippets');
-    $('nv-nav-prompt').classList.toggle('on', !settingsOpen && !composerOpen && nvMode === 'prompts');
+    $('nv-nav-snip').classList.toggle('on', !settingsOpen && nvMode === 'snippets');
+    $('nv-nav-prompt').classList.toggle('on', !settingsOpen && nvMode === 'prompts');
     var ns = $('nv-nav-settings'); if (ns) ns.classList.toggle('on', settingsOpen);
-    var nc = $('nv-nav-composer'); if (nc) nc.classList.toggle('on', composerOpen);
-    var showFolders = !settingsOpen && !composerOpen && nvMode === 'snippets';
+    var showFolders = !settingsOpen && nvMode === 'snippets';
     $('nv-folders-grp').style.display = showFolders ? '' : 'none';
     $('nv-folder-list').style.display = showFolders ? '' : 'none';
   }
@@ -1189,8 +1087,7 @@
     var q = nvSearch.toLowerCase().replace(/^"+/, '').trim();
     var filtered = (window.prompts || []).filter(function(p){
       return !q || (p.name||'').toLowerCase().indexOf(q) > -1
-        || (p.intent_category||'').toLowerCase().indexOf(q) > -1
-        || (p.tags||[]).some(function(t){ return (t||'').toLowerCase().indexOf(q) > -1; });
+        || (p.intent_category||'').toLowerCase().indexOf(q) > -1;
     });
     // Pinned prompts float to the top (pin is set on the dashboard or mobile;
     // read-only here). Same sort form as the snippet list above.
@@ -1204,12 +1101,11 @@
     filtered.forEach(function(p){
       var type = (p.type || 'one-shot').replace(/_/g,'-');
       var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
-      var tags = (p.tags||[]).slice(0,3).map(function(t){ return '<span class="p-tag">'+ec(t)+'</span>'; }).join('');
       h += '<div class="nv-row" data-pid="'+ec(p.id)+'">'
         + (p.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main">'
         + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
-        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span>'+tags+'</div></div>'
+        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span></div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
     });
     $('nv-list').innerHTML = h;
@@ -1386,6 +1282,10 @@
      SBFormulaEngine.buildFormMenuToken, so the two surfaces cannot drift. */
   var MENU_START_ROWS = 3;
   var menuRows = [], menuSel = [], menuSeq = 0, menuDragId = null;
+  /* No longer editable here, matching the dashboard builder: `cols` only
+     widened the options box in character units and the mobile app ignored it.
+     Held so reopening a menu written with cols=N writes it back unchanged. */
+  var menuCols = '';
   /* Range of the token being edited, or null when building a new one. */
   var menuEditRange = null;
 
@@ -1428,7 +1328,7 @@
       selected: menuRows.filter(function(r){ return menuSel.indexOf(r.id) > -1; }).map(function(r){ return r.label; }),
       name: $('nv-menu-name').value,
       multiple: menuMulti(),
-      cols: $('nv-menu-cols').value
+      cols: menuCols
     });
   }
 
@@ -1567,12 +1467,12 @@
       }
       if (!menuRows.length) menuRows.push({ id: ++menuSeq, label: '' });
       $('nv-menu-multi').checked = cfg.multiple;
-      $('nv-menu-cols').value = cfg.cols === null ? '' : String(cfg.cols);
+      menuCols = cfg.cols === null ? '' : String(cfg.cols);
       $('nv-menu-name').value = cfg.name;
     } else {
       for (var i = 0; i < MENU_START_ROWS; i++) menuRows.push({ id: ++menuSeq, label: '' });
       $('nv-menu-multi').checked = false;
-      $('nv-menu-cols').value = '';
+      menuCols = '';
       /* Blank, with the next free MENU_n only as the placeholder — a name is
          something you opt into, not something to clear (Text Blaze parity). */
       $('nv-menu-name').value = '';
@@ -1595,10 +1495,6 @@
   });
   $('nv-menu-add').addEventListener('click', menuAddRow);
   $('nv-menu-name').addEventListener('input', menuSync);
-  $('nv-menu-cols').addEventListener('input', function(){
-    this.value = this.value.replace(/[^0-9]/g, '');
-    menuSync();
-  });
   $('nv-menu-multi').addEventListener('change', function(){
     /* Single choice carries one default — collapse the extra picks. */
     if (!menuMulti()) menuSel = menuSel.slice(0, 1);
@@ -1981,7 +1877,7 @@
   });
 
   // ── Settings (trigger / sequences / language / Notion / team) ───────
-  var settingsOpen = false, composerOpen = false, _composerDeepLinked = false;
+  var settingsOpen = false;
   function setStatus(id, txt, color){ var e = $(id); if (e){ e.textContent = txt || ''; e.style.color = color || ''; } }
   function validSeq(seq){ return (typeof validateTriggerSeq === 'function') ? validateTriggerSeq(seq) : (!!seq && seq.length >= 1 && seq.length <= 5 && !/\s/.test(seq) && !/^[a-zA-Z0-9]$/.test(seq)); }
   function updateTrigInfo(){
@@ -1995,7 +1891,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('#nv-trig-tiles .nv-trig-tile'), function(tile){ tile.classList.toggle('on', tile.dataset.t === t); });
   }
   function openSettings(){
-    settingsOpen = true; composerOpen = false; $('nv-composer').style.display = 'none';
+    settingsOpen = true;
     $('nv-set-trig').value = trigChar();
     try { $('nv-tcfg-snip').value = triggerCfg.snippetTrigger || '::'; $('nv-tcfg-prompt').value = triggerCfg.promptTrigger || '"""';
       $('nv-tcfg-snip-key').value = triggerCfg.snippetActivationKey || 'Tab'; $('nv-tcfg-prompt-key').value = triggerCfg.promptActivationKey || 'Tab';
@@ -2013,7 +1909,7 @@
     settingsOpen = false;
     $('nv-settings').style.display = 'none'; $('nv-kpis').style.display = ''; $('nv-list-card').style.display = '';
   }
-  function gotoMode(m){ leaveSettings(); leaveComposer(); nvMode = m; expandedId = null; renderNav(); renderMain(); }
+  function gotoMode(m){ leaveSettings(); nvMode = m; expandedId = null; renderNav(); renderMain(); }
 
   $('nv-trig-tiles').addEventListener('click', function(e){ var t = e.target.closest('.nv-trig-tile'); if (!t) return; $('nv-set-trig').value = t.dataset.t; updateTrigInfo(); });
   $('nv-set-trig').addEventListener('input', updateTrigInfo);
@@ -2063,190 +1959,6 @@
       .catch(function(){ done('Sync failed.', 'var(--sb-danger)'); });
   });
 
-  // ── Composer (live formula/template tester; shared formula-engine.js) ─
-  var composerReady = false;
-  var COMP_DEMO =
-'📋 QUOTATION — {time: DD/MM/YYYY} at {time: HH:mm}\n' +
-'Valid for 3 hours.\n\n' +
-'Check-in:  {formdate: name=CHECKIN}\n' +
-'Check-out: {formdate: name=CHECKOUT}\n' +
-'Rate Plan: {formmenu: NOT Refundable,Refundable,Flexible; name=RATE_PLAN}\n\n' +
-'★ Your Price:   {formtext: name=YOUR_PRICE}€\n' +
-'★ OTA Price:    {formtext: name=OTA_PRICE}€\n\n' +
-'── Payment Options ──────────────────────────\n' +
-'Bank Transfer:  {{= YOUR_PRICE * 0.975}}€   ❤️  (save 2.5%)\n' +
-'Card (+3%):     {{= YOUR_PRICE * 1.03}}€\n\n' +
-'── Savings vs OTA ───────────────────────────\n' +
-'Direct saving:  {{= OTA_PRICE - YOUR_PRICE}}€\n' +
-'OTA commission: ~{{= round(OTA_PRICE * 0.015)}}€  (est. 1.5%)\n' +
-'Total benefit:  {{= OTA_PRICE - YOUR_PRICE + round(YOUR_PRICE * 0.015)}}€\n\n' +
-'── Cancellation Policy ──────────────────────\n' +
-'{if: RATE_PLAN = "NOT Refundable"}\n' +
-'⚠️  NON-REFUNDABLE — Lower price, no cancellation.\n' +
-'    Full payment required at confirmation.\n' +
-'{elseif: RATE_PLAN = "Refundable"}\n' +
-'✅  FREE CANCELLATION up to 7 days before arrival.\n' +
-'    Full refund if cancelled in time.\n' +
-'{else}\n' +
-'📋  Standard cancellation policy applies.\n' +
-'    See leibtour.com/policy for full terms.\n' +
-'{endif}\n\n' +
-'📎 Full terms → leibtour.com/policy';
-
-  function compFieldDefs(body){
-    var FE = window.SBFormulaEngine, defs = {};
-    var dynCfg = FE.buildFormFieldCfg(body); for (var k in dynCfg) defs[k] = dynCfg[k];
-    var ph = FE.parsePlaceholders(body); for (var p = 0; p < ph.length; p++) { if (!defs[ph[p]]) defs[ph[p]] = { type:'text', default:'' }; }
-    var sf = FE.extractFields(body); for (var s = 0; s < sf.length; s++) { if (!defs[sf[s]]) defs[sf[s]] = { type:'text', default:'' }; }
-    return defs;
-  }
-  function compBuildFields(defs){
-    var form = $('nv-comp-fields'), keys = Object.keys(defs);
-    $('nv-comp-count').textContent = keys.length + (keys.length === 1 ? ' field' : ' fields');
-    if (!keys.length) { form.innerHTML = '<p class="nv-comp-empty">No variables detected yet. Start typing a template.</p>'; return; }
-    var html = '';
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i], def = defs[key], label = key.replace(/_/g, ' '), inp;
-      if (def.type === 'dd') {
-        var opts = (def.opts || '').split('\n').filter(Boolean);
-        var picks = window.SBFormulaEngine.formMenuPicks(def.default);
-        var wide = def.cols ? ' style="width:' + def.cols + 'ch;max-width:100%"' : '';
-        // Every option is on screen, for both kinds of menu. A <select> hid the
-        // choices behind a control most people did not read as a menu at all.
-        // Checkboxes for a multiple menu, radios for a single one. Mirrors the
-        // overlay, the popup detail and the mobile fill form.
-        var oType = def.multiple ? 'checkbox' : 'radio';
-        // Radios need a group name or two menus in one form share a group.
-        var oName = def.multiple ? '' : ' name="nvc-' + ec(key) + '"';
-        inp = '<div class="nv-comp-multi"' + wide + '>' + opts.map(function(o){
-          return '<label class="nv-comp-opt"><input type="' + oType + '"' + oName + ' data-key="' + ec(key) + '" value="' + ec(o) + '"' + (picks.indexOf(o) >= 0 ? ' checked' : '') + '><span>' + ec(o) + '</span></label>';
-        }).join('') + '</div>';
-      } else if (def.type === 'date') { inp = '<input type="date" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
-      else if (def.type === 'time') { inp = '<input type="time" data-key="' + ec(key) + '" value="' + ec(def.default || '') + '">'; }
-      else { inp = '<input type="text" data-key="' + ec(key) + '" placeholder="' + ec(label) + '" value="' + ec(def.default || '') + '">'; }
-      html += '<div class="nv-comp-frow"><label>' + ec(label) + '</label>' + inp + '</div>';
-    }
-    /* {button} controls — set field values, never print. */
-    var cbtns = window.SBFormulaEngine.extractButtons($('nv-comp-tpl').value);
-    if (cbtns.length) {
-      html += '<div class="nv-comp-btnrow">' + cbtns.map(function(b){
-        return '<button type="button" class="nv-comp-actbtn" data-btn="' + ec(b.id) + '">' + ec(b.label) + '</button>';
-      }).join('') + '</div><div class="nv-comp-btnerr" hidden></div>';
-    }
-    form.innerHTML = html;
-    Array.prototype.forEach.call(form.querySelectorAll('input,select'), function(el){ el.addEventListener('input', compUpdate); el.addEventListener('change', compUpdate); });
-    Array.prototype.forEach.call(form.querySelectorAll('.nv-comp-actbtn'), function(btn){
-      btn.addEventListener('click', function(){ compRunButton(btn); });
-    });
-  }
-
-  /* Runs a composer {button}: apply its code to the live values, write the
-     results into the inputs, re-resolve the output. Mirrors runDetailButton. */
-  function compRunButton(btn){
-    var FE = window.SBFormulaEngine;
-    var list = FE.extractButtons($('nv-comp-tpl').value), spec = null;
-    for (var i = 0; i < list.length; i++) { if (list[i].id === btn.getAttribute('data-btn')) spec = list[i]; }
-    if (!spec) return;
-    var form = $('nv-comp-fields');
-    var res = FE.applyButtonCode(spec.statements, compVals());
-    var errs = spec.errors.concat(res.errors);
-    for (var name in res.values) {
-      if (!Object.prototype.hasOwnProperty.call(res.values, name)) continue;
-      var target = form.querySelector('[data-key="' + name + '"]');
-      if (!target) { errs.push('No field called ' + name); continue; }
-      if (target.type === 'checkbox') { errs.push(name + ' is a multi-choice menu'); continue; }
-      // A single-choice menu is a radio group: tick the matching option rather
-      // than writing over the first radio's value, which would rewrite a choice.
-      if (target.type === 'radio') {
-        var want = String(res.values[name]), matched = false;
-        Array.prototype.forEach.call(
-          form.querySelectorAll('input[type=radio][data-key="' + name + '"]'),
-          function(r){ if (r.value === want) { r.checked = true; matched = true; } });
-        if (!matched) errs.push(name + ' has no option "' + want + '"');
-        continue;
-      }
-      target.value = String(res.values[name]);
-    }
-    var eb = form.querySelector('.nv-comp-btnerr');
-    if (eb) { eb.textContent = errs.join(' · '); eb.hidden = errs.length === 0; }
-    compUpdate();
-  }
-  /* A multiple=yes menu is a checkbox group sharing one data-key — collect the
-     checked boxes into the single ", "-joined value the engine resolves. */
-  function compVals(){
-    var v = {}, groups = {}, ins = $('nv-comp-fields').querySelectorAll('[data-key]');
-    for (var i = 0; i < ins.length; i++) {
-      var el = ins[i], k = el.dataset.key;
-      if (el.type === 'checkbox') {
-        if (!groups[k]) groups[k] = [];
-        if (el.checked) groups[k].push(el.value);
-      } else if (el.type === 'radio') {
-        // Single-choice menu: seed the key first, so a group with nothing
-        // ticked reads '' rather than dropping out of the values.
-        if (v[k] === undefined) v[k] = '';
-        if (el.checked) v[k] = el.value;
-      } else { v[k] = el.value; }
-    }
-    for (var g in groups) v[g] = groups[g].join(', ');
-    return v;
-  }
-  function compUpdate(){
-    var FE = window.SBFormulaEngine, body = $('nv-comp-tpl').value, out = $('nv-comp-out');
-    if (!body.trim()) { out.textContent = 'Output appears here as you type.'; out.className = 'nv-comp-out empty'; return; }
-    var vals = compVals();
-    var resolved = FE.interpolateSnippet(body, vals);
-    var result = FE.resolveBody(resolved, vals);
-    out.textContent = result || ''; out.className = 'nv-comp-out' + (result ? '' : ' empty');
-  }
-  var compRebuildT;
-  function compReady(){
-    if (composerReady) return;
-    if (!window.SBFormulaEngine) { return; }
-    composerReady = true;
-    $('nv-comp-tpl').addEventListener('input', function(){
-      clearTimeout(compRebuildT);
-      compRebuildT = setTimeout(function(){
-        var body = $('nv-comp-tpl').value, defs = compFieldDefs(body), prev = compVals();
-        compBuildFields(defs);
-        var ins = $('nv-comp-fields').querySelectorAll('[data-key]');
-        for (var i = 0; i < ins.length; i++) {
-          var k = ins[i].dataset.key;
-          if (prev[k] === undefined) continue;
-          /* Never write .value on a checkbox — that would overwrite the option
-             it stands for. Restore its picked state from the joined value. */
-          if (ins[i].type === 'checkbox') ins[i].checked = window.SBFormulaEngine.formMenuPicks(prev[k]).indexOf(ins[i].value) >= 0;
-          else ins[i].value = prev[k];
-        }
-        compUpdate();
-      }, 150);
-    });
-    $('nv-comp-demo').addEventListener('click', function(){ $('nv-comp-tpl').value = COMP_DEMO; $('nv-comp-tpl').dispatchEvent(new Event('input')); });
-    $('nv-comp-clear').addEventListener('click', function(){ $('nv-comp-tpl').value = ''; $('nv-comp-tpl').dispatchEvent(new Event('input')); });
-    $('nv-comp-copy').addEventListener('click', function(){
-      var out = $('nv-comp-out'); if (out.classList.contains('empty')) return;
-      var text = out.textContent; if (!text) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function(){ toast('Output copied'); }).catch(function(){ compLegacyCopy(text); }); }
-      else { compLegacyCopy(text); }
-    });
-    compBuildFields({}); compUpdate();
-  }
-  function compLegacyCopy(text){
-    var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    ta.remove(); toast('Output copied');
-  }
-  function openComposer(){
-    composerOpen = true; settingsOpen = false;
-    $('nv-settings').style.display = 'none';
-    $('nv-kpis').style.display = 'none'; $('nv-list-card').style.display = 'none';
-    $('nv-composer').style.display = '';
-    $('nv-new').style.display = 'none';
-    $('nv-title').textContent = 'Composer'; setFolderDesc(''); $('nv-sub').textContent = 'Live formula & template tester';
-    compReady(); renderNav();
-  }
-  function leaveComposer(){ composerOpen = false; $('nv-composer').style.display = 'none'; }
-
   // ── Changelog (native modal; renders the shared window.CHANGELOG from popup.js) ─
   function openChangelog(){
     var data = window.CHANGELOG || [];
@@ -2276,9 +1988,6 @@
   $('nv-nav-snip').addEventListener('click', function(){ gotoMode('snippets'); });
   $('nv-nav-prompt').addEventListener('click', function(){ gotoMode('prompts'); });
   $('nv-nav-settings').addEventListener('click', openSettings);
-  $('nv-nav-composer').addEventListener('click', openComposer);
-  // Deep-link from the React sidebar: react to #composer arriving after initial load.
-  window.addEventListener('hashchange', function(){ if (location.hash === '#composer') openComposer(); });
   $('nv-ver').addEventListener('click', openChangelog);
   $('nv-cl-x').addEventListener('click', closeChangelog);
   $('nv-cl-bg').addEventListener('click', function(e){ if (e.target === $('nv-cl-bg')) closeChangelog(); });

@@ -117,20 +117,30 @@ console.log('OK Template validator passed all ' + vok + ' parity cases');
 // the output. Radios cannot drift that way: a ticked radio is the value read,
 // and nothing ticked reads ''.
 //
-// Sprintbrain.html's composer is checked here too. It has its own renderer and
-// the old placeholder check never covered it, so it carried that exact bug.
+// The dashboard editor's live preview is checked here too. It has its own
+// renderer, and the composer it replaced carried this exact bug uncovered.
 //
 // Source assertions rather than behaviour tests, because the markup is built
 // inside large DOM-bound render functions, but they pin the exact drift.
 const MENU_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay',
     "cfg.multiple ? 'checkbox' : 'radio'", ' name="sb-'],
+  // The popup detail reads its fields from the shared view model (see
+  // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
+  // assertion is unchanged: the control is still picked by the menu's kind.
   ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
-    "def.multiple?'checkbox':'radio'", ' name="d-'],
+    "f.multiple?'checkbox':'radio'", ' name="d-'],
+  // The mobile companion reads its fields from the shared view model (inlined
+  // by scripts/sync-fill-form.js), so its marker names `fld`, not `c`. The
+  // assertion is unchanged: the control is still picked by the menu's kind.
   ['app/public/mobile/index.html', 'mobile companion',
-    "c.multiple?'checkbox':'radio'", ' name="f-'],
-  ['Sprintbrain.html', 'composer',
-    "def.multiple ? 'checkbox' : 'radio'", ' name="nvc-'],
+    "fld.multiple?'checkbox':'radio'", ' name="f-'],
+  // The dashboard editor's live preview replaced Sprintbrain.html's composer in
+  // v3.5.0. Same shared view model, same rule: the control is picked by the
+  // menu's kind, and a single-choice group is named so two menus in one form
+  // cannot share it.
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
+    "field.multiple ? 'checkbox' : 'radio'", 'sb-preview-'],
 ];
 
 for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
@@ -160,7 +170,9 @@ const MENU_OPTION_CSS = [
   ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
   ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
   ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
-  ['Sprintbrain.html', 'composer', '.nv-comp-multi{display:flex;flex-direction:column'],
+  // Tailwind, not a stylesheet rule: the option list is the flex column here.
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
+    'flex flex-col gap-0.5'],
   ['app/public/mobile/index.html', 'mobile companion', '.field-opts{display:flex;flex-direction:column'],
 ];
 
@@ -184,12 +196,19 @@ const overlayStart = CONTENT_SRC.indexOf('function showOverlay(');
 if (overlayStart === -1) fail('content.js no longer defines showOverlay');
 const overlayEnd = CONTENT_SRC.indexOf('\nfunction ', overlayStart + 1);
 const overlayBody = CONTENT_SRC.slice(overlayStart, overlayEnd === -1 ? undefined : overlayEnd);
-if (!overlayBody.includes('buildFormFieldCfg(snip.body)')) {
-  fail('showOverlay no longer merges buildFormFieldCfg(snip.body).\n' +
+// The merge now happens inside extension/shared/fill-form.js, which showOverlay
+// calls with the snippet's own body and stored config. The guarantee is
+// unchanged: no call site supplies the field config, so none can forget it.
+if (!overlayBody.includes('fillForm(snip.body')) {
+  fail('showOverlay no longer builds its own fill-form view model.\n' +
     '  Every {formmenu:} / {formtext:} / {formdate:} reached through the picker\n' +
     '  or the context menu would render as a plain text input.');
 }
-console.log('OK showOverlay merges the body-declared field config');
+if (!overlayBody.includes('fieldCfg: snip.fieldCfg')) {
+  fail('showOverlay no longer passes the snippet\'s stored field_cfg.\n' +
+    '  A hand-configured field would silently lose its type.');
+}
+console.log('OK showOverlay builds the body-declared field config itself');
 
 // ── FORM MENU READER ────────────────────────────────────────────────
 // parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu

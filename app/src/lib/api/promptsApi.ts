@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Prompt, PromptBlock, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, ExecutionType, IntentCategory, OutputType } from '@/types/database';
+import type { Prompt, PromptBlock, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
 
 export interface PromptsApi {
@@ -24,12 +24,10 @@ type DbPrompt = {
   content: string;
   shortcut: string | null;
   type: 'one-shot' | 'few-shot';
-  tags: string[] | null;
   strategy_type: string | null;
   thinking_mode: string | null;
   preferred_model: string | null;
   complexity_level: string | null;
-  execution_type: string | null;
   intent_category: string | null;
   output_type: string | null;
   blocks: PromptBlock[] | null;
@@ -44,9 +42,9 @@ type DbPrompt = {
 };
 
 const PROMPT_SELECT = [
-  'id', 'user_id', 'name', 'content', 'shortcut', 'type', 'tags',
+  'id', 'user_id', 'name', 'content', 'shortcut', 'type',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
-  'execution_type', 'intent_category', 'output_type', 'blocks',
+  'intent_category', 'output_type', 'blocks',
   'folder_id', 'notion_page_id', 'pinned', 'updated_at', 'updated_by', 'last_used_at',
   'usage_count', 'is_malformed',
 ].join(', ');
@@ -59,12 +57,10 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     content: row.content,
     shortcut: row.shortcut ?? null,
     type: row.type,
-    tags: row.tags ?? [],
     strategy_type: (row.strategy_type as StrategyType) ?? null,
     thinking_mode: (row.thinking_mode as ThinkingMode) ?? null,
     preferred_model: (row.preferred_model as PreferredModel) ?? null,
     complexity_level: (row.complexity_level as ComplexityLevel) ?? null,
-    execution_type: (row.execution_type as ExecutionType) ?? null,
     intent_category: (row.intent_category as IntentCategory) ?? null,
     output_type: (row.output_type as OutputType) ?? null,
     blocks: row.blocks ?? null,
@@ -110,12 +106,10 @@ export const promptsApi: PromptsApi = {
         content: payload.content,
         shortcut: payload.shortcut?.trim() || null,
         type: payload.type,
-        tags: payload.tags,
         strategy_type: payload.strategy_type ?? null,
         thinking_mode: payload.thinking_mode ?? null,
         preferred_model: payload.preferred_model ?? null,
         complexity_level: payload.complexity_level ?? null,
-        execution_type: payload.execution_type ?? null,
         intent_category: payload.intent_category ?? null,
         output_type: payload.output_type ?? null,
         blocks: payload.blocks ?? null,
@@ -137,12 +131,10 @@ export const promptsApi: PromptsApi = {
     if (patch.content !== undefined) update['content'] = patch.content;
     if ('shortcut' in patch) update['shortcut'] = patch.shortcut?.trim() || null;
     if (patch.type !== undefined) update['type'] = patch.type;
-    if (patch.tags !== undefined) update['tags'] = patch.tags;
     if ('strategy_type' in patch) update['strategy_type'] = patch.strategy_type ?? null;
     if ('thinking_mode' in patch) update['thinking_mode'] = patch.thinking_mode ?? null;
     if ('preferred_model' in patch) update['preferred_model'] = patch.preferred_model ?? null;
     if ('complexity_level' in patch) update['complexity_level'] = patch.complexity_level ?? null;
-    if ('execution_type' in patch) update['execution_type'] = patch.execution_type ?? null;
     if ('intent_category' in patch) update['intent_category'] = patch.intent_category ?? null;
     if ('output_type' in patch) update['output_type'] = patch.output_type ?? null;
     if ('blocks' in patch) update['blocks'] = patch.blocks ?? null;

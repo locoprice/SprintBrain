@@ -1,719 +1,611 @@
-# MEMORY-002: SprintBrain Memory, spaces, retrieval, and a writable MCP surface
+# SprintBrain Memory: authoritative implementation plan
 
-**Status**: In progress. S0, S1 and S2 shipped, plus chat capture (v3.1.0, section 14) which
-was not in the slice list. S3 is next. Section 13 records every change made while building.
-**Relationship to MEMORY-001**: extends it. Nothing shipped in v2.168.0 is replaced.
-**Drafted**: 2026-08-23, for review by Valentina and Alessandro.
-
----
-
-## 1. Why this document exists
-
-The request was to build a privacy-first memory layer with spaces, import/export, hybrid
-search, a context builder, an MCP server and a dashboard. Four commits ago SprintBrain
-shipped roughly a third of that. This plan closes the gap without forking the parts that
-already work, and it records the decisions that are expensive to reverse later.
-
-The reference screenshots are Plurality Network's AI Context Flow. They are used here as a
-structural reference for information architecture only. No string, colour or asset is
-copied. Every piece of copy in section 9 is written for SprintBrain, against
-`docs/DESIGN_SYSTEM.md`.
+**Targets**: v3.1.0, the architecture actually in production.
+**Supersedes**: the v2.168.0-era draft of this file, revised 2026-08-27 after the architecture
+review in `docs/MEMORY_ARCHITECTURE_REVIEW.md`. That review's three blockers are accepted and
+are now enforced as principles below.
+**Status**: K0 to K3 and P1 shipped. P2 (candidate generation) is next. Nothing shipped needs undoing.
 
 ---
 
-## 2. What already exists (MEMORY-001, v2.168.0)
+## 1. Product vision
 
-Verified against the live database and the working tree on 2026-08-23.
+SprintBrain is becoming an **LLM-independent external memory and context layer**.
 
-| Piece | Location | State |
+> The user owns their knowledge. SprintBrain stores and organises it, retrieves what is
+> relevant, builds the optimal context, and makes that context available to any AI through
+> MCP or an API.
+
+MCP is the access protocol. It is not the product. The product is the retrieval and context
+layer underneath it, and it must remain useful when the next protocol replaces MCP.
+
+Concretely:
+
+```
+User knowledge (memory items, snippets, prompts, documents)
+   → SprintBrain retrieval
+   → Context Builder
+   → MCP / API
+   → ChatGPT, Claude, Gemini, Cursor, or whatever comes next
+```
+
+---
+
+## 2. Non-negotiable principles
+
+These are architectural constraints, not preferences. A change that violates one of them is
+wrong even if it ships faster.
+
+### P-1. One knowledge ecosystem, and prompts are not context
+
+Memory items and snippets live in **one retrieval and context architecture**. Prompts live in
+the same product and share its vocabulary, but they are **not** retrieval candidates.
+
+- No parallel snippet knowledge store is created.
+- **Snippet bodies stay in `snippets`.** That table is the only place a snippet body exists.
+- **Prompt data stays in `prompts`.** Same rule.
+- **Prompts are excluded from the context surface.** A prompt is an instruction you run, not
+  background knowledge to inject. Putting one into a model's context competes with the live
+  instruction, and a model given two sets of instructions follows neither reliably. The failure
+  is silent and looks like the model being unpredictable.
+- The exclusion is **structural, not a flag**. Prompts are absent from the view rather than
+  present and filtered off, because a filter invites someone to flip it.
+- Prompts stay fully reachable **as prompts**: the prompt library, the ⌘K picker and the
+  existing prompt trigger are unaffected.
+- Memory is the shared **context layer**, not a replacement database. It does not absorb the
+  library; it reads across it.
+
+### P-2. Single selection authority
+
+- **SQL may generate candidates.** Filter, coarse-rank, fuse, return ids and scores.
+- **`app/src/lib/memory/engine.ts` is the authoritative selector.** Deduplication, token
+  budgeting, eviction and final ordering happen there and nowhere else.
+- **No third ranking implementation.** Two exist today (`engine.ts` and its gated extension
+  twin) and that is the ceiling.
+- `scripts/check-memory-parity.js` must stay meaningful. Every new selection behaviour gains
+  fixtures in the same commit that introduces it.
+
+### P-3. Authorization by composition
+
+- **No third authorization model.** Two exist: the folder ACL for snippets and prompts, and
+  personal ownership for memory. That is the ceiling.
+- Snippets, prompts and memory are **not** forced into a shared ACL. Each source keeps its own.
+- Retrieval **never bypasses and never replaces** source-level authorization. It inherits it.
+- `security_invoker = true` views are the sanctioned mechanism for that inheritance.
+
+### P-4. MCP authentication is its own phase
+
+- The `auth.uid()` gap on the token path (see §5.4) is handled in **one isolated,
+  independently testable and independently revertible phase**.
+- Search and retrieval work **must not** modify the folder authorization system as a side
+  effect.
+- The safeguards that came out of the 2026-08-05 outage stay exactly as they are: no access
+  helper on a hot read path, no recursive CTE in a per-row policy, denormalized `user_id` on
+  link tables.
+
+### P-5. Additive evolution
+
+Every phase is additive and revertible. Existing function signatures, tool names and table
+shapes are extended beside, never reshaped, because deployed MCP clients and a shipped
+extension depend on them.
+
+---
+
+## 3. What exists at v3.1.0
+
+Verified against the live database and the working tree.
+
+| Layer | Location | State |
 | --- | --- | --- |
-| `memory_shards` | `services/supabase/migrations/20260822000000_working_memory.sql` | Applied in prod, **0 rows** |
-| `memory_steps` | same | Applied, 0 rows |
-| `memory_shard_labels`, `memory_step_labels` | same | Applied, 0 rows |
-| `memory_tokens` + `memory_issue_token()` | same | Applied, 0 rows |
-| `app.memory_resolve_token()` | same | Unexposed schema, definer, throttled `last_used_at` |
-| `memory_mcp_manifest / _index / _bodies` | `20260822010000_working_memory_resolve_once.sql` | Applied, granted to `anon`, token resolved once per call |
-| Selection engine | `app/src/lib/memory/engine.ts` | Pure, zero imports, all ranking and eviction |
-| Extension copy | `extension/shared/memory-pack.js` | Strict subset, no eviction |
-| Parity gate | `scripts/check-memory-parity.js` | 10 fixtures plus the token estimator |
-| MCP server | `services/mcp-memory/src/index.ts` | stdio, 6 read-only tools |
-| Extension Context pill | `extension/content/memory-picker.js` | Mounts on 8 AI chat hosts |
-| Tests | `app/src/__tests__/memoryEngine.test.ts` | vitest, runs with `npm run test` |
-| Dashboard UI | none | Deliberately deferred |
+| Memory storage | `memory_spaces`, `memory_shards`, `memory_shard_versions`, `memory_audit_log` | Applied, RLS on, least-privilege grants verified by probe |
+| Tagging | `labels` + `memory_shard_labels` | One vocabulary already shared with snippets and prompts |
+| Retrieval phases | `memory_steps`, `memory_step_labels` | Label requirements plus a token budget |
+| Selection engine | `app/src/lib/memory/engine.ts` | Pure, zero imports, ranking + budget + LRU eviction |
+| Extension twin | `extension/shared/memory-pack.js` | Strict subset, one-shot, no eviction |
+| Parity gate | `scripts/check-memory-parity.js` | 10 fixtures + token estimator, in CI |
+| MCP server | `services/mcp-memory/` | stdio, 6 read-only tools, PAT auth, scopes, rate limit |
+| Token surface | `memory_mcp_manifest / _index / _bodies` | `anon`-granted, identity from token alone |
+| Extension pill | `extension/content/memory-picker.js` | Pushes context into a chat composer |
+| Chat capture | `extension/content/chat-capture.js`, `shared/memory-chunk.js` | Pulls a transcript into a space |
+| Dashboard | `/memory`, `/memory/:spaceId` | Spaces, items, trash, restore |
+| Snippet library | `snippets` (108 rows in production) | Folder ACL, org and team scopes |
+| Prompt library | `prompts` | Same folder ACL |
 
-Three facts from that table drive most of what follows.
+**Shipped phases** (renamed from the old S-numbering to avoid confusion with the new plan):
 
-**The tables are empty in production.** No user has created a shard. Schema changes to
-`memory_*` carry no data-migration risk today, and that window closes the moment the
-dashboard ships. Every structural change belongs before slice S2, not after.
-
-**`engine.ts` has zero imports on purpose.** It compiles into two consumers directly (the
-dashboard bundle and `services/mcp-memory`, the latter via Node type stripping) and into a
-third by hand. Adding an import to it breaks the standalone server. New selection logic
-goes in the same file under the same constraint, or in a new file that `engine.ts` does not
-import.
-
-**The selection rule is written twice.** `check-memory-parity.js` is the only thing keeping
-the two honest. Any change to ranking, budgeting or deduplication must land in `engine.ts`
-and in `memory-pack.js` and gain a fixture, in one commit.
-
----
-
-## 3. Findings that change the plan
-
-**F1. `check-memory-parity.js` does not run in CI.** `.github/workflows/ci.yml` runs eight
-checks and memory parity is not among them. The workflow also pins Node 20, while the
-script needs 22.18 or newer for TypeScript type stripping. The gate protecting the most
-duplicated logic in the repo only runs when someone remembers to run it locally. Fixed in
-S0.
-
-**F2. `services/mcp-memory` is version-drifted.** Its `package.json` and its
-`SERVER_VERSION` constant both read `2.166.0` against `2.168.0` everywhere else, because
-`scripts/check-version.js` validates only `extension/manifest.json`, `app/package.json` and
-the landing hero stamp. Fixed in S0.
-
-**F3. There is no full-text search anywhere in the schema.** No `tsvector`, no `pg_trgm`,
-no `unaccent`. Hybrid search is built from nothing, which is good news: there is no legacy
-search behaviour to preserve.
-
-**F4. `vector` 0.8.0 is available but not installed, and no embedding provider is wired.**
-`ANTHROPIC_API_KEY` exists as an Edge Function secret, but Anthropic publishes no
-embeddings endpoint. True semantic search needs a new vendor, a new secret, and every
-memory body leaving the machine. That sits in direct tension with "privacy-first", so it is
-isolated into the last, decision-gated slice. See D4.
-
-**F5. Shards are personal by explicit design.** The MEMORY-001 migration argues against
-folder-inherited sharing: a teammate's fact would silently steer your assistant. The
-multi-tenant requirement is satisfied without contradicting that. See D2.
-
-**F6. No GDPR deletion path exists** anywhere in the product. What ships here covers memory
-only and does not pretend to be account-wide erasure.
-
----
-
-## 4. Decisions
-
-### D1. A space is a container, a shard stays the retrieval unit
-
-`memory_spaces` is added above the existing tables. A shard belongs to exactly one space.
-Ranking, budgeting and the MCP read surface keep their shape; the queries gain a space
-filter.
-
-The four content types in the request map onto one table with a `kind` column
-(`fact`, `note`, `document`, `conversation`) rather than four tables. They differ in how
-they arrive, not in how they are retrieved, and a single retrieval unit is what makes the
-Context Builder's deduplication meaningful.
-
-The 20,000 character body cap stays. A document larger than that is stored once in
-`memory_documents` and **chunked** into shards carrying `source_id` and `chunk_index`. The
-document is the source of truth; the chunk is what gets attached. Without this, one upload
-silently destroys every token budget in the product.
-
-### D2. Multi-tenant means explicit sharing, never inheritance
-
-A space is owned by one user. Its owner may share it to the organization, read-only by
-default, as a deliberate act. It is never shared by folder inheritance and never by an
-`organization_id` stamp. Both of those shapes have already produced incidents in this
-codebase: the one-way folder share, and the recursive-CTE RLS policy that wedged production
-for about two hours on 2026-08-05.
-
-Deny-by-default in practice:
-- A new space is private. No default shares anything.
-- A share grants `read`. `write` is a separate, explicit grant.
-- Revoking removes the row. No residual stamp keeps access alive.
-- The MCP surface never crosses into a space the token's owner cannot read.
-- Link-table RLS keeps the denormalized `user_id` comparison from MEMORY-001. No access
-  helper is called on a read path.
-
-### D3. Hybrid search ships lexical first, semantic last
-
-Arms of the hybrid:
-1. **Full text**: a generated `tsvector` over name, summary and body, with `unaccent`.
-2. **Trigram**: `pg_trgm` similarity on name and summary, catching typos and partial
-   handles that `tsquery` misses.
-3. **Metadata**: label match, `kind`, space, pinned, recency.
-4. **Semantic**: pgvector cosine distance. Slice S10 only, per-space opt-in, off by
-   default.
-
-Fusion is **Reciprocal Rank Fusion** (`score = Σ 1/(k + rank_i)`, k = 60), not weighted
-score blending. RRF needs no score normalisation between arms, which matters because a
-`ts_rank` and a cosine distance are not comparable numbers, and it degrades cleanly when an
-arm returns nothing. With embeddings off the fusion runs over three arms instead of four
-and the ranking stays stable.
-
-### D4. Embeddings are opt-in, per space, and name the provider
-
-`memory_spaces.embedding_provider` is null by default. Enabling it is a deliberate action
-in the UI that states which vendor receives the text and that existing items will be sent
-for backfill. Turning it off deletes the vectors.
-
-No provider is chosen in this plan. It is a business decision with a privacy cost, and the
-first nine slices do not depend on it. When the time comes: Voyage AI `voyage-3` (1024
-dimensions, the provider Anthropic documents) or OpenAI `text-embedding-3-small` (1536).
-Either way the column is `vector(N)` with the dimension fixed by the model, and the model
-name is stored per row so a provider change is a backfill rather than a corruption.
-
-### D5. The Context Builder extends the engine, it does not replace it
-
-`buildContext()` lands in `app/src/lib/memory/engine.ts` beside `enterStep()`, reusing
-`attachShard` for budget accounting so both paths evict identically. The extension twin
-gains the same function and the parity gate gains fixtures for it. Two selection rules in
-one product is exactly what that gate exists to prevent.
-
-Deduplication runs in two passes:
-1. **Exact**: identical `content_hash` collapses. Cheap, catches re-imports and chunk
-   overlap.
-2. **Near**: within the candidate set only, trigram similarity above a threshold collapses
-   to the highest-ranked representative. Bounded to the candidate set because an all-pairs
-   comparison over a whole library does not scale and is not needed.
-
-Collapsed ids are reported in the package, never silently dropped.
-
-### D6. MCP writes need scoped tokens and real rate limiting
-
-`save_memory` is the first write over MCP. Three things change:
-
-- **Scopes**: `memory_tokens.scopes text[] not null default '{read}'`. A write tool needs a
-  token minted with `write`. Existing tokens keep read-only behaviour with no backfill
-  decision, because the default is the safe one.
-- **Rate limiting**: the MEMORY-001 migration says Postgres cannot express it and points at
-  a counter column on `memory_tokens`. That is the right answer. A fixed window
-  (`window_started_at`, `window_count`, `rate_limit_per_min`) is enforced inside
-  `app.memory_resolve_token`, which already writes on a throttle and is the single
-  chokepoint every tool passes through.
-- **One deliberate divergence**: an over-limit call raises a distinct error instead of
-  returning zero rows. The zero-rows contract exists so the surface cannot confirm which
-  tokens exist. A rate-limit response only ever reaches a caller who already holds a valid
-  token, so it leaks nothing, and a silent empty result would make clients retry harder
-  rather than back off.
-
-### D7. Audit is append-only and content-free
-
-`memory_audit_log` records actor, action, target id, surface (`dashboard`, `mcp`,
-`extension`) and a metadata object. It never stores item bodies. Exports are logged,
-because an export is the moment data leaves the product and is the one event worth
-reconstructing after the fact.
-
-### D8. Deletion is two-stage, and the second stage is real
-
-Soft delete sets `deleted_at`, which powers the trash view. A purge hard-deletes the row
-and everything referencing it: versions, embeddings, chunks, link rows, and the storage
-object behind a document. The audit log keeps a tombstone naming what was purged and when,
-with no content. `memory_purge_space()` and `memory_purge_all()` are the erasure entry
-points. Both are irreversible and the UI says so before it runs them.
-
-### D9. No chat panel
-
-Screenshots 2 and 4 show a conversational assistant over the memory. That is a separate
-product with its own model cost, streaming infrastructure and privacy surface, and the
-requirement list does not ask for it. The same right-hand slot holds the **Context
-preview** panel instead: enter a query or pick a step, see exactly the package an agent
-would receive, with token accounting and deduplication visible. It answers the same user
-question, which is "what does my memory actually know about this", without an LLM in the
-loop.
-
-If chat is wanted later it is a clean addition on top of `build_context`, which is the
-retrieval half of it.
-
-### D10. SBMF is line-delimited, checksummed, and secret-free
-
-Design goals: streams without loading the archive into memory, survives partial corruption,
-diffs readably, round-trips exactly.
-
-```
-SBMF/1
-{"type":"header","space":{"name":"…","description":"…"},"exported_at":"…","counts":{"items":42,"versions":118},"checksum_alg":"sha256"}
-{"type":"label","ref":"l1","name":"reference","color":"azure","parent":null}
-{"type":"item","ref":"i1","kind":"fact","name":"…","summary":"…","body":"…","labels":["l1"],"pinned":false,"priority":0,"metadata":{},"created_at":"…","content_hash":"…"}
-{"type":"version","item":"i1","version":1,"body":"…","author":"…","created_at":"…"}
-{"type":"footer","items":42,"sha256":"<over every preceding line>"}
-```
-
-Rules that make it trustworthy:
-- **Refs, not ids.** An archive carries no database uuid, so importing into another account
-  cannot collide and cannot reveal who authored a row.
-- **Never exported**: `memory_tokens` rows, audit entries, embeddings, user ids. Tokens are
-  not redacted out of the export, they are not in the export surface at all. Redaction
-  heuristics fail quietly; absence does not.
-- **Round trip is a test, not a claim.** Export a space, import into an empty one, assert
-  every body is byte-identical and every label association survives.
-- `.sbmf` extension, `application/x-sbmf` on download.
-
-The four ordinary formats are one-way conveniences over the same item model:
-
-| Format | Export | Import |
+| Phase | Version | What |
 | --- | --- | --- |
-| JSON | Full item array, no versions | Accepts its own output and a flat array |
-| Markdown | One `##` section per item, YAML front matter for metadata | Splits on `##`, front matter becomes metadata |
-| CSV | name, kind, summary, body, labels, pinned, priority | Same header, extra columns ignored |
-| TXT | Bodies separated by a rule | Whole file becomes one item |
-| SBMF | Everything, including versions and the label vocabulary | Lossless |
+| K0 | 2.170.0 | CI runs the parity gate on Node 22; `check-version.js` covers 5 stamps |
+| K1 | 2.171.0 | Spaces, kinds, metadata, content hash, soft delete, versions, audit, token scopes, rate limiting |
+| K2 | 2.172.0 | `/memory` dashboard |
+| K3 | 3.1.0 | Chat capture from ChatGPT and Claude, shared chunker |
+
+**Foundations to preserve unchanged.** `engine.ts` and its zero-import constraint (it compiles
+into the dashboard bundle and the standalone MCP server, and is mirrored by hand into the
+extension). The parity gate. The index/body split, which is the economic core: listing costs
+names and summaries, bodies are fetched only for what a budget admits. The token contract: no
+identity parameter, a wrong token returns zero rows.
 
 ---
 
-## 5. Schema
+## 4. Architecture
 
-New tables and the columns added to existing ones. Types and constraints follow the
-conventions already set by MEMORY-001 and LABELS-001.
+```
+        writes stay where they already are
+   ┌──────────────────────────────────────────────┐
+   │  snippets              memory_shards         │  each keeps its own
+   │  (folder ACL)          (personal RLS)        │  table, RLS and writers
+   └──────────────────────────────────────────────┘
+                        │  projected, never copied
+                        ▼
+   ┌──────────────────────────────────────────────┐
+   │  app.knowledge_index                          │  VIEW, security_invoker = true
+   │  kind, source_id, title, summary, body,       │  no storage, no second
+   │  tokens, label_ids, updated_at, owner_id      │  source of truth
+   └──────────────────────────────────────────────┘
 
-### 5.1 `memory_spaces`
-
-```sql
-create table public.memory_spaces (
-  id                 uuid primary key default gen_random_uuid(),
-  user_id            uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  name               text not null,
-  description        text not null default '',
-  ico                text not null default 'brain',      -- same keyword vocabulary as folders.ico
-  -- Null means lexical search only. Set explicitly, per space, by its owner.
-  embedding_provider text,
-  embedding_model    text,
-  is_default         boolean not null default false,
-  created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now(),
-  deleted_at         timestamptz,
-  constraint memory_spaces_name_not_blank check (btrim(name) <> ''),
-  constraint memory_spaces_name_length    check (char_length(btrim(name)) <= 64),
-  constraint memory_spaces_provider_known check (
-    embedding_provider is null or embedding_provider in ('voyage', 'openai')
-  )
-);
+   prompts ──► NOT in the view. Instructions, not context (P-1).
+               Reached through the prompt library, never injected.
+                        │  SQL: filter + coarse rank + RRF → ids and scores
+                        ▼
+   ┌──────────────────────────────────────────────┐
+   │  engine.ts                                    │  TS: dedup → budget →
+   │  the single selection authority               │  deterministic order
+   └──────────────────────────────────────────────┘
+                        │
+                        ▼
+              Context package
+        │              │              │
+      MCP          dashboard       extension
 ```
 
-One default space per user, created lazily on first item write. Case-insensitive unique
-name per user, matching `labels` and `memory_shards`.
+### 4.1 One retrieval surface, composed not merged
 
-### 5.2 `memory_space_shares`
+`app.knowledge_index` is a **read-only view** projecting the two **context** sources, snippets
+and memory items, into a common retrieval shape. Writes never pass through it. Every row keeps
+exactly one home. Prompts are deliberately not projected: see P-1.
 
-```sql
-create table public.memory_space_shares (
-  space_id        uuid not null references public.memory_spaces(id) on delete cascade,
-  organization_id uuid not null references public.organizations(id) on delete cascade,
-  -- Denormalized owner, so the read policy is one comparison and calls no helper.
-  owner_id        uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  access          text not null default 'read',
-  created_at      timestamptz not null default now(),
-  primary key (space_id, organization_id),
-  constraint memory_space_shares_access_known check (access in ('read', 'write'))
-);
-```
+Why a view rather than a unified table: migrating snippets into memory storage
+would mean duplicated storage, a broken extension expansion path (`content.js` reads snippets
+from a `chrome.storage` cache, and a network call cannot enter the keystroke path), broken
+Notion sync, and a rewrite of the folder ACL. That is the rewrite trap and P-1 forbids it.
 
-### 5.3 Columns added to `memory_shards`
+**`security_invoker = true` is the mechanism, not a detail.** A Postgres view defaults to the
+owner's rights, which would bypass the underlying RLS. With `security_invoker` set, each source
+table's own policy applies to the caller. Authorization is therefore **composed**: the
+retrieval layer never decides access, it inherits whatever the caller could already see.
+Deny-by-default is preserved structurally rather than by a rule someone has to remember. This
+is how P-3 is satisfied without a third ACL.
 
-```sql
-alter table public.memory_shards
-  add column space_id     uuid references public.memory_spaces(id) on delete cascade,
-  add column kind         text not null default 'fact',
-  add column metadata     jsonb not null default '{}',
-  add column source_id    uuid references public.memory_documents(id) on delete cascade,
-  add column chunk_index  int,
-  add column content_hash text generated always as (encode(sha256(body::bytea), 'hex')) stored,
-  add column search_tsv   tsvector generated always as (
-    setweight(to_tsvector('simple', unaccent(coalesce(name, ''))),    'A') ||
-    setweight(to_tsvector('simple', unaccent(coalesce(summary, ''))), 'B') ||
-    setweight(to_tsvector('simple', unaccent(coalesce(body, ''))),    'C')
-  ) stored,
-  add column deleted_at   timestamptz,
-  add column version      int not null default 1;
-```
+### 4.2 The SQL / TypeScript line
 
-`space_id` is backfilled to a per-user default space and then set `not null`. In production
-that backfill touches zero rows today, which is exactly why this migration must land before
-the dashboard ships.
+Drawn once, never crossed:
 
-`'simple'` rather than `'english'`: SprintBrain is multilingual by design (EN, IT, ES, FR)
-and an English stemmer on Italian text produces worse matches than no stemmer at all. A
-per-language configuration is a later refinement, not a first cut.
+| Side | Owns | Never does |
+| --- | --- | --- |
+| **SQL** | Filtering by space, kind, labels, ACL. Full-text, trigram and metadata ranking. RRF fusion. Returns ids and scores | Bodies, token budgeting, deduplication, eviction |
+| **`engine.ts`** | Deduplication, token budget, eviction, deterministic final order, the package | Access decisions, text search |
 
-### 5.4 `memory_documents`
+Fusion is **Reciprocal Rank Fusion** (`score = Σ 1/(k + rank_i)`, k = 60) rather than weighted
+score blending, because a `ts_rank` and a trigram similarity are not comparable numbers and RRF
+needs no normalisation between arms. It also degrades cleanly: with an arm returning nothing,
+the ranking stays stable.
 
-```sql
-create table public.memory_documents (
-  id            uuid primary key default gen_random_uuid(),
-  user_id       uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  space_id      uuid not null references public.memory_spaces(id) on delete cascade,
-  filename      text not null,
-  mime_type     text not null,
-  byte_size     bigint not null,
-  storage_path  text not null,          -- memory-documents/{user_id}/{uuid}.{ext}
-  chunk_count   int not null default 0,
-  created_at    timestamptz not null default now(),
-  deleted_at    timestamptz
-);
-```
+The parity gate covers the TypeScript side. Candidate generation is covered by SQL fixtures.
+Ranking never straddles the two, which is what keeps P-2 enforceable rather than aspirational.
 
-Bucket `memory-documents` is **private**, unlike `company-logos`. Reads go through signed
-URLs. Policies follow the established `storage.foldername(name)[1] = auth.uid()::text`
-pattern.
+### 4.3 Steps are a saved retrieval profile
 
-### 5.5 `memory_shard_versions`
+`memory_steps` is not a second retrieval mechanism. A step is a **saved, label-scoped query
+with a budget**.
 
-Mirrors `snippet_revisions`: append-only, 1-indexed, no update or delete policy, serialised
-by a `for update` lock in the save function.
+`buildContext()` is the single entry point. A step supplies its labels and budget as the
+filter; a free-text query supplies text. `memory_enter_step` is reimplemented on top of
+`buildContext` and keeps its existing tool name, shape and fixtures. Two entry points to keep
+in agreement becomes one.
 
-```sql
-create table public.memory_shard_versions (
-  id             uuid primary key default gen_random_uuid(),
-  shard_id       uuid not null references public.memory_shards(id) on delete cascade,
-  version_number int not null check (version_number > 0),
-  editor_id      uuid not null references auth.users(id),
-  editor_display text not null,
-  name           text not null,
-  summary        text not null default '',
-  body           text not null,
-  edit_note      text,
-  created_at     timestamptz not null default now(),
-  unique (shard_id, version_number)
-);
-```
+### 4.4 How snippets participate, and why prompts do not
 
-### 5.6 `memory_audit_log`
+Snippets join through the view, with their existing semantics intact and nothing copied:
 
-```sql
-create table public.memory_audit_log (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid references auth.users(id) on delete set null,
-  action     text not null,    -- item.create, item.update, item.delete, item.purge,
-                               -- space.share, space.unshare, export, import,
-                               -- token.issue, token.revoke, mcp.call
-  target_id  uuid,
-  surface    text not null default 'dashboard',
-  metadata   jsonb not null default '{}',
-  created_at timestamptz not null default now(),
-  constraint memory_audit_surface_known check (surface in ('dashboard', 'mcp', 'extension'))
-);
-```
+| Kind | Title | Body | Summary | Notes |
+| --- | --- | --- | --- | --- |
+| `snippet` | `snippets.title` | `snippets.body` | First line of the body | Stays trigger-expandable. The extension expansion path is untouched |
+| `memory` | `memory_shards.name` | `memory_shards.body` | `memory_shards.summary` | Already the right shape |
 
-Own-row select only. No insert policy for `authenticated`: writes come from SECURITY
-DEFINER functions and the service role, so a client cannot forge an entry.
+**Prompts are not a kind here.** They stay in `prompts`, keep their folder ACL, their labels,
+their trigger and their place in the dashboard. What they do not do is enter a context package.
+The distinction is worth stating precisely, because both are user-authored text:
 
-### 5.7 Columns added to `memory_tokens`
+- A **snippet** is something the user says. As context it tells a model what the user knows or
+  how they phrase things, which is what context is for.
+- A **prompt** is something the user tells a model to do. As context it competes with the live
+  instruction rather than informing it.
 
-```sql
-alter table public.memory_tokens
-  add column scopes             text[] not null default '{read}',
-  add column rate_limit_per_min int not null default 60,
-  add column window_started_at  timestamptz,
-  add column window_count       int not null default 0,
-  add constraint memory_tokens_scopes_known check (scopes <@ array['read','write']::text[]),
-  add constraint memory_tokens_rate_sane   check (rate_limit_per_min between 1 and 6000);
-```
+Finding the right prompt is a real problem, but it is **prompt discovery**, not context
+building, and it already has a home in the ⌘K picker and `intentEngine.ts`. See §10.
 
-### 5.8 Indexes
-
-```sql
-create index memory_shards_search_tsv_idx  on public.memory_shards using gin (search_tsv);
-create index memory_shards_name_trgm_idx   on public.memory_shards using gin (name gin_trgm_ops);
-create index memory_shards_space_live_idx  on public.memory_shards (space_id) where deleted_at is null;
-create index memory_shards_hash_idx        on public.memory_shards (user_id, content_hash);
-create index memory_shards_source_idx      on public.memory_shards (source_id, chunk_index);
-```
-
-Extensions required: `pg_trgm`, `unaccent`. `vector` only in S10.
+Multilingual snippets carry `bodies` as a JSONB map. The view projects the row's primary `body`;
+per-language retrieval is a FUTURE capability (§10), not a v1 requirement.
 
 ---
 
-## 6. Search and Context Builder contracts
+## 5. Data model
 
-### 6.1 `memory_search(p_query, p_space_ids, p_kinds, p_label_ids, p_limit)`
+### 5.1 Add now
 
-Returns `(shard_id, name, summary, kind, space_id, token_estimate, rank, matched_arms)`.
-No bodies. A search result list costs names and summaries, the same economy MEMORY-001
-established for the shard index.
+| Object | Type | Why |
+| --- | --- | --- |
+| `app.knowledge_index` | VIEW, `security_invoker = true` | The single retrieval surface. No storage, no migration, no second source of truth |
 
-Implementation: one CTE per arm, each producing `(id, rank)`, fused by RRF in a final
-select. Metadata filters apply inside every arm rather than after fusion, so a filtered
-search does not return a short list because the filter ran last.
+### 5.2 Add with the phase that needs it
 
-### 6.2 `buildContext()` in `engine.ts`
+| Object | Phase | Why |
+| --- | --- | --- |
+| `memory_shards.search_tsv`, `pg_trgm`, `unaccent` | P2 | Candidate generation. A generated column, no new table |
+| `memory_documents`, `memory_shards.source_id` / `chunk_index` | D1 | A document is a source; its chunks are shards |
+| `memory_grants` | G1 | **One** explicit grant table. Replaces the `memory_space_shares` design in the superseded plan, which would have been a third sharing model |
+| `memory_embeddings` | E1 | Only after the vendor decision in §11 |
+
+### 5.3 Explicitly do not add
+
+- **A `knowledge_objects` table.** That is unified storage, and it is the rewrite P-1 forbids.
+- **A second tag vocabulary.** `labels` already spans snippets, prompts and memory. Prompts
+  being outside the *retrieval* surface does not put them outside the *tagging* one.
+- **Per-kind retrieval functions.** One view, one builder.
+- **A materialised copy of the view.** It would reintroduce a second source of truth and, worse,
+  a copy that RLS does not follow. See R4 for what to do if performance demands it.
+
+### 5.4 The `auth.uid()` gap, stated precisely
+
+`memory_mcp_*` works because memory rows are gated on a flat `user_id` that the definer function
+compares against a manually resolved id. `app.can_read_folder()` calls `auth.uid()` internally,
+which is **null on the token path**. A token-authenticated function therefore cannot reuse it,
+and cannot read snippets or prompts.
+
+Two options, and P-4 dictates the sequencing rather than the choice:
+
+1. Parameterise `app.can_read_folder(folder, uid)`. Correct end state, but it touches the helper
+   behind every snippet read in the product, and that path caused a multi-hour outage on
+   2026-08-05.
+2. **Ship retrieval to the JWT surfaces first** (dashboard, extension), where `auth.uid()`
+   exists and the folder ACL already works, and extend the token path afterwards.
+
+The plan does both, in that order, as P5 then P6. P6 is isolated and revertible.
+
+---
+
+## 6. Contracts
+
+### 6.1 Candidate generation
+
+`app.knowledge_search(p_query, p_kinds, p_space_ids, p_label_ids, p_limit)`
+
+`p_kinds` accepts `'snippet'` and `'memory'`. There is no prompt kind to request, because the
+view holds none (P-1).
+
+Returns `(kind, source_id, title, summary, tokens, rank, matched_arms)`. **No bodies.** A
+result list costs names and summaries, which is the same economy the shard index already
+establishes and the reason listing scales.
+
+Metadata filters apply inside every arm rather than after fusion, so a filtered search does not
+return a short list because the filter ran last.
+
+### 6.2 Context Builder
 
 ```ts
 export interface ContextRequest {
   budget: number;
-  candidates: readonly MemoryShard[];   // already ranked by memory_search or rankForStep
+  candidates: readonly ContextCandidate[];  // ranked by knowledge_search or a step
   dedupe: boolean;
-  minRankToInclude?: number;
 }
 
 export interface ContextPackage {
-  items: Array<{ id: string; name: string; summary: string; body: string; tokens: number }>;
+  items: Array<{ kind: string; id: string; title: string; body: string; tokens: number }>;
   usedTokens: number;
   budget: number;
-  /** Dropped because the budget filled. Rank order preserved. */
-  droppedForBudget: SkippedShard[];
-  /** Collapsed as duplicates, each naming the representative that survived. */
-  deduped: Array<{ id: string; name: string; mergedInto: string; reason: 'exact' | 'near' }>;
-  /** Distinct documents the surviving chunks came from. */
-  sources: Array<{ documentId: string; filename: string; chunks: number }>;
+  droppedForBudget: SkippedItem[];
+  deduped: Array<{ id: string; mergedInto: string; reason: 'exact' | 'near' }>;
+  sources: Array<{ kind: string; count: number }>;
 }
 ```
 
-Determinism is a hard requirement, as it is for `rankForStep`: the same candidates and the
-same budget always produce the same package, because an agent that gets different context
-for the same query on a rerun is not debuggable.
+Deduplication runs twice: **exact** on `content_hash` (cheap, catches re-imports and chunk
+overlap), then **near** by trigram similarity **within the candidate set only**, because an
+all-pairs comparison over a library does not scale and is not needed. Collapsed ids are
+reported, never silently dropped.
 
----
+Determinism is a hard requirement: identical candidates and budget always produce an identical
+package. An agent that gets different context for the same query on a rerun is not debuggable.
 
-## 7. MCP surface
+### 6.3 MCP surface
 
-Existing tools keep their names and behaviour. New tools:
+One server, one tool vocabulary. Existing tools keep their names and shapes.
 
-| Tool | Scope | Notes |
-| --- | --- | --- |
-| `list_spaces` | read | Name, item count, whether embeddings are on |
-| `search_memory` | read | Wraps `memory_search`. Returns summaries, never bodies |
-| `build_context` | read | Query or step, plus a budget. Returns the package from 6.2 |
-| `save_memory` | **write** | Creates or updates one item. Requires a `write` token |
-| `export_space` | read | Returns SBMF as text. Logged to the audit trail |
-
-Server-side authorization rules, unchanged in spirit from MEMORY-001:
-- No tool accepts a `user_id`. Identity comes from the token alone, so there is no
-  parameter to vary in order to reach another account.
-- A token without `write` in `scopes` cannot reach `memory_mcp_save`, enforced in the
-  function, not in the client.
-- A wrong token still returns zero rows rather than an error.
-- Rate limiting is enforced in `app.memory_resolve_token`, so it applies to every tool
-  including ones added later.
-
----
-
-## 8. Security and privacy posture
-
-| Requirement | How it is met |
-| --- | --- |
-| Deny-by-default isolation | RLS on every new table, `auth.uid() = user_id` on personal rows; shares are explicit rows, never stamps or inheritance |
-| No raw secret exfiltration | `memory_tokens` is outside the export surface entirely; only SHA-256 hashes are stored; plaintext is returned once at issue |
-| GDPR deletion | `memory_purge_space()` and `memory_purge_all()` hard-delete rows, versions, embeddings, chunks and storage objects, leaving a content-free tombstone |
-| Audit | Append-only `memory_audit_log`, no bodies, exports recorded |
-| Rate limiting | Fixed window on `memory_tokens`, enforced at the single resolver chokepoint |
-| Transport | Documents in a private bucket with signed URLs, not public read |
-
-Two things this plan does **not** claim:
-- It is not end-to-end encrypted. Bodies are readable by the database. Saying otherwise
-  would be false, and client-side encryption would make server-side search impossible.
-- Enabling embeddings sends body text to a third party. The UI says which one, before it
-  happens, and the default is off.
-
----
-
-## 9. Dashboard UI
-
-New route `/memory`, sidebar entry "Memory" with the `Brain` icon and a count pill, placed
-after Prompts. All copy below is final and written to `toneofvoice.md`.
-
-### 9.1 Spaces index (`/memory`)
-
-Structure taken from screenshot 1, rebuilt on existing components.
-
-- `PageHeader` title "Memory", description "Facts, notes and documents your assistant can
-  read."
-- Tabs: All, Mine, Shared with me (`components/ui/tabs`).
-- Toolbar: search input, "New space" primary button, sort control, grid and list toggle.
-- Card grid: space icon, name, "N items", relative updated time, pin toggle, overflow menu
-  (Rename, Share, Export, Delete).
-- `EmptyState` when there are none: "No spaces yet", "A space holds the facts one kind of
-  work needs. Create one and add your first note."
-
-### 9.2 Space detail (`/memory/:spaceId`)
-
-Structure taken from screenshot 2.
-
-- Back link, space icon, name, role badge (Owner or Shared), share and export actions.
-- Three `KpiCard` tiles: Items, Created, Storage.
-- Two drop targets side by side: "Add text" and "Upload file", both dashed, matching
-  `EmptyState`'s dashed border treatment.
-- "Contents (N)" list with a kind filter and a Trash toggle.
-- Item row: kind badge, name, size, `AssetAttribution` for who added it, summary with a
-  "Show more" expander, overflow menu (Edit, History, Labels, Delete).
-
-### 9.3 Context preview panel
-
-Right-hand panel, 520px, matching `PromptBlockEditor`'s established side-panel pattern.
-Query input, optional step selector, budget field. Shows the package: which items were
-attached, which were dropped for budget, which collapsed as duplicates, and the token
-total against the budget. Copy button emits the rendered pack.
-
-### 9.4 Connect via MCP modal
-
-Structure taken from screenshot 3, content rewritten for a stdio server.
-
-- Command block with copy button.
-- Four numbered setup steps.
-- Token section: issue, name, copy once, revoke. The plaintext is shown exactly once and
-  the modal says so.
-- "Works with" chips: Claude Code, Claude Desktop, Cursor, Windsurf, and any MCP client.
-
-### 9.5 Settings
-
-New "Memory" tab in `SettingsPage`, holding token management, per-space embedding controls,
-and the purge actions.
-
----
-
-## 10. Slices
-
-Each slice is independently shippable, passes the full gate set, and carries its own
-version bump across all four stamps.
-
-| Slice | Version | Contents | Done when |
+| Tool | Scope | Phase | Notes |
 | --- | --- | --- | --- |
-| **S0** ✅ | 2.170.0 | Version parity for `services/mcp-memory` and `Sprintbrain.html`; `check-version.js` covers both; CI moves to Node 22 and runs `check-memory-parity.js` | Shipped. 5 stamps checked, each negative-tested; parity step in the workflow |
-| **S1** ✅ | 2.171.0 | Migration: spaces, kinds, metadata, content hash, soft delete, versions table with an atomic save RPC, audit log, token scopes and rate limiting. Extension filters trashed shards | Shipped. Applied to production and verified by 23 probes inside a rolled-back transaction |
-| **S2** ✅ | 2.172.0 | `/memory` route: spaces index and space detail, item CRUD via "Add text", trash and restore; types, API module, store | Shipped. Driven end to end against production in the preview, then the test rows removed |
-| **S3** | 2.173.0 | Documents: private bucket, upload, chunking into shards, `source_id` and `chunk_index`, source attribution | A 200 KB file uploads, chunks, and every chunk stays under the 20,000 character cap |
-| **S4** | 2.174.0 | Version history panel over the versions written since S1 | Editing an item twice shows versions 1 and 2; restore works |
-| **S5** | 2.175.0 | Import and export: JSON, Markdown, CSV, TXT, SBMF | Round-trip test asserts byte-identical bodies and preserved labels |
-| **S6** | 2.176.0 | Hybrid search, lexical arms only, plus the search UI. Adds `search_tsv`, `pg_trgm`, `unaccent` | `memory_search` returns sane rankings on a seeded fixture; accent-insensitive and typo-tolerant cases covered by tests |
-| **S7** | 2.177.0 | Context Builder in `engine.ts` and `memory-pack.js`, new parity fixtures, preview panel | Parity gate green with the new fixtures; determinism test passes over 100 runs |
-| **S8** | 2.178.0 | MCP: `list_spaces`, `search_memory`, `build_context`, `save_memory`, `export_space` on the scopes and rate limit built in S1; Connect modal; token UI | All tools exercised from a real MCP client; over-limit call returns the back-off error |
-| **S9** | 2.179.0 | GDPR purge, `memory_space_shares` and the non-owner read path, access-control UI | Purge removes every referencing row and the storage object; audit tombstone present with no body text |
-| **S10** | gated | pgvector, provider integration, per-space opt-in, backfill | Only after the provider decision in D4 |
+| `memory_steps`, `memory_index`, `memory_enter_step`, `memory_attach`, `memory_detach`, `memory_state` | read | shipped | Unchanged. `memory_enter_step` is reimplemented on `buildContext` |
+| `search_knowledge` | read | P4 | Wraps `knowledge_search`. Summaries, never bodies |
+| `build_context` | read | P4 | Query or step, plus a budget |
+| `save_memory` | **write** | W1 | Requires a `write`-scoped token |
+| `export_space` | read | IO1 | Logged to the audit trail |
+
+Unchanged server-side rules: no tool accepts a user id, identity comes from the token alone, a
+wrong token returns zero rows, and the rate limit is enforced at the single resolver so it
+applies to every tool including ones added later.
 
 ---
 
-## 11. Risks
+## 7. Security posture
 
-| Risk | Impact | Mitigation |
+| Requirement | Mechanism |
+| --- | --- |
+| Deny-by-default | RLS on every table; the view composes it via `security_invoker` and can only narrow |
+| No third ACL | Folder ACL for snippets and prompts, personal for memory, nothing else (P-3) |
+| No raw secret exfiltration | `memory_tokens` is outside the export surface entirely; only SHA-256 hashes stored; plaintext returned once |
+| GDPR deletion | `memory_purge_space()` / `memory_purge_all()` hard-delete rows, versions, embeddings, chunks and storage objects, leaving a content-free tombstone |
+| Audit | Append-only `memory_audit_log`, no bodies, exports recorded |
+| Rate limiting | Fixed window on `memory_tokens`, enforced in `app.memory_resolve_token` |
+| Outage safeguards | No access helper on a hot read path, no recursive CTE in a per-row policy, denormalized `user_id` on link tables |
+
+Two things this plan does **not** claim: it is not end-to-end encrypted (bodies are readable by
+the database, and client-side encryption would make server-side search impossible), and enabling
+embeddings would send body text to a third party, which is why E1 is opt-in per space and
+default off.
+
+---
+
+## 8. Phases
+
+Every phase is independently shippable and independently revertible.
+
+### P1. Knowledge view  ✅ shipped v3.4.0
+- **Objective**: one read surface over snippets and memory items. Prompts are excluded (P-1).
+- **Affects**: one migration creating `app.knowledge_index`.
+- **Database**: view only, `security_invoker = true`. No table changes.
+- **Tests**: cross-account probe proving the view exposes nothing the caller could not already
+  read; a per-kind projection probe; a probe confirming a shared-folder snippet appears for a
+  teammate and not for an outsider.
+- **Accept**: two accounts see disjoint rows. Per-kind counts match the underlying tables for
+  the owner. `security_invoker` confirmed set on the applied view. **A probe asserts the view
+  returns zero rows of kind `prompt` and that `prompts` is absent from its definition**, so the
+  exclusion is enforced by the schema rather than by reviewer attention.
+
+### P2. Candidate generation
+- **Objective**: `app.knowledge_search()` returning ranked ids and scores, no bodies.
+- **Affects**: migration; `pg_trgm` and `unaccent` installed; `search_tsv` on `memory_shards`.
+- **Database**: extensions, one generated column, GIN indexes.
+- **Tests**: SQL fixtures for accent insensitivity, typo tolerance, label and kind filters,
+  empty query, and a filtered search returning a full-length list.
+- **Accept**: sane ranking on a seeded fixture; no body column in the result shape; `index_advisor`
+  run and its findings recorded.
+
+### P3. Context Builder in the engine
+- **Objective**: `buildContext()` beside `enterStep()`; dedup and budget in one place.
+- **Affects**: `app/src/lib/memory/engine.ts`, `extension/shared/memory-pack.js`,
+  `scripts/check-memory-parity.js`.
+- **Database**: none.
+- **Tests**: new parity fixtures for dedup (exact and near) and budget; a determinism test over
+  repeated runs; existing `enterStep` fixtures unchanged and still green.
+- **Accept**: parity gate green including the new fixtures. `enterStep` reimplemented on
+  `buildContext` with identical observable behaviour.
+
+### P4. Surfaces read the new path
+- **Objective**: MCP tools and the dashboard preview panel use candidate generation plus builder.
+- **Affects**: `services/mcp-memory/`, a dashboard route, the memory API module.
+- **Database**: none.
+- **Tests**: `search_knowledge` and `build_context` exercised from a real MCP client; the preview
+  shows attached, dropped and deduplicated items with token accounting.
+- **Accept**: every existing `memory_*` tool unchanged in name and shape.
+
+### P5. Snippets on the JWT surfaces
+- **Objective**: search and context across both kinds where `auth.uid()` exists.
+- **Affects**: dashboard, extension pill.
+- **Database**: none. The view already covers it.
+- **Tests**: a shared-folder snippet appears for a teammate and not an outsider; a personal
+  memory item never crosses accounts; **no prompt appears in any context package**.
+- **Accept**: folder ACL semantics identical to querying `snippets` directly.
+
+### P6. Token-path parity  ⚠ isolated
+- **Objective**: parameterise the folder ACL so token-authenticated calls can reach snippets.
+- **Affects**: the ACL helper migration, `memory_mcp_*`.
+- **Database**: `app.can_read_folder(text, uuid)`, with the existing one-argument signature kept
+  as a wrapper delegating to it.
+- **Tests**: **every existing snippet and prompt RLS probe re-run unchanged**, plus token-path
+  equivalents of each.
+- **Accept**: no behaviour change for any JWT caller. **This phase is reverted on any regression,
+  never patched forward.** It ships alone, with nothing else in the release.
+
+### Independent phases
+
+### D1. Documents
+- **Objective**: private bucket, upload, chunking into shards.
+- **Affects**: migration (`memory_documents`, `source_id`, `chunk_index`), storage policies,
+  dashboard upload target, reuses `extension/shared/memory-chunk.js`.
+- **Database**: one new table, two columns, one bucket.
+- **Tests**: a 200 KB file uploads and every chunk stays under the body cap; the chunker check
+  extended for the document path.
+- **Accept**: chunks carry provenance; deleting a document removes its chunks.
+
+### H1. Version history panel
+- **Objective**: surface the versions K1 already writes.
+- **Affects**: dashboard only.
+- **Database**: none.
+- **Tests**: editing twice shows v1 and v2; restore writes v3 rather than mutating history.
+- **Accept**: restore is an append, never an edit.
+
+### IO1. Import and export
+- **Objective**: JSON, Markdown, CSV, TXT and the SBMF archive (§9).
+- **Affects**: a new client library, dashboard actions, `export_space` MCP tool.
+- **Database**: none.
+- **Tests**: round-trip asserts byte-identical bodies and preserved label associations.
+- **Accept**: exports are audited; tokens never appear in any export.
+
+### W1. MCP writes
+- **Objective**: `save_memory` over MCP.
+- **Affects**: `services/mcp-memory/`, one definer RPC.
+- **Database**: `memory_mcp_save`, deriving identity from the token and requiring `write` scope.
+- **Tests**: a read-only token is refused indistinguishably from an unknown token; the rate
+  limit raises `PT429`.
+- **Accept**: no tool accepts a user id.
+
+### G1. Grants and purge
+- **Objective**: GDPR purge, plus **one** explicit grant model if sharing is wanted.
+- **Affects**: migration, access-control UI.
+- **Database**: `memory_grants` (single table, explicit rows, no inherited stamp).
+- **Tests**: purge removes every referencing row and storage object; a revoked grant leaves no
+  residual access.
+- **Accept**: revoking removes access completely, with no `organization_id`-style stamp left
+  behind. If sharing is deferred, the purge half still ships.
+
+### E1. Semantic arm  ⚠ decision-gated
+- **Objective**: pgvector as a fourth RRF arm, per-space opt-in, default off.
+- **Blocked on**: the vendor decision in §11.
+- **Accept**: turning embeddings off deletes the vectors; the UI names the vendor before any
+  text leaves.
+
+### 8.1 Dependencies
+
+```
+P1 ──► P2 ──► P3 ──► P4 ──► P5 ──► P6 (isolated, ships alone)
+                      │
+                      └──► W1
+P2 ──────────────────────► E1 (also gated on the vendor decision)
+
+D1   independent
+H1   independent
+IO1  independent
+G1   after P5 (proves composition works before adding grants)
+```
+
+### 8.2 What can run in parallel
+
+| Safe in parallel | Why |
+| --- | --- |
+| **D1 with P1 to P4** | Different tables and code paths. D1 touches storage and chunking; P1 to P4 touch retrieval |
+| **H1 with anything** | Dashboard-only, reads a table that already exists |
+| **IO1 with anything up to P4** | Client-side over existing APIs |
+| **Never parallel: P6** | It ships alone. The ACL blast radius covers every snippet read |
+| **Never parallel: two migrations at once** | One session applying DDL at a time, by coordination |
+
+---
+
+## 9. SBMF archive format
+
+Line-delimited, checksummed, streamable, and secret-free by construction.
+
+```
+SBMF/1
+{"type":"header","space":{...},"exported_at":"…","counts":{…},"checksum_alg":"sha256"}
+{"type":"label","ref":"l1","name":"reference","color":"azure"}
+{"type":"item","ref":"i1","kind":"fact","name":"…","body":"…","labels":["l1"],"content_hash":"…"}
+{"type":"version","item":"i1","version":1,"body":"…","created_at":"…"}
+{"type":"footer","items":42,"sha256":"<over every preceding line>"}
+```
+
+- **Refs, not ids.** An archive carries no database uuid, so importing elsewhere cannot collide
+  or reveal authorship.
+- **Never exported**: `memory_tokens`, audit entries, embeddings, user ids. Tokens are not
+  redacted out; they are not in the export surface at all. Redaction heuristics fail quietly,
+  absence does not.
+- **Round trip is a test, not a claim.**
+- Exports cover memory items. Snippets and prompts have their own existing export paths and are
+  not duplicated here.
+
+---
+
+## 10. FUTURE capabilities
+
+Deliberately **not** implemented now. Listed so the architecture stays open to them, and so
+nobody builds them speculatively.
+
+| Capability | Why deferred | What keeps it possible |
 | --- | --- | --- |
-| Parity gate drift | Two selection rules disagree in production; the extension packs a different context than the MCP server | S0 puts the gate in CI before any engine change. Every engine edit adds a fixture |
-| Structural migration after launch | `space_id not null` backfill against real rows instead of zero | S1 lands before S2. The window is open now and closes when the dashboard ships |
-| Document chunking blows budgets | One upload makes every step overflow | Hard cap per chunk enforced by the existing `memory_shards_body_length` check; chunker tested at the boundary |
-| RLS policy shape regression | A recursive policy on a hot read path wedged production for two hours on 2026-08-05 | Every new link table keeps the denormalized `user_id` comparison. No access helper on a read policy. Reviewed explicitly in S1 |
-| `anon` grant surface grows | The MCP functions are the only `anon`-executable functions in the schema | New functions follow the same contract: no `user_id` parameter, identity from the token, zero rows on a bad token |
-| Embedding provider leak | Body text reaches a third party | Off by default, per space, named in the UI, deletable |
-| Search performance on large spaces | GIN index bloat, slow trigram scans | Trigram limited to name and summary; body covered by the tsvector arm only. Index advisor run in S6 |
-| Node version split | CI on 20, type stripping needs 22.18+ | S0 moves CI to Node 22 |
-| Parallel sessions share this working tree | A concurrent push claims the version number | Fetch and compare HEAD before every push; take the next version if claimed |
+| **Memory decay** | No evidence yet about what ages badly | `updated_at`, `created_at` and the audit trail are already recorded per item |
+| **Contradiction detection** | Needs semantic comparison and a resolution UX; both are large | `content_hash` and versioning give a factual base; the near-dedup pass is the natural hook |
+| **Confidence scoring** | Nothing produces a trustworthy score today | `metadata` is free-form and capped; a score is an additive key |
+| **Automatic extraction** | Deciding what is worth remembering without asking is the hard part, and getting it wrong pollutes the library | Chat capture already provides the transport; extraction would sit in front of it |
+| **Per-language retrieval** | `bodies` is a JSONB map and the ranking implications are unexplored | The view can gain a language column without a table change |
+| **Cross-space dedup** | Only matters at volume nobody has yet | `content_hash` is indexed per user, not per space |
+| **Write-back to snippets from memory** | Would create a second writer for `snippets` | Forbidden by P-1 unless the plan is revised |
+| **Prompt recommendation** | A real problem, but it is discovery rather than context injection, and conflating the two is what P-1 forbids | `intentEngine.ts` already classifies prompts and ⌘K is the surface. It would rank prompts **for the user to pick**, never inject one into a package |
+
+None of these require a schema change to become possible later. That is the test each had to
+pass to be listed rather than designed.
 
 ---
 
-## 12. Open decisions
+## 11. Open decisions
 
-1. **Embedding provider**, or no semantic arm at all. S10 is blocked on this and nothing
-   else is.
-2. **Document size ceiling.** A per-space storage quota is not in this plan. Suggested
-   default: 25 MB per space, 5 MB per file.
-3. ~~**Conversation import.**~~ **Answered 2026-08-27 (v3.1.0).** The extension capture
-   option shipped: the popup shows a "Save this chat" card on a supported thread, and writes
-   the transcript into a chosen space as `conversation` items. See section 14.
-4. **Team memory.** D2 allows an owner to share a space read-only. Whether a shared space
-   may be written to by teammates is a product decision, not a technical one.
-
----
-
-## 13. Changes against this plan, and why
-
-Recorded as the work lands, so the plan stays honest rather than aspirational.
-
-**Versions shifted by one.** A concurrent session claimed 2.169.0 while S0 was in
-progress. Every slice moved up. The working tree is shared, so check `origin/develop`
-before assuming a version is free.
-
-**S1 lost three things it was scoped to carry.**
-
-- `memory_space_shares` moved wholly to S9. S1 would have created a table that granted
-  nothing, since the non-owner read path was already scheduled for S9. Half a feature in
-  the schema is worse than none.
-- `source_id` and `chunk_index` moved to S3, where `memory_documents` exists to reference.
-- `search_tsv`, `pg_trgm` and `unaccent` moved to S6, where something reads them. Adding a
-  generated column later costs a table rewrite, which is why `content_hash` stayed in S1:
-  deduplication and import both need it, and it is cheapest to add while the table is
-  empty. The search column is a bigger object and S6 still lands before real volume.
-
-**S1 gained one thing.** `extension/background/background.js` now filters
-`deleted_at=is.null` on both memory reads. Without it, the first item anyone trashed in S2
-would still have been offered by the extension's Context pill.
-
-**Two defects found by probing, not by reading.**
-
-- **Grants did not match either migration's stated intent.** Supabase's default privileges
-  grant ALL on every new table in `public` to `authenticated`, and a GRANT is additive, so
-  the explicit grant lists in MEMORY-001 and in S1 never took anything away.
-  `memory_tokens` said "no INSERT" and had INSERT; `memory_shard_versions` said
-  append-only and had UPDATE and DELETE. Nothing was actually exposed, because RLS refuses
-  any command with no policy and cross-account isolation was verified directly, but the
-  defence-in-depth layer was missing. Fixed for all eight memory tables in
-  `20260823130000_memory_grants_least_privilege.sql`. **Every future migration in this
-  feature must REVOKE before it GRANTs**, or the gap reopens on the next new table.
-- **Restore can collide with a reused name.** The unique index on shard and space names is
-  partial on `deleted_at is null`, so trashing an item frees its name. Trash "notes",
-  create a new "notes", then restore the old one and the restore fails on a unique
-  violation. That is the right trade (a trashed item must not squat a name), but S2's
-  restore action has to detect the collision and either refuse with a clear message or
-  offer a rename. It must not surface a raw database error.
-
-**How S1 was verified.** 23 probes ran against production inside a transaction that was
-rolled back by design, confirmed afterwards by every memory table still reading zero rows.
-They covered the default space being created on demand, version numbering, audit entries
-staying free of body text, the content hash tracking the body, the closed `kind` set, the
-metadata cap, the audit action shape, token scope denial, the rate limit raising PT429, an
-unknown token still yielding rows rather than an error, trashed shards disappearing from
-both MCP read functions, name reuse after trashing, and cross-account isolation on both the
-read path and the save RPC.
-
-**S2 differs from section 9 in five places, each for a reason.**
-
-- **No All / Mine / Shared tabs.** Sharing does not exist until S9, so two of the three
-  tabs would be permanently empty and the third would be every space. They arrive with the
-  feature they describe.
-- **The third tile is Tokens, not Storage.** A byte count is a number nobody acts on. The
-  token total is the exact figure a step's budget is measured against, read from the same
-  generated column the engine uses, so it is both more useful and not an estimate.
-- **Upload file is present but disabled**, labelled so, rather than hidden. The pair of drop
-  targets is the layout, and hiding one until S3 would move everything twice.
-- **The item editor is a dialog, not a right-hand panel.** The panel pattern in
-  `PromptBlockEditor` couples the page layout to a 520px offset. A dialog needs no such
-  coupling, and the Context preview panel in S7 is the thing that genuinely wants that slot.
-- **Spaces have their own icon vocabulary** in `features/memory/spaceIcon.tsx` rather than
-  reusing `FOLDER_ICON_KEYS`. That vocabulary is hand-projected into three surfaces, so
-  adding one key there means editing three files in sync. Spaces are dashboard-only, so
-  theirs stays local until a second surface needs it.
-
-**One wart found in the preview and fixed:** the spaces count rendered "0 spaces" beside the
-loading line, which reads as an answer before there is one. It is now held back until the
-first load completes.
+1. **Embedding vendor**, or no semantic arm at all. E1 is blocked on this and nothing else is.
+   Candidates: Voyage `voyage-3` (1024 dimensions, the provider Anthropic documents) or OpenAI
+   `text-embedding-3-small` (1536). Either way the model name is stored per row so a change is a
+   backfill rather than a corruption.
+2. **Whether memory sharing is wanted at all.** G1 assumes it might be. If team memory is not a
+   product goal, G1 reduces to the purge half and `memory_grants` is never created, which is
+   strictly simpler.
+3. **Per-space storage quota** for D1. Suggested default: 25 MB per space, 5 MB per file.
+4. ~~Whether prompts should be retrievable as context.~~ **Decided 2026-08-27: they are not.**
+   Prompts are instructions, not knowledge. They are excluded from the view structurally rather
+   than behind a filter. See P-1 and §4.4.
 
 ---
 
-## 14. Chat capture (v3.1.0), outside the original slice list
+## 12. Risks
 
-Not one of S0 to S10. It came from a direct request after S2 shipped, and it answers open
-decision 3 rather than any planned slice.
+| Risk | Severity | Mitigation |
+| --- | --- | --- |
+| **R1. A third ranking implementation** | High | The SQL/TS line in §4.2, enforced by extending the parity gate in P3, before P4 consumes it |
+| **R2. A third ACL** | High | P-3. `memory_space_shares` from the superseded plan is replaced by a single `memory_grants`, or dropped entirely |
+| **R3. Folder ACL regression** | High | P6 ships alone, re-runs every existing probe unchanged, and is reverted rather than patched on any regression |
+| **R4. View performance** | Medium | A two-way union running each source's policy per query, one arm lighter than planned since prompts are excluded. Measure in P2 with `index_advisor`. If it degrades, the fix is narrowing the projection or per-kind pre-filtering, **never** a materialised copy that RLS does not follow |
+| **R5. Overengineering** | Medium | §10 exists to keep speculative features out. One view, one builder, three concrete kinds |
+| **R6. Breaking the extension** | Medium | The pill and the expansion path stay independent of retrieval. No change touching `content.js` keystroke handling is in scope |
+| **R7. Source-of-truth drift** | Low while §4.1 holds | The view has no storage, so drift is structurally impossible. It becomes real the moment anyone caches it (see R4) |
+| **R8. Parallel sessions** | Medium | One migration at a time; check `origin/develop` before claiming a version |
 
-**What it does.** On a supported AI chat thread, the extension popup shows a "Save this
-chat" card: the detected conversation, a space picker, and a save button. Saving writes the
-transcript into that space as `conversation` items, chunked when it exceeds the body cap.
+---
 
-**Why the popup, given popup.js is the read-only launcher.** The v2.87.0 refactor moved
-snippet and folder MANAGEMENT to the dashboard, which could own it because the dashboard
-reaches the same rows. Capture is not management and has no such alternative: only the
-extension can see a ChatGPT tab. Different concern, same file. It degrades to nothing on
-`Sprintbrain.html`, where chrome-shim's `tabs.query` reports no tabs and the card never
-renders.
+## 13. History
 
-**Two sites, not eight.** `chat-capture.js` recognises ChatGPT and Claude only, because
-those are the two whose markup was read directly. Unlike `memory-picker.js`, which finds a
-composer and can fall back to "largest visible editable in the lower viewport", a message
-thread has no structural fallback. When the selectors miss, capture returns null and the
-popup shows nothing, rather than guessing at the biggest block of text on the page. Saving
-a sidebar into someone's memory is the failure worth avoiding; refusing is recoverable.
+**Superseded plan.** The first version of this file targeted v2.168.0 and planned slices S0 to
+S10. S0 to S2 shipped (now K0 to K2), chat capture shipped outside the slice list (K3), and the
+remainder was rewritten on 2026-08-27 after the architecture review found three blockers:
 
-**The chunker is shared, not local.** `extension/shared/memory-chunk.js` splits on turn
-boundaries, then paragraph, then line, and reports when it had to cut mid-paragraph. S3's
-document upload has the identical problem and must reuse it, or the same file will chunk
-differently depending on whether it arrived as an upload or a transcript. `node
-scripts/check-memory-chunk.js` gates it, and the invariant that matters is that every chunk
-fits under `memory_shards_body_length`: a chunk that does not is a mid-save HTTP 400, not a
-degraded save.
+1. The plan **never mentioned snippets or prompts**, so following it would have built a second
+   knowledge system beside the existing library. Fixed by P-1 and the knowledge view.
+2. **S6 and S7 together created a third, ungated ranking implementation**, splitting ranking
+   across SQL and TypeScript with only the TypeScript half parity-gated. Fixed by P-2 and §4.2.
+3. **S9 proposed a third authorization model** (`memory_space_shares`). Fixed by P-3 and a
+   single `memory_grants`, or by dropping sharing.
 
-**Two bugs found by reading rather than assuming.** The popup's `supaFetch` resolves with
-the raw `Response` and resolves on HTTP errors too, so the first draft both treated a
-`Response` as an array and reported failed writes as successes. Both fixed against the house
-pattern (`r.ok ? r.json() : []`).
+**Prompts ruled out of context, 2026-08-27.** The review left this open and proposed shipping
+prompts behind a default-off filter. That was the wrong shape. Prompts are instructions, and a
+model given both a live instruction and a stored one follows neither reliably, so the failure
+would be silent and would present as the model behaving unpredictably. They are now excluded
+from the view structurally, leaving no filter to flip, and P1 carries a probe that fails if a
+prompt ever appears. Prompt discovery stays a separate, legitimate problem with its own
+existing home (§10).
 
-**What is verified and what is not.** Verified: the chunker (12 cases), the extraction path
-against ChatGPT- and Claude-shaped DOM in a real browser, that `Prefer:
-resolution=merge-duplicates,return=minimal` is accepted on an RPC, and that the card's tokens
-resolve to the canonical palette. **Not verified: the selectors against the live sites**,
-because that needs a logged-in ChatGPT session. They are the part most likely to rot, and the
-first thing to check if capture stops finding a conversation.
+**Findings from building K0 to K3, still load-bearing:**
+
+- **Supabase default privileges grant ALL on new `public` tables to `authenticated`, and a GRANT
+  is additive.** Both memory migrations wrote grant lists that took nothing away. Nothing was
+  exposed, because RLS refuses any command with no policy, but the defence-in-depth layer was
+  missing. **Every new table must REVOKE before it GRANTs.** P2, D1 and G1 each add tables.
+- **Restoring from trash can collide.** Name uniqueness is a partial index on `deleted_at is
+  null`, so trashing frees a name. Any new restore path needs the collision handled.
+- **`memory_save_shard` is the only write path that keeps history.** It appends the version and
+  the audit row in one transaction under a `FOR UPDATE` lock. Never write `memory_shards`
+  directly from a client.
+- **The popup's `supaFetch` resolves with the raw `Response` and resolves on HTTP errors.**
+  Callers must check `r.ok` explicitly or a failed write reports success.
+- **`execute_sql` honours explicit `BEGIN ... ROLLBACK`**, so write probes can run against
+  production and undo themselves. Temp tables do not survive between calls.
+
+**K3, chat capture, outside the original slice list.** The popup shows a "Save this chat" card on
+a supported thread and writes the transcript into a chosen space as `conversation` items.
+ChatGPT and Claude only, because those are the two whose markup was read directly; a message
+thread has no structural fallback the way a composer does, so unrecognised pages show nothing
+rather than guessing. The chunker is shared with D1 by design. **Not verified: the selectors
+against the live sites**, which needs a logged-in session and is the part most likely to rot.

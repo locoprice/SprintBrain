@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
@@ -13,6 +13,7 @@ import { SnippetsTable } from '@/features/snippets/SnippetsTable';
 import { VersionHistoryPanel } from '@/features/snippets/VersionHistoryPanel';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSnippetStore } from '@/stores/snippetStore';
+import { useUiStore } from '@/stores/uiStore';
 
 export function SnippetsPage() {
   const load = useSnippetStore((s) => s.load);
@@ -30,6 +31,11 @@ export function SnippetsPage() {
   const setSelectedFolder = useSnippetStore((s) => s.setSelectedFolder);
   const selectedFolder =
     selectedFolderId === null ? null : folders.find((f) => f.id === selectedFolderId) ?? null;
+
+  // The rail costs the table 272px. On a 1280px screen that is the difference
+  // between reading the table and scrolling it sideways, so it can be put away.
+  const railOpen = useUiStore((s) => s.foldersRailOpen);
+  const setRailOpen = useUiStore((s) => s.setFoldersRailOpen);
 
   // Local input value so typing feels instant; debounce propagation to the store.
   const [localQuery, setLocalQuery] = useState(storeQuery);
@@ -148,18 +154,36 @@ export function SnippetsPage() {
       )}
 
       <div className="flex gap-8">
-        <SnippetFolderTree />
+        {railOpen && <SnippetFolderTree />}
 
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
-            <Input
-              type="search"
-              value={localQuery}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              placeholder="Search by name, trigger, or tag…"
-              className="pl-9"
-            />
+          <div className="flex items-center gap-2">
+            {/* Sits with the search rather than on the rail itself: it has to
+                be in the same place whether the rail is there or not. */}
+            <button
+              type="button"
+              onClick={() => setRailOpen(!railOpen)}
+              aria-pressed={railOpen}
+              title={railOpen ? 'Hide folders' : 'Show folders'}
+              aria-label={railOpen ? 'Hide folders' : 'Show folders'}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-line bg-card text-ink-subtle transition-colors hover:border-primary/30 hover:text-primary"
+            >
+              {railOpen ? (
+                <PanelLeftClose className="h-4 w-4" aria-hidden />
+              ) : (
+                <PanelLeftOpen className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+            <div className="relative w-full max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
+              <Input
+                type="search"
+                value={localQuery}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                placeholder="Search by name, trigger, or tag…"
+                className="pl-9"
+              />
+            </div>
           </div>
 
           <FilterToolbar />

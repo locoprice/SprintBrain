@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
-  ChevronDown,
   Clock,
   Eye,
   History,
+  Info,
   MousePointerClick,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
-  Pin,
   Plus,
-  TextCursorInput,
   Trash2,
   X,
 } from 'lucide-react';
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAttribution } from '@/components/shared/AssetAttribution';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
@@ -34,6 +35,7 @@ import {
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
+import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
 import {
   findMenuTokenAt,
@@ -48,6 +50,7 @@ import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtil
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useMinWidth } from '@/lib/useViewportGate';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
@@ -57,6 +60,33 @@ import {
 
 // Each language is a first-class picker option with its own color (FR re-added v2.88.0).
 const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'MULTI'];
+
+// The width at which the dialog can afford its third panel: 839px of rail and
+// editor plus the preview's 321px, with 94vw to spare for the backdrop.
+const PREVIEW_MIN_WIDTH = 1280;
+
+/**
+ * A snippet name is read back as plain text everywhere else: the extension
+ * picker, the popup list, the mobile rows, each of which lays the name out in
+ * a fixed-height line that a pictograph breaks. Emoji and the joiners, keycaps,
+ * flags and skin tones that build them are dropped as they are typed or
+ * pasted. Letters in any script, digits, spaces and punctuation pass through.
+ */
+const NAME_EMOJI =
+  /[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Emoji_Modifier}\u{FE0F}\u{20E3}\u{200D}]/gu;
+
+function sanitizeName(value: string): string {
+  return value.replace(NAME_EMOJI, '');
+}
+
+/**
+ * Alternative queries are stored on the row being edited, not on the language
+ * group, which is the one thing about the field a user cannot see.
+ */
+const VARIANT_HINT =
+  'These queries belong to this language variant only. To use the same ones in ' +
+  'EN, IT or ES, open each variant and save. The language picker fires as soon ' +
+  'as any variant matches.';
 
 /**
  * What Multi is for, on the button itself. The four language slots explain
@@ -131,15 +161,17 @@ function sanitizeTrigger(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-// Quick Insert: mirrors the Sprintbrain.html chip rail. Each entry inserts
-// `value` at the cursor position in the body textarea.
+// Quick Insert: each entry inserts `value` at the cursor position in the body
+// textarea. Only `logic` entries are left here — every field type now has its
+// own toggle in the rail, which explains it before inserting it. The `field`
+// half of the union stays because that is still what the group means, not
+// because anything currently fills it.
 //
-// Grouped because the two halves behave differently and the flat row never said
-// so: a `field` becomes an input to fill when the snippet expands, while `logic`
-// resolves on its own.
+// Note this no longer mirrors the Sprintbrain.html chip rail: that surface
+// still shows the five original field chips.
 //
-// Every entry carries a `hint` — a token name is not an explanation, and `phone`
-// inserting {phone_number} is only obvious once someone tells you.
+// Every entry carries a `hint`: a token name is not an explanation, and what
+// {if:cond} does with the text around it is only obvious once someone tells you.
 interface QuickInsert {
   label: string;
   value: string;
@@ -154,20 +186,17 @@ interface QuickInsert {
 //
 // guest_name and property_name were dropped in v2.150.0: both are plain text
 // fields, and the {formtext} builder writes any of them by name. `nights` went
-// the same way. The two date chips stay, because `DATE` in the name is what
-// makes the fill form render a date picker (content.js auto-detect), which a
-// plain text field cannot replace.
+// the same way, and `phone` and `review_link` followed for the same reason:
+// neither name means anything to the engine, both resolve to a plain text
+// field, and the builder writes either one by name. Bodies already holding
+// {phone_number} or {review_link} keep working untouched, since an unrecognised
+// name has always fallen through to a text field.
+//
+// The two date fields left this list for the Date/Time toggle below, which
+// inserts them with the explanation attached; they are not gone, because `DATE`
+// in the name is what makes the fill form render a date picker (content.js
+// auto-detect), which a plain text field cannot replace.
 const QUICK_INSERTS: QuickInsert[] = [
-  { label: 'start_date',    value: '{start_date}',           variant: 'default', group: 'field',
-    hint: 'Start date. Inserts {start_date}, which fills as a date picker' },
-  { label: 'end_date',      value: '{end_date}',             variant: 'default', group: 'field',
-    hint: 'End date. Inserts {end_date}, which fills as a date picker' },
-  { label: 'total_price',   value: '{total_price}',          variant: 'default', group: 'field',
-    hint: 'Total amount. Inserts {total_price}' },
-  { label: 'phone',         value: '{phone_number}',         variant: 'default', group: 'field',
-    hint: 'Phone number. Inserts {phone_number}' },
-  { label: 'review_link',   value: '{review_link}',          variant: 'default', group: 'field',
-    hint: 'Link to your review page. Inserts {review_link}' },
   { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
     hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
   { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
@@ -176,7 +205,38 @@ const QUICK_INSERTS: QuickInsert[] = [
     hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
 ];
 
-const CHIP_GROUP_LABEL = 'block text-[11px] font-semibold text-ink-muted mb-1.5';
+const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracking-widest';
+
+// Avada centres tooltip text inside 200px, so this says what a field IS and
+// sends the reader to the group for the rest. Each group already carries its
+// own description and per-input instructions; repeating them here would give
+// us two copies to keep in step and an unreadable wall of centred text.
+const FIELDS_HINT =
+  'A field is a blank you fill in when the snippet expands. Insert one from a group below and it becomes a box in the fill form. Open a group to see what it does.';
+const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
+
+// The four inputs the menu builder actually offers, so the rail explains the
+// dialog before it opens rather than after.
+const MENU_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Values',
+    hint: 'The options the menu offers. Tick one to preselect it.' },
+  { label: 'Selection',
+    hint: 'Single Choice fills as radio buttons, Multiple Choice as checkboxes.' },
+  { label: 'Name',
+    hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
+];
+
+// The picker a field gets is decided by its name, not by any setting: content.js
+// splits the name on non-letters, uppercases it, and looks for DATETIME / DATE /
+// TIME among the parts (see the auto-detect in content.js). That is the whole
+// rule, and it is what makes one Date/Time group the honest place for these.
+const DATE_TIME_FIELDS: { label: string; value: string; hint: string }[] = [
+  { label: '{start_date}', value: '{start_date}',
+    hint: 'Opens a calendar when the snippet expands. Fine on its own, or paired with {end_date} for a range.' },
+  { label: '{end_date}', value: '{end_date}',
+    hint: 'The closing date of a range. Reads as the partner of {start_date}.' },
+];
+
 
 const FIELD_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
 const SELECT_CLASS =
@@ -229,6 +289,16 @@ export function NewSnippetDialog() {
   const setSnippetLabels        = useLabelStore((s) => s.setSnippetLabels);
 
   const openHistory = useUiStore((s) => s.openHistory);
+
+  // Live preview panel — remembered per device, so closing it makes it stay closed.
+  const previewWanted  = useUiStore((s) => s.snippetPreviewOpen);
+  // Three panels need 1156px and a 1024px screen gives the dialog 963, which
+  // left the editor 439px — the panel being edited, squeezed by the two that
+  // frame it. Below 1280 the preview stands down. The stored preference is
+  // untouched, so it comes back the moment the window is wide enough.
+  const previewFits    = useMinWidth(PREVIEW_MIN_WIDTH);
+  const previewOpen    = previewWanted && previewFits;
+  const setPreviewOpen = useUiStore((s) => s.setSnippetPreviewOpen);
 
   // Snippet trigger prefix (e.g. "::") — a user setting, never hardcoded.
   // Shown as a leading affix on the Trigger field so the full shortcut
@@ -501,7 +571,8 @@ export function NewSnippetDialog() {
    * Clearing the trigger hands it back to the name, so there is a way out that
    * isn't "reopen the dialog".
    */
-  function handleNameChange(value: string) {
+  function handleNameChange(raw: string) {
+    const value = sanitizeName(raw);
     const syncing =
       mode === 'create' &&
       (form.trigger === '' || form.trigger === autoTriggerRef.current);
@@ -659,19 +730,31 @@ export function NewSnippetDialog() {
       </DialogTrigger>
 
       {/*
-        Override defaults via tailwind-merge:
-          max-w-lg  → max-w-[min(94vw,1100px)]
-          p-6       → p-0
-          gap-4     → gap-0
-          grid      → flex flex-col
+        Override the component defaults: p-6 → p-0, gap-4 → gap-0, grid → flex
+        flex-col, and max-w-lg via the inline maxWidth below.
 
         Height is FIXED (not max-) so the flex column always fills it and the
-        body textarea absorbs the slack — on target desktop viewports the left
-        panel then has nothing to scroll. The panel keeps overflow-y as the
-        safety valve for short windows, with the scrollbar chrome hidden
-        (no-scrollbar) like the options rail (v2.129.0).
+        body textarea absorbs the slack. The left rail scrolls when it has to:
+        Edit mode adds Edit note and About to it, and with the urgency fields
+        expanded that overflows even a full-height dialog.
+
+        Opening the preview grows the dialog by 321px while the preview panel
+        itself takes only 261px (it matches the 260px insert rail), so the 60px
+        difference falls to the editor: opening the preview costs the body
+        textarea nothing and the two rails frame it evenly.
+        Both widths stay under 94vw; on a screen too narrow to hold the third
+        panel the center panel gives up the difference, which is what the
+        toggle is for — and the choice is remembered per device.
       */}
-      <DialogContent className="max-w-[min(94vw,1100px)] p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]">
+      <DialogContent
+        className="p-0 gap-0 flex flex-col overflow-hidden h-[min(94vh,1020px)]"
+        // Width = the panels actually on screen: the 260px insert rail, the
+        // editor, and 321px more when the preview is open (see above: the
+        // preview itself is 261px of that). An inline value rather than two
+        // Tailwind classes: it is one sum, and it beats the component's own
+        // max-w default without a cn() override.
+        style={{ maxWidth: `min(94vw, ${839 + (previewOpen ? 321 : 0)}px)` }}
+      >
 
         {/* ── Dialog header ── */}
         {/* Title and description share one line — the description is a short
@@ -685,6 +768,24 @@ export function NewSnippetDialog() {
               ? 'Update the name, trigger, or body. Changes sync across every device.'
               : 'Give the snippet a name, a trigger, and a body. It will sync immediately.'}
           </DialogDescription>
+
+          {/* Preview toggle. Sits before the dialog's own close button, which
+              the header's pr-14 already reserves room for. */}
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(!previewWanted)}
+            aria-pressed={previewOpen}
+            disabled={!previewFits}
+            title={previewFits ? undefined : 'The window is too narrow for the preview panel'}
+            className="ml-auto self-center shrink-0 inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-line bg-card px-2.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/30 hover:text-primary"
+          >
+            {previewOpen ? (
+              <PanelRightClose className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <PanelRightOpen className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Preview
+          </button>
         </DialogHeader>
 
         {/* ── Two-panel body ── */}
@@ -698,7 +799,274 @@ export function NewSnippetDialog() {
           noValidate
           className="flex flex-1 overflow-hidden min-h-0"
         >
-          {/* ── LEFT PANEL: main editor ── */}
+          {/* ── LEFT PANEL: insert chips ── */}
+          {/* The three groups sit here rather than under the body. At 260px
+              they stack in one column, and the editor keeps the vertical space
+              they used to take from it. Edit note and About join them at the
+              foot in Edit mode, which is why this rail shows its scrollbar:
+              with the urgency fields expanded it can genuinely overflow, and
+              hidden chrome would leave About silently out of reach. */}
+          <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto flex flex-col bg-bg">
+
+            {/* Fields */}
+            <div className="p-4 border-b border-line">
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Fields</p>
+                <Tooltip
+                  label={FIELDS_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
+                >
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
+              </div>
+
+              <Toggle
+                label="Date/Time"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <div className="flex flex-wrap gap-1.5">
+                    {DATE_TIME_FIELDS.map((f, i) => (
+                      <Button
+                        key={f.value}
+                        type="button"
+                        size="sm"
+                        variant={i === 0 ? 'primary' : 'ghost'}
+                        disabled={saving}
+                        onClick={() => insertAtCursor(f.value)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Dates and times fill as a picker instead of a text box, and the field
+                  name is what decides which one. A name containing{' '}
+                  <code className="font-mono text-primary/80">date</code> opens a calendar,
+                  <code className="font-mono text-primary/80"> time</code> a clock, and{' '}
+                  <code className="font-mono text-primary/80">datetime</code> both. The rule
+                  holds for any name you invent, so{' '}
+                  <code className="font-mono text-primary/80">{'{delivery_date}'}</code>{' '}
+                  behaves exactly like the two below.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {DATE_TIME_FIELDS.map((f) => (
+                    <div key={f.value}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
+              <Toggle
+                label="Text"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => setTextFieldOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Name and insert
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  One line someone types in when the snippet expands. Unlike a date, a
+                  text field is nothing without a name: an unnamed{' '}
+                  <code className="font-mono text-primary/80">{'{formtext:}'}</code> is
+                  dropped when the snippet runs, which is why the button below asks for
+                  the name first instead of pasting a bare token.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Name</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      What the field is called in the fill form. Arrives prefilled with the
+                      next free TEXT_n, so you can accept it or type your own.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Default</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. Prefills the box, so the common answer is already there and
+                      only the exception needs typing.
+                    </dd>
+                  </div>
+                </dl>
+              </Toggle>
+
+              {/* The builder opens a dialog instead of pasting a literal: the
+                  options have to exist before the token means anything. With the
+                  caret inside a menu the same button edits it, so changing the
+                  choices never means retyping raw token text. */}
+              <Toggle
+                label="Choice"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={openMenuBuilder}
+                  >
+                    {menuAtCaret ? (
+                      <Pencil className="mr-1 h-3 w-3" />
+                    ) : (
+                      <Plus className="mr-1 h-3 w-3" />
+                    )}
+                    {menuAtCaret ? 'Edit this menu' : 'Build the menu'}
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  A list of options, picked when the snippet expands. Every option is
+                  listed in the fill form rather than hidden behind a dropdown, so the
+                  choice is visible without opening anything.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {MENU_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 border-b border-line">
+              <p className={SIDEBAR_LABEL}>Actions</p>
+              <p className={SIDEBAR_HINT}>Clicked while filling. Never printed.</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActionButtonOpen(true)}
+                  disabled={saving}
+                  title="Build an action button. Changes field values when clicked."
+                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+                >
+                  <MousePointerClick className="h-3 w-3" />
+                  {'{button}'}
+                </button>
+              </div>
+
+              {/* Urgency Timer belongs with the actions: it is the other thing
+                  the snippet does at fill time, not a list-level preference
+                  like Pin to top. Re-indented from the options rail; the two
+                  panels are the same width, so it needs no resizing. */}
+              <div className="mt-2.5 flex flex-col gap-2.5">
+                <OptionToggle
+                  id="snippet-urgency"
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  title="Urgency Timer"
+                  description="Countdown + scarcity"
+                  checked={form.enable_urgency_timer}
+                  onChange={(v) => updateField('enable_urgency_timer', v)}
+                  disabled={saving}
+                />
+
+                {form.enable_urgency_timer && (
+                  <div className="grid gap-2 pl-1 pb-0.5">
+                    <div>
+                      <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
+                        Duration (minutes)
+                      </label>
+                      <Input
+                        id="snippet-timer-minutes"
+                        type="number"
+                        min={0}
+                        value={Math.round(form.timer_duration_ms / 60000)}
+                        onChange={(e) =>
+                          updateField(
+                            'timer_duration_ms',
+                            Math.max(0, Number(e.target.value) || 0) * 60000,
+                          )
+                        }
+                        disabled={saving}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
+                        Scarcity count
+                      </label>
+                      <Input
+                        id="snippet-scarcity"
+                        type="number"
+                        min={0}
+                        value={form.scarcity_count}
+                        onChange={(e) =>
+                          updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
+                        }
+                        disabled={saving}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Logic */}
+            <div className="flex-1 p-4">
+              <p className={SIDEBAR_LABEL}>Logic</p>
+              <p className={SIDEBAR_HINT}>Worked out on its own.</p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
+                  <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
+                ))}
+              </div>
+            </div>
+
+            {/* Edit note — recorded in version history. Sits below Logic, which
+                keeps flex-1 and so pushes both edit-only blocks to the foot of
+                the rail, away from the insert chips. */}
+            {mode === 'edit' && (
+              <div className="shrink-0 border-t border-line p-4">
+                <label htmlFor="snippet-edit-note" className={cn(SIDEBAR_LABEL, 'block mb-2.5')}>
+                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder={'What changed?'}
+                  disabled={saving}
+                  maxLength={200}
+                  className="h-9 text-xs"
+                />
+              </div>
+            )}
+
+            {/* Attribution — who created / last touched this snippet */}
+            {mode === 'edit' && editingSnippet && (
+              <div className="shrink-0 border-t border-line p-4">
+                <p className={cn(SIDEBAR_LABEL, 'mb-2.5')}>About</p>
+                <AssetAttribution
+                  assetId={editingSnippet.id}
+                  createdBy={editingSnippet.user_id}
+                  updatedBy={editingSnippet.updated_by}
+                  updatedAt={editingSnippet.updated_at}
+                />
+              </div>
+            )}
+          </ToggleGroup>
+
+          {/* ── PANEL DIVIDER ── */}
+          <div className="w-px bg-line shrink-0" />
+
+          {/* ── CENTER PANEL: main editor ── */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-3 min-w-0">
 
             {/* Name + Trigger + Folder — one row. None of the three needs the
@@ -776,168 +1144,225 @@ export function NewSnippetDialog() {
               </div>
             </div>
 
-            {/* Labels — the shared snippet/prompt vocabulary (LABELS-001) */}
-            <div>
-              <label htmlFor="snippet-labels" className={FIELD_LABEL}>
-                Labels{' '}
-                <span className="font-normal text-ink-subtle">— shared with prompts</span>
-              </label>
-              <div className="max-w-md">
-                <LabelPicker
-                  id="snippet-labels"
-                  value={labelIds}
-                  onChange={setLabelIds}
-                  disabled={saving}
-                />
-                {LABEL_SUGGESTIONS_ENABLED && (
-                  <LabelSuggestions
-                    draft={{
-                      name: form.name,
-                      body: form.content,
-                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
-                      language: form.language,
-                    }}
+            {/* Labels + Alternative queries share one row. Neither needs the
+                full panel width, and pairing them hands the body the vertical
+                space the second row used to cost it. */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Labels — the shared snippet/prompt vocabulary (LABELS-001) */}
+              <div>
+                <label htmlFor="snippet-labels" className={FIELD_LABEL}>
+                  Labels{' '}
+                  <span className="font-normal text-ink-subtle">(shared with prompts)</span>
+                </label>
+                <div>
+                  <LabelPicker
+                    id="snippet-labels"
                     value={labelIds}
                     onChange={setLabelIds}
                     disabled={saving}
                   />
-                )}
+                  {LABEL_SUGGESTIONS_ENABLED && (
+                    <LabelSuggestions
+                      draft={{
+                        name: form.name,
+                        body: form.content,
+                        folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                        language: form.language,
+                      }}
+                      value={labelIds}
+                      onChange={setLabelIds}
+                      disabled={saving}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Alternative Queries */}
-            <div>
-              <label className={FIELD_LABEL}>
-                Alternative queries{' '}
-                <span className="font-normal text-ink-subtle">— synonyms for context matching</span>
-                {mode === 'edit' && (
-                  <span
-                    className="ml-1.5 font-normal text-ink-subtle"
-                    title="This field is per-language variant. To apply the same queries to EN, IT, ES versions of this snippet, open each variant and save — the extension's language picker will fire automatically once any variant matches."
-                  >
-                    ⓘ per variant
-                  </span>
-                )}
-              </label>
+              {/* Alternative Queries */}
+              <div>
+                <label className={FIELD_LABEL}>
+                  Alternative queries{' '}
+                  <span className="font-normal text-ink-subtle">(synonyms)</span>
+                  {mode === 'edit' && (
+                    <Tooltip
+                      label={VARIANT_HINT}
+                      placement="top"
+                      className="ml-1.5 font-normal text-ink-subtle hover:text-ink transition-colors"
+                    >
+                      ⓘ per variant
+                    </Tooltip>
+                  )}
+                </label>
 
-              {/* Added tags */}
-              {form.alternative_queries.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {form.alternative_queries.map((q, idx) => {
-                    const hasConflict = conflictingQueries.has(q);
-                    return (
-                      <span
-                        key={idx}
-                        title={hasConflict ? `"${q}" is already a primary trigger on another snippet` : undefined}
-                        className={cn(
-                          'inline-flex items-center gap-1 h-7 rounded-[6px] border px-2 text-xs font-medium',
-                          hasConflict
-                            ? 'border-warning/60 bg-warning/10 text-warning'
-                            : 'border-primary-bdr bg-primary-bg text-primary',
-                        )}
-                      >
-                        {hasConflict && <AlertCircle className="h-3 w-3 shrink-0" />}
-                        {q}
-                        <button
-                          type="button"
-                          disabled={saving}
-                          aria-label={`Remove "${q}"`}
-                          onClick={() =>
-                            updateField(
-                              'alternative_queries',
-                              form.alternative_queries.filter((_, i) => i !== idx),
-                            )
-                          }
+                {/* Added tags */}
+                {form.alternative_queries.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {form.alternative_queries.map((q, idx) => {
+                      const hasConflict = conflictingQueries.has(q);
+                      return (
+                        <span
+                          key={idx}
+                          title={hasConflict ? `"${q}" is already a primary trigger on another snippet` : undefined}
                           className={cn(
-                            'transition-colors disabled:opacity-50',
-                            hasConflict ? 'text-warning/60 hover:text-warning' : 'text-primary/60 hover:text-primary',
+                            'inline-flex items-center gap-1 h-7 rounded-[6px] border px-2 text-xs font-medium',
+                            hasConflict
+                              ? 'border-warning/60 bg-warning/10 text-warning'
+                              : 'border-primary-bdr bg-primary-bg text-primary',
                           )}
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+                          {hasConflict && <AlertCircle className="h-3 w-3 shrink-0" />}
+                          {q}
+                          <button
+                            type="button"
+                            disabled={saving}
+                            aria-label={`Remove "${q}"`}
+                            onClick={() =>
+                              updateField(
+                                'alternative_queries',
+                                form.alternative_queries.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className={cn(
+                              'transition-colors disabled:opacity-50',
+                              hasConflict ? 'text-warning/60 hover:text-warning' : 'text-primary/60 hover:text-primary',
+                            )}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
-              {/* Conflict warning banner */}
-              {conflictingQueries.size > 0 && (
-                <div className="flex items-start gap-1.5 rounded-[8px] border border-warning/40 bg-warning/8 px-2.5 py-2 text-xs text-warning mb-1.5">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
-                  <span>
-                    {conflictingQueries.size === 1
-                      ? `"${[...conflictingQueries][0]}" matches another snippet's primary trigger — expansion may be ambiguous.`
-                      : `${conflictingQueries.size} tags conflict with existing primary triggers — expansion may be ambiguous.`}
-                  </span>
-                </div>
-              )}
+                {/* Conflict warning banner */}
+                {conflictingQueries.size > 0 && (
+                  <div className="flex items-start gap-1.5 rounded-[8px] border border-warning/40 bg-warning/8 px-2.5 py-2 text-xs text-warning mb-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                    <span>
+                      {conflictingQueries.size === 1
+                        ? `"${[...conflictingQueries][0]}" matches another snippet's primary trigger — expansion may be ambiguous.`
+                        : `${conflictingQueries.size} tags conflict with existing primary triggers — expansion may be ambiguous.`}
+                    </span>
+                  </div>
+                )}
 
-              {/* Text input */}
-              <Input
-                id="snippet-alt-queries"
-                className="max-w-md"
-                value={altQueryDraft}
-                onChange={(e) => setAltQueryDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    const tag = altQueryDraft.trim().toLowerCase().replace(/,/g, '');
-                    if (tag && !form.alternative_queries.includes(tag)) {
-                      updateField('alternative_queries', [...form.alternative_queries, tag]);
+                {/* Text input */}
+                <Input
+                  id="snippet-alt-queries"
+                  value={altQueryDraft}
+                  onChange={(e) => setAltQueryDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const tag = altQueryDraft.trim().toLowerCase().replace(/,/g, '');
+                      if (tag && !form.alternative_queries.includes(tag)) {
+                        updateField('alternative_queries', [...form.alternative_queries, tag]);
+                      }
+                      setAltQueryDraft('');
+                    } else if (e.key === 'Backspace' && altQueryDraft === '' && form.alternative_queries.length > 0) {
+                      updateField(
+                        'alternative_queries',
+                        form.alternative_queries.slice(0, -1),
+                      );
                     }
-                    setAltQueryDraft('');
-                  } else if (e.key === 'Backspace' && altQueryDraft === '' && form.alternative_queries.length > 0) {
-                    updateField(
-                      'alternative_queries',
-                      form.alternative_queries.slice(0, -1),
-                    );
-                  }
-                }}
-                placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
-                disabled={saving}
-              />
+                  }}
+                  placeholder={form.alternative_queries.length === 0 ? 'Type a keyword and press Enter or comma' : 'Add another keyword…'}
+                  disabled={saving}
+                />
 
-              {/* Auto-suggestions */}
-              {suggestedQueries.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span className="text-[10px] font-medium text-ink-subtle shrink-0">Suggested:</span>
-                  {suggestedQueries.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      disabled={saving}
-                      onClick={() => {
-                        if (!form.alternative_queries.includes(s)) {
-                          updateField('alternative_queries', [...form.alternative_queries, s]);
-                        }
-                      }}
-                      className="inline-flex h-6 items-center rounded-[6px] border border-line bg-bg-alt px-2 text-[11px] text-ink-muted transition-colors hover:border-primary/40 hover:bg-primary-bg hover:text-primary disabled:opacity-50"
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {/* Auto-suggestions */}
+                {suggestedQueries.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-medium text-ink-subtle shrink-0">Suggested:</span>
+                    {suggestedQueries.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          if (!form.alternative_queries.includes(s)) {
+                            updateField('alternative_queries', [...form.alternative_queries, s]);
+                          }
+                        }}
+                        className="inline-flex h-6 items-center rounded-[6px] border border-line bg-bg-alt px-2 text-[11px] text-ink-muted transition-colors hover:border-primary/40 hover:bg-primary-bg hover:text-primary disabled:opacity-50"
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Body — the panel's flexible element: it absorbs whatever height
                 the fixed-size dialog has to spare, and shrinks (never below
                 min-h) before the panel resorts to scrolling. The wrapper's
-                min-h must cover label + gap + the textarea's own floor + the
-                footer row, or the textarea escapes the wrapper and runs under
-                the chips.
-                Measured need is ~210.5px: label 16 + its own mb-1.5 (FIELD_LABEL
-                carries a margin *on top of* this flex gap) + 6 gap + textarea
-                160 + 6 gap + footer 16.5. Raised 190 -> 216 when the word count
-                added the footer row; the spare ~5px is deliberate, since label
-                and footer heights come from font metrics that differ per
-                platform and a floor tuned to the exact number would overflow
-                somewhere else. */}
-            <div className="flex flex-col gap-1.5 flex-1 min-h-[216px]">
-              <label htmlFor="snippet-content" className={FIELD_LABEL}>
-                Body
-              </label>
+                min-h must cover the label/language row + gap + the textarea's
+                own floor + the footer row, or the textarea escapes the wrapper.
+                Measured need is ~216.5px: header row 28 (the language pills
+                set its height) + 6 gap + textarea 160 + 6 gap + footer 16.5.
+                Raised 216 -> 224 when the pills moved onto the label row; the
+                spare ~7px is deliberate, since those heights come from font
+                metrics that differ per platform and a floor tuned to the exact
+                number would overflow somewhere else. */}
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[224px]">
+              {/* Label and language pills share the row: the language a body is
+                  written in belongs next to that body, not in a far panel, and
+                  putting them side by side costs no extra height. */}
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="snippet-content" className={cn(FIELD_LABEL, 'mb-0')}>
+                  Body
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {LANG_PICKER.map((lang) => {
+                    const cfg = LANG_CONFIG[lang];
+                    const isActive = form.language === lang;
+                    // Dot shown next to the label when this language already has
+                    // body text saved (and it isn't the one currently being
+                    // edited), so it's visible at a glance which slots are filled.
+                    const hasContent = (form.bodies[lang] ?? '').length > 0;
+                    const showDot = hasContent && !isActive;
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => changeLanguage(lang)}
+                        style={
+                          isActive
+                            ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
+                            : undefined
+                        }
+                        className={cn(
+                          'relative inline-flex h-7 items-center gap-1 rounded-[8px] border px-3 text-xs font-semibold transition-all disabled:opacity-50',
+                          isActive
+                            ? 'shadow-sm'
+                            : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
+                        )}
+                      >
+                        {/* Multi carries its own hint: the only slot whose
+                            meaning isn't given away by its label. */}
+                        {lang === 'MULTI' && (
+                          <Tooltip
+                            label={MULTI_HINT}
+                            placement="top"
+                            className="inline-flex items-center text-ink-subtle hover:text-ink transition-colors"
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden />
+                          </Tooltip>
+                        )}
+                        {cfg.label}
+                        {showDot && (
+                          <span
+                            aria-hidden
+                            className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <textarea
                 id="snippet-content"
                 ref={contentRef}
@@ -990,99 +1415,6 @@ export function NewSnippetDialog() {
               </div>
             </div>
 
-            {/* Quick insert — split so the rail says what each half does */}
-            <div className="flex flex-col gap-3">
-              <div>
-                <span className={CHIP_GROUP_LABEL}>
-                  Fields{' '}
-                  <span className="font-normal text-ink-subtle">
-                    — filled in when the snippet expands · type{' '}
-                    <code className="font-mono text-primary/80">{'{any_name}'}</code> for your own
-                  </span>
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_INSERTS.filter((qi) => qi.group === 'field').map((qi) => (
-                    <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                  ))}
-
-                  {/* Field builders open a dialog instead of pasting a literal —
-                      a field needs its name before the token means anything, and
-                      an unnamed {formtext:} expands to nothing at all.
-                      With the caret inside a menu the same chip edits it, so
-                      changing the choices never means retyping raw token text. */}
-                  <button
-                    type="button"
-                    onClick={() => setTextFieldOpen(true)}
-                    disabled={saving}
-                    title="A line of text to fill in — opens the builder"
-                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                  >
-                    <TextCursorInput className="h-3 w-3" />
-                    {'{formtext}'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={openMenuBuilder}
-                    disabled={saving}
-                    title={
-                      menuAtCaret
-                        ? 'Edit the menu the cursor is in — its choices load into the builder'
-                        : 'A list of choices to pick from — opens the builder. Put the cursor inside an existing menu to edit it.'
-                    }
-                    className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                  >
-                    {menuAtCaret ? (
-                      <Pencil className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                    {menuAtCaret ? 'Edit menu' : '{formmenu}'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Actions and Logic are one and two chips — side by side they
-                  cost one row instead of two, which is what lets the whole
-                  panel fit without scrolling on target viewports. */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className={CHIP_GROUP_LABEL}>
-                    Actions{' '}
-                    <span className="font-normal text-ink-subtle">
-                      — clicked while filling; never print
-                    </span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setActionButtonOpen(true)}
-                      disabled={saving}
-                      title="Build an action button — changes field values when clicked"
-                      className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
-                    >
-                      <MousePointerClick className="h-3 w-3" />
-                      {'{button}'}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <span className={CHIP_GROUP_LABEL}>
-                    Logic{' '}
-                    <span className="font-normal text-ink-subtle">
-                      — worked out on its own
-                    </span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
-                      <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <FormTextDialog
               open={textFieldOpen}
               onOpenChange={setTextFieldOpen}
@@ -1106,176 +1438,23 @@ export function NewSnippetDialog() {
 
           </div>
 
-          {/* ── PANEL DIVIDER ── */}
-          <div className="w-px bg-line shrink-0" />
-
-          {/* ── RIGHT PANEL: language + options ── */}
-          <div className="w-[260px] shrink-0 overflow-y-auto no-scrollbar flex flex-col bg-bg">
-
-            {/* Language picker — visual pill tabs matching the extension popup */}
-            <div className="p-4 border-b border-line">
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-3">
-                Language
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {LANG_PICKER.map((lang) => {
-                  const cfg = LANG_CONFIG[lang];
-                  const isActive = form.language === lang;
-                  // Dot shown next to the label when this language already has
-                  // body text saved (and it isn't the one currently being
-                  // edited), so it's visible at a glance which slots are filled.
-                  const hasContent = (form.bodies[lang] ?? '').length > 0;
-                  const showDot = hasContent && !isActive;
-                  return (
-                    <button
-                      key={lang}
-                      type="button"
-                      disabled={saving}
-                      onClick={() => changeLanguage(lang)}
-                      style={
-                        isActive
-                          ? { background: cfg.bg, color: cfg.fg, borderColor: cfg.bdr }
-                          : undefined
-                      }
-                      className={cn(
-                        'relative h-9 rounded-[8px] border text-sm font-semibold transition-all disabled:opacity-50',
-                        // Multi is the odd one out — span both columns so it fills the row.
-                        lang === 'MULTI' && 'col-span-2',
-                        isActive
-                          ? 'shadow-sm'
-                          : 'border-line bg-card text-ink-muted hover:bg-bg-alt hover:text-ink',
-                      )}
-                    >
-                      {cfg.label}
-                      {/* Multi carries its own hint: the only slot whose
-                          meaning isn't given away by its label. Sits left so it
-                          never collides with the filled-slot dot on the right. */}
-                      {lang === 'MULTI' && (
-                        <Tooltip
-                          label={MULTI_HINT}
-                          placement="top"
-                          className="absolute left-2 top-0 bottom-0 flex items-center text-ink-subtle hover:text-ink transition-colors"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden />
-                        </Tooltip>
-                      )}
-                      {showDot && (
-                        <span
-                          aria-hidden
-                          className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Options */}
-            <div className="flex-1 p-4 flex flex-col gap-2.5">
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-0.5">
-                Options
-              </p>
-
-              <OptionToggle
-                id="snippet-urgency"
-                icon={<Clock className="h-3.5 w-3.5" />}
-                title="Urgency Timer"
-                description="Countdown + scarcity"
-                checked={form.enable_urgency_timer}
-                onChange={(v) => updateField('enable_urgency_timer', v)}
-                disabled={saving}
+          {/* ── PREVIEW PANEL: the body, resolved ── */}
+          {/* Sits next to the textarea rather than in a page of its own: the
+              whole point is seeing the result of the edit you just made. Reads
+              the active language slot, so switching language previews that
+              translation. Runs on extension/shared/fill-form.js — the same code
+              that expands the snippet in Gmail — so it cannot disagree with
+              what the extension produces. */}
+          {previewOpen && (
+            <>
+              <div className="w-px bg-line shrink-0" />
+              <SnippetPreview
+                body={form.content}
+                lang={form.language === 'MULTI' ? '' : form.language}
               />
+            </>
+          )}
 
-              {form.enable_urgency_timer && (
-                <div className="grid gap-2 pl-1 pb-0.5">
-                  <div>
-                    <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
-                      Duration (minutes)
-                    </label>
-                    <Input
-                      id="snippet-timer-minutes"
-                      type="number"
-                      min={0}
-                      value={Math.round(form.timer_duration_ms / 60000)}
-                      onChange={(e) =>
-                        updateField(
-                          'timer_duration_ms',
-                          Math.max(0, Number(e.target.value) || 0) * 60000,
-                        )
-                      }
-                      disabled={saving}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
-                      Scarcity count
-                    </label>
-                    <Input
-                      id="snippet-scarcity"
-                      type="number"
-                      min={0}
-                      value={form.scarcity_count}
-                      onChange={(e) =>
-                        updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
-                      }
-                      disabled={saving}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <OptionToggle
-                id="snippet-pin"
-                icon={<Pin className="h-3.5 w-3.5" />}
-                title="Pin to top"
-                description="Always shows first"
-                checked={form.pinned}
-                onChange={(v) => updateField('pinned', v)}
-                disabled={saving}
-              />
-            </div>
-
-            {/* Edit note — recorded in version history. Lives in the rail (not
-                the editor panel) so the left column fits without scrolling on
-                target viewports; the rail has the spare height. */}
-            {mode === 'edit' && (
-              <div className="shrink-0 border-t border-line p-4">
-                <label
-                  htmlFor="snippet-edit-note"
-                  className="block text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5"
-                >
-                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={'What changed?'}
-                  disabled={saving}
-                  maxLength={200}
-                  className="h-9 text-xs"
-                />
-              </div>
-            )}
-
-            {/* Attribution — who created / last touched this snippet */}
-            {mode === 'edit' && editingSnippet && (
-              <div className="shrink-0 border-t border-line p-4">
-                <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest mb-2.5">
-                  About
-                </p>
-                <AssetAttribution
-                  assetId={editingSnippet.id}
-                  createdBy={editingSnippet.user_id}
-                  updatedBy={editingSnippet.updated_by}
-                  updatedAt={editingSnippet.updated_at}
-                />
-              </div>
-            )}
-          </div>
         </form>
 
         {/* ── Footer ── */}

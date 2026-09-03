@@ -317,11 +317,20 @@ export function SnippetsTable() {
     setSnippetsSelected(pageVariantIds, !allSelected);
   }
 
-  // `overflow-clip` (Chromium 90+ / Safari 16+ / Firefox 102+) clips visually
-  // without establishing a scroll container, which is what lets the sticky
-  // <th> cells stick to <main>'s scroll position instead of being clipped here.
+  // The table is wider than its column on anything short of an ultrawide
+  // screen — nine columns need ~1071px and get 411px at 1024px — so the card
+  // is a scroll box, not a clip box. `overflow-clip` used to cut the last four
+  // columns off with no way to reach them.
+  //
+  // The max-height is what keeps the sticky <th> working: `overflow: auto`
+  // alone makes this element the scroll container, and a container that never
+  // scrolls vertically can't hold a header in place. Capping the height gives
+  // it real vertical scroll, so the header pins to the top of the table
+  // instead of to <main>. 380px is the chrome above and below it (338px of
+  // page header, search and filters, plus the footer and the canvas padding),
+  // and the min-height keeps a usable table on a short window.
   return (
-    <div className="overflow-clip rounded-[16px] border border-line bg-card">
+    <div className="max-h-[calc(100vh-380px)] min-h-[280px] overflow-auto rounded-[16px] border border-line bg-card">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="text-left">
@@ -336,26 +345,26 @@ export function SnippetsTable() {
                 className="h-4 w-4 cursor-pointer rounded accent-primary"
               />
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5">
               <SortableColumnHeader column="name" label="Name" />
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
               Shortcut
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
               Lang
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
               Folder
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5">
               <SortableColumnHeader column="updated_at" label="Updated" />
             </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-5 py-3 text-right">
+            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-right">
               <SortableColumnHeader column="usage_count" label="Usage" />
             </th>
             <th
-              className="sticky top-0 z-10 border-b border-line bg-bg-alt px-4 py-3 text-center"
+              className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-4 text-center"
               title="Mirror snippets to your Notion database (not team sharing)"
             >
               <Send className="mx-auto h-3.5 w-3.5 text-ink-subtle" />
@@ -435,7 +444,7 @@ export function SnippetsTable() {
                     className="h-4 w-4 cursor-pointer rounded accent-primary"
                   />
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-3 py-3 2xl:px-5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary-light text-primary">
                       <FileText className="h-4 w-4" />
@@ -488,10 +497,10 @@ export function SnippetsTable() {
                     </div>
                   </div>
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-3 py-3 2xl:px-5">
                   <ShortcutTag trigger={trigger} />
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-3 py-3 2xl:px-5">
                   {multiLang ? (
                     <LangSwitcher
                       group={group}
@@ -504,15 +513,15 @@ export function SnippetsTable() {
                     <LangPill lang={activeLang} />
                   )}
                 </td>
-                <td className="px-5 py-3 text-ink-muted">{row.folder_name ?? '—'}</td>
+                <td className="px-3 py-3 2xl:px-5 text-ink-muted">{row.folder_name ?? '—'}</td>
                 <td
-                  className="px-5 py-3 text-ink-muted"
+                  className="px-3 py-3 2xl:px-5 text-ink-muted"
                   title={attributionTitle(resolveUserName, row.user_id, row.updated_by, row.updated_at)}
                 >
                   {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
                 </td>
                 <td
-                  className="px-5 py-3 text-right font-mono text-xs tabular-nums text-ink-muted"
+                  className="px-3 py-3 2xl:px-5 text-right font-mono text-xs tabular-nums text-ink-muted"
                   title={
                     multiLang
                       ? `${groupUsage.toLocaleString()} expansions across ${group.languages.length} languages`
@@ -521,7 +530,7 @@ export function SnippetsTable() {
                 >
                   {groupUsage.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-3 py-3 2xl:px-4 text-center">
                   {notionPushingIds.has(row.id) ? (
                     <Loader2 className="mx-auto h-4 w-4 animate-spin text-ink-subtle" />
                   ) : (

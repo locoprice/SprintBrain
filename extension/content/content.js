@@ -37,14 +37,16 @@ function logEvent(snip, fieldsFilled) {
 var _SBFE = window.SBFormulaEngine;
 var resolveBody        = _SBFE.resolveBody;
 var extractFields      = _SBFE.extractFields;
-var fieldContext       = _SBFE.fieldContext;
-var buildFormFieldCfg  = _SBFE.buildFormFieldCfg;
-var formMenuPicks      = _SBFE.formMenuPicks;
-var extractButtons     = _SBFE.extractButtons;
 var applyButtonCode    = _SBFE.applyButtonCode;
 var parsePlaceholders  = _SBFE.parsePlaceholders;
 var interpolateSnippet = _SBFE.interpolateSnippet;
-var sbFormatDate       = _SBFE.sbFormatDate;
+
+// What the fill form IS — which fields, of what kind, the prose around each,
+// its starting value — is decided by extension/shared/fill-form.js, loaded by
+// manifest.json before this file and shared with the popup, the composer and
+// the phone. The aliases that used to build that here (fieldContext,
+// buildFormFieldCfg, formMenuPicks, extractButtons, sbFormatDate) went with it.
+var _SBFF = window.SBFillForm;
 
 // ── DEFAULT SNIPPETS ──────────────────────────────────
 // Intentionally empty, and it must stay that way. Anything listed here ships
@@ -913,7 +915,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
     }
   } else {
     // showOverlay merges the body-declared field config itself.
-    showOverlay(el, snip, fields, scLen || 0, function() { processing = false; });
+    showOverlay(el, snip, scLen || 0, function() { processing = false; });
   }
 }
 
@@ -1315,7 +1317,7 @@ var overlayTriggerLen = 0;
 // top of the field and the whole trigger survived at the end. -1 when unknown.
 var overlayCaretCO = -1;
 
-function showOverlay(targetEl, snip, fields, scLen, done) {
+function showOverlay(targetEl, snip, scLen, done) {
   overlayTriggerLen = scLen || 0;
   // Read the caret BEFORE the overlay exists: deleteChars has just selected the
   // trigger, so the selection end is exactly where the user was typing.
@@ -1328,41 +1330,25 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   if (triggerDebounceTimer) { clearTimeout(triggerDebounceTimer); triggerDebounceTimer = null; }
   removeOverlay();
   overlayDone = done;
-  // Field config the body itself declares via {formtext/date/menu:} tokens,
-  // with any explicit field_cfg on top so a hand-configured field still wins.
+  // What the form IS — which fields, of what kind, the prose around each, its
+  // starting value, the action buttons — is decided by
+  // extension/shared/fill-form.js, the one module all four fill surfaces read.
   //
-  // Merged HERE, not at the call sites: three paths open this overlay — the
-  // trigger, the picker, and the right-click context menu — and only the
-  // trigger used to merge. Via the other two a {formmenu:} arrived as a bare
-  // field name and rendered as a plain text box, so the choices could not be
-  // picked at all. Keeping it inside means no future entry point can forget.
-  var cfgs  = Object.assign({}, buildFormFieldCfg(snip.body), snip.fieldCfg || {});
-  // Static text either side of each token, so a row reads like the snippet.
-  var ctxs  = fieldContext(snip.body);
-  var _now  = new Date();
-  var today = sbFormatDate(_now, 'YYYY-MM-DD');
-  var nowTime = sbFormatDate(_now, 'HH:mm');
-  var nowDT = sbFormatDate(_now, 'YYYY-MM-DD') + 'T' + sbFormatDate(_now, 'HH:mm');
+  // Built HERE, not at the call sites: three paths open this overlay, the
+  // trigger, the picker, and the right-click context menu, and only the trigger
+  // used to merge the body-declared config. Via the other two a {formmenu:}
+  // arrived as a bare field name and rendered as a plain text box, so the
+  // choices could not be picked at all. Keeping it inside means no future entry
+  // point can forget.
+  var vm = _SBFF
+    ? _SBFF.fillForm(snip.body, {}, { fieldCfg: snip.fieldCfg || {}, lang: snip.lang })
+    : { fields: [], buttons: [] };
 
   var fhtml = '';
-  for (var i = 0; i < fields.length; i++) {
-    var key = fields[i];
-    var rawCfg = cfgs[key] || {};
-    var cfg = {
-      type: rawCfg.type, opts: rawCfg.opts, default: rawCfg.default,
-      multiple: rawCfg.multiple, cols: rawCfg.cols
-    };
-    // Auto-detect date/time/datetime by field name when cfg.type is not set.
-    // Split on non-letters so "TIME_HH:MM" / "DATE_DD/MM/YYYY" still expose
-    // TIME / DATE as standalone tokens.
-    if (!cfg.type) {
-      var toks = String(key).toUpperCase().split(/[^A-Z]+/);
-      if (toks.indexOf('DATETIME') >= 0) cfg.type = 'datetime';
-      else if (toks.indexOf('DATE') >= 0) cfg.type = 'date';
-      else if (toks.indexOf('TIME') >= 0) cfg.type = 'time';
-      else cfg.type = 'text';
-    }
-    var opts = cfg.opts ? cfg.opts.split('\n').filter(function(o){ return o.trim(); }) : [];
+  for (var i = 0; i < vm.fields.length; i++) {
+    var cfg = vm.fields[i];
+    var key = cfg.key;
+    var opts = cfg.options;
     var inp;
     // A checkbox group is block-level, so it cannot sit inside an inline
     // sentence — its context goes above and below instead.
@@ -1371,7 +1357,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
       // {formmenu: …; cols=N} sizes the field in characters; capped at the
       // overlay width so a long value can never push the panel out of view.
       var wide = cfg.cols ? ' style="width:'+cfg.cols+'ch;max-width:100%"' : '';
-      var picked = formMenuPicks(cfg.default);
+      var picked = cfg.picks;
       // Every option is on screen, for both kinds of menu. A <select> hid the
       // choices behind a control most people did not read as a menu at all:
       // they saw one word sitting in a box and typed over it. Checkboxes for a
@@ -1389,20 +1375,19 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
                (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
       }).join('') + '</div>';
     } else if (cfg.type === 'date') {
-      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||today)+'">';
+      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'time') {
-      inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowTime)+'">';
+      inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'datetime' || cfg.type === 'datetime-local') {
-      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.default||nowDT)+'">';
+      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else {
-      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.default||'')+'">';
+      inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.value)+'">';
     }
     // The row reads like the snippet — "Rate Plan: [ Refundable ] per night".
     // Only a field with no prose around it falls back to its key, which is
     // otherwise noise: an unnamed menu's key is a hash like MENU_1yvog3p.
-    var ctx  = ctxs[key] || { before: '', after: '' };
-    var pre  = ctx.before ? '<span class="sb-ctx">'+xesc(ctx.before)+'</span>' : '';
-    var post = ctx.after  ? '<span class="sb-ctx">'+xesc(ctx.after)+'</span>'  : '';
+    var pre  = cfg.before ? '<span class="sb-ctx">'+xesc(cfg.before)+'</span>' : '';
+    var post = cfg.after  ? '<span class="sb-ctx">'+xesc(cfg.after)+'</span>'  : '';
     var lbl  = (pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>';
     fhtml += '<div class="sb-field">' + lbl + (blockControl
       ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
@@ -1412,7 +1397,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
 
   // {button} controls: they set field values, they never print. Rendered after
   // the inputs they act on, so the cause sits above the effect.
-  var buttons = extractButtons(snip.body);
+  var buttons = vm.buttons;
   if (buttons.length) {
     fhtml += '<div class="sb-btnrow">' + buttons.map(function(b){
       return '<button type="button" class="sb-actbtn" data-btn="'+xesc(b.id)+'">'+xesc(b.label)+'</button>';
@@ -1442,8 +1427,9 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   el.style.cssText =
     'position:fixed!important;top:50%!important;left:50%!important;' +
     'transform:translate(-50%,-50%)!important;z-index:2147483647!important;' +
-    'width:420px!important;max-width:94vw!important;max-height:85vh!important;' +
-    'overflow-y:auto!important;' +
+    'display:flex!important;flex-direction:column!important;' +
+    'width:540px!important;max-width:94vw!important;max-height:88vh!important;' +
+    'overflow:hidden!important;' +
     'box-shadow:0 20px 60px rgba(0,0,0,.28),0 4px 16px rgba(0,0,0,.12)!important;';
 
   var bd = document.createElement('div');
@@ -1455,8 +1441,7 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   overlayEl = el;
 
   setTimeout(function() {
-    var first = el.querySelector('.sb-inp');
-    if (first) first.focus();
+    _sbFocus(_sbFirstEmpty(el));
     updatePrev(snip);
     if (document.getElementById('sb-urg-bar')) startUrgTick();
   }, 50);
@@ -1465,7 +1450,24 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
   for (var j = 0; j < inps.length; j++) {
     (function(inp) {
       inp.addEventListener('input',  function(){ updatePrev(snip); });
-      inp.addEventListener('change', function(){ updatePrev(snip); });
+      inp.addEventListener('change', function(){
+        updatePrev(snip);
+        // A radio is a finished answer the moment it is ticked, so the caret
+        // moves to whatever is still empty. Checkboxes are excluded: a multiple
+        // choice menu is not finished by one tick. No key is involved, so this
+        // cannot collide with anything the keyboard already does.
+        if (inp.type === 'radio' && inp.checked) {
+          _sbFocus(_sbNextEmptyAfter(overlayEl, inp.getAttribute('data-key')));
+        }
+      });
+      // Keeps the field being worked in on screen. The panel scrolls its field
+      // area past 88vh, so on a long form the caret could otherwise sit below
+      // the fold. Bound to focus rather than to the move above, so Tab and a
+      // plain click get it too. 'nearest' means a form that already fits on
+      // screen never jumps.
+      inp.addEventListener('focus',  function(){
+        try { inp.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      });
       inp.addEventListener('paste',  function(){ setTimeout(function(){ updatePrev(snip); }, 0); });
     })(inps[j]);
   }
@@ -1554,6 +1556,61 @@ function showOverlay(targetEl, snip, fields, scLen, done) {
 
 function xesc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── FOCUS FLOW ───────────────────────────────────────────────────────
+// Enter is NOT touched. In this overlay it inserts the message, and that two
+// second path is the whole point of the product. What follows only decides
+// where the caret starts and where it goes after a choice is made, so nothing
+// a keyboard user already relies on changes meaning.
+//
+// Tab is not touched either. Making it skip answered fields would be a trap:
+// Tab is a browser primitive and going back to correct a field has to work.
+
+// Typing controls only. A radio or checkbox is answered by clicking it, so it
+// is a destination for the caret, never a stop on the way.
+function _sbTypingInputs(root) {
+  var all = root.querySelectorAll('.sb-inp[data-key]'), out = [];
+  for (var i = 0; i < all.length; i++) {
+    if (all[i].type !== 'radio' && all[i].type !== 'checkbox') out.push(all[i]);
+  }
+  return out;
+}
+
+// Scrolling is handled by the focus listener on every input, so this only has
+// to move the caret and stay quiet when there is nowhere to move it.
+function _sbFocus(inp) {
+  if (!inp) return;
+  try { inp.focus(); } catch (e) {}
+}
+
+// The first field still waiting for an answer, else the first field. Opening on
+// a date that already reads today and making the operator tab past it was the
+// small daily tax this removes.
+function _sbFirstEmpty(root) {
+  var typed = _sbTypingInputs(root);
+  for (var i = 0; i < typed.length; i++) {
+    if (!typed[i].value) return typed[i];
+  }
+  return typed[0] || root.querySelector('.sb-inp');
+}
+
+// After a single-choice menu is answered, the next thing to fill. Only forward,
+// and only past fields that already have a value, so picking an option never
+// drags the caret backwards over work already done.
+function _sbNextEmptyAfter(root, key) {
+  var order = [], all = root.querySelectorAll('.sb-inp[data-key]');
+  for (var i = 0; i < all.length; i++) {
+    var k = all[i].getAttribute('data-key');
+    if (order.indexOf(k) === -1) order.push(k);
+  }
+  var from = order.indexOf(key);
+  if (from === -1) return null;
+  for (var j = from + 1; j < order.length; j++) {
+    var next = root.querySelector('.sb-inp[data-key="' + order[j] + '"]');
+    if (next && next.type !== 'radio' && next.type !== 'checkbox' && !next.value) return next;
+  }
+  return null;
 }
 
 function getVals() {
@@ -2299,7 +2356,7 @@ function selectTriggerItem(idx) {
           );
         }
       } else {
-        showOverlay(el, item, fields, dLen, function() { processing = false; });
+        showOverlay(el, item, dLen, function() { processing = false; });
       }
     } else {
       insertText(el, item.body || '');
@@ -3019,16 +3076,20 @@ document.addEventListener('input', function(e) {
   s.id = 'sb-styles';
   s.textContent =
     '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
+    // Flex column: header, urgency bar, preview and footer keep their size; the
+    // fields area is the only part that scrolls, and only when a snippet has
+    // more fields than fit in 88vh. A short form shows no scrollbar at all.
+    '#sb-overlay > *{flex:none;}' +
     '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #E4E4E7;}' +
     '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#1B4FD8;}' +
     '#sb-overlay .sb-title{font-size:11px;color:#52525B;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
     '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#A1A1AA;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
     '#sb-overlay .sb-close:hover{color:#18181B;}' +
-    '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;}' +
+    '#sb-overlay .sb-fields{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0;overflow-y:auto;}' +
     '#sb-overlay .sb-field{display:flex;flex-direction:column;gap:3px;}' +
     '#sb-overlay .sb-lbl{font-size:9px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;font-family:monospace;}' +
     // Inline sentence: the control sits in the prose that surrounds it in the
-    // body. Wraps rather than overflowing, since the panel is only 420px.
+    // body. Wraps rather than overflowing, since the panel is only 540px wide.
     '#sb-overlay .sb-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}' +
     '#sb-overlay .sb-row .sb-inp{flex:1 1 130px;width:auto;min-width:0;}' +
     '#sb-overlay .sb-ctx{font-size:12px;color:#52525B;line-height:1.35;}' +
@@ -3051,7 +3112,7 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-opt:hover{background:#F4F4F5;}' +
     '#sb-overlay .sb-opt input.sb-inp{width:auto;padding:0;margin:0;flex:none;background:none;border:none;box-shadow:none;accent-color:#1B4FD8;cursor:pointer;min-height:0;}' +
     '#sb-overlay .sb-opt:has(input:checked){color:#1B4FD8;font-weight:600;}' +
-    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:70px;overflow:hidden;}' +
+    '#sb-overlay .sb-prev{margin:0 14px;padding:8px 10px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;font-size:11px;color:#52525B;line-height:1.6;white-space:pre-wrap;max-height:92px;overflow:hidden;}' +
     '#sb-overlay .sb-foot{padding:10px 14px;border-top:1px solid #E4E4E7;display:flex;align-items:center;gap:8px;background:#FAFAFA;}' +
     '#sb-overlay .sb-insert{padding:8px 18px;background:#1B4FD8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;min-height:44px;touch-action:manipulation;}' +
     '#sb-overlay .sb-insert:hover{background:#1440B0;}' +
@@ -3173,7 +3234,7 @@ function _proceedContextInsert(el, snip) {
     }
   } else {
     processing = true;
-    showOverlay(el, snip, fields, 0, function() { processing = false; });
+    showOverlay(el, snip, 0, function() { processing = false; });
   }
 }
 

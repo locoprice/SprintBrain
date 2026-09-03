@@ -7,6 +7,8 @@ import {
   Clock,
   Copy,
   Pencil,
+  Pin,
+  PinOff,
   Power,
   Settings2,
   Settings,
@@ -31,11 +33,12 @@ interface SnippetRowActionsProps {
  *
  * Replaces the legacy hover-only trash icon with two always-visible icons:
  *   • Pencil (Edit)     → opens the snippet edit dialog
- *   • Cog    (Settings) → opens a dropdown with Clone / Disable / Delete
+ *   • Cog    (Settings) → opens a dropdown with Pin / Clone / Disable / Delete
  *
  * The right-click context menu (SnippetContextMenu) remains available as a
- * power-user shortcut and still covers Pin + Share — actions intentionally
- * kept out of this dropdown to keep it scannable.
+ * power-user shortcut and still covers Share. Pin moved here from the snippet
+ * dialog: it orders the list, so it belongs where the list is, not behind an
+ * open-edit-save round trip.
  *
  * The dropdown is rendered via React portal so it escapes the table's
  * `overflow-clip` container and is positioned anchored to the gear button
@@ -47,6 +50,7 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
   const duplicateSnippet = useSnippetStore((s) => s.duplicateSnippet);
   const removeSnippet = useSnippetStore((s) => s.removeSnippet);
   const toggleActive = useSnippetStore((s) => s.toggleActive);
+  const togglePin = useSnippetStore((s) => s.togglePin);
 
   const openLabelManager = useUiStore((s) => s.openLabelManager);
   const labels = useLabelStore((s) => s.labels);
@@ -93,6 +97,12 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     const PAD = 8;
     let nextX = anchor.x - mrect.width; // right-align with the gear button
     let nextY = anchor.y;
+    // Clamp both edges, the way FolderContextMenu and SnippetContextMenu do.
+    // The right edge matters now that the table scrolls horizontally: a gear
+    // sitting past the visible part of the scroller anchors the menu off the
+    // side of the screen, and only the left edge was ever being caught.
+    const maxX = window.innerWidth - mrect.width - PAD;
+    if (nextX > maxX) nextX = maxX;
     if (nextX < PAD) nextX = PAD;
     if (nextY + mrect.height + PAD > window.innerHeight) {
       // Flip above the gear if there's not enough room below the row.
@@ -159,6 +169,18 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
     setWorking(true);
     try {
       await duplicateSnippet(snippet.id);
+      setOpen(false);
+    } catch {
+      // Error surfaces via store.error → page-level banner.
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function handleTogglePin() {
+    setWorking(true);
+    try {
+      await togglePin(snippet.id);
       setOpen(false);
     } catch {
       // Error surfaces via store.error → page-level banner.
@@ -259,6 +281,18 @@ export function SnippetRowActions({ snippet }: SnippetRowActionsProps) {
           >
             {view === 'actions' ? (
               <>
+                <MenuItem
+                  icon={
+                    snippet.pinned ? (
+                      <PinOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Pin className="h-3.5 w-3.5" />
+                    )
+                  }
+                  label={snippet.pinned ? 'Unpin' : 'Pin to top'}
+                  onClick={handleTogglePin}
+                  disabled={working}
+                />
                 <MenuItem
                   icon={<Clock className="h-3.5 w-3.5" />}
                   label="History"

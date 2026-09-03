@@ -58,6 +58,70 @@ interface UiStore {
   // Theme preference — persisted to localStorage, applied to <html data-theme>
   theme: ThemePreference;
   setTheme: (pref: ThemePreference) => void;
+
+  // Snippet editor's live preview panel — a per-device layout preference, so a
+  // narrow screen can put it away and keep it away.
+  snippetPreviewOpen: boolean;
+  setSnippetPreviewOpen: (open: boolean) => void;
+
+  // Snippets folder rail — same kind of per-device preference. The rail costs
+  // the table 272px, which a 1024px screen cannot spare, so it starts closed
+  // on a narrow one and open on a wide one until the user says otherwise.
+  foldersRailOpen: boolean;
+  setFoldersRailOpen: (open: boolean) => void;
+}
+
+const PREVIEW_KEY = 'sprintbrain-snippet-preview';
+
+// Same storage guard as getStoredTheme: a browser with site data blocked throws
+// on access, and the vitest 'node' environment has no localStorage at all.
+// Open is the default, since the preview is the reason the panel exists.
+function getStoredPreviewOpen(): boolean {
+  try {
+    return localStorage.getItem(PREVIEW_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
+
+function storePreviewOpen(open: boolean): void {
+  try {
+    localStorage.setItem(PREVIEW_KEY, open ? 'open' : 'closed');
+  } catch {
+    // Storage unavailable — the preference is per-device convenience only.
+  }
+}
+
+const FOLDERS_RAIL_KEY = 'sprintbrain-folders-rail';
+
+// The width below which the rail costs more than it gives: the snippets table
+// needs ~967px and a 1280px window leaves it 667px with the rail open.
+const FOLDERS_RAIL_MIN_WIDTH = 1280;
+
+// No stored answer means no opinion yet, so the viewport decides. Once the user
+// toggles it the stored value wins at every width — a deliberate choice should
+// not be undone by resizing a window.
+function getStoredFoldersRailOpen(): boolean {
+  try {
+    const stored = localStorage.getItem(FOLDERS_RAIL_KEY);
+    if (stored === 'open') return true;
+    if (stored === 'closed') return false;
+  } catch {
+    // fall through to the viewport default
+  }
+  try {
+    return window.matchMedia(`(min-width: ${FOLDERS_RAIL_MIN_WIDTH}px)`).matches;
+  } catch {
+    return true;
+  }
+}
+
+function storeFoldersRailOpen(open: boolean): void {
+  try {
+    localStorage.setItem(FOLDERS_RAIL_KEY, open ? 'open' : 'closed');
+  } catch {
+    // Storage unavailable — the preference is per-device convenience only.
+  }
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -105,5 +169,17 @@ export const useUiStore = create<UiStore>((set) => ({
   setTheme: (pref) => {
     applyTheme(pref);
     set({ theme: pref });
+  },
+
+  snippetPreviewOpen: getStoredPreviewOpen(),
+  setSnippetPreviewOpen: (open) => {
+    storePreviewOpen(open);
+    set({ snippetPreviewOpen: open });
+  },
+
+  foldersRailOpen: getStoredFoldersRailOpen(),
+  setFoldersRailOpen: (open) => {
+    storeFoldersRailOpen(open);
+    set({ foldersRailOpen: open });
   },
 }));

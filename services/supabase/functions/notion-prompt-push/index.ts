@@ -29,7 +29,6 @@ type PromptRow = {
   type: string | null;
   strategy_type: string | null;
   intent_category: string | null;
-  tags: string[] | null;
   notion_page_id: string | null;
 };
 
@@ -111,7 +110,7 @@ Deno.serve(async (req: Request) => {
   const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   const { data: prompt, error: fetchError } = await serviceClient
     .from('prompts')
-    .select('id, name, content, type, strategy_type, intent_category, tags, notion_page_id')
+    .select('id, name, content, type, strategy_type, intent_category, notion_page_id')
     .eq('id', promptId)
     .eq('user_id', user.id) // ownership check
     .single();

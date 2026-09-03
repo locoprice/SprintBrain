@@ -25,7 +25,6 @@ import type {
   ThinkingMode,
   PreferredModel,
   ComplexityLevel,
-  ExecutionType,
   IntentCategory,
   OutputType,
 } from '@/types/database';
@@ -66,7 +65,6 @@ const DEFAULT_BLOCKS: PromptBlock[] = [
 ];
 
 const STRATEGIES: StrategyType[] = ['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic'];
-const EXECUTION_TYPES: ExecutionType[] = ['Generate', 'Analyze', 'Plan', 'Critique', 'Summarize', 'Transform'];
 const INTENT_CATEGORIES: IntentCategory[] = ['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching'];
 const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
 
@@ -304,12 +302,10 @@ export function PromptBlockEditor() {
   const [shortcut, setShortcut] = useState('');
   const [promptType, setPromptType] = useState<'one-shot' | 'few-shot'>('one-shot');
   const [blocks, setBlocks] = useState<PromptBlock[]>(DEFAULT_BLOCKS);
-  const [tags, setTags] = useState('');
   const [strategyType, setStrategyType] = useState<StrategyType | null>(null);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode | null>(null);
   const [preferredModel, setPreferredModel] = useState<PreferredModel | null>(null);
   const [complexityLevel, setComplexityLevel] = useState<ComplexityLevel | null>(null);
-  const [executionType, setExecutionType] = useState<ExecutionType | null>(null);
   const [intentCategory, setIntentCategory] = useState<IntentCategory | null>(null);
   const [outputType, setOutputType] = useState<OutputType | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
@@ -350,12 +346,10 @@ export function PromptBlockEditor() {
                 : b,
             ),
       );
-      setTags(editingPrompt.tags.join(', '));
       setStrategyType(editingPrompt.strategy_type);
       setThinkingMode(editingPrompt.thinking_mode);
       setPreferredModel(editingPrompt.preferred_model);
       setComplexityLevel(editingPrompt.complexity_level);
-      setExecutionType(editingPrompt.execution_type);
       setIntentCategory(editingPrompt.intent_category);
       setOutputType(editingPrompt.output_type);
       setFolderId(editingPrompt.folder_id);
@@ -367,12 +361,10 @@ export function PromptBlockEditor() {
       setShortcut('');
       setPromptType('one-shot');
       setBlocks(DEFAULT_BLOCKS);
-      setTags('');
       setStrategyType(null);
       setThinkingMode(null);
       setPreferredModel(null);
       setComplexityLevel(null);
-      setExecutionType(null);
       setIntentCategory(null);
       setOutputType(null);
       setFolderId(null);
@@ -539,12 +531,10 @@ export function PromptBlockEditor() {
       content: assembled,
       shortcut: trimmedShortcut,
       type: promptType,
-      tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       strategy_type: strategyType,
       thinking_mode: thinkingMode,
       preferred_model: preferredModel,
       complexity_level: complexityLevel,
-      execution_type: executionType,
       intent_category: intentCategory,
       output_type: outputType,
       blocks,
@@ -597,7 +587,10 @@ export function PromptBlockEditor() {
 
   return (
     <div
-      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[520px] flex-col overflow-hidden border-l border-[#222227] bg-[#0B0B0E] shadow-[-24px_0_70px_rgba(0,0,0,0.6)] transition-transform duration-200 ${
+      // 520px covers half of a 1024px screen. It narrows to 420px below 2xl,
+      // and PromptsPage reserves the same two widths — the pair must move
+      // together or the list ends up under the drawer.
+      className={`fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] 2xl:w-[520px] flex-col overflow-hidden border-l border-[#222227] bg-[#0B0B0E] shadow-[-24px_0_70px_rgba(0,0,0,0.6)] transition-transform duration-200 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
@@ -785,15 +778,6 @@ export function PromptBlockEditor() {
               />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-[10px] text-[#9C9CA6]">Execution type</label>
-              <DarkSelect
-                value={executionType}
-                onChange={setExecutionType}
-                options={EXECUTION_TYPES.map((e) => ({ value: e, label: e }))}
-                placeholder="None"
-              />
-            </div>
-            <div className="col-span-2">
               <label className="mb-1 block text-[10px] text-[#9C9CA6]">Folder</label>
               <DarkSelect
                 value={folderId}
@@ -821,20 +805,6 @@ export function PromptBlockEditor() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Tags */}
-        <div className="px-5 py-4">
-          <label className="mb-1.5 block text-[10px] text-[#9C9CA6]">
-            Tags (comma-separated)
-          </label>
-          <input
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder="sales, onboarding, email"
-            className="h-8 w-full rounded-[8px] border border-[#34343C] bg-[#1C1C22] px-3 text-xs text-[#D6D6DE] placeholder:text-[#7A7A85] focus:border-[#3D6FE8] focus:outline-none"
-          />
         </div>
 
         {/* Attribution — who created / last touched this prompt */}

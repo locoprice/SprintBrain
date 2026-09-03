@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SprintBrain",
-  "version": "3.3.2",
+  "version": "3.7.0",
   "description": "AI prompt library and text expander. Free team sharing, dynamic snippets with live formulas, and two-way Notion sync.",
   "permissions": [
     "storage",
@@ -31,6 +31,7 @@
         "formula-engine.js",
         "shared/snippet-stats.js",
         "shared/memory-pack.js",
+        "shared/fill-form.js",
         "shared/memory-chunk.js",
         "content/memory-picker.js",
         "content/chat-capture.js",

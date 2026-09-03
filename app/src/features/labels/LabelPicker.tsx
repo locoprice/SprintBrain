@@ -183,13 +183,17 @@ export function LabelPicker({
       >
         <Tag className={cn('h-3.5 w-3.5 shrink-0', t.chevron)} />
         {selected.length > 0 ? (
+          // Read-only chips. The trigger is itself a button, so a chip carrying
+          // its own remove button would nest a button inside a button: invalid
+          // HTML, and the inner control is not reliably reachable by keyboard or
+          // assistive tech. Unticking the row in the dropdown is the removal path
+          // here, and it keeps the field behaving the same wherever you click it.
           <span className="flex min-w-0 flex-wrap items-center gap-1">
             {selected.map((label) => (
               <LabelBadge
                 key={label.id}
                 label={label}
                 path={labelPath(labels, label.id)}
-                onRemove={() => toggle(label.id)}
               />
             ))}
           </span>

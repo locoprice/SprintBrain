@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+import { Segmented } from '@/components/ui/segmented';
 import { cn } from '@/lib/utils';
 import {
   buildFormMenuToken,
@@ -64,6 +64,10 @@ export function FormMenuDialog({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [name, setName] = useState('');
   const [multiple, setMultiple] = useState(false);
+  // No longer editable: `cols` only widened the options box in character units,
+  // it never changed the output, and the mobile app ignored it outright. The
+  // state stays so a menu written with cols=N keeps it through an edit here
+  // rather than losing it the first time someone reopens the builder.
   const [cols, setCols] = useState('');
 
   const firstOptionRef = useRef<HTMLInputElement | null>(null);
@@ -305,39 +309,25 @@ export function FormMenuDialog({
             )}
           </div>
 
-          {/* ── Multiple ── */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <label htmlFor="form-menu-multiple" className="text-xs font-medium text-ink">
-                Multiple
-              </label>
-              <p className="text-[11px] text-ink-subtle mt-1">
-                Whether the user can select multiple items
-              </p>
-            </div>
-            <Switch
-              id="form-menu-multiple"
-              checked={multiple}
-              onChange={changeMultiple}
-              className="mt-0.5"
+          {/* ── Single vs multiple ── */}
+          {/* Both answers deserve a name here: "off" would have to stand for
+              single choice, which is a real setting and not an absence. */}
+          <div>
+            <span className={SECTION_LABEL}>Selection</span>
+            <Segmented
+              ariaLabel="How many options can be picked"
+              value={multiple ? 'multiple' : 'single'}
+              options={[
+                { value: 'single', label: 'Single Choice' },
+                { value: 'multiple', label: 'Multiple Choice' },
+              ]}
+              onChange={(next) => changeMultiple(next === 'multiple')}
             />
+            <p className={HINT}>
+              Single Choice fills as radio buttons, Multiple Choice as checkboxes.
+            </p>
           </div>
 
-          {/* ── Cols ── */}
-          <div>
-            <label htmlFor="form-menu-cols" className={SECTION_LABEL}>
-              Cols
-            </label>
-            <Input
-              id="form-menu-cols"
-              inputMode="numeric"
-              value={cols}
-              onChange={(e) => setCols(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="auto"
-              className="h-10 rounded-[10px] w-28"
-            />
-            <p className={HINT}>The width of the field in columns of text</p>
-          </div>
 
           {/* ── What lands in the body ── */}
           <div className="rounded-[10px] border border-line bg-bg-alt px-3 py-2.5">

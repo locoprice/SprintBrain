@@ -502,7 +502,6 @@ const NULL_PROMPT_META = {
   thinking_mode: null,
   preferred_model: null,
   complexity_level: null,
-  execution_type: null,
   intent_category: null,
   output_type: null,
   blocks: null,
@@ -521,7 +520,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'You are a hospitality manager. Reply to this guest review with empathy, acknowledge the issue, and offer a concrete next step.',
     type: 'one-shot',
-    tags: ['ops', 'communication'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-3),
@@ -534,7 +532,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'Translate the following text to formal Italian. Keep the same tone and structure.\n\nText:',
     type: 'one-shot',
-    tags: ['translation'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-7),
@@ -547,7 +544,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'Extract structured data from this email. Return JSON with: guest_name, checkin, checkout, nights, total_price.\n\nExample 1: ...\nExample 2: ...',
     type: 'few-shot',
-    tags: ['parsing', 'booking'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-10),
@@ -560,7 +556,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'Rewrite this property description to be more compelling. Keep it under 60 words and lead with the strongest feature.',
     type: 'one-shot',
-    tags: ['marketing'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-15),
@@ -573,7 +568,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'Given a guest message in any language, reply in the same language with a warm, professional tone.\n\nExample: ...',
     type: 'few-shot',
-    tags: ['communication'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-1),
@@ -586,7 +580,6 @@ export const mockPrompts: Prompt[] = [
     content:
       'Given a date range, occupancy rate, and competitor prices, suggest an optimal nightly rate with reasoning.',
     type: 'one-shot',
-    tags: ['pricing'],
     ...NULL_PROMPT_META,
     updated_by: USER_ID,
     updated_at: day(-22),

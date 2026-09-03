@@ -1,7 +1,6 @@
 import type {
   IntentCategory,
   StrategyType,
-  ExecutionType,
   ThinkingMode,
   PreferredModel,
 } from '@/types/database';
@@ -9,7 +8,6 @@ import type {
 export interface ClassificationResult {
   intent: IntentCategory;
   strategies: StrategyType[];
-  executionType: ExecutionType;
   thinkingMode: ThinkingMode;
   preferredModel: PreferredModel;
   /** 0-1 deterministic match confidence: signal strength blended with the margin over the runner-up intent. */
@@ -33,7 +31,6 @@ interface IntentRule {
   /** Unambiguous multi-word phrases matched on the raw text (weight PHRASE_WEIGHT). */
   phrases: string[];
   strategies: StrategyType[];
-  executionType: ExecutionType;
   preferredModel: PreferredModel;
   thinkingMode: ThinkingMode;
 }
@@ -49,7 +46,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['bug', 'implement', 'test', 'class', 'error', 'fix', 'deploy', 'build'],
     phrases: ['pull request', 'unit test', 'type error', 'stack trace', 'code review', 'edge case'],
     strategies: ['CoT', 'ToT'],
-    executionType: 'Generate',
     preferredModel: 'claude-opus-4-7',
     thinkingMode: 'deep',
   },
@@ -62,7 +58,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['email', 'draft', 'content', 'tone', 'formal', 'casual', 'social', 'post', 'paragraph', 'sentence', 'story'],
     phrases: ['blog post', 'cover letter', 'product description', 'social media'],
     strategies: ['One-shot', 'Few-shot'],
-    executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
     thinkingMode: 'balanced',
   },
@@ -72,7 +67,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['meta', 'rank', 'ranking', 'search', 'traffic', 'optimize', 'organic', 'index', 'crawl'],
     phrases: ['title tag', 'meta description', 'search engine', 'keyword research', 'on page', 'link building'],
     strategies: ['Few-shot', 'One-shot'],
-    executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
     thinkingMode: 'balanced',
   },
@@ -82,7 +76,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['support', 'help', 'issue', 'respond', 'resolution', 'answer', 'reply', 'service', 'satisfaction', 'apologize'],
     phrases: ['customer service', 'support ticket', 'help desk', 'angry customer'],
     strategies: ['Few-shot', 'One-shot'],
-    executionType: 'Generate',
     preferredModel: 'claude-haiku-4-5',
     thinkingMode: 'fast',
   },
@@ -92,7 +85,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['review', 'compare', 'critique', 'data', 'report', 'insight', 'performance', 'findings', 'trend', 'statistics'],
     phrases: ['root cause', 'data analysis', 'pros and cons', 'swot analysis'],
     strategies: ['CoT', 'RAG'],
-    executionType: 'Analyze',
     preferredModel: 'claude-opus-4-7',
     thinkingMode: 'deep',
   },
@@ -102,7 +94,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['plan', 'outline', 'steps', 'project', 'schedule', 'goal', 'task', 'workflow', 'agenda', 'phases'],
     phrases: ['project plan', 'action plan', 'go to market', 'step plan'],
     strategies: ['ToT', 'CoT'],
-    executionType: 'Plan',
     preferredModel: 'claude-sonnet-4-6',
     thinkingMode: 'deep',
   },
@@ -112,7 +103,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['find', 'gather', 'collect', 'information', 'study', 'explore', 'compile', 'overview', 'background', 'investigate'],
     phrases: ['literature review', 'market research', 'gather sources', 'state of the art'],
     strategies: ['RAG', 'Agentic'],
-    executionType: 'Summarize',
     preferredModel: 'claude-opus-4-7',
     thinkingMode: 'balanced',
   },
@@ -122,7 +112,6 @@ const INTENT_RULES: IntentRule[] = [
     secondary: ['course', 'example', 'demonstrate', 'simplify', 'understand', 'learn', 'concept', 'beginner', 'guide'],
     phrases: ['step by step', 'explain like', 'for beginners', 'walk through', 'in simple terms'],
     strategies: ['Few-shot', 'CoT'],
-    executionType: 'Generate',
     preferredModel: 'claude-sonnet-4-6',
     thinkingMode: 'balanced',
   },
@@ -212,7 +201,6 @@ export function classifyPromptText(text: string): ClassificationResult | null {
   return {
     intent: best.rule.intent,
     strategies: best.rule.strategies,
-    executionType: best.rule.executionType,
     thinkingMode: best.rule.thinkingMode,
     preferredModel: best.rule.preferredModel,
     confidence,
