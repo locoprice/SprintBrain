@@ -73,7 +73,16 @@ function pickDisplayName(
 const MENU_ITEM =
   'flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50';
 
-export function Sidebar() {
+interface SidebarProps {
+  /**
+   * Rendered by SidebarPeek as a hover overlay rather than docked in the
+   * layout. The collapse control then pins the sidebar open, because hiding
+   * something the user has already collapsed would do nothing.
+   */
+  peeked?: boolean;
+}
+
+export function Sidebar({ peeked = false }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const snippetCount = useSnippetStore((s) => s.snippets.length);
@@ -136,17 +145,18 @@ export function Sidebar() {
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
       <nav className="shrink-0 px-3 pt-5 pb-4">
         {/* The collapse control sits on this row, flush with the right edge of
-            the nav count pills. It only exists while the sidebar is on screen;
-            the Topbar carries the same icon once the sidebar is hidden. */}
+            the nav count pills. Docked it hides the sidebar; peeked it pins the
+            overlay back into the layout. The Topbar carries the same icon while
+            the sidebar is hidden. */}
         <div className="mb-1 flex items-center justify-between gap-2 px-3">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
             Workspace
           </span>
           <button
             type="button"
-            onClick={() => setSidebarCollapsed(true)}
-            aria-label="Hide sidebar"
-            title="Hide sidebar"
+            onClick={() => setSidebarCollapsed(!peeked)}
+            aria-label={peeked ? 'Keep sidebar open' : 'Hide sidebar'}
+            title={peeked ? 'Keep sidebar open' : 'Hide sidebar'}
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
           >
             <PanelLeft className="h-4 w-4" aria-hidden />
