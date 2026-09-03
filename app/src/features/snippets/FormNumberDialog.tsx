@@ -26,15 +26,20 @@ const FORMAT_OPTIONS: readonly { value: NumberFormat; label: string }[] = [
   { value: 'percent', label: 'Percent' },
 ];
 
-// What each format does to the value on its way out. Kept as prose next to the
-// control rather than as an example number, because the currency symbol is a
-// workspace setting and hard-coding one here would show every account the same
-// wrong currency.
+// What each format means. Deliberately says what the choice RECORDS, not what
+// it prints: the formatter and the workspace currency setting are not built, so
+// a currency field still expands as a plain number today. Describing the
+// intended output here would promise the author something the build does not do,
+// and they would read the missing symbol as a bug rather than as unfinished work.
+// When formatting lands, these lines and PENDING_FORMAT_NOTE change together.
 const FORMAT_HINT: Record<NumberFormat, string> = {
   plain: 'The number exactly as typed. No symbol, no grouping.',
-  currency: 'Prints with the workspace currency and two decimal places.',
-  percent: 'Prints with a trailing %. Typing 15 means 15 percent, so a formula reads 15.',
+  currency: 'Marks the value as an amount of money.',
+  percent: 'Marks the value as a percentage. Typing 15 means 15 percent, so a formula reads 15.',
 };
+
+const PENDING_FORMAT_NOTE =
+  'Saved with the field. Printing the symbol is still being built, so for now the value expands as a plain number.';
 
 interface FormNumberDialogProps {
   open: boolean;
@@ -162,6 +167,11 @@ export function FormNumberDialog({
               className="w-full [&>button]:flex-1"
             />
             <p className={HINT}>{FORMAT_HINT[format]}</p>
+            {/* Only the two formats that have something to print carry the note.
+                Plain already prints exactly what it says it does. */}
+            {format !== 'plain' && (
+              <p className="mt-1 text-[11px] text-ink-subtle italic">{PENDING_FORMAT_NOTE}</p>
+            )}
           </div>
 
           {/* ── Default ── */}
