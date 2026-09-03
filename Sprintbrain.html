@@ -541,6 +541,7 @@
             <div class="nv-chiprow">
               <span class="nv-chip" data-c="{start_date}" title="Start date. Inserts {start_date}, which fills as a date picker">start_date</span>
               <span class="nv-chip" data-c="{end_date}" title="End date. Inserts {end_date}, which fills as a date picker">end_date</span>
+              <span class="nv-chip m" id="nv-chip-number" title="A quantity a formula can add up — opens the builder"><svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>{number}</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
             </div>
           </div>
@@ -612,6 +613,48 @@
     <div class="nv-modal-f">
       <button class="btn p" id="nv-menu-insert">Insert</button>
       <button class="btn" id="nv-menu-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NUMBER FIELD MODAL (number builder) ═══ -->
+<!-- Mirrors the React dashboard's FormNumberDialog: same three questions in the
+     same order, same live token preview. Number is its own field type here as
+     it is there; that it rides on {formtext:} underneath is an engine detail. -->
+<div class="nv-modal-bg" id="nv-num-bg">
+  <div class="nv-modal" style="width:420px">
+    <div class="nv-modal-h"><h2>Insert number field</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field">
+        <label>Name</label>
+        <input id="nv-num-name" placeholder="NUM_1" autocomplete="off" spellcheck="false" style="font-family:var(--sb-mono)">
+        <div class="nv-menu-hint" id="nv-num-namehint"></div>
+      </div>
+      <div class="nv-field">
+        <label>Format</label>
+        <select id="nv-num-format">
+          <option value="plain">Plain</option>
+          <option value="currency">Currency</option>
+          <option value="percent">Percent</option>
+        </select>
+        <div class="nv-menu-hint" id="nv-num-fmthint"></div>
+      </div>
+      <div class="nv-field" id="nv-num-curwrap" style="display:none">
+        <label>Currency</label>
+        <select id="nv-num-currency"></select>
+        <div class="nv-menu-hint" id="nv-num-curhint"></div>
+      </div>
+      <div class="nv-field">
+        <label>Default <span style="font-weight:400;color:var(--sb-ink-subtle)">(optional)</span></label>
+        <input id="nv-num-default" placeholder="empty" autocomplete="off" spellcheck="false" inputmode="decimal" style="font-family:var(--sb-mono)">
+        <div class="nv-menu-hint" id="nv-num-defhint"></div>
+      </div>
+      <div class="nv-menu-hint" style="border:1px solid var(--sb-line);border-radius:8px;padding:8px 10px;line-height:1.5">Phone numbers, order references and postcodes are not numbers. They lose a leading zero and cannot hold + or spaces. Use a plain field for those.</div>
+      <div class="nv-menu-prev"><span>Inserts</span><code id="nv-num-token"></code></div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-num-insert">Insert</button>
+      <button class="btn" id="nv-num-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -688,7 +731,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.10.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.11.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1512,6 +1555,103 @@
     menuEditRange = null;
     closeMenuBuilder();
     syncMenuChip();
+  });
+
+  /* ── NUMBER FIELD BUILDER ────────────────────────────────────────────
+     Mirrors the React dashboard's FormNumberDialog. Both write the token
+     through SBFormulaEngine.buildFormNumberToken, so the two surfaces cannot
+     drift. Number is presented as its own field type, exactly as it is in the
+     dashboard rail; the {formtext:} spelling underneath is an engine detail
+     nobody writing a snippet has to know about. */
+  var NUM_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  var NUM_FMT_HINT = {
+    plain:    'The number exactly as typed. No symbol, no grouping.',
+    currency: 'Prints with the currency symbol and two decimal places.',
+    percent:  'Prints with a trailing %. Typing 15 means 15 percent, so a formula reads 15.'
+  };
+
+  /* A default may be written either way round — the engine normalises it. What
+     is rejected is text, which would reach the parser and arrive as no default
+     at all. Empty is valid and means "no default", which is not a default of 0. */
+  function numDefaultOk(v){
+    var t = String(v).replace(/^\s+|\s+$/g, '');
+    return t === '' || (/^[+-]?[0-9]+(?:[.,][0-9]+)*$/.test(t) && /[0-9]/.test(t));
+  }
+
+  function numToken(){
+    return window.SBFormulaEngine.buildFormNumberToken({
+      name:     $('nv-num-name').value || $('nv-num-name').placeholder,
+      format:   $('nv-num-format').value,
+      currency: $('nv-num-currency').value,
+      'default': String($('nv-num-default').value).replace(/^\s+|\s+$/g, '')
+    });
+  }
+
+  function numSync(){
+    var nameRaw = $('nv-num-name').value || $('nv-num-name').placeholder;
+    var nameOk = NUM_NAME_RE.test(nameRaw);
+    var defOk = numDefaultOk($('nv-num-default').value);
+    var fmt = $('nv-num-format').value;
+
+    $('nv-num-namehint').textContent = nameOk
+      ? 'A formula reads it back as {=' + nameRaw + ' * 2}.'
+      : 'Letters, numbers and underscore, starting with a letter. Without a usable name the field expands to nothing.';
+    $('nv-num-fmthint').textContent = NUM_FMT_HINT[fmt] || NUM_FMT_HINT.plain;
+    $('nv-num-defhint').textContent = defOk
+      ? 'The value the field starts with. Left blank it opens empty, which is not the same as starting at 0.'
+      : 'A default has to be a number. Write the digits on their own — the format adds the symbol.';
+
+    /* The currency row only exists for a currency field: on the other two there
+       is nothing for it to change, and an inert control reads as broken. */
+    $('nv-num-curwrap').style.display = fmt === 'currency' ? '' : 'none';
+    if (fmt === 'currency') {
+      var CUR = window.SBFormulaEngine.CURRENCIES;
+      var code = $('nv-num-currency').value;
+      var c = CUR[code] || CUR.EUR;
+      var sample = c.group === 'dot' ? '1.200,50' : (c.decimals === 0 ? '1,200' : '1,200.50');
+      $('nv-num-curhint').textContent = 'Prints as ' + c.symbol + sample + '. A formula still reads 1200.5.';
+    }
+
+    $('nv-num-insert').disabled = !(nameOk && defOk);
+    $('nv-num-token').textContent = (nameOk && defOk) ? numToken() : '';
+  }
+
+  function openNumberBuilder(){
+    var sel = $('nv-num-currency');
+    if (!sel.options.length) {
+      var CUR = window.SBFormulaEngine.CURRENCIES;
+      for (var code in CUR) {
+        if (!Object.prototype.hasOwnProperty.call(CUR, code)) continue;
+        var o = document.createElement('option');
+        o.value = code;
+        o.textContent = code + ' · ' + CUR[code].symbol;
+        sel.appendChild(o);
+      }
+    }
+    /* Every opening starts clean: a half-built field carried over from a
+       cancelled insert would silently ship into the next snippet. */
+    $('nv-num-name').value = '';
+    $('nv-num-name').placeholder = window.SBFormulaEngine.nextNumberName($('nv-f-body').value);
+    $('nv-num-format').value = 'plain';
+    $('nv-num-currency').value = 'EUR';
+    $('nv-num-default').value = '';
+    numSync();
+    $('nv-num-bg').classList.add('on');
+    setTimeout(function(){ $('nv-num-name').focus(); }, 30);
+  }
+  function closeNumberBuilder(){ $('nv-num-bg').classList.remove('on'); }
+
+  $('nv-chip-number').addEventListener('click', openNumberBuilder);
+  $('nv-num-name').addEventListener('input', numSync);
+  $('nv-num-default').addEventListener('input', numSync);
+  $('nv-num-format').addEventListener('change', numSync);
+  $('nv-num-currency').addEventListener('change', numSync);
+  $('nv-num-cancel').addEventListener('click', closeNumberBuilder);
+  $('nv-num-bg').addEventListener('click', function(e){ if (e.target === $('nv-num-bg')) closeNumberBuilder(); });
+  $('nv-num-insert').addEventListener('click', function(){
+    if ($('nv-num-insert').disabled) return;
+    bodyInsert(numToken());
+    closeNumberBuilder();
   });
 
   /* ── ACTION BUTTON BUILDER ({button}) ────────────────────────────────

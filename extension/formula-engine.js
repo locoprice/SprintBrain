@@ -1193,6 +1193,48 @@
     return out;
   }
 
+  // ── NUMBER FIELD TOKEN WRITER ───────────────────────────────────
+  // Two surfaces build number fields: the React dashboard (FormNumberDialog)
+  // and Sprintbrain.html. Same reason buildFormMenuToken and
+  // buildFormButtonToken live here — one writer, so the two cannot drift into
+  // emitting different tokens for the same choices. The dashboard's
+  // src/lib/formNumberToken.ts mirrors this because it cannot import extension
+  // source; formNumberField.test.ts pins the two against each other.
+  //
+  // `plain` and the default currency are left unwritten: both are what the
+  // parser falls back to, so spelling them would only lengthen the token.
+  function buildFormNumberToken(cfg) {
+    var c = cfg || {};
+    var name = String(c.name === undefined ? '' : c.name).replace(/[^A-Za-z0-9_]/g, '');
+    if (!/^[A-Za-z_]/.test(name)) name = 'NUM_' + name;
+    var format = NUMBER_FORMATS.indexOf(c.format) === -1 ? 'plain' : c.format;
+    // Anything that ends a token or splits it across two lines of the body has
+    // to go, or the writer could emit a snippet that no longer parses.
+    var value = String(c['default'] === undefined ? '' : c['default'])
+      .replace(/[;{}]/g, ' ').replace(/\s+/g, '');
+    var out = '{formtext: name=' + name + '; type=number';
+    if (format !== 'plain') out += '; format=' + format;
+    if (format === 'currency') {
+      var cur = String(c.currency || '').toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(CURRENCIES, cur) && cur !== DEFAULT_CURRENCY) {
+        out += '; currency=' + cur;
+      }
+    }
+    if (value !== '') out += '; default=' + value;
+    return out + '}';
+  }
+
+  // The next free NUM_n for a body. Counts a bare {NUM_1} as well as a declared
+  // one: to the engine they are the same field, and handing the name out twice
+  // would wire two controls to one value.
+  function nextNumberName(body) {
+    var used = {}, re = /NUM_(\d+)/gi, m;
+    while ((m = re.exec(String(body || ''))) !== null) used[m[1]] = 1;
+    var n = 1;
+    while (used[String(n)]) n++;
+    return 'NUM_' + n;
+  }
+
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
   // Serializes a {formmenu:} token from an insert-dialog config — the exact
   // inverse of the formmenu branch above, so every token this writes parses
@@ -1432,6 +1474,8 @@
     fieldContext:      fieldContext,
     validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
+    buildFormNumberToken: buildFormNumberToken,
+    nextNumberName:    nextNumberName,
     buildFormMenuToken: buildFormMenuToken,
     parseFormMenuToken: parseFormMenuToken,
     findMenuTokenAt:   findMenuTokenAt,

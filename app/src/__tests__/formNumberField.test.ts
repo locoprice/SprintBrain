@@ -39,6 +39,8 @@ interface FormulaEngine {
   evalFormula: (expr: string, vals: Record<string, unknown>) => number | null;
   sbToNumber: (raw: unknown) => number | null;
   sbFormatNumber: (raw: unknown, format: string, currency?: string) => string;
+  buildFormNumberToken: (cfg: Record<string, unknown>) => string;
+  nextNumberName: (body: string) => string;
   resolveBody: (body: string, vals: Record<string, unknown>) => string;
   CURRENCIES: Record<string, { symbol: string; group: string; decimals: number }>;
 }
@@ -284,5 +286,39 @@ describe('number formatting — output only', () => {
     // is gone the moment the value is read as a number.
     expect(engine.sbToNumber('0612345678')).toBe(612345678);
     expect(engine.sbToNumber('+39-333-1234567')).toBeNull();
+  });
+});
+
+describe('two writers, one token', () => {
+  // Sprintbrain.html builds number fields too, and cannot import the dashboard's
+  // TypeScript writer, so the engine carries its own — the same arrangement
+  // {formmenu:} and {button} already have. These cases exist so the two cannot
+  // drift into emitting different tokens for the same choices, which would mean
+  // one surface writing a field the other could not reproduce.
+  const CASES: { name: string; format: NumberFormat; currency: CurrencyCode; default: string }[] = [
+    { name: 'NUM_1', format: 'plain', currency: 'EUR', default: '' },
+    { name: 'TOTAL', format: 'currency', currency: 'EUR', default: '' },
+    { name: 'TOTAL', format: 'currency', currency: 'USD', default: '1200.5' },
+    { name: 'TOTAL', format: 'currency', currency: 'JPY', default: '1.200,50' },
+    { name: 'VAT', format: 'percent', currency: 'USD', default: '15' },
+    { name: 'N', format: 'plain', currency: 'EUR', default: '-40' },
+    { name: 'N', format: 'plain', currency: 'EUR', default: '0' },
+  ];
+
+  for (const c of CASES) {
+    it(`${c.format}/${c.currency}/${JSON.stringify(c.default)} is written identically`, () => {
+      expect(engine.buildFormNumberToken(c)).toBe(buildFormNumberToken(c));
+    });
+  }
+
+  it('repairs an unusable name the same way on both sides', () => {
+    const cfg = { name: '9lives', format: 'plain' as NumberFormat, currency: 'EUR' as CurrencyCode, default: '' };
+    expect(engine.buildFormNumberToken(cfg)).toBe(buildFormNumberToken(cfg));
+  });
+
+  it('hands out the same next free name on both sides', () => {
+    for (const body of ['', '{NUM_1}', '{formtext: name=NUM_1; type=number} {NUM_3}']) {
+      expect(engine.nextNumberName(body)).toBe(nextNumberName(body));
+    }
   });
 });

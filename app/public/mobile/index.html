@@ -3608,25 +3608,25 @@ function renderList(){
 function humanLbl(f){
   return f.replace(/_/g,' ').replace(/\//g,' ');
 }
-/* The shared view model decides a field's kind, including the date/time/datetime
-   rule that used to live here. What survives is a numeric heuristic this app has
-   always had and the other three surfaces never did: a field whose name mentions
-   a price or a count gets a number pad on a phone, which matters more here than
-   anywhere else.
+/* RETIRED in v3.11.0 — the numeric name guess is gone.
 
-   It is kept surface-local ON PURPOSE. Promoting it would turn a text box into a
-   number input on the overlay, the popup and the composer, where an operator may
-   well be typing "1.200,50" or "approx 300" — a silent behaviour change none of
-   this refactor asked for. Note also that "ota" is industry vocabulary, which the
-   product is not supposed to ship; retiring this in favour of a real numeric
-   field token is the proper fix, and is tracked as its own decision. */
-function mobileFieldType(f,modelType){
-  if(modelType&&modelType!=='text')return modelType;
-  var l=f.toLowerCase();
-  if(l.includes('price')||l.includes('cost')||l.includes('hours')||
-     l.includes('ota'))return 'number';
-  return modelType||'text';
-}
+   This app used to read a field whose name contained price / cost / hours / ota
+   as a number, which no other surface did: the same snippet was a decimal keypad
+   on a phone and a free-text box in the browser. It was a stand-in for a numeric
+   field type that did not exist, and it was wrong three ways. It only matched
+   English, so a Spanish or Italian field name never got the keypad. It captured
+   fields that are not quantities at all. And "ota" is travel-industry vocabulary
+   sitting in shipped product code, which the industry-neutral rule in the root
+   CLAUDE.md forbids.
+
+   The replacement is an explicit type: {formtext: name=X; type=number}, written
+   by the builder on both authoring surfaces and read by the shared view model,
+   so every surface now agrees. Removing the guess was deliberately gated on that
+   shipping first (v3.9.0) so nobody lost a keypad they already had.
+
+   A field that was relying on the guess reverts to a text box until someone
+   edits it and picks Number. That is the correct outcome: nothing the user wrote
+   is rewritten, and a text box accepts everything the keypad did. */
 
 function renderDetail(snip,keepVals){
   document.getElementById('det-title').textContent=snip.title||snip.id;
@@ -3683,7 +3683,9 @@ function renderDetail(snip,keepVals){
     form.innerHTML=_vm.fields.map(function(fld){
       var f=fld.key;
       var lbl=fld.label||humanLbl(f);
-      var t=mobileFieldType(f,fld.type);
+      /* The shared view model is the only thing that decides a field's kind
+         now. This surface no longer guesses from the name. */
+      var t=fld.type;
       var def=fld.value;
       /* The control is built first and wrapped once below, so every field type
          gets the surrounding-text treatment without repeating the row markup. */

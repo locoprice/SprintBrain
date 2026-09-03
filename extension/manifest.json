@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SprintBrain",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "description": "AI prompt library and text expander. Free team sharing, dynamic snippets with live formulas, and two-way Notion sync.",
   "permissions": [
     "storage",
