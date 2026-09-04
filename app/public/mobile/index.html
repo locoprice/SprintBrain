@@ -123,7 +123,7 @@ body{
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
 .mqa-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
   background:var(--card);border-radius:18px;padding:10px;
   box-shadow:var(--shadow-md)
 }
@@ -136,12 +136,14 @@ body{
 .mqa-tile:active{transform:scale(.95);opacity:.9}
 /* 3D key: one extruded surface carrying both the icon and the label, so the
    word belongs to the button instead of floating under it. Soft outer drop
-   plus an inner top-highlight / bottom-shade bevel. */
+   plus an inner top-highlight / bottom-shade bevel. Icon over label rather
+   than beside it: three across leaves no room for a side-by-side row on a
+   narrow phone, and it gives the second line somewhere to sit. */
 .mqa-ico{
-  flex:1;height:48px;border-radius:14px;
+  flex:1;min-height:64px;border-radius:14px;padding:8px 4px;
   background:linear-gradient(158deg,#FFFFFF 0%,var(--primary-lt) 100%);
   color:var(--primary);
-  display:flex;align-items:center;justify-content:center;gap:9px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   border:1px solid rgba(27,79,216,.10);
   box-shadow:0 4px 8px rgba(27,79,216,.16),
     0 1px 0 rgba(255,255,255,.95) inset,
@@ -151,8 +153,22 @@ body{
 .mqa-ico svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
   filter:drop-shadow(0 1px 1px rgba(27,79,216,.22))}
 /* The label takes the surface's own colour, so it flips to white with it. */
-.mqa-lbl{font-size:13.5px;font-weight:700;color:inherit;
+.mqa-lbl{font-size:12.5px;font-weight:700;color:inherit;text-align:center;
   letter-spacing:-.2px;line-height:1;white-space:nowrap}
+/* Second line on a key that is not live yet. */
+.mqa-sub{display:block;font-size:8.5px;font-weight:600;letter-spacing:.3px;
+  line-height:1;margin-top:3px;opacity:.6;text-transform:uppercase}
+/* Coming soon: same extruded key, drained of colour so nobody taps it twice. */
+.mqa-tile.is-soon{cursor:default}
+.mqa-tile.is-soon:active{transform:none;opacity:1}
+.mqa-tile.is-soon .mqa-ico{
+  background:linear-gradient(158deg,#FFFFFF 0%,#F2F2F7 100%);
+  color:var(--text3);border-color:rgba(0,0,0,.06);
+  box-shadow:0 2px 5px rgba(0,0,0,.06),
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 -3px 6px rgba(0,0,0,.04) inset
+}
+.mqa-tile.is-soon .mqa-ico svg{filter:none}
 /* Pushed / active (current page): the key presses IN, solid azure, white face. */
 .mqa-tile.on .mqa-ico{
   background:linear-gradient(158deg,var(--primary-grad) 0%,var(--primary-dk) 100%);
@@ -724,11 +740,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 /* ── PROMPTS: fixed gradient hero (mirrors snippets home) ── */
 #view-prompts .mhero{flex-shrink:0}
 
-/* ── PROMPTS: sticky search + clear + result counter ── */
-#prompt-body .search-bar{
-  position:sticky;top:0;z-index:6;
-  background:var(--bg-alt);padding-bottom:6px
-}
+/* ── SEARCH: clear button + prompt result counter (home and prompts) ── */
 .psearch-wrap{position:relative}
 .psearch-clear{
   position:absolute;top:50%;right:8px;transform:translateY(-50%);
@@ -742,7 +754,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .psearch-wrap.has-text input{padding-right:40px}
 .psearch-meta{
   padding:0 16px 8px;font-size:12px;font-weight:600;color:var(--text3);
-  position:sticky;top:54px;z-index:6;background:var(--bg-alt);display:none
+  position:sticky;top:0;z-index:6;background:var(--bg-alt);display:none
 }
 
 /* ── PROMPT CARD: pin flag + menu + last-used footer ── */
@@ -909,8 +921,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
     <!-- Search rides on the hero, directly under the greeting. -->
     <div class="search-bar">
-      <input id="srch" type="search" placeholder="Search snippets…"
-        autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="psearch-wrap" id="srch-wrap">
+        <input id="srch" type="search" placeholder="Search snippets…"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <button type="button" id="srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
+      </div>
     </div>
   </div>
 
@@ -919,6 +934,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div class="mqa-grid">
       <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
       <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
+      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
     </div>
   </div>
 
@@ -1027,15 +1043,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         </svg>
       </button>
     </div>
-  </div>
-  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
-  <div class="mqa">
-    <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
-      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
-    </div>
-  </div>
-  <div id="prompt-body">
+
+    <!-- Search rides on the hero, directly under the greeting. -->
     <div class="search-bar">
       <div class="psearch-wrap" id="prompt-srch-wrap">
         <input id="prompt-srch" type="search" placeholder="Search prompts…"
@@ -1043,6 +1052,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
     </div>
+  </div>
+  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
+  <div class="mqa">
+    <div class="mqa-grid">
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
+      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
+      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
+    </div>
+  </div>
+  <div id="prompt-body">
     <div class="msec"><span class="msec-t">All prompts</span></div>
     <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
@@ -3099,8 +3118,8 @@ function renderPromptList(){
   var meta=document.getElementById('prompt-srch-meta');
   if(meta){
     if(q){
-      meta.textContent=filtered.length+' of '+total+' result'+(filtered.length!==1?'s':'');
-      meta.style.display='';
+      meta.textContent=filtered.length+' of '+total+' result'+(total!==1?'s':'');
+      meta.style.display='block';
     }else{
       meta.style.display='none';
     }
@@ -3282,6 +3301,7 @@ function deletePromptRow(p){
 // the pushed/active state, every other tile resets. name=null clears them all.
 function setActiveQuickAction(name){
   document.querySelectorAll('.mqa-tile').forEach(function(t){
+    if(t.disabled)return;
     var on=t.getAttribute('data-qa')===name;
     t.classList.toggle('on',on);
     t.setAttribute('aria-pressed',on?'true':'false');
@@ -3899,11 +3919,26 @@ document.getElementById('ftabs').addEventListener('scroll',updateFtabsArrows,{pa
 window.addEventListener('resize',updateFtabsArrows);
 
 /* ── SEARCH ─────────────────────────────────────── */
+function syncSnipClear(){
+  var wrap=document.getElementById('srch-wrap');
+  var input=document.getElementById('srch');
+  if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+}
 var st;
 document.getElementById('srch').addEventListener('input',function(){
   clearTimeout(st);var v=this.value;
+  syncSnipClear();
   st=setTimeout(function(){curSearch=v;renderList();},150);
 });
+(function(){
+  var clearBtn=document.getElementById('srch-clear');
+  if(!clearBtn)return;
+  clearBtn.addEventListener('click',function(){
+    var input=document.getElementById('srch');
+    input.value='';curSearch='';
+    syncSnipClear();renderList();input.focus();
+  });
+})();
 
 /* ── BACK ───────────────────────────────────────── */
 document.getElementById('back-btn').addEventListener('click',function(){
@@ -4609,6 +4644,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     document.getElementById('view-detail').classList.remove('active');
     document.getElementById('view-list').classList.add('active');
     var si=document.getElementById('srch');if(si)si.value='';
+    syncSnipClear();
     document.querySelectorAll('.lang-pill').forEach(function(x){
       x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
     });
