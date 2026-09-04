@@ -258,6 +258,21 @@ body{
 
 /* ── SNIPPET CARDS ───────────────────────────── */
 #snip-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
+/* Load more: the tail of the list, shaped like the cards above it so it reads
+   as part of the stack rather than a control floating under it. */
+.snip-more{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:15px 14px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-sm);color:var(--primary);
+  font-family:inherit;font-size:14.5px;font-weight:700;letter-spacing:-.2px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform .1s,background .15s
+}
+.snip-more:active{transform:scale(.98);background:var(--primary-lt)}
+.snip-more-n{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:0}
+.snip-more-i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .snip-card{
   position:relative;background:var(--card);border-radius:var(--r-card);
   padding:14px;padding-right:52px;
@@ -531,6 +546,12 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-sheet-actions li[data-action=use]{color:var(--primary);font-weight:700}
 .sb-action-danger{color:var(--danger) !important}
 .sb-sheet-act-i{width:22px;text-align:center;font-size:16px;line-height:1}
+/* A line icon rides in the same 22px slot as the character ones, sized to fill
+   it rather than sit lost in the middle. It inherits the row's colour, so the
+   danger rows tint it red without a second rule. */
+.sb-sheet-act-i svg{width:21px;height:21px;display:block;margin:0 auto;
+  stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
 
 /* Snippet info sheet — read-only key/value rows */
 .sb-info-body{padding:2px 22px 10px}
@@ -909,14 +930,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <span id="cnt">0</span>
         <span class="mstatbig-unit">snippets</span>
       </div>
-      <button class="hdr-btn" id="logout-btn" aria-label="Sign out" title="Sign out">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </button>
     </div>
 
     <!-- Search rides on the hero, directly under the greeting. -->
@@ -1282,7 +1295,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       </div>
     </div>
     <ul class="sb-sheet-actions">
-      <li id="sb-profile-signout" class="sb-action-danger"><span class="sb-sheet-act-i">⎋</span> Sign out</li>
+      <li id="sb-profile-signout" class="sb-action-danger"><span class="sb-sheet-act-i"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Sign out</li>
     </ul>
   </div>
 </div>
@@ -3588,6 +3601,9 @@ function lastUseForSnippet(s){
   if(g&&g.rows&&g.rows.length)return lastUseOf(g.rows);
   return lastUseMap[s.id]||null;
 }
+/* The list arrives a page at a time: a long library should not paint every
+   card to show the first screenful. */
+var LIST_PAGE=25, listLimit=LIST_PAGE, _listSig=null;
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
@@ -3606,6 +3622,12 @@ function renderList(){
     el.innerHTML='<div class="empty"><div class="emo">🔍</div><p>No snippets found</p></div>';
     return;
   }
+  // A new search, folder or language is a new list, so it starts at page one.
+  var sig=JSON.stringify([curSearch,curFolder,curLang]);
+  if(sig!==_listSig){_listSig=sig;listLimit=LIST_PAGE;}
+  var matched=groups.length;
+  groups=groups.slice(0,listLimit);
+  var remaining=matched-groups.length;
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang,curFolder);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
@@ -3649,7 +3671,14 @@ function renderList(){
       +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
-  }).join('');
+  }).join('')
+    +(remaining>0
+      ? '<button type="button" class="snip-more" id="snip-more">'
+          +'<span>Load more</span>'
+          +'<span class="snip-more-n">'+remaining+' left</span>'
+          +'<svg class="snip-more-i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
+        +'</button>'
+      : '');
   // Card tap → multilingual group opens the detail page (language chosen there);
   // single-language with fields opens detail; single-language, no fields copies.
   function activateCard(card){
@@ -3667,6 +3696,13 @@ function renderList(){
       copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
       logSnipUse(s,0);
     }
+  }
+  var moreBtn=document.getElementById('snip-more');
+  if(moreBtn){
+    moreBtn.addEventListener('click',function(){
+      listLimit+=LIST_PAGE;
+      renderList();
+    });
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
@@ -4639,15 +4675,6 @@ function setupSheetDrag(sheetEl,closeFn){
     var row=e.target.closest('[data-copy]');
     if(!row)return;
     copyText(row.getAttribute('data-copy'),function(){showToast('ID copied ✓');});
-  });
-})();
-
-/* ── LOGOUT BUTTON ──────────────────────────────── */
-(function(){
-  var btn=document.getElementById('logout-btn');
-  if(!btn)return;
-  btn.addEventListener('click',function(){
-    if(confirm('Sign out of SprintBrain?'))logout();
   });
 })();
 
