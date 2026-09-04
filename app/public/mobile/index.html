@@ -123,35 +123,53 @@ body{
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
 .mqa-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);gap:6px;
-  background:var(--card);border-radius:18px;padding:14px 10px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+  background:var(--card);border-radius:18px;padding:10px;
   box-shadow:var(--shadow-md)
 }
 .mqa-tile{
-  display:flex;flex-direction:column;align-items:center;gap:7px;
-  padding:6px 2px;border:none;background:transparent;font-family:inherit;
+  display:flex;padding:0;border:none;background:transparent;font-family:inherit;
   border-radius:14px;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   transition:transform .12s,opacity .12s
 }
 .mqa-tile:active{transform:scale(.95);opacity:.9}
-/* 3D icon well: extruded tile — soft outer drop + inner top-highlight / bottom-shade bevel. */
+/* 3D key: one extruded surface carrying both the icon and the label, so the
+   word belongs to the button instead of floating under it. Soft outer drop
+   plus an inner top-highlight / bottom-shade bevel. Icon over label rather
+   than beside it: three across leaves no room for a side-by-side row on a
+   narrow phone, and it gives the second line somewhere to sit. */
 .mqa-ico{
-  align-self:stretch;height:44px;border-radius:14px;
+  flex:1;min-height:64px;border-radius:14px;padding:8px 4px;
   background:linear-gradient(158deg,#FFFFFF 0%,var(--primary-lt) 100%);
   color:var(--primary);
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   border:1px solid rgba(27,79,216,.10);
   box-shadow:0 4px 8px rgba(27,79,216,.16),
     0 1px 0 rgba(255,255,255,.95) inset,
     0 -3px 6px rgba(27,79,216,.08) inset;
   transition:transform .14s,box-shadow .14s,background .14s,color .14s
 }
-.mqa-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+.mqa-ico svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
   filter:drop-shadow(0 1px 1px rgba(27,79,216,.22))}
-.mqa-lbl{font-size:10.5px;font-weight:600;color:var(--text);
-  text-align:center;letter-spacing:-.1px;transition:color .14s}
-/* Pushed / active (current page) — icon presses IN (inset), solid azure, azure label. */
+/* The label takes the surface's own colour, so it flips to white with it. */
+.mqa-lbl{font-size:12.5px;font-weight:700;color:inherit;text-align:center;
+  letter-spacing:-.2px;line-height:1;white-space:nowrap}
+/* Second line on a key that is not live yet. */
+.mqa-sub{display:block;font-size:8.5px;font-weight:600;letter-spacing:.3px;
+  line-height:1;margin-top:3px;opacity:.6;text-transform:uppercase}
+/* Coming soon: same extruded key, drained of colour so nobody taps it twice. */
+.mqa-tile.is-soon{cursor:default}
+.mqa-tile.is-soon:active{transform:none;opacity:1}
+.mqa-tile.is-soon .mqa-ico{
+  background:linear-gradient(158deg,#FFFFFF 0%,#F2F2F7 100%);
+  color:var(--text3);border-color:rgba(0,0,0,.06);
+  box-shadow:0 2px 5px rgba(0,0,0,.06),
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 -3px 6px rgba(0,0,0,.04) inset
+}
+.mqa-tile.is-soon .mqa-ico svg{filter:none}
+/* Pushed / active (current page): the key presses IN, solid azure, white face. */
 .mqa-tile.on .mqa-ico{
   background:linear-gradient(158deg,var(--primary-grad) 0%,var(--primary-dk) 100%);
   color:#fff;border-color:transparent;transform:translateY(1px);
@@ -160,7 +178,7 @@ body{
     0 1px 1px rgba(0,0,0,.18) inset
 }
 .mqa-tile.on .mqa-ico svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
-.mqa-tile.on .mqa-lbl{color:var(--primary);font-weight:700}
+.mqa-tile.on .mqa-lbl{text-shadow:0 1px 1px rgba(0,0,0,.22)}
 
 /* ── SEARCH ──────────────────────────────────── */
 .search-bar{padding:18px 16px 8px}
@@ -174,6 +192,11 @@ body{
 }
 .search-bar input:focus{border-color:var(--primary)}
 .search-bar input::placeholder{color:var(--text2)}
+/* On the hero the field floats on the gradient: the grey hairline reads as dirt
+   on blue, so it becomes a soft shadow. z-index clears the hero's glow circles. */
+.mhero .search-bar{padding:16px 0 0;position:relative;z-index:1}
+.mhero .search-bar input{border-color:transparent;box-shadow:var(--shadow-sm)}
+.mhero .search-bar input:focus{border-color:#fff}
 
 /* ── SECTION HEADING ─────────────────────────── */
 .msec{padding:14px 16px 6px;display:flex;align-items:flex-end;justify-content:space-between}
@@ -717,11 +740,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 /* ── PROMPTS: fixed gradient hero (mirrors snippets home) ── */
 #view-prompts .mhero{flex-shrink:0}
 
-/* ── PROMPTS: sticky search + clear + result counter ── */
-#prompt-body .search-bar{
-  position:sticky;top:0;z-index:6;
-  background:var(--bg-alt);padding-bottom:6px
-}
+/* ── SEARCH: clear button + prompt result counter (home and prompts) ── */
 .psearch-wrap{position:relative}
 .psearch-clear{
   position:absolute;top:50%;right:8px;transform:translateY(-50%);
@@ -735,7 +754,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .psearch-wrap.has-text input{padding-right:40px}
 .psearch-meta{
   padding:0 16px 8px;font-size:12px;font-weight:600;color:var(--text3);
-  position:sticky;top:54px;z-index:6;background:var(--bg-alt);display:none
+  position:sticky;top:0;z-index:6;background:var(--bg-alt);display:none
 }
 
 /* ── PROMPT CARD: pin flag + menu + last-used footer ── */
@@ -899,20 +918,24 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         </svg>
       </button>
     </div>
+
+    <!-- Search rides on the hero, directly under the greeting. -->
+    <div class="search-bar">
+      <div class="psearch-wrap" id="srch-wrap">
+        <input id="srch" type="search" placeholder="Search snippets…"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <button type="button" id="srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
+      </div>
+    </div>
   </div>
 
   <!-- Floating quick-action grid (overlaps hero) -->
   <div class="mqa">
     <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
+      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
+      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
     </div>
-  </div>
-
-  <!-- Search -->
-  <div class="search-bar">
-    <input id="srch" type="search" placeholder="Search snippets…"
-      autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
 
   <!-- All snippets section -->
@@ -1020,15 +1043,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         </svg>
       </button>
     </div>
-  </div>
-  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
-  <div class="mqa">
-    <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
-    </div>
-  </div>
-  <div id="prompt-body">
+
+    <!-- Search rides on the hero, directly under the greeting. -->
     <div class="search-bar">
       <div class="psearch-wrap" id="prompt-srch-wrap">
         <input id="prompt-srch" type="search" placeholder="Search prompts…"
@@ -1036,6 +1052,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
     </div>
+  </div>
+  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
+  <div class="mqa">
+    <div class="mqa-grid">
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
+      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
+      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
+    </div>
+  </div>
+  <div id="prompt-body">
     <div class="msec"><span class="msec-t">All prompts</span></div>
     <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
@@ -1645,6 +1671,17 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // not agree (the overlay prints {KEY}, the phone humanises it).
         label: raw.label || '',
         type: type,
+        // How a number prints once it leaves the form: 'plain', 'currency' or
+        // 'percent'. Always '' for every other kind of field, so a renderer can
+        // read it without first asking what type it is holding. Formatting is
+        // output only — the value a formula reads stays the raw number, or
+        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
+        format: type === 'number' ? (raw.format || 'plain') : '',
+        // ISO code behind a currency field, so a renderer can show the symbol
+        // beside the input without re-parsing the token. '' for every other
+        // field, and for a number that is not money.
+        currency: type === 'number' && raw.format === 'currency'
+          ? (raw.currency || 'EUR') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -2094,7 +2131,7 @@ function sbBodyFieldCfg(body){
     var defM=/(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(spec?spec.attrs:rest);
     var defVal=defM?defM[1].trim():'';
     if(prefix==='formdate'){
-      cfg[key]={type:'date',default:defVal};
+      cfg[key]=sbDateCfg(spec?spec.attrs:rest,defVal);
     }else if(prefix==='formmenu'){
       var opts=spec.options;
       var multi=/(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(spec.attrs);
@@ -2116,10 +2153,191 @@ function sbBodyFieldCfg(body){
       if(colsM){var cols=parseInt(colsM[1],10);if(cols>0)menu.cols=cols;}
       cfg[key]=menu;
     }else{
-      cfg[key]={type:'text',default:defVal};
+      cfg[key]=sbNumberOrTextCfg(spec?spec.attrs:rest,defVal);
     }
   }
   return cfg;
+}
+
+/* DATE / TIME FIELD FORMATS — mirrors DATE_FORMATS / TIME_FORMATS /
+   _dateFormatOk / sbFormatDateValue / _dateCfg in extension/formula-engine.js.
+   A date field prints what the picker put in it unless the author chose a
+   format, so every {formdate:} written before the attribute existed keeps
+   printing exactly what it printed. The lists are closed: the two builders only
+   ever offer these five, and an arbitrary format string would let a typo reach
+   a guest as a half-substituted date. scripts/check-snippets.js asserts this
+   agrees with the engine. */
+var SB_DATE_FORMATS=['DD/MM/YYYY','MM/DD/YYYY','DD/MM/dddd'];
+var SB_TIME_FORMATS=['HH:mm','hh:mm A'];
+
+/* Only a date or a time carries a format. A datetime holds both halves and
+   neither list prints it whole, so it stays raw rather than losing one. */
+function sbDateFormatOk(type,fmt){
+  var list=type==='date'?SB_DATE_FORMATS:(type==='time'?SB_TIME_FORMATS:null);
+  if(!list)return '';
+  return list.indexOf(fmt)===-1?'':fmt;
+}
+
+/* Mirrors sbFormatNumber's two refusals: an unanswered field prints nothing
+   rather than today's date, and a value the parser cannot read prints back
+   verbatim rather than becoming an invented one. */
+function sbFormatDateValue(raw,format){
+  var s=(raw===null||raw===undefined)?'':String(raw);
+  s=s.replace(/^\s+|\s+$/g,'');
+  if(s===''||!format)return s;
+  var d=sbParseUserDate(s);
+  return d?sbFormatDate(d,format):s;
+}
+
+/* `date` is what {formdate:} has always meant, so an absent or unrecognised
+   type reads as that: a typo must not cost the author their picker. */
+var SB_DATE_TYPES={date:1,time:1,datetime:1};
+
+function sbDateCfg(attrSrc,defVal){
+  var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  var type=typeM?typeM[1].toLowerCase():'';
+  if(!Object.prototype.hasOwnProperty.call(SB_DATE_TYPES,type))type='date';
+  var out={type:type,default:defVal};
+  /* Case carries meaning here — MM is the month, mm the minute — so the value
+     is matched exactly. Only the attribute name is case-insensitive. */
+  var fmtM=/(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
+  var fmt=sbDateFormatOk(type,fmtM?fmtM[1].replace(/^\s+|\s+$/g,''):'');
+  if(fmt)out.format=fmt;
+  return out;
+}
+
+/* NUMBER FIELD — mirrors _numberOrTextCfg / _numberDefault / NUMBER_FORMATS in
+   extension/formula-engine.js. A number is an attribute on {formtext:} rather
+   than its own token because both parsers read the prefix with a literal
+   slice(9) and 'formnumber:' is eleven characters; the attribute leaves all of
+   that untouched and still degrades to a text box on anything too old to read
+   it. scripts/check-snippets.js asserts this agrees with the engine. */
+var SB_NUMBER_FORMATS=['plain','currency','percent'];
+
+/* Reads a typed value the way an operator wrote it. parseFloat cannot:
+   parseFloat("1.200,50") is 1.2, which is not an error but a plausible and
+   completely wrong number. null means "present, but not a number", which is
+   what lets a caller tell it apart from an unanswered field. */
+function sbToNumber(raw){
+  if(raw===null||raw===undefined)return 0;
+  if(typeof raw==='number')return isFinite(raw)?raw:null;
+  var s=String(raw).replace(/[\s ]/g,'');
+  if(s==='')return 0;
+  var neg=false;
+  if(s.charAt(0)==='+')s=s.slice(1);
+  else if(s.charAt(0)==='-'){neg=true;s=s.slice(1);}
+  if(!/^[0-9.,]+$/.test(s))return null;
+  var dots=s.split('.').length-1,commas=s.split(',').length-1,dec=-1;
+  if(dots&&commas)dec=Math.max(s.lastIndexOf('.'),s.lastIndexOf(','));
+  else if(dots===1)dec=s.lastIndexOf('.');
+  else if(commas===1)dec=s.lastIndexOf(',');
+  var whole=(dec===-1?s:s.slice(0,dec)).replace(/[.,]/g,'');
+  var frac=dec===-1?'':s.slice(dec+1);
+  /* Grouping marks are gone by now, so anything left in the fraction is a
+     third separator: "1.2.3" is not a number in any locale. */
+  if(/[.,]/.test(frac))return null;
+  if(whole===''&&frac==='')return null;
+  var n=parseFloat((whole===''?'0':whole)+(frac===''?'':'.'+frac));
+  if(isNaN(n)||!isFinite(n))return null;
+  return neg?-n:n;
+}
+
+/* Empty stays empty: sbToNumber reads '' as 0 because an unanswered field adds
+   nothing to a sum, but "no default" and "a default of zero" are different
+   statements about the form. */
+function sbNumberDefault(defVal){
+  if(defVal==='')return '';
+  var n=sbToNumber(defVal);
+  return n===null?'':String(n);
+}
+
+/* NUMBER OUTPUT FORMATTING — mirrors CURRENCIES / _groupNumber / sbFormatNumber
+   / _numberFormatMap in extension/formula-engine.js. Formatting is output only:
+   the value a formula reads stays the raw number. Intl.NumberFormat is avoided
+   on purpose, because its output follows the device locale and the same snippet
+   has to print identically on the phone and in the browser. */
+var SB_CURRENCIES={
+  EUR:{symbol:'€',group:'dot',decimals:2},
+  USD:{symbol:'$',group:'comma',decimals:2},
+  GBP:{symbol:'£',group:'comma',decimals:2},
+  CHF:{symbol:'CHF',group:'comma',decimals:2},
+  CAD:{symbol:'CA$',group:'comma',decimals:2},
+  AUD:{symbol:'A$',group:'comma',decimals:2},
+  JPY:{symbol:'¥',group:'comma',decimals:0}
+};
+var SB_DEFAULT_CURRENCY='EUR';
+
+function sbGroupNumber(n,style,decimals){
+  var neg=n<0,abs=Math.abs(n);
+  var s=decimals>=0?abs.toFixed(decimals):String(abs);
+  var dot=s.indexOf('.');
+  var whole=dot===-1?s:s.slice(0,dot);
+  var frac=dot===-1?'':s.slice(dot+1);
+  var gsep=style==='dot'?'.':',';
+  var dsep=style==='dot'?',':'.';
+  whole=whole.replace(/\B(?=(\d{3})+(?!\d))/g,gsep);
+  return (neg?'-':'')+whole+(frac===''?'':dsep+frac);
+}
+
+function sbFormatNumber(raw,format,currency){
+  var s=(raw===null||raw===undefined)?'':String(raw);
+  /* Unanswered prints nothing: formatting an empty field into a price would put
+     a number in a message nobody agreed to. */
+  if(s.replace(/\s/g,'')==='')return '';
+  var n=sbToNumber(s);
+  /* Present but not a number: print it back rather than inventing a zero. */
+  if(n===null)return s;
+  if(format==='percent')return sbGroupNumber(n,'comma',-1)+'%';
+  if(format==='currency'){
+    var c=SB_CURRENCIES[String(currency||'').toUpperCase()]||SB_CURRENCIES[SB_DEFAULT_CURRENCY];
+    return c.symbol+sbGroupNumber(n,c.group,c.decimals);
+  }
+  return s;
+}
+
+/* Which fields in a body print formatted, and how. Only formats that change
+   the output are listed, so a plain number and an unformatted date both cost
+   nothing here. Mirrors _fieldFormatMap in extension/formula-engine.js. */
+function sbFieldFormatMap(body){
+  var cfg=sbBodyFieldCfg(body),out=null;
+  for(var k in cfg){
+    if(!Object.prototype.hasOwnProperty.call(cfg,k))continue;
+    var f=cfg[k];
+    if(f.type==='number'){
+      if(!f.format||f.format==='plain')continue;
+      if(!out)out={};
+      out[k]={kind:'number',format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
+    }else if(f.type==='date'||f.type==='time'){
+      if(!f.format)continue;
+      if(!out)out={};
+      out[k]={kind:'date',format:f.format};
+    }
+  }
+  return out;
+}
+
+function sbEmitField(key,value,fmtMap){
+  var f=fmtMap&&key?fmtMap[key]:null;
+  if(!f)return value;
+  return f.kind==='date'?sbFormatDateValue(value,f.format)
+                        :sbFormatNumber(value,f.format,f.currency);
+}
+
+function sbNumberOrTextCfg(attrSrc,defVal){
+  var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  /* An unrecognised type is a typo, not a field type the product has. */
+  if(!typeM||typeM[1].toLowerCase()!=='number')return {type:'text',default:defVal};
+  var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  var fmt=fmtM?fmtM[1].toLowerCase():'';
+  var format=SB_NUMBER_FORMATS.indexOf(fmt)===-1?'plain':fmt;
+  var out={type:'number',format:format,default:sbNumberDefault(defVal)};
+  /* Only meaningful alongside format=currency. */
+  if(format==='currency'){
+    var curM=/(?:^|;)\s*currency\s*=\s*([A-Za-z]{3})/i.exec(attrSrc);
+    var cur=curM?curM[1].toUpperCase():'';
+    out.currency=Object.prototype.hasOwnProperty.call(SB_CURRENCIES,cur)?cur:SB_DEFAULT_CURRENCY;
+  }
+  return out;
 }
 
 function sbIsFormToken(tokLow){
@@ -2283,6 +2501,16 @@ function mathReplace(s){
 function resolveBody(body,vals,opts){
   if(!body)return '';
   var out='',i=0,gLock=-1;
+  /* Which fields print formatted is decided by the WHOLE body: an {if:} branch
+     can print a field declared outside it. Built once, then carried down on a
+     copy so the caller's opts is never mutated. Mirrors the engine. */
+  var _o=opts||{},fmtMap,subOpts;
+  if(Object.prototype.hasOwnProperty.call(_o,'_fmtMap')){fmtMap=_o._fmtMap;subOpts=_o;}
+  else{
+    fmtMap=sbFieldFormatMap(body);subOpts={};
+    for(var _k in _o)if(Object.prototype.hasOwnProperty.call(_o,_k))subOpts[_k]=_o[_k];
+    subOpts._fmtMap=fmtMap;
+  }
   while(i<body.length){
     if(body[i]==='{'){
       var cl=body.indexOf('}',i);
@@ -2298,7 +2526,8 @@ function resolveBody(body,vals,opts){
           var ve=vd.slice(veq+1).replace(/^\s+|\s+$/g,'');
           var vs=ve.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(m){
             if(FUNS[m])return m;
-            return vals[m]!==undefined?String(vals[m]):'0';
+            var mv=sbToNumber(vals[m]);
+            return mv===null?'0':String(mv);
           });
           vs=mathReplace(vs);
           try{
@@ -2312,11 +2541,18 @@ function resolveBody(body,vals,opts){
       /* {=expr} */
       if(tok.charAt(0)==='='){
         var ex=sbResolveDatetimeDiff(tok.slice(1),vals);
+        /* Was parseFloat, which read "1.200,50" as 1.2 and turned "€1.200"
+           into 0 with no error at all — the same defect the engine closed, which
+           had been left live here. sbToNumber returns null for text, and an
+           unreadable input now refuses to answer instead of inventing a total. */
+        var unreadable=false;
         var s=ex.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(n){
           if(FUNS[n])return n;
-          var v=parseFloat(vals[n]);
-          return isNaN(v)?'0':String(v);
+          var v=sbToNumber(vals[n]);
+          if(v===null){unreadable=true;return '0';}
+          return String(v);
         });
+        if(unreadable){out+='';i=cl+1;continue;}
         var stripped=s.replace(/round|floor|ceil|abs|min|max|datetimediff/g,'');
         var fv=null;
         if(/^[0-9+\-*/().\s,]+$/.test(stripped)){
@@ -2340,7 +2576,7 @@ function resolveBody(body,vals,opts){
         var cnd=tok.slice(3).replace(/^\s+|\s+$/g,'');
         var ei='{endif}',eidx=body.indexOf(ei,cl+1);
         var inner=eidx!==-1?body.slice(cl+1,eidx):'';
-        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),opts);
+        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),subOpts);
         i=eidx!==-1?eidx+ei.length:cl+1;continue;
       }
 
@@ -2380,13 +2616,13 @@ function resolveBody(body,vals,opts){
       if(sbIsFormToken(tokLow)){
         var fk=sbFormTokenName(tokLow,tok.slice(9));
         var fkv=fk?vals[fk]:undefined;
-        out=sbEmitValue(out,(fkv!==undefined&&fkv!==null)?fkv:'',gLock);
+        out=sbEmitValue(out,sbEmitField(fk,(fkv!==undefined&&fkv!==null)?fkv:'',fmtMap),gLock);
         i=cl+1;continue;
       }
 
       /* {FIELD} */
       var fval=vals[tok];
-      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,fval,gLock);
+      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,sbEmitField(tok,fval,fmtMap),gLock);
       i=cl+1;
     }else{out+=body[i++];}
   }
@@ -2940,8 +3176,8 @@ function renderPromptList(){
   var meta=document.getElementById('prompt-srch-meta');
   if(meta){
     if(q){
-      meta.textContent=filtered.length+' of '+total+' result'+(filtered.length!==1?'s':'');
-      meta.style.display='';
+      meta.textContent=filtered.length+' of '+total+' result'+(total!==1?'s':'');
+      meta.style.display='block';
     }else{
       meta.style.display='none';
     }
@@ -3123,6 +3359,7 @@ function deletePromptRow(p){
 // the pushed/active state, every other tile resets. name=null clears them all.
 function setActiveQuickAction(name){
   document.querySelectorAll('.mqa-tile').forEach(function(t){
+    if(t.disabled)return;
     var on=t.getAttribute('data-qa')===name;
     t.classList.toggle('on',on);
     t.setAttribute('aria-pressed',on?'true':'false');
@@ -3456,25 +3693,25 @@ function renderList(){
 function humanLbl(f){
   return f.replace(/_/g,' ').replace(/\//g,' ');
 }
-/* The shared view model decides a field's kind, including the date/time/datetime
-   rule that used to live here. What survives is a numeric heuristic this app has
-   always had and the other three surfaces never did: a field whose name mentions
-   a price or a count gets a number pad on a phone, which matters more here than
-   anywhere else.
+/* RETIRED in v3.11.0 — the numeric name guess is gone.
 
-   It is kept surface-local ON PURPOSE. Promoting it would turn a text box into a
-   number input on the overlay, the popup and the composer, where an operator may
-   well be typing "1.200,50" or "approx 300" — a silent behaviour change none of
-   this refactor asked for. Note also that "ota" is industry vocabulary, which the
-   product is not supposed to ship; retiring this in favour of a real numeric
-   field token is the proper fix, and is tracked as its own decision. */
-function mobileFieldType(f,modelType){
-  if(modelType&&modelType!=='text')return modelType;
-  var l=f.toLowerCase();
-  if(l.includes('price')||l.includes('cost')||l.includes('hours')||
-     l.includes('ota'))return 'number';
-  return modelType||'text';
-}
+   This app used to read a field whose name contained price / cost / hours / ota
+   as a number, which no other surface did: the same snippet was a decimal keypad
+   on a phone and a free-text box in the browser. It was a stand-in for a numeric
+   field type that did not exist, and it was wrong three ways. It only matched
+   English, so a Spanish or Italian field name never got the keypad. It captured
+   fields that are not quantities at all. And "ota" is travel-industry vocabulary
+   sitting in shipped product code, which the industry-neutral rule in the root
+   CLAUDE.md forbids.
+
+   The replacement is an explicit type: {formtext: name=X; type=number}, written
+   by the builder on both authoring surfaces and read by the shared view model,
+   so every surface now agrees. Removing the guess was deliberately gated on that
+   shipping first (v3.9.0) so nobody lost a keypad they already had.
+
+   A field that was relying on the guess reverts to a text box until someone
+   edits it and picks Number. That is the correct outcome: nothing the user wrote
+   is rewritten, and a text box accepts everything the keypad did. */
 
 function renderDetail(snip,keepVals){
   document.getElementById('det-title').textContent=snip.title||snip.id;
@@ -3531,7 +3768,9 @@ function renderDetail(snip,keepVals){
     form.innerHTML=_vm.fields.map(function(fld){
       var f=fld.key;
       var lbl=fld.label||humanLbl(f);
-      var t=mobileFieldType(f,fld.type);
+      /* The shared view model is the only thing that decides a field's kind
+         now. This surface no longer guesses from the name. */
+      var t=fld.type;
       var def=fld.value;
       /* The control is built first and wrapped once below, so every field type
          gets the surrounding-text treatment without repeating the row markup. */
@@ -3738,11 +3977,26 @@ document.getElementById('ftabs').addEventListener('scroll',updateFtabsArrows,{pa
 window.addEventListener('resize',updateFtabsArrows);
 
 /* ── SEARCH ─────────────────────────────────────── */
+function syncSnipClear(){
+  var wrap=document.getElementById('srch-wrap');
+  var input=document.getElementById('srch');
+  if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+}
 var st;
 document.getElementById('srch').addEventListener('input',function(){
   clearTimeout(st);var v=this.value;
+  syncSnipClear();
   st=setTimeout(function(){curSearch=v;renderList();},150);
 });
+(function(){
+  var clearBtn=document.getElementById('srch-clear');
+  if(!clearBtn)return;
+  clearBtn.addEventListener('click',function(){
+    var input=document.getElementById('srch');
+    input.value='';curSearch='';
+    syncSnipClear();renderList();input.focus();
+  });
+})();
 
 /* ── BACK ───────────────────────────────────────── */
 document.getElementById('back-btn').addEventListener('click',function(){
@@ -4448,6 +4702,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     document.getElementById('view-detail').classList.remove('active');
     document.getElementById('view-list').classList.add('active');
     var si=document.getElementById('srch');if(si)si.value='';
+    syncSnipClear();
     document.querySelectorAll('.lang-pill').forEach(function(x){
       x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
     });

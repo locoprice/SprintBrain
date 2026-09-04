@@ -259,6 +259,10 @@
   .nv-body-clear{padding:2px 8px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:500;cursor:pointer;transition:all .12s}
   .nv-body-clear:hover,.nv-body-clear.armed{border-color:var(--sb-danger-bdr);background:var(--sb-danger-bg);color:var(--sb-danger)}
   .nv-body-clear:disabled{opacity:.4;cursor:default;border-color:var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle)}
+  .nv-body-tr{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--sb-r-sm);border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle);font-size:var(--sb-fs-11);font-weight:500;cursor:pointer;transition:all .12s}
+  .nv-body-tr:hover,.nv-body-tr.armed{border-color:var(--sb-azure-bdr);background:var(--sb-azure-bg);color:var(--sb-azure)}
+  .nv-body-tr:disabled{opacity:.4;cursor:default;border-color:var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-subtle)}
+  .nv-body-tr svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .nv-body-count{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums}
   .nv-chips{display:flex;flex-direction:column;gap:10px;margin-top:9px}
   .nv-chiprow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
@@ -290,6 +294,19 @@
   .nv-urg-fields .nv-field{flex:0 0 auto;flex-direction:row;align-items:center;gap:6px}
   .nv-urg-fields .nv-field label{white-space:nowrap;margin:0}
   .nv-urg-fields .nv-field input{width:66px;padding:4px 8px;font-size:var(--sb-fs-11)}
+  /* Date/Time group — a format and the button that inserts it, on one line.
+     Mirrors the React rail's Date/Time toggle: same two rows in the same order,
+     same choices, same token preview underneath. */
+  .nv-dt{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  /* Wraps rather than squeezing: what a format option says is its sample, and
+     the two numeric orders are indistinguishable until you read one, so a
+     select narrow enough to clip it is worse than a button on its own line. */
+  .nv-dt-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .nv-dt-row label{flex:0 0 auto;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  .nv-dt-row select{flex:1 1 180px;min-width:0;background:var(--sb-bg-muted);border:1px solid var(--sb-line);border-radius:8px;padding:4px 8px;font-size:var(--sb-fs-11);color:var(--sb-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .nv-dt-row select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
+  .nv-dt-row .btn{flex:0 0 auto;padding:4px 10px;font-size:var(--sb-fs-11)}
+  .nv-dt-prev{font-family:var(--sb-mono);font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);word-break:break-all;line-height:1.6}
   .nv-switch{position:relative;width:34px;height:19px;flex-shrink:0}
   .nv-switch input{opacity:0;width:0;height:0;position:absolute}
   .nv-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
@@ -532,6 +549,7 @@
         </div>
         <textarea id="nv-f-body" placeholder="Dear {first_name},&#10;&#10;Your message…"></textarea>
         <div class="nv-body-foot">
+          <button type="button" id="nv-f-translate" class="nv-body-tr" style="display:none"><svg viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg><span id="nv-f-translate-lbl">Translate from EN</span></button>
           <button type="button" id="nv-f-clear" class="nv-body-clear" title="Delete this language's body. The snippet is saved without that language, not with an empty one.">Clear</button>
           <span class="nv-body-count" id="nv-f-count">0 words</span>
         </div>
@@ -539,9 +557,27 @@
           <div>
             <div class="nv-chiplbl">Fields <span>— filled in when the snippet expands · type <code>{any_name}</code> for your own</span></div>
             <div class="nv-chiprow">
-              <span class="nv-chip" data-c="{start_date}" title="Start date. Inserts {start_date}, which fills as a date picker">start_date</span>
-              <span class="nv-chip" data-c="{end_date}" title="End date. Inserts {end_date}, which fills as a date picker">end_date</span>
+              <span class="nv-chip m" id="nv-chip-number" title="A quantity a formula can add up — opens the builder"><svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>{number}</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
+            </div>
+            <!-- Date/Time. Replaced a fixed {start_date} / {end_date} pair,
+                 which answered the wrong question twice: both were plain
+                 calendars, neither could say how the date should read, and a
+                 snippet needing three dates had nothing to insert. A range is
+                 now what it always was underneath — the same field inserted
+                 twice, DATE_1 opening it and DATE_2 closing it. -->
+            <div class="nv-dt">
+              <div class="nv-dt-row">
+                <label for="nv-dt-dfmt">Date</label>
+                <select id="nv-dt-dfmt"></select>
+                <button class="btn p" type="button" id="nv-dt-dins" title="Insert a date field at the cursor, in the format on the left">Insert</button>
+              </div>
+              <div class="nv-dt-row">
+                <label for="nv-dt-tfmt">Time</label>
+                <select id="nv-dt-tfmt"></select>
+                <button class="btn" type="button" id="nv-dt-tins" title="Insert a time field at the cursor, in the format on the left">Insert</button>
+              </div>
+              <div class="nv-dt-prev" id="nv-dt-prev"></div>
             </div>
           </div>
           <div class="nv-chipgrid">
@@ -612,6 +648,48 @@
     <div class="nv-modal-f">
       <button class="btn p" id="nv-menu-insert">Insert</button>
       <button class="btn" id="nv-menu-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NUMBER FIELD MODAL (number builder) ═══ -->
+<!-- Mirrors the React dashboard's FormNumberDialog: same three questions in the
+     same order, same live token preview. Number is its own field type here as
+     it is there; that it rides on {formtext:} underneath is an engine detail. -->
+<div class="nv-modal-bg" id="nv-num-bg">
+  <div class="nv-modal" style="width:420px">
+    <div class="nv-modal-h"><h2>Insert number field</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-field">
+        <label>Name</label>
+        <input id="nv-num-name" placeholder="NUM_1" autocomplete="off" spellcheck="false" style="font-family:var(--sb-mono)">
+        <div class="nv-menu-hint" id="nv-num-namehint"></div>
+      </div>
+      <div class="nv-field">
+        <label>Format</label>
+        <select id="nv-num-format">
+          <option value="plain">Plain</option>
+          <option value="currency">Currency</option>
+          <option value="percent">Percent</option>
+        </select>
+        <div class="nv-menu-hint" id="nv-num-fmthint"></div>
+      </div>
+      <div class="nv-field" id="nv-num-curwrap" style="display:none">
+        <label>Currency</label>
+        <select id="nv-num-currency"></select>
+        <div class="nv-menu-hint" id="nv-num-curhint"></div>
+      </div>
+      <div class="nv-field">
+        <label>Default <span style="font-weight:400;color:var(--sb-ink-subtle)">(optional)</span></label>
+        <input id="nv-num-default" placeholder="empty" autocomplete="off" spellcheck="false" inputmode="decimal" style="font-family:var(--sb-mono)">
+        <div class="nv-menu-hint" id="nv-num-defhint"></div>
+      </div>
+      <div class="nv-menu-hint" style="border:1px solid var(--sb-line);border-radius:8px;padding:8px 10px;line-height:1.5">Phone numbers, order references and postcodes are not numbers. They lose a leading zero and cannot hold + or spaces. Use a plain field for those.</div>
+      <div class="nv-menu-prev"><span>Inserts</span><code id="nv-num-token"></code></div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-num-insert">Insert</button>
+      <button class="btn" id="nv-num-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -688,7 +766,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.7.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.14.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1172,7 +1250,7 @@
     edActive = l;
     $('nv-f-body').value = (typeof edBuf[l] === 'string') ? edBuf[l] : '';
     setBodyPlaceholder(l);
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
 
@@ -1192,6 +1270,111 @@
     var armed = edClearArmed && !btn.disabled;
     btn.classList.toggle('armed', armed);
     btn.textContent = armed ? 'Click again to clear' : 'Clear';
+    renderTranslateBtn();
+  }
+
+  /* ── TRANSLATE (TRANSLATE-001) ──────────────────────────────────
+     Fills the language on screen from the English body. Mirrors
+     translateFromEnglish in app/src/features/snippets/NewSnippetDialog.tsx —
+     same source language, same two-step overwrite, same wording, so the two
+     editors behave identically.
+
+     English is always the source: it is the language the product treats as
+     primary, and translating a translation compounds whatever the first pass
+     got wrong. So this reads edBuf.EN, never the textarea.
+
+     Placeholders are protected server-side — the model never sees a SprintBrain
+     token, and a reply that altered one is refused before it reaches here. */
+  // edGen counts editor openings. A translation still in flight when the user
+  // closes the dialog and opens another snippet must not land in that snippet's
+  // buffer, so every reply checks the generation it was asked under.
+  var edTrArmed = false, edTrBusy = false, edGen = 0;
+
+  function translateSource(){
+    var s = (typeof edBuf.EN === 'string') ? edBuf.EN : '';
+    return s.replace(/^\s+|\s+$/g, '');
+  }
+
+  function renderTranslateBtn(){
+    var btn = $('nv-f-translate'), lbl = $('nv-f-translate-lbl');
+    // EN is the source and MULTI is a deliberate mix, so neither offers this.
+    var shown = (edActive === 'IT' || edActive === 'ES' || edActive === 'FR');
+    btn.style.display = shown ? '' : 'none';
+    if (!shown) { edTrArmed = false; return; }
+    var src = translateSource();
+    btn.disabled = edTrBusy || src.length === 0;
+    // A button that does nothing reads as broken, so say why it is off.
+    btn.title = src.length === 0
+      ? 'Write the English body first — it is what gets translated.'
+      : 'Translate the English body into ' + edActive + '. Fields and formulas are kept exactly as they are. Nothing is saved until you press Save.';
+    var armed = edTrArmed && !btn.disabled;
+    btn.classList.toggle('armed', armed);
+    lbl.textContent = edTrBusy ? 'Translating…' : (armed ? 'Click again to replace' : 'Translate from EN');
+  }
+
+  /* The error the user reads. Codes come from the edge function; the wording
+     matches translateError in app/src/lib/api/translateApi.ts. */
+  function translateMessage(code){
+    if (code === 'anthropic_not_configured') return 'Translation is not configured yet';
+    if (code === 'placeholders_corrupted') return 'The translation changed a field, so it was discarded. Try again';
+    if (code === 'translation_refused') return 'This text could not be translated';
+    if (code === 'source_too_long') return 'This body is too long to translate';
+    if (code === 'empty_source') return 'There is no English text to translate';
+    return 'Could not reach the translation service. Try again';
+  }
+
+  function translateFromEnglish(){
+    if (edTrBusy) return;
+    if (edActive !== 'IT' && edActive !== 'ES' && edActive !== 'FR') return;
+    var src = translateSource();
+    if (!src) return;
+    // Overwriting text already in the slot takes two clicks, the same as Clear.
+    if (($('nv-f-body').value || '').length > 0 && !edTrArmed) {
+      edTrArmed = true; renderTranslateBtn(); return;
+    }
+    edTrArmed = false; edTrBusy = true; renderTranslateBtn();
+    // The language showing may change while the request is in flight, so the
+    // reply is written to the language that was ASKED for, not to whatever is
+    // on screen when it lands. Same for the snippet itself, via edGen.
+    var target = edActive, gen = edGen;
+    sbAuthHeaders(function(err, headers){
+      if (err || !headers) {
+        edTrBusy = false; renderTranslateBtn(); toast('Sign in again to translate'); return;
+      }
+      fetch(SB_SUPA_URL + '/functions/v1/translate-body', {
+        method: 'POST',
+        headers: {
+          'apikey': headers.apikey,
+          'Authorization': headers.Authorization,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ body: src, target: target })
+      }).then(function(r){
+        return r.json().then(function(j){ return { ok: r.ok, j: j }; },
+                             function(){ return { ok: false, j: null }; });
+      }).then(function(res){
+        edTrBusy = false;
+        // A different snippet is open now — this reply belongs to nothing.
+        if (gen !== edGen) return;
+        if (!res.ok || !res.j || !res.j.ok || typeof res.j.translation !== 'string') {
+          renderTranslateBtn();
+          toast(translateMessage(res.j && res.j.error));
+          return;
+        }
+        edBuf[target] = res.j.translation;
+        if (edActive === target) {
+          $('nv-f-body').value = res.j.translation;
+          $('nv-f-body').focus();
+        }
+        edClearArmed = false;
+        renderLangTabs(); renderBodyFoot();
+      }).catch(function(){
+        edTrBusy = false;
+        if (gen !== edGen) return;
+        renderTranslateBtn();
+        toast('Could not reach the translation service. Try again');
+      });
+    });
   }
   /* Wipe the language on screen. The slot leaves edBuf instead of going blank,
      so the save writes a snippet that never carried that translation and every
@@ -1201,7 +1384,7 @@
     if (!edClearArmed) { edClearArmed = true; renderBodyFoot(); return; }
     delete edBuf[edActive];
     $('nv-f-body').value = '';
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot(); $('nv-f-body').focus();
   }
   function renderAltTags(){
@@ -1221,6 +1404,8 @@
   }
   function openEditor(snip){
     nvEditId = snip ? snip.id : null;
+    // Retires any translation still in flight from the previous opening.
+    edGen += 1; edTrBusy = false;
     $('nv-modal-title').textContent = snip ? 'Edit snippet' : 'New snippet';
     $('nv-f-title').value = snip ? (snip.title || '') : '';
     $('nv-f-shortcut').value = snip ? String(snip.shortcut||'').replace(/^[^a-zA-Z0-9]+/,'') : '';
@@ -1235,7 +1420,7 @@
     }
     $('nv-f-body').value = (typeof edBuf[edActive] === 'string') ? edBuf[edActive] : '';
     setBodyPlaceholder(edActive);
-    edClearArmed = false;
+    edClearArmed = false; edTrArmed = false;
     renderLangTabs(); renderBodyFoot();
     // alternative queries
     edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
@@ -1261,7 +1446,7 @@
     var ta = $('nv-f-body'), s = ta.selectionStart || 0, en = ta.selectionEnd || 0;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
     ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
-    edClearArmed = false; renderBodyFoot();
+    edClearArmed = false; edTrArmed = false; renderBodyFoot();
   }
 
   /* Swap the body text between two offsets — the edit path for a token already
@@ -1270,7 +1455,7 @@
     var ta = $('nv-f-body');
     ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
     ta.focus(); ta.selectionStart = ta.selectionEnd = start + text.length;
-    edClearArmed = false; renderBodyFoot();
+    edClearArmed = false; edTrArmed = false; renderBodyFoot();
   }
   $('nv-chips').addEventListener('click', function(e){
     var c = e.target.closest('[data-c]'); if (!c) return;
@@ -1514,6 +1699,157 @@
     syncMenuChip();
   });
 
+  /* ── DATE / TIME FIELD BUILDER ───────────────────────────────────────
+     Mirrors the React dashboard's Date/Time toggle: the same two rows in the
+     same order, the same five formats, the same live token preview. Both write
+     the token through SBFormulaEngine.buildFormDateToken, so the two surfaces
+     cannot drift into emitting different tokens for the same choice.
+
+     Inline rather than behind a modal, on both surfaces: there is one decision
+     to make and it is worth seeing next to the button that acts on it. */
+  var DT_DATE_OPTS = [
+    ['DD/MM/YYYY', 'Day / Month / Year · 04/09/2026'],
+    ['MM/DD/YYYY', 'Month / Day / Year · 09/04/2026'],
+    ['DD/MM/dddd', 'Day / Month / Weekday · 04/09/Friday']
+  ];
+  var DT_TIME_OPTS = [
+    ['HH:mm',   '24-hour · 14:30'],
+    ['hh:mm A', '12-hour (AM/PM) · 02:30 PM']
+  ];
+
+  /* Samples rather than pattern strings do the explaining: the two numeric
+     orders are indistinguishable on paper until you see a day past the twelfth
+     in the first slot, which is the mistake this dropdown exists to prevent. */
+  function dtFillSelect(el, opts){
+    if (el.options.length) return;
+    for (var i = 0; i < opts.length; i++) {
+      var o = document.createElement('option');
+      o.value = opts[i][0];
+      o.textContent = opts[i][1];
+      el.appendChild(o);
+    }
+  }
+
+  function dtToken(kind){
+    var isTime = kind === 'time';
+    return window.SBFormulaEngine.buildFormDateToken({
+      name: window.SBFormulaEngine.nextFieldName($('nv-f-body').value, isTime ? 'TIME_' : 'DATE_'),
+      type: isTime ? 'time' : 'date',
+      format: $(isTime ? 'nv-dt-tfmt' : 'nv-dt-dfmt').value
+    });
+  }
+
+  /* What the Date button will write next, name included, before it is in the
+     body — the same promise the number and menu builders make in their dialogs. */
+  function dtSync(){ $('nv-dt-prev').textContent = dtToken('date'); }
+
+  dtFillSelect($('nv-dt-dfmt'), DT_DATE_OPTS);
+  dtFillSelect($('nv-dt-tfmt'), DT_TIME_OPTS);
+  $('nv-dt-dfmt').addEventListener('change', dtSync);
+  $('nv-dt-dins').addEventListener('click', function(){ bodyInsert(dtToken('date')); dtSync(); });
+  $('nv-dt-tins').addEventListener('click', function(){ bodyInsert(dtToken('time')); dtSync(); });
+  /* The name follows the body, so typing DATE_1 by hand moves the preview to
+     DATE_2 rather than letting two controls end up wired to one value. */
+  $('nv-f-body').addEventListener('input', dtSync);
+  dtSync();
+
+  /* ── NUMBER FIELD BUILDER ────────────────────────────────────────────
+     Mirrors the React dashboard's FormNumberDialog. Both write the token
+     through SBFormulaEngine.buildFormNumberToken, so the two surfaces cannot
+     drift. Number is presented as its own field type, exactly as it is in the
+     dashboard rail; the {formtext:} spelling underneath is an engine detail
+     nobody writing a snippet has to know about. */
+  var NUM_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  var NUM_FMT_HINT = {
+    plain:    'The number exactly as typed. No symbol, no grouping.',
+    currency: 'Prints with the currency symbol and two decimal places.',
+    percent:  'Prints with a trailing %. Typing 15 means 15 percent, so a formula reads 15.'
+  };
+
+  /* A default may be written either way round — the engine normalises it. What
+     is rejected is text, which would reach the parser and arrive as no default
+     at all. Empty is valid and means "no default", which is not a default of 0. */
+  function numDefaultOk(v){
+    var t = String(v).replace(/^\s+|\s+$/g, '');
+    return t === '' || (/^[+-]?[0-9]+(?:[.,][0-9]+)*$/.test(t) && /[0-9]/.test(t));
+  }
+
+  function numToken(){
+    return window.SBFormulaEngine.buildFormNumberToken({
+      name:     $('nv-num-name').value || $('nv-num-name').placeholder,
+      format:   $('nv-num-format').value,
+      currency: $('nv-num-currency').value,
+      'default': String($('nv-num-default').value).replace(/^\s+|\s+$/g, '')
+    });
+  }
+
+  function numSync(){
+    var nameRaw = $('nv-num-name').value || $('nv-num-name').placeholder;
+    var nameOk = NUM_NAME_RE.test(nameRaw);
+    var defOk = numDefaultOk($('nv-num-default').value);
+    var fmt = $('nv-num-format').value;
+
+    $('nv-num-namehint').textContent = nameOk
+      ? 'A formula reads it back as {=' + nameRaw + ' * 2}.'
+      : 'Letters, numbers and underscore, starting with a letter. Without a usable name the field expands to nothing.';
+    $('nv-num-fmthint').textContent = NUM_FMT_HINT[fmt] || NUM_FMT_HINT.plain;
+    $('nv-num-defhint').textContent = defOk
+      ? 'The value the field starts with. Left blank it opens empty, which is not the same as starting at 0.'
+      : 'A default has to be a number. Write the digits on their own — the format adds the symbol.';
+
+    /* The currency row only exists for a currency field: on the other two there
+       is nothing for it to change, and an inert control reads as broken. */
+    $('nv-num-curwrap').style.display = fmt === 'currency' ? '' : 'none';
+    if (fmt === 'currency') {
+      var CUR = window.SBFormulaEngine.CURRENCIES;
+      var code = $('nv-num-currency').value;
+      var c = CUR[code] || CUR.EUR;
+      var sample = c.group === 'dot' ? '1.200,50' : (c.decimals === 0 ? '1,200' : '1,200.50');
+      $('nv-num-curhint').textContent = 'Prints as ' + c.symbol + sample + '. A formula still reads 1200.5.';
+    }
+
+    $('nv-num-insert').disabled = !(nameOk && defOk);
+    $('nv-num-token').textContent = (nameOk && defOk) ? numToken() : '';
+  }
+
+  function openNumberBuilder(){
+    var sel = $('nv-num-currency');
+    if (!sel.options.length) {
+      var CUR = window.SBFormulaEngine.CURRENCIES;
+      for (var code in CUR) {
+        if (!Object.prototype.hasOwnProperty.call(CUR, code)) continue;
+        var o = document.createElement('option');
+        o.value = code;
+        o.textContent = code + ' · ' + CUR[code].symbol;
+        sel.appendChild(o);
+      }
+    }
+    /* Every opening starts clean: a half-built field carried over from a
+       cancelled insert would silently ship into the next snippet. */
+    $('nv-num-name').value = '';
+    $('nv-num-name').placeholder = window.SBFormulaEngine.nextNumberName($('nv-f-body').value);
+    $('nv-num-format').value = 'plain';
+    $('nv-num-currency').value = 'EUR';
+    $('nv-num-default').value = '';
+    numSync();
+    $('nv-num-bg').classList.add('on');
+    setTimeout(function(){ $('nv-num-name').focus(); }, 30);
+  }
+  function closeNumberBuilder(){ $('nv-num-bg').classList.remove('on'); }
+
+  $('nv-chip-number').addEventListener('click', openNumberBuilder);
+  $('nv-num-name').addEventListener('input', numSync);
+  $('nv-num-default').addEventListener('input', numSync);
+  $('nv-num-format').addEventListener('change', numSync);
+  $('nv-num-currency').addEventListener('change', numSync);
+  $('nv-num-cancel').addEventListener('click', closeNumberBuilder);
+  $('nv-num-bg').addEventListener('click', function(e){ if (e.target === $('nv-num-bg')) closeNumberBuilder(); });
+  $('nv-num-insert').addEventListener('click', function(){
+    if ($('nv-num-insert').disabled) return;
+    bodyInsert(numToken());
+    closeNumberBuilder();
+  });
+
   /* ── ACTION BUTTON BUILDER ({button}) ────────────────────────────────
      Mirrors the React dashboard's FormButtonDialog. Both write the token
      through SBFormulaEngine.buildFormButtonToken, so they cannot drift. */
@@ -1626,10 +1962,11 @@
   $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
   $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
   $('nv-f-shortcut').addEventListener('input', updatePreview);
-  // Typing disarms Clear: one left armed from before the edit would otherwise
-  // wipe text the user has just written on a single click.
-  $('nv-f-body').addEventListener('input', function(){ edClearArmed = false; renderBodyFoot(); });
+  // Typing disarms Clear and Translate: one left armed from before the edit
+  // would otherwise wipe text the user has just written on a single click.
+  $('nv-f-body').addEventListener('input', function(){ edClearArmed = false; edTrArmed = false; renderBodyFoot(); });
   $('nv-f-clear').addEventListener('click', clearActiveLang);
+  $('nv-f-translate').addEventListener('click', translateFromEnglish);
   $('nv-f-cancel').addEventListener('click', closeEditor);
   $('nv-modal-bg').addEventListener('click', function(e){ if (e.target === $('nv-modal-bg')) closeEditor(); });
   $('nv-f-save').addEventListener('click', function(){

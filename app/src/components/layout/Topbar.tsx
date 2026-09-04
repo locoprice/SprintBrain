@@ -1,6 +1,7 @@
-import { CheckCircle2, Command, Search } from 'lucide-react';
+import { CheckCircle2, Command, PanelLeft, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useUiStore } from '@/stores/uiStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserDropdown } from '@/components/layout/UserDropdown';
 
@@ -13,6 +14,8 @@ import { UserDropdown } from '@/components/layout/UserDropdown';
 export function Topbar() {
   const notionSync = useSettingsStore((s) => s.notionSync);
   const profile = useSettingsStore((s) => s.profile);
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
   const companyName = profile?.company_name ?? '';
   const companyLogo = profile?.company_logo_url ?? null;
   const lastSyncLabel = notionSync?.last_sync_at
@@ -21,6 +24,20 @@ export function Topbar() {
 
   return (
     <header className="flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-card px-6">
+      {/* The way back. The sidebar owns this control while it is on screen, so
+          the header only carries it once the sidebar has been hidden. */}
+      {sidebarCollapsed && (
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed(false)}
+          aria-label="Show sidebar"
+          title="Show sidebar"
+          className="-ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-ink-subtle transition-colors hover:bg-bg-alt hover:text-ink"
+        >
+          <PanelLeft className="h-4 w-4" aria-hidden />
+        </button>
+      )}
+
       {/* Brand — small azure square + wordmark, co-branded with the user's
           company mark (Settings → Company branding) when one is set. */}
       <div className="flex items-center gap-2.5">

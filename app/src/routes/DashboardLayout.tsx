@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { SidebarPeek } from '@/components/layout/SidebarPeek';
 import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
 import { JotFormModal } from '@/components/layout/JotFormModal';
@@ -27,6 +28,7 @@ export function DashboardLayout() {
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const closeOnboarding = useUiStore((s) => s.closeOnboarding);
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
 
@@ -65,8 +67,11 @@ export function DashboardLayout() {
     <div className="flex h-screen min-w-[1024px] flex-col bg-bg text-ink">
       <Topbar />
       <PendingInviteBanner />
-      <div className="flex min-h-0 min-w-0 flex-1">
-        <Sidebar />
+      {/* Positioned, so the peek overlay measures itself against the content
+          row and starts below the topbar and the invite banner without either
+          of their heights being hard-coded. */}
+      <div className="relative flex min-h-0 min-w-0 flex-1">
+        {!sidebarCollapsed && <Sidebar />}
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <div className="mx-auto w-full max-w-content px-8 py-8">
@@ -133,6 +138,7 @@ export function DashboardLayout() {
             <span className="font-mono text-[10px] text-ink-subtle">{RELEASE_DATE}</span>
           </footer>
         </div>
+        {sidebarCollapsed && <SidebarPeek />}
       </div>
       <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
       <JotFormModal

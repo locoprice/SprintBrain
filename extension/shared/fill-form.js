@@ -153,6 +153,21 @@
         // not agree (the overlay prints {KEY}, the phone humanises it).
         label: raw.label || '',
         type: type,
+        // How the value prints once it leaves the form. A number carries
+        // 'plain', 'currency' or 'percent'; a date or a time carries one of the
+        // engine's DATE_FORMATS / TIME_FORMATS, or '' for the raw picker value.
+        // Always '' for every other kind of field, so a renderer can read it
+        // without first asking what type it is holding. Formatting is output
+        // only — the value a formula reads stays the raw number, or
+        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50",
+        // and datetimediff() would stop reading a date it formatted itself.
+        format: type === 'number' ? (raw.format || 'plain')
+              : ((type === 'date' || type === 'time') ? (raw.format || '') : ''),
+        // ISO code behind a currency field, so a renderer can show the symbol
+        // beside the input without re-parsing the token. '' for every other
+        // field, and for a number that is not money.
+        currency: type === 'number' && raw.format === 'currency'
+          ? (raw.currency || 'EUR') : '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,

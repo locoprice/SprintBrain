@@ -5,6 +5,7 @@ import {
   Eye,
   History,
   Info,
+  Languages,
   MousePointerClick,
   PanelRightClose,
   PanelRightOpen,
@@ -34,6 +35,7 @@ import {
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
+import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
 import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
@@ -45,7 +47,19 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
+import { nextNumberName } from '@/lib/formNumberToken';
+import {
+  buildFormDateToken,
+  DATE_FORMAT_OPTIONS,
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_TIME_FORMAT,
+  nextDateName,
+  TIME_FORMAT_OPTIONS,
+  type DateFormat,
+  type TimeFormat,
+} from '@/lib/formDateToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
+import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -217,6 +231,18 @@ const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
+// A number field is the one type that carries a guarantee rather than a
+// picker: whatever is typed is a number by the time a formula reads it, or the
+// formula refuses to answer instead of quietly treating it as zero.
+const NUMBER_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Name',
+    hint: 'What the field is called in the fill form, and how a formula refers to it. Arrives prefilled with the next free NUM_n.' },
+  { label: 'Format',
+    hint: 'Plain, Currency or Percent. It changes how the value prints, never the number a formula reads.' },
+  { label: 'Default',
+    hint: 'Optional. Left blank the field opens empty, which is not the same as starting at 0.' },
+];
+
 const MENU_FIELDS: { label: string; hint: string }[] = [
   { label: 'Values',
     hint: 'The options the menu offers. Tick one to preselect it.' },
@@ -226,15 +252,24 @@ const MENU_FIELDS: { label: string; hint: string }[] = [
     hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
 ];
 
-// The picker a field gets is decided by its name, not by any setting: content.js
-// splits the name on non-letters, uppercases it, and looks for DATETIME / DATE /
-// TIME among the parts (see the auto-detect in content.js). That is the whole
-// rule, and it is what makes one Date/Time group the honest place for these.
-const DATE_TIME_FIELDS: { label: string; value: string; hint: string }[] = [
-  { label: '{start_date}', value: '{start_date}',
-    hint: 'Opens a calendar when the snippet expands. Fine on its own, or paired with {end_date} for a range.' },
-  { label: '{end_date}', value: '{end_date}',
-    hint: 'The closing date of a range. Reads as the partner of {start_date}.' },
+// One date and one time, each with the format it prints in. The group used to
+// offer a fixed {start_date} and {end_date} instead, which answered the wrong
+// question twice: both were plain calendars, neither could say how the date
+// should read, and a snippet needing three dates had nothing to insert. A range
+// is now what it always was underneath — the same field inserted twice, DATE_1
+// opening it and DATE_2 closing it.
+//
+// The formats are the engine's own DATE_FORMATS / TIME_FORMATS. Samples rather
+// than pattern strings do the explaining: the two numeric orders are
+// indistinguishable on paper until you see a day past the twelfth in the first
+// slot, which is exactly the mistake this dropdown exists to prevent.
+const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Date',
+    hint: 'Opens a calendar when the snippet expands. Insert it twice for a range — the second one arrives as DATE_2.' },
+  { label: 'Time',
+    hint: 'Opens a clock. 12-hour prints the AM or PM alongside, so a time can never be read as the wrong half of the day.' },
+  { label: 'Format',
+    hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
 ];
 
 
@@ -336,6 +371,12 @@ export function NewSnippetDialog() {
   // Clear is armed by the first click and fires on the second, the same
   // two-step Delete uses. Wiping a translation is not undoable from here.
   const [confirmClear, setConfirmClear] = useState(false);
+  // Translate: in flight, and the last failure. Overwriting a translation that
+  // already has text is armed by a first click the same way Clear is, since it
+  // replaces work the user may have written by hand.
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [confirmTranslate, setConfirmTranslate] = useState(false);
   // Dropdown-menu field builder — writes a {formmenu:} token at the cursor.
   const [menuFieldOpen, setMenuFieldOpen] = useState(false);
   // Body caret, tracked so the menu chip can offer Edit when it sits inside a
@@ -348,8 +389,16 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Date/Time builder — the format each of the two tokens is written with.
+  // Inline state rather than a dialog: one dropdown is not worth a modal, and
+  // seeing the choice next to the button is the whole point of it.
+  const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(DEFAULT_TIME_FORMAT);
   // Text-field builder — writes a {formtext:} token at the cursor.
   const [textFieldOpen, setTextFieldOpen] = useState(false);
+  // Number-field builder — writes a number token at the cursor. Its own type in
+  // the rail; that it shares {formtext:}'s spelling is an engine constraint.
+  const [numberFieldOpen, setNumberFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
 
@@ -522,6 +571,18 @@ export function NewSnippetDialog() {
   // the chip from "insert a menu" into "edit this menu".
   const menuAtCaret = useMemo(() => findMenuTokenAt(form.content, caret), [form.content, caret]);
 
+  // What the Date button will write next. Shown under the two dropdowns so the
+  // author reads the token, and the name it claims, before it is in the body.
+  const dateTokenPreview = useMemo(
+    () =>
+      buildFormDateToken({
+        name: nextDateName(form.content, 'date'),
+        kind: 'date',
+        format: dateFormat,
+      }),
+    [form.content, dateFormat],
+  );
+
   function openMenuBuilder() {
     const cfg = menuAtCaret ? parseFormMenuToken(menuAtCaret.raw) : null;
     setMenuEdit(menuAtCaret && cfg ? { range: menuAtCaret, cfg } : null);
@@ -603,6 +664,9 @@ export function NewSnippetDialog() {
     // Typing disarms Clear: one left armed from before the edit would otherwise
     // wipe text the user has just written on a single click.
     if (confirmClear) setConfirmClear(false);
+    // Same reasoning for Translate, which also overwrites the slot.
+    if (confirmTranslate) setConfirmTranslate(false);
+    if (translateError) setTranslateError(null);
   }
 
   // Switching language: snapshot the current textarea into the OLD language's
@@ -624,6 +688,8 @@ export function NewSnippetDialog() {
     if (errors.language) setErrors((prev) => ({ ...prev, language: undefined }));
     if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
     setConfirmClear(false);
+    setConfirmTranslate(false);
+    setTranslateError(null);
   }
 
   /**
@@ -641,7 +707,53 @@ export function NewSnippetDialog() {
     setErrors((prev) => ({ ...prev, content: undefined }));
     setLiveLanguageError(null);
     setConfirmClear(false);
+    setConfirmTranslate(false);
+    setTranslateError(null);
     contentRef.current?.focus();
+  }
+
+  /**
+   * Fill the language on screen by translating the English body (TRANSLATE-001).
+   *
+   * English is the source, always: it is the language the product treats as
+   * primary, and translating a translation compounds whatever the first pass
+   * got wrong. So the button reads from `bodies.EN` rather than from whatever
+   * happens to be in the textarea.
+   *
+   * Placeholders are protected server-side — the model never sees a
+   * SprintBrain token, and a reply that altered one is refused before it
+   * reaches this function. That is why the result can be written straight into
+   * the slot with no further checking here.
+   *
+   * Nothing is saved. The translation lands in the textarea as a draft the user
+   * reads, edits and then saves, exactly as if they had typed it.
+   */
+  async function translateFromEnglish() {
+    const target = form.language;
+    if (target === 'EN' || target === 'MULTI') return;
+
+    const source = (form.bodies.EN ?? '').trim();
+    if (source.length === 0) return;
+
+    // Overwriting existing text takes two clicks, the same as Clear. The first
+    // click only arms it.
+    if (form.content.length > 0 && !confirmTranslate) {
+      setConfirmTranslate(true);
+      return;
+    }
+
+    setTranslating(true);
+    setTranslateError(null);
+    setConfirmTranslate(false);
+    try {
+      const translated = await translateApi.translateBody(source, target as TranslateTarget);
+      updateBody(translated);
+      contentRef.current?.focus();
+    } catch (err) {
+      setTranslateError(err instanceof Error ? err.message : 'Translation failed. Try again.');
+    } finally {
+      setTranslating(false);
+    }
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -825,36 +937,117 @@ export function NewSnippetDialog() {
                 label="Date/Time"
                 className="mb-2.5 mt-2.5"
                 footer={
-                  <div className="flex flex-wrap gap-1.5">
-                    {DATE_TIME_FIELDS.map((f, i) => (
+                  <div className="flex flex-col gap-2">
+                    {/* Two rows, each a format and the button that inserts it.
+                        The format sits beside the button rather than behind a
+                        second dialog: there is one decision to make here, and it
+                        is worth seeing before the token lands in the body.
+
+                        The row wraps rather than squeezing. What a format option
+                        says is its sample — "Month / Day / Year · 09/04/2026" —
+                        and the two numeric orders are indistinguishable until you
+                        read one, so a select narrow enough to clip it is worse
+                        than a button on its own line. 260px of rail wraps; the
+                        wider surface keeps both on one line. */}
+                    <div className="flex flex-wrap items-end gap-1.5">
+                      <div className="min-w-[180px] flex-1">
+                        <label htmlFor="sb-date-format" className={FIELD_LABEL}>
+                          Date format
+                        </label>
+                        <select
+                          id="sb-date-format"
+                          value={dateFormat}
+                          disabled={saving}
+                          onChange={(e) => setDateFormat(e.target.value as DateFormat)}
+                          className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
+                        >
+                          {DATE_FORMAT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label} · {o.sample}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <Button
-                        key={f.value}
                         type="button"
                         size="sm"
-                        variant={i === 0 ? 'primary' : 'ghost'}
+                        variant="primary"
                         disabled={saving}
-                        onClick={() => insertAtCursor(f.value)}
+                        onClick={() =>
+                          insertAtCursor(
+                            buildFormDateToken({
+                              name: nextDateName(form.content, 'date'),
+                              kind: 'date',
+                              format: dateFormat,
+                            }),
+                          )
+                        }
                       >
                         <Plus className="mr-1 h-3 w-3" />
-                        {f.label}
+                        Date
                       </Button>
-                    ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-1.5">
+                      <div className="min-w-[180px] flex-1">
+                        <label htmlFor="sb-time-format" className={FIELD_LABEL}>
+                          Time format
+                        </label>
+                        <select
+                          id="sb-time-format"
+                          value={timeFormat}
+                          disabled={saving}
+                          onChange={(e) => setTimeFormat(e.target.value as TimeFormat)}
+                          className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
+                        >
+                          {TIME_FORMAT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label} · {o.sample}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={saving}
+                        onClick={() =>
+                          insertAtCursor(
+                            buildFormDateToken({
+                              name: nextDateName(form.content, 'time'),
+                              kind: 'time',
+                              format: timeFormat,
+                            }),
+                          )
+                        }
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Time
+                      </Button>
+                    </div>
+
+                    {/* What the next Date button will write. The author sees the
+                        token before it is in the body, the same promise the
+                        number and menu builders make in their own dialogs. */}
+                    <p className="font-mono text-[10px] leading-tight text-ink-subtle break-all">
+                      {dateTokenPreview}
+                    </p>
                   </div>
                 }
               >
                 <p className="text-[11px] text-ink-subtle leading-tight">
-                  Dates and times fill as a picker instead of a text box, and the field
-                  name is what decides which one. A name containing{' '}
-                  <code className="font-mono text-primary/80">date</code> opens a calendar,
-                  <code className="font-mono text-primary/80"> time</code> a clock, and{' '}
-                  <code className="font-mono text-primary/80">datetime</code> both. The rule
-                  holds for any name you invent, so{' '}
-                  <code className="font-mono text-primary/80">{'{delivery_date}'}</code>{' '}
-                  behaves exactly like the two below.
+                  A date fills as a calendar and a time as a clock, then prints in the
+                  format you pick here. Formatting is what the reader sees and nothing
+                  more: a formula and{' '}
+                  <code className="font-mono text-primary/80">{'{datetimediff}'}</code>{' '}
+                  still read the value the picker set. For a range, insert Date twice —
+                  the second one arrives as{' '}
+                  <code className="font-mono text-primary/80">DATE_2</code>.
                 </p>
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {DATE_TIME_FIELDS.map((f) => (
-                    <div key={f.value}>
+                    <div key={f.label}>
                       <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
                       <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
                     </div>
@@ -900,6 +1093,46 @@ export function NewSnippetDialog() {
                       only the exception needs typing.
                     </dd>
                   </div>
+                </dl>
+              </Toggle>
+
+              {/* Number is its own field type, not a setting inside Text. The
+                  two share a token spelling underneath because the engine reads
+                  a fixed nine-character prefix and could not take a new one
+                  without 24 call sites moving together — an engine constraint,
+                  and not something an author should ever have to think about. */}
+              <Toggle
+                label="Number"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => setNumberFieldOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Name and insert
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  A quantity — a price, a count, a duration. Unlike a text field it is
+                  guaranteed to be a number by the time a formula reads it, so{' '}
+                  <code className="font-mono text-primary/80">{'{=TOTAL * 2}'}</code>{' '}
+                  either works or says why. Typed as{' '}
+                  <code className="font-mono text-primary/80">1.200,50</code> or{' '}
+                  <code className="font-mono text-primary/80">1,200.50</code>, it reads the
+                  same either way.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {NUMBER_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
                 </dl>
               </Toggle>
 
@@ -1387,8 +1620,41 @@ export function NewSnippetDialog() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   {contentError && <FieldError message={contentError} />}
+                  {!contentError && translateError && <FieldError message={translateError} />}
                 </div>
                 <div className="flex shrink-0 items-center gap-2.5">
+                  {/* Translate fills this slot from the English body. Shown only
+                      on IT/ES/FR: EN is the source, and MULTI is a deliberate
+                      mix with no single target language. Disabled when there is
+                      no English to translate — the title says so, since a
+                      button that does nothing reads as broken. */}
+                  {(form.language === 'IT' ||
+                    form.language === 'ES' ||
+                    form.language === 'FR') && (
+                    <button
+                      type="button"
+                      onClick={() => void translateFromEnglish()}
+                      disabled={saving || translating || (form.bodies.EN ?? '').trim().length === 0}
+                      title={
+                        (form.bodies.EN ?? '').trim().length === 0
+                          ? 'Write the English body first — it is what gets translated.'
+                          : `Translate the English body into ${form.language}. Fields and formulas are kept exactly as they are. Nothing is saved until you press Save.`
+                      }
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-[6px] border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
+                        confirmTranslate
+                          ? 'border-primary/40 bg-primary-bg text-primary'
+                          : 'border-line bg-card text-ink-subtle hover:border-primary/40 hover:bg-primary-bg hover:text-primary',
+                      )}
+                    >
+                      <Languages className="h-3 w-3" aria-hidden />
+                      {translating
+                        ? 'Translating…'
+                        : confirmTranslate
+                          ? 'Click again to replace'
+                          : 'Translate from EN'}
+                    </button>
+                  )}
                   {/* Clear sits left of the count so the count keeps the right
                       edge it has always had. Disabled on an already-empty slot:
                       there is nothing to delete and an armable button that does
@@ -1419,6 +1685,13 @@ export function NewSnippetDialog() {
               open={textFieldOpen}
               onOpenChange={setTextFieldOpen}
               suggestedName={nextTextName(form.content)}
+              onInsert={insertAtCursor}
+            />
+
+            <FormNumberDialog
+              open={numberFieldOpen}
+              onOpenChange={setNumberFieldOpen}
+              suggestedName={nextNumberName(form.content)}
               onInsert={insertAtCursor}
             />
 

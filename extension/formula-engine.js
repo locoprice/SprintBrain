@@ -9,7 +9,7 @@
 //   {var: NAME = EXPRESSION}   — local variable declaration
 //   {time: FORMAT}             — date/time token
 //   {formtext: name=VAR; default=X}   — text input field
-//   {formdate: name=VAR}              — date input field
+//   {formdate: name=VAR[; type=time][; format=DD/MM/YYYY]}  — date or time field
 //   {formmenu: opt1,opt2; name=VAR[; default=opt1][; multiple=yes][; cols=N]}  — dropdown field
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
 //   {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}  — gendered word
@@ -480,15 +480,229 @@
     return pos === str.length ? result : NaN;
   }
 
+  // ── NUMERIC VALUE READER ────────────────────────────────────────
+  // Every surface hands a formula the raw string an operator typed, so this is
+  // the single place where a typed value becomes a number.
+  //
+  // parseFloat cannot do this job: parseFloat("1.200,50") is 1.2 — not an
+  // error, a plausible and completely wrong number — and that is exactly the
+  // shape SprintBrain's operators write.
+  //
+  //   absent, empty        0        "not answered" is not a wrong answer
+  //   "1200.5"             1200.5
+  //   "1.200,50"           1200.5   both separators present: the LAST is decimal
+  //   "1,200.50"           1200.5
+  //   "1.200.000"          1200000  a separator used twice is grouping
+  //   "1,5"                1.5      ',' reads as a decimal point, exactly like '.'
+  //   "€1.200", "abc"      null     present, but not a number
+  //
+  // A single '.' keeps meaning a decimal point, so nothing that resolves
+  // correctly today changes. A single ',' now does too: "1,200" reads as 1.2
+  // where parseFloat read 1, which was wrong under either reading.
+  //
+  // null is the point of the function: it lets a caller tell "no answer" (0)
+  // from "an answer that is not a number", which the engine used to collapse.
+  function sbToNumber(raw) {
+    if (raw === null || raw === undefined) return 0;
+    if (typeof raw === 'number') return isFinite(raw) ? raw : null;
+    var s = String(raw).replace(/[\s ]/g, '');
+    if (s === '') return 0;
+    var neg = false;
+    if (s.charAt(0) === '+') s = s.slice(1);
+    else if (s.charAt(0) === '-') { neg = true; s = s.slice(1); }
+    if (!/^[0-9.,]+$/.test(s)) return null;
+    var dots = s.split('.').length - 1;
+    var commas = s.split(',').length - 1;
+    var dec = -1;
+    if (dots && commas) dec = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','));
+    else if (dots === 1) dec = s.lastIndexOf('.');
+    else if (commas === 1) dec = s.lastIndexOf(',');
+    var whole = (dec === -1 ? s : s.slice(0, dec)).replace(/[.,]/g, '');
+    var frac = dec === -1 ? '' : s.slice(dec + 1);
+    // Grouping marks are gone by now, so anything left in the fraction is a
+    // third separator: "1.2.3" is not a number in any locale.
+    if (/[.,]/.test(frac)) return null;
+    if (whole === '' && frac === '') return null;
+    var n = parseFloat((whole === '' ? '0' : whole) + (frac === '' ? '' : '.' + frac));
+    if (isNaN(n) || !isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+
+  // ── NUMBER OUTPUT FORMATTING ────────────────────────────────────
+  // Formatting happens on the way OUT and nowhere else. The value stored, and
+  // the value a formula reads, stay the raw number in every case — otherwise
+  // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1.200,50".
+  //
+  // Intl.NumberFormat was rejected on purpose: its output depends on the
+  // runtime's locale, so the same snippet would print differently in the
+  // browser, on the phone and in the dashboard preview. Five surfaces have to
+  // agree on one string, so the rules are spelled out here instead.
+  //
+  // Symbol goes in front for every currency. Several of these are written after
+  // the number in their home locale, but picking per-currency placement makes
+  // the output depend on which currency was chosen rather than on one rule, and
+  // one rule is what keeps the surfaces honest.
+  var CURRENCIES = {
+    EUR: { symbol: '€',   group: 'dot',   decimals: 2 },
+    USD: { symbol: '$',   group: 'comma', decimals: 2 },
+    GBP: { symbol: '£',   group: 'comma', decimals: 2 },
+    CHF: { symbol: 'CHF', group: 'comma', decimals: 2 },
+    CAD: { symbol: 'CA$', group: 'comma', decimals: 2 },
+    AUD: { symbol: 'A$',  group: 'comma', decimals: 2 },
+    // Yen has no minor unit, so ¥1,200 rather than ¥1,200.00.
+    JPY: { symbol: '¥',   group: 'comma', decimals: 0 }
+  };
+  var DEFAULT_CURRENCY = 'EUR';
+
+  // `decimals` of -1 means "however many the number already has", which is what
+  // percent wants: 15 prints as 15, not 15.00.
+  function _groupNumber(n, style, decimals) {
+    var neg = n < 0, abs = Math.abs(n);
+    var s = decimals >= 0 ? abs.toFixed(decimals) : String(abs);
+    var dot = s.indexOf('.');
+    var whole = dot === -1 ? s : s.slice(0, dot);
+    var frac  = dot === -1 ? '' : s.slice(dot + 1);
+    var gsep = style === 'dot' ? '.' : ',';
+    var dsep = style === 'dot' ? ',' : '.';
+    whole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, gsep);
+    return (neg ? '-' : '') + whole + (frac === '' ? '' : dsep + frac);
+  }
+
+  /**
+   * The printed form of one field value.
+   *
+   * @param {*} raw     what the operator typed
+   * @param {string} format   'plain' | 'currency' | 'percent'
+   * @param {string} currency ISO code, only read when format is 'currency'
+   */
+  function sbFormatNumber(raw, format, currency) {
+    var s = (raw === null || raw === undefined) ? '' : String(raw);
+    // Unanswered prints nothing. Formatting an empty field into "€0.00" would
+    // put a price in a message nobody agreed to.
+    if (s.replace(/\s/g, '') === '') return '';
+    var n = sbToNumber(s);
+    // Present but not a number: print it back verbatim rather than inventing a
+    // formatted zero. The formula path is where that gets surfaced as an error.
+    if (n === null) return s;
+    if (format === 'percent') return _groupNumber(n, 'comma', -1) + '%';
+    if (format === 'currency') {
+      var c = CURRENCIES[String(currency || '').toUpperCase()] || CURRENCIES[DEFAULT_CURRENCY];
+      return c.symbol + _groupNumber(n, c.group, c.decimals);
+    }
+    // Plain prints exactly what was typed, which is what it promises.
+    return s;
+  }
+
+
+  // ── DATE / TIME FIELD FORMATS ───────────────────────────────────
+  // A date field prints whatever the picker put in it — "2026-09-04" — unless
+  // the author chose a format. The choices are written into the token literally
+  // ("format=DD/MM/YYYY") rather than behind a short code, because that is
+  // already the spelling {time: FORMAT} uses and the one sbFormatDate reads:
+  // one vocabulary for dates across the whole grammar.
+  //
+  // No format means no formatting, and that is what keeps this backward
+  // compatible: every {formdate:} written before the attribute existed carries
+  // none, so all of them keep printing exactly what they printed.
+  //
+  // The lists are closed on purpose. An arbitrary format string would let a
+  // typo reach a customer as a half-substituted date, and the two builders only
+  // ever offer these five.
+  var DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd'];
+  var TIME_FORMATS = ['HH:mm', 'hh:mm A'];
+
+  // Only a date or a time field carries a format. A datetime holds both halves
+  // and neither list can print it whole, so it stays raw rather than silently
+  // losing the half the format does not mention.
+  function _dateFormatOk(type, fmt) {
+    var list = type === 'date' ? DATE_FORMATS : (type === 'time' ? TIME_FORMATS : null);
+    if (!list) return '';
+    return list.indexOf(fmt) === -1 ? '' : fmt;
+  }
+
+  /**
+   * The printed form of one date or time value.
+   *
+   * @param {*} raw    what the picker put in the field ("2026-09-04", "14:30")
+   * @param {string} format  one of DATE_FORMATS / TIME_FORMATS, or '' for raw
+   *
+   * Mirrors sbFormatNumber's two refusals, for the same reasons: an unanswered
+   * field prints nothing rather than today's date, and a value the parser
+   * cannot read prints back verbatim rather than becoming an invented one.
+   */
+  function sbFormatDateValue(raw, format) {
+    var s = (raw === null || raw === undefined) ? '' : String(raw);
+    s = s.replace(/^\s+|\s+$/g, '');
+    if (s === '' || !format) return s;
+    var d = sbParseUserDate(s);
+    return d ? sbFormatDate(d, format) : s;
+  }
+
+  // The three kinds a {formdate:} can declare. `date` is what the token has
+  // always meant, so an absent or unrecognised type reads as that rather than
+  // dropping the field: a typo must not cost the author their picker.
+  var DATE_TYPES = { date: 1, time: 1, datetime: 1 };
+
+  function _dateCfg(attrSrc, defVal) {
+    var typeM = /(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    var type = typeM ? typeM[1].toLowerCase() : '';
+    if (!Object.prototype.hasOwnProperty.call(DATE_TYPES, type)) type = 'date';
+    var out = { type: type, 'default': defVal };
+    // Case carries meaning here — MM is the month, mm the minute — so the value
+    // is matched exactly. Only the attribute name is case-insensitive.
+    var fmtM = /(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
+    var fmt = _dateFormatOk(type, fmtM ? fmtM[1].replace(/^\s+|\s+$/g, '') : '');
+    if (fmt) out.format = fmt;
+    return out;
+  }
+
+  // Which fields in a body print formatted, and how. Only formats that actually
+  // change the output are listed, so a plain number and an unformatted date
+  // both cost nothing here.
+  //
+  // Reads the body's own tokens. A stored field_cfg override is not consulted:
+  // nothing writes one today, and resolveBody has no route to it.
+  function _fieldFormatMap(body) {
+    var cfg = buildFormFieldCfg(body), out = null;
+    for (var k in cfg) {
+      if (!Object.prototype.hasOwnProperty.call(cfg, k)) continue;
+      var f = cfg[k];
+      if (f.type === 'number') {
+        if (!f.format || f.format === 'plain') continue;
+        if (!out) out = {};
+        out[k] = { kind: 'number', format: f.format, currency: f.currency || DEFAULT_CURRENCY };
+      } else if (f.type === 'date' || f.type === 'time') {
+        if (!f.format) continue;
+        if (!out) out = {};
+        out[k] = { kind: 'date', format: f.format };
+      }
+    }
+    return out;
+  }
+
+  function _emitField(key, value, fmtMap) {
+    var f = fmtMap && key ? fmtMap[key] : null;
+    if (!f) return value;
+    return f.kind === 'date'
+      ? sbFormatDateValue(value, f.format)
+      : sbFormatNumber(value, f.format, f.currency);
+  }
+
   // ── FORMULA EVALUATOR ───────────────────────────────────────────
   function evalFormula(expr, vals) {
     try {
       var s = sbResolveDatetimeDiff(expr, vals);
+      var unreadable = false;
       s = s.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
         if (FUNS[n]) return n;
-        var v = parseFloat(vals[n]);
-        return isNaN(v) ? '0' : String(v);
+        var v = sbToNumber(vals[n]);
+        // Present, but not a number. Substituting 0 here is how a wrong total
+        // used to reach a customer looking exactly like a right one: an input
+        // of "€1.200" made {=TOTAL * 2} resolve to 0 with no error at all.
+        if (v === null) { unreadable = true; return '0'; }
+        return String(v);
       });
+      if (unreadable) return null;
       var r = safeEval(s);
       // !isFinite catches NaN AND ±Infinity (e.g. divide-by-zero like {{= 1/0 }}),
       // so a bad formula resolves to '' instead of leaking the literal "Infinity".
@@ -554,6 +768,20 @@
   function resolveBody(body, vals, opts) {
     if (!body) return '';
     var out = '', i = 0, gLock = -1;
+    // Which fields print formatted is decided by the WHOLE body, not by the
+    // fragment being resolved: an {if:} branch can print a field declared
+    // outside it. So the map is built once at the outermost call and carried
+    // down. `opts` belongs to the caller, so the carrier is a copy.
+    var _o = opts || {};
+    var fmtMap, subOpts;
+    if (Object.prototype.hasOwnProperty.call(_o, '_fmtMap')) {
+      fmtMap = _o._fmtMap; subOpts = _o;
+    } else {
+      fmtMap = _fieldFormatMap(body);
+      subOpts = {};
+      for (var _k in _o) if (Object.prototype.hasOwnProperty.call(_o, _k)) subOpts[_k] = _o[_k];
+      subOpts._fmtMap = fmtMap;
+    }
     while (i < body.length) {
       if (body[i] === '{') {
         // Double-brace: {{= EXPR}} or {{VARNAME}}
@@ -616,7 +844,8 @@
         }
         if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
           var fKey = _formFieldName(tokLow, tok.slice(9));
-          out = sbEmitValue(out, fKey && vals[fKey] !== undefined ? vals[fKey] : '', gLock);
+          var fRaw = fKey && vals[fKey] !== undefined ? vals[fKey] : '';
+          out = sbEmitValue(out, _emitField(fKey, fRaw, fmtMap), gLock);
           i = cl+1; continue;
         }
         if (tokLow.slice(0,7) === 'gender:') {
@@ -638,7 +867,7 @@
             var brOk = false;
             if (br.cond === null) { brOk = true; }
             else { try { var cr = evalCondition(br.cond, vals); brOk = cr !== null && cr !== 0; } catch(e) {} }
-            if (brOk) { out += resolveBody(br.body, vals, opts); break; }
+            if (brOk) { out += resolveBody(br.body, vals, subOpts); break; }
           }
           i = eidx !== -1 ? eidx + ei.length : cl+1; continue;
         }
@@ -646,7 +875,9 @@
           i = cl+1; continue;
         }
         var fval = vals[tok];
-        if (fval !== undefined && fval !== null) out = sbEmitValue(out, fval, gLock);
+        if (fval !== undefined && fval !== null) {
+          out = sbEmitValue(out, _emitField(tok, fval, fmtMap), gLock);
+        }
         i = cl+1;
       } else {
         out += body[i++];
@@ -947,7 +1178,7 @@
       var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(_formAttrSrc(tokLow, rest));
       var defVal = defM ? defM[1].replace(/^\s+|\s+$/g, '') : '';
       if (prefix === 'formdate') {
-        cfg[key] = { type: 'date', default: defVal };
+        cfg[key] = _dateCfg(_formAttrSrc(tokLow, rest), defVal);
       } else if (prefix === 'formmenu') {
         var menuSet = _parseMenuSettings(rest);
         var attrs = menuSet.attrs;
@@ -976,10 +1207,136 @@
         }
         cfg[key] = menu;
       } else {
-        cfg[key] = { type: 'text', default: defVal };
+        cfg[key] = _numberOrTextCfg(_formAttrSrc(tokLow, rest), defVal);
       }
     }
     return cfg;
+  }
+
+  // ── NUMBER FIELD ────────────────────────────────────────────────
+  // A number is declared as an attribute on {formtext:}, not as its own
+  // {formnumber:} token, and that is a deliberate constraint rather than a
+  // shortcut. Every parser reads a token's prefix with a literal slice(9):
+  // 'formtext:', 'formdate:' and 'formmenu:' are all exactly nine characters,
+  // and 'formnumber:' is eleven. A new token would have to land in 24 places
+  // across this file and the phone's copy, in lockstep, before it rendered
+  // anywhere. The attribute costs none of them, and it degrades the right way:
+  // a surface too old to read `type=` still draws a text box, where an
+  // unrecognised token would have dropped the field out of the form entirely.
+  //
+  // The user-facing product hides all of this. Number is its own field type
+  // next to Date/Time, Text and Choice; the shared spelling underneath is an
+  // implementation detail nobody authoring a snippet has to know.
+  var NUMBER_FORMATS = ['plain', 'currency', 'percent'];
+
+  // A declared default has to survive into an <input type="number">, which
+  // rejects the very thing an operator is most likely to have typed: a
+  // default of "1.200,50" would arrive as a blank box. Normalising it here
+  // means every renderer gets a value it can actually show.
+  //
+  // Empty stays empty. sbToNumber reads '' as 0 because an unanswered field
+  // contributes nothing to a sum, but "no default" and "a default of zero"
+  // are different statements about the form and must not collapse.
+  function _numberDefault(defVal) {
+    if (defVal === '') return '';
+    var n = sbToNumber(defVal);
+    return n === null ? '' : String(n);
+  }
+
+  function _numberOrTextCfg(attrSrc, defVal) {
+    var typeM = /(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    // An unrecognised type is a typo, not a field type the product has, so it
+    // reads as the plain text field the token meant before `type` existed.
+    if (!typeM || typeM[1].toLowerCase() !== 'number') {
+      return { type: 'text', default: defVal };
+    }
+    var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    var fmt = fmtM ? fmtM[1].toLowerCase() : '';
+    // Same rule as `type`: `format=dollars` is a mistake to absorb here,
+    // not a format to hand to a renderer that has no idea what it means.
+    var format = NUMBER_FORMATS.indexOf(fmt) === -1 ? 'plain' : fmt;
+    var out = { type: 'number', format: format, 'default': _numberDefault(defVal) };
+    // `currency` is only meaningful alongside format=currency, so it is not
+    // carried on a plain or percent field where nothing would read it.
+    if (format === 'currency') {
+      var curM = /(?:^|;)\s*currency\s*=\s*([A-Za-z]{3})/i.exec(attrSrc);
+      var cur = curM ? curM[1].toUpperCase() : '';
+      out.currency = Object.prototype.hasOwnProperty.call(CURRENCIES, cur) ? cur : DEFAULT_CURRENCY;
+    }
+    return out;
+  }
+
+  // ── NUMBER FIELD TOKEN WRITER ───────────────────────────────────
+  // Two surfaces build number fields: the React dashboard (FormNumberDialog)
+  // and Sprintbrain.html. Same reason buildFormMenuToken and
+  // buildFormButtonToken live here — one writer, so the two cannot drift into
+  // emitting different tokens for the same choices. The dashboard's
+  // src/lib/formNumberToken.ts mirrors this because it cannot import extension
+  // source; formNumberField.test.ts pins the two against each other.
+  //
+  // `plain` and the default currency are left unwritten: both are what the
+  // parser falls back to, so spelling them would only lengthen the token.
+  function buildFormNumberToken(cfg) {
+    var c = cfg || {};
+    var name = String(c.name === undefined ? '' : c.name).replace(/[^A-Za-z0-9_]/g, '');
+    if (!/^[A-Za-z_]/.test(name)) name = 'NUM_' + name;
+    var format = NUMBER_FORMATS.indexOf(c.format) === -1 ? 'plain' : c.format;
+    // Anything that ends a token or splits it across two lines of the body has
+    // to go, or the writer could emit a snippet that no longer parses.
+    var value = String(c['default'] === undefined ? '' : c['default'])
+      .replace(/[;{}]/g, ' ').replace(/\s+/g, '');
+    var out = '{formtext: name=' + name + '; type=number';
+    if (format !== 'plain') out += '; format=' + format;
+    if (format === 'currency') {
+      var cur = String(c.currency || '').toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(CURRENCIES, cur) && cur !== DEFAULT_CURRENCY) {
+        out += '; currency=' + cur;
+      }
+    }
+    if (value !== '') out += '; default=' + value;
+    return out + '}';
+  }
+
+  // The next free NAME_n for a body, for whichever prefix a builder hands out.
+  // Counts a bare {NUM_1} as well as a declared one: to the engine they are the
+  // same field, and handing the name out twice would wire two controls to one
+  // value.
+  function nextFieldName(body, prefix) {
+    var p = String(prefix || '').replace(/[^A-Za-z0-9_]/g, '');
+    var used = {}, re = new RegExp(p + '([0-9]+)', 'gi'), m;
+    while ((m = re.exec(String(body || ''))) !== null) used[m[1]] = 1;
+    var n = 1;
+    while (used[String(n)]) n++;
+    return p + n;
+  }
+
+  function nextNumberName(body) { return nextFieldName(body, 'NUM_'); }
+
+  // ── FORM DATE TOKEN WRITER ──────────────────────────────────────
+  // Serializes a {formdate:} token from the Date/Time builder — the exact
+  // inverse of _dateCfg, so every token this writes parses back to the same
+  // kind and format.
+  //
+  // MIRRORED in app/src/lib/formDateToken.ts, for the same reason as the number
+  // and menu writers: the React dashboard cannot import extension source (see
+  // app/CLAUDE.md §6). Change both together.
+  //
+  // No `default=` is written. A date or time field already opens on now (see
+  // nowDefault in shared/fill-form.js), which is the answer nearly every one of
+  // them wants, and a stale hardcoded date is worse than no default at all.
+  function buildFormDateToken(cfg) {
+    var c = cfg || {};
+    var type = c.type === 'time' ? 'time' : 'date';
+    var name = String(c.name === undefined ? '' : c.name).replace(/[^A-Za-z0-9_]/g, '');
+    if (!/^[A-Za-z_]/.test(name)) name = (type === 'time' ? 'TIME_' : 'DATE_') + name;
+    var out = '{formdate: name=' + name;
+    // `date` is what the token has always meant, so it is left unwritten: a
+    // shorter token that parses back the same.
+    if (type === 'time') out += '; type=time';
+    var fmt = _dateFormatOk(type,
+      String(c.format === undefined ? '' : c.format).replace(/^\s+|\s+$/g, ''));
+    if (fmt) out += '; format=' + fmt;
+    return out + '}';
   }
 
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
@@ -1221,6 +1578,12 @@
     fieldContext:      fieldContext,
     validateTemplate:  validateTemplate,
     buildFormFieldCfg: buildFormFieldCfg,
+    buildFormNumberToken: buildFormNumberToken,
+    nextNumberName:    nextNumberName,
+    buildFormDateToken: buildFormDateToken,
+    nextFieldName:     nextFieldName,
+    DATE_FORMATS:      DATE_FORMATS,
+    TIME_FORMATS:      TIME_FORMATS,
     buildFormMenuToken: buildFormMenuToken,
     parseFormMenuToken: parseFormMenuToken,
     findMenuTokenAt:   findMenuTokenAt,
@@ -1232,6 +1595,10 @@
     parsePlaceholders: parsePlaceholders,
     interpolateSnippet: interpolateSnippet,
     evalFormula:       evalFormula,
+    sbToNumber:        sbToNumber,
+    sbFormatNumber:    sbFormatNumber,
+    sbFormatDateValue: sbFormatDateValue,
+    CURRENCIES:        CURRENCIES,
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,
