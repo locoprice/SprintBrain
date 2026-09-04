@@ -47,7 +47,7 @@ body{
 
 /* ── GRADIENT HERO ───────────────────────────── */
 .mhero{
-  padding:calc(28px + env(safe-area-inset-top)) 20px 44px;
+  padding:0 20px 44px;
   background:linear-gradient(160deg,#1B4FD8 0%,#1440B0 100%);
   color:#fff;position:relative;overflow:hidden
 }
@@ -78,6 +78,63 @@ body{
   margin-left:auto;flex-shrink:0
 }
 .mstatbig .mstatbig-unit{font-size:14px;font-weight:600;opacity:.78;letter-spacing:-.3px}
+/* Filters: the collapsed top edge of the panel that will drop down from here,
+   so it is flush to the screen edge and full bleed. Nothing sits above it: the
+   hero gives up its top padding below, and the only remaining inset is the
+   notch, which is clearance rather than decoration.
+   Static on purpose until that panel exists, so it is not a button. */
+.mfilters{
+  position:relative;z-index:3;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  width:calc(100% + 40px);margin:0 -20px;
+  padding:calc(6px + env(safe-area-inset-top)) 16px 6px;
+  background:linear-gradient(180deg,rgba(255,255,255,.10) 0%,rgba(0,0,0,.20) 100%);
+  border:none;border-bottom:1px solid rgba(0,0,0,.20);
+  box-shadow:0 1px 0 rgba(255,255,255,.26) inset,
+    0 -6px 9px rgba(0,0,0,.10) inset,
+    0 3px 7px rgba(0,0,0,.15);
+  color:#fff;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.3px;
+  text-shadow:0 1px 1px rgba(0,0,0,.30);
+  white-space:nowrap;user-select:none;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:background .15s,box-shadow .15s
+}
+.mfilters svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.30))}
+/* Pressed, and held pressed while the panel is out: the strip sinks into the
+   hero and stops casting, the same read as a pushed quick-action key. */
+.mfilters:active,
+.mfilters[aria-expanded="true"]{
+  background:linear-gradient(180deg,rgba(0,0,0,.26) 0%,rgba(0,0,0,.16) 100%);
+  box-shadow:0 3px 6px rgba(0,0,0,.28) inset,
+    0 1px 0 rgba(255,255,255,.08) inset
+}
+/* The panel drops from the strip. Row-sizing 0fr to 1fr animates to whatever
+   the content is, so the real filter list will not need a hardcoded height. */
+.mfilters-panel{
+  position:relative;z-index:1;
+  display:grid;grid-template-rows:0fr;
+  margin:0 -20px 12px;
+  background:linear-gradient(180deg,rgba(0,0,0,.22) 0%,rgba(0,0,0,.08) 100%);
+  transition:grid-template-rows .28s ease
+}
+.mfilters-panel.open{grid-template-rows:1fr}
+/* The strip above throws a shadow into the recess. Both the shading and the
+   bottom lip live inside the clipped box so they vanish when it is shut. */
+.mfilters-panel-in{overflow:hidden;
+  box-shadow:0 7px 11px rgba(0,0,0,.20) inset}
+.mfilters-panel-txt{
+  padding:18px 20px;text-align:center;
+  border-bottom:1px solid rgba(255,255,255,.10);
+  color:rgba(255,255,255,.82);font-size:12.5px;font-weight:600;letter-spacing:.2px;
+  text-shadow:0 1px 1px rgba(0,0,0,.22)
+}
+.mfilters svg{width:13px;height:13px;flex-shrink:0;
+  stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.mfilters-caret{opacity:.7;transition:transform .28s ease}
+.mfilters[aria-expanded="true"] .mfilters-caret{transform:rotate(180deg)}
+/* Every hero gives its top padding to the strip, which carries the notch inset
+   itself. */
 .mstatsub{font-size:13px;opacity:.9;font-weight:500;
   display:flex;align-items:center;gap:8px;position:relative;z-index:1}
 .mstatup{
@@ -936,6 +993,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
   <!-- Gradient hero -->
   <div class="mhero">
+    <!-- The filter strip and its panel are mounted here by mountFilterHeader(). -->
     <div class="mhello">
       <div>
         <div class="mgreet">Welcome</div>
@@ -4756,6 +4814,47 @@ document.getElementById('sb-profile-signout').addEventListener('click',function(
 })();
 
 /* ── TAB BAR ────────────────────────────────────── */
+/* The filter header is one header shown on every surface: snippets and prompts
+   today, memory when that page lands. It is built here and mounted into every
+   hero rather than pasted into each one, so the real filter list is written
+   once and every surface gets the same one. A new surface needs no wiring, only
+   a .mhero. The panel is a placeholder until those filters exist; the open and
+   shut mechanics are already the ones they will use. */
+var FILTER_HEADER_LABEL='Filters';
+var FILTER_HEADER_BODY='Filters and options coming soon';
+function mountFilterHeader(){
+  var seq=0;
+  document.querySelectorAll('.mhero').forEach(function(hero){
+    if(hero.querySelector('.mfilters'))return;
+    var id='mfilters-'+(seq++);
+    var btn=document.createElement('button');
+    btn.className='mfilters';
+    btn.type='button';
+    btn.id=id+'-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.setAttribute('aria-controls',id+'-panel');
+    btn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'
+      +'<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>'
+      +esc(FILTER_HEADER_LABEL)
+      +'<svg class="mfilters-caret" viewBox="0 0 24 24" aria-hidden="true">'
+      +'<path d="m6 9 6 6 6-6"/></svg>';
+    var panel=document.createElement('div');
+    panel.className='mfilters-panel';
+    panel.id=id+'-panel';
+    panel.setAttribute('role','region');
+    panel.setAttribute('aria-labelledby',id+'-btn');
+    panel.innerHTML='<div class="mfilters-panel-in">'
+      +'<div class="mfilters-panel-txt">'+esc(FILTER_HEADER_BODY)+'</div></div>';
+    hero.insertBefore(panel,hero.firstChild);
+    hero.insertBefore(btn,hero.firstChild);
+    btn.addEventListener('click',function(){
+      var open=panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded',open?'true':'false');
+    });
+  });
+}
+mountFilterHeader();
+
 document.querySelector('.mtab').addEventListener('click',function(e){
   var btn=e.target.closest('button');
   if(!btn)return;
