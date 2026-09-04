@@ -553,6 +553,21 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   stroke:currentColor;fill:none;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
 
+/* Profile sheet identity: who you are, then which address that is. */
+.sb-profile-id{display:flex;align-items:center;gap:14px;
+  padding:14px 22px 16px;border-bottom:1px solid var(--bg-alt)}
+.sb-profile-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:var(--primary-lt);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:800;letter-spacing:.5px}
+.sb-profile-who{min-width:0}
+.sb-profile-lbl{font-size:11px;font-weight:700;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.sb-profile-name{font-size:15px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-profile-email{font-size:13px;font-weight:500;color:var(--text2);
+  word-break:break-all;margin-top:1px}
+
 /* Snippet info sheet — read-only key/value rows */
 .sb-info-body{padding:2px 22px 10px}
 .sb-info-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
@@ -1287,11 +1302,12 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <div class="sb-sheet-handle"></div>
     </div>
     <div class="sb-sheet-title" id="sb-profile-title">My Account</div>
-    <div style="padding:14px 22px 16px;border-bottom:1px solid var(--bg-alt);display:flex;align-items:center;gap:14px">
-      <div style="width:44px;height:44px;border-radius:50%;background:var(--primary-lt);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👤</div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Signed in as</div>
-        <div id="sb-profile-email" style="font-size:15px;font-weight:600;color:var(--text);word-break:break-all"></div>
+    <div class="sb-profile-id">
+      <div class="sb-profile-avatar" id="sb-profile-avatar">👤</div>
+      <div class="sb-profile-who">
+        <div class="sb-profile-lbl">Signed in as</div>
+        <div class="sb-profile-name" id="sb-profile-name"></div>
+        <div class="sb-profile-email" id="sb-profile-email"></div>
       </div>
     </div>
     <ul class="sb-sheet-actions">
@@ -4679,9 +4695,32 @@ function setupSheetDrag(sheetEl,closeFn){
 })();
 
 /* ── PROFILE SHEET ──────────────────────────────── */
+/* Two initials from a name, one from a single word, else the address, else the
+   generic mark. */
+function profileInitials(name,email){
+  var parts=(name||'').split(' ').filter(Boolean);
+  if(parts.length>1)return (parts[0].charAt(0)+parts[1].charAt(0)).toUpperCase();
+  if(parts.length===1)return parts[0].slice(0,2).toUpperCase();
+  if(email)return email.charAt(0).toUpperCase();
+  return '👤';
+}
 function openProfileSheet(){
-  var email=SESSION&&SESSION.user?SESSION.user.email||'':'';
+  var u=SESSION&&SESSION.user;
+  var email=(u&&u.email)||'';
+  var meta=(u&&u.user_metadata)||{};
+  // Three keys carry a name across this file; read all of them rather than
+  // pick one and show a blank row for accounts that used another.
+  var name=(meta.display_name||meta.full_name||meta.name||'').trim();
+  if(!name&&email){
+    name=email.split('@')[0].split(/[._-]+/).filter(Boolean)
+      .map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);})
+      .join(' ');
+  }
+  var nameEl=document.getElementById('sb-profile-name');
+  nameEl.textContent=name;
+  nameEl.hidden=!name;
   document.getElementById('sb-profile-email').textContent=email;
+  document.getElementById('sb-profile-avatar').textContent=profileInitials(name,email);
   var sh=document.getElementById('sb-profile-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
