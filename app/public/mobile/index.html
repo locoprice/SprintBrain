@@ -2131,7 +2131,7 @@ function sbBodyFieldCfg(body){
     var defM=/(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(spec?spec.attrs:rest);
     var defVal=defM?defM[1].trim():'';
     if(prefix==='formdate'){
-      cfg[key]={type:'date',default:defVal};
+      cfg[key]=sbDateCfg(spec?spec.attrs:rest,defVal);
     }else if(prefix==='formmenu'){
       var opts=spec.options;
       var multi=/(?:^|;)\s*multiple\s*=\s*(?:yes|true|1)\s*(?:;|$)/i.test(spec.attrs);
@@ -2157,6 +2157,53 @@ function sbBodyFieldCfg(body){
     }
   }
   return cfg;
+}
+
+/* DATE / TIME FIELD FORMATS — mirrors DATE_FORMATS / TIME_FORMATS /
+   _dateFormatOk / sbFormatDateValue / _dateCfg in extension/formula-engine.js.
+   A date field prints what the picker put in it unless the author chose a
+   format, so every {formdate:} written before the attribute existed keeps
+   printing exactly what it printed. The lists are closed: the two builders only
+   ever offer these five, and an arbitrary format string would let a typo reach
+   a guest as a half-substituted date. scripts/check-snippets.js asserts this
+   agrees with the engine. */
+var SB_DATE_FORMATS=['DD/MM/YYYY','MM/DD/YYYY','DD/MM/dddd'];
+var SB_TIME_FORMATS=['HH:mm','hh:mm A'];
+
+/* Only a date or a time carries a format. A datetime holds both halves and
+   neither list prints it whole, so it stays raw rather than losing one. */
+function sbDateFormatOk(type,fmt){
+  var list=type==='date'?SB_DATE_FORMATS:(type==='time'?SB_TIME_FORMATS:null);
+  if(!list)return '';
+  return list.indexOf(fmt)===-1?'':fmt;
+}
+
+/* Mirrors sbFormatNumber's two refusals: an unanswered field prints nothing
+   rather than today's date, and a value the parser cannot read prints back
+   verbatim rather than becoming an invented one. */
+function sbFormatDateValue(raw,format){
+  var s=(raw===null||raw===undefined)?'':String(raw);
+  s=s.replace(/^\s+|\s+$/g,'');
+  if(s===''||!format)return s;
+  var d=sbParseUserDate(s);
+  return d?sbFormatDate(d,format):s;
+}
+
+/* `date` is what {formdate:} has always meant, so an absent or unrecognised
+   type reads as that: a typo must not cost the author their picker. */
+var SB_DATE_TYPES={date:1,time:1,datetime:1};
+
+function sbDateCfg(attrSrc,defVal){
+  var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  var type=typeM?typeM[1].toLowerCase():'';
+  if(!Object.prototype.hasOwnProperty.call(SB_DATE_TYPES,type))type='date';
+  var out={type:type,default:defVal};
+  /* Case carries meaning here — MM is the month, mm the minute — so the value
+     is matched exactly. Only the attribute name is case-insensitive. */
+  var fmtM=/(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
+  var fmt=sbDateFormatOk(type,fmtM?fmtM[1].replace(/^\s+|\s+$/g,''):'');
+  if(fmt)out.format=fmt;
+  return out;
 }
 
 /* NUMBER FIELD — mirrors _numberOrTextCfg / _numberDefault / NUMBER_FORMATS in
@@ -2248,21 +2295,32 @@ function sbFormatNumber(raw,format,currency){
   return s;
 }
 
-function sbNumberFormatMap(body){
+/* Which fields in a body print formatted, and how. Only formats that change
+   the output are listed, so a plain number and an unformatted date both cost
+   nothing here. Mirrors _fieldFormatMap in extension/formula-engine.js. */
+function sbFieldFormatMap(body){
   var cfg=sbBodyFieldCfg(body),out=null;
   for(var k in cfg){
     if(!Object.prototype.hasOwnProperty.call(cfg,k))continue;
     var f=cfg[k];
-    if(f.type!=='number'||!f.format||f.format==='plain')continue;
-    if(!out)out={};
-    out[k]={format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
+    if(f.type==='number'){
+      if(!f.format||f.format==='plain')continue;
+      if(!out)out={};
+      out[k]={kind:'number',format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
+    }else if(f.type==='date'||f.type==='time'){
+      if(!f.format)continue;
+      if(!out)out={};
+      out[k]={kind:'date',format:f.format};
+    }
   }
   return out;
 }
 
-function sbEmitNumber(key,value,numFmt){
-  var f=numFmt&&key?numFmt[key]:null;
-  return f?sbFormatNumber(value,f.format,f.currency):value;
+function sbEmitField(key,value,fmtMap){
+  var f=fmtMap&&key?fmtMap[key]:null;
+  if(!f)return value;
+  return f.kind==='date'?sbFormatDateValue(value,f.format)
+                        :sbFormatNumber(value,f.format,f.currency);
 }
 
 function sbNumberOrTextCfg(attrSrc,defVal){
@@ -2446,12 +2504,12 @@ function resolveBody(body,vals,opts){
   /* Which fields print formatted is decided by the WHOLE body: an {if:} branch
      can print a field declared outside it. Built once, then carried down on a
      copy so the caller's opts is never mutated. Mirrors the engine. */
-  var _o=opts||{},numFmt,subOpts;
-  if(Object.prototype.hasOwnProperty.call(_o,'_numFmt')){numFmt=_o._numFmt;subOpts=_o;}
+  var _o=opts||{},fmtMap,subOpts;
+  if(Object.prototype.hasOwnProperty.call(_o,'_fmtMap')){fmtMap=_o._fmtMap;subOpts=_o;}
   else{
-    numFmt=sbNumberFormatMap(body);subOpts={};
+    fmtMap=sbFieldFormatMap(body);subOpts={};
     for(var _k in _o)if(Object.prototype.hasOwnProperty.call(_o,_k))subOpts[_k]=_o[_k];
-    subOpts._numFmt=numFmt;
+    subOpts._fmtMap=fmtMap;
   }
   while(i<body.length){
     if(body[i]==='{'){
@@ -2558,13 +2616,13 @@ function resolveBody(body,vals,opts){
       if(sbIsFormToken(tokLow)){
         var fk=sbFormTokenName(tokLow,tok.slice(9));
         var fkv=fk?vals[fk]:undefined;
-        out=sbEmitValue(out,sbEmitNumber(fk,(fkv!==undefined&&fkv!==null)?fkv:'',numFmt),gLock);
+        out=sbEmitValue(out,sbEmitField(fk,(fkv!==undefined&&fkv!==null)?fkv:'',fmtMap),gLock);
         i=cl+1;continue;
       }
 
       /* {FIELD} */
       var fval=vals[tok];
-      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,sbEmitNumber(tok,fval,numFmt),gLock);
+      if(fval!==undefined&&fval!==null)out=sbEmitValue(out,sbEmitField(tok,fval,fmtMap),gLock);
       i=cl+1;
     }else{out+=body[i++];}
   }

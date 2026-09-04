@@ -48,6 +48,16 @@ import {
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
 import { nextNumberName } from '@/lib/formNumberToken';
+import {
+  buildFormDateToken,
+  DATE_FORMAT_OPTIONS,
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_TIME_FORMAT,
+  nextDateName,
+  TIME_FORMAT_OPTIONS,
+  type DateFormat,
+  type TimeFormat,
+} from '@/lib/formDateToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
 import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
@@ -242,15 +252,24 @@ const MENU_FIELDS: { label: string; hint: string }[] = [
     hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
 ];
 
-// The picker a field gets is decided by its name, not by any setting: content.js
-// splits the name on non-letters, uppercases it, and looks for DATETIME / DATE /
-// TIME among the parts (see the auto-detect in content.js). That is the whole
-// rule, and it is what makes one Date/Time group the honest place for these.
-const DATE_TIME_FIELDS: { label: string; value: string; hint: string }[] = [
-  { label: '{start_date}', value: '{start_date}',
-    hint: 'Opens a calendar when the snippet expands. Fine on its own, or paired with {end_date} for a range.' },
-  { label: '{end_date}', value: '{end_date}',
-    hint: 'The closing date of a range. Reads as the partner of {start_date}.' },
+// One date and one time, each with the format it prints in. The group used to
+// offer a fixed {start_date} and {end_date} instead, which answered the wrong
+// question twice: both were plain calendars, neither could say how the date
+// should read, and a snippet needing three dates had nothing to insert. A range
+// is now what it always was underneath — the same field inserted twice, DATE_1
+// opening it and DATE_2 closing it.
+//
+// The formats are the engine's own DATE_FORMATS / TIME_FORMATS. Samples rather
+// than pattern strings do the explaining: the two numeric orders are
+// indistinguishable on paper until you see a day past the twelfth in the first
+// slot, which is exactly the mistake this dropdown exists to prevent.
+const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Date',
+    hint: 'Opens a calendar when the snippet expands. Insert it twice for a range — the second one arrives as DATE_2.' },
+  { label: 'Time',
+    hint: 'Opens a clock. 12-hour prints the AM or PM alongside, so a time can never be read as the wrong half of the day.' },
+  { label: 'Format',
+    hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
 ];
 
 
@@ -370,6 +389,11 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Date/Time builder — the format each of the two tokens is written with.
+  // Inline state rather than a dialog: one dropdown is not worth a modal, and
+  // seeing the choice next to the button is the whole point of it.
+  const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(DEFAULT_TIME_FORMAT);
   // Text-field builder — writes a {formtext:} token at the cursor.
   const [textFieldOpen, setTextFieldOpen] = useState(false);
   // Number-field builder — writes a number token at the cursor. Its own type in
@@ -546,6 +570,18 @@ export function NewSnippetDialog() {
   // The {formmenu:} token the caret is sitting in, if any — this is what turns
   // the chip from "insert a menu" into "edit this menu".
   const menuAtCaret = useMemo(() => findMenuTokenAt(form.content, caret), [form.content, caret]);
+
+  // What the Date button will write next. Shown under the two dropdowns so the
+  // author reads the token, and the name it claims, before it is in the body.
+  const dateTokenPreview = useMemo(
+    () =>
+      buildFormDateToken({
+        name: nextDateName(form.content, 'date'),
+        kind: 'date',
+        format: dateFormat,
+      }),
+    [form.content, dateFormat],
+  );
 
   function openMenuBuilder() {
     const cfg = menuAtCaret ? parseFormMenuToken(menuAtCaret.raw) : null;
@@ -901,36 +937,117 @@ export function NewSnippetDialog() {
                 label="Date/Time"
                 className="mb-2.5 mt-2.5"
                 footer={
-                  <div className="flex flex-wrap gap-1.5">
-                    {DATE_TIME_FIELDS.map((f, i) => (
+                  <div className="flex flex-col gap-2">
+                    {/* Two rows, each a format and the button that inserts it.
+                        The format sits beside the button rather than behind a
+                        second dialog: there is one decision to make here, and it
+                        is worth seeing before the token lands in the body.
+
+                        The row wraps rather than squeezing. What a format option
+                        says is its sample — "Month / Day / Year · 09/04/2026" —
+                        and the two numeric orders are indistinguishable until you
+                        read one, so a select narrow enough to clip it is worse
+                        than a button on its own line. 260px of rail wraps; the
+                        wider surface keeps both on one line. */}
+                    <div className="flex flex-wrap items-end gap-1.5">
+                      <div className="min-w-[180px] flex-1">
+                        <label htmlFor="sb-date-format" className={FIELD_LABEL}>
+                          Date format
+                        </label>
+                        <select
+                          id="sb-date-format"
+                          value={dateFormat}
+                          disabled={saving}
+                          onChange={(e) => setDateFormat(e.target.value as DateFormat)}
+                          className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
+                        >
+                          {DATE_FORMAT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label} · {o.sample}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <Button
-                        key={f.value}
                         type="button"
                         size="sm"
-                        variant={i === 0 ? 'primary' : 'ghost'}
+                        variant="primary"
                         disabled={saving}
-                        onClick={() => insertAtCursor(f.value)}
+                        onClick={() =>
+                          insertAtCursor(
+                            buildFormDateToken({
+                              name: nextDateName(form.content, 'date'),
+                              kind: 'date',
+                              format: dateFormat,
+                            }),
+                          )
+                        }
                       >
                         <Plus className="mr-1 h-3 w-3" />
-                        {f.label}
+                        Date
                       </Button>
-                    ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-1.5">
+                      <div className="min-w-[180px] flex-1">
+                        <label htmlFor="sb-time-format" className={FIELD_LABEL}>
+                          Time format
+                        </label>
+                        <select
+                          id="sb-time-format"
+                          value={timeFormat}
+                          disabled={saving}
+                          onChange={(e) => setTimeFormat(e.target.value as TimeFormat)}
+                          className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
+                        >
+                          {TIME_FORMAT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label} · {o.sample}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={saving}
+                        onClick={() =>
+                          insertAtCursor(
+                            buildFormDateToken({
+                              name: nextDateName(form.content, 'time'),
+                              kind: 'time',
+                              format: timeFormat,
+                            }),
+                          )
+                        }
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Time
+                      </Button>
+                    </div>
+
+                    {/* What the next Date button will write. The author sees the
+                        token before it is in the body, the same promise the
+                        number and menu builders make in their own dialogs. */}
+                    <p className="font-mono text-[10px] leading-tight text-ink-subtle break-all">
+                      {dateTokenPreview}
+                    </p>
                   </div>
                 }
               >
                 <p className="text-[11px] text-ink-subtle leading-tight">
-                  Dates and times fill as a picker instead of a text box, and the field
-                  name is what decides which one. A name containing{' '}
-                  <code className="font-mono text-primary/80">date</code> opens a calendar,
-                  <code className="font-mono text-primary/80"> time</code> a clock, and{' '}
-                  <code className="font-mono text-primary/80">datetime</code> both. The rule
-                  holds for any name you invent, so{' '}
-                  <code className="font-mono text-primary/80">{'{delivery_date}'}</code>{' '}
-                  behaves exactly like the two below.
+                  A date fills as a calendar and a time as a clock, then prints in the
+                  format you pick here. Formatting is what the reader sees and nothing
+                  more: a formula and{' '}
+                  <code className="font-mono text-primary/80">{'{datetimediff}'}</code>{' '}
+                  still read the value the picker set. For a range, insert Date twice —
+                  the second one arrives as{' '}
+                  <code className="font-mono text-primary/80">DATE_2</code>.
                 </p>
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {DATE_TIME_FIELDS.map((f) => (
-                    <div key={f.value}>
+                    <div key={f.label}>
                       <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
                       <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
                     </div>

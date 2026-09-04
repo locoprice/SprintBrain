@@ -9,6 +9,10 @@ const fs = require('fs');
 const vm = require('vm');
 const engine = require(path.join(__dirname, '..', 'extension', 'formula-engine.js'));
 
+// A fixed clock, so a date/time field's "opens on now" default is assertable
+// rather than being whatever today happens to be.
+const NOW = new Date('2026-08-30T09:15:00');
+
 function fail(msg) {
   console.error('X ' + msg);
   process.exit(1);
@@ -163,6 +167,74 @@ for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
 }
 console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' fill-form surfaces');
 
+// ── A DATE FILLS AS A CALENDAR, A TIME AS A CLOCK ───────────────────
+// The format an author picks decides how the value READS. What they type it
+// into is decided here, and it must never be a text box: a date typed by hand
+// arrives in whatever order the typist had in mind, which is the one thing the
+// format was chosen to settle. Every surface that draws a fill form has to open
+// the native picker for both kinds.
+//
+// Source assertions, like the menu ones above and for the same reason: the
+// markup is built inside large DOM-bound render functions. Each entry is the
+// exact branch that turns a field kind into an input type on that surface.
+const PICKER_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay',
+    ["cfg.type === 'date'", 'type="date"', "cfg.type === 'time'", 'type="time"']],
+  // The popup detail (and Sprintbrain.html's, which shares popup.js as its
+  // logic core) maps both kinds straight through to the input type.
+  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+    ["(f.type==='date'||f.type==='time')?f.type"]],
+  ['app/public/mobile/index.html', 'mobile companion',
+    ["t==='date'", 'type="date"', "t==='time'", 'type="time"']],
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
+    ["case 'date':", "return 'date';", "case 'time':", "return 'time';"]],
+];
+
+for (const [rel, label, markers] of PICKER_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  for (const marker of markers) {
+    if (!src.includes(marker)) {
+      fail(rel + ' (' + label + ') no longer opens a picker for a date or a time.\n' +
+        '  A date field must fill as a calendar and a time field as a clock, on\n' +
+        '  every surface. A text box lets the value be typed in an order the\n' +
+        '  chosen format was picked to settle. Expected to find: ' + marker);
+    }
+  }
+}
+console.log('OK Date fills as a calendar and time as a clock on all ' +
+  PICKER_RENDERERS.length + ' fill-form surfaces');
+
+// And the kind reaches those renderers in the first place. The token declares
+// it, the shared view model carries it, and a declared kind wins over the guess
+// made from the field's name — otherwise a time field called BOOKED would open
+// a calendar because the name says nothing about a clock.
+const ff = require(path.join(__dirname, '..', 'extension', 'shared', 'fill-form.js'));
+const PICKER_KIND_CASES = [
+  ['{formdate: name=DATE_1; format=DD/MM/YYYY}', 'DATE_1', 'date'],
+  ['{formdate: name=TIME_1; type=time; format=hh:mm A}', 'TIME_1', 'time'],
+  // A name that says nothing, and a name that contradicts the declaration.
+  ['{formdate: name=BOOKED; type=time; format=HH:mm}', 'BOOKED', 'time'],
+  ['{formdate: name=TIME_1; format=DD/MM/YYYY}', 'TIME_1', 'date'],
+  // Undeclared still falls back to the guess from the name, as it always has.
+  ['{CHECKIN_DATE}', 'CHECKIN_DATE', 'date'],
+];
+for (const [body, key, want] of PICKER_KIND_CASES) {
+  const vm = ff.fillForm(body, {}, { now: NOW });
+  const field = vm.fields.find((f) => f.key === key);
+  if (!field) fail('the fill form dropped ' + key + ' from ' + JSON.stringify(body));
+  if (field.type !== want) {
+    fail('a field from ' + JSON.stringify(body) + ' arrives as ' +
+      JSON.stringify(field.type) + ', expected ' + JSON.stringify(want) +
+      '\n  Every renderer switches on this to choose the picker.');
+  }
+  // And it opens on now rather than on nothing, so the picker is never blank.
+  if (field['default'] === '') {
+    fail(key + ' opens blank; a date or time field must open on the current one');
+  }
+}
+console.log('OK Declared date/time kinds reach the renderers (' +
+  PICKER_KIND_CASES.length + ' cases)');
+
 // The options are stacked one per line, never wrapped pills: a row of pills
 // reads as tags or filters rather than as a question waiting for an answer.
 // Each surface styles its own list, so the layout is pinned on all of them.
@@ -291,7 +363,10 @@ console.log('OK Form menu reader passed all ' + rok + ' cases');
 // either moves, this gate fails loudly rather than silently passing.
 const MOBILE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'public', 'mobile', 'index.html'), 'utf8');
-const SLICE_START = 'function sbGenderTokenField(';
+// The start marker sits at the date helpers rather than at the gender ones:
+// sbFormatDateValue calls sbParseUserDate and sbFormatDate, so a slice that
+// began below them would define a function that throws the moment it runs.
+const SLICE_START = 'function _sbPad(';
 const SLICE_END = 'function extractFields(';
 const sliceFrom = MOBILE_SRC.indexOf(SLICE_START);
 const sliceTo = MOBILE_SRC.indexOf(SLICE_END);
@@ -308,7 +383,7 @@ try {
   fail('mobile field-config helpers failed to evaluate: ' + e.message);
 }
 for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName',
-                  'sbFieldContext', 'sbTokenFieldKey']) {
+                  'sbFieldContext', 'sbTokenFieldKey', 'sbFormatDateValue', 'sbDateCfg']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
 
@@ -371,6 +446,31 @@ const fieldCfgCases = [
   '{formtext: name=N; type=number; format=currency; currency=XYZ}',
   '{formtext: name=N; type=number; format=percent; currency=USD}',
   '{formtext: name=N; type=number; currency=USD}',
+  // DATE / TIME FIELD — the kind and the format ride on {formdate:} for the same
+  // reason the number ones ride on {formtext:}: a nine-character prefix both
+  // parsers read with a literal slice(9).
+  '{formdate: name=DATE_1; format=DD/MM/YYYY}',
+  '{formdate: name=DATE_1; format=MM/DD/YYYY}',
+  '{formdate: name=DATE_1; format=DD/MM/dddd}',
+  '{formdate: name=TIME_1; type=time; format=HH:mm}',
+  '{formdate: name=TIME_1; type=time; format=hh:mm A}',
+  // No format is the shape every {formdate:} written before the attribute
+  // existed has, and it must stay unformatted.
+  '{formdate: name=TIME_1; type=time}',
+  // Case carries meaning in a format, so a lowercased one is a typo to absorb.
+  '{formdate: name=DATE_1; format=dd/mm/yyyy}',
+  '{formdate: name=DATE_1; format=YYYY-MM-DD}',
+  // A time format on a date field is not a format that field has.
+  '{formdate: name=DATE_1; format=hh:mm A}',
+  '{formdate: name=TIME_1; type=time; format=DD/MM/YYYY}',
+  // An unknown kind is a typo, not a field the product has: it stays a date.
+  '{formdate: name=X; type=clock; format=DD/MM/YYYY}',
+  // A datetime prints raw — neither list can spell both halves.
+  '{formdate: name=X; type=datetime; format=DD/MM/YYYY}',
+  // Attribute order and the attribute name's case must not matter.
+  '{formdate: format=DD/MM/YYYY; name=DATE_1}',
+  '{formdate: name=T; TYPE=Time; FORMAT=HH:mm}',
+  '{formdate: name=D; default=2026-08-06; format=DD/MM/YYYY}',
   'Hi {formtext: name=G}, plan {formmenu: A,B; name=P; default=B} and {formmenu: X,Y}',
   'no tokens at all',
   '',
@@ -408,7 +508,7 @@ console.log('OK Mobile field-config parity passed all ' + mok + ' cases');
 // disagreeing here means one surface quotes a different price from the other.
 // Intl.NumberFormat is deliberately not used on either side: its output follows
 // the runtime locale, which is exactly the drift these cases exist to prevent.
-for (const fn of ['sbFormatNumber', 'sbToNumber', 'sbNumberFormatMap']) {
+for (const fn of ['sbFormatNumber', 'sbToNumber', 'sbFieldFormatMap']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
 
@@ -443,6 +543,75 @@ if (engine.sbFormatNumber('about 300', 'currency', 'EUR') !== 'about 300') {
   fail('unreadable input is being formatted instead of printed back');
 }
 console.log('OK Number formatting parity passed all ' + fok + ' cases');
+
+// ── DATE / TIME FORMATTING PARITY ───────────────────────────────────
+// Same stake as the number formatting above: the phone and the engine printing
+// a different date means the same snippet quotes two different days.
+const DATE_FMT_CASES = [];
+for (const fmt of [...engine.DATE_FORMATS, '']) {
+  for (const raw of ['2026-09-04', '2026-01-31', '2026-12-25', '', 'whenever', '  2026-09-04  ']) {
+    DATE_FMT_CASES.push([raw, fmt]);
+  }
+}
+for (const fmt of [...engine.TIME_FORMATS, '']) {
+  for (const raw of ['14:30', '00:05', '12:00', '09:05', '23:59', '', 'noon']) {
+    DATE_FMT_CASES.push([raw, fmt]);
+  }
+}
+
+let dok = 0;
+for (const [raw, fmt] of DATE_FMT_CASES) {
+  const want = engine.sbFormatDateValue(raw, fmt);
+  const got = mobile.sbFormatDateValue(raw, fmt);
+  if (got !== want) {
+    fail('date formatting drift for ' + JSON.stringify([raw, fmt]) +
+      '\n  engine: ' + JSON.stringify(want) +
+      '\n  mobile: ' + JSON.stringify(got));
+  }
+  dok++;
+}
+
+// The five formats the two builders offer, pinned to what they actually print.
+// A reader in Milan and a reader in Chicago must each get their own order, and
+// a 12-hour time has to say which half of the day it is in.
+const DATE_OUTPUT = [
+  ['2026-09-04', 'DD/MM/YYYY', '04/09/2026'],
+  ['2026-09-04', 'MM/DD/YYYY', '09/04/2026'],
+  ['2026-09-04', 'DD/MM/dddd', '04/09/Friday'],
+  ['14:30', 'HH:mm', '14:30'],
+  ['14:30', 'hh:mm A', '02:30 PM'],
+  ['09:05', 'hh:mm A', '09:05 AM'],
+  ['00:05', 'hh:mm A', '12:05 AM'],
+  ['12:00', 'hh:mm A', '12:00 PM'],
+];
+for (const [raw, fmt, want] of DATE_OUTPUT) {
+  const got = engine.sbFormatDateValue(raw, fmt);
+  if (got !== want) {
+    fail('date format ' + JSON.stringify(fmt) + ' on ' + JSON.stringify(raw) +
+      ' -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+  }
+}
+
+// An unanswered date prints nothing rather than today, and an unreadable one
+// comes back verbatim rather than as an invented day.
+if (engine.sbFormatDateValue('', 'DD/MM/YYYY') !== '') {
+  fail('an empty date field no longer prints as empty');
+}
+if (engine.sbFormatDateValue('whenever', 'DD/MM/YYYY') !== 'whenever') {
+  fail('unreadable input is being formatted instead of printed back');
+}
+// No format means no formatting: this is what keeps every {formdate:} written
+// before the attribute existed printing exactly what it printed.
+if (engine.resolveBody('{formdate: name=D}', { D: '2026-09-04' }) !== '2026-09-04') {
+  fail('an unformatted {formdate:} no longer prints its raw value');
+}
+// And the format follows the field, not the token: a later bare {D} prints the
+// same way the declaration does.
+if (engine.resolveBody('{formdate: name=D; format=DD/MM/YYYY} and {D}',
+    { D: '2026-09-04' }) !== '04/09/2026 and 04/09/2026') {
+  fail('a bare reference to a formatted date field is not printing formatted');
+}
+console.log('OK Date formatting parity passed all ' + dok + ' cases');
 
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,

@@ -9,7 +9,7 @@
 //   {var: NAME = EXPRESSION}   — local variable declaration
 //   {time: FORMAT}             — date/time token
 //   {formtext: name=VAR; default=X}   — text input field
-//   {formdate: name=VAR}              — date input field
+//   {formdate: name=VAR[; type=time][; format=DD/MM/YYYY]}  — date or time field
 //   {formmenu: opt1,opt2; name=VAR[; default=opt1][; multiple=yes][; cols=N]}  — dropdown field
 //   {if: COND}...{elseif: COND}...{else}...{endif}  — conditional blocks
 //   {gender: FIELD; m=Querido; f=Querida[; u=Hola][; lang=IT]}  — gendered word
@@ -593,26 +593,99 @@
     return s;
   }
 
+
+  // ── DATE / TIME FIELD FORMATS ───────────────────────────────────
+  // A date field prints whatever the picker put in it — "2026-09-04" — unless
+  // the author chose a format. The choices are written into the token literally
+  // ("format=DD/MM/YYYY") rather than behind a short code, because that is
+  // already the spelling {time: FORMAT} uses and the one sbFormatDate reads:
+  // one vocabulary for dates across the whole grammar.
+  //
+  // No format means no formatting, and that is what keeps this backward
+  // compatible: every {formdate:} written before the attribute existed carries
+  // none, so all of them keep printing exactly what they printed.
+  //
+  // The lists are closed on purpose. An arbitrary format string would let a
+  // typo reach a customer as a half-substituted date, and the two builders only
+  // ever offer these five.
+  var DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd'];
+  var TIME_FORMATS = ['HH:mm', 'hh:mm A'];
+
+  // Only a date or a time field carries a format. A datetime holds both halves
+  // and neither list can print it whole, so it stays raw rather than silently
+  // losing the half the format does not mention.
+  function _dateFormatOk(type, fmt) {
+    var list = type === 'date' ? DATE_FORMATS : (type === 'time' ? TIME_FORMATS : null);
+    if (!list) return '';
+    return list.indexOf(fmt) === -1 ? '' : fmt;
+  }
+
+  /**
+   * The printed form of one date or time value.
+   *
+   * @param {*} raw    what the picker put in the field ("2026-09-04", "14:30")
+   * @param {string} format  one of DATE_FORMATS / TIME_FORMATS, or '' for raw
+   *
+   * Mirrors sbFormatNumber's two refusals, for the same reasons: an unanswered
+   * field prints nothing rather than today's date, and a value the parser
+   * cannot read prints back verbatim rather than becoming an invented one.
+   */
+  function sbFormatDateValue(raw, format) {
+    var s = (raw === null || raw === undefined) ? '' : String(raw);
+    s = s.replace(/^\s+|\s+$/g, '');
+    if (s === '' || !format) return s;
+    var d = sbParseUserDate(s);
+    return d ? sbFormatDate(d, format) : s;
+  }
+
+  // The three kinds a {formdate:} can declare. `date` is what the token has
+  // always meant, so an absent or unrecognised type reads as that rather than
+  // dropping the field: a typo must not cost the author their picker.
+  var DATE_TYPES = { date: 1, time: 1, datetime: 1 };
+
+  function _dateCfg(attrSrc, defVal) {
+    var typeM = /(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    var type = typeM ? typeM[1].toLowerCase() : '';
+    if (!Object.prototype.hasOwnProperty.call(DATE_TYPES, type)) type = 'date';
+    var out = { type: type, 'default': defVal };
+    // Case carries meaning here — MM is the month, mm the minute — so the value
+    // is matched exactly. Only the attribute name is case-insensitive.
+    var fmtM = /(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
+    var fmt = _dateFormatOk(type, fmtM ? fmtM[1].replace(/^\s+|\s+$/g, '') : '');
+    if (fmt) out.format = fmt;
+    return out;
+  }
+
   // Which fields in a body print formatted, and how. Only formats that actually
-  // change the output are listed, so a plain number costs nothing here.
+  // change the output are listed, so a plain number and an unformatted date
+  // both cost nothing here.
   //
   // Reads the body's own tokens. A stored field_cfg override is not consulted:
   // nothing writes one today, and resolveBody has no route to it.
-  function _numberFormatMap(body) {
+  function _fieldFormatMap(body) {
     var cfg = buildFormFieldCfg(body), out = null;
     for (var k in cfg) {
       if (!Object.prototype.hasOwnProperty.call(cfg, k)) continue;
       var f = cfg[k];
-      if (f.type !== 'number' || !f.format || f.format === 'plain') continue;
-      if (!out) out = {};
-      out[k] = { format: f.format, currency: f.currency || DEFAULT_CURRENCY };
+      if (f.type === 'number') {
+        if (!f.format || f.format === 'plain') continue;
+        if (!out) out = {};
+        out[k] = { kind: 'number', format: f.format, currency: f.currency || DEFAULT_CURRENCY };
+      } else if (f.type === 'date' || f.type === 'time') {
+        if (!f.format) continue;
+        if (!out) out = {};
+        out[k] = { kind: 'date', format: f.format };
+      }
     }
     return out;
   }
 
-  function _emitNumber(key, value, numFmt) {
-    var f = numFmt && key ? numFmt[key] : null;
-    return f ? sbFormatNumber(value, f.format, f.currency) : value;
+  function _emitField(key, value, fmtMap) {
+    var f = fmtMap && key ? fmtMap[key] : null;
+    if (!f) return value;
+    return f.kind === 'date'
+      ? sbFormatDateValue(value, f.format)
+      : sbFormatNumber(value, f.format, f.currency);
   }
 
   // ── FORMULA EVALUATOR ───────────────────────────────────────────
@@ -700,14 +773,14 @@
     // outside it. So the map is built once at the outermost call and carried
     // down. `opts` belongs to the caller, so the carrier is a copy.
     var _o = opts || {};
-    var numFmt, subOpts;
-    if (Object.prototype.hasOwnProperty.call(_o, '_numFmt')) {
-      numFmt = _o._numFmt; subOpts = _o;
+    var fmtMap, subOpts;
+    if (Object.prototype.hasOwnProperty.call(_o, '_fmtMap')) {
+      fmtMap = _o._fmtMap; subOpts = _o;
     } else {
-      numFmt = _numberFormatMap(body);
+      fmtMap = _fieldFormatMap(body);
       subOpts = {};
       for (var _k in _o) if (Object.prototype.hasOwnProperty.call(_o, _k)) subOpts[_k] = _o[_k];
-      subOpts._numFmt = numFmt;
+      subOpts._fmtMap = fmtMap;
     }
     while (i < body.length) {
       if (body[i] === '{') {
@@ -772,7 +845,7 @@
         if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
           var fKey = _formFieldName(tokLow, tok.slice(9));
           var fRaw = fKey && vals[fKey] !== undefined ? vals[fKey] : '';
-          out = sbEmitValue(out, _emitNumber(fKey, fRaw, numFmt), gLock);
+          out = sbEmitValue(out, _emitField(fKey, fRaw, fmtMap), gLock);
           i = cl+1; continue;
         }
         if (tokLow.slice(0,7) === 'gender:') {
@@ -803,7 +876,7 @@
         }
         var fval = vals[tok];
         if (fval !== undefined && fval !== null) {
-          out = sbEmitValue(out, _emitNumber(tok, fval, numFmt), gLock);
+          out = sbEmitValue(out, _emitField(tok, fval, fmtMap), gLock);
         }
         i = cl+1;
       } else {
@@ -1105,7 +1178,7 @@
       var defM = /(?:^|;)\s*default\s*=\s*([^;]+)/i.exec(_formAttrSrc(tokLow, rest));
       var defVal = defM ? defM[1].replace(/^\s+|\s+$/g, '') : '';
       if (prefix === 'formdate') {
-        cfg[key] = { type: 'date', default: defVal };
+        cfg[key] = _dateCfg(_formAttrSrc(tokLow, rest), defVal);
       } else if (prefix === 'formmenu') {
         var menuSet = _parseMenuSettings(rest);
         var attrs = menuSet.attrs;
@@ -1224,15 +1297,46 @@
     return out + '}';
   }
 
-  // The next free NUM_n for a body. Counts a bare {NUM_1} as well as a declared
-  // one: to the engine they are the same field, and handing the name out twice
-  // would wire two controls to one value.
-  function nextNumberName(body) {
-    var used = {}, re = /NUM_(\d+)/gi, m;
+  // The next free NAME_n for a body, for whichever prefix a builder hands out.
+  // Counts a bare {NUM_1} as well as a declared one: to the engine they are the
+  // same field, and handing the name out twice would wire two controls to one
+  // value.
+  function nextFieldName(body, prefix) {
+    var p = String(prefix || '').replace(/[^A-Za-z0-9_]/g, '');
+    var used = {}, re = new RegExp(p + '([0-9]+)', 'gi'), m;
     while ((m = re.exec(String(body || ''))) !== null) used[m[1]] = 1;
     var n = 1;
     while (used[String(n)]) n++;
-    return 'NUM_' + n;
+    return p + n;
+  }
+
+  function nextNumberName(body) { return nextFieldName(body, 'NUM_'); }
+
+  // ── FORM DATE TOKEN WRITER ──────────────────────────────────────
+  // Serializes a {formdate:} token from the Date/Time builder — the exact
+  // inverse of _dateCfg, so every token this writes parses back to the same
+  // kind and format.
+  //
+  // MIRRORED in app/src/lib/formDateToken.ts, for the same reason as the number
+  // and menu writers: the React dashboard cannot import extension source (see
+  // app/CLAUDE.md §6). Change both together.
+  //
+  // No `default=` is written. A date or time field already opens on now (see
+  // nowDefault in shared/fill-form.js), which is the answer nearly every one of
+  // them wants, and a stale hardcoded date is worse than no default at all.
+  function buildFormDateToken(cfg) {
+    var c = cfg || {};
+    var type = c.type === 'time' ? 'time' : 'date';
+    var name = String(c.name === undefined ? '' : c.name).replace(/[^A-Za-z0-9_]/g, '');
+    if (!/^[A-Za-z_]/.test(name)) name = (type === 'time' ? 'TIME_' : 'DATE_') + name;
+    var out = '{formdate: name=' + name;
+    // `date` is what the token has always meant, so it is left unwritten: a
+    // shorter token that parses back the same.
+    if (type === 'time') out += '; type=time';
+    var fmt = _dateFormatOk(type,
+      String(c.format === undefined ? '' : c.format).replace(/^\s+|\s+$/g, ''));
+    if (fmt) out += '; format=' + fmt;
+    return out + '}';
   }
 
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
@@ -1476,6 +1580,10 @@
     buildFormFieldCfg: buildFormFieldCfg,
     buildFormNumberToken: buildFormNumberToken,
     nextNumberName:    nextNumberName,
+    buildFormDateToken: buildFormDateToken,
+    nextFieldName:     nextFieldName,
+    DATE_FORMATS:      DATE_FORMATS,
+    TIME_FORMATS:      TIME_FORMATS,
     buildFormMenuToken: buildFormMenuToken,
     parseFormMenuToken: parseFormMenuToken,
     findMenuTokenAt:   findMenuTokenAt,
@@ -1489,6 +1597,7 @@
     evalFormula:       evalFormula,
     sbToNumber:        sbToNumber,
     sbFormatNumber:    sbFormatNumber,
+    sbFormatDateValue: sbFormatDateValue,
     CURRENCIES:        CURRENCIES,
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
