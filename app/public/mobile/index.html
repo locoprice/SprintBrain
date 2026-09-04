@@ -123,35 +123,37 @@ body{
 /* ── FLOATING QUICK-ACTION GRID (overlaps hero) ── */
 .mqa{padding:0 16px;margin-top:-22px;position:relative;z-index:2;flex-shrink:0}
 .mqa-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);gap:6px;
-  background:var(--card);border-radius:18px;padding:14px 10px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
+  background:var(--card);border-radius:18px;padding:10px;
   box-shadow:var(--shadow-md)
 }
 .mqa-tile{
-  display:flex;flex-direction:column;align-items:center;gap:7px;
-  padding:6px 2px;border:none;background:transparent;font-family:inherit;
+  display:flex;padding:0;border:none;background:transparent;font-family:inherit;
   border-radius:14px;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   transition:transform .12s,opacity .12s
 }
 .mqa-tile:active{transform:scale(.95);opacity:.9}
-/* 3D icon well: extruded tile — soft outer drop + inner top-highlight / bottom-shade bevel. */
+/* 3D key: one extruded surface carrying both the icon and the label, so the
+   word belongs to the button instead of floating under it. Soft outer drop
+   plus an inner top-highlight / bottom-shade bevel. */
 .mqa-ico{
-  align-self:stretch;height:44px;border-radius:14px;
+  flex:1;height:48px;border-radius:14px;
   background:linear-gradient(158deg,#FFFFFF 0%,var(--primary-lt) 100%);
   color:var(--primary);
-  display:flex;align-items:center;justify-content:center;
+  display:flex;align-items:center;justify-content:center;gap:9px;
   border:1px solid rgba(27,79,216,.10);
   box-shadow:0 4px 8px rgba(27,79,216,.16),
     0 1px 0 rgba(255,255,255,.95) inset,
     0 -3px 6px rgba(27,79,216,.08) inset;
   transition:transform .14s,box-shadow .14s,background .14s,color .14s
 }
-.mqa-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+.mqa-ico svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
   filter:drop-shadow(0 1px 1px rgba(27,79,216,.22))}
-.mqa-lbl{font-size:10.5px;font-weight:600;color:var(--text);
-  text-align:center;letter-spacing:-.1px;transition:color .14s}
-/* Pushed / active (current page) — icon presses IN (inset), solid azure, azure label. */
+/* The label takes the surface's own colour, so it flips to white with it. */
+.mqa-lbl{font-size:13.5px;font-weight:700;color:inherit;
+  letter-spacing:-.2px;line-height:1;white-space:nowrap}
+/* Pushed / active (current page): the key presses IN, solid azure, white face. */
 .mqa-tile.on .mqa-ico{
   background:linear-gradient(158deg,var(--primary-grad) 0%,var(--primary-dk) 100%);
   color:#fff;border-color:transparent;transform:translateY(1px);
@@ -160,7 +162,7 @@ body{
     0 1px 1px rgba(0,0,0,.18) inset
 }
 .mqa-tile.on .mqa-ico svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
-.mqa-tile.on .mqa-lbl{color:var(--primary);font-weight:700}
+.mqa-tile.on .mqa-lbl{text-shadow:0 1px 1px rgba(0,0,0,.22)}
 
 /* ── SEARCH ──────────────────────────────────── */
 .search-bar{padding:18px 16px 8px}
@@ -174,6 +176,11 @@ body{
 }
 .search-bar input:focus{border-color:var(--primary)}
 .search-bar input::placeholder{color:var(--text2)}
+/* On the hero the field floats on the gradient: the grey hairline reads as dirt
+   on blue, so it becomes a soft shadow. z-index clears the hero's glow circles. */
+.mhero .search-bar{padding:16px 0 0;position:relative;z-index:1}
+.mhero .search-bar input{border-color:transparent;box-shadow:var(--shadow-sm)}
+.mhero .search-bar input:focus{border-color:#fff}
 
 /* ── SECTION HEADING ─────────────────────────── */
 .msec{padding:14px 16px 6px;display:flex;align-items:flex-end;justify-content:space-between}
@@ -899,20 +906,20 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         </svg>
       </button>
     </div>
+
+    <!-- Search rides on the hero, directly under the greeting. -->
+    <div class="search-bar">
+      <input id="srch" type="search" placeholder="Search snippets…"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
   </div>
 
   <!-- Floating quick-action grid (overlaps hero) -->
   <div class="mqa">
     <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
+      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
     </div>
-  </div>
-
-  <!-- Search -->
-  <div class="search-bar">
-    <input id="srch" type="search" placeholder="Search snippets…"
-      autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
 
   <!-- All snippets section -->
@@ -1024,8 +1031,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
   <div class="mqa">
     <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg></span><span class="mqa-lbl">Prompts</span></button>
-      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="mqa-lbl">Snippets</span></button>
+      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
+      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
     </div>
   </div>
   <div id="prompt-body">
