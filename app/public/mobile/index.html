@@ -47,7 +47,7 @@ body{
 
 /* ── GRADIENT HERO ───────────────────────────── */
 .mhero{
-  padding:calc(28px + env(safe-area-inset-top)) 20px 44px;
+  padding:0 20px 44px;
   background:linear-gradient(160deg,#1B4FD8 0%,#1440B0 100%);
   color:#fff;position:relative;overflow:hidden
 }
@@ -78,6 +78,127 @@ body{
   margin-left:auto;flex-shrink:0
 }
 .mstatbig .mstatbig-unit{font-size:14px;font-weight:600;opacity:.78;letter-spacing:-.3px}
+/* Filters: the collapsed top edge of the panel that will drop down from here,
+   so it is flush to the screen edge and full bleed. Nothing sits above it: the
+   hero gives up its top padding below, and the only remaining inset is the
+   notch, which is clearance rather than decoration.
+   Static on purpose until that panel exists, so it is not a button. */
+.mfilters{
+  position:relative;z-index:3;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  width:calc(100% + 40px);margin:0 -20px;
+  padding:calc(6px + env(safe-area-inset-top)) 16px 6px;
+  background:linear-gradient(180deg,rgba(255,255,255,.10) 0%,rgba(0,0,0,.20) 100%);
+  border:none;border-bottom:1px solid rgba(0,0,0,.20);
+  box-shadow:0 1px 0 rgba(255,255,255,.26) inset,
+    0 -6px 9px rgba(0,0,0,.10) inset,
+    0 3px 7px rgba(0,0,0,.15);
+  color:#fff;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.3px;
+  text-shadow:0 1px 1px rgba(0,0,0,.30);
+  white-space:nowrap;user-select:none;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:background .15s,box-shadow .15s
+}
+.mfilters svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.30))}
+/* Pressed, and held pressed while the panel is out: the strip sinks into the
+   hero and stops casting, the same read as a pushed quick-action key. */
+.mfilters:active,
+.mfilters[aria-expanded="true"]{
+  background:linear-gradient(180deg,rgba(0,0,0,.26) 0%,rgba(0,0,0,.16) 100%);
+  box-shadow:0 3px 6px rgba(0,0,0,.28) inset,
+    0 1px 0 rgba(255,255,255,.08) inset
+}
+/* The panel drops from the strip. Row-sizing 0fr to 1fr animates to whatever
+   the content is, so the real filter list will not need a hardcoded height. */
+/* The panel is its own surface, not a tint of the hero: the Menu ground a
+   shade darker, so the two blues stop competing. It carries the light-page
+   palette, which is also why the chips inside need no overrides at all. */
+.mfilters-panel{
+  position:relative;z-index:1;
+  display:grid;grid-template-rows:0fr;
+  margin:0 -20px 12px;
+  background:linear-gradient(180deg,#E7E7EE 0%,var(--bg-alt) 42%);
+  transition:grid-template-rows .28s ease
+}
+.mfilters-panel.open{grid-template-rows:1fr}
+/* The strip above throws a shadow into the recess. Both the shading and the
+   bottom lip live inside the clipped box so they vanish when it is shut. */
+.mfilters-panel-in{overflow:hidden;
+  box-shadow:0 6px 9px rgba(0,0,0,.09) inset}
+.mfilters-panel-txt{
+  padding:18px 20px;text-align:center;
+  color:var(--text2);font-size:12.5px;font-weight:600;letter-spacing:.2px
+}
+.mfilters svg{width:13px;height:13px;flex-shrink:0;
+  stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.mfilters-caret{opacity:.7;transition:transform .28s ease}
+/* How many filters are on. Without this an active filter is invisible behind a
+   shut panel and the short list looks like a bug. */
+.mfilters-count{
+  min-width:16px;height:16px;padding:0 5px;border-radius:9999px;
+  background:#fff;color:var(--primary-dk);
+  font-size:10px;font-weight:800;line-height:16px;text-align:center;
+  text-shadow:none;flex-shrink:0
+}
+.mfilters-count.sb-hidden{display:none}
+/* The panel scrolls once the facets outgrow it rather than clipping inside the
+   hero, which is overflow:hidden. */
+.mfilters-scroll{max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.mfacet{padding:12px 16px 11px;border-top:1px solid var(--border)}
+.mfacet:first-child{border-top:none}
+.mfacet-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+.mfacet-t{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--text3)}
+.mfacet-clr{border:none;background:none;font-family:inherit;padding:0;
+  font-size:11px;font-weight:700;color:var(--primary);
+  cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mfacet-clr.sb-hidden{display:none}
+.mfilters-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 16px calc(11px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);background:rgba(0,0,0,.025)}
+.mfilters-sum{font-size:11.5px;font-weight:600;color:var(--text3)}
+.mfilters-clear{
+  border:1px solid var(--border);background:var(--card);
+  color:var(--text);font-family:inherit;font-size:11.5px;font-weight:700;
+  padding:6px 13px;border-radius:9999px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.mfilters-clear:active{background:var(--bg-alt)}
+.mfilters-clear[disabled]{opacity:.4;cursor:default}
+/* Inside the panel the rows wrap instead of scrolling sideways, so the arrows
+   have nothing left to do. Colours need no override: the panel carries the
+   light-page palette the chips were already built for. */
+.mfilters-panel .folder-tabs,
+.mfilters-panel .lang-tabs{flex-wrap:wrap;overflow:visible;padding:0;gap:6px}
+.mfilters-panel .ftabs-arrow{display:none !important}
+/* Label chips follow the folder pills exactly, so the panel reads as one set
+   of controls. The label keeps its identity in the dot, not the chip, which
+   is what lets selected and unselected stay legible on the gradient. */
+.mlabels{display:flex;flex-wrap:wrap;gap:6px}
+/* The pill itself comes from the shared chip rule; only the colour dot and the
+   dead state are particular to a label. */
+.mlabel-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;
+  box-shadow:0 0 0 1px rgba(0,0,0,.10) inset}
+/* Nothing carries it under the current folder or language, so it is shown as a
+   dead end rather than offered as one. */
+.mlabel-pill[disabled]{opacity:.34;cursor:default}
+.mlabel-pill[disabled]:active{transform:none}
+.mlabel-nest{width:11px;height:11px;display:flex;flex-shrink:0;opacity:.55}
+.mlabel-nest svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round}
+/* How several labels combine. Only worth showing once more than one is on. */
+.mlabel-mode{display:flex;align-items:center;gap:8px;margin-top:10px}
+.mlabel-mode-t{font-size:11px;font-weight:700;color:var(--text3)}
+.mlabel-seg{display:inline-flex;border:1px solid var(--border);
+  border-radius:9999px;overflow:hidden;background:var(--card)}
+.mlabel-seg button{border:none;background:none;font-family:inherit;cursor:pointer;
+  padding:4px 12px;font-size:11.5px;font-weight:700;color:var(--text2);
+  -webkit-tap-highlight-color:transparent}
+.mlabel-seg button.on{background:var(--text);color:#fff}
+.mfacet-empty{font-size:12.5px;font-weight:500;color:var(--text2);line-height:1.5}
+.mfilters[aria-expanded="true"] .mfilters-caret{transform:rotate(180deg)}
+/* Every hero gives its top padding to the strip, which carries the notch inset
+   itself. */
 .mstatsub{font-size:13px;opacity:.9;font-weight:500;
   display:flex;align-items:center;gap:8px;position:relative;z-index:1}
 .mstatup{
@@ -210,21 +331,22 @@ body{
 }
 .folder-tabs::-webkit-scrollbar,
 .lang-tabs::-webkit-scrollbar{display:none}
-.folder-pill,.lang-pill{
+.folder-pill,.lang-pill,.mlabel-pill{
   flex-shrink:0;border:1px solid var(--border);border-radius:9999px;
   padding:7px 14px;font-size:13px;font-weight:600;color:var(--text);
   background:var(--card);display:inline-flex;align-items:center;gap:6px;
   white-space:nowrap;cursor:pointer;font-family:inherit;
   -webkit-tap-highlight-color:transparent;transition:all .15s;min-height:30px
 }
-.folder-pill:active,.lang-pill:active{transform:scale(.96)}
-.folder-pill.on,.lang-pill.on{background:var(--text);color:#fff;border-color:var(--text)}
+.folder-pill:active,.lang-pill:active,.mlabel-pill:active{transform:scale(.96)}
+.folder-pill.on,.lang-pill.on,.mlabel-pill.on{background:var(--text);color:#fff;border-color:var(--text)}
 .folder-pill-ico{font-size:14px;line-height:1}
-.folder-pill-cnt{
+.folder-pill-cnt,.mlabel-cnt{
   font-size:11px;font-weight:700;background:var(--bg-alt);
   padding:1px 7px;border-radius:9999px;color:var(--text3)
 }
-.folder-pill.on .folder-pill-cnt{background:rgba(255,255,255,.22);color:#fff}
+.folder-pill.on .folder-pill-cnt,
+.mlabel-pill.on .mlabel-cnt{background:rgba(255,255,255,.22);color:#fff}
 /* selected-folder header (touch has no hover, so descriptions live here) */
 .fhead{padding:10px 16px 2px}
 .fhead-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-bottom:2px}
@@ -258,6 +380,21 @@ body{
 
 /* ── SNIPPET CARDS ───────────────────────────── */
 #snip-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
+/* Load more: the tail of the list, shaped like the cards above it so it reads
+   as part of the stack rather than a control floating under it. */
+.snip-more{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:15px 14px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-sm);color:var(--primary);
+  font-family:inherit;font-size:14.5px;font-weight:700;letter-spacing:-.2px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform .1s,background .15s
+}
+.snip-more:active{transform:scale(.98);background:var(--primary-lt)}
+.snip-more-n{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:0}
+.snip-more-i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .snip-card{
   position:relative;background:var(--card);border-radius:var(--r-card);
   padding:14px;padding-right:52px;
@@ -531,6 +668,27 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-sheet-actions li[data-action=use]{color:var(--primary);font-weight:700}
 .sb-action-danger{color:var(--danger) !important}
 .sb-sheet-act-i{width:22px;text-align:center;font-size:16px;line-height:1}
+/* A line icon rides in the same 22px slot as the character ones, sized to fill
+   it rather than sit lost in the middle. It inherits the row's colour, so the
+   danger rows tint it red without a second rule. */
+.sb-sheet-act-i svg{width:21px;height:21px;display:block;margin:0 auto;
+  stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* Profile sheet identity: who you are, then which address that is. */
+.sb-profile-id{display:flex;align-items:center;gap:14px;
+  padding:14px 22px 16px;border-bottom:1px solid var(--bg-alt)}
+.sb-profile-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:var(--primary-lt);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:800;letter-spacing:.5px}
+.sb-profile-who{min-width:0}
+.sb-profile-lbl{font-size:11px;font-weight:700;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.sb-profile-name{font-size:15px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-profile-email{font-size:13px;font-weight:500;color:var(--text2);
+  word-break:break-all;margin-top:1px}
 
 /* Snippet info sheet — read-only key/value rows */
 .sb-info-body{padding:2px 22px 10px}
@@ -900,6 +1058,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
   <!-- Gradient hero -->
   <div class="mhero">
+    <!-- The filter strip and its panel are mounted here by mountFilterHeader(). -->
     <div class="mhello">
       <div>
         <div class="mgreet">Welcome</div>
@@ -909,14 +1068,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <span id="cnt">0</span>
         <span class="mstatbig-unit">snippets</span>
       </div>
-      <button class="hdr-btn" id="logout-btn" aria-label="Sign out" title="Sign out">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </button>
     </div>
 
     <!-- Search rides on the hero, directly under the greeting. -->
@@ -939,10 +1090,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   </div>
 
   <!-- All snippets section -->
-  <div class="msec"><span class="msec-t">All snippets</span></div>
+  <div class="msec"><span class="msec-t">All snippets</span><span class="msec-a" id="snip-meta" hidden></span></div>
 
-  <!-- Folder chips (hidden when no folders) -->
-  <div class="ftabs-wrap">
+  <!-- Folder chips live in the filter panel; renderFilterPanel() moves this
+       node there. It is parked here so its markup and handlers stay one piece. -->
+  <div class="ftabs-wrap" id="ftabs-wrap">
     <button class="ftabs-arrow left" id="ftabs-left" type="button" aria-label="Scroll folders left"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
     <div class="folder-tabs" id="ftabs" style="display:none"></div>
     <button class="ftabs-arrow right" id="ftabs-right" type="button" aria-label="Scroll folders right"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -1274,15 +1426,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <div class="sb-sheet-handle"></div>
     </div>
     <div class="sb-sheet-title" id="sb-profile-title">My Account</div>
-    <div style="padding:14px 22px 16px;border-bottom:1px solid var(--bg-alt);display:flex;align-items:center;gap:14px">
-      <div style="width:44px;height:44px;border-radius:50%;background:var(--primary-lt);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👤</div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Signed in as</div>
-        <div id="sb-profile-email" style="font-size:15px;font-weight:600;color:var(--text);word-break:break-all"></div>
+    <div class="sb-profile-id">
+      <div class="sb-profile-avatar" id="sb-profile-avatar">👤</div>
+      <div class="sb-profile-who">
+        <div class="sb-profile-lbl">Signed in as</div>
+        <div class="sb-profile-name" id="sb-profile-name"></div>
+        <div class="sb-profile-email" id="sb-profile-email"></div>
       </div>
     </div>
     <ul class="sb-sheet-actions">
-      <li id="sb-profile-signout" class="sb-action-danger"><span class="sb-sheet-act-i">⎋</span> Sign out</li>
+      <li id="sb-profile-signout" class="sb-action-danger"><span class="sb-sheet-act-i"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Sign out</li>
     </ul>
   </div>
 </div>
@@ -1842,18 +1995,91 @@ function sbFormatDate(d,fmt){
   for(var k in ph)out=out.split(k).join(ph[k]);
   return out;
 }
+/* SHIFTS — mirrors WEEKDAY_NAMES / NAMED_SHIFTS / sbNamedShift / sbApplyShift /
+   sbShiftIsValid and the at= helpers in extension/formula-engine.js. A {time:}
+   token moves off "now" either by a fixed offset (shift=+3D) or by landing on a
+   named day (shift=next monday); both spell into one attribute because they
+   never compose. scripts/check-snippets.js asserts this agrees with the engine. */
+var SB_WEEKDAY_NAMES=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+var SB_NAMED_SHIFTS=['tomorrow','yesterday','next monday','next tuesday','next wednesday',
+  'next thursday','next friday','next saturday','next sunday',
+  'start of month','start of next month','end of month','end of next month'];
+
+function sbShiftKey(name){
+  return String(name===null||name===undefined?'':name)
+    .toLowerCase().replace(/\s+/g,' ').replace(/^ | $/g,'');
+}
+
+/* Returns a NEW date, or null when the name is not one of SB_NAMED_SHIFTS. The
+   clock is left where it was: which time an anchored date carries is at='s job. */
+function sbNamedShift(d,name){
+  var key=sbShiftKey(name);
+  var out=new Date(d.getTime());
+  if(key==='tomorrow'){out.setDate(out.getDate()+1);return out;}
+  if(key==='yesterday'){out.setDate(out.getDate()-1);return out;}
+  if(key.slice(0,5)==='next '){
+    var want=SB_WEEKDAY_NAMES.indexOf(key.slice(5));
+    if(want===-1)return null;
+    /* Strictly after today: written on a Monday, "next monday" is a week away. */
+    var delta=(want-out.getDay()+7)%7;
+    if(delta===0)delta=7;
+    out.setDate(out.getDate()+delta);
+    return out;
+  }
+  /* setDate(1) before setMonth, and two-argument setMonth for month ends: both
+     avoid the overflow that turns 31 January into 3 March. */
+  if(key==='start of month'){out.setDate(1);return out;}
+  if(key==='start of next month'){out.setDate(1);out.setMonth(out.getMonth()+1);return out;}
+  if(key==='end of month'){out.setMonth(out.getMonth()+1,0);return out;}
+  if(key==='end of next month'){out.setMonth(out.getMonth()+2,0);return out;}
+  return null;
+}
+
+/* Case-insensitive since v3.15.0: a hand-typed `+1d` used to match nothing and
+   silently print today. `Mo` is tried before `M`, so `+1mo` is a month. */
+var SB_FIXED_SHIFT_RE=/^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/i;
+
 function sbApplyShift(d,shift){
   if(!shift)return d;
-  var m=/^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/.exec(String(shift).replace(/\s+/g,''));
-  if(!m)return d;
-  var sign=m[1]==='-'?-1:1,n=parseInt(m[2],10)*sign,u=m[3];
+  var raw=String(shift);
+  var m=SB_FIXED_SHIFT_RE.exec(raw.replace(/\s+/g,''));
+  if(m){
+    var sign=m[1]==='-'?-1:1,n=parseInt(m[2],10)*sign,u=m[3].toLowerCase();
+    var out=new Date(d.getTime());
+    if(u==='m')out.setMinutes(out.getMinutes()+n);
+    else if(u==='h')out.setHours(out.getHours()+n);
+    else if(u==='d')out.setDate(out.getDate()+n);
+    else if(u==='w')out.setDate(out.getDate()+n*7);
+    else if(u==='mo')out.setMonth(out.getMonth()+n);
+    else if(u==='y')out.setFullYear(out.getFullYear()+n);
+    return out;
+  }
+  var named=sbNamedShift(d,raw);
+  return named===null?d:named;
+}
+
+function sbShiftIsValid(shift){
+  var raw=String(shift===null||shift===undefined?'':shift);
+  if(SB_FIXED_SHIFT_RE.test(raw.replace(/\s+/g,'')))return true;
+  return sbNamedShift(new Date(),raw)!==null;
+}
+
+/* ANCHORED TIME OF DAY — at=09:00 pins the clock after the shift has chosen the
+   day, which is what makes "tomorrow at 09:00" one token. */
+var SB_AT_RE=/^(\d{1,2}):(\d{2})$/;
+
+function sbAtIsValid(at){
+  var m=SB_AT_RE.exec(String(at===null||at===undefined?'':at).replace(/\s+/g,''));
+  return !!m&&parseInt(m[1],10)<=23&&parseInt(m[2],10)<=59;
+}
+
+function sbApplyAt(d,at){
+  if(!sbAtIsValid(at))return d;
+  var m=SB_AT_RE.exec(String(at).replace(/\s+/g,''));
   var out=new Date(d.getTime());
-  if(u==='M')out.setMinutes(out.getMinutes()+n);
-  else if(u==='H')out.setHours(out.getHours()+n);
-  else if(u==='D')out.setDate(out.getDate()+n);
-  else if(u==='W')out.setDate(out.getDate()+n*7);
-  else if(u==='Mo')out.setMonth(out.getMonth()+n);
-  else if(u==='Y')out.setFullYear(out.getFullYear()+n);
+  /* Seconds and milliseconds go to zero: an anchored time is one somebody
+     chose, not that instant's leftovers. */
+  out.setHours(parseInt(m[1],10),parseInt(m[2],10),0,0);
   return out;
 }
 function sbParseUserDate(s){
@@ -1878,7 +2104,9 @@ function sbParseTimeToken(rest,vals){
   var base=null;
   if(opts.from&&vals&&vals[opts.from]!==undefined&&vals[opts.from]!=='')base=sbParseUserDate(vals[opts.from]);
   if(!base||isNaN(base.getTime()))base=new Date();
+  /* Order is load-bearing: the shift picks the DAY, then at= pins the CLOCK. */
   if(opts.shift)base=sbApplyShift(base,opts.shift);
+  if(opts.at)base=sbApplyAt(base,opts.at);
   return sbFormatDate(base,fmt||'YYYY-MM-DD HH:mm');
 }
 function sbDatetimeDiffUnitMs(unit){
@@ -2810,9 +3038,30 @@ function loadSnips(){
   var oFetch=fetch(SUPA+'/rest/v1/rpc/accessible_owners',{headers:authHeaders()})
     .then(function(r){return r.ok?r.json():[];})
     .catch(function(){return [];});
+  // Labels and their assignments. Both fail open: a label error costs the
+  // filter facet, never the list. RLS on these is one comparison per row and
+  // calls no access helper, so this stays off the folder-ACL path.
+  var labFetch=fetch(SUPA+'/rest/v1/labels?select=id,name,color,parent_id&order=name',{headers:authHeaders()})
+    .then(function(r){return r.ok?r.json():[];})
+    .catch(function(){return [];});
+  var slFetch=fetch(SUPA+'/rest/v1/snippet_labels?select=snippet_id,label_id',{headers:authHeaders()})
+    .then(function(r){return r.ok?r.json():[];})
+    .catch(function(){return [];});
 
-  Promise.all([sFetch,fFetch,uFetch,oFetch]).then(function(res){
+  Promise.all([sFetch,fFetch,uFetch,oFetch,labFetch,slFetch]).then(function(res){
     var d=res[0], f=res[1], uses=res[2], owners=res[3];
+    allLabels=Array.isArray(res[4])?res[4]:[];
+    snipLabelMap={};
+    if(Array.isArray(res[5])){
+      res[5].forEach(function(r){
+        if(!r||!r.snippet_id)return;
+        (snipLabelMap[r.snippet_id]=snipLabelMap[r.snippet_id]||[]).push(r.label_id);
+      });
+    }
+    // A label deleted elsewhere must not keep filtering the list here.
+    curLabels=curLabels.filter(function(id){
+      return id===NO_LABEL||allLabels.some(function(l){return l.id===id;});
+    });
     if(!Array.isArray(d))throw new Error('bad');
     allSnips=d;
     allFolders=Array.isArray(f)?f:[];
@@ -3109,6 +3358,21 @@ function loadPrompts(){
       if(!Array.isArray(data))throw new Error('bad');
       allPrompts=data;
       renderPromptList();
+      // Assignments arrive separately and fail open: losing them costs the
+      // facet its counts, never the prompt list.
+      fetch(SUPA+'/rest/v1/prompt_labels?select=prompt_id,label_id',{headers:authHeaders()})
+        .then(function(r){return r.ok?r.json():[];})
+        .catch(function(){return [];})
+        .then(function(rows){
+          promptLabelMap={};
+          if(Array.isArray(rows)){
+            rows.forEach(function(r){
+              if(!r||!r.prompt_id)return;
+              (promptLabelMap[r.prompt_id]=promptLabelMap[r.prompt_id]||[]).push(r.label_id);
+            });
+          }
+          renderPromptList();refreshOpenFilterPanel();syncFilterHeader();
+        });
     })
     .catch(function(){
       if(!allPrompts.length){
@@ -3143,14 +3407,22 @@ function promptShareBadge(p){
   }
   return '<span class="share-badge share-private" title="Private">'+LOCK_SVG+'</span>';
 }
-function filterPrompts(q){
-  if(!q)return allPrompts.slice();
+/* Search and category first. Labels are applied after, so the facet can count
+   what picking a label would give rather than what is already showing. */
+function filterPromptsPreLabel(q){
   return allPrompts.filter(function(p){
+    if(curCategory!=='ALL'&&(p.intent_category||'')!==curCategory)return false;
+    if(!q)return true;
     if((p.name||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.content||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.intent_category||'').toLowerCase().indexOf(q)>-1)return true;
     return false;
   });
+}
+function filterPrompts(q){
+  var pre=filterPromptsPreLabel(q);
+  computePromptLabelCounts(pre);
+  return pre.filter(function(p){return matchesLabels(promptLabelIds(p));});
 }
 function promptCategories(){
   var cats=[],i;
@@ -3175,7 +3447,9 @@ function renderPromptList(){
   if(cnt)cnt.textContent=String(total);
   var meta=document.getElementById('prompt-srch-meta');
   if(meta){
-    if(q){
+    // Any facet narrows the list, not only the search box.
+    var narrowed=!!q||curCategory!=='ALL'||!!curLabels.length;
+    if(narrowed){
       meta.textContent=filtered.length+' of '+total+' result'+(total!==1?'s':'');
       meta.style.display='block';
     }else{
@@ -3588,6 +3862,9 @@ function lastUseForSnippet(s){
   if(g&&g.rows&&g.rows.length)return lastUseOf(g.rows);
   return lastUseMap[s.id]||null;
 }
+/* The list arrives a page at a time: a long library should not paint every
+   card to show the first screenful. */
+var LIST_PAGE=25, listLimit=LIST_PAGE, _listSig=null;
 function renderList(){
   var el=document.getElementById('snip-list');
   var q=curSearch.toLowerCase();
@@ -3596,6 +3873,18 @@ function renderList(){
   var groups=buildGroups(allSnips).filter(function(g){
     return groupMatches(g,q,curFolder,curLang);
   });
+  // Counts are taken here, before the label filter narrows the set: a chip
+  // should report what picking it would give, not what is already showing.
+  computeLabelCounts(groups);
+  groups=groups.filter(function(g){return matchesLabels(groupLabelIds(g));});
+  // A filtered list that does not say so reads as a broken one, and the panel
+  // that narrowed it is usually shut by the time you look.
+  var snipMeta=document.getElementById('snip-meta');
+  if(snipMeta){
+    var filtering=!!curSearch||curFolder!=='ALL'||curLang!=='ALL'||!!curLabels.length;
+    snipMeta.textContent=groups.length+' of '+groupCount(allSnips);
+    snipMeta.hidden=!filtering;
+  }
   // Pinned groups float to the top; each half keeps its existing order.
   var _pk=pinnedSnipKeys();
   var pinnedGroups=[],restGroups=[];
@@ -3606,6 +3895,12 @@ function renderList(){
     el.innerHTML='<div class="empty"><div class="emo">🔍</div><p>No snippets found</p></div>';
     return;
   }
+  // A new search, folder or language is a new list, so it starts at page one.
+  var sig=JSON.stringify([curSearch,curFolder,curLang,curLabels,curLabelMode]);
+  if(sig!==_listSig){_listSig=sig;listLimit=LIST_PAGE;}
+  var matched=groups.length;
+  groups=groups.slice(0,listLimit);
+  var remaining=matched-groups.length;
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang,curFolder);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
@@ -3649,7 +3944,14 @@ function renderList(){
       +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
     +'</div>';
-  }).join('');
+  }).join('')
+    +(remaining>0
+      ? '<button type="button" class="snip-more" id="snip-more">'
+          +'<span>Load more</span>'
+          +'<span class="snip-more-n">'+remaining+' left</span>'
+          +'<svg class="snip-more-i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
+        +'</button>'
+      : '');
   // Card tap → multilingual group opens the detail page (language chosen there);
   // single-language with fields opens detail; single-language, no fields copies.
   function activateCard(card){
@@ -3667,6 +3969,13 @@ function renderList(){
       copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
       logSnipUse(s,0);
     }
+  }
+  var moreBtn=document.getElementById('snip-more');
+  if(moreBtn){
+    moreBtn.addEventListener('click',function(){
+      listLimit+=LIST_PAGE;
+      renderList();
+    });
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
@@ -3927,7 +4236,7 @@ document.getElementById('ltabs').addEventListener('click',function(e){
   var p=e.target.closest('.lang-pill');if(!p)return;
   curLang=p.getAttribute('data-l');
   document.querySelectorAll('.lang-pill').forEach(function(x){x.classList.remove('on');});
-  p.classList.add('on');renderList();
+  p.classList.add('on');renderList();refreshOpenFilterPanel();syncFilterHeader();
 });
 
 /* ── FOLDER TABS ────────────────────────────────── */
@@ -3938,6 +4247,8 @@ document.getElementById('ftabs').addEventListener('click',function(e){
   curFolder=fid;
   renderFolderChips();
   renderList();
+  refreshOpenFilterPanel();
+  syncFilterHeader();
 });
 
 /* Tapping an ancestor in the header walks back up the tree. */
@@ -3948,6 +4259,8 @@ document.getElementById('fhead').addEventListener('click',function(e){
   curFolder=fid;
   renderFolderChips();
   renderList();
+  refreshOpenFilterPanel();
+  syncFilterHeader();
   var pill=document.querySelector('.folder-pill[data-fid="'+fid+'"]');
   if(pill&&pill.scrollIntoView)try{pill.scrollIntoView({inline:'center',block:'nearest'});}catch(_){}
 });
@@ -3986,7 +4299,7 @@ var st;
 document.getElementById('srch').addEventListener('input',function(){
   clearTimeout(st);var v=this.value;
   syncSnipClear();
-  st=setTimeout(function(){curSearch=v;renderList();},150);
+  st=setTimeout(function(){curSearch=v;renderList();refreshOpenFilterPanel();},150);
 });
 (function(){
   var clearBtn=document.getElementById('srch-clear');
@@ -4642,19 +4955,33 @@ function setupSheetDrag(sheetEl,closeFn){
   });
 })();
 
-/* ── LOGOUT BUTTON ──────────────────────────────── */
-(function(){
-  var btn=document.getElementById('logout-btn');
-  if(!btn)return;
-  btn.addEventListener('click',function(){
-    if(confirm('Sign out of SprintBrain?'))logout();
-  });
-})();
-
 /* ── PROFILE SHEET ──────────────────────────────── */
+/* Two initials from a name, one from a single word, else the address, else the
+   generic mark. */
+function profileInitials(name,email){
+  var parts=(name||'').split(' ').filter(Boolean);
+  if(parts.length>1)return (parts[0].charAt(0)+parts[1].charAt(0)).toUpperCase();
+  if(parts.length===1)return parts[0].slice(0,2).toUpperCase();
+  if(email)return email.charAt(0).toUpperCase();
+  return '👤';
+}
 function openProfileSheet(){
-  var email=SESSION&&SESSION.user?SESSION.user.email||'':'';
+  var u=SESSION&&SESSION.user;
+  var email=(u&&u.email)||'';
+  var meta=(u&&u.user_metadata)||{};
+  // Three keys carry a name across this file; read all of them rather than
+  // pick one and show a blank row for accounts that used another.
+  var name=(meta.display_name||meta.full_name||meta.name||'').trim();
+  if(!name&&email){
+    name=email.split('@')[0].split(/[._-]+/).filter(Boolean)
+      .map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);})
+      .join(' ');
+  }
+  var nameEl=document.getElementById('sb-profile-name');
+  nameEl.textContent=name;
+  nameEl.hidden=!name;
   document.getElementById('sb-profile-email').textContent=email;
+  document.getElementById('sb-profile-avatar').textContent=profileInitials(name,email);
   var sh=document.getElementById('sb-profile-sheet');
   sh.classList.remove('sb-hidden');
   sh.setAttribute('aria-hidden','false');
@@ -4690,6 +5017,337 @@ document.getElementById('sb-profile-signout').addEventListener('click',function(
 })();
 
 /* ── TAB BAR ────────────────────────────────────── */
+/* The filter header is one header shown on every surface: snippets and prompts
+   today, memory when that page lands. It is built here and mounted into every
+   hero rather than pasted into each one, so the real filter list is written
+   once and every surface gets the same one. A new surface needs no wiring, only
+   a .mhero. The panel is a placeholder until those filters exist; the open and
+   shut mechanics are already the ones they will use. */
+/* Label palette. The DB stores a key and never a hex, so every surface
+   resolves it: the dashboard in app/src/lib/labelColors.ts, this file for
+   mobile. Values are the dot colours from that module and must track it. */
+var LABEL_DOTS={azure:'#1B4FD8',violet:'#7C3AED',green:'#15803D',orange:'#C2410C',
+  teal:'#0F766E',rose:'#BE123C',amber:'#D97706',slate:'#CBD5E1'};
+function labelDot(c){return LABEL_DOTS[c]||LABEL_DOTS.azure;}
+/* Labels are personal (LABELS-001): a teammate reading your shared snippet
+   sees their own vocabulary, never yours. So this is always the signed-in
+   user's own taxonomy, and the RLS behind it is one comparison per row. */
+var allLabels=[], snipLabelMap={}, promptLabelMap={};
+/* Selected label ids. The sentinel picks out assets carrying no label at all:
+   most of a library is usually unlabelled, and without it the facet cannot
+   reach those rows. It is exclusive with real labels, because "unlabelled AND
+   Urgent" is a contradiction rather than a filter. */
+var NO_LABEL='__none__';
+var curLabels=[], curLabelMode='any';
+/* Prompts carry an intent category already; it is the third thing worth
+   filtering them by after labels. Snippets have no equivalent. */
+var curCategory='ALL';
+function promptLabelIds(pr){
+  var out={},ids=promptLabelMap[pr.id]||[],i;
+  for(i=0;i<ids.length;i++)out[ids[i]]=1;
+  return out;
+}
+/* Roots first, each followed by its children. Depth is capped at 2 by the
+   schema. A child whose parent is missing surfaces as a root rather than
+   vanishing from the list. */
+function labelTreeOrder(){
+  var byId={},out=[],i;
+  for(i=0;i<allLabels.length;i++)byId[allLabels[i].id]=allLabels[i];
+  for(i=0;i<allLabels.length;i++){
+    var l=allLabels[i];
+    if(l.parent_id&&byId[l.parent_id])continue;
+    out.push({l:l,depth:0});
+    for(var j=0;j<allLabels.length;j++){
+      if(allLabels[j].parent_id===l.id)out.push({l:allLabels[j],depth:1});
+    }
+  }
+  return out;
+}
+/* Every label carried by any variant of a group. Labels attach to a snippet
+   row, and a multilingual snippet is several rows, so the group is labelled if
+   any of its languages is. Same rule folder and language already follow. */
+function groupLabelIds(g){
+  var out={};
+  for(var i=0;i<g.variants.length;i++){
+    var ids=snipLabelMap[g.variants[i].id]||[];
+    for(var j=0;j<ids.length;j++)out[ids[j]]=1;
+  }
+  return out;
+}
+function matchesLabels(idMap){
+  if(!curLabels.length)return true;
+  if(curLabels[0]===NO_LABEL){for(var k in idMap)return false;return true;}
+  if(curLabelMode==='all'){
+    for(var i=0;i<curLabels.length;i++)if(!idMap[curLabels[i]])return false;
+    return true;
+  }
+  for(var a=0;a<curLabels.length;a++)if(idMap[curLabels[a]])return true;
+  return false;
+}
+/* Counts shown on each chip, measured over the groups that survive the OTHER
+   facets. That is what keeps a chip from promising results the folder or
+   language filter has already excluded. */
+var _labelCounts={counts:{},none:0};
+function computePromptLabelCounts(list){
+  var counts={},none=0;
+  list.forEach(function(pr){
+    var ids=promptLabelIds(pr),any=false,k;
+    for(k in ids){any=true;counts[k]=(counts[k]||0)+1;}
+    if(!any)none++;
+  });
+  _labelCounts={counts:counts,none:none};
+}
+function computeLabelCounts(groups){
+  var counts={},none=0;
+  groups.forEach(function(g){
+    var ids=groupLabelIds(g),any=false,k;
+    for(k in ids){any=true;counts[k]=(counts[k]||0)+1;}
+    if(!any)none++;
+  });
+  _labelCounts={counts:counts,none:none};
+}
+var FILTER_HEADER_LABEL='Filters';
+var FILTER_HEADER_EMPTY='Filters and options coming soon';
+/* Which facets a surface offers. A surface lists only what applies to it, so
+   the panel is one control everywhere without pretending every filter means
+   something on every page. The memory page adds its row here and needs no
+   other wiring.
+   A facet with a move key adopts an existing element rather than rebuilding
+   it: the folder and language rows keep their own markup, counts and delegated
+   handlers, so moving them changes where they sit and nothing else. */
+var FILTER_FACETS={
+  snippets:[{key:'folders',title:'Folders',move:'ftabs-wrap'},
+            {key:'languages',title:'Languages',move:'ltabs'},
+            {key:'labels',title:'Labels',render:renderLabelFacet}],
+  prompts:[{key:'labels',title:'Labels',render:renderLabelFacet},
+           {key:'category',title:'Category',render:renderCategoryFacet}]
+};
+function renderLabelFacet(host){
+  if(!allLabels.length){
+    host.innerHTML='<div class="mfacet-empty">No labels yet. Create them on the dashboard and they show up here.</div>';
+    return;
+  }
+  var html='<div class="mlabels">';
+  var noneOn=curLabels[0]===NO_LABEL;
+  html+='<button type="button" class="mlabel-pill'+(noneOn?' on':'')+'" data-lid="'+NO_LABEL+'"'
+    +(_labelCounts.none?'':' disabled')+'>'
+    +'<span>Unlabelled</span>'
+    +'<span class="mlabel-cnt">'+_labelCounts.none+'</span></button>';
+  labelTreeOrder().forEach(function(row){
+    var l=row.l, c=_labelCounts.counts[l.id]||0;
+    var on=curLabels.indexOf(l.id)>-1;
+    html+='<button type="button" class="mlabel-pill'+(on?' on':'')+'" data-lid="'+esc(l.id)+'"'
+      +(c?'':' disabled')+'>'
+      +(row.depth?'<span class="mlabel-nest"><svg viewBox="0 0 24 24">'
+        +'<path d="M4 4v10a4 4 0 0 0 4 4h12"/><polyline points="16 14 20 18 16 22"/>'
+        +'</svg></span>':'')
+      +'<span class="mlabel-dot" style="background:'+esc(labelDot(l.color))+'"></span>'
+      +'<span>'+esc(l.name||'Untitled')+'</span>'
+      +'<span class="mlabel-cnt">'+c+'</span></button>';
+  });
+  html+='</div>';
+  // The combiner only means something once two real labels are on.
+  var realOn=curLabels.filter(function(x){return x!==NO_LABEL;}).length;
+  if(realOn>1){
+    html+='<div class="mlabel-mode"><span class="mlabel-mode-t">Match</span>'
+      +'<span class="mlabel-seg">'
+      +'<button type="button" data-mode="any" class="'+(curLabelMode==='any'?'on':'')+'">Any</button>'
+      +'<button type="button" data-mode="all" class="'+(curLabelMode==='all'?'on':'')+'">All</button>'
+      +'</span></div>';
+  }
+  host.innerHTML=html;
+  host.addEventListener('click',function(e){
+    var m=e.target.closest('[data-mode]');
+    if(m){
+      curLabelMode=m.getAttribute('data-mode');
+      renderCurrentSurface();refreshOpenFilterPanel();syncFilterHeader();
+      return;
+    }
+    var b=e.target.closest('.mlabel-pill');
+    if(!b||b.disabled)return;
+    var id=b.getAttribute('data-lid');
+    if(id===NO_LABEL){
+      curLabels=(curLabels[0]===NO_LABEL)?[]:[NO_LABEL];
+    }else{
+      // Picking a real label drops the unlabelled sentinel; they contradict.
+      if(curLabels[0]===NO_LABEL)curLabels=[];
+      var at=curLabels.indexOf(id);
+      if(at>-1)curLabels.splice(at,1); else curLabels.push(id);
+    }
+    renderCurrentSurface();refreshOpenFilterPanel();syncFilterHeader();
+  });
+}
+/* Repaint whichever panel is open, so counts and selected states follow the
+   list after a pick. Only the open one: repainting a shut panel would move the
+   folder and language nodes out from under the surface still showing them. */
+function renderCategoryFacet(host){
+  var cats=promptCategories();
+  if(!cats.length){
+    host.innerHTML='<div class="mfacet-empty">No categories on your prompts yet.</div>';
+    return;
+  }
+  var html='<div class="mlabels">';
+  html+='<button type="button" class="mlabel-pill'+(curCategory==='ALL'?' on':'')+'" data-cat="ALL">'
+    +'<span>All</span></button>';
+  cats.forEach(function(c){
+    html+='<button type="button" class="mlabel-pill'+(curCategory===c?' on':'')+'" data-cat="'+esc(c)+'">'
+      +'<span>'+esc(c)+'</span></button>';
+  });
+  host.innerHTML=html+'</div>';
+  host.addEventListener('click',function(e){
+    var b=e.target.closest('[data-cat]');
+    if(!b)return;
+    curCategory=b.getAttribute('data-cat');
+    renderPromptList();refreshOpenFilterPanel();syncFilterHeader();
+  });
+}
+/* Redraw the list the user is actually looking at. The label facet is shared
+   by both surfaces, so it cannot assume the snippet one. */
+function renderCurrentSurface(){
+  if(curSurface()==='prompts')renderPromptList();
+  else renderList();
+}
+function refreshOpenFilterPanel(){
+  var panel=document.querySelector('.mfilters-panel.open');
+  if(panel)renderFilterPanel(panel,curSurface());
+}
+function heroSurface(hero){
+  var view=hero.closest('.view');
+  return (view&&view.id==='view-prompts')?'prompts':'snippets';
+}
+function curSurface(){
+  var pv=document.getElementById('view-prompts');
+  return (pv&&pv.classList.contains('active'))?'prompts':'snippets';
+}
+/* How many filters are on for a surface. Drives the badge, the footer summary
+   and whether Clear all is live. */
+function activeFilterCount(surface){
+  var n=0;
+  if(surface==='snippets'){
+    if(curFolder!=='ALL')n++;
+    if(curLang!=='ALL')n++;
+  }
+  if(surface==='prompts'&&curCategory!=='ALL')n++;
+  // Each picked label is its own choice, so each counts.
+  n+=curLabels.length;
+  return n;
+}
+function clearAllFilters(){
+  curLabels=[];curLabelMode='any';
+  if(curSurface()==='prompts'){
+    curCategory='ALL';
+    renderPromptList();
+  }
+  if(curSurface()==='snippets'){
+    curFolder='ALL';curLang='ALL';
+    document.querySelectorAll('.lang-pill').forEach(function(x){
+      x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
+    });
+    renderFolderChips();renderList();
+  }
+  refreshOpenFilterPanel();
+  syncFilterHeader();
+}
+/* Paint one hero's panel for its own surface. A facet that adopts a live node
+   is also what pulls the chip rows out of the page body. */
+/* Somewhere off-screen for adopted nodes to live between renders. Clearing the
+   panel with innerHTML would DESTROY them, and the folder and language rows
+   would not come back: they are the live elements carrying the delegated
+   handlers, not markup that can be rebuilt from a string. */
+function filterNodePark(){
+  var el=document.getElementById('sb-facet-park');
+  if(!el){
+    el=document.createElement('div');
+    el.id='sb-facet-park';
+    el.hidden=true;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function renderFilterPanel(panel,surface){
+  var body=panel.querySelector('[data-filter-body]');
+  if(!body)return;
+  var facets=FILTER_FACETS[surface]||[];
+  var park=filterNodePark();
+  body.querySelectorAll('[data-facet-node]').forEach(function(n){park.appendChild(n);});
+  body.innerHTML='';
+  if(!facets.length){
+    body.innerHTML='<div class="mfilters-panel-txt">'+esc(FILTER_HEADER_EMPTY)+'</div>';
+    return;
+  }
+  facets.forEach(function(f){
+    var sec=document.createElement('div');
+    sec.className='mfacet';
+    sec.setAttribute('data-facet',f.key);
+    sec.innerHTML='<div class="mfacet-hd"><span class="mfacet-t">'+esc(f.title)+'</span></div>'
+      +'<div class="mfacet-body"></div>';
+    body.appendChild(sec);
+    var host=sec.querySelector('.mfacet-body');
+    if(f.move){
+      var node=document.getElementById(f.move);
+      if(node){node.setAttribute('data-facet-node','');host.appendChild(node);}
+    }else if(f.render){
+      f.render(host);
+    }
+  });
+}
+/* Reflect filter state on every strip: the badge is what stops an active
+   filter from being invisible behind a shut panel. */
+function syncFilterHeader(){
+  var n=activeFilterCount(curSurface());
+  document.querySelectorAll('.mfilters-count').forEach(function(b){
+    b.textContent=String(n);
+    b.classList.toggle('sb-hidden',n===0);
+  });
+  document.querySelectorAll('.mfilters-clear').forEach(function(b){b.disabled=n===0;});
+  document.querySelectorAll('.mfilters-sum').forEach(function(el){
+    el.textContent=n?(n+' filter'+(n===1?'':'s')+' on'):'No filters on';
+  });
+}
+function mountFilterHeader(){
+  var seq=0;
+  document.querySelectorAll('.mhero').forEach(function(hero){
+    if(hero.querySelector('.mfilters'))return;
+    var id='mfilters-'+(seq++);
+    var surface=heroSurface(hero);
+    var btn=document.createElement('button');
+    btn.className='mfilters';
+    btn.type='button';
+    btn.id=id+'-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.setAttribute('aria-controls',id+'-panel');
+    btn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'
+      +'<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>'
+      +esc(FILTER_HEADER_LABEL)
+      +'<span class="mfilters-count sb-hidden">0</span>'
+      +'<svg class="mfilters-caret" viewBox="0 0 24 24" aria-hidden="true">'
+      +'<path d="m6 9 6 6 6-6"/></svg>';
+    var panel=document.createElement('div');
+    panel.className='mfilters-panel';
+    panel.id=id+'-panel';
+    panel.setAttribute('role','region');
+    panel.setAttribute('aria-labelledby',id+'-btn');
+    panel.innerHTML='<div class="mfilters-panel-in">'
+      +'<div class="mfilters-scroll" data-filter-body></div>'
+      +'<div class="mfilters-foot"><span class="mfilters-sum"></span>'
+      +'<button type="button" class="mfilters-clear">Clear all</button></div>'
+      +'</div>';
+    hero.insertBefore(panel,hero.firstChild);
+    hero.insertBefore(btn,hero.firstChild);
+    btn.addEventListener('click',function(){
+      var open=panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded',open?'true':'false');
+      if(open){renderFilterPanel(panel,heroSurface(hero));syncFilterHeader();}
+    });
+    panel.querySelector('.mfilters-clear').addEventListener('click',clearAllFilters);
+    // Paint once now: this is what lifts the chip rows out of the page body, so
+    // they never flash as loose rows before the panel is first opened.
+    renderFilterPanel(panel,surface);
+  });
+  syncFilterHeader();
+}
+mountFilterHeader();
+
 document.querySelector('.mtab').addEventListener('click',function(e){
   var btn=e.target.closest('button');
   if(!btn)return;
@@ -4708,7 +5366,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     });
     document.getElementById('view-prompts').classList.remove('active');
     document.getElementById('view-list').classList.add('active');
-    renderFolderChips();renderList();
+    renderFolderChips();renderList();syncFilterHeader();
     var vl=document.getElementById('view-list');
     if(vl)vl.scrollTo({top:0,behavior:'smooth'});
     document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');});
