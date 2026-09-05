@@ -6,7 +6,6 @@ import {
   History,
   Info,
   Languages,
-  MousePointerClick,
   PanelRightClose,
   PanelRightOpen,
   Pencil,
@@ -175,49 +174,23 @@ function sanitizeTrigger(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-// Quick Insert: each entry inserts `value` at the cursor position in the body
-// textarea. Only `logic` entries are left here — every field type now has its
-// own toggle in the rail, which explains it before inserting it. The `field`
-// half of the union stays because that is still what the group means, not
-// because anything currently fills it.
+// The rail was a row of Quick Insert chips until v3.14.4: one token per chip,
+// its whole explanation in a hover title. Every one of them is now a toggle
+// that says what the token does before it writes it, which is why no chip list
+// survives here. Note this no longer mirrors the Sprintbrain.html chip rail:
+// that surface still shows the five original field chips.
 //
-// Note this no longer mirrors the Sprintbrain.html chip rail: that surface
-// still shows the five original field chips.
+// Everything the rail offers has to read as built for the reader's own trade,
+// whichever that is: a clinic, a repair shop and a law firm each open it and
+// find their own words. So nothing here names an industry (see the root
+// CLAUDE.md).
 //
-// Every entry carries a `hint`: a token name is not an explanation, and what
-// {if:cond} does with the text around it is only obvious once someone tells you.
-interface QuickInsert {
-  label: string;
-  value: string;
-  variant: 'default' | 'formula' | 'cond';
-  group: 'field' | 'logic';
-  hint: string;
-}
-
-// Every chip has to read as built for the reader's own trade, whichever that is:
-// a clinic, a repair shop and a law firm each open this rail and find their own
-// words in it. So nothing here names an industry (see the root CLAUDE.md).
-//
-// guest_name and property_name were dropped in v2.150.0: both are plain text
-// fields, and the {formtext} builder writes any of them by name. `nights` went
-// the same way, and `phone` and `review_link` followed for the same reason:
-// neither name means anything to the engine, both resolve to a plain text
-// field, and the builder writes either one by name. Bodies already holding
+// Names the chip rail once shipped and no longer does: guest_name and
+// property_name went in v2.150.0, then `nights`, `phone` and `review_link`.
+// None of them meant anything to the engine — each resolved to a plain text
+// field the {formtext} builder writes by name — and bodies already holding
 // {phone_number} or {review_link} keep working untouched, since an unrecognised
 // name has always fallen through to a text field.
-//
-// The two date fields left this list for the Date/Time toggle below, which
-// inserts them with the explanation attached; they are not gone, because `DATE`
-// in the name is what makes the fill form render a date picker (content.js
-// auto-detect), which a plain text field cannot replace.
-const QUICK_INSERTS: QuickInsert[] = [
-  { label: '{=formula}',    value: '{=A - B}',               variant: 'formula', group: 'logic',
-    hint: 'Calculate from other fields, e.g. {=LIST_PRICE - DISCOUNT}' },
-  { label: '{if:cond}',     value: '{if:A > 0}text{endif}',  variant: 'cond',    group: 'logic',
-    hint: 'Show text only when a condition is true, e.g. {if:TOTAL > 100}…{endif}' },
-  { label: '{greeting}',    value: '{greeting}',             variant: 'cond',    group: 'logic',
-    hint: 'Good morning / afternoon / evening / night, from the local time, in this snippet’s language. Force one with {greeting: lang=ES}' },
-];
 
 const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracking-widest';
 
@@ -227,7 +200,17 @@ const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracki
 // us two copies to keep in step and an unreadable wall of centred text.
 const FIELDS_HINT =
   'A field is a blank you fill in when the snippet expands. Insert one from a group below and it becomes a box in the fill form. Open a group to see what it does.';
-const SIDEBAR_HINT = 'text-[11px] text-ink-subtle leading-tight mt-1 mb-2.5';
+
+// The other two groups answer the same question about themselves, in the same
+// three beats: what the thing is, what it does to the message, and where to
+// look next. Each opens with the line that used to sit under the heading in
+// the rail itself — the rail is 260px wide and every line spent explaining it
+// is a line the toggles do not get, so the explanation lives on hover and the
+// column stays a column of things you can click.
+const ACTIONS_HINT =
+  'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
+const LOGIC_HINT =
+  'Worked out on its own. A total, a line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
@@ -241,6 +224,19 @@ const NUMBER_FIELDS: { label: string; hint: string }[] = [
     hint: 'Plain, Currency or Percent. It changes how the value prints, never the number a formula reads.' },
   { label: 'Default',
     hint: 'Optional. Left blank the field opens empty, which is not the same as starting at 0.' },
+];
+
+// The three inputs FormButtonDialog offers, named as it names them, so opening
+// the builder holds no surprises. `What it does` keeps the builder's own
+// wording rather than a tidier one-word label: it is the input that decides
+// whether the button does anything at all.
+const BUTTON_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Label',
+    hint: 'The text on the button. Left blank it reads Run.' },
+  { label: 'What it does',
+    hint: 'Each line sets one field to the result of an expression. Later lines see the earlier results, so one can feed the next.' },
+  { label: 'Spacing',
+    hint: 'Whether the button trims the space around it. On a line of its own it leaves a blank line behind unless it does.' },
 ];
 
 const MENU_FIELDS: { label: string; hint: string }[] = [
@@ -270,6 +266,57 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Opens a clock. 12-hour prints the AM or PM alongside, so a time can never be read as the wrong half of the day.' },
   { label: 'Format',
     hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
+];
+
+// What the Formula toggle writes. A and B are deliberately meaningless: the
+// author replaces them with their own field names, and a placeholder that
+// looked like a real name would invite leaving it there.
+const FORMULA_TOKEN = '{=A - B}';
+
+// The parts of a formula, in the order the author meets them. There is no
+// builder dialog behind this one — the token lands in the body ready to edit —
+// so this list is the only place the rail can say what an expression may hold.
+// Everything here is the engine's own vocabulary (extension/formula-engine.js:
+// FUNS, safeEval, evalFormula), not a superset of it.
+const FORMULA_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Fields',
+    hint: 'Refer to a field by its name. Number fields are the ones a formula can always read, since a text field may hold anything.' },
+  { label: 'Operators',
+    hint: '+, -, * and / with brackets, plus round(), floor(), ceil(), abs(), min() and max(). The answer is rounded to two decimals.' },
+  { label: 'Result',
+    hint: 'Prints where the token sits. A field holding something that is not a number prints nothing at all, rather than a wrong total.' },
+];
+
+// A > 0 is the safest opening condition to hand someone: it is true of any
+// filled number field, so the inserted block prints its text rather than
+// vanishing while the author is still reading it.
+const CONDITION_TOKEN = '{if:A > 0}text{endif}';
+
+// The parts of a conditional block. The nesting note is not a style
+// preference: resolveBody closes a block at the FIRST {endif} it finds
+// (extension/formula-engine.js), so an inner block ends the outer one early.
+const CONDITION_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Condition',
+    hint: 'What has to be true. Numbers compare with >, <, >=, <=, == and !=; text with = or != against a value in quotes, like PLAN = "annual".' },
+  { label: 'Branches',
+    hint: 'Optional. {elseif: …} adds another case and {else} covers the rest. The first one that is true prints, and the others are dropped.' },
+  { label: 'End',
+    hint: '{endif} closes the block, and the first one found closes it — so a block cannot sit inside another. Leave it out and the text never prints.' },
+];
+
+const GREETING_TOKEN = '{greeting}';
+
+// Hours, languages and options are the engine's own (GREETING_WORDS,
+// sbGreetingSlot, sbResolveGreetingToken). The four thresholds are worth
+// printing rather than summarising as "the time of day": whether 18:00 reads as
+// afternoon or evening is exactly what an author checking this wants to know.
+const GREETING_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Time',
+    hint: 'Read from the clock where the snippet expands: morning from 5, afternoon from 12, evening from 18, night from 22.' },
+  { label: 'Language',
+    hint: 'Follows the snippet’s own language — English, Italian, Spanish or French. Force one with {greeting: lang=ES}.' },
+  { label: 'Wording',
+    hint: 'Optional. Replace any of the four with your own, like {greeting: morning=Hi there}. Declared empty, it prints nothing.' },
 ];
 
 
@@ -1179,26 +1226,56 @@ export function NewSnippetDialog() {
 
             {/* Actions */}
             <div className="p-4 border-b border-line">
-              <p className={SIDEBAR_LABEL}>Actions</p>
-              <p className={SIDEBAR_HINT}>Clicked while filling. Never printed.</p>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setActionButtonOpen(true)}
-                  disabled={saving}
-                  title="Build an action button. Changes field values when clicked."
-                  className="inline-flex h-7 items-center gap-1 rounded-[8px] border border-primary/30 bg-primary-light px-2.5 font-mono text-[11px] text-primary transition-colors hover:border-primary/50 disabled:opacity-50"
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Actions</p>
+                <Tooltip
+                  label={ACTIONS_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
                 >
-                  <MousePointerClick className="h-3 w-3" />
-                  {'{button}'}
-                </button>
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
               </div>
+              {/* Like Choice, this one opens a builder rather than pasting a
+                  literal: a button that sets nothing is not a shorter version
+                  of a button, it is an inert one. */}
+              <Toggle
+                label="Button"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => setActionButtonOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Build the button
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Something the person filling the form clicks, never something the reader
+                  sees. It sets fields to values you decide, so a discount or a revised
+                  total lands in one click instead of being worked out by hand. The button
+                  itself drops out of the message when the snippet is sent.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {BUTTON_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
 
               {/* Urgency Timer belongs with the actions: it is the other thing
                   the snippet does at fill time, not a list-level preference
                   like Pin to top. Re-indented from the options rail; the two
                   panels are the same width, so it needs no resizing. */}
-              <div className="mt-2.5 flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5">
                 <OptionToggle
                   id="snippet-urgency"
                   icon={<Clock className="h-3.5 w-3.5" />}
@@ -1253,13 +1330,120 @@ export function NewSnippetDialog() {
 
             {/* Logic */}
             <div className="flex-1 p-4">
-              <p className={SIDEBAR_LABEL}>Logic</p>
-              <p className={SIDEBAR_HINT}>Worked out on its own.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_INSERTS.filter((qi) => qi.group === 'logic').map((qi) => (
-                  <QuickChip key={qi.label} item={qi} disabled={saving} onInsert={insertAtCursor} />
-                ))}
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Logic</p>
+                <Tooltip
+                  label={LOGIC_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
+                >
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
               </div>
+              {/* The three read as the field toggles above them read: what the
+                  token is, what it may contain, then the button that writes it.
+                  Each replaces a chip that carried its whole explanation in a
+                  hover title, which no one hovers before clicking — and these
+                  three needed the explanation most, since a condition and a
+                  formula are the only tokens that can silently print nothing. */}
+              <Toggle
+                label="Formula"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => insertAtCursor(FORMULA_TOKEN)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Insert formula
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Works out a number from the fields around it and prints the answer, so
+                  nobody does the arithmetic by hand.{' '}
+                  <code className="font-mono text-primary/80">{'{=LIST_PRICE - DISCOUNT}'}</code>{' '}
+                  reads both fields as they are filled and writes the result. Nothing is
+                  asked of the person filling the form: a formula is worked out, never
+                  typed in.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {FORMULA_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
+              <Toggle
+                label="Condition"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => insertAtCursor(CONDITION_TOKEN)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Insert condition
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Prints a piece of text only when something is true, and nothing at all
+                  when it is not.{' '}
+                  <code className="font-mono text-primary/80">{'{if:TOTAL > 100}text{endif}'}</code>{' '}
+                  keeps that text while the total is over 100 and drops it when it is not,
+                  so one snippet covers both cases instead of two. Type your text between
+                  the two halves of what the button inserts.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {CONDITION_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+
+              <Toggle
+                label="Greeting"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => insertAtCursor(GREETING_TOKEN)}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Insert greeting
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Good morning, Good afternoon, Good evening or Good night, picked from the
+                  clock at the moment the snippet expands. There is nothing to fill in and
+                  nothing to remember to change: the line is right whenever it is sent.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {GREETING_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
             </div>
 
             {/* Edit note — recorded in version history. Sits below Logic, which
@@ -1785,33 +1969,6 @@ export function NewSnippetDialog() {
 
       </DialogContent>
     </Dialog>
-  );
-}
-
-function QuickChip({
-  item,
-  disabled,
-  onInsert,
-}: {
-  item: QuickInsert;
-  disabled: boolean;
-  onInsert: (value: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onInsert(item.value)}
-      disabled={disabled}
-      title={item.hint}
-      className={cn(
-        'inline-flex h-7 items-center rounded-[8px] border px-2.5 font-mono text-[11px] transition-colors disabled:opacity-50',
-        item.variant === 'formula' && 'border-[#BED0FF] bg-[#EEF2FF] text-[#1B4FD8] hover:bg-[#E0EAFF]',
-        item.variant === 'cond'    && 'border-[#B6E2F5] bg-[#E6F6FD] text-[#0E6F94] hover:bg-[#D2EEFA]',
-        item.variant === 'default' && 'border-line bg-bg-alt text-ink-muted hover:bg-line/60 hover:text-ink',
-      )}
-    >
-      {item.label}
-    </button>
   );
 }
 
