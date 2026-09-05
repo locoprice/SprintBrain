@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
-  Clock,
   Eye,
   History,
   Info,
@@ -237,6 +236,21 @@ const BUTTON_FIELDS: { label: string; hint: string }[] = [
     hint: 'Each line sets one field to the result of an expression. Later lines see the earlier results, so one can feed the next.' },
   { label: 'Spacing',
     hint: 'Whether the button trims the space around it. On a line of its own it leaves a blank line behind unless it does.' },
+];
+
+// The urgency timer is the one entry in the rail that carries a value rather
+// than inserting something, so its panel explains a mechanism instead of a
+// token. All three lines describe what extension/content/content.js actually
+// does: the expiry is held per snippet in sessionStorage (reopening does not
+// restart it), the scarcity chip is hidden at 0, and on expiry the bar and the
+// Insert button both go dead.
+const URGENCY_FIELDS: { label: string; hint: string }[] = [
+  { label: 'Duration',
+    hint: 'How long the countdown runs, in minutes. It starts the first time the snippet is opened, and reopening it does not restart the clock.' },
+  { label: 'Scarcity count',
+    hint: 'Optional. Shown beside the timer as how many are left. Left at 0, nothing is shown.' },
+  { label: 'Expiry',
+    hint: 'When it runs out the bar marks the snippet expired and the Insert button stops working, so nothing goes out on terms that have lapsed.' },
 ];
 
 const MENU_FIELDS: { label: string; hint: string }[] = [
@@ -1273,59 +1287,85 @@ export function NewSnippetDialog() {
 
               {/* Urgency Timer belongs with the actions: it is the other thing
                   the snippet does at fill time, not a list-level preference
-                  like Pin to top. Re-indented from the options rail; the two
-                  panels are the same width, so it needs no resizing. */}
-              <div className="flex flex-col gap-2.5">
-                <OptionToggle
-                  id="snippet-urgency"
-                  icon={<Clock className="h-3.5 w-3.5" />}
-                  title="Urgency Timer"
-                  description="Countdown + scarcity"
-                  checked={form.enable_urgency_timer}
-                  onChange={(v) => updateField('enable_urgency_timer', v)}
-                  disabled={saving}
-                />
+                  like Pin to top.
 
-                {form.enable_urgency_timer && (
-                  <div className="grid gap-2 pl-1 pb-0.5">
-                    <div>
-                      <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
-                        Duration (minutes)
+                  It is the only toggle in the rail holding a value rather than
+                  inserting something, and a shut panel would hide whether that
+                  value is on — so the label says so. Everything else about the
+                  row is what the other seven are. */}
+              <Toggle
+                label={form.enable_urgency_timer ? 'Urgency Timer · On' : 'Urgency Timer'}
+                className="mb-2.5"
+                footer={
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between gap-2.5">
+                      <label htmlFor="snippet-urgency" className="text-[11px] text-ink-muted">
+                        Countdown + scarcity
                       </label>
-                      <Input
-                        id="snippet-timer-minutes"
-                        type="number"
-                        min={0}
-                        value={Math.round(form.timer_duration_ms / 60000)}
-                        onChange={(e) =>
-                          updateField(
-                            'timer_duration_ms',
-                            Math.max(0, Number(e.target.value) || 0) * 60000,
-                          )
-                        }
+                      <Switch
+                        id="snippet-urgency"
+                        checked={form.enable_urgency_timer}
+                        onChange={(v) => updateField('enable_urgency_timer', v)}
                         disabled={saving}
-                        className="h-8 text-xs"
                       />
                     </div>
-                    <div>
-                      <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
-                        Scarcity count
-                      </label>
-                      <Input
-                        id="snippet-scarcity"
-                        type="number"
-                        min={0}
-                        value={form.scarcity_count}
-                        onChange={(e) =>
-                          updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
-                        }
-                        disabled={saving}
-                        className="h-8 text-xs"
-                      />
-                    </div>
+
+                    {form.enable_urgency_timer && (
+                      <div className="grid gap-2">
+                        <div>
+                          <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
+                            Duration (minutes)
+                          </label>
+                          <Input
+                            id="snippet-timer-minutes"
+                            type="number"
+                            min={0}
+                            value={Math.round(form.timer_duration_ms / 60000)}
+                            onChange={(e) =>
+                              updateField(
+                                'timer_duration_ms',
+                                Math.max(0, Number(e.target.value) || 0) * 60000,
+                              )
+                            }
+                            disabled={saving}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
+                            Scarcity count
+                          </label>
+                          <Input
+                            id="snippet-scarcity"
+                            type="number"
+                            min={0}
+                            value={form.scarcity_count}
+                            onChange={(e) =>
+                              updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
+                            }
+                            disabled={saving}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  A countdown shown in the fill window while you work, never in the
+                  message. It starts the moment the snippet is first opened and runs down
+                  from there, and it can take the snippet out of use when it reaches zero.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {URGENCY_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
             </div>
 
             {/* Logic */}
@@ -1976,41 +2016,3 @@ function FieldError({ message }: { message: string }) {
   return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
-interface OptionToggleProps {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-}
-
-function OptionToggle({
-  id,
-  icon,
-  title,
-  description,
-  checked,
-  onChange,
-  disabled,
-}: OptionToggleProps) {
-  return (
-    <div className="flex items-start gap-2.5 rounded-[10px] border border-line bg-card p-3">
-      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-bg-alt text-ink-muted">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-ink leading-tight">{title}</p>
-        <p className="text-[11px] text-ink-subtle leading-tight mt-0.5">{description}</p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        className="mt-0.5"
-      />
-    </div>
-  );
-}
