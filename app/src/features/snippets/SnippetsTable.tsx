@@ -322,15 +322,18 @@ export function SnippetsTable() {
   // is a scroll box, not a clip box. `overflow-clip` used to cut the last four
   // columns off with no way to reach them.
   //
-  // The max-height is what keeps the sticky <th> working: `overflow: auto`
-  // alone makes this element the scroll container, and a container that never
-  // scrolls vertically can't hold a header in place. Capping the height gives
-  // it real vertical scroll, so the header pins to the top of the table
-  // instead of to <main>. 380px is the chrome above and below it (338px of
-  // page header, search and filters, plus the footer and the canvas padding),
-  // and the min-height keeps a usable table on a short window.
+  // Vertically it takes exactly the height of the rows it holds. It used to be
+  // capped at calc(100vh-380px), which put a second scrollbar inside a page
+  // that already scrolls, and how many rows are on screen is already the
+  // reader's own choice — 10, 25 or 100 from the footer below.
+  //
+  // The cost, and it is the whole cost: the sticky <th> no longer pins. Sticky
+  // resolves against the nearest scrollport, which is this element, and with no
+  // cap it has no vertical scroll range to pin within. The classes stay because
+  // they are correct the moment a cap comes back; today they do nothing, and
+  // the header scrolls away with the page like any other table's.
   return (
-    <div className="max-h-[calc(100vh-380px)] min-h-[280px] overflow-auto rounded-[16px] border border-line bg-card">
+    <div className="overflow-x-auto rounded-[16px] border border-line bg-card">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="text-left">
