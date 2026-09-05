@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
+  CalendarClock,
   Eye,
   History,
   Info,
@@ -35,6 +36,7 @@ import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
+import { FormTimeDialog } from '@/features/snippets/FormTimeDialog';
 import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
 import {
@@ -280,6 +282,8 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Opens a clock. 12-hour prints the AM or PM alongside, so a time can never be read as the wrong half of the day.' },
   { label: 'Format',
     hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
+  { label: 'Automatic',
+    hint: 'Not a field — a date worked out at expansion, with the time pinned. Count forward from today, or land on a named day like next Monday.' },
 ];
 
 // What the Formula toggle writes. A and B are deliberately meaningless: the
@@ -450,6 +454,10 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Automatic-date builder — writes a {time:} token at the cursor. A dialog and
+  // not a rail control: the day and the time are two independent decisions and
+  // want two columns, which 260px cannot give them.
+  const [autoDateOpen, setAutoDateOpen] = useState(false);
   // Date/Time builder — the format each of the two tokens is written with.
   // Inline state rather than a dialog: one dropdown is not worth a modal, and
   // seeing the choice next to the button is the whole point of it.
@@ -1071,7 +1079,7 @@ export function NewSnippetDialog() {
                       <Button
                         type="button"
                         size="sm"
-                        variant="ghost"
+                        variant="primary"
                         disabled={saving}
                         onClick={() =>
                           insertAtCursor(
@@ -1085,6 +1093,16 @@ export function NewSnippetDialog() {
                       >
                         <Plus className="mr-1 h-3 w-3" />
                         Time
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        disabled={saving}
+                        onClick={() => setAutoDateOpen(true)}
+                      >
+                        <CalendarClock className="mr-1 h-3 w-3" />
+                        Automatic
                       </Button>
                     </div>
 
@@ -1930,6 +1948,12 @@ export function NewSnippetDialog() {
             <FormButtonDialog
               open={actionButtonOpen}
               onOpenChange={setActionButtonOpen}
+              onInsert={insertAtCursor}
+            />
+
+            <FormTimeDialog
+              open={autoDateOpen}
+              onOpenChange={setAutoDateOpen}
               onInsert={insertAtCursor}
             />
 

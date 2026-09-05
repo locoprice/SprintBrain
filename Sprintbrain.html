@@ -307,6 +307,26 @@
   .nv-dt-row select:focus{border-color:var(--sb-azure);box-shadow:0 0 0 3px var(--sb-iris-glow)}
   .nv-dt-row .btn{flex:0 0 auto;padding:4px 10px;font-size:var(--sb-fs-11)}
   .nv-dt-prev{font-family:var(--sb-mono);font-size:var(--sb-fs-10);color:var(--sb-ink-subtle);word-break:break-all;line-height:1.6}
+  /* Automatic-date builder. Two columns because there are two independent
+     decisions — which day, and what time on it — and stacking them made the
+     time read as a detail of the date rather than a choice of its own. */
+  .nv-tm-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+  .nv-tm-col:last-child{border-left:1px solid var(--sb-line);padding-left:18px}
+  .nv-tm-title{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px}
+  .nv-tm-col .nv-field{margin-bottom:13px}
+  .nv-tm-seg{display:inline-flex;border:1px solid var(--sb-line);border-radius:8px;overflow:hidden}
+  .nv-tm-seg button{height:30px;padding:0 10px;font-size:var(--sb-fs-11);font-weight:500;background:var(--sb-bg);color:var(--sb-ink);border:0;cursor:pointer;transition:background .12s,color .12s}
+  .nv-tm-seg button + button{border-left:1px solid var(--sb-line)}
+  .nv-tm-seg button.on{background:var(--sb-azure);color:#fff}
+  .nv-tm-clock{display:flex;align-items:center;gap:7px}
+  .nv-tm-clock select{width:78px;flex:0 0 auto}
+  .nv-tm-clock span{font-size:var(--sb-fs-13);font-weight:500;color:var(--sb-ink-muted)}
+  .nv-tm-off{pointer-events:none;opacity:.4}
+  .nv-tm-check{display:flex;align-items:center;gap:7px;font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer}
+  .nv-tm-check input{width:15px;height:15px;accent-color:var(--sb-azure);cursor:pointer}
+  .nv-tm-out{border-top:1px solid var(--sb-line);margin-top:2px;padding-top:12px}
+  .nv-tm-out b{display:block;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+  .nv-tm-res{font-family:var(--sb-mono);font-size:var(--sb-fs-13);color:var(--sb-ink)}
   .nv-switch{position:relative;width:34px;height:19px;flex-shrink:0}
   .nv-switch input{opacity:0;width:0;height:0;position:absolute}
   .nv-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
@@ -575,7 +595,8 @@
               <div class="nv-dt-row">
                 <label for="nv-dt-tfmt">Time</label>
                 <select id="nv-dt-tfmt"></select>
-                <button class="btn" type="button" id="nv-dt-tins" title="Insert a time field at the cursor, in the format on the left">Insert</button>
+                <button class="btn p" type="button" id="nv-dt-tins" title="Insert a time field at the cursor, in the format on the left">Insert</button>
+                <button class="btn p" type="button" id="nv-dt-auto" title="A date worked out when the snippet expands — three days from today, next Monday, the start of next month — with the time pinned"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="12 13 12 16 14 17"/></svg>Automatic</button>
               </div>
               <div class="nv-dt-prev" id="nv-dt-prev"></div>
             </div>
@@ -694,6 +715,81 @@
   </div>
 </div>
 
+<!-- ═══ AUTOMATIC DATE MODAL ({time:} builder) ═══ -->
+<!-- Mirrors the React dashboard's FormTimeDialog: the same two columns in the
+     same order, the same anchors, the same live preview. Both write the token
+     through SBFormulaEngine.buildFormTimeToken, so the two cannot drift. -->
+<div class="nv-modal-bg" id="nv-tm-bg">
+  <div class="nv-modal" style="width:620px">
+    <div class="nv-modal-h"><h2>Insert an automatic date</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-menu-hint" style="margin-bottom:14px">A date worked out when the snippet expands. Nobody fills it in.</div>
+      <div class="nv-tm-cols">
+        <div class="nv-tm-col">
+          <div class="nv-tm-title">Which day</div>
+          <div class="nv-field">
+            <label for="nv-tm-dfmt">Date format</label>
+            <select id="nv-tm-dfmt"></select>
+          </div>
+          <div class="nv-field">
+            <label>Which day</label>
+            <div class="nv-tm-seg" id="nv-tm-mode">
+              <button type="button" data-mode="none" class="on">Today</button>
+              <button type="button" data-mode="fixed">Count forward</button>
+              <button type="button" data-mode="named">A named day</button>
+            </div>
+            <div class="nv-menu-hint" id="nv-tm-modehint"></div>
+          </div>
+          <div class="nv-field" id="nv-tm-fixedwrap" style="display:none">
+            <label>How far</label>
+            <div style="display:flex;gap:7px">
+              <input id="nv-tm-amount" value="1" inputmode="numeric" style="width:74px;flex:0 0 auto">
+              <select id="nv-tm-unit" style="flex:1 1 auto;min-width:0"></select>
+            </div>
+            <label class="nv-tm-check" style="margin-top:8px;text-transform:none;letter-spacing:0;font-weight:400">
+              <input type="checkbox" id="nv-tm-back"> Count backwards instead
+            </label>
+            <div class="nv-menu-hint" id="nv-tm-amounthint"></div>
+          </div>
+          <div class="nv-field" id="nv-tm-namedwrap" style="display:none">
+            <label for="nv-tm-named">Day</label>
+            <select id="nv-tm-named"></select>
+          </div>
+        </div>
+        <div class="nv-tm-col">
+          <div class="nv-tm-title">What time</div>
+          <label class="nv-tm-check"><input type="checkbox" id="nv-tm-withtime"> Print a time as well</label>
+          <div class="nv-menu-hint" style="margin-top:6px">Off, the token prints only the date. On, it prints the time you pin here &mdash; the same one every time it expands, not the hour it happened to be sent at.</div>
+          <div id="nv-tm-timewrap" class="nv-tm-off" style="margin-top:14px">
+            <div class="nv-field">
+              <label>Time of day</label>
+              <div class="nv-tm-clock">
+                <select id="nv-tm-hour" aria-label="Hour"></select>
+                <span>:</span>
+                <select id="nv-tm-min" aria-label="Minute"></select>
+              </div>
+              <div class="nv-menu-hint">Minutes step in fives.</div>
+            </div>
+            <div class="nv-field">
+              <label for="nv-tm-tfmt">Time format</label>
+              <select id="nv-tm-tfmt"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="nv-tm-out">
+        <b>Prints today as</b>
+        <div class="nv-tm-res" id="nv-tm-res"></div>
+        <div class="nv-menu-hint" style="font-family:var(--sb-mono);margin-top:7px;word-break:break-all" id="nv-tm-token"></div>
+      </div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-tm-insert">Insert</button>
+      <button class="btn" id="nv-tm-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ ACTION BUTTON MODAL ({button} builder) ═══ -->
 <div class="nv-modal-bg" id="nv-btn-bg">
   <div class="nv-modal" style="width:460px">
@@ -766,7 +862,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.14.6', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.15.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1752,6 +1848,154 @@
      DATE_2 rather than letting two controls end up wired to one value. */
   $('nv-f-body').addEventListener('input', dtSync);
   dtSync();
+
+  /* ── AUTOMATIC DATE BUILDER ({time:}) ────────────────────────────────
+     Mirrors the React dashboard's FormTimeDialog. Both write the token through
+     SBFormulaEngine.buildFormTimeToken and preview through the engine's own
+     sbFormatDate, so neither the token nor the date can be spelled two ways.
+
+     A {time:} token is NOT a field: nobody fills it in, it is worked out when
+     the snippet expands, the way {greeting} is. */
+  var TM_UNITS = [['D','Days'],['W','Weeks'],['Mo','Months'],['Y','Years'],['H','Hours'],['M','Minutes']];
+  var TM_MODE_HINT = {
+    none:  'The day the snippet is expanded on.',
+    fixed: 'A fixed distance from that day. Tick "backwards" to count the other way.',
+    named: 'Worked out at expansion. Sent on a Monday, "Next Monday" is a week away.'
+  };
+  /* Minutes step in fives: a message anchored to 09:07 is not a thing anyone
+     writes, and sixty entries to scroll past is worse than the granularity. */
+  var TM_MINUTE_STEP = 5;
+  /* Sentence case, not the raw token value. Order follows NAMED_SHIFTS. */
+  var TM_NAMED_LABELS = {
+    'tomorrow':'Tomorrow', 'yesterday':'Yesterday',
+    'next monday':'Next Monday', 'next tuesday':'Next Tuesday',
+    'next wednesday':'Next Wednesday', 'next thursday':'Next Thursday',
+    'next friday':'Next Friday', 'next saturday':'Next Saturday',
+    'next sunday':'Next Sunday',
+    'start of month':'Start of this month', 'start of next month':'Start of next month',
+    'end of month':'End of this month', 'end of next month':'End of next month'
+  };
+  var tmMode = 'none';
+
+  function tmPad(n){ return (n < 10 ? '0' : '') + n; }
+
+  function tmFill(el, pairs){
+    if (el.options.length) return;
+    for (var i = 0; i < pairs.length; i++) {
+      var o = document.createElement('option');
+      o.value = pairs[i][0];
+      o.textContent = pairs[i][1];
+      el.appendChild(o);
+    }
+  }
+
+  function tmAmountOk(){
+    var v = String($('nv-tm-amount').value).replace(/^\s+|\s+$/g, '');
+    return /^[0-9]+$/.test(v) && parseInt(v, 10) > 0;
+  }
+
+  function tmShift(){
+    if (tmMode === 'none') return '';
+    if (tmMode === 'named') return $('nv-tm-named').value;
+    if (!tmAmountOk()) return '';
+    return ($('nv-tm-back').checked ? '-' : '+') +
+      String(parseInt($('nv-tm-amount').value, 10)) + $('nv-tm-unit').value;
+  }
+
+  function tmFormat(){
+    return $('nv-tm-withtime').checked
+      ? $('nv-tm-dfmt').value + ' ' + $('nv-tm-tfmt').value
+      : $('nv-tm-dfmt').value;
+  }
+
+  function tmToken(){
+    return window.SBFormulaEngine.buildFormTimeToken({
+      format: tmFormat(),
+      shift:  tmShift(),
+      at:     $('nv-tm-withtime').checked ? $('nv-tm-hour').value + ':' + $('nv-tm-min').value : ''
+    });
+  }
+
+  function tmSync(){
+    $('nv-tm-fixedwrap').style.display = tmMode === 'fixed' ? '' : 'none';
+    $('nv-tm-namedwrap').style.display = tmMode === 'named' ? '' : 'none';
+    $('nv-tm-modehint').textContent = TM_MODE_HINT[tmMode];
+    var on = $('nv-tm-withtime').checked;
+    $('nv-tm-timewrap').className = on ? '' : 'nv-tm-off';
+    $('nv-tm-hour').disabled = $('nv-tm-min').disabled = $('nv-tm-tfmt').disabled = !on;
+
+    var ok = tmMode !== 'fixed' || tmAmountOk();
+    $('nv-tm-amounthint').textContent = ok
+      ? ''
+      : 'A whole number above zero. Anything else writes no offset at all.';
+    $('nv-tm-amounthint').className = 'nv-menu-hint' + (ok ? '' : ' bad');
+    $('nv-tm-insert').disabled = !ok;
+
+    var token = tmToken();
+    $('nv-tm-token').textContent = token;
+    /* Preview through the token the engine will actually read back, so the
+       dialog cannot promise a date the snippet does not print. */
+    $('nv-tm-res').textContent = window.SBFormulaEngine.sbParseTimeToken(token.slice(6, -1), {});
+  }
+
+  function openTimeBuilder(){
+    var E = window.SBFormulaEngine;
+    tmFill($('nv-tm-dfmt'), [
+      ['DD/MM/YYYY', 'Day / Month / Year \u00b7 04/09/2026'],
+      ['MM/DD/YYYY', 'Month / Day / Year \u00b7 09/04/2026'],
+      ['DD/MM/dddd', 'Day / Month / Weekday \u00b7 04/09/Friday']
+    ]);
+    tmFill($('nv-tm-tfmt'), [['HH:mm', '24-hour \u00b7 14:30'], ['hh:mm A', '12-hour (AM/PM) \u00b7 02:30 PM']]);
+    tmFill($('nv-tm-unit'), TM_UNITS);
+    tmFill($('nv-tm-named'), E.NAMED_SHIFTS.map(function(n){ return [n, TM_NAMED_LABELS[n] || n]; }));
+    var hours = [], mins = [], i;
+    for (i = 0; i < 24; i++) hours.push([tmPad(i), tmPad(i)]);
+    for (i = 0; i < 60; i += TM_MINUTE_STEP) mins.push([tmPad(i), tmPad(i)]);
+    tmFill($('nv-tm-hour'), hours);
+    tmFill($('nv-tm-min'), mins);
+
+    /* Every opening starts clean: a half-built token carried over from a
+       cancelled insert would silently ship into the next snippet. */
+    tmMode = 'none';
+    var segs = $('nv-tm-mode').getElementsByTagName('button');
+    for (i = 0; i < segs.length; i++) segs[i].className = segs[i].getAttribute('data-mode') === 'none' ? 'on' : '';
+    $('nv-tm-dfmt').value = 'DD/MM/YYYY';
+    $('nv-tm-tfmt').value = 'HH:mm';
+    $('nv-tm-amount').value = '1';
+    $('nv-tm-unit').value = 'D';
+    $('nv-tm-back').checked = false;
+    $('nv-tm-named').value = E.NAMED_SHIFTS[0];
+    $('nv-tm-withtime').checked = false;
+    $('nv-tm-hour').value = '09';
+    $('nv-tm-min').value = '00';
+    tmSync();
+    $('nv-tm-bg').classList.add('on');
+  }
+  function closeTimeBuilder(){ $('nv-tm-bg').classList.remove('on'); }
+
+  $('nv-dt-auto').addEventListener('click', openTimeBuilder);
+  $('nv-tm-mode').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+    if (!b) return;
+    tmMode = b.getAttribute('data-mode');
+    var segs = this.getElementsByTagName('button');
+    for (var i = 0; i < segs.length; i++) segs[i].className = segs[i] === b ? 'on' : '';
+    tmSync();
+  });
+  ['nv-tm-dfmt','nv-tm-tfmt','nv-tm-unit','nv-tm-named','nv-tm-hour','nv-tm-min'].forEach(function(id){
+    $(id).addEventListener('change', tmSync);
+  });
+  ['nv-tm-withtime','nv-tm-back'].forEach(function(id){
+    $(id).addEventListener('change', tmSync);
+  });
+  $('nv-tm-amount').addEventListener('input', tmSync);
+  $('nv-tm-cancel').addEventListener('click', closeTimeBuilder);
+  $('nv-tm-bg').addEventListener('click', function(e){ if (e.target === $('nv-tm-bg')) closeTimeBuilder(); });
+  $('nv-tm-insert').addEventListener('click', function(){
+    if ($('nv-tm-insert').disabled) return;
+    bodyInsert(tmToken());
+    closeTimeBuilder();
+  });
 
   /* ── NUMBER FIELD BUILDER ────────────────────────────────────────────
      Mirrors the React dashboard's FormNumberDialog. Both write the token

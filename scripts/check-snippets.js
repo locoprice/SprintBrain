@@ -613,6 +613,148 @@ if (engine.resolveBody('{formdate: name=D; format=DD/MM/YYYY} and {D}',
 }
 console.log('OK Date formatting parity passed all ' + dok + ' cases');
 
+// ── SHIFT + ANCHORED TIME PARITY ────────────────────────────────────
+// A {time:} token decides which DAY a message is talking about. The phone and
+// the engine disagreeing here means the same snippet quotes two different dates
+// to the same reader, which is the worst failure this file can catch.
+//
+// Every case runs off a FIXED clock. A Saturday is chosen deliberately: the
+// "next <weekday>" arithmetic is the part most likely to drift, and a weekend
+// base exercises both the wrap and the strictly-after rule.
+for (const fn of ['sbApplyShift', 'sbNamedShift', 'sbApplyAt', 'sbShiftIsValid', 'sbAtIsValid']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+if (mobile.SB_NAMED_SHIFTS.join('|') !== engine.NAMED_SHIFTS.join('|')) {
+  fail('the named-shift lists have drifted\n  engine: ' + engine.NAMED_SHIFTS.join('|') +
+    '\n  mobile: ' + mobile.SB_NAMED_SHIFTS.join('|'));
+}
+
+const SHIFT_BASE = new Date('2026-09-05T14:30:00');
+const SHIFT_CASES = [
+  // Fixed offsets, both signs and every unit.
+  '+3D', '-1D', '+1W', '-2W', '+2Mo', '-1Mo', '+1Y', '-1Y', '+2H', '-3H', '+30M', '-45M',
+  // Case-insensitive since v3.15.0. `+1mo` is a month, `+1m` a minute.
+  '+1d', '+1w', '+1mo', '+1m', '+1y', '+1h', '+1MO',
+  // Every anchor, plus the spellings a hand-typed token might carry.
+  ...engine.NAMED_SHIFTS,
+  'Next Monday', 'NEXT monday', '  next   monday  ', 'Start Of Next Month',
+  // Not a shift: both engines must leave the date alone rather than guess.
+  'whenever', 'next blursday', '+D', '3D', '', 'next', 'start of', '++1D',
+];
+
+let sok = 0;
+for (const shift of SHIFT_CASES) {
+  const want = engine.sbApplyShift(new Date(SHIFT_BASE), shift).getTime();
+  const got = mobile.sbApplyShift(new Date(SHIFT_BASE), shift).getTime();
+  if (got !== want) {
+    fail('shift drift for ' + JSON.stringify(shift) +
+      '\n  engine: ' + new Date(want).toISOString() +
+      '\n  mobile: ' + new Date(got).toISOString());
+  }
+  if (engine.sbShiftIsValid(shift) !== mobile.sbShiftIsValid(shift)) {
+    fail('the two engines disagree on whether ' + JSON.stringify(shift) + ' is a usable shift');
+  }
+  sok++;
+}
+
+const AT_CASES = ['09:00', '00:00', '23:59', '9:05', '07:30',
+  // Rejected: out of range, malformed, or empty. An invalid time leaves the
+  // clock alone rather than rolling the date into the next day.
+  '24:00', '12:60', '9:5', 'noon', '', '::', '9', '09:00:00'];
+for (const at of AT_CASES) {
+  const want = engine.sbApplyAt(new Date(SHIFT_BASE), at).getTime();
+  const got = mobile.sbApplyAt(new Date(SHIFT_BASE), at).getTime();
+  if (got !== want) {
+    fail('anchored-time drift for ' + JSON.stringify(at) +
+      '\n  engine: ' + new Date(want).toISOString() +
+      '\n  mobile: ' + new Date(got).toISOString());
+  }
+  if (engine.sbAtIsValid(at) !== mobile.sbAtIsValid(at)) {
+    fail('the two engines disagree on whether ' + JSON.stringify(at) + ' is a usable time');
+  }
+  sok++;
+}
+
+// What each anchor actually lands on, from a known Saturday. Parity alone would
+// pass if BOTH engines were wrong the same way; these pin the meaning.
+const ANCHOR_OUTPUT = [
+  ['tomorrow', '06/09/2026'],
+  ['yesterday', '04/09/2026'],
+  // Base is a Saturday. Monday is two days out; Saturday itself is a week out,
+  // because nobody says "next saturday" about the day they are standing in.
+  ['next monday', '07/09/2026'],
+  ['next friday', '11/09/2026'],
+  ['next saturday', '12/09/2026'],
+  ['next sunday', '06/09/2026'],
+  ['start of month', '01/09/2026'],
+  ['start of next month', '01/10/2026'],
+  ['end of month', '30/09/2026'],
+  // October has 31 days where September has 30 — the month-end arithmetic must
+  // not carry September's length into it.
+  ['end of next month', '31/10/2026'],
+];
+for (const [shift, want] of ANCHOR_OUTPUT) {
+  const got = engine.sbFormatDate(engine.sbApplyShift(new Date(SHIFT_BASE), shift), 'DD/MM/YYYY');
+  if (got !== want) {
+    fail('anchor ' + JSON.stringify(shift) + ' from Sat 05/09/2026 landed on ' + got +
+      ', expected ' + want);
+  }
+}
+
+// The shift picks the day, THEN the time is pinned on it. Reversed, this would
+// set nine o'clock today and add a day of whatever hour it happened to be.
+const ORDER_CASES = [
+  ['tomorrow', '09:00', '06/09/2026 09:00'],
+  ['next monday', '09:00', '07/09/2026 09:00'],
+  ['+1W', '18:30', '12/09/2026 18:30'],
+  ['start of next month', '00:00', '01/10/2026 00:00'],
+];
+for (const [shift, at, want] of ORDER_CASES) {
+  const rest = 'DD/MM/YYYY HH:mm; shift=' + shift + '; at=' + at;
+  const gotE = engine.sbParseTimeToken(rest, {});
+  const gotM = mobile.sbParseTimeToken(rest, {});
+  // Resolves against the real clock for the DAY, so only assert what is fixed:
+  // both surfaces agree, and the time is the anchored one.
+  if (gotE !== gotM) {
+    fail('{time: ' + rest + '} drift\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+  }
+  if (gotE.slice(-5) !== want.slice(-5)) {
+    fail('{time: ' + rest + '} printed ' + gotE + ', expected it to end at ' + want.slice(-5));
+  }
+}
+
+// A token writer must never emit a shift or a time the parser would ignore: it
+// would resolve to today, reading as a working token printing the wrong day.
+const WRITER_CASES = [
+  [{ format: 'DD/MM/YYYY', shift: '+3D' }, '{time: DD/MM/YYYY; shift=+3D}'],
+  [{ format: 'DD/MM/YYYY', shift: 'next monday' }, '{time: DD/MM/YYYY; shift=next monday}'],
+  [{ format: 'DD/MM/YYYY HH:mm', shift: 'tomorrow', at: '09:00' },
+    '{time: DD/MM/YYYY HH:mm; shift=tomorrow; at=09:00}'],
+  // A time beside a date-only format changes nothing a reader can see.
+  [{ format: 'DD/MM/YYYY', shift: 'tomorrow', at: '09:00' }, '{time: DD/MM/YYYY; shift=tomorrow}'],
+  // Dropped rather than written.
+  [{ format: 'DD/MM/YYYY', shift: 'whenever' }, '{time: DD/MM/YYYY}'],
+  [{ format: 'DD/MM/YYYY HH:mm', at: '25:00' }, '{time: DD/MM/YYYY HH:mm}'],
+  // Nothing a caller passes can end the token early or split the body.
+  [{ format: 'DD/MM{}/YYYY; x' }, '{time: DD/MM /YYYY x}'],
+  [{}, '{time: YYYY-MM-DD}'],
+];
+for (const [cfg, want] of WRITER_CASES) {
+  const got = engine.buildFormTimeToken(cfg);
+  if (got !== want) {
+    fail('buildFormTimeToken(' + JSON.stringify(cfg) + ') wrote ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want));
+  }
+  // And every token it writes must parse back without throwing.
+  const inner = got.slice(6, -1);
+  if (typeof mobile.sbParseTimeToken(inner, {}) !== 'string') {
+    fail('the phone cannot read a token the writer produced: ' + got);
+  }
+}
+console.log('OK Shift + anchored-time parity passed all ' + sok + ' cases (' +
+  engine.NAMED_SHIFTS.length + ' anchors, ' + WRITER_CASES.length + ' writer cases)');
+
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,
 // so a snippet expanded without touching it dropped the choice and shipped the

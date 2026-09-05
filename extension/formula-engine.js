@@ -7,7 +7,7 @@
 //   {{= EXPRESSION }}          — evaluated math formula
 //   {= EXPRESSION}             — legacy single-brace formula
 //   {var: NAME = EXPRESSION}   — local variable declaration
-//   {time: FORMAT}             — date/time token
+//   {time: FORMAT[; shift=+3D|next monday][; at=09:00][; from=FIELD]}  — automatic date
 //   {formtext: name=VAR; default=X}   — text input field
 //   {formdate: name=VAR[; type=time][; format=DD/MM/YYYY]}  — date or time field
 //   {formmenu: opt1,opt2; name=VAR[; default=opt1][; multiple=yes][; cols=N]}  — dropdown field
@@ -78,18 +78,129 @@
     return out;
   }
 
+  // ── SHIFTS ──────────────────────────────────────────────────────
+  // A {time:} token moves off "now" in one of two ways, and both are spelled
+  // into the same `shift=` attribute because both answer the same question:
+  // which day is this message talking about.
+  //
+  //   shift=+3D            a fixed offset  — three days from now
+  //   shift=next monday    an anchor       — whichever day that turns out to be
+  //
+  // One attribute rather than two, because they never compose: a date is either
+  // counted forward or landed on, never both, and two attributes would need a
+  // rule for what happens when someone writes both.
+  var WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  // The anchors a builder may offer, in the order it offers them. Closed on
+  // purpose, like the date formats: an anchor the parser does not know leaves
+  // the date on today, which is a wrong date rather than a visible error.
+  var NAMED_SHIFTS = [
+    'tomorrow',
+    'yesterday',
+    'next monday',
+    'next tuesday',
+    'next wednesday',
+    'next thursday',
+    'next friday',
+    'next saturday',
+    'next sunday',
+    'start of month',
+    'start of next month',
+    'end of month',
+    'end of next month'
+  ];
+
+  function _shiftKey(name) {
+    return String(name === null || name === undefined ? '' : name)
+      .toLowerCase().replace(/\s+/g, ' ').replace(/^ | $/g, '');
+  }
+
+  /**
+   * An anchored shift. Returns a NEW date, or null when the name is not one of
+   * NAMED_SHIFTS — the caller treats null as "no shift" rather than guessing.
+   *
+   * The clock is left exactly where it was. Which time of day an anchored date
+   * carries is `at=`'s business, and a token that sets neither should print the
+   * hour it was expanded at.
+   */
+  function sbNamedShift(d, name) {
+    var key = _shiftKey(name);
+    var out = new Date(d.getTime());
+    if (key === 'tomorrow')  { out.setDate(out.getDate() + 1); return out; }
+    if (key === 'yesterday') { out.setDate(out.getDate() - 1); return out; }
+    if (key.slice(0, 5) === 'next ') {
+      var want = WEEKDAY_NAMES.indexOf(key.slice(5));
+      if (want === -1) return null;
+      // Strictly after today. Written on a Monday, "next monday" means the one
+      // a week away — nobody says it about the day they are standing in.
+      var delta = (want - out.getDay() + 7) % 7;
+      if (delta === 0) delta = 7;
+      out.setDate(out.getDate() + delta);
+      return out;
+    }
+    // setDate(1) BEFORE setMonth, and the two-argument setMonth for month ends:
+    // both avoid the overflow that turns the 31st of January into the 3rd of
+    // March when the target month is shorter.
+    if (key === 'start of month')      { out.setDate(1); return out; }
+    if (key === 'start of next month') { out.setDate(1); out.setMonth(out.getMonth() + 1); return out; }
+    if (key === 'end of month')        { out.setMonth(out.getMonth() + 1, 0); return out; }
+    if (key === 'end of next month')   { out.setMonth(out.getMonth() + 2, 0); return out; }
+    return null;
+  }
+
+  // Case-insensitive since v3.15.0. It used to be case-sensitive, so a
+  // hand-typed `shift=+1d` matched nothing and silently printed today — a wrong
+  // date that looked exactly like a right one. `Mo` is tried before `M`, so
+  // `+1mo` is a month and `+1m` a minute, as they always were.
+  var FIXED_SHIFT_RE = /^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/i;
+
   function sbApplyShift(d, shift) {
     if (!shift) return d;
-    var m = /^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/.exec(String(shift).replace(/\s+/g,''));
-    if (!m) return d;
-    var sign = m[1] === '-' ? -1 : 1, n = parseInt(m[2], 10) * sign, u = m[3];
+    var raw = String(shift);
+    var m = FIXED_SHIFT_RE.exec(raw.replace(/\s+/g, ''));
+    if (m) {
+      var sign = m[1] === '-' ? -1 : 1, n = parseInt(m[2], 10) * sign;
+      var u = m[3].toLowerCase();
+      var out = new Date(d.getTime());
+      if (u === 'm')  out.setMinutes(out.getMinutes() + n);
+      else if (u === 'h')  out.setHours(out.getHours() + n);
+      else if (u === 'd')  out.setDate(out.getDate() + n);
+      else if (u === 'w')  out.setDate(out.getDate() + n * 7);
+      else if (u === 'mo') out.setMonth(out.getMonth() + n);
+      else if (u === 'y')  out.setFullYear(out.getFullYear() + n);
+      return out;
+    }
+    var named = sbNamedShift(d, raw);
+    return named === null ? d : named;
+  }
+
+  // Whether `shift=` names something the parser will actually act on. The
+  // builders ask before writing, so a token can never carry a shift that reads
+  // as "today" once it expands.
+  function sbShiftIsValid(shift) {
+    var raw = String(shift === null || shift === undefined ? '' : shift);
+    if (FIXED_SHIFT_RE.test(raw.replace(/\s+/g, ''))) return true;
+    return sbNamedShift(new Date(), raw) !== null;
+  }
+
+  // ── ANCHORED TIME OF DAY ────────────────────────────────────────
+  // `at=09:00` pins the clock after the shift has chosen the day, which is what
+  // makes "tomorrow at 09:00" one token instead of a date and a typed time that
+  // drift apart the first time somebody edits one of them.
+  var AT_RE = /^(\d{1,2}):(\d{2})$/;
+
+  function sbAtIsValid(at) {
+    var m = AT_RE.exec(String(at === null || at === undefined ? '' : at).replace(/\s+/g, ''));
+    return !!m && parseInt(m[1], 10) <= 23 && parseInt(m[2], 10) <= 59;
+  }
+
+  function sbApplyAt(d, at) {
+    if (!sbAtIsValid(at)) return d;
+    var m = AT_RE.exec(String(at).replace(/\s+/g, ''));
     var out = new Date(d.getTime());
-    if (u === 'M')  out.setMinutes(out.getMinutes() + n);
-    else if (u === 'H')  out.setHours(out.getHours() + n);
-    else if (u === 'D')  out.setDate(out.getDate() + n);
-    else if (u === 'W')  out.setDate(out.getDate() + n * 7);
-    else if (u === 'Mo') out.setMonth(out.getMonth() + n);
-    else if (u === 'Y')  out.setFullYear(out.getFullYear() + n);
+    // Seconds and milliseconds go to zero too: an anchored time is a time
+    // somebody chose, not that instant's leftovers.
+    out.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
     return out;
   }
 
@@ -123,7 +234,11 @@
       base = sbParseUserDate(vals[opts.from]);
     }
     if (!base || isNaN(base.getTime())) base = new Date();
+    // Order is load-bearing: the shift picks the DAY, then `at` pins the CLOCK
+    // on it. Reversed, "tomorrow at 09:00" would set nine o'clock today and
+    // then add a day's worth of whatever hour it happened to be.
     if (opts.shift) base = sbApplyShift(base, opts.shift);
+    if (opts.at) base = sbApplyAt(base, opts.at);
     return sbFormatDate(base, fmt || 'YYYY-MM-DD HH:mm');
   }
 
@@ -1339,6 +1454,39 @@
     return out + '}';
   }
 
+  // ── AUTOMATIC DATE TOKEN WRITER ─────────────────────────────────
+  // Serializes a {time:} token from the Date/Time builder — the inverse of
+  // sbParseTimeToken, so every token this writes resolves to what the builder
+  // previewed.
+  //
+  // Unlike {formdate:}, this is not a field: nobody fills it in. It is worked
+  // out when the snippet expands, the way {greeting} is.
+  //
+  // MIRRORED in app/src/lib/formTimeToken.ts — the React dashboard cannot
+  // import extension source (see app/CLAUDE.md §6). Change both together.
+  //
+  // A shift or a time the parser would ignore is dropped rather than written:
+  // a token carrying `shift=whenever` resolves to today, which reads as a
+  // working token printing the wrong day.
+  function buildFormTimeToken(cfg) {
+    var c = cfg || {};
+    // `;` `{` `}` end a token or split it across two lines of the body, so no
+    // caller can make this emit something that stops parsing.
+    var fmt = String(c.format === undefined ? '' : c.format)
+      .replace(/[;{}]/g, ' ').replace(/\s+/g, ' ').replace(/^ | $/g, '');
+    var out = '{time: ' + (fmt || 'YYYY-MM-DD');
+    var shift = String(c.shift === undefined ? '' : c.shift)
+      .replace(/[;{}]/g, ' ').replace(/\s+/g, ' ').replace(/^ | $/g, '');
+    if (shift !== '' && sbShiftIsValid(shift)) out += '; shift=' + shift;
+    var at = String(c.at === undefined ? '' : c.at).replace(/\s+/g, '');
+    // `at` is only meaningful when the format prints a clock. Written beside a
+    // date-only format it would change nothing a reader can see.
+    if (at !== '' && sbAtIsValid(at) && /[Hhms]/.test(fmt)) {
+      out += '; at=' + at;
+    }
+    return out + '}';
+  }
+
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
   // Serializes a {formmenu:} token from an insert-dialog config — the exact
   // inverse of the formmenu branch above, so every token this writes parses
@@ -1581,7 +1729,14 @@
     buildFormNumberToken: buildFormNumberToken,
     nextNumberName:    nextNumberName,
     buildFormDateToken: buildFormDateToken,
+    buildFormTimeToken: buildFormTimeToken,
     nextFieldName:     nextFieldName,
+    NAMED_SHIFTS:      NAMED_SHIFTS,
+    sbNamedShift:      sbNamedShift,
+    sbApplyShift:      sbApplyShift,
+    sbApplyAt:         sbApplyAt,
+    sbShiftIsValid:    sbShiftIsValid,
+    sbAtIsValid:       sbAtIsValid,
     DATE_FORMATS:      DATE_FORMATS,
     TIME_FORMATS:      TIME_FORMATS,
     buildFormMenuToken: buildFormMenuToken,

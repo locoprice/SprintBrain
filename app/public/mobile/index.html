@@ -1929,18 +1929,91 @@ function sbFormatDate(d,fmt){
   for(var k in ph)out=out.split(k).join(ph[k]);
   return out;
 }
+/* SHIFTS — mirrors WEEKDAY_NAMES / NAMED_SHIFTS / sbNamedShift / sbApplyShift /
+   sbShiftIsValid and the at= helpers in extension/formula-engine.js. A {time:}
+   token moves off "now" either by a fixed offset (shift=+3D) or by landing on a
+   named day (shift=next monday); both spell into one attribute because they
+   never compose. scripts/check-snippets.js asserts this agrees with the engine. */
+var SB_WEEKDAY_NAMES=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+var SB_NAMED_SHIFTS=['tomorrow','yesterday','next monday','next tuesday','next wednesday',
+  'next thursday','next friday','next saturday','next sunday',
+  'start of month','start of next month','end of month','end of next month'];
+
+function sbShiftKey(name){
+  return String(name===null||name===undefined?'':name)
+    .toLowerCase().replace(/\s+/g,' ').replace(/^ | $/g,'');
+}
+
+/* Returns a NEW date, or null when the name is not one of SB_NAMED_SHIFTS. The
+   clock is left where it was: which time an anchored date carries is at='s job. */
+function sbNamedShift(d,name){
+  var key=sbShiftKey(name);
+  var out=new Date(d.getTime());
+  if(key==='tomorrow'){out.setDate(out.getDate()+1);return out;}
+  if(key==='yesterday'){out.setDate(out.getDate()-1);return out;}
+  if(key.slice(0,5)==='next '){
+    var want=SB_WEEKDAY_NAMES.indexOf(key.slice(5));
+    if(want===-1)return null;
+    /* Strictly after today: written on a Monday, "next monday" is a week away. */
+    var delta=(want-out.getDay()+7)%7;
+    if(delta===0)delta=7;
+    out.setDate(out.getDate()+delta);
+    return out;
+  }
+  /* setDate(1) before setMonth, and two-argument setMonth for month ends: both
+     avoid the overflow that turns 31 January into 3 March. */
+  if(key==='start of month'){out.setDate(1);return out;}
+  if(key==='start of next month'){out.setDate(1);out.setMonth(out.getMonth()+1);return out;}
+  if(key==='end of month'){out.setMonth(out.getMonth()+1,0);return out;}
+  if(key==='end of next month'){out.setMonth(out.getMonth()+2,0);return out;}
+  return null;
+}
+
+/* Case-insensitive since v3.15.0: a hand-typed `+1d` used to match nothing and
+   silently print today. `Mo` is tried before `M`, so `+1mo` is a month. */
+var SB_FIXED_SHIFT_RE=/^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/i;
+
 function sbApplyShift(d,shift){
   if(!shift)return d;
-  var m=/^([+-])\s*(\d+)\s*(Mo|M|H|D|W|Y)$/.exec(String(shift).replace(/\s+/g,''));
-  if(!m)return d;
-  var sign=m[1]==='-'?-1:1,n=parseInt(m[2],10)*sign,u=m[3];
+  var raw=String(shift);
+  var m=SB_FIXED_SHIFT_RE.exec(raw.replace(/\s+/g,''));
+  if(m){
+    var sign=m[1]==='-'?-1:1,n=parseInt(m[2],10)*sign,u=m[3].toLowerCase();
+    var out=new Date(d.getTime());
+    if(u==='m')out.setMinutes(out.getMinutes()+n);
+    else if(u==='h')out.setHours(out.getHours()+n);
+    else if(u==='d')out.setDate(out.getDate()+n);
+    else if(u==='w')out.setDate(out.getDate()+n*7);
+    else if(u==='mo')out.setMonth(out.getMonth()+n);
+    else if(u==='y')out.setFullYear(out.getFullYear()+n);
+    return out;
+  }
+  var named=sbNamedShift(d,raw);
+  return named===null?d:named;
+}
+
+function sbShiftIsValid(shift){
+  var raw=String(shift===null||shift===undefined?'':shift);
+  if(SB_FIXED_SHIFT_RE.test(raw.replace(/\s+/g,'')))return true;
+  return sbNamedShift(new Date(),raw)!==null;
+}
+
+/* ANCHORED TIME OF DAY — at=09:00 pins the clock after the shift has chosen the
+   day, which is what makes "tomorrow at 09:00" one token. */
+var SB_AT_RE=/^(\d{1,2}):(\d{2})$/;
+
+function sbAtIsValid(at){
+  var m=SB_AT_RE.exec(String(at===null||at===undefined?'':at).replace(/\s+/g,''));
+  return !!m&&parseInt(m[1],10)<=23&&parseInt(m[2],10)<=59;
+}
+
+function sbApplyAt(d,at){
+  if(!sbAtIsValid(at))return d;
+  var m=SB_AT_RE.exec(String(at).replace(/\s+/g,''));
   var out=new Date(d.getTime());
-  if(u==='M')out.setMinutes(out.getMinutes()+n);
-  else if(u==='H')out.setHours(out.getHours()+n);
-  else if(u==='D')out.setDate(out.getDate()+n);
-  else if(u==='W')out.setDate(out.getDate()+n*7);
-  else if(u==='Mo')out.setMonth(out.getMonth()+n);
-  else if(u==='Y')out.setFullYear(out.getFullYear()+n);
+  /* Seconds and milliseconds go to zero: an anchored time is one somebody
+     chose, not that instant's leftovers. */
+  out.setHours(parseInt(m[1],10),parseInt(m[2],10),0,0);
   return out;
 }
 function sbParseUserDate(s){
@@ -1965,7 +2038,9 @@ function sbParseTimeToken(rest,vals){
   var base=null;
   if(opts.from&&vals&&vals[opts.from]!==undefined&&vals[opts.from]!=='')base=sbParseUserDate(vals[opts.from]);
   if(!base||isNaN(base.getTime()))base=new Date();
+  /* Order is load-bearing: the shift picks the DAY, then at= pins the CLOCK. */
   if(opts.shift)base=sbApplyShift(base,opts.shift);
+  if(opts.at)base=sbApplyAt(base,opts.at);
   return sbFormatDate(base,fmt||'YYYY-MM-DD HH:mm');
 }
 function sbDatetimeDiffUnitMs(unit){

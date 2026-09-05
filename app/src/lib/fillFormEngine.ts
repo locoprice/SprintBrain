@@ -85,6 +85,18 @@ interface SbFormulaEngineApi {
     statements: Array<{ name: string; expr: string }>,
     values: Record<string, string>,
   ): { values: Record<string, number>; errors: string[] };
+  /**
+   * The date formatter every surface prints through. Exposed so the Date/Time
+   * builder can preview a {time:} token against the real one rather than
+   * carrying a third copy of the token table — the dialog would be the only
+   * place in the product where a date could be formatted a different way.
+   */
+  sbFormatDate(d: Date, fmt: string): string;
+}
+
+/** The engine's date formatter, or null until the scripts have loaded. */
+export function formulaEngine(): SbFormulaEngineApi | null {
+  return window.SBFormulaEngine ?? null;
 }
 
 declare global {
