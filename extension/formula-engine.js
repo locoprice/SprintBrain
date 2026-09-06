@@ -777,8 +777,16 @@
   //
   // Reads the body's own tokens. A stored field_cfg override is not consulted:
   // nothing writes one today, and resolveBody has no route to it.
-  function _fieldFormatMap(body) {
-    var cfg = buildFormFieldCfg(body), out = null;
+  //
+  // `override` is resolveBody's `fmtOverride` opt: a format chosen while the
+  // form is being filled in, rather than by the author. Only a date or a time
+  // field accepts one, and only from its own closed list, so a stray key can
+  // never turn a number field into a date. '' is a real answer there — print
+  // the picker's own value, which is what a {formdate:} with no format= has
+  // always done — so the override is read with hasOwnProperty rather than for
+  // truthiness.
+  function _fieldFormatMap(body, override) {
+    var cfg = buildFormFieldCfg(body), out = null, ov = override || null;
     for (var k in cfg) {
       if (!Object.prototype.hasOwnProperty.call(cfg, k)) continue;
       var f = cfg[k];
@@ -787,9 +795,20 @@
         if (!out) out = {};
         out[k] = { kind: 'number', format: f.format, currency: f.currency || DEFAULT_CURRENCY };
       } else if (f.type === 'date' || f.type === 'time') {
-        if (!f.format) continue;
+        var dfmt = f.format || '';
+        if (ov && Object.prototype.hasOwnProperty.call(ov, k)) {
+          var ovRaw = String(ov[k] === null || ov[k] === undefined ? '' : ov[k])
+            .replace(/^\s+|\s+$/g, '');
+          var ovFmt = _dateFormatOk(f.type, ovRaw);
+          // '' is a real answer: print the picker's own value. A non-empty
+          // override this kind of field does not have is a caller bug, and
+          // honouring it would quietly drop the author's format, so it is
+          // ignored and the token keeps printing what it always printed.
+          if (ovRaw === '' || ovFmt) dfmt = ovFmt;
+        }
+        if (!dfmt) continue;
         if (!out) out = {};
-        out[k] = { kind: 'date', format: f.format };
+        out[k] = { kind: 'date', format: dfmt };
       }
     }
     return out;
@@ -887,12 +906,18 @@
     // fragment being resolved: an {if:} branch can print a field declared
     // outside it. So the map is built once at the outermost call and carried
     // down. `opts` belongs to the caller, so the carrier is a copy.
+    //
+    // `opts.fmtOverride` is a per-run answer from the fill form — the person
+    // filling it in chose how a date prints, over the format the author wrote.
+    // It is read once, here, for the same reason the map is: an override that
+    // applied only to the fragment being resolved would print one format inside
+    // an {if:} branch and another outside it.
     var _o = opts || {};
     var fmtMap, subOpts;
     if (Object.prototype.hasOwnProperty.call(_o, '_fmtMap')) {
       fmtMap = _o._fmtMap; subOpts = _o;
     } else {
-      fmtMap = _fieldFormatMap(body);
+      fmtMap = _fieldFormatMap(body, _o.fmtOverride);
       subOpts = {};
       for (var _k in _o) if (Object.prototype.hasOwnProperty.call(_o, _k)) subOpts[_k] = _o[_k];
       subOpts._fmtMap = fmtMap;

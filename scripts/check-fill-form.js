@@ -17,7 +17,7 @@ function fail(msg) {
   process.exit(1);
 }
 
-for (const fn of ['fillForm', 'inferType', 'chooseLayout']) {
+for (const fn of ['fillForm', 'inferType', 'chooseLayout', 'dayValue', 'clockValue', 'fixedShift']) {
   if (typeof ff[fn] !== 'function') fail('fill-form.js no longer exports ' + fn);
 }
 
@@ -45,9 +45,9 @@ for (const [key, want] of TYPE_CASES) {
 console.log('OK Field kind inferred from the name (' + TYPE_CASES.length + ' cases)');
 
 // ── THE VIEW MODEL EVERY SURFACE READS ──────────────────────────────
-const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps'];
+const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps', 'fmtOverride'];
 const FIELD_SHAPE = ['key', 'label', 'type', 'format', 'currency', 'options', 'picks', 'multiple',
-                     'cols', 'default', 'value', 'before', 'after', 'block', 'visible'];
+                     'cols', 'default', 'value', 'before', 'after', 'block', 'visible', 'adjust'];
 
 const vm1 = ff.fillForm(
   'Hola {NOMBRE}, tu {formmenu: A,B,C; name=PLAN; default=B} para el {CHECKIN_DATE}.',
@@ -150,6 +150,98 @@ if (ff.chooseLayout(99) !== 'flat') {
   fail('chooseLayout no longer answers flat for every size');
 }
 console.log('OK Step mode is still off, and off deliberately');
+
+// ── THE ADJUST PANEL ────────────────────────────────────────────────
+// The Date/Time builder's three decisions, offered again while the form is
+// open. Every surface draws its own controls from this one description, so a
+// change here is a change on all four at once.
+const vmAdj = ff.fillForm(
+  'On {formdate: name=DATE_1; format=DD/MM/YYYY} at {formdate: name=TIME_1; type=time} for {NAME}',
+  {}, opt());
+const [adjDate, adjTime, adjText] = vmAdj.fields;
+
+if (adjText.adjust !== null) {
+  fail('a text field carries an Adjust panel; only a date or a time has one');
+}
+// The raw choice first, then the closed list. Dropping it would leave no way
+// back to "print what the picker holds", which is what an unformatted
+// {formdate:} has always done.
+const dateFmts = adjDate.adjust.formats.map((f) => f.value).join('|');
+if (dateFmts !== '|DD/MM/YYYY|MM/DD/YYYY|DD/MM/dddd') {
+  fail('date formats on offer are ' + dateFmts + ', expected the raw value then DATE_FORMATS');
+}
+const timeFmts = adjTime.adjust.formats.map((f) => f.value).join('|');
+if (timeFmts !== '|HH:mm|hh:mm A') {
+  fail('time formats on offer are ' + timeFmts + ', expected the raw value then TIME_FORMATS');
+}
+// Every choice is labelled and sampled against the field's own value: the two
+// numeric orders are indistinguishable until you see one printed.
+if (adjDate.adjust.formats.some((f) => !f.label || f.sample === undefined)) {
+  fail('a format choice arrived without a label or a sample');
+}
+// A clock has no day to jump to, and a calendar has no clock to set.
+if (adjTime.adjust.modes.length !== 0 || adjTime.adjust.days.length !== 0) {
+  fail('a time field is being offered a day choice');
+}
+if (adjDate.adjust.hours.length !== 0) {
+  fail('a date field is being offered a clock');
+}
+if (adjDate.adjust.modes.map((m) => m.value).join(',') !== 'none,fixed,named') {
+  fail('the day modes are not the builder\'s three, in the builder\'s order');
+}
+// Hours and minutes are only meaningful on something that holds a clock.
+if (adjTime.adjust.hours.length !== 24) fail('a clock is not offering 24 hours');
+if (adjTime.adjust.minutes.indexOf('15') === -1) fail('a clock is not stepping in fives');
+console.log('OK Adjust panel offers the builder\'s three decisions');
+
+// A day choice writes a value the operator could have picked by hand, so it
+// must come back in the picker's own spelling on every surface.
+if (ff.dayValue('date', { mode: 'none' }, '', NOW) !== '2026-08-30') {
+  fail('"Today" did not land on the current day');
+}
+if (ff.dayValue('date', { mode: 'fixed', amount: 3, unit: 'D' }, '', NOW) !== '2026-09-02') {
+  fail('a three-day offset did not land three days out');
+}
+if (ff.dayValue('date', { mode: 'named', named: 'next monday' }, '', NOW) !== '2026-08-31') {
+  fail('"Next Monday" did not land on the Monday after NOW');
+}
+// The clock half belongs to the operator and survives a move of the calendar.
+if (ff.dayValue('datetime', { mode: 'fixed', amount: 1, unit: 'D' }, '2026-08-30T08:30', NOW)
+    !== '2026-08-31T08:30') {
+  fail('moving the day of a datetime discarded the time already set on it');
+}
+if (ff.clockValue('time', '09', '05', '', NOW) !== '09:05') fail('a clock choice did not set the time');
+if (ff.clockValue('date', '09', '05', '', NOW) !== '') fail('a date field accepted a clock');
+console.log('OK Day and clock choices write the picker\'s own value');
+
+// ── A FORMAT PICKED WHILE FILLING ───────────────────────────────────
+// Output only. The value in the picker is untouched, so a formula and
+// datetimediff() still read the raw date, and nothing is saved to the snippet.
+const BODY_FMT = 'On {formdate: name=DATE_1; format=DD/MM/YYYY}';
+const VAL_FMT = { DATE_1: '2026-08-30' };
+if (ff.fillForm(BODY_FMT, VAL_FMT, opt()).preview !== 'On 30/08/2026') {
+  fail('the author\'s format is not being applied when nobody has overridden it');
+}
+const vmOv = ff.fillForm(BODY_FMT, VAL_FMT, opt({ fieldFmt: { DATE_1: 'MM/DD/YYYY' } }));
+if (vmOv.preview !== 'On 08/30/2026') {
+  fail('a format picked while filling did not reach the preview: ' + vmOv.preview);
+}
+if (vmOv.fields[0].value !== '2026-08-30') {
+  fail('a format choice rewrote the value; formatting is output only');
+}
+if (vmOv.fmtOverride.DATE_1 !== 'MM/DD/YYYY') {
+  fail('fmtOverride does not carry what the form is showing, so an insert would differ');
+}
+// '' is a real answer: print what the picker holds.
+if (ff.fillForm(BODY_FMT, VAL_FMT, opt({ fieldFmt: { DATE_1: '' } })).preview !== 'On 2026-08-30') {
+  fail('"As picked" did not fall back to the picker\'s own value');
+}
+// A format this kind of field does not have is a caller bug, and honouring it
+// would quietly drop the author's.
+if (ff.fillForm(BODY_FMT, VAL_FMT, opt({ fieldFmt: { DATE_1: 'HH:mm' } })).preview !== 'On 30/08/2026') {
+  fail('a format from the wrong list was honoured instead of ignored');
+}
+console.log('OK A format picked while filling is output only, and closed');
 
 // ── EVERY FIELD IS VISIBLE UNTIL CONDITIONS SHIP ────────────────────
 // visible is in the shape from day one so conditional fields change behaviour

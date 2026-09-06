@@ -148,6 +148,31 @@
   #nv-list .d-actbtn:hover{border-color:var(--sb-azure)}
   #nv-list .d-actbtn:active{transform:scale(.97)}
   #nv-list .d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+  /* Date/Time Adjust panel. A quiet link under the picker rather than a
+     button: it is a detour most fills never take, and it must not compete
+     with Copy filled. The width/height reset is deliberate — .d-frow sizes
+     every input full-width and 34px tall, which is right for a field and
+     wrong for a row of three small controls. MIRRORED in popup.html. */
+  #nv-list .d-adj{align-self:flex-start;margin-top:2px;padding:2px 4px;background:none;border:none;font-family:inherit;font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);cursor:pointer;line-height:1.4}
+  #nv-list .d-adj:hover,#nv-list .d-adj[aria-expanded=true]{color:var(--sb-azure)}
+  #nv-list .d-adjbox{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding:8px 10px;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+  #nv-list .d-adjrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  #nv-list .d-adjlbl{flex:none;width:46px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+  #nv-list .d-adjbox input,#nv-list .d-adjbox select{flex:1 1 auto;width:auto;min-width:0;height:28px;padding:0 8px;font-size:var(--sb-fs-12)}
+  #nv-list .d-adjbox input[type=number]{flex:0 0 58px}
+  #nv-list .d-dayfixed{display:flex;flex:1 1 100%;align-items:center;gap:6px}
+  #nv-list .d-adjchk{display:flex;align-items:center;gap:4px;flex:none;font-size:var(--sb-fs-11);color:var(--sb-ink-muted);cursor:pointer}
+  #nv-list .d-adjchk input[type=checkbox]{flex:none;width:auto;height:auto;padding:0;margin:0;accent-color:var(--sb-azure);cursor:pointer}
+  #nv-list .d-adjsep{flex:none;font-size:var(--sb-fs-12);color:var(--sb-ink-subtle)}
+  /* Scoped inside the box on purpose: a bare .d-hh loses to
+     `.d-adjbox select` on specificity, and the two clock controls then
+     stretch across the row. */
+  #nv-list .d-adjbox .d-hh,#nv-list .d-adjbox .d-mm{flex:0 0 72px}
+  /* An author `display` beats the browser's own [hidden]{display:none}, so both
+     flex boxes above would ignore the attribute and sit permanently open.
+     Stated here rather than swapped for a class, because `hidden` is what the
+     shared binder toggles on all four surfaces. */
+  #nv-list .d-adjbox[hidden],#nv-list .d-dayfixed[hidden]{display:none}
   /* One option per line, each a plain row. Mirrors popup.html. */
   #nv-list .d-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
   #nv-list .d-opt{display:flex;align-items:center;gap:10px;min-height:32px;padding:4px 6px;border:none;border-radius:var(--sb-r-sm);background:transparent;font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer;transition:background .15s}
@@ -862,7 +887,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.16.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.17.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1252,6 +1277,8 @@
     el.querySelectorAll('.d-fields .d-actbtn').forEach(function(btn){
       btn.addEventListener('click', function(e){ e.stopPropagation(); runDetailButton(btn); });
     });
+    /* Date/Time Adjust panels — same binder as the extension popup (popup.js). */
+    bindDetailAdjust(el);
   }
 
   function renderPromptsMain(){

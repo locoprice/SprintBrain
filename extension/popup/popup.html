@@ -230,6 +230,31 @@ html,body{
 .d-actbtn:hover{background:var(--sb-azure-bg);border-color:var(--sb-azure)}
 .d-actbtn:active{transform:scale(.97)}
 .d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+/* Date/Time Adjust panel. A quiet link under the picker rather than a button:
+   it is a detour most fills never take, and it must not compete with Copy
+   filled. Open, it indents under the field it belongs to so the rows read as
+   part of that field. The width/height reset is deliberate — .d-frow sizes
+   every input full-width and 34px tall, which is right for a field and wrong
+   for a row of three small controls. MIRRORED in Sprintbrain.html. */
+.d-adj{align-self:flex-start;margin-top:2px;padding:2px 4px;background:none;border:none;font-family:inherit;font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);cursor:pointer;line-height:1.4}
+.d-adj:hover,.d-adj[aria-expanded=true]{color:var(--sb-azure)}
+.d-adjbox{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding:8px 10px;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+.d-adjrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.d-adjlbl{flex:none;width:46px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+.d-adjbox input,.d-adjbox select{flex:1 1 auto;width:auto;min-width:0;height:28px;padding:0 8px;font-size:var(--sb-fs-12)}
+.d-adjbox input[type=number]{flex:0 0 58px}
+.d-dayfixed{display:flex;flex:1 1 100%;align-items:center;gap:6px}
+.d-adjchk{display:flex;align-items:center;gap:4px;flex:none;font-size:var(--sb-fs-11);color:var(--sb-ink-muted);cursor:pointer}
+.d-adjchk input[type=checkbox]{flex:none;width:auto;height:auto;padding:0;margin:0;accent-color:var(--sb-azure);cursor:pointer}
+.d-adjsep{flex:none;font-size:var(--sb-fs-12);color:var(--sb-ink-subtle)}
+/* Scoped inside the box on purpose: a bare .d-hh loses to `.d-adjbox select`
+   on specificity, and the two clock controls then stretch across the row. */
+.d-adjbox .d-hh,.d-adjbox .d-mm{flex:0 0 72px}
+/* An author `display` beats the browser's own [hidden]{display:none}, so both
+   flex boxes above would ignore the attribute and sit permanently open. Stated
+   here rather than swapped for a class, because `hidden` is what the binder
+   toggles on all four surfaces. */
+.d-adjbox[hidden],.d-dayfixed[hidden]{display:none}
 /* One option per line, each a plain row: the circle says "pick one of these"
    the way a paper form does. Wrapped pills read as tags, not as a question. */
 .d-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
