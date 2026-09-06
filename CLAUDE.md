@@ -31,6 +31,63 @@
 
 ---
 
+## 🔺 Tripartite Parity: Snippets, Prompts, Memory (Non-Negotiable)
+**Snippets, Prompts and Memory are one product in three shapes.** The shell is identical, the contents are not. A user who learns one section must already know how to drive the other two: same page, same menus, same styling, same words. What differs between them is only what each one *is* (see 2). Any other difference is a defect, not a feature.
+
+### 1. Feature parity is automatic, not optional
+Any change requested for one of the three is a change to all three. This includes new features, settings, options, filters, sort orders, bulk actions, keyboard shortcuts, empty states, loading and error states, confirmations, toasts, search behaviour, and every fix that alters behaviour a user can see.
+
+- **Never implement one and stop.** "The request only mentioned snippets" is not a scope boundary. The request names the entry point; the deliverable is the trio.
+- **Plan the trio in the Plan phase**, before writing code. List the files for all three sections up front, not after the first one is done.
+- **One task, one version, all three.** Do not defer prompts or memory to a later task or a later version. A change that lands in one section and not the others is unfinished work, and the task stays open.
+- **The rule is symmetric.** It applies whichever section the request starts from: snippets to prompts and memory, prompts to snippets and memory, memory to snippets and prompts.
+
+### 2. What stays distinct, by design
+Parity governs the interface, never the nature of each section. These differences are intended and must be preserved:
+
+- **The organising model.** Snippets organise into **folders**, memory into **spaces**, prompts stay flat with filters. Never push folders onto memory, spaces onto snippets, or either onto prompts.
+- **Capabilities that only make sense for one content type.** Snippet form-field dialogs, trigger and expansion settings, version history, language variants, prompt block editing, memory shards and steps. These belong where they belong.
+- **What a surface deliberately does not carry.** Prompts are read-only on the extension, the mobile app is intentionally minimal, and memory is not built on mobile yet. Standing decisions, not drift.
+
+Everything else is shared: if a capability is generic (search, filter, sort, select, rename, duplicate, delete, share, export, an item menu), it belongs in all three.
+
+### 3. Layout consistency is absolute (React dashboard)
+Across `/` (snippets), `/prompts` and `/memory`, the page shell is 100% identical: page header, toolbar, filter and search row, side panels, action rows, empty, loading and error composition, scroll regions, container widths, alignment and spacing scale. Tokens and values come from `docs/DESIGN_SYSTEM.md`, the single source of truth.
+
+- Same page skeleton, same order of elements, same alignment of every rail, header and action row.
+- Same paddings, gaps, radii, borders, shadows, typography ramp and icon sizes.
+- Same responsive behaviour at every breakpoint.
+- No section gets a "slightly better" layout. If a layout is better, it is applied to all three in the same change.
+- Each section's own content sits *inside* that identical shell. A folder tree and a space list occupy the same slot, styled the same way.
+
+The extension, `Sprintbrain.html` and the mobile app follow their own surface conventions. They must not contradict the dashboard's visual language, and rule 1 still binds them.
+
+### 4. UI component parity is exact (React dashboard)
+A component built for one section is the same component in the other two: same structure, styling, spacing, states and interaction logic. This covers menus and dropdowns, context menus, filter panels, sort controls, search fields, selection and bulk-action bars, row and card actions, hover and focus states, buttons, dialogs, previews, toggles, chips, badges, tooltips and confirmations.
+
+- Add a menu to snippets and you add the identical menu, with identical items, order, icons, wording pattern, spacing and open/close behaviour, to prompts and memory. Items that do not apply to a section are omitted, never restyled.
+- Same trigger gesture, same placement, same animation, same keyboard handling, same disabled and empty conditions.
+- Wording follows the same pattern with only the noun changed (`New snippet` / `New prompt` / `New memory`).
+- **Build shared, not copied.** Extract the component or the helper and use it in all three. Duplicated markup is already banned (🚫 Forbidden) and is how drift starts.
+
+### 5. Every surface, every copy
+Rule 1 is per surface, and each surface keeps its own copies in sync:
+
+- React dashboard: `app/src/features/snippets`, `app/src/features/prompts`, `app/src/features/memory` and their pages in `app/src/routes/`.
+- Mobile web app: `app/public/mobile/index.html` (its own renderers, kept aligned by hand).
+- Chrome extension: `extension/popup/`, `extension/content/`, `extension/shared/`.
+- `Sprintbrain.html` (shares the popup logic core).
+
+Where a section is deliberately absent or read-only on a surface (see 2), that decision stands and parity applies to the surfaces where it exists. Two rules keep this from becoming a loophole:
+
+- **Name it, do not assume it.** State plainly which surfaces you covered and which you did not, and why, in the task summary. An unexplained gap is drift.
+- **Never invent a new exception on your own.** If a change genuinely cannot be applied to one of the three, stop and ask Valentina or Alessandro before shipping the partial version. Do not ship one section and call it done.
+
+### 6. Verification for every trio change
+Before declaring done, the summary must state, for each of the three sections and each surface touched: what changed, and that it was opened and exercised. Open the three dashboard pages side by side and compare the shell and the new component. The standard gates in 🔍 Verification Protocol still run in full.
+
+---
+
 ## 🌍 Industry-Neutral — Non-Negotiable
 **SprintBrain ships to every industry, not to hospitality.** A law firm, a clinic, a repair shop and a rental host must each open the product and find it built for them. Hospitality is where the product was born and where its first users are; it is not what the product may look like.
 
@@ -79,6 +136,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Skipping validation, tests, or verification steps.
 - Vertical vocabulary in anything the product ships — see 🌍 Industry-Neutral.
 - Declaring a quantity as a text field.
+- Shipping a change to snippets, prompts or memory without the same change in the other two, or giving one of them a page shell, menu, component or wording the others do not have (see the Tripartite Parity section, and its list of what stays distinct).
 - Writing or guessing landing-page copy in Italian or Spanish — see 🌐 Landing Translations. Ask for it.
 
 ---
@@ -94,6 +152,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Keep bundle size and runtime performance under control.
 - Explain risky or destructive operations before applying them.
 - Proactively flag regressions, performance, architectural, and security risks you spot.
+- Design and apply every snippets, prompts or memory change to all three sections in the same task, on every surface where they exist (see the Tripartite Parity section).
 - Keep every shipped field, formula, example and suggestion industry-neutral (🌍).
 
 ---
