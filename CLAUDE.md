@@ -45,7 +45,7 @@ Any change requested for one of the three is a change to all three. This include
 ### 2. What stays distinct, by design
 Parity governs the interface, never the nature of each section. These differences are intended and must be preserved:
 
-- **The organising model.** Snippets organise into **folders**, memory into **spaces**, prompts stay flat with filters. Never push folders onto memory, spaces onto snippets, or either onto prompts.
+- **The organising model.** Snippets organise into **folders** (a rail plus a breadcrumb), prompts filter by those same folders as chips, memory organises into its own **spaces**. Never push spaces onto snippets or prompts, and never push folders onto memory.
 - **Capabilities that only make sense for one content type.** Snippet form-field dialogs, trigger and expansion settings, version history, language variants, prompt block editing, memory shards and steps. These belong where they belong.
 - **What a surface deliberately does not carry.** Prompts are read-only on the extension, the mobile app is intentionally minimal, and memory is not built on mobile yet. Standing decisions, not drift.
 

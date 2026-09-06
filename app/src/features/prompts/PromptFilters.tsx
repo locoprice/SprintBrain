@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, Folders, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Folders, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FolderIcon } from '@/lib/folderIcons';
 import { FolderShareBadge } from '@/features/org/FolderTree';
@@ -217,27 +217,6 @@ export const PromptFilters = memo(function PromptFilters({ onManageLabels }: Pro
 
   return (
     <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
-      {/* Search */}
-      <div className="relative w-full max-w-[280px]">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle" />
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => setFilters({ search: e.target.value })}
-          placeholder="Search prompts…"
-          className="h-8 w-full rounded-[10px] border border-line bg-card pl-8 pr-3 text-xs text-ink placeholder:text-ink-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        {filters.search && (
-          <button
-            type="button"
-            onClick={() => setFilters({ search: '' })}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
       <FolderChips />
 
       <FilterDropdown
