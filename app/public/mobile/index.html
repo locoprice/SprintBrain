@@ -1188,12 +1188,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <span id="prompts-count">0</span>
         <span class="mstatbig-unit">prompts</span>
       </div>
-      <button class="hdr-btn" id="prompts-back-btn" aria-label="Back to snippets" title="Back to snippets">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
-      </button>
     </div>
 
     <!-- Search rides on the hero, directly under the greeting. -->
@@ -1378,10 +1372,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
     <div class="sb-sheet-title" id="sb-prompt-sheet-title"></div>
     <ul class="sb-sheet-actions">
-      <li data-paction="copy" data-action="use"><span class="sb-sheet-act-i">📋</span> Copy to clipboard</li>
+      <li data-paction="use" data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
+      <li data-paction="copy"><span class="sb-sheet-act-i">📋</span> Copy text</li>
       <li data-paction="pin"><span class="sb-sheet-act-i">📌</span> <span id="sb-prompt-pin-lbl">Pin to top</span></li>
-      <li data-paction="duplicate"><span class="sb-sheet-act-i">⧉</span> Duplicate</li>
-      <li data-paction="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
+      <li data-paction="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
+      <li data-paction="info"><span class="sb-sheet-act-i">ℹ️</span> Prompt info</li>
     </ul>
   </div>
 </div>
@@ -3585,49 +3580,30 @@ function closePromptSheet(){
   clearTimeout(_promptSheetTimer);
   _promptSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');sheetPrompt=null;},300);
 }
-function duplicatePrompt(p){
-  var now=new Date().toISOString();
-  var row={
-    user_id:USER_ID,
-    name:(p.name||'Prompt')+' (copy)',
-    content:p.content||'',
-    type:p.type||'one-shot',
-    strategy_type:p.strategy_type||null,
-    thinking_mode:p.thinking_mode||null,
-    preferred_model:p.preferred_model||null,
-    complexity_level:p.complexity_level||null,
-    intent_category:p.intent_category||null,
-    output_type:p.output_type||null,
-    blocks:p.blocks||null,
-    pinned:false,
-    updated_at:now
-  };
-  fetch(SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT,
-    {method:'POST',headers:authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
-     body:JSON.stringify(row)})
-    .then(function(r){if(handle401(r))throw new Error('401');if(!r.ok)throw new Error('dup');return r.json();})
-    .then(function(data){
-      var created=Array.isArray(data)?data[0]:data;
-      if(created)allPrompts.unshift(created);
-      closePromptSheet();
-      renderPromptList();
-      showToast('Prompt duplicated ✓');
-    })
-    .catch(function(){closePromptSheet();showToast('Could not duplicate');});
+/* Share mirrors the snippet sheet: hand the text to the OS share sheet where
+   there is one, fall back to the clipboard where there is not. */
+function sharePrompt(p){
+  var text=p.content||'';
+  promptMarkUsed(p);
+  closePromptSheet();
+  if(navigator.share){
+    navigator.share({title:p.name||'Prompt',text:text}).catch(function(){});
+  }else{
+    copyText(text,function(){showToast('Prompt copied ✓ (sharing not supported)');});
+  }
 }
-function deletePromptRow(p){
-  fetch(SUPA+'/rest/v1/prompts?id=eq.'+encodeURIComponent(p.id)
-      +'&user_id=eq.'+encodeURIComponent(USER_ID),
-    {method:'DELETE',headers:authHeaders({'Prefer':'return=minimal'})})
-    .then(function(r){
-      if(handle401(r))throw new Error('401');
-      if(!r.ok)throw new Error('del');
-      allPrompts=allPrompts.filter(function(x){return x.id!==p.id;});
-      closePromptSheet();
-      renderPromptList();
-      showToast('Prompt deleted');
-    })
-    .catch(function(){closePromptSheet();showToast('Could not delete');});
+/* Read-only prompt detail, the prompt half of the shared info sheet. */
+function openPromptInfo(p){
+  var f=getFolderById(p.folder_id);
+  showInfoSheet(p.name||'Prompt',[
+    ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
+    ['Type', p.type||'—'],
+    ['Model', p.preferred_model||'—'],
+    ['Characters', String((p.content||'').length)],
+    ['Updated', p.updated_at?timeAgo(p.updated_at):'—'],
+    ['Last used', p.last_used_at?timeAgo(p.last_used_at):'Never'],
+    ['ID', p.id]
+  ]);
 }
 // Reflect the current page on the quick-action bar(s): the matching tile gets
 // the pushed/active state, every other tile resets. name=null clears them all.
@@ -4536,7 +4512,12 @@ function openSnippetInfo(s){
   // and API use. Tappable — a full id does not fit the row, so read-by-eye is
   // not the point; copy is.
   rows.push(['ID', s.id]);
-  document.getElementById('sb-info-title').textContent=s.title||'Snippet';
+  showInfoSheet(s.title||'Snippet',rows);
+}
+/* Snippets and prompts share one info panel: same key/value rows, same open
+   animation, only the title and the rows differ. */
+function showInfoSheet(title,rows){
+  document.getElementById('sb-info-title').textContent=title;
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
     var isId=r[0]==='ID';
     return '<div class="sb-info-row"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
@@ -4881,9 +4862,6 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
 /* ── QUICK ACTIONS ──────────────────────────────── */
 document.querySelectorAll('[data-qa="prompts"]').forEach(function(b){ b.addEventListener('click',showPrompts); });
 document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEventListener('click',showSnippetsHome); });
-document.getElementById('prompts-back-btn').addEventListener('click',function(){
-  if(document.getElementById('view-prompts').classList.contains('active'))hidePrompts();
-});
 (function(){
   var pst;
   var input=document.getElementById('prompt-srch');
@@ -4935,10 +4913,10 @@ function setupSheetDrag(sheetEl,closeFn){
     if(!li||!sheetPrompt)return;
     var act=li.getAttribute('data-paction');
     var p=sheetPrompt;
-    if(act==='copy'){promptCopy(p);closePromptSheet();}
+    if(act==='use'||act==='copy'){promptCopy(p);closePromptSheet();}
     else if(act==='pin'){togglePromptPin(p);closePromptSheet();}
-    else if(act==='duplicate'){duplicatePrompt(p);}
-    else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
+    else if(act==='share'){sharePrompt(p);}
+    else if(act==='info'){closePromptSheet();setTimeout(function(){openPromptInfo(p);},320);}
   });
 })();
 
