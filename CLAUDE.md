@@ -88,6 +88,39 @@ Before declaring done, the summary must state, for each of the three sections an
 
 ---
 
+## ⚡ Authoring and Expansion Parity (Non-Negotiable)
+**A snippet feature is not shipped when the editor can write it. It is shipped when someone can use it.** Expansion is what the product is for: writing a snippet happens once, expanding it happens every day. A capability that exists only in the dashboard editor is half a feature, and the half that is missing is the half people actually touch.
+
+This is a second axis of parity, at right angles to the Tripartite rule above. That rule runs across snippets, prompts and memory. This one runs from where a snippet is **written** to everywhere it is **used**.
+
+### 1. Every snippet change reaches the expansion surfaces, in the same task
+Add a field kind, a token, an attribute, a control, a default, a validation, a piece of wording: it lands on all of these before the task is done.
+
+| Surface | File | What it is |
+|---|---|---|
+| **In-page overlay** | `extension/content/content.js` | The fill modal that opens when a trigger fires. **The primary surface.** Three entry points: trigger, picker, context menu |
+| **Popup detail modal** | `extension/popup/popup.js` | The popup's fill form, and `Sprintbrain.html`'s, from one file |
+| **Editor live preview** | `app/src/features/snippets/SnippetPreview.tsx` | What the author sees while writing |
+| **Mobile** | `app/public/mobile/index.html` | Its own renderer, kept aligned by hand |
+
+"The request only mentioned the editor" is not a scope boundary. The editor is the entry point; the deliverable is the snippet working end to end.
+
+### 2. Build it once, in the shared decider
+What a fill form **is** (which fields, of what kind, what each control offers, what a choice means) belongs in `extension/shared/fill-form.js`. The four renderers only draw it. Adding a decision to one renderer is how the surfaces drift, and they have drifted before: a stored `field_cfg` honoured in one place, a date opening on today in one place, a menu rendering as a plain text box through two of the three overlay entry points.
+
+A new token in `extension/formula-engine.js` needs a renderer on every surface in the same task. A surface that has not caught up does not show a broken field, it shows **no field at all**, and the snippet quietly prints the wrong thing.
+
+### 3. Mind the surfaces that keep their own copy
+`app/public/mobile/index.html` cannot load `extension/`: it carries a generated copy of the shared module (`node scripts/sync-fill-form.js`) plus **its own parser**, so any engine change that alters output has to be ported there by hand. `extension/popup/popup.js` is also `Sprintbrain.html`'s logic core, and the two style it separately, so a new control needs CSS in **both** stylesheets.
+
+### 4. Name the gaps, never invent one
+Where a surface deliberately does not carry something (prompts expand raw and have no fill form; memory has no body fields; the popup is read-only), that decision stands and is stated in the summary. If a change genuinely cannot reach a surface, stop and ask Valentina or Alessandro before shipping the partial version.
+
+### 5. Verification
+Before declaring done, the summary names each expansion surface and says it was **opened and exercised**, not just compiled. Expansion is verified by expanding: fire the trigger, fill the form, insert, and read what landed in the field.
+
+---
+
 ## 🌍 Industry-Neutral — Non-Negotiable
 **SprintBrain ships to every industry, not to hospitality.** A law firm, a clinic, a repair shop and a rental host must each open the product and find it built for them. Hospitality is where the product was born and where its first users are; it is not what the product may look like.
 
@@ -137,6 +170,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Vertical vocabulary in anything the product ships — see 🌍 Industry-Neutral.
 - Declaring a quantity as a text field.
 - Shipping a change to snippets, prompts or memory without the same change in the other two, or giving one of them a page shell, menu, component or wording the others do not have (see the Tripartite Parity section, and its list of what stays distinct).
+- Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal (and `Sprintbrain.html`), the live preview and mobile (see ⚡ Authoring and Expansion Parity).
 - Writing or guessing landing-page copy in Italian or Spanish — see 🌐 Landing Translations. Ask for it.
 
 ---
@@ -153,6 +187,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Explain risky or destructive operations before applying them.
 - Proactively flag regressions, performance, architectural, and security risks you spot.
 - Design and apply every snippets, prompts or memory change to all three sections in the same task, on every surface where they exist (see the Tripartite Parity section).
+- Carry every snippet change through to expansion in the same task, deciding it once in `extension/shared/fill-form.js` and drawing it on all four fill surfaces (see ⚡ Authoring and Expansion Parity). Verify it by expanding a snippet, not by reading the diff.
 - Keep every shipped field, formula, example and suggestion industry-neutral (🌍).
 
 ---
@@ -190,6 +225,7 @@ Every implementation summary must include:
 **Changes made:** …
 **Verification:** lint / typecheck / build — PASS / FAIL / N/A · manual test — PASS / FAIL
 **Regression check:** Result PASS / FAIL · Impacted scope [modules / routes / components / APIs]
+**Expansion check** (snippet changes only): overlay / popup + `Sprintbrain.html` / live preview / mobile — each opened and exercised, or the reason it does not apply.
 
 ---
 
