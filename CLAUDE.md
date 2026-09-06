@@ -47,7 +47,7 @@ Parity governs the interface, never the nature of each section. These difference
 
 - **The organising model.** Snippets organise into **folders** (a rail plus a breadcrumb), prompts filter by those same folders as chips, memory organises into its own **spaces**. Never push spaces onto snippets or prompts, and never push folders onto memory.
 - **Capabilities that only make sense for one content type.** Snippet form-field dialogs, trigger and expansion settings, version history, language variants, prompt block editing, memory shards and steps. These belong where they belong.
-- **What a surface deliberately does not carry.** Prompts are read-only on the extension, the mobile app is intentionally minimal, and memory is not built on mobile yet. Standing decisions, not drift.
+- **What a surface deliberately does not carry.** Prompts are read-only on the extension; mobile carries no management UI and no memory section (see 📱 Mobile: what a snippet *is and does* is fully synchronised there, what *organises* snippets is not). Standing decisions, not drift.
 
 Everything else is shared: if a capability is generic (search, filter, sort, select, rename, duplicate, delete, share, export, an item menu), it belongs in all three.
 
@@ -101,9 +101,11 @@ Add a field kind, a token, an attribute, a control, a default, a validation, a p
 | **In-page overlay** | `extension/content/content.js` | The fill modal that opens when a trigger fires. **The primary surface.** Three entry points: trigger, picker, context menu |
 | **Popup detail modal** | `extension/popup/popup.js` | The popup's fill form, and `Sprintbrain.html`'s, from one file |
 | **Editor live preview** | `app/src/features/snippets/SnippetPreview.tsx` | What the author sees while writing |
-| **Mobile** | `app/public/mobile/index.html` | Its own renderer, kept aligned by hand |
+| **Mobile** | `app/public/mobile/index.html` | `sprintbrain.com/mobile`. Its own renderer, kept aligned by hand. **A daily driver, not an afterthought** |
 
 "The request only mentioned the editor" is not a scope boundary. The editor is the entry point; the deliverable is the snippet working end to end.
+
+**Mobile is never the surface that gets deferred.** Valentina and Alessandro work from the phone constantly, so a snippet feature that is missing there is missing in practice, whatever the desktop shows. It costs the most to update (its own parser, a generated copy of the shared module, markup written by hand), which is exactly why it gets skipped, and exactly why it must not be. Build it in the same task, or say plainly that it is not there and why. See 📱 below for what mobile does and does not carry.
 
 ### 2. Build it once, in the shared decider
 What a fill form **is** (which fields, of what kind, what each control offers, what a choice means) belongs in `extension/shared/fill-form.js`. The four renderers only draw it. Adding a decision to one renderer is how the surfaces drift, and they have drifted before: a stored `field_cfg` honoured in one place, a date opening on today in one place, a menu rendering as a plain text box through two of the three overlay entry points.
@@ -118,6 +120,26 @@ Where a surface deliberately does not carry something (prompts expand raw and ha
 
 ### 5. Verification
 Before declaring done, the summary names each expansion surface and says it was **opened and exercised**, not just compiled. Expansion is verified by expanding: fire the trigger, fill the form, insert, and read what landed in the field.
+
+Mobile is verified at phone width, not by trusting the desktop. It cannot be reached through the dev server (it self-clears a faked session and the SPA fallback never serves it), so drive a copy with the auth gate short-circuited, at 375px, and look at it.
+
+---
+
+## 📱 Mobile (`sprintbrain.com/mobile`) — Non-Negotiable
+**Mobile is a surface the team lives in, and it must stay in step.** It is used daily and in the field. Anything a snippet is or does has to work there, in the same task, at the same version.
+
+### Synchronised: everything a snippet is and does
+Field kinds, body tokens, attributes, defaults, formatting, the fill form and every control in it, expansion output, search, filters, sort, labels, folder assignment, wording, empty and error states. If it changes what a snippet is or how it is used, mobile gets it in the same task. Never "mobile next version".
+
+### Still deliberately absent (unchanged, and not a gap)
+Mobile is a **quick-access companion, not a management surface**. It has no folder rename or delete, no full CRUD management UI, and no memory section. Those are standing decisions, not backlog. Do not build them, and do not propose "closing the parity gap" on them. If one is genuinely needed, ask Valentina first.
+
+The line: **what a snippet is and does is synchronised; what organises snippets stays on the dashboard.**
+
+### Why it drifts, and how not to let it
+Mobile is a single self-contained file that cannot load `extension/`. It carries a **generated copy** of the shared fill-form module (`node scripts/sync-fill-form.js`, gated by `scripts/check-fill-form.js`) and **its own parser and resolver**, mirrored by hand from `extension/formula-engine.js` and pinned by `scripts/check-snippets.js`. So an engine change that alters output has to be ported there deliberately. Regenerate the block, port the parser change, write the markup, then look at it on a phone-width screen.
+
+Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRLF and stage a whole-file rewrite. Check `git diff --numstat` before committing.
 
 ---
 
@@ -171,6 +193,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Declaring a quantity as a text field.
 - Shipping a change to snippets, prompts or memory without the same change in the other two, or giving one of them a page shell, menu, component or wording the others do not have (see the Tripartite Parity section, and its list of what stays distinct).
 - Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal (and `Sprintbrain.html`), the live preview and mobile (see ⚡ Authoring and Expansion Parity).
+- Deferring mobile to a later version, or calling a snippet change done while `app/public/mobile/index.html` still lacks it (see 📱 Mobile).
 - Writing or guessing landing-page copy in Italian or Spanish — see 🌐 Landing Translations. Ask for it.
 
 ---
@@ -188,6 +211,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Proactively flag regressions, performance, architectural, and security risks you spot.
 - Design and apply every snippets, prompts or memory change to all three sections in the same task, on every surface where they exist (see the Tripartite Parity section).
 - Carry every snippet change through to expansion in the same task, deciding it once in `extension/shared/fill-form.js` and drawing it on all four fill surfaces (see ⚡ Authoring and Expansion Parity). Verify it by expanding a snippet, not by reading the diff.
+- Ship every snippet change to `app/public/mobile/index.html` in the same task and verify it at phone width (see 📱 Mobile). Mobile is used daily; it is never the surface that waits for a later version.
 - Keep every shipped field, formula, example and suggestion industry-neutral (🌍).
 
 ---
