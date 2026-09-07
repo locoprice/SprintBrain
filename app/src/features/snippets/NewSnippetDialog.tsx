@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
-import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
   LABEL_SUGGESTIONS_ENABLED,
@@ -916,8 +916,7 @@ export function NewSnippetDialog() {
 
         Height is FIXED (not max-) so the flex column always fills it and the
         body textarea absorbs the slack. The left rail scrolls when it has to:
-        Edit mode adds Edit note and About to it, and with the urgency fields
-        expanded that overflows even a full-height dialog.
+        with the urgency fields expanded it overflows even a full-height dialog.
 
         Opening the preview grows the dialog by 321px while the preview panel
         itself takes only 261px (it matches the 260px insert rail), so the 60px
@@ -946,9 +945,21 @@ export function NewSnippetDialog() {
           </DialogTitle>
           <DialogDescription className="min-w-0 truncate">
             {mode === 'edit'
-              ? 'Update the name, trigger, or body. Changes sync across every device.'
+              ? 'Changes sync across every device.'
               : 'Give the snippet a name, a trigger, and a body. It will sync immediately.'}
           </DialogDescription>
+
+          {/* About — behind an icon rather than a block in the rail, which
+              returns that space to the controls used on every edit. */}
+          {mode === 'edit' && editingSnippet && (
+            <AssetAboutButton
+              noun="snippet"
+              assetId={editingSnippet.id}
+              createdBy={editingSnippet.user_id}
+              updatedBy={editingSnippet.updated_by}
+              updatedAt={editingSnippet.updated_at}
+            />
+          )}
 
           {/* Preview toggle. Sits before the dialog's own close button, which
               the header's pr-14 already reserves room for. */}
@@ -983,10 +994,10 @@ export function NewSnippetDialog() {
           {/* ── LEFT PANEL: insert chips ── */}
           {/* The three groups sit here rather than under the body. At 260px
               they stack in one column, and the editor keeps the vertical space
-              they used to take from it. Edit note and About join them at the
-              foot in Edit mode, which is why this rail shows its scrollbar:
+              they used to take from it. Nothing else lives in this rail — it is
+              the insert vocabulary and only that. It still shows its scrollbar:
               with the urgency fields expanded it can genuinely overflow, and
-              hidden chrome would leave About silently out of reach. */}
+              hidden chrome would leave a group silently out of reach. */}
           <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto flex flex-col bg-bg">
 
             {/* Fields */}
@@ -1503,39 +1514,6 @@ export function NewSnippetDialog() {
                 </dl>
               </Toggle>
             </div>
-
-            {/* Edit note — recorded in version history. Sits below Logic, which
-                keeps flex-1 and so pushes both edit-only blocks to the foot of
-                the rail, away from the insert chips. */}
-            {mode === 'edit' && (
-              <div className="shrink-0 border-t border-line p-4">
-                <label htmlFor="snippet-edit-note" className={cn(SIDEBAR_LABEL, 'block mb-2.5')}>
-                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={'What changed?'}
-                  disabled={saving}
-                  maxLength={200}
-                  className="h-9 text-xs"
-                />
-              </div>
-            )}
-
-            {/* Attribution — who created / last touched this snippet */}
-            {mode === 'edit' && editingSnippet && (
-              <div className="shrink-0 border-t border-line p-4">
-                <p className={cn(SIDEBAR_LABEL, 'mb-2.5')}>About</p>
-                <AssetAttribution
-                  assetId={editingSnippet.id}
-                  createdBy={editingSnippet.user_id}
-                  updatedBy={editingSnippet.updated_by}
-                  updatedAt={editingSnippet.updated_at}
-                />
-              </div>
-            )}
           </ToggleGroup>
 
           {/* ── PANEL DIVIDER ── */}
@@ -1661,9 +1639,10 @@ export function NewSnippetDialog() {
                     <Tooltip
                       label={VARIANT_HINT}
                       placement="top"
-                      className="ml-1.5 font-normal text-ink-subtle hover:text-ink transition-colors"
+                      className="ml-1.5 inline-flex items-center gap-1 align-middle font-normal text-ink-subtle hover:text-ink transition-colors"
                     >
-                      ⓘ per variant
+                      <Info className="h-3 w-3" aria-hidden />
+                      per variant
                     </Tooltip>
                   )}
                 </label>
@@ -1922,6 +1901,27 @@ export function NewSnippetDialog() {
                 </div>
               </div>
             </div>
+
+            {/* Edit note — recorded in version history. Under the body rather
+                than in the rail: it describes the edit that was just typed
+                above it, and the rail is the insert vocabulary and nothing
+                else. shrink-0 so the body keeps absorbing the panel's slack. */}
+            {mode === 'edit' && (
+              <div className="shrink-0">
+                <label htmlFor="snippet-edit-note" className={FIELD_LABEL}>
+                  Edit note{' '}
+                  <span className="font-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="What changed?"
+                  disabled={saving}
+                  maxLength={200}
+                />
+              </div>
+            )}
 
             <FormTextDialog
               open={textFieldOpen}
