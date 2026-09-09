@@ -317,10 +317,19 @@ html,body{
 .p-empty{padding:36px 20px;text-align:center;color:var(--sb-ink-subtle);font-size:var(--sb-fs-13);line-height:1.7}
 
 /* ── FOOTER ── */
-.lfoot{height:56px;flex-shrink:0;border-top:1px solid var(--sb-line);display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--sb-bg)}
+.lfoot{height:56px;flex-shrink:0;border-top:1px solid var(--sb-line);display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 16px;background:var(--sb-bg)}
 .ver-btn{font-family:var(--sb-mono);font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-muted);background:none;border:none;cursor:pointer;flex-shrink:0;transition:color var(--sb-dur-fast)}
 .ver-btn:hover{color:var(--sb-azure)}
 .ver-btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px;border-radius:var(--sb-r-sm)}
+.dash-link{
+  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 8px;margin-right:-8px;flex-shrink:0;
+  font-family:inherit;font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-azure);
+  background:none;border:none;border-radius:var(--sb-r-sm);cursor:pointer;transition:color var(--sb-dur-fast)
+}
+.dash-link svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform var(--sb-dur-fast)}
+.dash-link:hover{color:var(--sb-azure-dark)}
+.dash-link:hover svg{transform:translate(1px,-1px)}
+.dash-link:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 .btn{
   padding:0 14px;height:44px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);font-weight:500;cursor:pointer;
   font-family:inherit;border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-muted);
@@ -328,11 +337,7 @@ html,body{
 }
 .btn:hover{background:var(--sb-bg-muted);border-color:var(--sb-line-2)}
 .btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.btn.p{flex:1;background:var(--sb-azure);border-color:var(--sb-azure);color:#fff;border-radius:var(--sb-r-xl);font-weight:600}
-.btn.p:hover{background:var(--sb-azure-dark);border-color:var(--sb-azure-dark)}
-.btn.p:active{transform:scale(.98)}
-.btn.p:focus-visible,.btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
-.btn.p svg{width:15px;height:15px}
+.btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 
 /* ── SAVE THIS CHAT (capture card) ── */
 .cap-card{
@@ -434,7 +439,8 @@ html,body{
 @media (prefers-reduced-motion: reduce){
   .sk{animation:none;background:var(--sb-bg-muted)}
   .hchip-dot.pulse{animation:none}
-  .seg-thumb,.item,.chev,.chip,.btn,.btn.p,.ic-btn,.isc{transition:none}
+  .seg-thumb,.item,.chev,.chip,.btn,.dash-link,.dash-link svg,.ic-btn,.isc{transition:none}
+  .dash-link:hover svg{transform:none}
   .list.anim .item{animation:none}
   .cl-box{animation:none}
   /* Status badges fall back to the static icon — same box, same colour. */
@@ -551,8 +557,9 @@ html,body{
   <!-- FOOTER -->
   <div class="lfoot">
     <button class="ver-btn" id="ver-btn" title="View changelog"></button>
-    <button class="btn p" id="bdash">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Open Dashboard
+    <button class="dash-link" id="bdash">
+      Open Dashboard
+      <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
     </button>
   </div>
 </div>
