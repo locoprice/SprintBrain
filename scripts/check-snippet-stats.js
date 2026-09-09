@@ -118,6 +118,25 @@ check('line with shared owners', S.statsLine(S.stats(mixed, ME)), '10 personal �
 check('line with one owner', S.statsLine(S.stats(collision, ME)), '1 personal · 1 shared from 1 person');
 check('line with nothing shared', S.statsLine(S.stats(personal, ME)), '3 personal');
 
+// ── prompts: a library whose rows must not fold ─────────────────────
+// A prompt carries no translations, so one row is one prompt. Folding them the
+// way snippets fold would merge two prompts whose shortcuts share a stem, and
+// print a breakdown that disagrees with the count on the Prompts tab.
+const promptRows = [
+  row({ id: 'r1', user_id: ME, shortcut: 'reviewEN' }),
+  row({ id: 'r2', user_id: ME, shortcut: 'review' }),
+  row({ id: 'r3', user_id: MATE, shortcut: 'welcome' }),
+  row({ id: 'r4', user_id: OTHER, shortcut: 'welcome' }),
+];
+check('prompts never fold into one another', S.rowStats(promptRows, ME),
+  { total: 4, personal: 2, shared: 2, owners: 2 });
+check('snippet grouping would have folded two of them', S.stats(promptRows, ME).total, 3);
+check('prompt line reads like the snippet line',
+  S.statsLine(S.rowStats(promptRows, ME)), '2 personal · 2 shared from 2 people');
+check('unknown viewer counts every prompt personal', S.rowStats(promptRows, null),
+  { total: 4, personal: 4, shared: 0, owners: 0 });
+check('an empty prompt library still prints a line', S.statsLine(S.rowStats([], ME)), '0 personal');
+
 // ── group shape the list rendering depends on ───────────────────────
 const idx = S.index(splitGroup);
 check('one group for the split family', idx.groups.length, 1);

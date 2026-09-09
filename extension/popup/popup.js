@@ -153,7 +153,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
+      'select=id,user_id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -1193,12 +1193,20 @@ function _runNotionSync(cb, force) {
 // badges. See extension/shared/snippet-stats.js for the grouping rule.
 function groupCount(arr){ return SBSnippetStats.count(arr); }
 function libraryStats(){ return SBSnippetStats.stats(snips, SB_CURRENT_USER_ID); }
+// A prompt has no translations, so a row is a prompt. rowStats keeps the
+// breakdown agreeing with the count on the tab.
+function promptStats(){ return SBSnippetStats.rowStats(prompts, SB_CURRENT_USER_ID); }
+// The breakdown under the tabs describes whichever library is on screen.
+function renderLibStats(){
+  var ls=gi('lib-stats'); if(!ls) return;
+  ls.textContent=SBSnippetStats.statsLine(activeMode==='prompts' ? promptStats() : libraryStats());
+}
 function refreshUI(){
   var tp=gi('tp'); if(tp && activeMode!=='prompts') tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
   var st=libraryStats();
   var mcs=gi('mct-snip'); if(mcs) mcs.textContent=st.total;
   var mcp=gi('mct-prmpt'); if(mcp) mcp.textContent=prompts.length;
-  var ls=gi('lib-stats'); if(ls) ls.textContent=SBSnippetStats.statsLine(st);
+  renderLibStats();
   renderFolders();
   if(activeMode==='prompts') renderPrompts(gi('sq')?gi('sq').value:'');
   else renderList(gi('sq')?gi('sq').value:'');
@@ -2046,7 +2054,6 @@ function copyPrompt(pid){
 function setMode(m) {
   activeMode = m;
   var srow       = document.querySelector('.srow');
-  var libStats   = gi('lib-stats');
   var snipChips  = gi('snip-chips');
   var snipMain   = gi('snip-main');
   var pMain      = gi('prompt-main');
@@ -2064,9 +2071,10 @@ function setMode(m) {
   });
   if (seg) { if (m === 'prompts') seg.classList.add('on-prompts'); else seg.classList.remove('on-prompts'); }
 
+  renderLibStats();
+
   if (m === 'prompts') {
     if (srow) srow.classList.add('pmode');
-    if (libStats) libStats.style.display = 'none';
     if (snipChips) snipChips.style.display = 'none';
     if (snipMain) snipMain.style.display = 'none';
     if (pMain) pMain.className = 'p-main on';
@@ -2075,7 +2083,6 @@ function setMode(m) {
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
-    if (libStats) libStats.style.display = '';
     if (snipChips) snipChips.style.display = '';
     if (snipMain) snipMain.style.display = '';
     if (pMain) pMain.className = 'p-main';

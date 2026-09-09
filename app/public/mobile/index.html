@@ -1653,13 +1653,12 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
    * With no signed-in user the library cannot be attributed, so everything
    * counts as personal rather than inventing teammates.
    */
-  function stats(rows, currentUserId) {
-    var groups = index(rows).groups;
+  function tally(owners, currentUserId) {
     var me = String(currentUserId || '');
-    var out = { total: groups.length, personal: 0, shared: 0, owners: 0 };
+    var out = { total: owners.length, personal: 0, shared: 0, owners: 0 };
     var seen = {};
-    for (var i = 0; i < groups.length; i++) {
-      var owner = groups[i].owner;
+    for (var i = 0; i < owners.length; i++) {
+      var owner = owners[i];
       if (!me || !owner || owner === me) { out.personal++; continue; }
       out.shared++;
       if (!seen[owner]) { seen[owner] = 1; out.owners++; }
@@ -1667,7 +1666,27 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return out;
   }
 
-  /** The one breakdown string both surfaces render, so they cannot drift. */
+  function stats(rows, currentUserId) {
+    var groups = index(rows).groups;
+    var owners = [];
+    for (var i = 0; i < groups.length; i++) owners.push(groups[i].owner);
+    return tally(owners, currentUserId);
+  }
+
+  /**
+   * The same breakdown for a library whose rows do not fold: a prompt carries
+   * no translations, so one row is one prompt. Grouping them by trigger base
+   * would merge two prompts whose shortcuts happen to share a stem, and print
+   * a total that disagrees with the count on the Prompts tab.
+   */
+  function rowStats(rows, currentUserId) {
+    var list = rows || [];
+    var owners = [];
+    for (var i = 0; i < list.length; i++) owners.push(ownerOf(list[i]));
+    return tally(owners, currentUserId);
+  }
+
+  /** The one breakdown string every library prints, so they cannot drift. */
   function statsLine(s) {
     var line = s.personal + ' personal';
     if (s.shared > 0) {
@@ -1682,6 +1701,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     count: count,
     groupFor: groupFor,
     stats: stats,
+    rowStats: rowStats,
     statsLine: statsLine
   };
 
