@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import {
   AlertCircle,
   CalendarClock,
+  CalendarRange,
   Eye,
   History,
   Info,
@@ -33,6 +34,7 @@ import {
   LabelSuggestions,
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
+import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
@@ -284,6 +286,8 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
   { label: 'Automatic',
     hint: 'Not a field — a date worked out at expansion, with the time pinned. Count forward from today, or land on a named day like next Monday.' },
+  { label: 'Range',
+    hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
 // What the Formula toggle writes. A and B are deliberately meaningless: the
@@ -454,6 +458,8 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Date-range builder — writes two dates and the span between them.
+  const [dateRangeOpen, setDateRangeOpen] = useState(false);
   // Automatic-date builder — writes a {time:} token at the cursor. A dialog and
   // not a rail control: the day and the time are two independent decisions and
   // want two columns, which 260px cannot give them.
@@ -1114,6 +1120,16 @@ export function NewSnippetDialog() {
                       >
                         <CalendarClock className="mr-1 h-3 w-3" />
                         Automatic
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        disabled={saving}
+                        onClick={() => setDateRangeOpen(true)}
+                      >
+                        <CalendarRange className="mr-1 h-3 w-3" />
+                        Range
                       </Button>
                     </div>
 
@@ -1948,6 +1964,13 @@ export function NewSnippetDialog() {
             <FormButtonDialog
               open={actionButtonOpen}
               onOpenChange={setActionButtonOpen}
+              onInsert={insertAtCursor}
+            />
+
+            <FormDateRangeDialog
+              open={dateRangeOpen}
+              onOpenChange={setDateRangeOpen}
+              body={form.content}
               onInsert={insertAtCursor}
             />
 

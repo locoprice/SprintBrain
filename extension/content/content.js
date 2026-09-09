@@ -1376,6 +1376,32 @@ function _sbAdjustHtml(cfg) {
          '<div class="sb-adjbox" data-adjbox="' + k + '" hidden>' + rows + '</div>';
 }
 
+// A closing date may not open before its opening one. The rule and the value
+// come from extension/shared/fill-form.js; only the markup and the live rebind
+// are local, which is the split that keeps four surfaces agreeing.
+function _sbOrderAttrs(cfg) {
+  var out = '';
+  if (cfg.notBefore) out += ' data-after="' + xesc(cfg.notBefore) + '"';
+  if (cfg.min) out += ' min="' + xesc(cfg.min) + '"';
+  return out;
+}
+
+// Re-applies every ordering limit after any value changes. Cheap enough to run
+// on each keystroke: a fill form is a handful of inputs, not a table.
+function _sbReorder(root) {
+  var deps = root.querySelectorAll('.sb-inp[data-after]');
+  for (var i = 0; i < deps.length; i++) {
+    var dst = deps[i];
+    var src = root.querySelector('.sb-inp[data-key="' + dst.getAttribute('data-after') + '"]');
+    if (!src) continue;
+    var min = window.SBFillForm.orderedMin(dst.type === 'datetime-local' ? 'datetime' : 'date', src.value);
+    if (min) dst.setAttribute('min', min); else dst.removeAttribute('min');
+    // A closing date the new opening one has just invalidated is no longer an
+    // answer. Clearing beats leaving an impossible pair sitting in the form.
+    if (min && dst.value && dst.value < min) dst.value = '';
+  }
+}
+
 function showOverlay(targetEl, snip, scLen, done) {
   overlayTriggerLen = scLen || 0;
   // Read the caret BEFORE the overlay exists: deleteChars has just selected the
@@ -1434,11 +1460,11 @@ function showOverlay(targetEl, snip, scLen, done) {
                (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
       }).join('') + '</div>';
     } else if (cfg.type === 'date') {
-      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
+      inp = '<input type="date" class="sb-inp" data-key="'+key+'"'+_sbOrderAttrs(cfg)+' value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'time') {
       inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'datetime' || cfg.type === 'datetime-local') {
-      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
+      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'"'+_sbOrderAttrs(cfg)+' value="'+xesc(cfg.value)+'">';
     } else {
       inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.value)+'">';
     }
@@ -1508,8 +1534,9 @@ function showOverlay(targetEl, snip, scLen, done) {
   var inps = el.querySelectorAll('.sb-inp');
   for (var j = 0; j < inps.length; j++) {
     (function(inp) {
-      inp.addEventListener('input',  function(){ updatePrev(snip); });
+      inp.addEventListener('input',  function(){ _sbReorder(el); updatePrev(snip); });
       inp.addEventListener('change', function(){
+        _sbReorder(el);
         updatePrev(snip);
         // A radio is a finished answer the moment it is ticked, so the caret
         // moves to whatever is still empty. Checkboxes are excluded: a multiple

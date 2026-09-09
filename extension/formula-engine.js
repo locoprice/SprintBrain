@@ -27,6 +27,10 @@
 // field agrees with that name — "Querido {NOMBRE}" prints "Querida Lucía".
 //
 // Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max()
+//   datespan(A, B, "inclusive"|"between")  — how long a range lasts, or
+//     nothing at all when a date is missing or the end precedes the start
+//   datetimediff(A, B, "calendar")  — whole days apart on a calendar, DST-safe
+//   datetimediff(A, B, "day"|"hour"|"minute"|"second")  — elapsed time, may be fractional
 // Comparisons in conditions: VAR = "value" / VAR != "value" (string);
 //   >, <, >=, <=, ==, != (numeric, operands evaluated as formulas)
 // No eval() or Function() — CSP-safe recursive descent parser throughout.
@@ -251,6 +255,32 @@
     return 60000;
   }
 
+  // ── CALENDAR-DAY DIFFERENCE ─────────────────────────────────────
+  // How many dates apart two days are, counted on a calendar rather than on a
+  // clock. `day` divides elapsed milliseconds, which is wrong twice over:
+  //
+  //   24 Oct 2026 to 26 Oct 2026, plain dates, Europe/Rome  ->  2.04
+  //   1 Sep 15:00 to 3 Sep 11:00                            ->  1.83
+  //
+  // The first is the hour the clocks go back sitting inside the span; the
+  // second is the time of day the operator happened to pick. Both printed a
+  // fraction into a sentence that wanted a whole number, and flooring the
+  // second one answers 1 where the calendar says 2.
+  //
+  // Comparing local Y/M/D through Date.UTC removes both: UTC has no DST, and
+  // the clock is gone before the subtraction. `day` is untouched, so every
+  // body already written keeps the answer it has always given.
+  function sbCalendarDayDiff(a, b) {
+    var ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+    var ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.round((ub - ua) / 86400000);
+  }
+
+  function sbIsCalendarUnit(unit) {
+    var u = String(unit || '').toLowerCase();
+    return u === 'calendar' || u === 'calendarday' || u === 'calendardays' || u === 'cal';
+  }
+
   function sbResolveDatetimeDiff(expr, vals) {
     var re = /datetimediff\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
     return String(expr).replace(re, function(_, a, b, unit) {
@@ -260,8 +290,46 @@
       }
       var da = sbParseUserDate(resolve(a)), db = sbParseUserDate(resolve(b));
       if (!da || !db) return '0';
+      if (sbIsCalendarUnit(unit)) return String(sbCalendarDayDiff(da, db));
       return String((db.getTime() - da.getTime()) / sbDatetimeDiffUnitMs(unit));
     });
+  }
+
+  // ── DATE SPAN ───────────────────────────────────────────────────
+  // datespan(START, END, "inclusive"|"between") — how long a range lasts, or
+  // no answer at all.
+  //
+  // datetimediff answers every question put to it, including the ones with no
+  // sensible answer: an end before its start gives a negative, and a date
+  // nobody filled in gives zero. Both printed into a quote looking deliberate
+  // ("0 days and -1 nights"). A span is different from a difference precisely
+  // here — a range that runs backwards is not a short range, it is not a range.
+  //
+  // So this one declines. `ok:false` travels up to evalFormula, which returns
+  // null, and resolveBody prints nothing for a null formula. A visible gap in a
+  // sentence is something the sender notices; a confident wrong number is not.
+  //
+  // datetimediff is deliberately left exactly as it was: a negative difference
+  // is a legitimate answer to "how long since", and nothing already written
+  // may move.
+  var DATESPAN_RE = /datespan\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
+
+  function sbResolveDateSpan(expr, vals) {
+    var ok = true;
+    var out = String(expr).replace(DATESPAN_RE, function(_, a, b, kind) {
+      function resolve(arg) {
+        if (arg.charAt(0) === '"' || arg.charAt(0) === "'") return arg.slice(1, -1);
+        return (vals && vals[arg] !== undefined) ? String(vals[arg]) : '';
+      }
+      var da = sbParseUserDate(resolve(a)), db = sbParseUserDate(resolve(b));
+      // Unanswered or unreadable: no span exists yet.
+      if (!da || !db) { ok = false; return '0'; }
+      var n = sbCalendarDayDiff(da, db);
+      // Runs backwards: the operator picked the wrong way round.
+      if (n < 0) { ok = false; return '0'; }
+      return String(String(kind).toLowerCase() === 'between' ? n : n + 1);
+    });
+    return { expr: out, ok: ok };
   }
 
   // ── TIME-OF-DAY GREETINGS ───────────────────────────────────────
@@ -730,6 +798,16 @@
   // and neither list can print it whole, so it stays raw rather than silently
   // losing the half the format does not mention.
   function _dateFormatOk(type, fmt) {
+    // A datetime prints both halves, so its format is one from each list with a
+    // space between - the same pair the Date/Time group already offers, rather
+    // than a third vocabulary. Split on the FIRST space: 'hh:mm A' has one of
+    // its own, and the date formats have none.
+    if (type === 'datetime') {
+      var sp = String(fmt).indexOf(' ');
+      if (sp === -1) return '';
+      var dPart = fmt.slice(0, sp), tPart = fmt.slice(sp + 1);
+      return (DATE_FORMATS.indexOf(dPart) !== -1 && TIME_FORMATS.indexOf(tPart) !== -1) ? fmt : '';
+    }
     var list = type === 'date' ? DATE_FORMATS : (type === 'time' ? TIME_FORMATS : null);
     if (!list) return '';
     return list.indexOf(fmt) === -1 ? '' : fmt;
@@ -768,6 +846,12 @@
     var fmtM = /(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
     var fmt = _dateFormatOk(type, fmtM ? fmtM[1].replace(/^\s+|\s+$/g, '') : '');
     if (fmt) out.format = fmt;
+    // `after=FIELD` orders this field against ANOTHER field, which is a
+    // different rule from limiting it against today: with two dates months
+    // ahead, both are valid future dates and only their order is wrong. The
+    // picker's minimum follows whatever that field currently holds.
+    var aftM = /(?:^|;)\s*after\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(attrSrc);
+    if (aftM && (type === 'date' || type === 'datetime')) out.after = aftM[1];
     return out;
   }
 
@@ -779,8 +863,8 @@
   // nothing writes one today, and resolveBody has no route to it.
   //
   // `override` is resolveBody's `fmtOverride` opt: a format chosen while the
-  // form is being filled in, rather than by the author. Only a date or a time
-  // field accepts one, and only from its own closed list, so a stray key can
+  // form is being filled in, rather than by the author. Only a date, a time or
+  // a datetime accepts one, and only from its own closed list, so a stray key can
   // never turn a number field into a date. '' is a real answer there — print
   // the picker's own value, which is what a {formdate:} with no format= has
   // always done — so the override is read with hasOwnProperty rather than for
@@ -794,7 +878,7 @@
         if (!f.format || f.format === 'plain') continue;
         if (!out) out = {};
         out[k] = { kind: 'number', format: f.format, currency: f.currency || DEFAULT_CURRENCY };
-      } else if (f.type === 'date' || f.type === 'time') {
+      } else if (f.type === 'date' || f.type === 'time' || f.type === 'datetime') {
         var dfmt = f.format || '';
         if (ov && Object.prototype.hasOwnProperty.call(ov, k)) {
           var ovRaw = String(ov[k] === null || ov[k] === undefined ? '' : ov[k])
@@ -825,7 +909,11 @@
   // ── FORMULA EVALUATOR ───────────────────────────────────────────
   function evalFormula(expr, vals) {
     try {
-      var s = sbResolveDatetimeDiff(expr, vals);
+      // An impossible span makes the whole formula unanswerable. Checked before
+      // anything else, so no arithmetic is built on a number that is not there.
+      var span = sbResolveDateSpan(expr, vals);
+      if (!span.ok) return null;
+      var s = sbResolveDatetimeDiff(span.expr, vals);
       var unreadable = false;
       s = s.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function(n) {
         if (FUNS[n]) return n;
@@ -1466,13 +1554,17 @@
   // them wants, and a stale hardcoded date is worse than no default at all.
   function buildFormDateToken(cfg) {
     var c = cfg || {};
-    var type = c.type === 'time' ? 'time' : 'date';
+    var type = (c.type === 'time' || c.type === 'datetime') ? c.type : 'date';
     var name = String(c.name === undefined ? '' : c.name).replace(/[^A-Za-z0-9_]/g, '');
     if (!/^[A-Za-z_]/.test(name)) name = (type === 'time' ? 'TIME_' : 'DATE_') + name;
     var out = '{formdate: name=' + name;
     // `date` is what the token has always meant, so it is left unwritten: a
     // shorter token that parses back the same.
-    if (type === 'time') out += '; type=time';
+    if (type !== 'date') out += '; type=' + type;
+    var after = String(c.after === undefined ? '' : c.after).replace(/[^A-Za-z0-9_]/g, '');
+    if (after !== '' && /^[A-Za-z_]/.test(after) && type !== 'time') {
+      out += '; after=' + after;
+    }
     var fmt = _dateFormatOk(type,
       String(c.format === undefined ? '' : c.format).replace(/^\s+|\s+$/g, ''));
     if (fmt) out += '; format=' + fmt;
@@ -1510,6 +1602,77 @@
       out += '; at=' + at;
     }
     return out + '}';
+  }
+
+  // ── DATE RANGE TOKEN WRITER ─────────────────────────────────────
+  // Two dates and the span between them, written as one block.
+  //
+  // The span is two different numbers and the difference matters: 1 to 3
+  // September is 2 apart on a calendar and 3 days if you count both ends. A
+  // hotel calls the first nights, a rental calls it days, a clinic calls it
+  // sessions - so the engine writes the arithmetic and the author writes the
+  // word. Nothing here names a trade (see the root CLAUDE.md).
+  //
+  // `calendar` rather than `day` because the count has to stay whole: `day`
+  // divides elapsed milliseconds and answers 2.04 across the October clock
+  // change, or 1.83 once the operator picks a time of day.
+  //
+  // MIRRORED in app/src/lib/dateRangeToken.ts - the React dashboard cannot
+  // import extension source (see app/CLAUDE.md 6). Change both together.
+  var RANGE_MODES = ['between', 'inclusive', 'both'];
+
+  // Labels and the joiner are free text going straight into the body, so the
+  // characters that end a token or split a line cannot survive.
+  function _rangeText(v) {
+    return String(v === undefined || v === null ? '' : v)
+      .replace(/[{}]/g, ' ').replace(/\s+/g, ' ').replace(/^ | $/g, '');
+  }
+
+  function _rangeName(v, fallback) {
+    var n = String(v === undefined ? '' : v).replace(/[^A-Za-z0-9_]/g, '');
+    return /^[A-Za-z_]/.test(n) ? n : fallback;
+  }
+
+  // One count. `+ 1` is the whole difference between the two readings.
+  function _rangeCount(startName, endName, inclusive, label) {
+    // datespan, not datetimediff: a range the operator entered backwards prints
+    // nothing rather than a negative.
+    var expr = '{= datespan(' + startName + ',' + endName + ',"' +
+      (inclusive ? 'inclusive' : 'between') + '") }';
+    var text = _rangeText(label);
+    return text === '' ? expr : expr + ' ' + text;
+  }
+
+  function buildDateRangeToken(cfg) {
+    var c = cfg || {};
+    var start = _rangeName(c.start, 'START_1');
+    var end = _rangeName(c.end, 'END_1');
+    var mode = RANGE_MODES.indexOf(c.mode) === -1 ? 'both' : c.mode;
+
+    var parts = [];
+    // The two pickers come first when the block has to stand on its own, so the
+    // fields exist before the sentence that counts them.
+    if (c.withFields) {
+      var type = c.withTime ? 'datetime' : 'date';
+      var fmt = _dateFormatOk(type, _rangeText(c.format));
+      parts.push(buildFormDateToken({ name: start, type: type, format: fmt }));
+      // The closing date cannot open before the opening one. Written onto the
+      // token so the rule travels with the snippet to every surface, rather
+      // than living in whichever builder happened to create it.
+      parts.push(buildFormDateToken({ name: end, type: type, format: fmt, after: start }));
+    }
+
+    if (mode === 'both') {
+      // Counting both ends reads first: "3 days and 2 nights", not the reverse.
+      var joiner = _rangeText(c.joiner);
+      parts.push(_rangeCount(start, end, true, c.inclusiveLabel));
+      if (joiner !== '') parts.push(joiner);
+      parts.push(_rangeCount(start, end, false, c.betweenLabel));
+    } else {
+      parts.push(_rangeCount(start, end, mode === 'inclusive',
+        mode === 'inclusive' ? c.inclusiveLabel : c.betweenLabel));
+    }
+    return parts.join(' ');
   }
 
   // ── FORM MENU TOKEN WRITER ──────────────────────────────────────
@@ -1755,6 +1918,11 @@
     nextNumberName:    nextNumberName,
     buildFormDateToken: buildFormDateToken,
     buildFormTimeToken: buildFormTimeToken,
+    buildDateRangeToken: buildDateRangeToken,
+    RANGE_MODES:       RANGE_MODES,
+    sbCalendarDayDiff: sbCalendarDayDiff,
+    sbResolveDateSpan: sbResolveDateSpan,
+    sbIsCalendarUnit:  sbIsCalendarUnit,
     nextFieldName:     nextFieldName,
     NAMED_SHIFTS:      NAMED_SHIFTS,
     sbNamedShift:      sbNamedShift,

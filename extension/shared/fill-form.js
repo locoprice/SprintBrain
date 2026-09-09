@@ -179,13 +179,21 @@
     return (back ? '-' : '+') + n + String(unit || 'D');
   }
 
-  // Only a date or a time carries a format: a datetime holds both halves and
-  // neither list prints it whole, which is the engine's own rule in
-  // _dateFormatOk. So a datetime is offered no format choice rather than one
-  // that would silently drop half its value.
+  // A date and a time each carry a format from their own list. A datetime
+  // prints both halves, so its list is every pairing of the two with a space
+  // between - the engine's own rule in _dateFormatOk, so what the Adjust panel
+  // offers is exactly what a token can hold. Building it here rather than
+  // hardcoding six strings keeps it right when either list changes.
   function formatList(E, type) {
     if (type === 'date') return (E.DATE_FORMATS || []).slice();
     if (type === 'time') return (E.TIME_FORMATS || []).slice();
+    if (type === 'datetime') {
+      var dates = E.DATE_FORMATS || [], times = E.TIME_FORMATS || [], out = [];
+      for (var i = 0; i < dates.length; i++) {
+        for (var j = 0; j < times.length; j++) out.push(dates[i] + ' ' + times[j]);
+      }
+      return out;
+    }
     return [];
   }
 
@@ -402,7 +410,7 @@
       // picked another in the Adjust panel. '' is a real answer on both sides —
       // print the picker's own value — so the override is read by presence.
       var effFmt = '';
-      if (type === 'date' || type === 'time') {
+      if (type === 'date' || type === 'time' || type === 'datetime') {
         effFmt = formatOk(E, type, raw.format || '');
         if (Object.prototype.hasOwnProperty.call(picked, key)) {
           var want = trim(picked[key]), ok = formatOk(E, type, want);
@@ -424,7 +432,8 @@
         type: type,
         // How the value prints once it leaves the form. A number carries
         // 'plain', 'currency' or 'percent'; a date or a time carries one of the
-        // engine's DATE_FORMATS / TIME_FORMATS, or '' for the raw picker value.
+        // engine's DATE_FORMATS / TIME_FORMATS (a datetime pairs one of each),
+        // or '' for the raw picker value.
         // Always '' for every other kind of field, so a renderer can read it
         // without first asking what type it is holding. Formatting is output
         // only — the value a formula reads stays the raw number, or
@@ -436,6 +445,16 @@
         // field, and for a number that is not money.
         currency: type === 'number' && raw.format === 'currency'
           ? (raw.currency || 'EUR') : '',
+        // The field this one may not open before, or '' for no ordering. Named
+        // notBefore because `after` on a field is already the prose printed
+        // after its token, and the two are nothing to do with each other.
+        // A renderer emits `min` now and re-reads it whenever that field
+        // changes, because the limit follows what the operator just picked.
+        notBefore: (type === 'date' || type === 'datetime') ? (raw.after || '') : '',
+        // The earliest this field may hold, in the picker's own value format.
+        // Resolved below, once every field's value is known: the field being
+        // pointed at is often the one after this in walk order.
+        min: '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -455,6 +474,33 @@
         // the same {if:} the text already uses; nothing else in the shape moves.
         visible: true
       });
+    }
+
+    // ── ORDERING BETWEEN TWO FIELDS ──────────────────────────────
+    // A closing date may not fall before its opening one. This is not the same
+    // rule as limiting a date against today: a quote sent in September for a
+    // trip in March has two dates that are both far in the future, and only
+    // their order can be wrong.
+    //
+    // Resolved here rather than in each renderer, for the reason this module
+    // exists: four surfaces deciding it separately is how they drift. A
+    // renderer emits `min` and re-reads it when the named field changes.
+    var byKey = {};
+    for (var bk = 0; bk < fields.length; bk++) byKey[fields[bk].key] = fields[bk];
+    for (var mi = 0; mi < fields.length; mi++) {
+      var f = fields[mi];
+      if (!f.notBefore) continue;
+      var src = byKey[f.notBefore];
+      // Pointing at a field that is not there, or not a date, is an authoring
+      // slip. No limit beats a limit built on nothing.
+      if (!src || (src.type !== 'date' && src.type !== 'datetime')) { f.notBefore = ''; continue; }
+      var sv = trim(src.value);
+      if (sv === '') continue;
+      // A datetime picker wants a full datetime as its min, a date picker a
+      // date. Mixing them makes the browser ignore the attribute silently.
+      f.min = (f.type === 'datetime')
+        ? (src.type === 'datetime' ? sv : sv + 'T00:00')
+        : sv.slice(0, 10);
     }
 
     var shown = [];
@@ -489,8 +535,29 @@
     };
   }
 
+  /**
+   * The earliest value a field may hold, given what the field it must not
+   * precede currently holds. Exported because the limit has to be re-applied
+   * live: a renderer draws `min` once, then the operator picks a start date and
+   * the end picker has to narrow without the form being rebuilt underneath the
+   * caret. Four surfaces, one rule.
+   *
+   * @param {string} dstType  the dependent field's kind
+   * @param {string} srcValue what the field it follows currently holds
+   * @returns {string} a value for the `min` attribute, or '' for no limit
+   */
+  function orderedMin(dstType, srcValue) {
+    var v = trim(srcValue);
+    if (v === '') return '';
+    // A datetime picker ignores a date-only min, and a date picker ignores one
+    // carrying a clock. Silently, in both directions.
+    if (dstType === 'datetime') return v.length > 10 ? v : v + 'T00:00';
+    return v.slice(0, 10);
+  }
+
   var API = {
     fillForm: fillForm,
+    orderedMin: orderedMin,
     inferType: inferType,
     chooseLayout: chooseLayout,
     dayValue: dayValue,

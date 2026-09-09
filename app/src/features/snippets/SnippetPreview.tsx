@@ -391,6 +391,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
         {before}
         <input
           type={inputType(field)}
+          {...(field.min ? { min: field.min } : {})}
           value={field.value}
           placeholder={label}
           onChange={(e) => onChange(e.target.value)}

@@ -1900,13 +1900,21 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return (back ? '-' : '+') + n + String(unit || 'D');
   }
 
-  // Only a date or a time carries a format: a datetime holds both halves and
-  // neither list prints it whole, which is the engine's own rule in
-  // _dateFormatOk. So a datetime is offered no format choice rather than one
-  // that would silently drop half its value.
+  // A date and a time each carry a format from their own list. A datetime
+  // prints both halves, so its list is every pairing of the two with a space
+  // between - the engine's own rule in _dateFormatOk, so what the Adjust panel
+  // offers is exactly what a token can hold. Building it here rather than
+  // hardcoding six strings keeps it right when either list changes.
   function formatList(E, type) {
     if (type === 'date') return (E.DATE_FORMATS || []).slice();
     if (type === 'time') return (E.TIME_FORMATS || []).slice();
+    if (type === 'datetime') {
+      var dates = E.DATE_FORMATS || [], times = E.TIME_FORMATS || [], out = [];
+      for (var i = 0; i < dates.length; i++) {
+        for (var j = 0; j < times.length; j++) out.push(dates[i] + ' ' + times[j]);
+      }
+      return out;
+    }
     return [];
   }
 
@@ -2123,7 +2131,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       // picked another in the Adjust panel. '' is a real answer on both sides —
       // print the picker's own value — so the override is read by presence.
       var effFmt = '';
-      if (type === 'date' || type === 'time') {
+      if (type === 'date' || type === 'time' || type === 'datetime') {
         effFmt = formatOk(E, type, raw.format || '');
         if (Object.prototype.hasOwnProperty.call(picked, key)) {
           var want = trim(picked[key]), ok = formatOk(E, type, want);
@@ -2145,7 +2153,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         type: type,
         // How the value prints once it leaves the form. A number carries
         // 'plain', 'currency' or 'percent'; a date or a time carries one of the
-        // engine's DATE_FORMATS / TIME_FORMATS, or '' for the raw picker value.
+        // engine's DATE_FORMATS / TIME_FORMATS (a datetime pairs one of each),
+        // or '' for the raw picker value.
         // Always '' for every other kind of field, so a renderer can read it
         // without first asking what type it is holding. Formatting is output
         // only — the value a formula reads stays the raw number, or
@@ -2157,6 +2166,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // field, and for a number that is not money.
         currency: type === 'number' && raw.format === 'currency'
           ? (raw.currency || 'EUR') : '',
+        // The field this one may not open before, or '' for no ordering. Named
+        // notBefore because `after` on a field is already the prose printed
+        // after its token, and the two are nothing to do with each other.
+        // A renderer emits `min` now and re-reads it whenever that field
+        // changes, because the limit follows what the operator just picked.
+        notBefore: (type === 'date' || type === 'datetime') ? (raw.after || '') : '',
+        // The earliest this field may hold, in the picker's own value format.
+        // Resolved below, once every field's value is known: the field being
+        // pointed at is often the one after this in walk order.
+        min: '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -2176,6 +2195,33 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // the same {if:} the text already uses; nothing else in the shape moves.
         visible: true
       });
+    }
+
+    // ── ORDERING BETWEEN TWO FIELDS ──────────────────────────────
+    // A closing date may not fall before its opening one. This is not the same
+    // rule as limiting a date against today: a quote sent in September for a
+    // trip in March has two dates that are both far in the future, and only
+    // their order can be wrong.
+    //
+    // Resolved here rather than in each renderer, for the reason this module
+    // exists: four surfaces deciding it separately is how they drift. A
+    // renderer emits `min` and re-reads it when the named field changes.
+    var byKey = {};
+    for (var bk = 0; bk < fields.length; bk++) byKey[fields[bk].key] = fields[bk];
+    for (var mi = 0; mi < fields.length; mi++) {
+      var f = fields[mi];
+      if (!f.notBefore) continue;
+      var src = byKey[f.notBefore];
+      // Pointing at a field that is not there, or not a date, is an authoring
+      // slip. No limit beats a limit built on nothing.
+      if (!src || (src.type !== 'date' && src.type !== 'datetime')) { f.notBefore = ''; continue; }
+      var sv = trim(src.value);
+      if (sv === '') continue;
+      // A datetime picker wants a full datetime as its min, a date picker a
+      // date. Mixing them makes the browser ignore the attribute silently.
+      f.min = (f.type === 'datetime')
+        ? (src.type === 'datetime' ? sv : sv + 'T00:00')
+        : sv.slice(0, 10);
     }
 
     var shown = [];
@@ -2210,8 +2256,29 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     };
   }
 
+  /**
+   * The earliest value a field may hold, given what the field it must not
+   * precede currently holds. Exported because the limit has to be re-applied
+   * live: a renderer draws `min` once, then the operator picks a start date and
+   * the end picker has to narrow without the form being rebuilt underneath the
+   * caret. Four surfaces, one rule.
+   *
+   * @param {string} dstType  the dependent field's kind
+   * @param {string} srcValue what the field it follows currently holds
+   * @returns {string} a value for the `min` attribute, or '' for no limit
+   */
+  function orderedMin(dstType, srcValue) {
+    var v = trim(srcValue);
+    if (v === '') return '';
+    // A datetime picker ignores a date-only min, and a date picker ignores one
+    // carrying a clock. Silently, in both directions.
+    if (dstType === 'datetime') return v.length > 10 ? v : v + 'T00:00';
+    return v.slice(0, 10);
+  }
+
   var API = {
     fillForm: fillForm,
+    orderedMin: orderedMin,
     inferType: inferType,
     chooseLayout: chooseLayout,
     dayValue: dayValue,
@@ -2453,6 +2520,46 @@ function sbDatetimeDiffUnitMs(unit){
   if(u==='day'||u==='days'||u==='d')return 86400000;
   return 60000;
 }
+/* CALENDAR-DAY DIFFERENCE - mirrors sbCalendarDayDiff / sbIsCalendarUnit in
+   extension/formula-engine.js. `day` divides elapsed milliseconds, which reads
+   2.04 across the October clock change and 1.83 once the dates carry times.
+   Comparing local Y/M/D through Date.UTC removes both: UTC has no DST, and the
+   clock is gone before the subtraction. `day` is untouched. */
+function sbCalendarDayDiff(a,b){
+  var ua=Date.UTC(a.getFullYear(),a.getMonth(),a.getDate());
+  var ub=Date.UTC(b.getFullYear(),b.getMonth(),b.getDate());
+  return Math.round((ub-ua)/86400000);
+}
+
+function sbIsCalendarUnit(unit){
+  var u=String(unit||'').toLowerCase();
+  return u==='calendar'||u==='calendarday'||u==='calendardays'||u==='cal';
+}
+
+/* DATE SPAN - mirrors sbResolveDateSpan in extension/formula-engine.js.
+   datetimediff answers every question, including the ones with no sensible
+   answer: an end before its start gives a negative, a blank date gives zero,
+   and both printed into a quote looking deliberate. A range that runs backwards
+   is not a short range, it is not a range - so this one declines, and the
+   formula around it prints nothing. datetimediff is left exactly as it was. */
+var SB_DATESPAN_RE=/datespan\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
+
+function sbResolveDateSpan(expr,vals){
+  var ok=true;
+  var out=String(expr).replace(SB_DATESPAN_RE,function(_,a,b,kind){
+    function resolve(arg){
+      if(arg.charAt(0)==='"'||arg.charAt(0)==="'")return arg.slice(1,-1);
+      return (vals&&vals[arg]!==undefined)?String(vals[arg]):'';
+    }
+    var da=sbParseUserDate(resolve(a)),db=sbParseUserDate(resolve(b));
+    if(!da||!db){ok=false;return '0';}
+    var n=sbCalendarDayDiff(da,db);
+    if(n<0){ok=false;return '0';}
+    return String(String(kind).toLowerCase()==='between'?n:n+1);
+  });
+  return {expr:out,ok:ok};
+}
+
 function sbResolveDatetimeDiff(expr,vals){
   var re=/datetimediff\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
   return String(expr).replace(re,function(_,a,b,unit){
@@ -2462,6 +2569,7 @@ function sbResolveDatetimeDiff(expr,vals){
     }
     var da=sbParseUserDate(resolve(a)),db=sbParseUserDate(resolve(b));
     if(!da||!db)return '0';
+    if(sbIsCalendarUnit(unit))return String(sbCalendarDayDiff(da,db));
     return String((db.getTime()-da.getTime())/sbDatetimeDiffUnitMs(unit));
   });
 }
@@ -2737,6 +2845,14 @@ var SB_TIME_FORMATS=['HH:mm','hh:mm A'];
 /* Only a date or a time carries a format. A datetime holds both halves and
    neither list prints it whole, so it stays raw rather than losing one. */
 function sbDateFormatOk(type,fmt){
+  /* A datetime prints both halves, so its format is one from each list with a
+     space between. Split on the FIRST space: 'hh:mm A' has one of its own. */
+  if(type==='datetime'){
+    var sp=String(fmt).indexOf(' ');
+    if(sp===-1)return '';
+    var dPart=fmt.slice(0,sp),tPart=fmt.slice(sp+1);
+    return (SB_DATE_FORMATS.indexOf(dPart)!==-1&&SB_TIME_FORMATS.indexOf(tPart)!==-1)?fmt:'';
+  }
   var list=type==='date'?SB_DATE_FORMATS:(type==='time'?SB_TIME_FORMATS:null);
   if(!list)return '';
   return list.indexOf(fmt)===-1?'':fmt;
@@ -2767,6 +2883,11 @@ function sbDateCfg(attrSrc,defVal){
   var fmtM=/(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
   var fmt=sbDateFormatOk(type,fmtM?fmtM[1].replace(/^\s+|\s+$/g,''):'');
   if(fmt)out.format=fmt;
+  /* `after=FIELD` orders this field against ANOTHER field, which is a different
+     rule from limiting it against today: with two dates months ahead, both are
+     valid future dates and only their order is wrong. Mirrors _dateCfg. */
+  var aftM=/(?:^|;)\s*after\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(attrSrc);
+  if(aftM&&(type==='date'||type==='datetime'))out.after=aftM[1];
   return out;
 }
 
@@ -2878,7 +2999,7 @@ function sbFieldFormatMap(body,override){
       if(!f.format||f.format==='plain')continue;
       if(!out)out={};
       out[k]={kind:'number',format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
-    }else if(f.type==='date'||f.type==='time'){
+    }else if(f.type==='date'||f.type==='time'||f.type==='datetime'){
       var dfmt=f.format||'';
       if(ov&&Object.prototype.hasOwnProperty.call(ov,k)){
         var ovRaw=String(ov[k]===null||ov[k]===undefined?'':ov[k]).replace(/^\s+|\s+$/g,'');
@@ -3119,7 +3240,12 @@ function resolveBody(body,vals,opts){
 
       /* {=expr} */
       if(tok.charAt(0)==='='){
-        var ex=sbResolveDatetimeDiff(tok.slice(1),vals);
+        /* An impossible span makes the whole formula unanswerable: a missing
+           date, or an end before its start, prints nothing rather than a
+           confident wrong number. Mirrors evalFormula in the engine. */
+        var span=sbResolveDateSpan(tok.slice(1),vals);
+        if(!span.ok){i=cl+1;continue;}
+        var ex=sbResolveDatetimeDiff(span.expr,vals);
         /* Was parseFloat, which read "1.200,50" as 1.2 and turned "€1.200"
            into 0 with no error at all — the same defect the engine closed, which
            had been left live here. sbToNumber returns null for text, and an
@@ -4448,11 +4574,11 @@ function renderDetail(snip,keepVals){
             +'<span>'+esc(o)+'</span></label>';
         }).join('')+'</div>';
       }else if(t==='date'){
-        inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def)+'">';
+        inp='<input class="field-in" data-f="'+esc(f)+'"'+sbOrderAttrs(fld)+' type="date" value="'+esc(def)+'">';
       }else if(t==='time'){
         inp='<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def)+'">';
       }else if(t==='datetime'||t==='datetime-local'){
-        inp='<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def)+'">';
+        inp='<input class="field-in" data-f="'+esc(f)+'"'+sbOrderAttrs(fld)+' type="datetime-local" value="'+esc(def)+'">';
       }else{
         var itype=t==='number'?'number':'text';
         inp='<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
@@ -4471,14 +4597,38 @@ function renderDetail(snip,keepVals){
         : '<div class="field-inline">'+pre+inp+post+'</div>')+mobAdjustHtml(fld)+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
-      inp.addEventListener('input',updatePrev);
+      inp.addEventListener('input',function(){sbReorderDates(form);updatePrev();});
       /* Selects and checkboxes report a pick through 'change', not 'input'. */
-      inp.addEventListener('change',updatePrev);
+      inp.addEventListener('change',function(){sbReorderDates(form);updatePrev();});
     });
+    sbReorderDates(form);
     bindAdjust(form);
   }
   updatePrev();
   document.getElementById('det-body').scrollTop=0;
+}
+
+/* A closing date may not open before its opening one. The rule and the value
+   come from the shared fill-form module; only the markup and the live rebind are
+   local, which is the split that keeps four surfaces agreeing. */
+function sbOrderAttrs(fld){
+  var out='';
+  if(fld.notBefore)out+=' data-after="'+esc(fld.notBefore)+'"';
+  if(fld.min)out+=' min="'+esc(fld.min)+'"';
+  return out;
+}
+
+function sbReorderDates(form){
+  if(!form||!SBFillForm||!SBFillForm.orderedMin)return;
+  form.querySelectorAll('[data-after]').forEach(function(dst){
+    var src=form.querySelector('[data-f="'+dst.getAttribute('data-after')+'"]');
+    if(!src)return;
+    var min=SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
+    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
+    /* A closing date the new opening one has just invalidated is no longer an
+       answer. Clearing beats leaving an impossible pair sitting in the form. */
+    if(min&&dst.value&&dst.value<min)dst.value='';
+  });
 }
 
 /* ── ADJUST PANEL ────────────────────────────────

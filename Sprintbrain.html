@@ -352,6 +352,14 @@
   .nv-tm-out{border-top:1px solid var(--sb-line);margin-top:2px;padding-top:12px}
   .nv-tm-out b{display:block;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
   .nv-tm-res{font-family:var(--sb-mono);font-size:var(--sb-fs-13);color:var(--sb-ink)}
+  /* Date-range builder. Reuses the time builder's two-column shell; only the
+     radio rows are new, and they take their colours from the same tokens. */
+  .nv-rg-opts{display:flex;flex-direction:column;gap:10px}
+  .nv-rg-opt{display:flex;align-items:flex-start;gap:8px;font-size:var(--sb-fs-13);color:var(--sb-ink);cursor:pointer}
+  .nv-rg-opt input{margin-top:2px;width:15px;height:15px;flex-shrink:0;accent-color:var(--sb-azure);cursor:pointer}
+  .nv-rg-opt.off{opacity:.5;cursor:not-allowed}
+  .nv-rg-opt .nv-menu-hint{margin-top:2px}
+  .nv-rg-sample{font-family:var(--sb-mono)}
   .nv-switch{position:relative;width:34px;height:19px;flex-shrink:0}
   .nv-switch input{opacity:0;width:0;height:0;position:absolute}
   .nv-slider{position:absolute;inset:0;background:var(--sb-line-2);border-radius:19px;cursor:pointer;transition:background .2s}
@@ -604,6 +612,7 @@
             <div class="nv-chiprow">
               <span class="nv-chip m" id="nv-chip-number" title="A quantity a formula can add up — opens the builder"><svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>{number}</span>
               <span class="nv-chip m" id="nv-chip-menu" title="A list of choices to pick from — opens the builder"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{formmenu}</span>
+              <span class="nv-chip m" id="nv-chip-range" title="Two dates and how long the span between them is — opens the builder"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="16" y2="15"/></svg>{daterange}</span>
             </div>
             <!-- Date/Time. Replaced a fixed {start_date} / {end_date} pair,
                  which answered the wrong question twice: both were plain
@@ -736,6 +745,67 @@
     <div class="nv-modal-f">
       <button class="btn p" id="nv-num-insert">Insert</button>
       <button class="btn" id="nv-num-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DATE RANGE MODAL ═══ -->
+<!-- Mirrors the React dashboard's FormDateRangeDialog: the same two columns in
+     the same order, the same radio choices, the same live sentence. Both write
+     through SBFormulaEngine.buildDateRangeToken and preview through the engine's
+     own resolveBody, so neither the block nor the count can be spelled twice. -->
+<div class="nv-modal-bg" id="nv-rg-bg">
+  <div class="nv-modal" style="width:660px">
+    <div class="nv-modal-h"><h2>Insert a date range</h2></div>
+    <div class="nv-modal-b">
+      <div class="nv-menu-hint" style="margin-bottom:14px">Two dates, and how long the span between them is.</div>
+      <div class="nv-tm-cols">
+        <div class="nv-tm-col">
+          <div class="nv-tm-title">The dates</div>
+          <div class="nv-rg-opts" id="nv-rg-source">
+            <label class="nv-rg-opt">
+              <input type="radio" name="nv-rg-src" value="insert" checked>
+              <span>Add the two date pickers<span class="nv-menu-hint" style="display:block" id="nv-rg-names"></span></span>
+            </label>
+            <label class="nv-rg-opt" id="nv-rg-reuse-opt">
+              <input type="radio" name="nv-rg-src" value="reuse">
+              <span>Use dates already in the body<span class="nv-menu-hint" style="display:block" id="nv-rg-reuse-hint"></span></span>
+            </label>
+          </div>
+          <div id="nv-rg-reusewrap" style="display:none;margin-top:12px">
+            <div style="display:flex;gap:8px">
+              <div class="nv-field" style="flex:1;min-width:0"><label for="nv-rg-start">Earlier date</label><select id="nv-rg-start"></select></div>
+              <div class="nv-field" style="flex:1;min-width:0"><label for="nv-rg-end">Later date</label><select id="nv-rg-end"></select></div>
+            </div>
+            <div class="nv-menu-hint bad" id="nv-rg-reuse-err" style="display:none">Two different fields. The same one twice is a span of nothing.</div>
+          </div>
+          <div id="nv-rg-fieldwrap" style="margin-top:14px">
+            <div class="nv-field"><label for="nv-rg-dfmt">Date format</label><select id="nv-rg-dfmt"></select></div>
+            <label class="nv-tm-check" style="margin-top:10px"><input type="checkbox" id="nv-rg-withtime"> Show a time as well</label>
+            <div class="nv-menu-hint" style="margin-top:5px">The pickers offer a clock, and the dates print it. The count is unchanged: 1 September at 15:00 to 3 September at 11:00 is still 2 days apart.</div>
+            <div class="nv-field" id="nv-rg-tfmtwrap" style="display:none;margin-top:10px"><label for="nv-rg-tfmt">Time format</label><select id="nv-rg-tfmt"></select></div>
+          </div>
+        </div>
+        <div class="nv-tm-col">
+          <div class="nv-tm-title">What to print</div>
+          <div class="nv-rg-opts" id="nv-rg-mode"></div>
+          <div style="margin-top:14px">
+            <div class="nv-field" id="nv-rg-inclwrap"><label for="nv-rg-incl">Word after the first number</label><input id="nv-rg-incl" placeholder="days" autocomplete="off"></div>
+            <div class="nv-field" id="nv-rg-joinwrap" style="margin-top:10px"><label for="nv-rg-join">Between the two</label><input id="nv-rg-join" placeholder="and" autocomplete="off"></div>
+            <div class="nv-field" id="nv-rg-btwwrap" style="margin-top:10px"><label for="nv-rg-btw">Word after the second number</label><input id="nv-rg-btw" placeholder="your word" autocomplete="off"></div>
+          </div>
+          <div class="nv-menu-hint" style="margin-top:8px">Your words, in your language. Leave one blank to print the bare number.</div>
+        </div>
+      </div>
+      <div class="nv-tm-out">
+        <b>1 to 3 September prints</b>
+        <div class="nv-tm-res" id="nv-rg-res"></div>
+        <div class="nv-menu-hint" style="font-family:var(--sb-mono);margin-top:7px;word-break:break-all" id="nv-rg-token"></div>
+      </div>
+    </div>
+    <div class="nv-modal-f">
+      <button class="btn p" id="nv-rg-insert">Insert</button>
+      <button class="btn" id="nv-rg-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -887,7 +957,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.19.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.20.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1875,6 +1945,190 @@
      DATE_2 rather than letting two controls end up wired to one value. */
   $('nv-f-body').addEventListener('input', dtSync);
   dtSync();
+
+  /* ── DATE RANGE BUILDER ──────────────────────────────────────────────
+     Mirrors the React dashboard's FormDateRangeDialog. The span between two
+     dates is two different numbers - 1 to 3 September is 2 apart and 3 counting
+     both ends - so which one is meant is a radio group showing both answers
+     against the same pair, not a label to reason about.
+
+     The words are typed, never shipped: a hotel says nights, a rental says
+     days, a clinic says sessions. The block counts, the author names it. */
+  var RG_MODES = [
+    ['between',   'Days between the two dates', '2'],
+    ['inclusive', 'Counting both dates',        '3'],
+    /* The numbers only: the words beside them are the author's, and a sample
+       guessing at them would go stale and ship a trade's vocabulary. */
+    ['both',      'Both',                       '3 and 2']
+  ];
+  /* The pair the preview counts. Fixed rather than today, because two dates a
+     day apart hide the very difference the radio group exists to show. */
+  var RG_SAMPLE = { start: '2026-09-01', end: '2026-09-03' };
+    /* `days` is what every trade counts; the second word is left empty because
+     there is no neutral one, and an empty label prints the bare number rather
+     than putting a guess in someone's message. */
+  var RG_DEFAULT_MODE = 'inclusive', RG_DEFAULT_INCL = 'days', RG_DEFAULT_BTW = '';
+  var rgMode = RG_DEFAULT_MODE, rgSource = 'insert', rgFields = [];
+
+  function rgDateFields(){
+    /* Which fields the body already holds is decided by the shared fill-form
+       module, the same one every fill surface asks. */
+    try {
+      return window.SBFillForm.fillForm($('nv-f-body').value, {}, {}).fields
+        .filter(function(f){ return f.type === 'date' || f.type === 'datetime'; })
+        .map(function(f){ return f.key; });
+    } catch (e) { return []; }
+  }
+
+  function rgNextNames(){
+    var used = {}, re = /(?:START|END)_([0-9]+)/gi, m, body = $('nv-f-body').value;
+    while ((m = re.exec(body)) !== null) used[m[1]] = 1;
+    var n = 1;
+    while (used[String(n)]) n++;
+    return { start: 'START_' + n, end: 'END_' + n };
+  }
+
+  function rgCfg(){
+    var reusing = rgSource === 'reuse' && rgFields.length >= 2;
+    var names = rgNextNames();
+    return {
+      start: reusing ? $('nv-rg-start').value : names.start,
+      end:   reusing ? $('nv-rg-end').value   : names.end,
+      mode: rgMode,
+      inclusiveLabel: $('nv-rg-incl').value,
+      betweenLabel:   $('nv-rg-btw').value,
+      joiner:         $('nv-rg-join').value,
+      withFields: !reusing,
+      withTime: $('nv-rg-withtime').checked,
+      format: $('nv-rg-withtime').checked
+        ? $('nv-rg-dfmt').value + ' ' + $('nv-rg-tfmt').value
+        : $('nv-rg-dfmt').value
+    };
+  }
+
+  function rgValid(){
+    if (rgSource !== 'reuse') return true;
+    if (rgFields.length < 2) return false;
+    return $('nv-rg-start').value !== '' && $('nv-rg-start').value !== $('nv-rg-end').value;
+  }
+
+  function rgSync(){
+    var cfg = rgCfg(), reusing = !cfg.withFields;
+    $('nv-rg-reusewrap').style.display = reusing ? '' : 'none';
+    $('nv-rg-fieldwrap').style.display = reusing ? 'none' : '';
+    $('nv-rg-tfmtwrap').style.display = $('nv-rg-withtime').checked ? '' : 'none';
+    $('nv-rg-inclwrap').style.display = rgMode === 'between' ? 'none' : '';
+    $('nv-rg-btwwrap').style.display  = rgMode === 'inclusive' ? 'none' : '';
+    $('nv-rg-joinwrap').style.display = rgMode === 'both' ? '' : 'none';
+    var lbl = rgMode === 'both' ? ' first' : '';
+    $('nv-rg-inclwrap').getElementsByTagName('label')[0].textContent = 'Word after the' + lbl + ' number';
+    $('nv-rg-btwwrap').getElementsByTagName('label')[0].textContent =
+      'Word after the' + (rgMode === 'both' ? ' second' : '') + ' number';
+
+    var ok = rgValid();
+    $('nv-rg-reuse-err').style.display =
+      (reusing && $('nv-rg-start').value === $('nv-rg-end').value) ? '' : 'none';
+    $('nv-rg-insert').disabled = !ok;
+
+    var token = window.SBFormulaEngine.buildDateRangeToken(cfg);
+    $('nv-rg-token').textContent = token;
+    /* Preview the sentence alone: the pickers print their own dates in the body
+       but say nothing about the span. Resolved through the real engine, so the
+       dialog cannot promise a count the snippet does not produce. */
+    var pvCfg = {}, k;
+    for (k in cfg) if (Object.prototype.hasOwnProperty.call(cfg, k)) pvCfg[k] = cfg[k];
+    pvCfg.withFields = false;
+    var vals = {};
+    vals[cfg.start] = RG_SAMPLE.start;
+    vals[cfg.end] = RG_SAMPLE.end;
+    $('nv-rg-res').textContent =
+      window.SBFormulaEngine.resolveBody(window.SBFormulaEngine.buildDateRangeToken(pvCfg), vals);
+  }
+
+  function rgFill(el, pairs){
+    el.innerHTML = '';
+    for (var i = 0; i < pairs.length; i++) {
+      var o = document.createElement('option');
+      o.value = pairs[i][0];
+      o.textContent = pairs[i][1];
+      el.appendChild(o);
+    }
+  }
+
+  function openRangeBuilder(){
+    if (!$('nv-rg-mode').getElementsByTagName('label').length) {
+      var html = '';
+      for (var i = 0; i < RG_MODES.length; i++) {
+        html += '<label class="nv-rg-opt"><input type="radio" name="nv-rg-mode-r" value="' +
+          RG_MODES[i][0] + '"' + (RG_MODES[i][0] === RG_DEFAULT_MODE ? ' checked' : '') + '>' +
+          '<span>' + RG_MODES[i][1] +
+          '<span class="nv-menu-hint nv-rg-sample" style="display:block">1 to 3 September \u2192 ' +
+          RG_MODES[i][2] + '</span></span></label>';
+      }
+      $('nv-rg-mode').innerHTML = html;
+      $('nv-rg-mode').addEventListener('change', function(e){
+        if (!e.target.value) return;
+        rgMode = e.target.value;
+        rgSync();
+      });
+    }
+    rgFill($('nv-rg-dfmt'), [
+      ['DD/MM/YYYY', 'Day / Month / Year \u00b7 04/09/2026'],
+      ['MM/DD/YYYY', 'Month / Day / Year \u00b7 09/04/2026'],
+      ['DD/MM/dddd', 'Day / Month / Weekday \u00b7 04/09/Friday']
+    ]);
+    rgFill($('nv-rg-tfmt'), [['HH:mm', '24-hour \u00b7 14:30'], ['hh:mm A', '12-hour (AM/PM) \u00b7 02:30 PM']]);
+
+    /* Every opening reads the body as it is now: a name captured earlier would
+       collide with a field written since. */
+    rgFields = rgDateFields();
+    var canReuse = rgFields.length >= 2;
+    var pairs = rgFields.map(function(f){ return [f, f]; });
+    rgFill($('nv-rg-start'), pairs);
+    rgFill($('nv-rg-end'), pairs);
+    if (canReuse) { $('nv-rg-start').value = rgFields[0]; $('nv-rg-end').value = rgFields[1]; }
+    $('nv-rg-reuse-opt').className = 'nv-rg-opt' + (canReuse ? '' : ' off');
+    $('nv-rg-reuse-opt').getElementsByTagName('input')[0].disabled = !canReuse;
+    $('nv-rg-reuse-hint').textContent = canReuse
+      ? 'Only the count is written. Pick which two below.'
+      : 'Needs two date fields in the body. There are none to pick yet.';
+    var names = rgNextNames();
+    $('nv-rg-names').textContent = 'Arrives as ' + names.start + ' and ' + names.end + ', ready to fill in.';
+
+    rgMode = RG_DEFAULT_MODE;
+    rgSource = 'insert';
+    $('nv-rg-mode').querySelector('input[value="' + RG_DEFAULT_MODE + '"]').checked = true;
+    $('nv-rg-source').querySelector('input[value="insert"]').checked = true;
+    $('nv-rg-incl').value = RG_DEFAULT_INCL;
+    $('nv-rg-btw').value = RG_DEFAULT_BTW;
+    $('nv-rg-join').value = 'and';
+    $('nv-rg-withtime').checked = false;
+    $('nv-rg-dfmt').value = 'DD/MM/YYYY';
+    $('nv-rg-tfmt').value = 'HH:mm';
+    rgSync();
+    $('nv-rg-bg').classList.add('on');
+  }
+  function closeRangeBuilder(){ $('nv-rg-bg').classList.remove('on'); }
+
+  $('nv-chip-range').addEventListener('click', openRangeBuilder);
+  $('nv-rg-source').addEventListener('change', function(e){
+    if (!e.target.value) return;
+    rgSource = e.target.value;
+    rgSync();
+  });
+  ['nv-rg-incl','nv-rg-btw','nv-rg-join'].forEach(function(id){
+    $(id).addEventListener('input', rgSync);
+  });
+  ['nv-rg-dfmt','nv-rg-tfmt','nv-rg-withtime','nv-rg-start','nv-rg-end'].forEach(function(id){
+    $(id).addEventListener('change', rgSync);
+  });
+  $('nv-rg-cancel').addEventListener('click', closeRangeBuilder);
+  $('nv-rg-bg').addEventListener('click', function(e){ if (e.target === $('nv-rg-bg')) closeRangeBuilder(); });
+  $('nv-rg-insert').addEventListener('click', function(){
+    if ($('nv-rg-insert').disabled) return;
+    bodyInsert(window.SBFormulaEngine.buildDateRangeToken(rgCfg()));
+    closeRangeBuilder();
+  });
 
   /* ── AUTOMATIC DATE BUILDER ({time:}) ────────────────────────────────
      Mirrors the React dashboard's FormTimeDialog. Both write the token through

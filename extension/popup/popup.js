@@ -1695,7 +1695,12 @@ function renderDetailHtml(s){
         } else {
           var itype=(f.type==='date'||f.type==='time')?f.type
                    :(f.type==='datetime'?'datetime-local':(f.type==='number'?'number':'text'));
-          inp='<input type="'+itype+'" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
+          var ordAttr='';
+          /* A closing date may not open before its opening one. The value comes
+             from the shared fill-form module; only the markup is local. */
+          if(f.notBefore) ordAttr+=' data-after="'+esc(f.notBefore)+'"';
+          if(f.min) ordAttr+=' min="'+esc(f.min)+'"';
+          inp='<input type="'+itype+'" data-fkey="'+esc(k)+'"'+ordAttr+' placeholder="'+esc(label)+'" value="'+esc(val)+'">';
         }
         // Reads like the snippet — "Rate Plan: [ Refundable ] per night". The
         // key label survives only for a field with no prose around it, which
@@ -1877,6 +1882,21 @@ function renderList(q){
   wireListRows(el);
 }
 
+/* A closing date may not open before its opening one. Re-run after any value
+   changes: the limit follows what the operator just picked, and a closing date
+   the new opening one invalidated is cleared rather than left impossible.
+   Shared by the popup detail and Sprintbrain.html, which run this same file. */
+function reorderDetailDates(el){
+  if(!el||!window.SBFillForm||!window.SBFillForm.orderedMin)return;
+  el.querySelectorAll('[data-after]').forEach(function(dst){
+    var src=el.querySelector('[data-fkey="'+dst.getAttribute('data-after')+'"]');
+    if(!src)return;
+    var min=window.SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
+    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
+    if(min&&dst.value&&dst.value<min)dst.value='';
+  });
+}
+
 function wireListRows(el){
   el.querySelectorAll('.item').forEach(function(row){
     row.addEventListener('click',function(){ toggleDetail(row.dataset.id); });
@@ -1909,10 +1929,12 @@ function wireListRows(el){
       } else {
         detailFieldVals[key]=inp.value;
       }
+      reorderDetailDates(el);
       if(did) updateDetailPreview(did);
     };
     inp.addEventListener('input',handler); inp.addEventListener('change',handler);
   });
+  reorderDetailDates(el);
   // Action buttons: run the code block against the live values, write the
   // results back into the inputs, re-resolve the preview in place.
   el.querySelectorAll('.d-fields .d-actbtn').forEach(function(btn){

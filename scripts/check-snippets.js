@@ -755,6 +755,301 @@ for (const [cfg, want] of WRITER_CASES) {
 console.log('OK Shift + anchored-time parity passed all ' + sok + ' cases (' +
   engine.NAMED_SHIFTS.length + ' anchors, ' + WRITER_CASES.length + ' writer cases)');
 
+// ── CALENDAR-DAY DIFFERENCE PARITY ──────────────────────────────────
+// A date range decides how long something lasts, and the two engines answering
+// differently means the same quote states two different durations.
+//
+// `day` divides elapsed milliseconds, so it reads 2.04 across the October clock
+// change and 1.83 once the dates carry a time. `calendar` compares the dates
+// themselves. Both are asserted: the new unit for correctness, the old one for
+// the promise that nothing already written moved.
+for (const fn of ['sbCalendarDayDiff', 'sbIsCalendarUnit']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+const CAL_CASES = [
+  // Plain dates.
+  ['2026-09-01', '2026-09-03', 2],
+  ['2026-09-01', '2026-09-01', 0],
+  ['2026-09-03', '2026-09-01', -2],
+  // A time of day must not move the count. This is the whole point of the unit:
+  // an operator picking 15:00 does not shorten the span.
+  ['2026-09-01T15:00', '2026-09-03T11:00', 2],
+  ['2026-09-01T23:59', '2026-09-02T00:01', 1],
+  ['2026-09-01T00:00', '2026-09-01T23:59', 0],
+  // Both European clock changes. Milliseconds give 2.04 and 1.96 here.
+  ['2026-10-24', '2026-10-26', 2],
+  ['2027-03-27', '2027-03-29', 2],
+  // Month, year and leap-day boundaries.
+  ['2026-12-30', '2027-01-02', 3],
+  ['2028-02-27', '2028-03-01', 3],
+  ['2027-02-27', '2027-03-01', 2],
+  ['2026-01-31', '2026-03-01', 29],
+];
+
+let calOk = 0;
+for (const [a, b, want] of CAL_CASES) {
+  const body = '{= datetimediff(A,B,"calendar") }';
+  const gotE = engine.resolveBody(body, { A: a, B: b });
+  const gotM = mobile.resolveBody
+    ? mobile.resolveBody(body, { A: a, B: b })
+    : gotE;
+  if (gotE !== String(want)) {
+    fail('calendar diff ' + a + ' -> ' + b + ' gave ' + gotE + ', expected ' + want +
+      '\n  A fractional or DST-skewed answer prints into a customer message.');
+  }
+  if (gotM !== gotE) {
+    fail('calendar diff drift for ' + a + ' -> ' + b +
+      '\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+  }
+  calOk++;
+}
+
+// Every spelling of the unit, and everything that is not it.
+for (const u of ['calendar', 'Calendar', 'CALENDAR', 'calendarday', 'calendardays', 'cal']) {
+  if (!engine.sbIsCalendarUnit(u) || !mobile.sbIsCalendarUnit(u)) {
+    fail(JSON.stringify(u) + ' is no longer read as the calendar unit on both surfaces');
+  }
+}
+for (const u of ['day', 'days', 'd', 'hour', 'minute', '', 'calendarish']) {
+  if (engine.sbIsCalendarUnit(u) || mobile.sbIsCalendarUnit(u)) {
+    fail(JSON.stringify(u) + ' is being read as the calendar unit and must not be');
+  }
+}
+
+// The old unit keeps its answers, fractions included. Changing it would move
+// every body already written.
+if (engine.resolveBody('{= datetimediff(A,B,"day") }',
+    { A: '2026-09-01', B: '2026-09-03' }) !== '2') {
+  fail('the day unit moved on a whole-day span');
+}
+
+console.log('OK Calendar-day parity passed all ' + calOk + ' cases (DST, times, leap, year-end)');
+
+// ── DATE RANGE WRITER ───────────────────────────────────────────────
+// The block a builder inserts has to resolve to the sentence it previewed, and
+// the two counts must stay distinct: 1 to 3 September is 2 apart and 3 counting
+// both ends. Getting that backwards overstates or understates every quote.
+const RANGE_VALS = { START_1: '2026-09-01', END_1: '2026-09-03' };
+const RANGE_CASES = [
+  [{ start: 'START_1', end: 'END_1', mode: 'between', betweenLabel: 'nights' }, '2 nights'],
+  [{ start: 'START_1', end: 'END_1', mode: 'inclusive', inclusiveLabel: 'days' }, '3 days'],
+  [{ start: 'START_1', end: 'END_1', mode: 'both', inclusiveLabel: 'days',
+     betweenLabel: 'nights', joiner: 'and' }, '3 days and 2 nights'],
+  // No labels is a real choice: the numbers alone.
+  [{ start: 'START_1', end: 'END_1', mode: 'both', joiner: '' }, '3 2'],
+  // An unknown mode falls back rather than writing nothing.
+  [{ start: 'START_1', end: 'END_1', mode: 'nonsense', joiner: 'and' }, '3 and 2'],
+];
+
+for (const [cfg, want] of RANGE_CASES) {
+  const token = engine.buildDateRangeToken(cfg);
+  const got = engine.resolveBody(token, Object.assign({}, RANGE_VALS));
+  if (got !== want) {
+    fail('date range ' + JSON.stringify(cfg.mode) + ' resolved to ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want) + '\n  token: ' + token);
+  }
+}
+
+// With the pickers included, the fields must parse back as the kind and format
+// they were written with, or the fill form offers the wrong control.
+const withFields = engine.buildDateRangeToken({
+  start: 'START_1', end: 'END_1', mode: 'both', withFields: true, withTime: true,
+  format: 'DD/MM/YYYY HH:mm', inclusiveLabel: 'days', betweenLabel: 'nights', joiner: 'and',
+});
+const rangeCfg = engine.buildFormFieldCfg(withFields);
+for (const key of ['START_1', 'END_1']) {
+  if (!rangeCfg[key] || rangeCfg[key].type !== 'datetime') {
+    fail(key + ' is not a datetime field in a range built with a time: ' +
+      JSON.stringify(rangeCfg[key]));
+  }
+  if (rangeCfg[key].format !== 'DD/MM/YYYY HH:mm') {
+    fail(key + ' lost its format: ' + JSON.stringify(rangeCfg[key].format));
+  }
+}
+// And the whole block prints, times formatted, count unaffected by them.
+const withFieldsOut = engine.resolveBody(withFields,
+  { START_1: '2026-09-01T15:00', END_1: '2026-09-03T11:00' });
+if (withFieldsOut !== '01/09/2026 15:00 03/09/2026 11:00 3 days and 2 nights') {
+  fail('a range with times printed ' + JSON.stringify(withFieldsOut));
+}
+// The phone must read the same block the same way: the same field config, and
+// the same count from the same expression. Its resolveBody sits outside the
+// sliced helpers, so parity is asserted on the shared code path itself.
+const mobileRangeCfg = mobile.sbBodyFieldCfg(withFields);
+for (const key of ['START_1', 'END_1']) {
+  if (JSON.stringify(mobileRangeCfg[key]) !== JSON.stringify(rangeCfg[key])) {
+    fail('date range field drift on ' + key +
+      '\n  engine: ' + JSON.stringify(rangeCfg[key]) +
+      '\n  mobile: ' + JSON.stringify(mobileRangeCfg[key]));
+  }
+}
+const countExpr = 'datetimediff(START_1,END_1,"calendar")';
+const timedVals = { START_1: '2026-09-01T15:00', END_1: '2026-09-03T11:00' };
+if (mobile.sbResolveDatetimeDiff(countExpr, timedVals) !== '2') {
+  fail('the phone counts a timed range as ' +
+    mobile.sbResolveDatetimeDiff(countExpr, timedVals) + ', expected 2');
+}
+
+// Nothing a caller passes as a label may end a token or split the body.
+const hostile = engine.buildDateRangeToken({
+  start: 'START_1', end: 'END_1', mode: 'both',
+  inclusiveLabel: 'a{b}c\nd', betweenLabel: '}{', joiner: 'and',
+});
+if (/[{][^=]|[}][^ ]/.test(hostile.replace(/\{= [^}]*\}/g, ''))) {
+  fail('a label carried a brace into the body: ' + hostile);
+}
+if (engine.validateTemplate(hostile).ok !== true) {
+  fail('a range built from hostile labels does not parse: ' + hostile);
+}
+
+console.log('OK Date range writer passed all ' + (RANGE_CASES.length + 3) + ' cases');
+
+// ── A RANGE THAT RUNS BACKWARDS ─────────────────────────────────────
+// A quote is sent months ahead, so both of its dates are far in the future and
+// only their ORDER can be wrong. Nothing about "no past dates" catches that.
+//
+// Two defences, and both are asserted because each covers what the other
+// cannot: the picker stops it being chosen, and datespan refuses to answer for
+// anything that reaches the engine anyway - a hand-typed token, or a snippet
+// written before the ordering attribute existed.
+for (const fn of ['sbResolveDateSpan']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+const SPAN_CASES = [
+  // start, end, inclusive, between
+  ['2026-09-10', '2026-09-15', '6', '5'],
+  ['2026-09-10', '2026-09-10', '1', '0'],
+  // Six months out, which is the shape of a real quote.
+  ['2026-09-09', '2027-03-14', '187', '186'],
+  // Backwards: no answer, on either engine.
+  ['2026-09-10', '2026-09-09', '', ''],
+  ['2027-03-14', '2026-09-09', '', ''],
+  // Unanswered: no answer either. A blank date used to give a confident zero.
+  ['2026-09-10', '', '', ''],
+  ['', '2026-09-10', '', ''],
+  ['', '', '', ''],
+  // Present but unreadable.
+  ['2026-09-10', 'next tuesday', '', ''],
+];
+
+let spanOk = 0;
+for (const [a, b, wantIncl, wantBetween] of SPAN_CASES) {
+  const pairs = [['inclusive', wantIncl], ['between', wantBetween]];
+  for (const [kind, want] of pairs) {
+    const body = '{= datespan(A,B,"' + kind + '") }';
+    const gotE = engine.resolveBody(body, { A: a, B: b });
+    if (gotE !== want) {
+      fail('datespan ' + kind + ' for ' + JSON.stringify([a, b]) + ' gave ' +
+        JSON.stringify(gotE) + ', expected ' + JSON.stringify(want) +
+        '\n  A negative or a zero here reaches a customer looking deliberate.');
+    }
+    // The phone resolves the same expression through its own mirrored copy.
+    const spanM = mobile.sbResolveDateSpan('datespan(A,B,"' + kind + '")', { A: a, B: b });
+    const okE = want !== '';
+    if (spanM.ok !== okE) {
+      fail('datespan drift for ' + JSON.stringify([a, b, kind]) +
+        ': engine ' + (okE ? 'answers' : 'declines') +
+        ', mobile ' + (spanM.ok ? 'answers' : 'declines'));
+    }
+    if (okE && spanM.expr !== want) {
+      fail('datespan value drift for ' + JSON.stringify([a, b, kind]) +
+        '\n  engine: ' + want + '\n  mobile: ' + spanM.expr);
+    }
+    spanOk++;
+  }
+}
+
+// datetimediff keeps answering, negatives included. It is a difference, not a
+// span, and "how long since" is a real question with a negative answer.
+if (engine.resolveBody('{= datetimediff(A,B,"calendar") }',
+    { A: '2026-09-10', B: '2026-09-09' }) !== '-1') {
+  fail('datetimediff stopped answering for a reversed pair, which would move bodies already written');
+}
+
+// The range builder writes the ordering onto the closing field, so the rule
+// travels with the snippet rather than living in whichever builder made it.
+const ordered = engine.buildDateRangeToken({
+  start: 'START_1', end: 'END_1', mode: 'both', withFields: true,
+  format: 'DD/MM/YYYY', inclusiveLabel: 'days', joiner: 'and',
+});
+const ordCfg = engine.buildFormFieldCfg(ordered);
+if (ordCfg.END_1.after !== 'START_1') {
+  fail('the closing date of a range no longer declares what it may not precede: ' +
+    JSON.stringify(ordCfg.END_1));
+}
+if (ordCfg.START_1.after !== undefined) {
+  fail('the opening date of a range must carry no ordering of its own');
+}
+if (JSON.stringify(mobile.sbBodyFieldCfg(ordered).END_1) !== JSON.stringify(ordCfg.END_1)) {
+  fail('the phone reads the ordering differently from the engine');
+}
+// And the whole block declines rather than printing a negative.
+if (engine.resolveBody(ordered, { START_1: '2026-09-10', END_1: '2026-09-09' })
+    !== '10/09/2026 09/09/2026  days and ') {
+  fail('a backwards range still prints a number: ' +
+    JSON.stringify(engine.resolveBody(ordered, { START_1: '2026-09-10', END_1: '2026-09-09' })));
+}
+
+console.log('OK Backwards ranges refused on both engines (' + spanOk + ' cases)');
+
+// ── THE PICKER CARRIES THE LIMIT ────────────────────────────────────
+// The engine declining is the safety net. The picker not offering the day is
+// what the operator actually experiences, and it has to reach every surface.
+const ffOrd = require(path.join(__dirname, '..', 'extension', 'shared', 'fill-form.js'));
+if (typeof ffOrd.orderedMin !== 'function') {
+  fail('fill-form.js no longer exports orderedMin, which the four renderers rebind from');
+}
+
+const ORD_VM = ffOrd.fillForm(ordered, { START_1: '2026-09-10' }, { now: NOW });
+const endField = ORD_VM.fields.find((f) => f.key === 'END_1');
+if (endField.notBefore !== 'START_1') {
+  fail('the view model no longer tells a renderer which field the closing date follows');
+}
+if (endField.min !== '2026-09-10') {
+  fail('the closing picker\'s minimum is ' + JSON.stringify(endField.min) +
+    ', expected the opening date');
+}
+// `after` on a field is the PROSE after its token. The two must never collide
+// again: they did on the first attempt, and the field-context gate caught it.
+if (typeof endField.after !== 'string' || endField.after === 'START_1') {
+  fail('the ordering rule has collided with the prose that follows the token');
+}
+for (const [dstType, srcValue, want] of [
+  ['date', '2026-09-10', '2026-09-10'],
+  ['date', '2026-09-10T15:00', '2026-09-10'],
+  ['datetime', '2026-09-10', '2026-09-10T00:00'],
+  ['datetime', '2026-09-10T15:00', '2026-09-10T15:00'],
+  ['date', '', ''],
+]) {
+  if (ffOrd.orderedMin(dstType, srcValue) !== want) {
+    fail('orderedMin(' + dstType + ', ' + JSON.stringify(srcValue) + ') = ' +
+      JSON.stringify(ffOrd.orderedMin(dstType, srcValue)) + ', expected ' + JSON.stringify(want) +
+      '\n  A date min on a datetime picker is ignored silently, and the other way round.');
+  }
+}
+
+// Every surface that draws a fill form has to emit the limit and rebind it when
+// the field it follows changes. A surface that forgets shows an unconstrained
+// picker, which is exactly the bug this closes.
+const ORDER_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay', ['_sbOrderAttrs', '_sbReorder(el)', 'data-after']],
+  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html', ['reorderDetailDates', 'data-after']],
+  ['app/public/mobile/index.html', 'mobile companion', ['sbOrderAttrs', 'sbReorderDates', 'data-after']],
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview', ['field.min']],
+];
+for (const [rel, label, markers] of ORDER_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  for (const marker of markers) {
+    if (!src.includes(marker)) {
+      fail(rel + ' (' + label + ') no longer limits a closing date to its opening one.\n' +
+        '  Expected to find: ' + marker);
+    }
+  }
+}
+console.log('OK The closing date is limited on all ' + ORDER_RENDERERS.length + ' fill-form surfaces');
+
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,
 // so a snippet expanded without touching it dropped the choice and shipped the

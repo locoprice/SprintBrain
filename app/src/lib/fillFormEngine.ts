@@ -81,6 +81,13 @@ export interface SbFillField {
   /** The prose immediately before/after the token, so a row reads like the body. */
   before: string;
   after: string;
+  /**
+   * The field this one may not open before, or '' for no ordering. Distinct
+   * from `after` above, which is prose: this names another field.
+   */
+  notBefore: string;
+  /** The earliest value the picker may offer, resolved from that field. */
+  min: string;
   /** A choice list is block level: its context goes above and below, not beside. */
   block: boolean;
   /** What the Adjust panel offers this field; null for anything but a date. */
@@ -178,6 +185,15 @@ interface SbFormulaEngineApi {
 /** The engine's date formatter, or null until the scripts have loaded. */
 export function formulaEngine(): SbFormulaEngineApi | null {
   return window.SBFormulaEngine ?? null;
+}
+
+/**
+ * The shared fill-form module, or null until the scripts have loaded. Exposed so
+ * a builder can ask what fields a body already holds through the same decider
+ * every fill surface uses, rather than re-deriving the rule from the text.
+ */
+export function fillFormApi(): SbFillFormApi | null {
+  return window.SBFillForm ?? null;
 }
 
 declare global {
