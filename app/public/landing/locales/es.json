@@ -685,6 +685,51 @@
       "find": "var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];",
       "replace": "var MONTHS=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];",
       "count": 1
+    },
+    {
+      "find": "Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team",
+      "replace": "Estimado huésped,\n\nEl total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.\n\nUn cordial saludo,\nEquipo LeibTour",
+      "count": 1
+    },
+    {
+      "find": "            Dear guest,<br>\n            Thank you for your interest. The total for 3 nights is\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/night × 3)</span>,\n            including a <b><span class=\"fs-num\">10%</span></b> early-bird discount.",
+      "replace": "            Estimado huésped,<br>\n            Gracias por tu interés. El total por 3 noches es\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/noche × 3)</span>,\n            incluido el <b><span class=\"fs-num\">10%</span></b> de descuento por reserva anticipada.",
+      "count": 1
+    },
+    {
+      "find": "'Dear guest,\\n\\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\\n\\nBest regards,\\nLeibTour Team'",
+      "replace": "'Estimado huésped,\\n\\nEl total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.\\n\\nUn cordial saludo,\\nEquipo LeibTour'",
+      "count": 1
+    },
+    {
+      "find": "'Hi Marco, check-in opens at 16:00.\\n\\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\\n\\nSee you tomorrow!'",
+      "replace": "'Hola Marco, el check-in abre a las 16:00.\\n\\nLas llaves están en la cerradura inteligente junto a la verja: código 4417. El aparcamiento y los datos del wifi están en la guía.\\n\\n¡Hasta mañana!'",
+      "count": 1
+    },
+    {
+      "find": "'Following up on Tuesday’s quote.\\n\\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\\n\\nWant me to reserve it?'",
+      "replace": "'Retomo el presupuesto del martes.\\n\\nLa villa sigue libre para tus fechas y puedo mantenerla bloqueada hasta el viernes a las 18:00.\\n\\n¿Quieres que la reserve?'",
+      "count": 1
+    },
+    {
+      "find": "<h3>Row-level security</h3>",
+      "replace": "<h3>Seguridad a nivel de fila</h3>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-lbl\">Early-bird −10%</span>",
+      "replace": "<span class=\"fs-lbl\">Reserva anticipada −10%</span>",
+      "count": 1
+    },
+    {
+      "find": "<nav class=\"foot-lang\" aria-label=\"Language\">",
+      "replace": "<nav class=\"foot-lang\" aria-label=\"Idioma\">",
+      "count": 1
+    },
+    {
+      "find": "<button type=\"button\" class=\"btn btn-ghost btn-sm nav-account-trigger\" id=\"nav-account-trigger\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"nav-account-menu\">\n          Account",
+      "replace": "<button type=\"button\" class=\"btn btn-ghost btn-sm nav-account-trigger\" id=\"nav-account-trigger\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"nav-account-menu\">\n          Cuenta",
+      "count": 1
     }
   ]
 }
