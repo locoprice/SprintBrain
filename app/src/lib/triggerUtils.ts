@@ -82,6 +82,33 @@ export function deriveTriggerFromName(name: string): string {
     .replace(/[_-]+$/, '');           // the slice itself can expose a trailing one
 }
 
+/**
+ * Clean a trigger token *as it is typed*, so the field can only ever hold
+ * something the schema accepts.
+ *
+ * Same alphabet as `deriveTriggerFromName`, three deliberate differences,
+ * all of them because this runs on every keystroke rather than on a finished
+ * name:
+ *
+ *   - A space becomes `_`, it is not swallowed. Typing "follow up" writes
+ *     `follow_up`, which is what the user meant; joining it to `followup`
+ *     silently loses the word break.
+ *   - Case is kept. The trigger alphabet allows capitals and this is the
+ *     user's own text, not a token we derived for them.
+ *   - A trailing separator survives, because mid-word it is the separator the
+ *     user just typed and the next letter needs it. Only a *leading* run of
+ *     illegal characters is dropped, so a stray opening space never becomes a
+ *     token that starts with `_`.
+ */
+export function sanitizeTriggerInput(value: string): string {
+  return (value ?? '')
+    .normalize('NFD')                    // split accents off the letters they sit on
+    .replace(/\p{M}/gu, '')              // …then drop them: é → e, ñ → n
+    .replace(/^[^a-zA-Z0-9_-]+/, '')     // opening junk vanishes, never becomes a separator
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')    // any other run of illegal characters → one separator
+    .slice(0, TRIGGER_MAX_LENGTH);
+}
+
 /** Canonical defaults, matching the extension popup's initial triggerCfg. */
 export const DEFAULT_TRIGGER_CONFIG = {
   snippetTrigger: '::',

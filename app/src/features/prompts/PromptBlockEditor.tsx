@@ -5,7 +5,7 @@ import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { DEFAULT_TRIGGER_CONFIG, sanitizeTriggerInput } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
 import {
@@ -675,7 +675,9 @@ export function PromptBlockEditor() {
             type="text"
             value={shortcut}
             onChange={(e) => {
-              setShortcut(e.target.value);
+              // Cleaned on the way in, so a space lands as `_` and the save-time
+              // error can never fire on something the user typed here.
+              setShortcut(sanitizeTriggerInput(e.target.value));
               if (shortcutError) setShortcutError(null);
             }}
             placeholder="followup"

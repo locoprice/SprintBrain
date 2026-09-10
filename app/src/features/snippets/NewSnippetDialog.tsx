@@ -62,7 +62,11 @@ import {
 } from '@/lib/formDateToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
-import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
+import {
+  DEFAULT_TRIGGER_CONFIG,
+  deriveTriggerFromName,
+  sanitizeTriggerInput,
+} from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -165,17 +169,6 @@ const EMPTY_FORM: SnippetFormValues = {
  * thoughts rather than mid-word.
  */
 const LANGUAGE_CHECK_DELAY_MS = 500;
-
-/**
- * A snippet trigger is a bare token — the extension prepends the trigger prefix
- * (::) at match time (see content.js: `snippetTrigger + sc`), so it must never
- * be stored here. Strip anything that isn't a letter, number, hyphen, or
- * underscore so a prefix like `::` or a stray symbol can't be typed, pasted, or
- * carried over from a legacy row. Mirrors snippetFormSchema.trigger.
- */
-function sanitizeTrigger(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '');
-}
 
 // The rail was a row of Quick Insert chips until v3.14.4: one token per chip,
 // its whole explanation in a hover title. Every one of them is now a toggle
@@ -529,7 +522,7 @@ export function NewSnippetDialog() {
       }
       setForm({
         name:                 editingSnippet.name,
-        trigger:              sanitizeTrigger(editingSnippet.triggers[0] ?? ''),
+        trigger:              sanitizeTriggerInput(editingSnippet.triggers[0] ?? ''),
         content:              initialBodies[editingSnippet.language] ?? '',
         bodies:               initialBodies,
         folder_id:            editingSnippet.folder_id,
@@ -1581,7 +1574,7 @@ export function NewSnippetDialog() {
                   <input
                     id="snippet-trigger"
                     value={form.trigger}
-                    onChange={(e) => updateField('trigger', sanitizeTrigger(e.target.value))}
+                    onChange={(e) => updateField('trigger', sanitizeTriggerInput(e.target.value))}
                     placeholder="quoteEN"
                     spellCheck={false}
                     autoCapitalize="off"
