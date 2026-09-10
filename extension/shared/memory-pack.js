@@ -159,14 +159,206 @@
     };
   }
 
+  // ── CONTEXT BUILDING (MEMORY-002 P3) ──────────────────────────────────────
+  //
+  // The twin of buildContext in app/src/lib/memory/engine.ts. Same four passes,
+  // same order, same tiebreaks. `node scripts/check-memory-parity.js` runs both
+  // over identical candidates and fails if a single package differs.
+  //
+  // This is the half the injection panel calls: the user is mid-sentence, the
+  // draft is the query, and this decides what actually goes in the box.
+
+  // Score of a result ranked 15th by a single arm, under the 1/(60+rank)
+  // fusion knowledge_search uses. Below it a match is incidental.
+  var DEFAULT_MIN_RANK = 1 / 75;
+  var NEAR_DUPLICATE_THRESHOLD = 0.85;
+
+  // Not an attempt to reproduce pg_trgm. The only agreement that matters is
+  // with engine.ts, and the gate proves that on every commit.
+  function trigrams(text) {
+    var normalised = String(text == null ? '' : text)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/^\s+|\s+$/g, '');
+    if (!normalised) return [];
+    var padded = '  ' + normalised + ' ';
+    var out = [];
+    for (var i = 0; i + 3 <= padded.length; i++) out.push(padded.slice(i, i + 3));
+    return out;
+  }
+
+  /** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+  function textSimilarity(a, b) {
+    var left = {};
+    var right = {};
+    var leftSize = 0;
+    var rightSize = 0;
+    var grams = trigrams(a);
+    var i;
+
+    for (i = 0; i < grams.length; i++) {
+      if (!left[grams[i]]) { left[grams[i]] = true; leftSize++; }
+    }
+    grams = trigrams(b);
+    for (i = 0; i < grams.length; i++) {
+      if (!right[grams[i]]) { right[grams[i]] = true; rightSize++; }
+    }
+
+    if (leftSize === 0 || rightSize === 0) return leftSize === rightSize ? 1 : 0;
+
+    var shared = 0;
+    for (var gram in left) {
+      if (Object.prototype.hasOwnProperty.call(left, gram) && right[gram]) shared++;
+    }
+
+    var union = leftSize + rightSize - shared;
+    return union === 0 ? 0 : shared / union;
+  }
+
+  // Pinned first, then relevance, then stable. The name and id tiebreaks are
+  // what make the same draft produce the same context twice.
+  function orderCandidates(candidates) {
+    var copy = candidates.slice();
+    copy.sort(function (a, b) {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (a.rank !== b.rank) return b.rank - a.rank;
+      var byName = String(a.name).localeCompare(String(b.name));
+      if (byName !== 0) return byName;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return copy;
+  }
+
+  /**
+   * Build the context package for a draft. Four passes, and the order is the
+   * rule: floor, order, dedupe, fill.
+   */
+  function buildContext(request) {
+    var budget = request.budget;
+    var minRank = request.minRank === undefined ? DEFAULT_MIN_RANK : request.minRank;
+    var nearThreshold =
+      request.nearThreshold === undefined ? NEAR_DUPLICATE_THRESHOLD : request.nearThreshold;
+    var dedupe = request.dedupe !== false;
+    var candidates = request.candidates || [];
+
+    var dropped = [];
+    var deduped = [];
+    var i, j;
+
+    // 1. Floor. All-zero ranks mean no query ran, so there is no relevance to
+    // be below. Pinned is never filtered by relevance.
+    var searched = false;
+    for (i = 0; i < candidates.length; i++) {
+      if (candidates[i].rank > 0) { searched = true; break; }
+    }
+
+    var relevant = [];
+    for (i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (searched && !c.pinned && c.rank < minRank) {
+        dropped.push({ id: c.id, name: c.name, reason: 'below-floor' });
+        continue;
+      }
+      relevant.push(c);
+    }
+
+    // 2. Order.
+    var ordered = orderCandidates(relevant);
+
+    // 3. Dedupe. First occurrence wins, which after ordering is the best-ranked.
+    var kept = [];
+    if (dedupe) {
+      var seenHashes = {};
+      for (i = 0; i < ordered.length; i++) {
+        var cand = ordered[i];
+        var exact = cand.contentHash ? seenHashes[cand.contentHash] : null;
+        if (exact) {
+          deduped.push({ id: cand.id, name: cand.name, mergedInto: exact.id, reason: 'exact' });
+          continue;
+        }
+
+        var near = null;
+        for (j = 0; j < kept.length; j++) {
+          if (textSimilarity(cand.body, kept[j].body) >= nearThreshold) { near = kept[j]; break; }
+        }
+        if (near) {
+          deduped.push({ id: cand.id, name: cand.name, mergedInto: near.id, reason: 'near' });
+          continue;
+        }
+
+        if (cand.contentHash) seenHashes[cand.contentHash] = cand;
+        kept.push(cand);
+      }
+    } else {
+      for (i = 0; i < ordered.length; i++) kept.push(ordered[i]);
+    }
+
+    // 4. Fill. A candidate that does not fit is skipped, not terminal.
+    var items = [];
+    var used = 0;
+
+    for (i = 0; i < kept.length; i++) {
+      var k = kept[i];
+
+      if (k.pinned) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.body, tokens: k.tokens, compressed: false });
+        used += k.tokens;
+        continue;
+      }
+
+      if (used + k.tokens <= budget) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.body, tokens: k.tokens, compressed: false });
+        used += k.tokens;
+        continue;
+      }
+
+      // The body does not fit; a summary that does keeps the fact rather than
+      // losing it, marked so the reader knows it is the short version.
+      var summaryTokens = estimateTokens(k.summary);
+      if (k.summary && used + summaryTokens <= budget) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.summary, tokens: summaryTokens, compressed: true });
+        used += summaryTokens;
+        continue;
+      }
+
+      dropped.push({ id: k.id, name: k.name, reason: 'budget' });
+    }
+
+    // Source counts in first-appearance order, so the header reads the way the
+    // list does.
+    var sources = [];
+    for (i = 0; i < items.length; i++) {
+      var found = null;
+      for (j = 0; j < sources.length; j++) {
+        if (sources[j].kind === items[i].kind) { found = sources[j]; break; }
+      }
+      if (found) found.count++;
+      else sources.push({ kind: items[i].kind, count: 1 });
+    }
+
+    return {
+      items: items,
+      usedTokens: used,
+      budget: budget,
+      dropped: dropped,
+      deduped: deduped,
+      sources: sources,
+      overBudget: used > budget
+    };
+  }
+
   var API = {
     CHARS_PER_TOKEN: CHARS_PER_TOKEN,
+    DEFAULT_MIN_RANK: DEFAULT_MIN_RANK,
+    NEAR_DUPLICATE_THRESHOLD: NEAR_DUPLICATE_THRESHOLD,
     estimateTokens: estimateTokens,
     scoreShard: scoreShard,
     rankForStep: rankForStep,
     fillBudget: fillBudget,
     packForStep: packForStep,
     formatContextBlock: formatContextBlock,
+    textSimilarity: textSimilarity,
+    buildContext: buildContext,
     shardFromRow: shardFromRow,
     stepFromRow: stepFromRow
   };

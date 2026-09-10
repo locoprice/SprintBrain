@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   CHARS_PER_TOKEN,
+  buildContext,
+  textSimilarity,
+  type ContextCandidate,
   attachShard,
   createWorkingMemory,
   detachShard,
@@ -335,5 +338,227 @@ describe('renderPack', () => {
     const memory = createWorkingMemory(100);
     enterStep(memory, step('explore', [['explore', 1]], 100), [shard('a', ['explore'], 10)]);
     expect(renderPack(memory).stepKey).toBe('explore');
+  });
+});
+
+// ─── buildContext (MEMORY-002 P3) ────────────────────────────────────────────
+//
+// The parity gate proves engine.ts and memory-pack.js agree with each other.
+// These prove the rule they agree on is the right one.
+
+function candidate(id: string, overrides: Partial<ContextCandidate> = {}): ContextCandidate {
+  const body = overrides.body ?? `body of ${id}`;
+  return {
+    id,
+    kind: 'memory',
+    name: id,
+    summary: `summary of ${id}`,
+    body,
+    tokens: Math.ceil(body.length / CHARS_PER_TOKEN),
+    pinned: false,
+    rank: 0,
+    contentHash: `hash-${id}`,
+    ...overrides,
+  };
+}
+
+describe('textSimilarity', () => {
+  it('is 1 for identical text and for two empty strings', () => {
+    expect(textSimilarity('same words here', 'same words here')).toBe(1);
+    expect(textSimilarity('', '')).toBe(1);
+  });
+
+  it('is 0 when only one side is empty', () => {
+    expect(textSimilarity('something', '')).toBe(0);
+  });
+
+  it('ignores punctuation and case, so a reworded duplicate still scores high', () => {
+    expect(textSimilarity('Short sentences. No filler.', 'short sentences no filler')).toBe(1);
+  });
+
+  it('scores unrelated text low', () => {
+    expect(
+      textSimilarity('card payments carry a surcharge', 'reply in short sentences'),
+    ).toBeLessThan(0.3);
+  });
+});
+
+describe('buildContext relevance floor', () => {
+  it('drops an incidental match once a query has run', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('strong', { rank: 0.5 }), candidate('weak', { rank: 0.0001 })],
+    });
+
+    expect(pack.items.map((i) => i.id)).toEqual(['strong']);
+    expect(pack.dropped).toEqual([{ id: 'weak', name: 'weak', reason: 'below-floor' }]);
+  });
+
+  it('does not empty a browse, where every rank is zero', () => {
+    // Rank 0 means no query ran. Reading it as "irrelevant" would make the pill
+    // useless on an empty composer.
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('a'), candidate('b')],
+    });
+
+    expect(pack.items.map((i) => i.id)).toEqual(['a', 'b']);
+    expect(pack.dropped).toHaveLength(0);
+  });
+
+  it('never filters a pinned item by relevance', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('strong', { rank: 0.9 }), candidate('pin', { rank: 0, pinned: true })],
+    });
+
+    expect(pack.items.map((i) => i.id)).toContain('pin');
+  });
+});
+
+describe('buildContext deduplication', () => {
+  it('collapses identical hashes and keeps the better-ranked one', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('copy', { rank: 0.1, contentHash: 'same' }),
+        candidate('original', { rank: 0.9, contentHash: 'same' }),
+      ],
+    });
+
+    expect(pack.items.map((i) => i.id)).toEqual(['original']);
+    expect(pack.deduped).toEqual([
+      { id: 'copy', name: 'copy', mergedInto: 'original', reason: 'exact' },
+    ]);
+  });
+
+  it('collapses a reworded near-duplicate', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('v1', {
+          rank: 0.9,
+          contentHash: 'h1',
+          body: 'Short sentences. No filler. Specifics over adjectives.',
+        }),
+        candidate('v2', {
+          rank: 0.5,
+          contentHash: 'h2',
+          body: 'Short sentences. No filler. Specifics over adjectives!',
+        }),
+      ],
+    });
+
+    expect(pack.items).toHaveLength(1);
+    expect(pack.deduped[0]?.reason).toBe('near');
+  });
+
+  it('leaves genuinely different facts alone', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('pricing', {
+          rank: 0.9,
+          contentHash: 'h1',
+          body: 'Card payments carry a three percent surcharge.',
+        }),
+        candidate('tone', {
+          rank: 0.5,
+          contentHash: 'h2',
+          body: 'Reply in short sentences without filler.',
+        }),
+      ],
+    });
+
+    expect(pack.items).toHaveLength(2);
+    expect(pack.deduped).toHaveLength(0);
+  });
+});
+
+describe('buildContext budget and compression', () => {
+  it('falls back to the summary when the body will not fit', () => {
+    const pack = buildContext({
+      budget: 30,
+      candidates: [candidate('big', { rank: 0.9, tokens: 200, summary: 'the short version' })],
+    });
+
+    expect(pack.items).toHaveLength(1);
+    expect(pack.items[0]?.compressed).toBe(true);
+    expect(pack.items[0]?.text).toBe('the short version');
+    expect(pack.usedTokens).toBe(estimateTokens('the short version'));
+  });
+
+  it('drops an item when neither the body nor the summary fits', () => {
+    const pack = buildContext({
+      budget: 1,
+      candidates: [
+        candidate('huge', { rank: 0.9, tokens: 500, summary: 'still much too long for one token' }),
+      ],
+    });
+
+    expect(pack.items).toHaveLength(0);
+    expect(pack.dropped).toEqual([{ id: 'huge', name: 'huge', reason: 'budget' }]);
+  });
+
+  it('lets a small low-ranked item in after a large one did not fit', () => {
+    const pack = buildContext({
+      budget: 60,
+      candidates: [
+        candidate('large', { rank: 0.9, tokens: 500, summary: '' }),
+        candidate('small', { rank: 0.2, tokens: 40, summary: '' }),
+      ],
+    });
+
+    expect(pack.items.map((i) => i.id)).toEqual(['small']);
+  });
+
+  it('attaches a pinned item over budget and reports the overrun', () => {
+    const pack = buildContext({
+      budget: 50,
+      candidates: [candidate('pin', { pinned: true, tokens: 400 })],
+    });
+
+    expect(pack.items.map((i) => i.id)).toEqual(['pin']);
+    expect(pack.overBudget).toBe(true);
+  });
+});
+
+describe('buildContext output', () => {
+  it('counts each source for the preview header', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('m1', { kind: 'memory', rank: 0.9 }),
+        candidate('s1', { kind: 'snippet', rank: 0.8 }),
+        candidate('s2', { kind: 'snippet', rank: 0.7 }),
+      ],
+    });
+
+    expect(pack.sources).toEqual([
+      { kind: 'memory', count: 1 },
+      { kind: 'snippet', count: 2 },
+    ]);
+  });
+
+  it('is deterministic: the same candidates always give the same package', () => {
+    // Someone who gets different context for the same draft on a rerun cannot
+    // debug it, and neither can an agent.
+    const candidates = [
+      candidate('b', { rank: 0.5, name: 'beta' }),
+      candidate('a', { rank: 0.5, name: 'alpha' }),
+      candidate('c', { rank: 0.9, name: 'gamma' }),
+    ];
+    const first = JSON.stringify(buildContext({ budget: 1000, candidates }));
+
+    for (let run = 0; run < 100; run += 1) {
+      expect(JSON.stringify(buildContext({ budget: 1000, candidates }))).toBe(first);
+    }
+  });
+
+  it('handles an empty candidate list', () => {
+    const pack = buildContext({ budget: 1000, candidates: [] });
+    expect(pack.items).toHaveLength(0);
+    expect(pack.usedTokens).toBe(0);
+    expect(pack.overBudget).toBe(false);
   });
 });

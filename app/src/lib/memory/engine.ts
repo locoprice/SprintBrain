@@ -393,3 +393,314 @@ export function renderPack(memory: WorkingMemory): MemoryPack {
     })),
   };
 }
+
+// ─── Context building (MEMORY-002 P3) ────────────────────────────────────────
+//
+// The other half of this file. `enterStep` serves a long agent session that
+// swaps context as work moves between phases. `buildContext` serves a person
+// mid-sentence: it takes whatever retrieval returned for the draft they are
+// typing and decides what actually goes in the box.
+//
+// Both live here because both are selection, and selection has exactly one
+// authority. Ranking arrives from outside (label weights for a step, a fused
+// search score for a query); what this file owns is what happens next.
+
+/**
+ * One retrieval result, ready to be selected.
+ *
+ * Wider than MemoryShard because it spans sources: a snippet and a memory item
+ * both arrive here through `app.knowledge_index`, and the package has to say
+ * which is which. Labels are absent on purpose: they filter during retrieval,
+ * and re-reading them here would invite a second, competing relevance rule.
+ */
+export interface ContextCandidate {
+  id: string;
+  /** 'memory' or 'snippet'. Free text so a later source needs no change here. */
+  kind: string;
+  name: string;
+  summary: string;
+  body: string;
+  /** Token cost of `body`, from the database. */
+  tokens: number;
+  pinned: boolean;
+  /**
+   * Fused relevance from `knowledge_search`. Higher is better.
+   *
+   * Zero carries meaning: it is what a browse returns when no query was run,
+   * NOT a statement that the row is irrelevant. `minRank` respects that.
+   */
+  rank: number;
+  /** sha256 of the body. Drives the exact-duplicate pass. */
+  contentHash: string;
+}
+
+/** What the item contributed, and whether it had to be shortened to fit. */
+export interface ContextItem {
+  id: string;
+  kind: string;
+  name: string;
+  /** The text that goes in: the body, or the summary when the body did not fit. */
+  text: string;
+  tokens: number;
+  /** True when `text` is the summary. The UI says so rather than hiding it. */
+  compressed: boolean;
+}
+
+export type DropReason = 'budget' | 'below-floor';
+
+export interface DroppedCandidate {
+  id: string;
+  name: string;
+  reason: DropReason;
+}
+
+export interface MergedCandidate {
+  id: string;
+  name: string;
+  /** The id of the candidate that survived and represents this one. */
+  mergedInto: string;
+  reason: 'exact' | 'near';
+}
+
+export interface ContextPackage {
+  items: ContextItem[];
+  usedTokens: number;
+  budget: number;
+  dropped: DroppedCandidate[];
+  deduped: MergedCandidate[];
+  /** How many items each source contributed, for the preview header. */
+  sources: Array<{ kind: string; count: number }>;
+  /** True when pinned items alone exceed the budget. They go in anyway. */
+  overBudget: boolean;
+}
+
+export interface ContextRequest {
+  candidates: readonly ContextCandidate[];
+  budget: number;
+  /** Collapse duplicates. On by default; off is for showing a raw result list. */
+  dedupe?: boolean;
+  /** Relevance floor. Defaults to DEFAULT_MIN_RANK. */
+  minRank?: number;
+  /** Near-duplicate threshold, 0 to 1. Defaults to NEAR_DUPLICATE_THRESHOLD. */
+  nearThreshold?: number;
+}
+
+/**
+ * Reciprocal-rank score of a result ranked 15th by a single arm.
+ *
+ * `knowledge_search` fuses with 1 / (60 + rank), so this is the score of
+ * something that only one arm found and did not find near the top. Below it,
+ * a result is matching on a stray word rather than on the subject, and putting
+ * it in someone's context costs tokens and attention for nothing.
+ */
+export const DEFAULT_MIN_RANK = 1 / 75;
+
+/** Trigram overlap above which two bodies are treated as the same fact. */
+export const NEAR_DUPLICATE_THRESHOLD = 0.85;
+
+/**
+ * Trigrams of a string, normalised.
+ *
+ * Deliberately NOT an attempt to reproduce pg_trgm. This runs client-side over
+ * a candidate set, and the only agreement that matters is between this file and
+ * its extension twin, which the parity gate proves on every commit. Matching
+ * Postgres exactly would mean copying its word-splitting and padding rules for
+ * no gain.
+ */
+function trigrams(text: string): string[] {
+  const normalised = String(text == null ? '' : text)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  if (!normalised) return [];
+  const padded = '  ' + normalised + ' ';
+  const out: string[] = [];
+  for (let i = 0; i + 3 <= padded.length; i += 1) out.push(padded.slice(i, i + 3));
+  return out;
+}
+
+/** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+export function textSimilarity(a: string, b: string): number {
+  const left = new Set(trigrams(a));
+  const right = new Set(trigrams(b));
+  if (left.size === 0 || right.size === 0) return left.size === right.size ? 1 : 0;
+
+  let shared = 0;
+  left.forEach((gram) => {
+    if (right.has(gram)) shared += 1;
+  });
+
+  const union = left.size + right.size - shared;
+  return union === 0 ? 0 : shared / union;
+}
+
+/**
+ * Order candidates for selection. Pinned first, then relevance, then stable.
+ *
+ * The name and id tiebreaks are what make a package reproducible: the same
+ * candidates always produce the same order, so the same draft twice gives the
+ * same context. An agent that gets different context on a rerun is not
+ * debuggable, and neither is a person.
+ */
+function orderCandidates(candidates: readonly ContextCandidate[]): ContextCandidate[] {
+  return [...candidates].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (a.rank !== b.rank) return b.rank - a.rank;
+    const byName = a.name.localeCompare(b.name);
+    if (byName !== 0) return byName;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
+ * Build the context package for a draft.
+ *
+ * Four passes, in this order, and the order is the rule:
+ *
+ *   1. FLOOR   drop what is not relevant enough to be worth tokens
+ *   2. ORDER   pinned, then relevance, then stable tiebreaks
+ *   3. DEDUPE  exact by hash, then near by trigram, first occurrence wins
+ *   4. FILL    body if it fits, else summary, else dropped
+ *
+ * Dedupe runs after ordering so the survivor of a pair is the better-ranked
+ * one rather than whichever the caller happened to list first. Fill runs last
+ * because a duplicate that was going to be collapsed must not have consumed
+ * budget on the way.
+ */
+export function buildContext(request: ContextRequest): ContextPackage {
+  const budget = request.budget;
+  const minRank = request.minRank === undefined ? DEFAULT_MIN_RANK : request.minRank;
+  const nearThreshold =
+    request.nearThreshold === undefined ? NEAR_DUPLICATE_THRESHOLD : request.nearThreshold;
+  const dedupe = request.dedupe !== false;
+
+  const dropped: DroppedCandidate[] = [];
+  const deduped: MergedCandidate[] = [];
+
+  // 1. Floor. A rank of zero everywhere means no query was run, so there is no
+  // relevance to be below and the floor would empty a browse. Pinned items are
+  // never filtered by relevance: always-on means always on.
+  const searched = request.candidates.some((candidate) => candidate.rank > 0);
+  const relevant: ContextCandidate[] = [];
+  for (const candidate of request.candidates) {
+    if (searched && !candidate.pinned && candidate.rank < minRank) {
+      dropped.push({ id: candidate.id, name: candidate.name, reason: 'below-floor' });
+      continue;
+    }
+    relevant.push(candidate);
+  }
+
+  // 2. Order.
+  const ordered = orderCandidates(relevant);
+
+  // 3. Dedupe. First occurrence wins, which after ordering is the best-ranked.
+  const kept: ContextCandidate[] = [];
+  if (dedupe) {
+    const seenHashes = new Map<string, ContextCandidate>();
+    for (const candidate of ordered) {
+      const exact = candidate.contentHash ? seenHashes.get(candidate.contentHash) : undefined;
+      if (exact) {
+        deduped.push({
+          id: candidate.id,
+          name: candidate.name,
+          mergedInto: exact.id,
+          reason: 'exact',
+        });
+        continue;
+      }
+
+      let near: ContextCandidate | null = null;
+      for (const survivor of kept) {
+        if (textSimilarity(candidate.body, survivor.body) >= nearThreshold) {
+          near = survivor;
+          break;
+        }
+      }
+      if (near) {
+        deduped.push({
+          id: candidate.id,
+          name: candidate.name,
+          mergedInto: near.id,
+          reason: 'near',
+        });
+        continue;
+      }
+
+      if (candidate.contentHash) seenHashes.set(candidate.contentHash, candidate);
+      kept.push(candidate);
+    }
+  } else {
+    for (const candidate of ordered) kept.push(candidate);
+  }
+
+  // 4. Fill. A candidate that does not fit is skipped rather than ending the
+  // loop, so a short item ranked below a long one still gets in.
+  const items: ContextItem[] = [];
+  let used = 0;
+
+  for (const candidate of kept) {
+    if (candidate.pinned) {
+      items.push({
+        id: candidate.id,
+        kind: candidate.kind,
+        name: candidate.name,
+        text: candidate.body,
+        tokens: candidate.tokens,
+        compressed: false,
+      });
+      used += candidate.tokens;
+      continue;
+    }
+
+    if (used + candidate.tokens <= budget) {
+      items.push({
+        id: candidate.id,
+        kind: candidate.kind,
+        name: candidate.name,
+        text: candidate.body,
+        tokens: candidate.tokens,
+        compressed: false,
+      });
+      used += candidate.tokens;
+      continue;
+    }
+
+    // The body does not fit. A summary that does keeps the fact in the package
+    // instead of losing it, and the item is marked so the reader knows it is
+    // reading the short version.
+    const summaryTokens = estimateTokens(candidate.summary);
+    if (candidate.summary && used + summaryTokens <= budget) {
+      items.push({
+        id: candidate.id,
+        kind: candidate.kind,
+        name: candidate.name,
+        text: candidate.summary,
+        tokens: summaryTokens,
+        compressed: true,
+      });
+      used += summaryTokens;
+      continue;
+    }
+
+    dropped.push({ id: candidate.id, name: candidate.name, reason: 'budget' });
+  }
+
+  // Source counts, in first-appearance order so the header reads the same way
+  // the list does.
+  const sources: Array<{ kind: string; count: number }> = [];
+  for (const item of items) {
+    const existing = sources.find((entry) => entry.kind === item.kind);
+    if (existing) existing.count += 1;
+    else sources.push({ kind: item.kind, count: 1 });
+  }
+
+  return {
+    items,
+    usedTokens: used,
+    budget,
+    dropped,
+    deduped,
+    sources,
+    overBudget: used > budget,
+  };
+}

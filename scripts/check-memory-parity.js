@@ -102,6 +102,149 @@ const CASES = [
   },
 ];
 
+// buildContext fixtures. Chosen for the seams: the floor's browse exemption,
+// each dedupe pass, compression, and pinned overrunning the budget.
+function cand(id, opts) {
+  const o = opts || {};
+  const body = o.body || 'body of ' + id;
+  return {
+    id,
+    kind: o.kind || 'memory',
+    name: o.name || id,
+    summary: o.summary === undefined ? 'summary of ' + id : o.summary,
+    body,
+    tokens: typeof o.tokens === 'number' ? o.tokens : Math.ceil(body.length / 4),
+    pinned: !!o.pinned,
+    rank: typeof o.rank === 'number' ? o.rank : 0,
+    contentHash: o.contentHash === undefined ? 'hash-' + id : o.contentHash,
+  };
+}
+
+const CONTEXT_CASES = [
+  {
+    name: 'context: everything fits, ordered by rank',
+    request: { budget: 1000, candidates: [cand('low', { rank: 0.02 }), cand('high', { rank: 0.9 })] },
+  },
+  {
+    name: 'context: a browse (all ranks zero) is not emptied by the floor',
+    request: { budget: 1000, candidates: [cand('a'), cand('b'), cand('c')] },
+  },
+  {
+    name: 'context: the floor drops an incidental match once a query ran',
+    request: {
+      budget: 1000,
+      candidates: [cand('strong', { rank: 0.5 }), cand('weak', { rank: 0.001 })],
+    },
+  },
+  {
+    name: 'context: pinned survives the floor',
+    request: {
+      budget: 1000,
+      candidates: [cand('strong', { rank: 0.5 }), cand('pin', { rank: 0.0001, pinned: true })],
+    },
+  },
+  {
+    name: 'context: identical hashes collapse, best rank survives',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('dupe', { rank: 0.1, contentHash: 'same', body: 'identical text here' }),
+        cand('orig', { rank: 0.9, contentHash: 'same', body: 'identical text here' }),
+      ],
+    },
+  },
+  {
+    name: 'context: near-identical bodies collapse on trigram overlap',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('v1', { rank: 0.9, contentHash: 'h1', body: 'Short sentences. No filler. Specifics over adjectives.' }),
+        cand('v2', { rank: 0.5, contentHash: 'h2', body: 'Short sentences. No filler. Specifics over adjectives!' }),
+      ],
+    },
+  },
+  {
+    name: 'context: distinct bodies are not collapsed',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('x', { rank: 0.9, contentHash: 'h1', body: 'Card payments carry a three percent surcharge.' }),
+        cand('y', { rank: 0.5, contentHash: 'h2', body: 'Reply in short sentences without filler words.' }),
+      ],
+    },
+  },
+  {
+    name: 'context: dedupe off keeps both',
+    request: {
+      budget: 1000,
+      dedupe: false,
+      candidates: [
+        cand('dupe', { rank: 0.1, contentHash: 'same' }),
+        cand('orig', { rank: 0.9, contentHash: 'same' }),
+      ],
+    },
+  },
+  {
+    name: 'context: body does not fit so the summary goes in instead',
+    request: {
+      budget: 30,
+      candidates: [
+        cand('big', { rank: 0.9, tokens: 200, summary: 'the short version' }),
+      ],
+    },
+  },
+  {
+    name: 'context: neither body nor summary fits, so it is dropped',
+    request: {
+      budget: 2,
+      candidates: [cand('huge', { rank: 0.9, tokens: 500, summary: 'still far too long to fit in two' })],
+    },
+  },
+  {
+    name: 'context: a small item ranked below a large one still gets in',
+    request: {
+      budget: 60,
+      candidates: [
+        cand('large', { rank: 0.9, tokens: 500, summary: '' }),
+        cand('small', { rank: 0.2, tokens: 40, summary: '' }),
+      ],
+    },
+  },
+  {
+    name: 'context: pinned bypasses the budget and flags the overrun',
+    request: {
+      budget: 50,
+      candidates: [cand('pin', { pinned: true, tokens: 400, rank: 0.5 }), cand('a', { rank: 0.4, tokens: 10 })],
+    },
+  },
+  {
+    name: 'context: mixed kinds are counted per source',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('m1', { kind: 'memory', rank: 0.9 }),
+        cand('s1', { kind: 'snippet', rank: 0.8 }),
+        cand('s2', { kind: 'snippet', rank: 0.7 }),
+      ],
+    },
+  },
+  {
+    name: 'context: equal ranks fall back to name then id',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('i2', { rank: 0.5, name: 'zulu' }),
+        cand('i1', { rank: 0.5, name: 'alpha' }),
+        cand('i0', { rank: 0.5, name: 'alpha' }),
+      ],
+    },
+  },
+  {
+    name: 'context: no candidates at all',
+    request: { budget: 1000, candidates: [] },
+  },
+];
+
 async function main() {
   // pathToFileURL: on Windows a bare absolute path reads as the 'c:' protocol.
   const engine = await import(pathToFileURL(ENGINE).href);
@@ -133,6 +276,67 @@ async function main() {
     }
   }
 
+  // ── buildContext (MEMORY-002 P3) ──────────────────────────────────────────
+  //
+  // The second selection path, and the one the injection panel calls. Same
+  // discipline as above: run both implementations over identical candidates and
+  // compare the whole package, not just the ids, because a compressed item or a
+  // merge reason differing between surfaces is the same class of bug.
+  for (const testCase of CONTEXT_CASES) {
+    const tsPack = engine.buildContext(testCase.request);
+    const jsPack = pack.buildContext(testCase.request);
+
+    // Compared as a whole so a new field cannot quietly escape the gate.
+    const shape = (p) => ({
+      items: p.items.map((i) => ({ id: i.id, kind: i.kind, tokens: i.tokens, compressed: i.compressed, text: i.text })),
+      usedTokens: p.usedTokens,
+      budget: p.budget,
+      dropped: p.dropped.map((d) => ({ id: d.id, reason: d.reason })).sort((a, b) => a.id.localeCompare(b.id)),
+      deduped: p.deduped.map((d) => ({ id: d.id, mergedInto: d.mergedInto, reason: d.reason })).sort((a, b) => a.id.localeCompare(b.id)),
+      sources: p.sources,
+      overBudget: p.overBudget,
+    });
+
+    try {
+      assert.deepStrictEqual(shape(jsPack), shape(tsPack), 'context packages differ');
+    } catch (err) {
+      failures++;
+      console.error('X ' + testCase.name);
+      console.error('   ' + err.message);
+      console.error('   ts: ' + JSON.stringify(shape(tsPack)));
+      console.error('   js: ' + JSON.stringify(shape(jsPack)));
+    }
+  }
+
+  // Similarity drives near-duplicate collapsing, so the two must agree to the
+  // digit. A threshold crossed on one surface and not the other means one of
+  // them silently keeps a duplicate.
+  const SIMILARITY_PAIRS = [
+    ['', ''],
+    ['abc', ''],
+    ['same text', 'same text'],
+    ['Short sentences. No filler.', 'Short sentences, no filler!'],
+    ['Totals round to the nearest unit', 'Totals round to the nearest whole unit'],
+    ['pricing rules', 'house style'],
+    ['ACCENTS Café', 'accents cafe'],
+    ['a', 'b'],
+  ];
+  for (const [a, b] of SIMILARITY_PAIRS) {
+    const tsSim = engine.textSimilarity(a, b);
+    const jsSim = pack.textSimilarity(a, b);
+    if (tsSim !== jsSim) {
+      failures++;
+      console.error('X textSimilarity disagrees on ' + JSON.stringify([a, b]) + ': ts ' + tsSim + ', js ' + jsSim);
+    }
+  }
+
+  for (const constant of ['DEFAULT_MIN_RANK', 'NEAR_DUPLICATE_THRESHOLD']) {
+    if (pack[constant] !== engine[constant]) {
+      failures++;
+      console.error('X ' + constant + ' differs: js ' + pack[constant] + ', ts ' + engine[constant]);
+    }
+  }
+
   // The token estimator has to agree too, or budgets mean different things on
   // the two surfaces even when the ranking matches.
   for (const length of [0, 1, 3, 4, 5, 99, 1000, 4001]) {
@@ -155,7 +359,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('OK Memory parity passed all ' + CASES.length + ' cases (+ token estimator)');
+  console.log(
+    'OK Memory parity passed ' + CASES.length + ' step cases + ' +
+    CONTEXT_CASES.length + ' context cases (+ similarity, constants, token estimator)',
+  );
 }
 
 main().catch(function (err) {
