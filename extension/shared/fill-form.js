@@ -487,20 +487,28 @@
     // renderer emits `min` and re-reads it when the named field changes.
     var byKey = {};
     for (var bk = 0; bk < fields.length; bk++) byKey[fields[bk].key] = fields[bk];
+    // Names here are deliberately unmistakable. `src` is this function's snippet
+    // BODY, and a var declared in this loop shares its scope: reusing the name
+    // overwrote the body with a field object, the preview stopped being text,
+    // and the editor rendered a blank page. Nothing in this loop may be named
+    // src, text, keys, vals, def or val.
     for (var mi = 0; mi < fields.length; mi++) {
-      var f = fields[mi];
-      if (!f.notBefore) continue;
-      var src = byKey[f.notBefore];
+      var depField = fields[mi];
+      if (!depField.notBefore) continue;
+      var orderSrc = byKey[depField.notBefore];
       // Pointing at a field that is not there, or not a date, is an authoring
       // slip. No limit beats a limit built on nothing.
-      if (!src || (src.type !== 'date' && src.type !== 'datetime')) { f.notBefore = ''; continue; }
-      var sv = trim(src.value);
-      if (sv === '') continue;
+      if (!orderSrc || (orderSrc.type !== 'date' && orderSrc.type !== 'datetime')) {
+        depField.notBefore = '';
+        continue;
+      }
+      var orderVal = trim(orderSrc.value);
+      if (orderVal === '') continue;
       // A datetime picker wants a full datetime as its min, a date picker a
       // date. Mixing them makes the browser ignore the attribute silently.
-      f.min = (f.type === 'datetime')
-        ? (src.type === 'datetime' ? sv : sv + 'T00:00')
-        : sv.slice(0, 10);
+      depField.min = (depField.type === 'datetime')
+        ? (orderSrc.type === 'datetime' ? orderVal : orderVal + 'T00:00')
+        : orderVal.slice(0, 10);
     }
 
     var shown = [];
