@@ -153,7 +153,7 @@ var DB = {
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
     return supaFetch('prompts', 'GET', null,
-      'select=id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
+      'select=id,user_id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -202,6 +202,7 @@ var activeMode   = 'snippets';
 var expandedId      = null;   // snippet id whose inline detail is open
 var detailLang      = null;   // active language inside the open detail
 var detailFieldVals = {};     // user-entered field values for the open detail's fill form
+var detailFieldFmts = {};     // formats picked in the Adjust panel, keyed the same way
 var selIdx          = -1;     // keyboard selection index in the snippet list
 var pSelIdx         = -1;     // keyboard selection index in the prompt list
 var loaded          = false;  // true once the authoritative Supabase load resolves
@@ -209,7 +210,7 @@ var listAnimated    = false;  // entrance animation runs once, on first data ren
 var searchAllFolders= false;  // "search all folders" escape from a folder-scoped miss
 
 // TRIGGER CONFIGURATION — cached in chrome.storage.local, owned by user_metadata
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true, autoCapitalize: true };
 
 function loadTriggerCfg(cb) {
   try {
@@ -220,6 +221,7 @@ function loadTriggerCfg(cb) {
         if (d.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = d.triggerCfg.snippetActivationKey;
         if (d.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = d.triggerCfg.promptActivationKey;
         if (typeof d.triggerCfg.selectionSuggestions === 'boolean') triggerCfg.selectionSuggestions = d.triggerCfg.selectionSuggestions;
+        if (typeof d.triggerCfg.autoCapitalize === 'boolean') triggerCfg.autoCapitalize = d.triggerCfg.autoCapitalize;
       }
       if (cb) cb();
     });
@@ -235,6 +237,7 @@ function applyTriggerCfgToInputs() {
   var pi = gi('iprompt'); if (pi) pi.textContent = triggerCfg.promptTrigger;
   var ie = gi('iex');     if (ie) ie.textContent = triggerCfg.snippetTrigger + 'quoteEN';
   var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
+  var ac = gi('tcfg-autocap');     if (ac) ac.checked = triggerCfg.autoCapitalize !== false;
   // Segmented-control glyphs mirror the live triggers (never hardcoded).
   var mgs = gi('mglyph-snip');  if (mgs) mgs.textContent = triggerCfg.snippetTrigger;
   var mgp = gi('mglyph-prmpt'); if (mgp) mgp.textContent = triggerCfg.promptTrigger;
@@ -984,6 +987,13 @@ function boot() {
               saveTriggerCfg();
             });
           }
+          var ac = gi('tcfg-autocap');
+          if (ac) {
+            ac.addEventListener('change', function () {
+              triggerCfg.autoCapitalize = ac.checked;
+              saveTriggerCfg();
+            });
+          }
           // Refresh from the single source of truth (user_metadata) so the popup
           // reflects a trigger changed on the dashboard, then repaint the lists.
           if (typeof sbPullTriggerMetadata === 'function') {
@@ -1192,12 +1202,20 @@ function _runNotionSync(cb, force) {
 // badges. See extension/shared/snippet-stats.js for the grouping rule.
 function groupCount(arr){ return SBSnippetStats.count(arr); }
 function libraryStats(){ return SBSnippetStats.stats(snips, SB_CURRENT_USER_ID); }
+// A prompt has no translations, so a row is a prompt. rowStats keeps the
+// breakdown agreeing with the count on the tab.
+function promptStats(){ return SBSnippetStats.rowStats(prompts, SB_CURRENT_USER_ID); }
+// The breakdown under the tabs describes whichever library is on screen.
+function renderLibStats(){
+  var ls=gi('lib-stats'); if(!ls) return;
+  ls.textContent=SBSnippetStats.statsLine(activeMode==='prompts' ? promptStats() : libraryStats());
+}
 function refreshUI(){
   var tp=gi('tp'); if(tp && activeMode!=='prompts') tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
   var st=libraryStats();
   var mcs=gi('mct-snip'); if(mcs) mcs.textContent=st.total;
   var mcp=gi('mct-prmpt'); if(mcp) mcp.textContent=prompts.length;
-  var ls=gi('lib-stats'); if(ls) ls.textContent=SBSnippetStats.statsLine(st);
+  renderLibStats();
   renderFolders();
   if(activeMode==='prompts') renderPrompts(gi('sq')?gi('sq').value:'');
   else renderList(gi('sq')?gi('sq').value:'');
@@ -1480,7 +1498,7 @@ function detailBody(s, lang, vars){
 function detailForm(body, lang){
   var M=window.SBFillForm;
   if(!M||!body) return { fields:[], buttons:[], preview:body||'', layout:'flat', steps:[] };
-  try{ return M.fillForm(body, detailFieldVals, { lang: lang||'' }); }
+  try{ return M.fillForm(body, detailFieldVals, { lang: lang||'', fieldFmt: detailFieldFmts }); }
   catch(e){ return { fields:[], buttons:[], preview:body, layout:'flat', steps:[] }; }
 }
 // Effective values for a body: what the operator entered, else each field's
@@ -1528,6 +1546,121 @@ function copyDetailPrimary(id){
   if(resolveFilled(body, detailActiveLang(s))!==body) copyFilled(id); else copyBody(id);
 }
 
+// ── ADJUST PANEL ────────────────────────────────────────────────────
+// The Date/Time builder's three decisions — which format, which day, what time
+// on it — offered again while the form is open. What each control MEANS is
+// decided in extension/shared/fill-form.js; this only draws it, in the same
+// words and the same order as the builder in the dashboard rail.
+//
+// Collapsed behind one link: nearly every fill wants the day the field already
+// opens on. Shared by the popup and Sprintbrain.html, like the rest of this
+// file; both style .d-adjbox in their own stylesheet.
+function detailAdjustHtml(f){
+  var a=f.adjust;
+  if(!a) return '';
+  var k=esc(f.key), rows='';
+
+  function optList(items, sel){
+    return items.map(function(o){
+      var v=(o.value===undefined)?o:o.value;
+      var text=(o.label===undefined)?o:o.label;
+      if(o.sample!==undefined) text+=' · '+o.sample;
+      return '<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(text)+'</option>';
+    }).join('');
+  }
+
+  if(a.formats.length){
+    rows+='<div class="d-adjrow"><span class="d-adjlbl">Format</span>'
+      +'<select class="d-fmt" data-adjkey="'+k+'">'+optList(a.formats,f.format)+'</select></div>';
+  }
+  if(a.modes.length){
+    rows+='<div class="d-adjrow"><span class="d-adjlbl">Day</span>'
+      +'<select class="d-daymode" data-adjkey="'+k+'">'+optList(a.modes,'none')+'</select>'
+      +'<span class="d-dayfixed" hidden>'
+        +'<input type="number" class="d-dayn" data-adjkey="'+k+'" min="1" step="1" value="1">'
+        +'<select class="d-dayu" data-adjkey="'+k+'">'+optList(a.units,'D')+'</select>'
+        +'<label class="d-adjchk"><input type="checkbox" class="d-dayback" data-adjkey="'+k+'">backwards</label>'
+      +'</span>'
+      +'<select class="d-daynamed" data-adjkey="'+k+'" hidden>'+optList(a.days,'')+'</select></div>';
+  }
+  if(a.hours.length){
+    rows+='<div class="d-adjrow"><span class="d-adjlbl">Clock</span>'
+      +'<select class="d-hh" data-adjkey="'+k+'">'+optList(a.hours,a.hour)+'</select>'
+      +'<span class="d-adjsep">:</span>'
+      +'<select class="d-mm" data-adjkey="'+k+'">'+optList(a.minutes,a.minute)+'</select></div>';
+  }
+  if(!rows) return '';
+  return '<button class="d-adj" type="button" data-adj="'+k+'" aria-expanded="false">Adjust ▾</button>'
+    +'<div class="d-adjbox" data-adjbox="'+k+'" hidden>'+rows+'</div>';
+}
+
+// Binds one rendered detail's Adjust panels. Called from the popup's own
+// binding pass and from Sprintbrain.html's, the same way runDetailButton is.
+//
+// A day or a clock choice writes a value into the picker that the operator
+// could have set by hand, so it lands in detailFieldVals and everything
+// downstream reads it as an ordinary answer. Only the format is held apart,
+// because it changes how the value prints rather than what the value is.
+function bindDetailAdjust(el){
+  var M=window.SBFillForm;
+  el.querySelectorAll('.d-fields .d-adj').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var box=btn.parentNode.querySelector('.d-adjbox[data-adjbox="'+btn.dataset.adj+'"]');
+      if(!box) return;
+      box.hidden=!box.hidden;
+      btn.setAttribute('aria-expanded', box.hidden?'false':'true');
+    });
+  });
+
+  el.querySelectorAll('.d-fields .d-adjbox').forEach(function(box){
+    var frow=box.closest('.d-frow');
+    var fields=box.closest('.d-fields');
+    var did=fields?fields.getAttribute('data-fid'):null;
+    var key=box.getAttribute('data-adjbox');
+    var inp=frow?frow.querySelector('[data-fkey="'+key+'"]'):null;
+    var type=inp?({date:'date',time:'time','datetime-local':'datetime'}[inp.type]||'text'):'text';
+
+    function write(val){
+      if(!inp||!val) return;
+      inp.value=val;
+      detailFieldVals[key]=val;
+      if(did) updateDetailPreview(did);
+    }
+    function applyDay(){
+      var mode=box.querySelector('.d-daymode');
+      var fixed=box.querySelector('.d-dayfixed');
+      var named=box.querySelector('.d-daynamed');
+      if(!mode||!M||!M.dayValue) return;
+      // Only one of the two shapes is ever an answer, so the other is off screen.
+      if(fixed) fixed.hidden=mode.value!=='fixed';
+      if(named) named.hidden=mode.value!=='named';
+      write(M.dayValue(type,{
+        mode:mode.value,
+        amount:fixed?box.querySelector('.d-dayn').value:'',
+        unit:fixed?box.querySelector('.d-dayu').value:'D',
+        back:fixed?box.querySelector('.d-dayback').checked:false,
+        named:named?named.value:''
+      }, inp?inp.value:''));
+    }
+    function applyClock(){
+      var hh=box.querySelector('.d-hh'), mm=box.querySelector('.d-mm');
+      if(!hh||!mm||!M||!M.clockValue) return;
+      write(M.clockValue(type,hh.value,mm.value,inp?inp.value:''));
+    }
+
+    box.querySelectorAll('select,input').forEach(function(ctrl){
+      var cls=ctrl.className;
+      var run=cls==='d-fmt'
+        ? function(){ detailFieldFmts[key]=ctrl.value; if(did) updateDetailPreview(did); }
+        : ((cls==='d-hh'||cls==='d-mm') ? applyClock : applyDay);
+      ctrl.addEventListener('change',run);
+      // The offset amount is typed, so it answers while it is being typed.
+      if(cls==='d-dayn') ctrl.addEventListener('input',run);
+    });
+  });
+}
+
 function renderDetailHtml(s){
   var vars=findVariants(s);
   var order=detailLangOrder(vars);
@@ -1571,7 +1704,12 @@ function renderDetailHtml(s){
         } else {
           var itype=(f.type==='date'||f.type==='time')?f.type
                    :(f.type==='datetime'?'datetime-local':(f.type==='number'?'number':'text'));
-          inp='<input type="'+itype+'" data-fkey="'+esc(k)+'" placeholder="'+esc(label)+'" value="'+esc(val)+'">';
+          var ordAttr='';
+          /* A closing date may not open before its opening one. The value comes
+             from the shared fill-form module; only the markup is local. */
+          if(f.notBefore) ordAttr+=' data-after="'+esc(f.notBefore)+'"';
+          if(f.min) ordAttr+=' min="'+esc(f.min)+'"';
+          inp='<input type="'+itype+'" data-fkey="'+esc(k)+'"'+ordAttr+' placeholder="'+esc(label)+'" value="'+esc(val)+'">';
         }
         // Reads like the snippet — "Rate Plan: [ Refundable ] per night". The
         // key label survives only for a field with no prose around it, which
@@ -1582,7 +1720,7 @@ function renderDetailHtml(s){
         form+='<div class="d-frow">'+lbl+(f.block
           ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
             (post?'<div class="d-ctxline">'+post+'</div>':'')
-          : '<div class="d-row">'+pre+inp+post+'</div>')+'</div>';
+          : '<div class="d-row">'+pre+inp+post+'</div>')+detailAdjustHtml(f)+'</div>';
       });
       // {button} controls — they set field values, they never print.
       var dBtns=vm.buttons;
@@ -1753,6 +1891,21 @@ function renderList(q){
   wireListRows(el);
 }
 
+/* A closing date may not open before its opening one. Re-run after any value
+   changes: the limit follows what the operator just picked, and a closing date
+   the new opening one invalidated is cleared rather than left impossible.
+   Shared by the popup detail and Sprintbrain.html, which run this same file. */
+function reorderDetailDates(el){
+  if(!el||!window.SBFillForm||!window.SBFillForm.orderedMin)return;
+  el.querySelectorAll('[data-after]').forEach(function(dst){
+    var src=el.querySelector('[data-fkey="'+dst.getAttribute('data-after')+'"]');
+    if(!src)return;
+    var min=window.SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
+    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
+    if(min&&dst.value&&dst.value<min)dst.value='';
+  });
+}
+
 function wireListRows(el){
   el.querySelectorAll('.item').forEach(function(row){
     row.addEventListener('click',function(){ toggleDetail(row.dataset.id); });
@@ -1785,15 +1938,18 @@ function wireListRows(el){
       } else {
         detailFieldVals[key]=inp.value;
       }
+      reorderDetailDates(el);
       if(did) updateDetailPreview(did);
     };
     inp.addEventListener('input',handler); inp.addEventListener('change',handler);
   });
+  reorderDetailDates(el);
   // Action buttons: run the code block against the live values, write the
   // results back into the inputs, re-resolve the preview in place.
   el.querySelectorAll('.d-fields .d-actbtn').forEach(function(btn){
     btn.addEventListener('click',function(e){ e.stopPropagation(); runDetailButton(btn); });
   });
+  bindDetailAdjust(el);
 }
 
 // Runs one {button}'s code block against the live fill-form values, writes the
@@ -1835,8 +1991,8 @@ function runDetailButton(btn){
 function toggleDetail(id){
   // Opening a (different) snippet starts with a fresh fill form; language
   // switches keep the entered values (handled in the data-dlang wiring).
-  if(expandedId===id){ expandedId=null; detailFieldVals={}; }
-  else { expandedId=id; detailLang=null; detailFieldVals={}; }
+  if(expandedId===id){ expandedId=null; detailFieldVals={}; detailFieldFmts={}; }
+  else { expandedId=id; detailLang=null; detailFieldVals={}; detailFieldFmts={}; }
   renderList(gi('sq')?gi('sq').value:'');
   reSel(id);
 }
@@ -1929,7 +2085,6 @@ function copyPrompt(pid){
 function setMode(m) {
   activeMode = m;
   var srow       = document.querySelector('.srow');
-  var libStats   = gi('lib-stats');
   var snipChips  = gi('snip-chips');
   var snipMain   = gi('snip-main');
   var pMain      = gi('prompt-main');
@@ -1947,9 +2102,10 @@ function setMode(m) {
   });
   if (seg) { if (m === 'prompts') seg.classList.add('on-prompts'); else seg.classList.remove('on-prompts'); }
 
+  renderLibStats();
+
   if (m === 'prompts') {
     if (srow) srow.classList.add('pmode');
-    if (libStats) libStats.style.display = 'none';
     if (snipChips) snipChips.style.display = 'none';
     if (snipMain) snipMain.style.display = 'none';
     if (pMain) pMain.className = 'p-main on';
@@ -1958,7 +2114,6 @@ function setMode(m) {
     renderPrompts(sq ? sq.value : '');
   } else {
     if (srow) srow.classList.remove('pmode');
-    if (libStats) libStats.style.display = '';
     if (snipChips) snipChips.style.display = '';
     if (snipMain) snipMain.style.display = '';
     if (pMain) pMain.className = 'p-main';

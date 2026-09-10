@@ -602,6 +602,41 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .field-opt input.field-in{width:18px;height:18px;flex:none;
   accent-color:var(--primary)}
 
+/* Date/Time Adjust panel — the builder's three decisions, offered again while
+   the form is open. A quiet link under the picker rather than a button: it is
+   a detour most fills never take and it must not compete with Copy. Its
+   controls stay at 16px because anything smaller makes iOS zoom the page on
+   focus, which throws the operator out of the form. */
+.field-adj{display:inline-block;margin-top:8px;padding:2px 0;background:none;
+  border:none;font-family:inherit;font-size:13px;font-weight:600;
+  color:var(--text2);cursor:pointer}
+.field-adj[aria-expanded=true]{color:var(--primary)}
+.field-adjbox{display:flex;flex-direction:column;gap:10px;margin-top:8px;
+  padding:12px;background:var(--bg-alt);border-radius:10px}
+.field-adjrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.field-adjlbl{flex:none;width:52px;font-size:11px;font-weight:700;
+  color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.field-adjbox select,.field-adjbox input[type=number]{flex:1 1 120px;
+  min-width:0;height:36px;padding:0 10px;border:1px solid var(--border);
+  border-radius:8px;background:var(--card);color:var(--text);
+  font-family:inherit;font-size:16px;appearance:none;-webkit-appearance:none}
+.field-adjbox input[type=number]{flex:0 0 68px}
+.field-dayfixed{display:flex;flex:1 1 100%;align-items:center;gap:8px}
+.field-adjchk{display:flex;align-items:center;gap:6px;flex:none;
+  font-size:13px;color:var(--text2)}
+.field-adjchk input[type=checkbox]{flex:none;width:18px;height:18px;
+  accent-color:var(--primary)}
+.field-adjsep{flex:none;color:var(--text2)}
+/* Scoped inside the box on purpose: a bare .field-hh loses to
+   `.field-adjbox select` on specificity, and the two clock controls then take
+   a 120px basis each and wrap onto separate lines. */
+.field-adjbox .field-hh,.field-adjbox .field-mm{flex:1 1 80px}
+/* An author `display` beats the browser's own [hidden]{display:none}, so both
+   flex boxes above would ignore the attribute and sit permanently open. Stated
+   here rather than swapped for a class, because `hidden` is what the panel
+   toggles on all four surfaces. */
+.field-adjbox[hidden],.field-dayfixed[hidden]{display:none}
+
 .no-fields{background:var(--card);border-radius:var(--r);padding:20px 16px;
   text-align:center;color:var(--text2);font-size:14px;box-shadow:var(--shadow-sm)}
 
@@ -1188,12 +1223,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <span id="prompts-count">0</span>
         <span class="mstatbig-unit">prompts</span>
       </div>
-      <button class="hdr-btn" id="prompts-back-btn" aria-label="Back to snippets" title="Back to snippets">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
-      </button>
     </div>
 
     <!-- Search rides on the hero, directly under the greeting. -->
@@ -1378,10 +1407,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
     <div class="sb-sheet-title" id="sb-prompt-sheet-title"></div>
     <ul class="sb-sheet-actions">
-      <li data-paction="copy" data-action="use"><span class="sb-sheet-act-i">📋</span> Copy to clipboard</li>
+      <li data-paction="use" data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
+      <li data-paction="copy"><span class="sb-sheet-act-i">📋</span> Copy text</li>
       <li data-paction="pin"><span class="sb-sheet-act-i">📌</span> <span id="sb-prompt-pin-lbl">Pin to top</span></li>
-      <li data-paction="duplicate"><span class="sb-sheet-act-i">⧉</span> Duplicate</li>
-      <li data-paction="delete" class="sb-action-danger"><span class="sb-sheet-act-i">🗑</span> Delete</li>
+      <li data-paction="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
+      <li data-paction="info"><span class="sb-sheet-act-i">ℹ️</span> Prompt info</li>
     </ul>
   </div>
 </div>
@@ -1623,13 +1653,12 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
    * With no signed-in user the library cannot be attributed, so everything
    * counts as personal rather than inventing teammates.
    */
-  function stats(rows, currentUserId) {
-    var groups = index(rows).groups;
+  function tally(owners, currentUserId) {
     var me = String(currentUserId || '');
-    var out = { total: groups.length, personal: 0, shared: 0, owners: 0 };
+    var out = { total: owners.length, personal: 0, shared: 0, owners: 0 };
     var seen = {};
-    for (var i = 0; i < groups.length; i++) {
-      var owner = groups[i].owner;
+    for (var i = 0; i < owners.length; i++) {
+      var owner = owners[i];
       if (!me || !owner || owner === me) { out.personal++; continue; }
       out.shared++;
       if (!seen[owner]) { seen[owner] = 1; out.owners++; }
@@ -1637,7 +1666,27 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return out;
   }
 
-  /** The one breakdown string both surfaces render, so they cannot drift. */
+  function stats(rows, currentUserId) {
+    var groups = index(rows).groups;
+    var owners = [];
+    for (var i = 0; i < groups.length; i++) owners.push(groups[i].owner);
+    return tally(owners, currentUserId);
+  }
+
+  /**
+   * The same breakdown for a library whose rows do not fold: a prompt carries
+   * no translations, so one row is one prompt. Grouping them by trigger base
+   * would merge two prompts whose shortcuts happen to share a stem, and print
+   * a total that disagrees with the count on the Prompts tab.
+   */
+  function rowStats(rows, currentUserId) {
+    var list = rows || [];
+    var owners = [];
+    for (var i = 0; i < list.length; i++) owners.push(ownerOf(list[i]));
+    return tally(owners, currentUserId);
+  }
+
+  /** The one breakdown string every library prints, so they cannot drift. */
   function statsLine(s) {
     var line = s.personal + ' personal';
     if (s.shared > 0) {
@@ -1652,6 +1701,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     count: count,
     groupFor: groupFor,
     stats: stats,
+    rowStats: rowStats,
     statsLine: statsLine
   };
 
@@ -1744,6 +1794,257 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return '';
   }
 
+  // ── ADJUSTING A DATE WHILE THE FORM IS OPEN ─────────────────────
+  // The three decisions the Date/Time builder makes when a snippet is written —
+  // which format, which day, what time on it — offered again to the person
+  // filling the form in. Same closed lists, same words, same order, so learning
+  // the builder is learning this.
+  //
+  // Two of the three are shortcuts into the picker and nothing more: a day or a
+  // clock choice writes a value the operator could have picked by hand. Only
+  // the format is a separate answer, because it changes how the value prints
+  // rather than what the value is, and it travels to the engine as
+  // resolveBody's `fmtOverride`.
+  //
+  // None of it is written back to the snippet. The author's token is untouched
+  // by anyone filling it in, which is what keeps a shared snippet from drifting
+  // every time a colleague expands it.
+
+  // How each format reads. The engine owns the lists; these are the words for
+  // them, in one place rather than once per surface.
+  var FORMAT_LABELS = {
+    'DD/MM/YYYY': 'Day / Month / Year',
+    'MM/DD/YYYY': 'Month / Day / Year',
+    'DD/MM/dddd': 'Day / Month / Weekday',
+    'HH:mm': '24-hour',
+    'hh:mm A': '12-hour (AM/PM)'
+  };
+
+  // The first entry of every format list: the value exactly as the picker
+  // returned it, which is what a {formdate:} carrying no format= prints.
+  var RAW_FORMAT_LABEL = 'As picked';
+
+  // Sentence case, not the raw token. Mirrors NAMED_SHIFT_LABELS in
+  // app/src/lib/formTimeToken.ts, which labels the same anchors in the builder.
+  var NAMED_DAY_LABELS = {
+    'tomorrow': 'Tomorrow',
+    'yesterday': 'Yesterday',
+    'next monday': 'Next Monday',
+    'next tuesday': 'Next Tuesday',
+    'next wednesday': 'Next Wednesday',
+    'next thursday': 'Next Thursday',
+    'next friday': 'Next Friday',
+    'next saturday': 'Next Saturday',
+    'next sunday': 'Next Sunday',
+    'start of month': 'Start of this month',
+    'start of next month': 'Start of next month',
+    'end of month': 'End of this month',
+    'end of next month': 'End of next month'
+  };
+
+  // The units a fixed offset counts in. A date picker cannot show an hour or a
+  // minute, so a date field is offered only the four that move a whole day; a
+  // datetime holds both halves and is offered all six. The builder offers all
+  // six because a {time:} token prints whatever format it is given.
+  var DAY_UNITS = [
+    { value: 'D',  label: 'Days' },
+    { value: 'W',  label: 'Weeks' },
+    { value: 'Mo', label: 'Months' },
+    { value: 'Y',  label: 'Years' }
+  ];
+  var CLOCK_UNITS = [
+    { value: 'H', label: 'Hours' },
+    { value: 'M', label: 'Minutes' }
+  ];
+
+  // Minutes step in fives, as they do in the builder's clock: nobody anchors a
+  // message to 09:07, and sixty entries to scroll past to reach half past is
+  // worse than the granularity is worth.
+  var MINUTE_STEP = 5;
+
+  // The three ways a day is chosen, in the builder's order and its words.
+  var DAY_MODES = [
+    { value: 'none',  label: 'Today' },
+    { value: 'fixed', label: 'Count forward' },
+    { value: 'named', label: 'A named day' }
+  ];
+
+  function pad2(n) {
+    var s = String(n);
+    return s.length < 2 ? '0' + s : s;
+  }
+
+  // A datetime picker value is 'YYYY-MM-DDTHH:mm'. Either half may be missing
+  // while the operator is part way through typing one, so both readers answer
+  // '' rather than guessing at the other half.
+  function dateHalf(v) {
+    var s = trim(v), t = s.indexOf('T');
+    return t === -1 ? (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '') : s.slice(0, t);
+  }
+
+  function clockHalf(v) {
+    var s = trim(v), t = s.indexOf('T');
+    if (t !== -1) return s.slice(t + 1, t + 6);
+    return /^\d{2}:\d{2}$/.test(s) ? s : '';
+  }
+
+  // Whether a fixed offset moves the clock rather than the calendar. `Mo` is
+  // months and `M` is minutes, so the unit is anchored at both ends — without
+  // the '$' a '+3Mo' would read as three hours' worth of nonsense.
+  var CLOCK_SHIFT_RE = /^[+-]\d+(H|M)$/i;
+
+  /** The `shift=` value for a fixed offset, or '' when it would be a no-op. */
+  function fixedShift(amount, unit, back) {
+    var n = parseInt(amount, 10);
+    if (!isFinite(n) || n <= 0) return '';
+    return (back ? '-' : '+') + n + String(unit || 'D');
+  }
+
+  // A date and a time each carry a format from their own list. A datetime
+  // prints both halves, so its list is every pairing of the two with a space
+  // between - the engine's own rule in _dateFormatOk, so what the Adjust panel
+  // offers is exactly what a token can hold. Building it here rather than
+  // hardcoding six strings keeps it right when either list changes.
+  function formatList(E, type) {
+    if (type === 'date') return (E.DATE_FORMATS || []).slice();
+    if (type === 'time') return (E.TIME_FORMATS || []).slice();
+    if (type === 'datetime') {
+      var dates = E.DATE_FORMATS || [], times = E.TIME_FORMATS || [], out = [];
+      for (var i = 0; i < dates.length; i++) {
+        for (var j = 0; j < times.length; j++) out.push(dates[i] + ' ' + times[j]);
+      }
+      return out;
+    }
+    return [];
+  }
+
+  function formatOk(E, type, fmt) {
+    var list = formatList(E, type), f = trim(fmt);
+    for (var i = 0; i < list.length; i++) if (list[i] === f) return f;
+    return '';
+  }
+
+  /**
+   * The Adjust panel for one field: which formats it may print in, which days
+   * it may jump to, and what its clock offers. null for every field that is not
+   * a date, so a renderer can ask one question instead of three.
+   *
+   * Each format carries a live sample of THIS field's own value rather than a
+   * fixed specimen date. The two numeric orders are indistinguishable until you
+   * see a day past the twelfth, and the value in hand is the one the operator
+   * is deciding about.
+   */
+  function adjustFor(E, type, value, now) {
+    if (type !== 'date' && type !== 'time' && type !== 'datetime') return null;
+    var fmt = E.sbFormatDate || null;
+    var sampleSrc = trim(value) || nowDefault(type, now, fmt);
+    var formats = [];
+    var list = formatList(E, type);
+    if (list.length) {
+      formats.push({
+        value: '',
+        label: RAW_FORMAT_LABEL,
+        sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, '') : sampleSrc
+      });
+      for (var i = 0; i < list.length; i++) {
+        formats.push({
+          value: list[i],
+          label: FORMAT_LABELS[list[i]] || list[i],
+          sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, list[i]) : sampleSrc
+        });
+      }
+    }
+
+    var hasDay = type === 'date' || type === 'datetime';
+    var hasClock = type === 'time' || type === 'datetime';
+
+    var days = [];
+    if (hasDay) {
+      var named = E.NAMED_SHIFTS || [];
+      for (var d = 0; d < named.length; d++) {
+        days.push({ value: named[d], label: NAMED_DAY_LABELS[named[d]] || named[d] });
+      }
+    }
+
+    var hours = [], minutes = [], hour = '', minute = '';
+    if (hasClock) {
+      for (var h = 0; h < 24; h++) hours.push(pad2(h));
+      for (var m = 0; m < 60; m += MINUTE_STEP) minutes.push(pad2(m));
+      var clock = clockHalf(sampleSrc);
+      hour = clock.slice(0, 2);
+      minute = clock.slice(3, 5);
+      // A field opens on the current minute, which is rarely a multiple of
+      // five. Adding it to the list rather than snapping to the nearest step
+      // means the control shows the time the field actually holds — a clock
+      // reading 09:35 beside a field holding 09:37 is a small lie the operator
+      // has no reason to expect.
+      if (minute && minutes.indexOf(minute) === -1) {
+        minutes.push(minute);
+        minutes.sort();
+      }
+      if (hours.indexOf(hour) === -1) hour = '';
+    }
+
+    return {
+      formats: formats,
+      modes: hasDay ? DAY_MODES.slice() : [],
+      units: hasDay ? (type === 'datetime' ? DAY_UNITS.concat(CLOCK_UNITS) : DAY_UNITS.slice()) : [],
+      days: days,
+      hours: hours,
+      minutes: minutes,
+      // What the clock controls should open on: the time already in the field.
+      hour: hour,
+      minute: minute
+    };
+  }
+
+  /**
+   * The picker value a day choice lands on.
+   *
+   * `choice` is { mode: 'none'|'fixed'|'named', amount, unit, back, named }.
+   * Renderers draw the three modes; what each one MEANS is decided here, so the
+   * phone and the in-page overlay can never disagree about which Monday "Next
+   * Monday" is.
+   *
+   * Counted from `now`, never from what is already in the picker: "count
+   * forward 3 days" means three days from today, and counting from the field
+   * would compound every time the operator nudged the number.
+   *
+   * On a datetime the clock half is the operator's and survives the move —
+   * unless the offset is itself an hour or a minute, which is a move of the
+   * clock and nothing else.
+   */
+  function dayValue(type, choice, current, now) {
+    var E = engine();
+    if (!E || !E.sbFormatDate) return '';
+    var c = choice || {};
+    var base = now || new Date();
+    var shift = '';
+    if (c.mode === 'named') shift = trim(c.named);
+    else if (c.mode === 'fixed') shift = fixedShift(c.amount, c.unit, c.back === true);
+
+    var moved = (shift && E.sbApplyShift) ? E.sbApplyShift(base, shift) : new Date(base.getTime());
+    var day = E.sbFormatDate(moved, 'YYYY-MM-DD');
+    if (type !== 'datetime') return day;
+    var clock = CLOCK_SHIFT_RE.test(shift)
+      ? E.sbFormatDate(moved, 'HH:mm')
+      : (clockHalf(current) || E.sbFormatDate(base, 'HH:mm'));
+    return day + 'T' + clock;
+  }
+
+  /**
+   * The picker value a clock choice lands on. A date field has no clock, so it
+   * answers '' rather than inventing one.
+   */
+  function clockValue(type, hour, minute, current, now) {
+    var E = engine();
+    if (!E || !E.sbFormatDate) return '';
+    var clock = pad2(parseInt(hour, 10) || 0) + ':' + pad2(parseInt(minute, 10) || 0);
+    if (type === 'time') return clock;
+    if (type !== 'datetime') return '';
+    return (dateHalf(current) || E.sbFormatDate(now || new Date(), 'YYYY-MM-DD')) + 'T' + clock;
+  }
+
   // Ordered field keys: walk order of the text first, which is the order the
   // author wrote them and the order all four surfaces already render, then any
   // {{placeholder}} the walk does not cover.
@@ -1771,8 +2072,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   //         theirs in a different column and must be able to use this later
   //         without the module knowing what a snippet is.
   // values  what the operator has entered so far, keyed by field name.
-  // opts    { fieldCfg, lang, now } — fieldCfg is a stored override that wins
-  //         over whatever the text declares.
+  // opts    { fieldCfg, fieldFmt, lang, now } — fieldCfg is a stored override
+  //         that wins over whatever the text declares. fieldFmt is the format
+  //         the operator picked in the Adjust panel, keyed the same way; it
+  //         lives beside `values` because it is the same kind of thing, an
+  //         answer given while the form is open and never saved.
   function fillForm(text, values, opts) {
     var E = engine();
     var src = (text === null || text === undefined) ? '' : String(text);
@@ -1792,9 +2096,15 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     // name and rendered as a plain text box.
     var declared = E.buildFormFieldCfg(src) || {};
     var stored = o.fieldCfg || {};
+    var picked = o.fieldFmt || {};
     var keys = fieldKeys(E, src);
     var ctxs = E.fieldContext ? (E.fieldContext(src) || {}) : {};
 
+    // What each date and time field will actually print, on its way to the
+    // engine. Every one of them is listed, not only the ones the operator
+    // touched, so the preview and the insert read the format off the same
+    // answer the form is showing.
+    var fmtOverride = {};
     var fields = [];
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
@@ -1817,6 +2127,23 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       var ctx = ctxs[key] || { before: '', after: '' };
       var val = Object.prototype.hasOwnProperty.call(vals, key) ? vals[key] : def;
 
+      // The format this field prints in: the author's, unless the operator
+      // picked another in the Adjust panel. '' is a real answer on both sides —
+      // print the picker's own value — so the override is read by presence.
+      var effFmt = '';
+      if (type === 'date' || type === 'time' || type === 'datetime') {
+        effFmt = formatOk(E, type, raw.format || '');
+        if (Object.prototype.hasOwnProperty.call(picked, key)) {
+          var want = trim(picked[key]), ok = formatOk(E, type, want);
+          // '' is a real answer: print the picker's own value. A format this
+          // kind of field does not have is a caller bug, and honouring it would
+          // quietly drop the author's, so it is ignored instead — the same rule
+          // the engine applies to fmtOverride.
+          if (want === '' || ok) effFmt = ok;
+        }
+        fmtOverride[key] = effFmt;
+      }
+
       fields.push({
         key: key,
         // Display name from a stored field_cfg. Empty when none is set: it is
@@ -1824,17 +2151,31 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // not agree (the overlay prints {KEY}, the phone humanises it).
         label: raw.label || '',
         type: type,
-        // How a number prints once it leaves the form: 'plain', 'currency' or
-        // 'percent'. Always '' for every other kind of field, so a renderer can
-        // read it without first asking what type it is holding. Formatting is
-        // output only — the value a formula reads stays the raw number, or
-        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50".
-        format: type === 'number' ? (raw.format || 'plain') : '',
+        // How the value prints once it leaves the form. A number carries
+        // 'plain', 'currency' or 'percent'; a date or a time carries one of the
+        // engine's DATE_FORMATS / TIME_FORMATS (a datetime pairs one of each),
+        // or '' for the raw picker value.
+        // Always '' for every other kind of field, so a renderer can read it
+        // without first asking what type it is holding. Formatting is output
+        // only — the value a formula reads stays the raw number, or
+        // {=SUBTOTAL * VAT / 100} would start doing arithmetic on "€1,200.50",
+        // and datetimediff() would stop reading a date it formatted itself.
+        format: type === 'number' ? (raw.format || 'plain') : effFmt,
         // ISO code behind a currency field, so a renderer can show the symbol
         // beside the input without re-parsing the token. '' for every other
         // field, and for a number that is not money.
         currency: type === 'number' && raw.format === 'currency'
           ? (raw.currency || 'EUR') : '',
+        // The field this one may not open before, or '' for no ordering. Named
+        // notBefore because `after` on a field is already the prose printed
+        // after its token, and the two are nothing to do with each other.
+        // A renderer emits `min` now and re-reads it whenever that field
+        // changes, because the limit follows what the operator just picked.
+        notBefore: (type === 'date' || type === 'datetime') ? (raw.after || '') : '',
+        // The earliest this field may hold, in the picker's own value format.
+        // Resolved below, once every field's value is known: the field being
+        // pointed at is often the one after this in walk order.
+        min: '',
         options: options,
         picks: (isMenu && E.formMenuPicks) ? E.formMenuPicks(val) : [],
         multiple: raw.multiple === true,
@@ -1846,10 +2187,41 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         // A choice list is block level, so the prose around its token goes
         // above and below rather than beside it on one line.
         block: isMenu,
+        // What the Adjust panel offers this field — formats, named days, units,
+        // clock. null for everything that is not a date, so a renderer asks one
+        // question rather than three.
+        adjust: adjustFor(E, type, val, now),
         // Always visible today. Conditional visibility will compute this from
         // the same {if:} the text already uses; nothing else in the shape moves.
         visible: true
       });
+    }
+
+    // ── ORDERING BETWEEN TWO FIELDS ──────────────────────────────
+    // A closing date may not fall before its opening one. This is not the same
+    // rule as limiting a date against today: a quote sent in September for a
+    // trip in March has two dates that are both far in the future, and only
+    // their order can be wrong.
+    //
+    // Resolved here rather than in each renderer, for the reason this module
+    // exists: four surfaces deciding it separately is how they drift. A
+    // renderer emits `min` and re-reads it when the named field changes.
+    var byKey = {};
+    for (var bk = 0; bk < fields.length; bk++) byKey[fields[bk].key] = fields[bk];
+    for (var mi = 0; mi < fields.length; mi++) {
+      var f = fields[mi];
+      if (!f.notBefore) continue;
+      var src = byKey[f.notBefore];
+      // Pointing at a field that is not there, or not a date, is an authoring
+      // slip. No limit beats a limit built on nothing.
+      if (!src || (src.type !== 'date' && src.type !== 'datetime')) { f.notBefore = ''; continue; }
+      var sv = trim(src.value);
+      if (sv === '') continue;
+      // A datetime picker wants a full datetime as its min, a date picker a
+      // date. Mixing them makes the browser ignore the attribute silently.
+      f.min = (f.type === 'datetime')
+        ? (src.type === 'datetime' ? sv : sv + 'T00:00')
+        : sv.slice(0, 10);
     }
 
     var shown = [];
@@ -1866,22 +2238,53 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
     var preview = src;
     try {
-      preview = E.resolveBody(E.interpolateSnippet(src, eff), eff, { lang: o.lang || '' });
+      preview = E.resolveBody(E.interpolateSnippet(src, eff), eff,
+        { lang: o.lang || '', fmtOverride: fmtOverride });
     } catch (e) { preview = src; }
 
     return {
       fields: fields,
       buttons: E.extractButtons ? (E.extractButtons(src) || []) : [],
       preview: preview,
+      // Hand straight to resolveBody alongside the values. A surface that
+      // resolves the body itself on insert — the overlay does — must pass this
+      // too, or what it inserts prints in a different format from the preview
+      // the operator just approved.
+      fmtOverride: fmtOverride,
       layout: layout,
       steps: buildSteps(shown, layout)
     };
   }
 
+  /**
+   * The earliest value a field may hold, given what the field it must not
+   * precede currently holds. Exported because the limit has to be re-applied
+   * live: a renderer draws `min` once, then the operator picks a start date and
+   * the end picker has to narrow without the form being rebuilt underneath the
+   * caret. Four surfaces, one rule.
+   *
+   * @param {string} dstType  the dependent field's kind
+   * @param {string} srcValue what the field it follows currently holds
+   * @returns {string} a value for the `min` attribute, or '' for no limit
+   */
+  function orderedMin(dstType, srcValue) {
+    var v = trim(srcValue);
+    if (v === '') return '';
+    // A datetime picker ignores a date-only min, and a date picker ignores one
+    // carrying a clock. Silently, in both directions.
+    if (dstType === 'datetime') return v.length > 10 ? v : v + 'T00:00';
+    return v.slice(0, 10);
+  }
+
   var API = {
     fillForm: fillForm,
+    orderedMin: orderedMin,
     inferType: inferType,
     chooseLayout: chooseLayout,
+    dayValue: dayValue,
+    clockValue: clockValue,
+    fixedShift: fixedShift,
+    MINUTE_STEP: MINUTE_STEP,
     STEP_THRESHOLD: STEP_THRESHOLD
   };
 
@@ -2117,6 +2520,46 @@ function sbDatetimeDiffUnitMs(unit){
   if(u==='day'||u==='days'||u==='d')return 86400000;
   return 60000;
 }
+/* CALENDAR-DAY DIFFERENCE - mirrors sbCalendarDayDiff / sbIsCalendarUnit in
+   extension/formula-engine.js. `day` divides elapsed milliseconds, which reads
+   2.04 across the October clock change and 1.83 once the dates carry times.
+   Comparing local Y/M/D through Date.UTC removes both: UTC has no DST, and the
+   clock is gone before the subtraction. `day` is untouched. */
+function sbCalendarDayDiff(a,b){
+  var ua=Date.UTC(a.getFullYear(),a.getMonth(),a.getDate());
+  var ub=Date.UTC(b.getFullYear(),b.getMonth(),b.getDate());
+  return Math.round((ub-ua)/86400000);
+}
+
+function sbIsCalendarUnit(unit){
+  var u=String(unit||'').toLowerCase();
+  return u==='calendar'||u==='calendarday'||u==='calendardays'||u==='cal';
+}
+
+/* DATE SPAN - mirrors sbResolveDateSpan in extension/formula-engine.js.
+   datetimediff answers every question, including the ones with no sensible
+   answer: an end before its start gives a negative, a blank date gives zero,
+   and both printed into a quote looking deliberate. A range that runs backwards
+   is not a short range, it is not a range - so this one declines, and the
+   formula around it prints nothing. datetimediff is left exactly as it was. */
+var SB_DATESPAN_RE=/datespan\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
+
+function sbResolveDateSpan(expr,vals){
+  var ok=true;
+  var out=String(expr).replace(SB_DATESPAN_RE,function(_,a,b,kind){
+    function resolve(arg){
+      if(arg.charAt(0)==='"'||arg.charAt(0)==="'")return arg.slice(1,-1);
+      return (vals&&vals[arg]!==undefined)?String(vals[arg]):'';
+    }
+    var da=sbParseUserDate(resolve(a)),db=sbParseUserDate(resolve(b));
+    if(!da||!db){ok=false;return '0';}
+    var n=sbCalendarDayDiff(da,db);
+    if(n<0){ok=false;return '0';}
+    return String(String(kind).toLowerCase()==='between'?n:n+1);
+  });
+  return {expr:out,ok:ok};
+}
+
 function sbResolveDatetimeDiff(expr,vals){
   var re=/datetimediff\s*\(\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*([A-Za-z_]\w*|"[^"]*"|'[^']*')\s*,\s*["']([^"']+)["']\s*\)/g;
   return String(expr).replace(re,function(_,a,b,unit){
@@ -2126,6 +2569,7 @@ function sbResolveDatetimeDiff(expr,vals){
     }
     var da=sbParseUserDate(resolve(a)),db=sbParseUserDate(resolve(b));
     if(!da||!db)return '0';
+    if(sbIsCalendarUnit(unit))return String(sbCalendarDayDiff(da,db));
     return String((db.getTime()-da.getTime())/sbDatetimeDiffUnitMs(unit));
   });
 }
@@ -2401,6 +2845,14 @@ var SB_TIME_FORMATS=['HH:mm','hh:mm A'];
 /* Only a date or a time carries a format. A datetime holds both halves and
    neither list prints it whole, so it stays raw rather than losing one. */
 function sbDateFormatOk(type,fmt){
+  /* A datetime prints both halves, so its format is one from each list with a
+     space between. Split on the FIRST space: 'hh:mm A' has one of its own. */
+  if(type==='datetime'){
+    var sp=String(fmt).indexOf(' ');
+    if(sp===-1)return '';
+    var dPart=fmt.slice(0,sp),tPart=fmt.slice(sp+1);
+    return (SB_DATE_FORMATS.indexOf(dPart)!==-1&&SB_TIME_FORMATS.indexOf(tPart)!==-1)?fmt:'';
+  }
   var list=type==='date'?SB_DATE_FORMATS:(type==='time'?SB_TIME_FORMATS:null);
   if(!list)return '';
   return list.indexOf(fmt)===-1?'':fmt;
@@ -2431,6 +2883,11 @@ function sbDateCfg(attrSrc,defVal){
   var fmtM=/(?:^|;)\s*format\s*=\s*([^;]+)/i.exec(attrSrc);
   var fmt=sbDateFormatOk(type,fmtM?fmtM[1].replace(/^\s+|\s+$/g,''):'');
   if(fmt)out.format=fmt;
+  /* `after=FIELD` orders this field against ANOTHER field, which is a different
+     rule from limiting it against today: with two dates months ahead, both are
+     valid future dates and only their order is wrong. Mirrors _dateCfg. */
+  var aftM=/(?:^|;)\s*after\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(attrSrc);
+  if(aftM&&(type==='date'||type==='datetime'))out.after=aftM[1];
   return out;
 }
 
@@ -2525,9 +2982,16 @@ function sbFormatNumber(raw,format,currency){
 
 /* Which fields in a body print formatted, and how. Only formats that change
    the output are listed, so a plain number and an unformatted date both cost
-   nothing here. Mirrors _fieldFormatMap in extension/formula-engine.js. */
-function sbFieldFormatMap(body){
-  var cfg=sbBodyFieldCfg(body),out=null;
+   nothing here. Mirrors _fieldFormatMap in extension/formula-engine.js.
+
+   `override` is resolveBody's `fmtOverride` opt: a format chosen while the form
+   is being filled in, rather than by the author. Only a date or a time accepts
+   one, and only from its own closed list, so a stray key can never turn a
+   number field into a date. '' is a real answer there — print the picker's own
+   value — so it is read by presence, and a non-empty format this kind of field
+   does not have is ignored rather than dropping the author's. */
+function sbFieldFormatMap(body,override){
+  var cfg=sbBodyFieldCfg(body),out=null,ov=override||null;
   for(var k in cfg){
     if(!Object.prototype.hasOwnProperty.call(cfg,k))continue;
     var f=cfg[k];
@@ -2535,10 +2999,16 @@ function sbFieldFormatMap(body){
       if(!f.format||f.format==='plain')continue;
       if(!out)out={};
       out[k]={kind:'number',format:f.format,currency:f.currency||SB_DEFAULT_CURRENCY};
-    }else if(f.type==='date'||f.type==='time'){
-      if(!f.format)continue;
+    }else if(f.type==='date'||f.type==='time'||f.type==='datetime'){
+      var dfmt=f.format||'';
+      if(ov&&Object.prototype.hasOwnProperty.call(ov,k)){
+        var ovRaw=String(ov[k]===null||ov[k]===undefined?'':ov[k]).replace(/^\s+|\s+$/g,'');
+        var ovFmt=sbDateFormatOk(f.type,ovRaw);
+        if(ovRaw===''||ovFmt)dfmt=ovFmt;
+      }
+      if(!dfmt)continue;
       if(!out)out={};
-      out[k]={kind:'date',format:f.format};
+      out[k]={kind:'date',format:dfmt};
     }
   }
   return out;
@@ -2585,6 +3055,35 @@ function sbButtonTrim(head){
   var m=/(?:^|\s)trim\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/i.exec(head);
   if(!m)return 'no';
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
+}
+
+/* {case: upper}…{/case} — prints a stretch of body in the case the author
+   asked for. The region is resolved FIRST and cased after, so a field or a
+   formula inside it expands normally and only then takes the case.
+   MIRRORED from extension/formula-engine.js — the phone keeps its own parser,
+   so an engine change has to be ported here by hand or the same snippet would
+   print differently on the two surfaces. */
+var SB_CASE_CLOSE='{/case}';
+var SB_CASE_MODES={upper:1,lower:1,title:1,sentence:1};
+var SB_CASE_WORD_RE=/[A-Za-zÀ-ÖØ-öø-ÿ'’]+/g;
+var SB_CASE_SENT_RE=/(^|[.!?]["'”’)\]]*\s+)([A-Za-zÀ-ÖØ-öø-ÿ])/g;
+function sbIsCaseHead(tokLow){return tokLow.slice(0,5)==='case:';}
+/* An unrecognised mode leaves the text untouched — a typo must never delete
+   what the author wrote. */
+function sbCaseMode(head){
+  var m=String(head).replace(/^\s+|\s+$/g,'').toLowerCase();
+  return SB_CASE_MODES[m]?m:'';
+}
+function sbApplyCaseMode(str,mode){
+  if(!str||!mode)return str;
+  if(mode==='upper')return str.toUpperCase();
+  if(mode==='lower')return str.toLowerCase();
+  if(mode==='title')return str.replace(SB_CASE_WORD_RE,function(w){
+    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  });
+  return str.toLowerCase().replace(SB_CASE_SENT_RE,function(_,lead,ch){
+    return lead+ch.toUpperCase();
+  });
 }
 
 /* Greeting for the local time of day. MIRRORED from extension/formula-engine.js
@@ -2644,11 +3143,11 @@ function sbResolveGreetingToken(rest,opts){
 function sbTokenFieldKey(t){
   var tLow=t.toLowerCase();
   if(t.charAt(0)==='='||t.charAt(0)==='{'||
-     t==='endif'||t==='else'||t==='/button'||
+     t==='endif'||t==='else'||t==='/button'||t==='/case'||
      t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
      tLow.slice(0,7)==='elseif:'||
      tLow.slice(0,5)==='time:'||
-     sbIsButtonHead(tLow)||sbIsGreetingHead(tLow))return '';
+     sbIsButtonHead(tLow)||sbIsCaseHead(tLow)||sbIsGreetingHead(tLow))return '';
   if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
   if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
   return t;
@@ -2731,11 +3230,13 @@ function resolveBody(body,vals,opts){
   var out='',i=0,gLock=-1;
   /* Which fields print formatted is decided by the WHOLE body: an {if:} branch
      can print a field declared outside it. Built once, then carried down on a
-     copy so the caller's opts is never mutated. Mirrors the engine. */
+     copy so the caller's opts is never mutated. Mirrors the engine, including
+     `opts.fmtOverride` — the format the person filling the form picked in the
+     Adjust panel, over the one the author wrote. */
   var _o=opts||{},fmtMap,subOpts;
   if(Object.prototype.hasOwnProperty.call(_o,'_fmtMap')){fmtMap=_o._fmtMap;subOpts=_o;}
   else{
-    fmtMap=sbFieldFormatMap(body);subOpts={};
+    fmtMap=sbFieldFormatMap(body,_o.fmtOverride);subOpts={};
     for(var _k in _o)if(Object.prototype.hasOwnProperty.call(_o,_k))subOpts[_k]=_o[_k];
     subOpts._fmtMap=fmtMap;
   }
@@ -2768,7 +3269,12 @@ function resolveBody(body,vals,opts){
 
       /* {=expr} */
       if(tok.charAt(0)==='='){
-        var ex=sbResolveDatetimeDiff(tok.slice(1),vals);
+        /* An impossible span makes the whole formula unanswerable: a missing
+           date, or an end before its start, prints nothing rather than a
+           confident wrong number. Mirrors evalFormula in the engine. */
+        var span=sbResolveDateSpan(tok.slice(1),vals);
+        if(!span.ok){i=cl+1;continue;}
+        var ex=sbResolveDatetimeDiff(span.expr,vals);
         /* Was parseFloat, which read "1.200,50" as 1.2 and turned "€1.200"
            into 0 with no error at all — the same defect the engine closed, which
            had been left live here. sbToNumber returns null for text, and an
@@ -2840,6 +3346,17 @@ function resolveBody(body,vals,opts){
         continue;
       }
 
+      /* {case: upper}…{/case} — resolve the region, then case it */
+      if(sbIsCaseHead(tokLow)){
+        var cClose=body.indexOf(SB_CASE_CLOSE,cl+1);
+        /* Unclosed: drop only the head so the rest still renders. */
+        if(cClose===-1){i=cl+1;continue;}
+        out+=sbApplyCaseMode(resolveBody(body.slice(cl+1,cClose),vals,subOpts),sbCaseMode(tok.slice(5)));
+        i=cClose+SB_CASE_CLOSE.length;
+        continue;
+      }
+      if(tok==='/case'){i=cl+1;continue;}
+
       /* {formtext/formdate/formmenu: …} — emits the value of the field it declares */
       if(sbIsFormToken(tokLow)){
         var fk=sbFormTokenName(tokLow,tok.slice(9));
@@ -2875,6 +3392,15 @@ window.SBFillFormEngine = {
   formMenuPicks:     sbFormMenuPicks,
   resolveBody:       resolveBody,
   sbFormatDate:      sbFormatDate,
+  /* The Adjust panel reads these to build its three lists and to work out
+     which day a choice lands on. The phone keeps its own parser, so the
+     adapter hands over its own copies; scripts/check-snippets.js asserts they
+     still agree with the engine's. */
+  sbFormatDateValue: sbFormatDateValue,
+  DATE_FORMATS:      SB_DATE_FORMATS,
+  TIME_FORMATS:      SB_TIME_FORMATS,
+  NAMED_SHIFTS:      SB_NAMED_SHIFTS,
+  sbApplyShift:      sbApplyShift,
   interpolateSnippet: function(body){ return body; },
   parsePlaceholders: function(){ return []; },
   extractButtons:    function(){ return []; }
@@ -3585,49 +4111,30 @@ function closePromptSheet(){
   clearTimeout(_promptSheetTimer);
   _promptSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');sheetPrompt=null;},300);
 }
-function duplicatePrompt(p){
-  var now=new Date().toISOString();
-  var row={
-    user_id:USER_ID,
-    name:(p.name||'Prompt')+' (copy)',
-    content:p.content||'',
-    type:p.type||'one-shot',
-    strategy_type:p.strategy_type||null,
-    thinking_mode:p.thinking_mode||null,
-    preferred_model:p.preferred_model||null,
-    complexity_level:p.complexity_level||null,
-    intent_category:p.intent_category||null,
-    output_type:p.output_type||null,
-    blocks:p.blocks||null,
-    pinned:false,
-    updated_at:now
-  };
-  fetch(SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT,
-    {method:'POST',headers:authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
-     body:JSON.stringify(row)})
-    .then(function(r){if(handle401(r))throw new Error('401');if(!r.ok)throw new Error('dup');return r.json();})
-    .then(function(data){
-      var created=Array.isArray(data)?data[0]:data;
-      if(created)allPrompts.unshift(created);
-      closePromptSheet();
-      renderPromptList();
-      showToast('Prompt duplicated ✓');
-    })
-    .catch(function(){closePromptSheet();showToast('Could not duplicate');});
+/* Share mirrors the snippet sheet: hand the text to the OS share sheet where
+   there is one, fall back to the clipboard where there is not. */
+function sharePrompt(p){
+  var text=p.content||'';
+  promptMarkUsed(p);
+  closePromptSheet();
+  if(navigator.share){
+    navigator.share({title:p.name||'Prompt',text:text}).catch(function(){});
+  }else{
+    copyText(text,function(){showToast('Prompt copied ✓ (sharing not supported)');});
+  }
 }
-function deletePromptRow(p){
-  fetch(SUPA+'/rest/v1/prompts?id=eq.'+encodeURIComponent(p.id)
-      +'&user_id=eq.'+encodeURIComponent(USER_ID),
-    {method:'DELETE',headers:authHeaders({'Prefer':'return=minimal'})})
-    .then(function(r){
-      if(handle401(r))throw new Error('401');
-      if(!r.ok)throw new Error('del');
-      allPrompts=allPrompts.filter(function(x){return x.id!==p.id;});
-      closePromptSheet();
-      renderPromptList();
-      showToast('Prompt deleted');
-    })
-    .catch(function(){closePromptSheet();showToast('Could not delete');});
+/* Read-only prompt detail, the prompt half of the shared info sheet. */
+function openPromptInfo(p){
+  var f=getFolderById(p.folder_id);
+  showInfoSheet(p.name||'Prompt',[
+    ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
+    ['Type', p.type||'—'],
+    ['Model', p.preferred_model||'—'],
+    ['Characters', String((p.content||'').length)],
+    ['Updated', p.updated_at?timeAgo(p.updated_at):'—'],
+    ['Last used', p.last_used_at?timeAgo(p.last_used_at):'Never'],
+    ['ID', p.id]
+  ]);
 }
 // Reflect the current page on the quick-action bar(s): the matching tile gets
 // the pushed/active state, every other tile resets. name=null clears them all.
@@ -4107,11 +4614,11 @@ function renderDetail(snip,keepVals){
             +'<span>'+esc(o)+'</span></label>';
         }).join('')+'</div>';
       }else if(t==='date'){
-        inp='<input class="field-in" data-f="'+esc(f)+'" type="date" value="'+esc(def)+'">';
+        inp='<input class="field-in" data-f="'+esc(f)+'"'+sbOrderAttrs(fld)+' type="date" value="'+esc(def)+'">';
       }else if(t==='time'){
         inp='<input class="field-in" data-f="'+esc(f)+'" type="time" value="'+esc(def)+'">';
       }else if(t==='datetime'||t==='datetime-local'){
-        inp='<input class="field-in" data-f="'+esc(f)+'" type="datetime-local" value="'+esc(def)+'">';
+        inp='<input class="field-in" data-f="'+esc(f)+'"'+sbOrderAttrs(fld)+' type="datetime-local" value="'+esc(def)+'">';
       }else{
         var itype=t==='number'?'number':'text';
         inp='<input class="field-in" data-f="'+esc(f)+'" type="'+itype+'" '
@@ -4127,16 +4634,152 @@ function renderDetail(snip,keepVals){
       return '<div class="field-row">'+head+(blockControl
         ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
           (post?'<div class="field-ctxline">'+post+'</div>':'')
-        : '<div class="field-inline">'+pre+inp+post+'</div>')+'</div>';
+        : '<div class="field-inline">'+pre+inp+post+'</div>')+mobAdjustHtml(fld)+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
-      inp.addEventListener('input',updatePrev);
+      inp.addEventListener('input',function(){sbReorderDates(form);updatePrev();});
       /* Selects and checkboxes report a pick through 'change', not 'input'. */
-      inp.addEventListener('change',updatePrev);
+      inp.addEventListener('change',function(){sbReorderDates(form);updatePrev();});
     });
+    sbReorderDates(form);
+    bindAdjust(form);
   }
   updatePrev();
   document.getElementById('det-body').scrollTop=0;
+}
+
+/* A closing date may not open before its opening one. The rule and the value
+   come from the shared fill-form module; only the markup and the live rebind are
+   local, which is the split that keeps four surfaces agreeing. */
+function sbOrderAttrs(fld){
+  var out='';
+  if(fld.notBefore)out+=' data-after="'+esc(fld.notBefore)+'"';
+  if(fld.min)out+=' min="'+esc(fld.min)+'"';
+  return out;
+}
+
+function sbReorderDates(form){
+  if(!form||!SBFillForm||!SBFillForm.orderedMin)return;
+  form.querySelectorAll('[data-after]').forEach(function(dst){
+    var src=form.querySelector('[data-f="'+dst.getAttribute('data-after')+'"]');
+    if(!src)return;
+    var min=SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
+    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
+    /* A closing date the new opening one has just invalidated is no longer an
+       answer. Clearing beats leaving an impossible pair sitting in the form. */
+    if(min&&dst.value&&dst.value<min)dst.value='';
+  });
+}
+
+/* ── ADJUST PANEL ────────────────────────────────
+   The Date/Time builder's three decisions — which format, which day, what time
+   on it — offered again while the form is open, so a date that is nearly right
+   does not have to be typed out on a phone keyboard.
+
+   What each control MEANS is decided by the shared view model above; this only
+   draws it, in the same words and the same order as every other surface.
+   Collapsed behind one link: nearly every fill wants the day the field already
+   opens on, and three rows under every date would push a short form off a phone
+   screen for a choice most people never make. */
+function mobAdjustHtml(fld){
+  var a=fld.adjust;
+  if(!a)return '';
+  var k=esc(fld.key),rows='';
+
+  function optList(items,sel){
+    return items.map(function(o){
+      var v=(o.value===undefined)?o:o.value;
+      var text=(o.label===undefined)?o:o.label;
+      if(o.sample!==undefined)text+=' · '+o.sample;
+      return '<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(text)+'</option>';
+    }).join('');
+  }
+
+  if(a.formats.length){
+    rows+='<div class="field-adjrow"><span class="field-adjlbl">Format</span>'
+      +'<select class="field-fmt" data-f="'+k+'">'+optList(a.formats,fld.format)+'</select></div>';
+  }
+  if(a.modes.length){
+    rows+='<div class="field-adjrow"><span class="field-adjlbl">Day</span>'
+      +'<select class="field-daymode" data-f="'+k+'">'+optList(a.modes,'none')+'</select>'
+      +'<span class="field-dayfixed" hidden>'
+        +'<input type="number" class="field-dayn" data-f="'+k+'" min="1" step="1" value="1" inputmode="numeric">'
+        +'<select class="field-dayu" data-f="'+k+'">'+optList(a.units,'D')+'</select>'
+        +'<label class="field-adjchk"><input type="checkbox" class="field-dayback" data-f="'+k+'">backwards</label>'
+      +'</span>'
+      +'<select class="field-daynamed" data-f="'+k+'" hidden>'+optList(a.days,'')+'</select></div>';
+  }
+  if(a.hours.length){
+    rows+='<div class="field-adjrow"><span class="field-adjlbl">Clock</span>'
+      +'<select class="field-hh" data-f="'+k+'">'+optList(a.hours,a.hour)+'</select>'
+      +'<span class="field-adjsep">:</span>'
+      +'<select class="field-mm" data-f="'+k+'">'+optList(a.minutes,a.minute)+'</select></div>';
+  }
+  if(!rows)return '';
+  return '<button class="field-adj" type="button" data-adj="'+k+'" aria-expanded="false">Adjust ▾</button>'
+    +'<div class="field-adjbox" data-adjbox="'+k+'" hidden>'+rows+'</div>';
+}
+
+/* A day or a clock choice writes a value into the picker that the operator
+   could have set by hand, so it goes back through the normal .field-in path and
+   readFields never learns the panel exists. Only the format is held apart: it
+   changes how the value prints, not what the value is. */
+function bindAdjust(form){
+  var M=window.SBFillForm;
+  form.querySelectorAll('.field-adj').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var box=form.querySelector('.field-adjbox[data-adjbox="'+btn.getAttribute('data-adj')+'"]');
+      if(!box)return;
+      box.hidden=!box.hidden;
+      btn.setAttribute('aria-expanded',box.hidden?'false':'true');
+    });
+  });
+
+  form.querySelectorAll('.field-adjbox').forEach(function(box){
+    var key=box.getAttribute('data-adjbox');
+    var row=box.closest('.field-row');
+    var inp=row?row.querySelector('.field-in[data-f="'+key+'"]'):null;
+    var type=inp?({date:'date',time:'time','datetime-local':'datetime'}[inp.type]||'text'):'text';
+
+    function write(val){
+      /* '' means the shared module could not work it out. Writing it would
+         clear a date the operator already set, which is worse than the
+         control doing nothing. */
+      if(!inp||!val)return;
+      inp.value=val;
+      updatePrev();
+    }
+    function applyDay(){
+      var mode=box.querySelector('.field-daymode');
+      var fixed=box.querySelector('.field-dayfixed');
+      var named=box.querySelector('.field-daynamed');
+      if(!mode||!M||!M.dayValue)return;
+      /* Only one of the two shapes is ever an answer, so the other is off screen. */
+      if(fixed)fixed.hidden=mode.value!=='fixed';
+      if(named)named.hidden=mode.value!=='named';
+      write(M.dayValue(type,{
+        mode:mode.value,
+        amount:fixed?box.querySelector('.field-dayn').value:'',
+        unit:fixed?box.querySelector('.field-dayu').value:'D',
+        back:fixed?box.querySelector('.field-dayback').checked:false,
+        named:named?named.value:''
+      },inp?inp.value:''));
+    }
+    function applyClock(){
+      var hh=box.querySelector('.field-hh'),mm=box.querySelector('.field-mm');
+      if(!hh||!mm||!M||!M.clockValue)return;
+      write(M.clockValue(type,hh.value,mm.value,inp?inp.value:''));
+    }
+
+    box.querySelectorAll('select,input').forEach(function(ctrl){
+      var cls=ctrl.className;
+      var run=cls==='field-fmt'?updatePrev
+        :((cls==='field-hh'||cls==='field-mm')?applyClock:applyDay);
+      ctrl.addEventListener('change',run);
+      /* The offset amount is typed, so it answers while it is being typed. */
+      if(cls==='field-dayn')ctrl.addEventListener('input',run);
+    });
+  });
 }
 
 /* Reads the fill form. A multiple-choice {formmenu:} is a checkbox group
@@ -4194,16 +4837,30 @@ function getVals(){
   return readFields(true);
 }
 
+/* How each date and time field prints, when the operator has chosen for itself
+   in the Adjust panel. Output only: the value in the picker is untouched, so a
+   formula still reads the raw date. A field with no panel is simply absent, and
+   the author's format stands. Mirrors getFmts in content.js. */
+function getFmts(){
+  var f={};
+  document.querySelectorAll('#fform .field-fmt').forEach(function(sel){
+    f[sel.getAttribute('data-f')]=sel.value;
+  });
+  return f;
+}
+
 function updatePrev(){
   if(!curSnip)return;
-  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()),{lang:curSnip.lang});
+  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()),
+    {lang:curSnip.lang,fmtOverride:getFmts()});
   document.getElementById('prev-text').textContent=resolved;
 }
 
 /* ── COPY ───────────────────────────────────────── */
 document.getElementById('copy-btn').addEventListener('click',function(){
   if(!curSnip)return;
-  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()),{lang:curSnip.lang});
+  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()),
+    {lang:curSnip.lang,fmtOverride:getFmts()});
   var raw=getRawVals(),filled=0;
   for(var k in raw){if(String(raw[k]).replace(/^\s+|\s+$/g,'')!=='')filled++;}
   logSnipUse(curSnip,filled);
@@ -4536,7 +5193,12 @@ function openSnippetInfo(s){
   // and API use. Tappable — a full id does not fit the row, so read-by-eye is
   // not the point; copy is.
   rows.push(['ID', s.id]);
-  document.getElementById('sb-info-title').textContent=s.title||'Snippet';
+  showInfoSheet(s.title||'Snippet',rows);
+}
+/* Snippets and prompts share one info panel: same key/value rows, same open
+   animation, only the title and the rows differ. */
+function showInfoSheet(title,rows){
+  document.getElementById('sb-info-title').textContent=title;
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
     var isId=r[0]==='ID';
     return '<div class="sb-info-row"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
@@ -4881,9 +5543,6 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
 /* ── QUICK ACTIONS ──────────────────────────────── */
 document.querySelectorAll('[data-qa="prompts"]').forEach(function(b){ b.addEventListener('click',showPrompts); });
 document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEventListener('click',showSnippetsHome); });
-document.getElementById('prompts-back-btn').addEventListener('click',function(){
-  if(document.getElementById('view-prompts').classList.contains('active'))hidePrompts();
-});
 (function(){
   var pst;
   var input=document.getElementById('prompt-srch');
@@ -4935,10 +5594,10 @@ function setupSheetDrag(sheetEl,closeFn){
     if(!li||!sheetPrompt)return;
     var act=li.getAttribute('data-paction');
     var p=sheetPrompt;
-    if(act==='copy'){promptCopy(p);closePromptSheet();}
+    if(act==='use'||act==='copy'){promptCopy(p);closePromptSheet();}
     else if(act==='pin'){togglePromptPin(p);closePromptSheet();}
-    else if(act==='duplicate'){duplicatePrompt(p);}
-    else if(act==='delete'){if(confirm('Delete this prompt?'))deletePromptRow(p);}
+    else if(act==='share'){sharePrompt(p);}
+    else if(act==='info'){closePromptSheet();setTimeout(function(){openPromptInfo(p);},320);}
   });
 })();
 

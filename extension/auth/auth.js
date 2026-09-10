@@ -285,7 +285,8 @@ function sbApplyTriggerMetadata(meta) {
       promptTrigger:        cur.promptTrigger        || '"""',
       snippetActivationKey: cur.snippetActivationKey || 'Tab',
       promptActivationKey:  cur.promptActivationKey  || 'Tab',
-      selectionSuggestions: (typeof cur.selectionSuggestions === 'boolean') ? cur.selectionSuggestions : true
+      selectionSuggestions: (typeof cur.selectionSuggestions === 'boolean') ? cur.selectionSuggestions : true,
+      autoCapitalize:       (typeof cur.autoCapitalize       === 'boolean') ? cur.autoCapitalize       : true
     };
     if (typeof meta.trigger_snippet_seq === 'string' && meta.trigger_snippet_seq.trim()) next.snippetTrigger = meta.trigger_snippet_seq.trim();
     if (typeof meta.trigger_prompt_seq  === 'string' && meta.trigger_prompt_seq.trim())  next.promptTrigger  = meta.trigger_prompt_seq.trim();

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertCircle, Brain, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Brain, Pencil, Plus, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { LoadingBlock } from '@/components/layout/LoadingBlock';
+import { PageBanner } from '@/components/layout/PageBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from '@/components/ui/action-menu';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { SearchField } from '@/components/ui/search-field';
 import { SpaceDialog } from '@/features/memory/SpaceDialog';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
 import { useMemoryStore } from '@/stores/memoryStore';
@@ -32,62 +34,39 @@ function SpaceCard({
   onRename: () => void;
   onTrash: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
-    <Card className="group relative flex flex-col gap-3 p-5 transition-colors hover:border-primary/40">
+    <Card className="relative flex flex-col gap-3 p-5 transition-colors hover:border-primary/40">
       <div className="flex items-start justify-between gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary-light text-primary">
           <SpaceIcon icon={space.ico} />
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            aria-label={`Actions for ${space.name}`}
-            onClick={() => setMenuOpen((open) => !open)}
-            className="rounded-md p-1 text-ink-subtle opacity-0 transition-opacity hover:bg-bg-alt hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {menuOpen ? (
+        <ActionMenu label={`Actions for ${space.name}`}>
+          {(close) => (
             <>
-              {/* Click-away target. A backdrop is cheaper here than a document
-                  listener per card, and there is only ever one menu open. */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMenuOpen(false)}
-                aria-hidden="true"
+              <ActionMenuItem
+                icon={<Pencil className="h-3.5 w-3.5" />}
+                label="Rename"
+                onClick={() => {
+                  close();
+                  onRename();
+                }}
               />
-              <div className="absolute right-0 top-7 z-20 w-44 overflow-hidden rounded-[12px] border border-line bg-card shadow-md">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onRename();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-bg-alt"
-                >
-                  <Pencil className="h-3.5 w-3.5 text-ink-subtle" />
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  disabled={space.is_default}
-                  title={space.is_default ? 'The default space cannot be trashed' : undefined}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onTrash();
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-bg disabled:cursor-not-allowed disabled:text-ink-subtle disabled:hover:bg-transparent"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Move to trash
-                </button>
-              </div>
+              <ActionMenuSeparator />
+              <ActionMenuItem
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                label="Move to trash"
+                disabled={space.is_default}
+                title={space.is_default ? 'The default space cannot be trashed' : undefined}
+                danger
+                onClick={() => {
+                  close();
+                  onTrash();
+                }}
+              />
             </>
-          ) : null}
-        </div>
+          )}
+        </ActionMenu>
       </div>
 
       <Link to={`/memory/${space.id}`} className="flex flex-col gap-1">
@@ -120,6 +99,7 @@ export function MemoryPage() {
   const loading = useMemoryStore((s) => s.loadingSpaces);
   const loaded = useMemoryStore((s) => s.loaded);
   const error = useMemoryStore((s) => s.error);
+  const clearError = useMemoryStore((s) => s.clearError);
   const loadSpaces = useMemoryStore((s) => s.loadSpaces);
   const createSpace = useMemoryStore((s) => s.createSpace);
   const renameSpace = useMemoryStore((s) => s.renameSpace);
@@ -166,22 +146,13 @@ export function MemoryPage() {
       />
 
       {error ? (
-        <div className="mb-4 flex items-start gap-2 rounded-[12px] bg-danger-bg px-3 py-2 text-sm text-danger">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
-        </div>
+        <PageBanner tone="error" onDismiss={clearError}>
+          {error}
+        </PageBanner>
       ) : null}
 
       <div className="mb-5 flex items-center gap-3">
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search spaces"
-            className="pl-9"
-          />
-        </div>
+        <SearchField value={query} onChange={setQuery} placeholder="Search spaces…" />
         {/* Held back until the first load finishes: "0 spaces" beside a spinner
             reads as an answer, and it is not one yet. */}
         <span className="text-xs text-ink-subtle">
@@ -190,9 +161,7 @@ export function MemoryPage() {
       </div>
 
       {loading && spaces.length === 0 ? (
-        <div className="flex items-center justify-center py-24 text-sm text-ink-subtle">
-          Loading your spaces…
-        </div>
+        <LoadingBlock what="your spaces" />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Brain}
@@ -212,7 +181,7 @@ export function MemoryPage() {
           }
         />
       ) : (
-        <div className={cn('grid gap-4', 'grid-cols-2 xl:grid-cols-3')}>
+        <div className="grid gap-4 grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((space) => {
             const total = totals.get(space.id);
             return (

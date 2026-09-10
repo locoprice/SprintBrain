@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { PageBanner } from '@/components/layout/PageBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Input } from '@/components/ui/input';
+import { SearchField } from '@/components/ui/search-field';
 import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
 import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
 import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
@@ -37,30 +38,7 @@ export function SnippetsPage() {
   const railOpen = useUiStore((s) => s.foldersRailOpen);
   const setRailOpen = useUiStore((s) => s.setFoldersRailOpen);
 
-  // Local input value so typing feels instant; debounce propagation to the store.
-  const [localQuery, setLocalQuery] = useState(storeQuery);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-
-  // Sync when the store query is reset externally (e.g. "Clear filters" in empty state).
-  useEffect(() => {
-    if (storeQuery === '') {
-      if (debounceRef.current !== null) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
-      setLocalQuery('');
-    }
-  }, [storeQuery]);
-
-  function handleQueryChange(value: string) {
-    setLocalQuery(value);
-    if (debounceRef.current !== null) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setQuery(value);
-      debounceRef.current = null;
-    }, 300);
-  }
 
   useEffect(() => {
     if (snippets.length === 0) {
@@ -104,53 +82,20 @@ export function SnippetsPage() {
       />
 
       {error && (
-        <div
-          role="alert"
-          className="mb-4 flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/5 p-3 text-xs text-danger"
-        >
-          <AlertCircle className="mt-px h-4 w-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button
-            type="button"
-            onClick={clearError}
-            aria-label="Dismiss error"
-            className="text-danger/60 hover:text-danger"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <PageBanner tone="error" onDismiss={clearError}>
+          {error}
+        </PageBanner>
       )}
 
       {importResult && (
-        <div
-          role="status"
-          className={`mb-4 flex items-start gap-2 rounded-[10px] border p-3 text-xs ${
-            importResult.ok
-              ? 'border-success/30 bg-success/5 text-success'
-              : 'border-danger/30 bg-danger/5 text-danger'
-          }`}
+        <PageBanner
+          tone={importResult.ok ? 'success' : 'error'}
+          onDismiss={() => setImportResult(null)}
         >
-          {importResult.ok ? (
-            <CheckCircle2 className="mt-px h-4 w-4 shrink-0" />
-          ) : (
-            <AlertCircle className="mt-px h-4 w-4 shrink-0" />
-          )}
-          <span className="flex-1">
-            {importResult.ok
-              ? `${importResult.count} snippet${importResult.count !== 1 ? 's' : ''} imported successfully${importResult.skipped > 0 ? ` · ${importResult.skipped} skipped` : ''}.`
-              : importResult.message}
-          </span>
-          <button
-            type="button"
-            onClick={() => setImportResult(null)}
-            aria-label="Dismiss"
-            className={
-              importResult.ok ? 'text-success/60 hover:text-success' : 'text-danger/60 hover:text-danger'
-            }
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+          {importResult.ok
+            ? `${importResult.count} snippet${importResult.count !== 1 ? 's' : ''} imported successfully${importResult.skipped > 0 ? ` · ${importResult.skipped} skipped` : ''}.`
+            : importResult.message}
+        </PageBanner>
       )}
 
       <div className="flex gap-8">
@@ -174,16 +119,11 @@ export function SnippetsPage() {
                 <PanelLeftOpen className="h-4 w-4" aria-hidden />
               )}
             </button>
-            <div className="relative w-full max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
-              <Input
-                type="search"
-                value={localQuery}
-                onChange={(e) => handleQueryChange(e.target.value)}
-                placeholder="Search by name, trigger, or tag…"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={storeQuery}
+              onChange={setQuery}
+              placeholder="Search by name, trigger, or tag…"
+            />
           </div>
 
           <FilterToolbar />

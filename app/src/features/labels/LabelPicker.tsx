@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Plus, Tag } from 'lucide-react';
 import { LabelBadge } from '@/components/shared/LabelBadge';
@@ -29,6 +29,13 @@ interface LabelPickerProps {
   disabled?: boolean;
   id?: string;
 }
+
+/** Gap between the field and its menu, and the margin the menu keeps off the viewport edge. */
+const MENU_GAP = 4;
+const VIEWPORT_MARGIN = 8;
+/** The scroll region's ceiling when there is room for it, and its floor when there isn't. */
+const LIST_MAX_HEIGHT = 220;
+const LIST_MIN_HEIGHT = 96;
 
 const TONE = {
   light: {
@@ -74,10 +81,11 @@ export function LabelPicker({
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, listMax: LIST_MAX_HEIGHT });
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const t = TONE[tone];
 
@@ -130,9 +138,55 @@ export function LabelPicker({
     };
   }, [open]);
 
+  // Place the menu once it has rendered, measuring rather than guessing: the
+  // list grows with the account's labels, and both editors put this field near
+  // the bottom of a tall panel, where a menu pinned under it runs off the
+  // screen. Below is the default; above wins when the menu does not fit below
+  // and there is more room there. Whichever side it takes, the scroll region is
+  // capped to what actually fits, so the menu is never cut off by the viewport.
+  // Runs before paint, so nothing is seen in the wrong place.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const listHeight = listRef.current?.offsetHeight ?? 0;
+    // Everything that is not the scroll region: search box, create row, error.
+    const chrome = menu.offsetHeight - listHeight;
+    const desired = chrome + Math.min(listHeight, LIST_MAX_HEIGHT);
+
+    const roomBelow = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN;
+    const roomAbove = rect.top - MENU_GAP - VIEWPORT_MARGIN;
+    const up = desired > roomBelow && roomAbove > roomBelow;
+
+    const room = up ? roomAbove : roomBelow;
+    const listMax = Math.max(LIST_MIN_HEIGHT, Math.min(LIST_MAX_HEIGHT, room - chrome));
+    const height = chrome + Math.min(listHeight, listMax);
+
+    setPos({
+      top: up
+        ? Math.max(VIEWPORT_MARGIN, rect.top - MENU_GAP - height)
+        : rect.bottom + MENU_GAP,
+      left: rect.left,
+      width: rect.width,
+      listMax,
+    });
+    // The menu's own height moves with what it holds, so a filtered list or the
+    // create row appearing re-runs the measurement.
+  }, [open, matches.length, canCreate, error]);
+
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    if (rect) {
+      setPos({
+        top: rect.bottom + MENU_GAP,
+        left: rect.left,
+        width: rect.width,
+        listMax: LIST_MAX_HEIGHT,
+      });
+    }
     setQuery('');
     setError(null);
     setOpen(true);
@@ -241,7 +295,11 @@ export function LabelPicker({
               className={cn('mb-1 w-full px-2.5 focus:outline-none', t.input)}
             />
 
-            <div className="max-h-[220px] overflow-y-auto">
+            <div
+              ref={listRef}
+              style={{ maxHeight: pos.listMax }}
+              className="overflow-y-auto"
+            >
               {matches.map(({ label, depth }) => {
                 const active = value.includes(label.id);
                 return (

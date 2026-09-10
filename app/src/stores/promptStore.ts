@@ -63,6 +63,7 @@ interface PromptStore {
   setFilters: (patch: Partial<PromptFilters>) => void;
   resetFilters: () => void;
   setCmdKOpen: (open: boolean) => void;
+  clearError: () => void;
   setSelectedFolder: (id: string | null) => void;
   addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
@@ -133,6 +134,8 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   resetFilters: () => set({ filters: DEFAULT_FILTERS, selectedFolderId: null }),
 
   setCmdKOpen: (open) => set({ cmdKOpen: open }),
+
+  clearError: () => set({ error: null }),
 
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
 

@@ -5,7 +5,7 @@ import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { DEFAULT_TRIGGER_CONFIG, sanitizeTriggerInput } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks } from '@/lib/promptUtils';
 import {
@@ -17,7 +17,7 @@ import {
 } from '@/lib/usePromptEvaluator';
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import { LabelPicker } from '@/features/labels/LabelPicker';
-import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -611,14 +611,28 @@ export function PromptBlockEditor() {
             <span className="text-[11px] text-[#FF5F57]">{nameError}</span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={close}
-          className="ml-3 shrink-0 rounded-[8px] p-1.5 text-[#9C9CA6] transition-colors hover:bg-[#222227] hover:text-[#E0E0E8]"
-          aria-label="Close editor"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="ml-3 flex shrink-0 items-center gap-1">
+          {/* About — behind an icon rather than a band in the drawer, which
+              returns that space to the controls used on every edit. */}
+          {mode === 'edit' && editingPrompt && (
+            <AssetAboutButton
+              tone="dark"
+              noun="prompt"
+              assetId={editingPrompt.id}
+              createdBy={editingPrompt.user_id}
+              updatedBy={editingPrompt.updated_by}
+              updatedAt={editingPrompt.updated_at}
+            />
+          )}
+          <button
+            type="button"
+            onClick={close}
+            className="rounded-[8px] p-1.5 text-[#9C9CA6] transition-colors hover:bg-[#222227] hover:text-[#E0E0E8]"
+            aria-label="Close editor"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── Intent suggestion banner ── */}
@@ -661,7 +675,9 @@ export function PromptBlockEditor() {
             type="text"
             value={shortcut}
             onChange={(e) => {
-              setShortcut(e.target.value);
+              // Cleaned on the way in, so a space lands as `_` and the save-time
+              // error can never fire on something the user typed here.
+              setShortcut(sanitizeTriggerInput(e.target.value));
               if (shortcutError) setShortcutError(null);
             }}
             placeholder="followup"
@@ -806,22 +822,6 @@ export function PromptBlockEditor() {
             </div>
           </div>
         </div>
-
-        {/* Attribution — who created / last touched this prompt */}
-        {mode === 'edit' && editingPrompt && (
-          <div className="border-t border-[#222227] px-5 py-4">
-            <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-widest text-[#9C9CA6]">
-              About
-            </p>
-            <AssetAttribution
-              tone="dark"
-              assetId={editingPrompt.id}
-              createdBy={editingPrompt.user_id}
-              updatedBy={editingPrompt.updated_by}
-              updatedAt={editingPrompt.updated_at}
-            />
-          </div>
-        )}
       </div>
 
       {/* ── Footer actions ── */}

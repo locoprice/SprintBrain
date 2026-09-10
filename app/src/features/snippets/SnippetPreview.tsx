@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+  clockValue,
+  dayValue,
   fillForm,
   loadFillFormEngine,
   runFormButton,
+  type SbDayMode,
   type SbFillField,
   type SbFillFormViewModel,
 } from '@/lib/fillFormEngine';
@@ -70,6 +73,9 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
   const [engineReady, setEngineReady] = useState(false);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
+  // Formats picked in a field's Adjust panel. Beside `values` rather than in
+  // it: the same kind of answer, given while the form is open and never saved.
+  const [fmts, setFmts] = useState<Record<string, string>>({});
   const [buttonErrors, setButtonErrors] = useState<string[]>([]);
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   // The body lags the textarea by one debounce, so typing does not re-parse on
@@ -115,11 +121,15 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
 
   const view: SbFillFormViewModel | null = useMemo(() => {
     if (!engineReady) return null;
-    return fillForm(debouncedBody, values, { lang });
-  }, [engineReady, debouncedBody, values, lang]);
+    return fillForm(debouncedBody, values, { lang, fieldFmt: fmts });
+  }, [engineReady, debouncedBody, values, fmts, lang]);
 
   const setValue = useCallback((key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const setFormat = useCallback((key: string, format: string) => {
+    setFmts((prev) => ({ ...prev, [key]: format }));
   }, []);
 
   const toggleOption = useCallback(
@@ -237,6 +247,7 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
                   key={field.key}
                   field={field}
                   onChange={(value) => setValue(field.key, value)}
+                  onFormat={(format) => setFormat(field.key, format)}
                   onToggleOption={(option, checked) =>
                     toggleOption(field, option, checked)
                   }
@@ -311,6 +322,7 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
 interface PreviewFieldProps {
   field: SbFillField;
   onChange: (value: string) => void;
+  onFormat: (format: string) => void;
   onToggleOption: (option: string, checked: boolean) => void;
 }
 
@@ -319,7 +331,7 @@ interface PreviewFieldProps {
  * field, so a row reads the way the body does; a choice list is block level and
  * takes its context above and below instead of beside it.
  */
-function PreviewField({ field, onChange, onToggleOption }: PreviewFieldProps) {
+function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFieldProps) {
   // A stored display name wins; otherwise the key, humanised.
   const label = field.label || fieldLabel(field.key);
   const showBefore = field.before !== '' && !isEchoOfLabel(field.before, label);
@@ -379,6 +391,7 @@ function PreviewField({ field, onChange, onToggleOption }: PreviewFieldProps) {
         {before}
         <input
           type={inputType(field)}
+          {...(field.min ? { min: field.min } : {})}
           value={field.value}
           placeholder={label}
           onChange={(e) => onChange(e.target.value)}
@@ -394,6 +407,228 @@ function PreviewField({ field, onChange, onToggleOption }: PreviewFieldProps) {
         />
         {after}
       </div>
+      <PreviewAdjust field={field} onValue={onChange} onFormat={onFormat} />
+    </div>
+  );
+}
+
+const ADJ_CONTROL =
+  'h-7 min-w-0 flex-1 rounded-lg border border-line bg-card px-2 text-[11px] text-ink ' +
+  'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const ADJ_LABEL =
+  'w-11 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle';
+
+interface PreviewAdjustProps {
+  field: SbFillField;
+  onValue: (value: string) => void;
+  onFormat: (format: string) => void;
+}
+
+/**
+ * The Date/Time builder's three decisions — which format, which day, what time
+ * on it — offered again while the form is open, so a date that is nearly right
+ * does not have to be typed out by hand.
+ *
+ * What each control MEANS is decided in `extension/shared/fill-form.js`; this
+ * only draws it, in the same words and the same order as the builder in the
+ * rail. Day and Clock write a value the operator could have picked by hand, so
+ * they go through `onValue` and everything downstream reads them as ordinary
+ * answers. Only Format is held apart: it changes how the value prints, not what
+ * the value is.
+ *
+ * Collapsed behind one link. Nearly every fill wants the day the field already
+ * opens on, and three rows under every date would push a short form off screen
+ * for a choice most people never make.
+ */
+function PreviewAdjust({ field, onValue, onFormat }: PreviewAdjustProps) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<SbDayMode>('none');
+  const [amount, setAmount] = useState('1');
+  const [unit, setUnit] = useState('D');
+  const [back, setBack] = useState(false);
+  const [named, setNamed] = useState('');
+
+  const adjust = field.adjust;
+  if (!adjust) return null;
+
+  const namedValue = named || adjust.days[0]?.value || '';
+
+  // Every control recomputes the whole choice, because the answer is the four
+  // of them together: changing the unit with an amount already typed must move
+  // the date, not wait for the amount to be retyped.
+  function applyDay(next: {
+    mode?: SbDayMode;
+    amount?: string;
+    unit?: string;
+    back?: boolean;
+    named?: string;
+  }) {
+    const value = dayValue(
+      field.type,
+      {
+        mode: next.mode ?? mode,
+        amount: next.amount ?? amount,
+        unit: next.unit ?? unit,
+        back: next.back ?? back,
+        named: next.named ?? namedValue,
+      },
+      field.value,
+    );
+    // '' means the engine has not loaded. Writing it would clear a date the
+    // operator already set, which is worse than the control doing nothing.
+    if (value) onValue(value);
+  }
+
+  function applyClock(hour: string, minute: string) {
+    const value = clockValue(field.type, hour, minute, field.value);
+    if (value) onValue(value);
+  }
+
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={cn(
+          'self-start px-1 py-0.5 text-[10px] font-semibold transition-colors',
+          open ? 'text-primary' : 'text-ink-subtle hover:text-primary',
+        )}
+      >
+        Adjust {open ? '▴' : '▾'}
+      </button>
+
+      {open && (
+        <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-line bg-bg-alt px-2 py-2">
+          {adjust.formats.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={ADJ_LABEL}>Format</span>
+              <select
+                value={field.format}
+                onChange={(e) => onFormat(e.target.value)}
+                className={ADJ_CONTROL}
+              >
+                {adjust.formats.map((f) => (
+                  <option key={f.value || 'raw'} value={f.value}>
+                    {f.label} · {f.sample}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {adjust.modes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={ADJ_LABEL}>Day</span>
+              <select
+                value={mode}
+                onChange={(e) => {
+                  const next = e.target.value as SbDayMode;
+                  setMode(next);
+                  applyDay({ mode: next });
+                }}
+                className={ADJ_CONTROL}
+              >
+                {adjust.modes.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Only one of the two shapes is ever an answer, so the other is
+                  not on screen at all rather than sitting there disabled. */}
+              {mode === 'fixed' && (
+                <div className="flex w-full items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      applyDay({ amount: e.target.value });
+                    }}
+                    className={cn(ADJ_CONTROL, 'w-14 flex-none')}
+                  />
+                  <select
+                    value={unit}
+                    onChange={(e) => {
+                      setUnit(e.target.value);
+                      applyDay({ unit: e.target.value });
+                    }}
+                    className={ADJ_CONTROL}
+                  >
+                    {adjust.units.map((u) => (
+                      <option key={u.value} value={u.value}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={back}
+                      onChange={(e) => {
+                        setBack(e.target.checked);
+                        applyDay({ back: e.target.checked });
+                      }}
+                      className="h-3 w-3 accent-primary"
+                    />
+                    backwards
+                  </label>
+                </div>
+              )}
+
+              {mode === 'named' && (
+                <select
+                  value={namedValue}
+                  onChange={(e) => {
+                    setNamed(e.target.value);
+                    applyDay({ named: e.target.value });
+                  }}
+                  className={cn(ADJ_CONTROL, 'w-full flex-none')}
+                >
+                  {adjust.days.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {adjust.hours.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={ADJ_LABEL}>Clock</span>
+              <select
+                value={adjust.hour}
+                onChange={(e) => applyClock(e.target.value, adjust.minute)}
+                className={ADJ_CONTROL}
+              >
+                {adjust.hours.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+              <span className="shrink-0 text-[11px] text-ink-subtle">:</span>
+              <select
+                value={adjust.minute}
+                onChange={(e) => applyClock(adjust.hour, e.target.value)}
+                className={ADJ_CONTROL}
+              >
+                {adjust.minutes.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

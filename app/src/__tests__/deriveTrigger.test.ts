@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveTriggerFromName, TRIGGER_MAX_LENGTH } from '@/lib/triggerUtils';
-import { snippetFormSchema } from '@/types/schemas';
+import { deriveTriggerFromName, sanitizeTriggerInput, TRIGGER_MAX_LENGTH } from '@/lib/triggerUtils';
+import { promptFormSchema, snippetFormSchema } from '@/types/schemas';
 
 describe('deriveTriggerFromName', () => {
   it('turns a plain name into a token', () => {
@@ -71,6 +71,62 @@ describe('deriveTriggerFromName', () => {
       const parsed = snippetFormSchema.shape.trigger.safeParse(trigger);
       expect(parsed.success, `${name} → ${trigger}`).toBe(true);
     }
+  });
+});
+
+describe('sanitizeTriggerInput', () => {
+  it('writes the separator the user meant instead of joining two words', () => {
+    expect(sanitizeTriggerInput('ciao ciao')).toBe('ciao_ciao');
+    expect(sanitizeTriggerInput('follow up now')).toBe('follow_up_now');
+  });
+
+  it('keeps a separator the user is still typing behind', () => {
+    // Mid-word this is "follow_" waiting on its second word. Trimming it here
+    // would eat the underscore the moment it was typed.
+    expect(sanitizeTriggerInput('follow ')).toBe('follow_');
+    expect(sanitizeTriggerInput('follow_')).toBe('follow_');
+  });
+
+  it('never opens with a separator it invented', () => {
+    expect(sanitizeTriggerInput('  ciao')).toBe('ciao');
+    expect(sanitizeTriggerInput('::quote')).toBe('quote');
+    // One the user typed themselves is legal, so it stays.
+    expect(sanitizeTriggerInput('_quote')).toBe('_quote');
+  });
+
+  it('keeps case, unlike the name-derived token', () => {
+    expect(sanitizeTriggerInput('quoteEN')).toBe('quoteEN');
+    expect(sanitizeTriggerInput('Quote EN')).toBe('Quote_EN');
+  });
+
+  it('folds accents instead of dropping the letter', () => {
+    expect(sanitizeTriggerInput('Español')).toBe('Espanol');
+    expect(sanitizeTriggerInput('Città')).toBe('Citta');
+  });
+
+  it('collapses a run of illegal characters into one separator', () => {
+    expect(sanitizeTriggerInput('quote    english')).toBe('quote_english');
+    expect(sanitizeTriggerInput('quote / english')).toBe('quote_english');
+    expect(sanitizeTriggerInput('💰 estimate')).toBe('estimate');
+  });
+
+  it('caps at the schema length', () => {
+    expect(sanitizeTriggerInput('a'.repeat(80))).toHaveLength(TRIGGER_MAX_LENGTH);
+  });
+
+  it('produces something both editors can save', () => {
+    const typed = ['ciao ciao', 'Quote EN', '  spaced out  ', '::pasted', 'Español · x', 'a'.repeat(80)];
+    for (const raw of typed) {
+      const token = sanitizeTriggerInput(raw);
+      expect(snippetFormSchema.shape.trigger.safeParse(token).success, `${raw} → ${token}`).toBe(true);
+      expect(promptFormSchema.shape.shortcut.safeParse(token).success, `${raw} → ${token}`).toBe(true);
+    }
+  });
+
+  it('leaves nothing behind when nothing usable was typed', () => {
+    expect(sanitizeTriggerInput('')).toBe('');
+    expect(sanitizeTriggerInput('   ')).toBe('');
+    expect(sanitizeTriggerInput('💰💰')).toBe('');
   });
 });
 

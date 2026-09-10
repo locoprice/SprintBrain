@@ -62,7 +62,7 @@ var snippets = DEFAULT_SNIPPETS.slice();
 // library apart from a signed-out one and say which it is.
 var hasSession = false;
 var trigger  = '::';
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true, autoCapitalize: true };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 var isPasting = false; // guards against paste events feeding the trigger buffer
 
@@ -171,6 +171,9 @@ try {
           triggerCfg.selectionSuggestions = data.triggerCfg.selectionSuggestions;
           selectionSuggestEnabled = data.triggerCfg.selectionSuggestions;
         }
+        if (typeof data.triggerCfg.autoCapitalize === 'boolean') {
+          triggerCfg.autoCapitalize = data.triggerCfg.autoCapitalize;
+        }
       }
     } catch(e) {}
   });
@@ -216,6 +219,9 @@ try {
           triggerCfg.selectionSuggestions = nc.selectionSuggestions;
           selectionSuggestEnabled = nc.selectionSuggestions;
           if (!selectionSuggestEnabled) closeSelSuggest();
+        }
+        if (typeof nc.autoCapitalize === 'boolean') {
+          triggerCfg.autoCapitalize = nc.autoCapitalize;
         }
       }
     } catch(e) {}
@@ -825,6 +831,73 @@ function _textBeforeCaret(el) {
   } catch(_) { return null; }
 }
 
+// ── AUTO-CAPITALIZATION ────────────────────────────────────────────
+// A snippet is authored once and expanded everywhere, so its body cannot know
+// whether it will land at the start of a message or halfway through a sentence.
+// The field knows. Read what sits in front of the caret and lift the first
+// letter when the snippet is opening a sentence, and only then.
+//
+// This lives inside insertText because insertText is the one funnel every
+// insertion passes through — trigger, picker, context menu, overlay, prompts.
+// Deciding it anywhere else would give one entry point a behaviour the others
+// do not have, which is exactly how the overlay entry points drifted before.
+//
+// Toggle: triggerCfg.autoCapitalize (default on).
+
+// The caret sits at the start of a line — or of an empty field.
+var AUTOCAP_LINE_RE = /(?:^|[\r\n])[ \t]*$/;
+// The caret follows a finished sentence: . ! or ?, any closing quote or
+// bracket, then whitespace. The non-digit in front of the stop is what keeps a
+// decimal ("3.14 ") from reading as a sentence break.
+var AUTOCAP_SENT_RE = /(?:[^0-9][.!?]|^[.!?])["'”’)\]]*\s+$/;
+
+// Text in front of the caret with the trigger the user typed removed. On a
+// textarea the trigger is already gone by the time we insert; on a
+// contenteditable it is still there, held inside the live selection that the
+// insertion is about to replace. Stripping a trailing whitespace-free run that
+// opens with a trigger sequence covers both, and the whitespace test is what
+// stops a "::" typed earlier in the message from being mistaken for it.
+function _autoCapContext(el) {
+  var before = _textBeforeCaret(el);
+  if (before == null) return null;
+  var seqs = [
+    (triggerCfg && triggerCfg.snippetTrigger) || '::',
+    (triggerCfg && triggerCfg.promptTrigger) || '"""'
+  ];
+  for (var i = 0; i < seqs.length; i++) {
+    if (!seqs[i]) continue;
+    var tail = before.slice(-MAX_BUF);
+    var idx = tail.lastIndexOf(seqs[i]);
+    if (idx === -1) continue;
+    var run = tail.slice(idx);
+    if (/\s/.test(run)) continue;
+    return before.slice(0, before.length - run.length);
+  }
+  return before;
+}
+
+function _shouldAutoCap(el) {
+  if (!triggerCfg || triggerCfg.autoCapitalize === false) return false;
+  var ctx = _autoCapContext(el);
+  if (ctx == null) return false;              // caret unreadable — change nothing
+  if (!/\S/.test(ctx)) return true;           // start of the field
+  if (AUTOCAP_LINE_RE.test(ctx)) return true; // start of a line
+  return AUTOCAP_SENT_RE.test(ctx);           // after . ! ?
+}
+
+// Lifts the opening letter, and nothing else. Only a lowercase letter in the
+// first non-whitespace position is touched, so "5 items" keeps its lowercase
+// "items", a URL or an email is left exactly as written, and text that already
+// opens with a capital is returned untouched.
+function _autoCapitalize(text) {
+  var s = String(text == null ? '' : text);
+  if (!s || /^\s*(?:https?:\/\/|www\.|[^\s@]+@[^\s@]+\.)/i.test(s)) return s;
+  var lead = /^\s*/.exec(s)[0].length;
+  var ch = s.charAt(lead);
+  if (!/[a-zà-öø-ÿ]/.test(ch)) return s;
+  return s.slice(0, lead) + ch.toUpperCase() + s.slice(lead + 1);
+}
+
 function _fieldTriggerSpan(el, span) {
   try {
     var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
@@ -1181,6 +1254,8 @@ function insertText(el, text) {
   // character, and a blank line — the lone "\r" segment — loses its break
   // entirely, collapsing paragraphs into one block.
   text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+  // Read the caret's surroundings BEFORE anything below focuses or moves it.
+  if (_shouldAutoCap(el)) text = _autoCapitalize(text);
   var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     if (isCE) {
@@ -1317,6 +1392,91 @@ var overlayTriggerLen = 0;
 // top of the field and the whole trigger survived at the end. -1 when unknown.
 var overlayCaretCO = -1;
 
+// ── ADJUST PANEL ───────────────────────────────────────────────────
+// The Date/Time builder's three decisions — which format, which day, what time
+// on it — offered again while the form is open, so a date that is nearly right
+// does not have to be typed out by hand.
+//
+// What each control MEANS is decided in shared/fill-form.js; this only draws
+// it. Same closed lists, same words, same order as the builder in the dashboard
+// rail.
+//
+// Collapsed behind one link on purpose. Almost every expansion wants the day
+// the field already opens on, and three rows under every date would push a
+// two-field form past the fold for a choice most people never make.
+function _sbAdjustHtml(cfg) {
+  var a = cfg.adjust;
+  if (!a) return '';
+  var k = xesc(cfg.key), rows = '';
+
+  function optList(items, sel) {
+    return items.map(function(o) {
+      var v = o.value === undefined ? o : o.value;
+      var text = o.label === undefined ? o : o.label;
+      if (o.sample !== undefined) text += ' · ' + o.sample;
+      return '<option value="' + xesc(v) + '"' + (v === sel ? ' selected' : '') + '>' +
+             xesc(text) + '</option>';
+    }).join('');
+  }
+
+  if (a.formats.length) {
+    rows += '<div class="sb-adjrow"><span class="sb-adjlbl">Format</span>' +
+            '<select class="sb-fmt" data-key="' + k + '">' + optList(a.formats, cfg.format) +
+            '</select></div>';
+  }
+
+  if (a.modes.length) {
+    rows += '<div class="sb-adjrow"><span class="sb-adjlbl">Day</span>' +
+            '<select class="sb-daymode" data-key="' + k + '">' + optList(a.modes, 'none') + '</select>' +
+            '<span class="sb-dayfixed" data-key="' + k + '" hidden>' +
+              '<input type="number" class="sb-dayn" data-key="' + k + '" min="1" step="1" value="1">' +
+              '<select class="sb-dayu" data-key="' + k + '">' + optList(a.units, 'D') + '</select>' +
+              '<label class="sb-adjchk"><input type="checkbox" class="sb-dayback" data-key="' + k + '">backwards</label>' +
+            '</span>' +
+            '<select class="sb-daynamed" data-key="' + k + '" hidden>' + optList(a.days, '') + '</select>' +
+            '</div>';
+  }
+
+  if (a.hours.length) {
+    rows += '<div class="sb-adjrow"><span class="sb-adjlbl">Clock</span>' +
+            '<select class="sb-hh" data-key="' + k + '">' + optList(a.hours, a.hour) + '</select>' +
+            '<span class="sb-adjsep">:</span>' +
+            '<select class="sb-mm" data-key="' + k + '">' + optList(a.minutes, a.minute) + '</select>' +
+            '</div>';
+  }
+
+  if (!rows) return '';
+  return '<button type="button" class="sb-adj" data-adj="' + k + '" aria-expanded="false">' +
+         'Adjust ▾</button>' +
+         '<div class="sb-adjbox" data-adjbox="' + k + '" hidden>' + rows + '</div>';
+}
+
+// A closing date may not open before its opening one. The rule and the value
+// come from extension/shared/fill-form.js; only the markup and the live rebind
+// are local, which is the split that keeps four surfaces agreeing.
+function _sbOrderAttrs(cfg) {
+  var out = '';
+  if (cfg.notBefore) out += ' data-after="' + xesc(cfg.notBefore) + '"';
+  if (cfg.min) out += ' min="' + xesc(cfg.min) + '"';
+  return out;
+}
+
+// Re-applies every ordering limit after any value changes. Cheap enough to run
+// on each keystroke: a fill form is a handful of inputs, not a table.
+function _sbReorder(root) {
+  var deps = root.querySelectorAll('.sb-inp[data-after]');
+  for (var i = 0; i < deps.length; i++) {
+    var dst = deps[i];
+    var src = root.querySelector('.sb-inp[data-key="' + dst.getAttribute('data-after') + '"]');
+    if (!src) continue;
+    var min = window.SBFillForm.orderedMin(dst.type === 'datetime-local' ? 'datetime' : 'date', src.value);
+    if (min) dst.setAttribute('min', min); else dst.removeAttribute('min');
+    // A closing date the new opening one has just invalidated is no longer an
+    // answer. Clearing beats leaving an impossible pair sitting in the form.
+    if (min && dst.value && dst.value < min) dst.value = '';
+  }
+}
+
 function showOverlay(targetEl, snip, scLen, done) {
   overlayTriggerLen = scLen || 0;
   // Read the caret BEFORE the overlay exists: deleteChars has just selected the
@@ -1375,11 +1535,11 @@ function showOverlay(targetEl, snip, scLen, done) {
                (picked.indexOf(o) >= 0 ? ' checked' : '')+'><span>'+xesc(o)+'</span></label>';
       }).join('') + '</div>';
     } else if (cfg.type === 'date') {
-      inp = '<input type="date" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
+      inp = '<input type="date" class="sb-inp" data-key="'+key+'"'+_sbOrderAttrs(cfg)+' value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'time') {
       inp = '<input type="time" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
     } else if (cfg.type === 'datetime' || cfg.type === 'datetime-local') {
-      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'" value="'+xesc(cfg.value)+'">';
+      inp = '<input type="datetime-local" class="sb-inp" data-key="'+key+'"'+_sbOrderAttrs(cfg)+' value="'+xesc(cfg.value)+'">';
     } else {
       inp = '<input type="'+(cfg.type==='number'?'number':'text')+'" class="sb-inp" data-key="'+key+'" placeholder="'+key.replace(/_/g,' ')+'" value="'+xesc(cfg.value)+'">';
     }
@@ -1392,7 +1552,7 @@ function showOverlay(targetEl, snip, scLen, done) {
     fhtml += '<div class="sb-field">' + lbl + (blockControl
       ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
         (post ? '<div class="sb-ctxline">'+post+'</div>' : '')
-      : '<div class="sb-row">'+pre+inp+post+'</div>') + '</div>';
+      : '<div class="sb-row">'+pre+inp+post+'</div>') + _sbAdjustHtml(cfg) + '</div>';
   }
 
   // {button} controls: they set field values, they never print. Rendered after
@@ -1449,8 +1609,9 @@ function showOverlay(targetEl, snip, scLen, done) {
   var inps = el.querySelectorAll('.sb-inp');
   for (var j = 0; j < inps.length; j++) {
     (function(inp) {
-      inp.addEventListener('input',  function(){ updatePrev(snip); });
+      inp.addEventListener('input',  function(){ _sbReorder(el); updatePrev(snip); });
       inp.addEventListener('change', function(){
+        _sbReorder(el);
         updatePrev(snip);
         // A radio is a finished answer the moment it is ticked, so the caret
         // moves to whatever is still empty. Checkboxes are excluded: a multiple
@@ -1470,6 +1631,83 @@ function showOverlay(targetEl, snip, scLen, done) {
       });
       inp.addEventListener('paste',  function(){ setTimeout(function(){ updatePrev(snip); }, 0); });
     })(inps[j]);
+  }
+
+  // Adjust panels. A day or a clock choice writes a value into the picker that
+  // the operator could have set by hand, so everything downstream — the
+  // preview, the insert, datetimediff() — reads it back through the normal
+  // getVals path and no other code has to know the panel exists. A format
+  // choice is the exception: it changes how the value prints rather than what
+  // the value is, so it stays on the panel and travels as fmtOverride.
+  var adjType = {};
+  for (var t = 0; t < vm.fields.length; t++) adjType[vm.fields[t].key] = vm.fields[t].type;
+
+  function adjBox(key) { return el.querySelector('.sb-adjbox[data-adjbox="' + key + '"]'); }
+  function adjInput(key) { return el.querySelector('.sb-inp[data-key="' + key + '"]'); }
+
+  function applyDay(key) {
+    var box = adjBox(key), inp = adjInput(key);
+    if (!box || !inp || !_SBFF || !_SBFF.dayValue) return;
+    var mode = box.querySelector('.sb-daymode');
+    var fixed = box.querySelector('.sb-dayfixed');
+    var named = box.querySelector('.sb-daynamed');
+    if (!mode) return;
+    // The two shapes a fixed offset and an anchor need are different, and only
+    // one of them is ever an answer, so the other is not on screen at all.
+    if (fixed) fixed.hidden = mode.value !== 'fixed';
+    if (named) named.hidden = mode.value !== 'named';
+    var next = _SBFF.dayValue(adjType[key], {
+      mode:   mode.value,
+      amount: fixed ? box.querySelector('.sb-dayn').value : '',
+      unit:   fixed ? box.querySelector('.sb-dayu').value : 'D',
+      back:   fixed ? box.querySelector('.sb-dayback').checked : false,
+      named:  named ? named.value : ''
+    }, inp.value);
+    if (next) inp.value = next;
+    updatePrev(snip);
+  }
+
+  function applyClock(key) {
+    var box = adjBox(key), inp = adjInput(key);
+    if (!box || !inp || !_SBFF || !_SBFF.clockValue) return;
+    var hh = box.querySelector('.sb-hh'), mm = box.querySelector('.sb-mm');
+    if (!hh || !mm) return;
+    var next = _SBFF.clockValue(adjType[key], hh.value, mm.value, inp.value);
+    if (next) inp.value = next;
+    updatePrev(snip);
+  }
+
+  var adjBtns = el.querySelectorAll('.sb-adj');
+  for (var ab = 0; ab < adjBtns.length; ab++) {
+    (function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var box = adjBox(btn.dataset.adj);
+        if (!box) return;
+        box.hidden = !box.hidden;
+        btn.setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
+      });
+    })(adjBtns[ab]);
+  }
+
+  var adjCtrls = el.querySelectorAll('.sb-adjbox select, .sb-adjbox input');
+  for (var ac = 0; ac < adjCtrls.length; ac++) {
+    (function(ctrl) {
+      var key = ctrl.dataset.key;
+      var cls = ctrl.className;
+      // The format never touches the value, so it only needs the preview
+      // redrawn; getFmts reads the select itself when the time comes.
+      var run = cls === 'sb-fmt'
+        ? function() { updatePrev(snip); }
+        : (cls === 'sb-hh' || cls === 'sb-mm'
+            ? function() { applyClock(key); }
+            : function() { applyDay(key); });
+      ctrl.addEventListener('change', run);
+      // The offset amount is typed, so it answers while it is being typed
+      // rather than only when the field is left.
+      if (cls === 'sb-dayn') ctrl.addEventListener('input', run);
+    })(adjCtrls[ac]);
   }
 
   // Action buttons write their results straight into the inputs, so the preview
@@ -1639,17 +1877,33 @@ function getVals() {
   return v;
 }
 
+// How each date and time field prints, when the operator has chosen for
+// itself in the Adjust panel. Output only: the value in the picker is
+// untouched, so a formula and datetimediff() still read the raw date.
+// A field with no panel is simply absent, and the engine keeps the format
+// the author wrote.
+function getFmts() {
+  if (!overlayEl) return {};
+  var f = {}, sels = overlayEl.querySelectorAll('.sb-fmt[data-key]');
+  for (var i = 0; i < sels.length; i++) f[sels[i].dataset.key] = sels[i].value;
+  return f;
+}
+
 function updatePrev(snip) {
   var box = document.getElementById('sb-prev');
   if (!box) return;
-  var all = resolveBody(snip.body, getVals(), { lang: snip.lang }).split('\n');
+  var all = resolveBody(snip.body, getVals(),
+    { lang: snip.lang, fmtOverride: getFmts() }).split('\n');
   box.textContent = all.slice(0, 5).join('\n') + (all.length > 5 ? '\n\u2026' : '');
 }
 
 function doInsert(targetEl, snip) {
   if (isUrgExpired(snip)) return;
   var vals = getVals();
-  var text = resolveBody(snip.body, vals, { lang: snip.lang });
+  // Read BEFORE closeOverlay tears the panel down, and passed to the same
+  // resolveBody the preview used, or what lands in the field prints in a
+  // different format from the preview the operator just approved.
+  var text = resolveBody(snip.body, vals, { lang: snip.lang, fmtOverride: getFmts() });
   var fillCount = Object.keys(vals).length;
   closeOverlay();
   if (!targetEl) return;
@@ -3098,6 +3352,36 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
     '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%231B4FD8"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
+    // Adjust panel. A quiet link under the picker, not a button: it competes
+    // with Insert for attention otherwise, and it is a detour most expansions
+    // never take. Open, it indents under the field it belongs to and picks up
+    // the same blue the date inputs already carry, so the rows read as part of
+    // that field rather than as a second form.
+    // align-self, not inline-block: .sb-field is a flex column, so an
+    // inline-block child is blockified to the full width and the button's own
+    // centred text lands the link in the middle of the row.
+    '#sb-overlay .sb-adj{align-self:flex-start;margin:4px 0 0 2px;padding:2px 4px;background:none;border:none;font-family:inherit;font-size:11px;font-weight:600;color:#71717A;cursor:pointer;line-height:1.4;}' +
+    '#sb-overlay .sb-adj:hover{color:#1B4FD8;}' +
+    '#sb-overlay .sb-adj[aria-expanded=true]{color:#1B4FD8;}' +
+    '#sb-overlay .sb-adjbox{display:flex;flex-direction:column;gap:6px;margin:4px 0 2px 2px;padding:8px 10px;background:#F8FAFF;border:1px solid #E4E9F7;border-radius:8px;}' +
+    '#sb-overlay .sb-adjrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}' +
+    '#sb-overlay .sb-adjlbl{flex:none;width:46px;font-size:10px;font-weight:600;color:#71717A;text-transform:uppercase;letter-spacing:.04em;}' +
+    '#sb-overlay .sb-adjbox select,#sb-overlay .sb-adjbox input[type=number]{flex:1 1 auto;min-width:0;box-sizing:border-box;height:28px;padding:0 8px;background:#fff;border:1px solid #D4D4D8;border-radius:6px;font-family:inherit;font-size:12px;color:#18181B;cursor:pointer;}' +
+    '#sb-overlay .sb-adjbox select:focus,#sb-overlay .sb-adjbox input[type=number]:focus{outline:none;border-color:#1B4FD8;}' +
+    '#sb-overlay .sb-adjbox input[type=number]{flex:0 0 58px;cursor:text;}' +
+    '#sb-overlay .sb-dayfixed{display:flex;flex:1 1 100%;align-items:center;gap:6px;}' +
+    '#sb-overlay .sb-adjchk{display:flex;align-items:center;gap:4px;flex:none;font-size:11px;color:#52525B;cursor:pointer;}' +
+    '#sb-overlay .sb-adjchk input{accent-color:#1B4FD8;cursor:pointer;margin:0;}' +
+    '#sb-overlay .sb-adjsep{flex:none;font-size:12px;color:#71717A;}' +
+    // Scoped inside the box on purpose: a bare .sb-hh loses to
+    // `.sb-adjbox select` on specificity, and the two clock controls then
+    // stretch across the row.
+    '#sb-overlay .sb-adjbox .sb-hh,#sb-overlay .sb-adjbox .sb-mm{flex:0 0 68px;}' +
+    // An author `display` beats the browser's own [hidden]{display:none}, so
+    // both flex boxes above would ignore the attribute and sit permanently
+    // open. Stated here rather than swapped for a class, because `hidden` is
+    // what the panel toggles on all four surfaces.
+    '#sb-overlay .sb-adjbox[hidden],#sb-overlay .sb-dayfixed[hidden]{display:none;}' +
     '#sb-overlay .sb-btnrow{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px;}' +
     '#sb-overlay .sb-actbtn{background:#EEF2FF;border:1px solid #BED0FF;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;color:#1B4FD8;font-family:inherit;cursor:pointer;min-height:32px;touch-action:manipulation;transition:background .15s;}' +
     '#sb-overlay .sb-actbtn:hover{background:#E0EAFF;}' +
@@ -3287,22 +3571,59 @@ function sbMemorySetComposer(el, text) {
     } catch(e) { cb(e); }
   }
 
-  ask('memory_index', null, function(err, res) {
-    if (err || !res.data || !res.data.steps.length) return;
+  // Mounted unconditionally on a supported host. Until v3.21.0 this waited for
+  // memory_index and bailed when the user had no STEPS configured, which meant
+  // no pill at all unless someone had first created a step in SQL. The panel
+  // searches instead of reading a step, so there is nothing left to configure
+  // and nothing left to gate on.
+  var BUDGET_KEY = 'sb_memory_budgets';
 
-    var steps = res.data.steps.map(SBMemoryPack.stepFromRow);
-    var shards = res.data.shards.map(SBMemoryPack.shardFromRow);
-
-    var picker = SBMemoryPicker.create({
-      getIndex: function(cb) { cb(null, { steps: steps, shards: shards }); },
-      getBodies: function(ids, cb) {
-        ask('memory_bodies', { ids: ids }, function(e, r) {
-          if (e) { cb(e); return; }
-          cb(null, r.rows || []);
+  var picker = SBMemoryPicker.create({
+    search: function(query, cb) {
+      ask('knowledge_search', { query: query, limit: 40 }, function(e, r) {
+        if (e) { cb(e); return; }
+        cb(null, r.rows || []);
+      });
+    },
+    getBodies: function(ids, cb) {
+      ask('memory_bodies', { ids: ids }, function(e, r) {
+        if (e) { cb(e); return; }
+        cb(null, r.rows || []);
+      });
+    },
+    insertText: sbMemorySetComposer,
+    // Per-host, because the same package that reads well in one composer is a
+    // wall of text in another. Failure is silent and falls back to the host
+    // default: a budget preference is not worth an error message.
+    //
+    // storage.LOCAL, never sync. Anything in storage.sync roams to every Chrome
+    // signed into the same Google account, which has already leaked a snippet
+    // library and an API key between profiles, and the privacy policy now
+    // promises local only. scripts/check-storage.js enforces that promise.
+    loadBudget: function(host, cb) {
+      try {
+        chrome.storage.local.get(BUDGET_KEY, function(d) {
+          var all = (d && d[BUDGET_KEY]) || {};
+          cb(all[host] || null);
         });
-      },
-      insertText: sbMemorySetComposer
-    });
-    picker.mount();
+      } catch(e) { cb(null); }
+    },
+    saveBudget: function(host, tokens) {
+      try {
+        chrome.storage.local.get(BUDGET_KEY, function(d) {
+          var all = (d && d[BUDGET_KEY]) || {};
+          all[host] = tokens;
+          var patch = {};
+          patch[BUDGET_KEY] = all;
+          chrome.storage.local.set(patch);
+        });
+      } catch(e) {}
+    }
+  });
+  picker.mount();
+
+  // The keyboard shortcut, relayed by the service worker.
+  chrome.runtime.onMessage.addListener(function(msg) {
+    if (msg && msg.type === 'SB_OPEN_MEMORY_PANEL') picker.open();
   });
 }());

@@ -230,6 +230,31 @@ html,body{
 .d-actbtn:hover{background:var(--sb-azure-bg);border-color:var(--sb-azure)}
 .d-actbtn:active{transform:scale(.97)}
 .d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+/* Date/Time Adjust panel. A quiet link under the picker rather than a button:
+   it is a detour most fills never take, and it must not compete with Copy
+   filled. Open, it indents under the field it belongs to so the rows read as
+   part of that field. The width/height reset is deliberate — .d-frow sizes
+   every input full-width and 34px tall, which is right for a field and wrong
+   for a row of three small controls. MIRRORED in Sprintbrain.html. */
+.d-adj{align-self:flex-start;margin-top:2px;padding:2px 4px;background:none;border:none;font-family:inherit;font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);cursor:pointer;line-height:1.4}
+.d-adj:hover,.d-adj[aria-expanded=true]{color:var(--sb-azure)}
+.d-adjbox{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding:8px 10px;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+.d-adjrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.d-adjlbl{flex:none;width:46px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+.d-adjbox input,.d-adjbox select{flex:1 1 auto;width:auto;min-width:0;height:28px;padding:0 8px;font-size:var(--sb-fs-12)}
+.d-adjbox input[type=number]{flex:0 0 58px}
+.d-dayfixed{display:flex;flex:1 1 100%;align-items:center;gap:6px}
+.d-adjchk{display:flex;align-items:center;gap:4px;flex:none;font-size:var(--sb-fs-11);color:var(--sb-ink-muted);cursor:pointer}
+.d-adjchk input[type=checkbox]{flex:none;width:auto;height:auto;padding:0;margin:0;accent-color:var(--sb-azure);cursor:pointer}
+.d-adjsep{flex:none;font-size:var(--sb-fs-12);color:var(--sb-ink-subtle)}
+/* Scoped inside the box on purpose: a bare .d-hh loses to `.d-adjbox select`
+   on specificity, and the two clock controls then stretch across the row. */
+.d-adjbox .d-hh,.d-adjbox .d-mm{flex:0 0 72px}
+/* An author `display` beats the browser's own [hidden]{display:none}, so both
+   flex boxes above would ignore the attribute and sit permanently open. Stated
+   here rather than swapped for a class, because `hidden` is what the binder
+   toggles on all four surfaces. */
+.d-adjbox[hidden],.d-dayfixed[hidden]{display:none}
 /* One option per line, each a plain row: the circle says "pick one of these"
    the way a paper form does. Wrapped pills read as tags, not as a question. */
 .d-multi{display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
@@ -292,10 +317,19 @@ html,body{
 .p-empty{padding:36px 20px;text-align:center;color:var(--sb-ink-subtle);font-size:var(--sb-fs-13);line-height:1.7}
 
 /* ── FOOTER ── */
-.lfoot{height:56px;flex-shrink:0;border-top:1px solid var(--sb-line);display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--sb-bg)}
+.lfoot{height:56px;flex-shrink:0;border-top:1px solid var(--sb-line);display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 16px;background:var(--sb-bg)}
 .ver-btn{font-family:var(--sb-mono);font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-muted);background:none;border:none;cursor:pointer;flex-shrink:0;transition:color var(--sb-dur-fast)}
 .ver-btn:hover{color:var(--sb-azure)}
 .ver-btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px;border-radius:var(--sb-r-sm)}
+.dash-link{
+  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 8px;margin-right:-8px;flex-shrink:0;
+  font-family:inherit;font-size:var(--sb-fs-13);font-weight:600;color:var(--sb-azure);
+  background:none;border:none;border-radius:var(--sb-r-sm);cursor:pointer;transition:color var(--sb-dur-fast)
+}
+.dash-link svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform var(--sb-dur-fast)}
+.dash-link:hover{color:var(--sb-azure-dark)}
+.dash-link:hover svg{transform:translate(1px,-1px)}
+.dash-link:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 .btn{
   padding:0 14px;height:44px;border-radius:var(--sb-r-md);font-size:var(--sb-fs-13);font-weight:500;cursor:pointer;
   font-family:inherit;border:1px solid var(--sb-line);background:var(--sb-bg);color:var(--sb-ink-muted);
@@ -303,11 +337,7 @@ html,body{
 }
 .btn:hover{background:var(--sb-bg-muted);border-color:var(--sb-line-2)}
 .btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.btn.p{flex:1;background:var(--sb-azure);border-color:var(--sb-azure);color:#fff;border-radius:var(--sb-r-xl);font-weight:600}
-.btn.p:hover{background:var(--sb-azure-dark);border-color:var(--sb-azure-dark)}
-.btn.p:active{transform:scale(.98)}
-.btn.p:focus-visible,.btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
-.btn.p svg{width:15px;height:15px}
+.btn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
 
 /* ── SAVE THIS CHAT (capture card) ── */
 .cap-card{
@@ -409,7 +439,8 @@ html,body{
 @media (prefers-reduced-motion: reduce){
   .sk{animation:none;background:var(--sb-bg-muted)}
   .hchip-dot.pulse{animation:none}
-  .seg-thumb,.item,.chev,.chip,.btn,.btn.p,.ic-btn,.isc{transition:none}
+  .seg-thumb,.item,.chev,.chip,.btn,.dash-link,.dash-link svg,.ic-btn,.isc{transition:none}
+  .dash-link:hover svg{transform:none}
   .list.anim .item{animation:none}
   .cl-box{animation:none}
   /* Status badges fall back to the static icon — same box, same colour. */
@@ -526,8 +557,9 @@ html,body{
   <!-- FOOTER -->
   <div class="lfoot">
     <button class="ver-btn" id="ver-btn" title="View changelog"></button>
-    <button class="btn p" id="bdash">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Open Dashboard
+    <button class="dash-link" id="bdash">
+      Open Dashboard
+      <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
     </button>
   </div>
 </div>
@@ -558,6 +590,17 @@ html,body{
         <input type="checkbox" id="tcfg-sel-suggest" checked style="width:16px;height:16px;accent-color:var(--sb-azure);cursor:pointer">
       </div>
       <div class="set-note">Highlight text anywhere and SprintBrain offers matching snippets (e.g. select <strong>preventivo</strong> → quote).</div>
+    </div>
+
+    <!-- AUTOMATIC CAPITALIZATION — extension-local preference -->
+    <div class="set-sec">
+      <div class="set-row">
+        <span style="font-size:11px;font-weight:600;color:var(--sb-ink);flex:1;display:flex;align-items:center;gap:4px">
+          <span class="ic" style="color:var(--sb-azure)"><svg viewBox="0 0 24 24"><path d="M4 20V8a4 4 0 0 1 8 0v12"/><path d="M4 14h8"/><path d="M16 20v-7a3 3 0 0 1 6 0v7"/><path d="M16 17h6"/></svg></span> Automatic capitalization
+        </span>
+        <input type="checkbox" id="tcfg-autocap" checked style="width:16px;height:16px;accent-color:var(--sb-azure);cursor:pointer">
+      </div>
+      <div class="set-note">A snippet inserted at the start of a message, a new line, or after a <strong>.</strong> <strong>!</strong> <strong>?</strong> opens with a capital letter. Mid-sentence it is left as written.</div>
     </div>
 
     <!-- DEFAULT LANGUAGE -->

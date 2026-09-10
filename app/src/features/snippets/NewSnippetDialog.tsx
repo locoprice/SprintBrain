@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import {
   AlertCircle,
   CalendarClock,
+  CalendarRange,
   Eye,
   History,
   Info,
@@ -26,13 +27,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
-import { AssetAttribution } from '@/components/shared/AssetAttribution';
+import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
   LABEL_SUGGESTIONS_ENABLED,
   LabelSuggestions,
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
+import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
@@ -60,7 +62,11 @@ import {
 } from '@/lib/formDateToken';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
-import { DEFAULT_TRIGGER_CONFIG, deriveTriggerFromName } from '@/lib/triggerUtils';
+import {
+  DEFAULT_TRIGGER_CONFIG,
+  deriveTriggerFromName,
+  sanitizeTriggerInput,
+} from '@/lib/triggerUtils';
 import { slotMismatchMessage, snippetMismatch } from '@/lib/languageDetect';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -163,17 +169,6 @@ const EMPTY_FORM: SnippetFormValues = {
  * thoughts rather than mid-word.
  */
 const LANGUAGE_CHECK_DELAY_MS = 500;
-
-/**
- * A snippet trigger is a bare token — the extension prepends the trigger prefix
- * (::) at match time (see content.js: `snippetTrigger + sc`), so it must never
- * be stored here. Strip anything that isn't a letter, number, hyphen, or
- * underscore so a prefix like `::` or a stray symbol can't be typed, pasted, or
- * carried over from a legacy row. Mirrors snippetFormSchema.trigger.
- */
-function sanitizeTrigger(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '');
-}
 
 // The rail was a row of Quick Insert chips until v3.14.4: one token per chip,
 // its whole explanation in a hover title. Every one of them is now a toggle
@@ -284,6 +279,8 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'How the value prints. It changes the reading, never the value: a formula and {datetimediff} still see the date the picker set.' },
   { label: 'Automatic',
     hint: 'Not a field — a date worked out at expansion, with the time pinned. Count forward from today, or land on a named day like next Monday.' },
+  { label: 'Range',
+    hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
 // What the Formula toggle writes. A and B are deliberately meaningless: the
@@ -454,6 +451,8 @@ export function NewSnippetDialog() {
   const [menuEdit, setMenuEdit] = useState<{ range: MenuTokenRange; cfg: FormMenuConfig } | null>(
     null,
   );
+  // Date-range builder — writes two dates and the span between them.
+  const [dateRangeOpen, setDateRangeOpen] = useState(false);
   // Automatic-date builder — writes a {time:} token at the cursor. A dialog and
   // not a rail control: the day and the time are two independent decisions and
   // want two columns, which 260px cannot give them.
@@ -523,7 +522,7 @@ export function NewSnippetDialog() {
       }
       setForm({
         name:                 editingSnippet.name,
-        trigger:              sanitizeTrigger(editingSnippet.triggers[0] ?? ''),
+        trigger:              sanitizeTriggerInput(editingSnippet.triggers[0] ?? ''),
         content:              initialBodies[editingSnippet.language] ?? '',
         bodies:               initialBodies,
         folder_id:            editingSnippet.folder_id,
@@ -916,8 +915,7 @@ export function NewSnippetDialog() {
 
         Height is FIXED (not max-) so the flex column always fills it and the
         body textarea absorbs the slack. The left rail scrolls when it has to:
-        Edit mode adds Edit note and About to it, and with the urgency fields
-        expanded that overflows even a full-height dialog.
+        with the urgency fields expanded it overflows even a full-height dialog.
 
         Opening the preview grows the dialog by 321px while the preview panel
         itself takes only 261px (it matches the 260px insert rail), so the 60px
@@ -946,9 +944,21 @@ export function NewSnippetDialog() {
           </DialogTitle>
           <DialogDescription className="min-w-0 truncate">
             {mode === 'edit'
-              ? 'Update the name, trigger, or body. Changes sync across every device.'
+              ? 'Changes sync across every device.'
               : 'Give the snippet a name, a trigger, and a body. It will sync immediately.'}
           </DialogDescription>
+
+          {/* About — behind an icon rather than a block in the rail, which
+              returns that space to the controls used on every edit. */}
+          {mode === 'edit' && editingSnippet && (
+            <AssetAboutButton
+              noun="snippet"
+              assetId={editingSnippet.id}
+              createdBy={editingSnippet.user_id}
+              updatedBy={editingSnippet.updated_by}
+              updatedAt={editingSnippet.updated_at}
+            />
+          )}
 
           {/* Preview toggle. Sits before the dialog's own close button, which
               the header's pr-14 already reserves room for. */}
@@ -983,10 +993,10 @@ export function NewSnippetDialog() {
           {/* ── LEFT PANEL: insert chips ── */}
           {/* The three groups sit here rather than under the body. At 260px
               they stack in one column, and the editor keeps the vertical space
-              they used to take from it. Edit note and About join them at the
-              foot in Edit mode, which is why this rail shows its scrollbar:
+              they used to take from it. Nothing else lives in this rail — it is
+              the insert vocabulary and only that. It still shows its scrollbar:
               with the urgency fields expanded it can genuinely overflow, and
-              hidden chrome would leave About silently out of reach. */}
+              hidden chrome would leave a group silently out of reach. */}
           <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto flex flex-col bg-bg">
 
             {/* Fields */}
@@ -1103,6 +1113,16 @@ export function NewSnippetDialog() {
                       >
                         <CalendarClock className="mr-1 h-3 w-3" />
                         Automatic
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        disabled={saving}
+                        onClick={() => setDateRangeOpen(true)}
+                      >
+                        <CalendarRange className="mr-1 h-3 w-3" />
+                        Range
                       </Button>
                     </div>
 
@@ -1503,39 +1523,6 @@ export function NewSnippetDialog() {
                 </dl>
               </Toggle>
             </div>
-
-            {/* Edit note — recorded in version history. Sits below Logic, which
-                keeps flex-1 and so pushes both edit-only blocks to the foot of
-                the rail, away from the insert chips. */}
-            {mode === 'edit' && (
-              <div className="shrink-0 border-t border-line p-4">
-                <label htmlFor="snippet-edit-note" className={cn(SIDEBAR_LABEL, 'block mb-2.5')}>
-                  Edit note <span className="font-normal normal-case tracking-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={'What changed?'}
-                  disabled={saving}
-                  maxLength={200}
-                  className="h-9 text-xs"
-                />
-              </div>
-            )}
-
-            {/* Attribution — who created / last touched this snippet */}
-            {mode === 'edit' && editingSnippet && (
-              <div className="shrink-0 border-t border-line p-4">
-                <p className={cn(SIDEBAR_LABEL, 'mb-2.5')}>About</p>
-                <AssetAttribution
-                  assetId={editingSnippet.id}
-                  createdBy={editingSnippet.user_id}
-                  updatedBy={editingSnippet.updated_by}
-                  updatedAt={editingSnippet.updated_at}
-                />
-              </div>
-            )}
           </ToggleGroup>
 
           {/* ── PANEL DIVIDER ── */}
@@ -1587,7 +1574,7 @@ export function NewSnippetDialog() {
                   <input
                     id="snippet-trigger"
                     value={form.trigger}
-                    onChange={(e) => updateField('trigger', sanitizeTrigger(e.target.value))}
+                    onChange={(e) => updateField('trigger', sanitizeTriggerInput(e.target.value))}
                     placeholder="quoteEN"
                     spellCheck={false}
                     autoCapitalize="off"
@@ -1661,9 +1648,10 @@ export function NewSnippetDialog() {
                     <Tooltip
                       label={VARIANT_HINT}
                       placement="top"
-                      className="ml-1.5 font-normal text-ink-subtle hover:text-ink transition-colors"
+                      className="ml-1.5 inline-flex items-center gap-1 align-middle font-normal text-ink-subtle hover:text-ink transition-colors"
                     >
-                      ⓘ per variant
+                      <Info className="h-3 w-3" aria-hidden />
+                      per variant
                     </Tooltip>
                   )}
                 </label>
@@ -1923,6 +1911,27 @@ export function NewSnippetDialog() {
               </div>
             </div>
 
+            {/* Edit note — recorded in version history. Under the body rather
+                than in the rail: it describes the edit that was just typed
+                above it, and the rail is the insert vocabulary and nothing
+                else. shrink-0 so the body keeps absorbing the panel's slack. */}
+            {mode === 'edit' && (
+              <div className="shrink-0">
+                <label htmlFor="snippet-edit-note" className={FIELD_LABEL}>
+                  Edit note{' '}
+                  <span className="font-normal text-ink-subtle">(optional)</span>
+                </label>
+                <Input
+                  id="snippet-edit-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="What changed?"
+                  disabled={saving}
+                  maxLength={200}
+                />
+              </div>
+            )}
+
             <FormTextDialog
               open={textFieldOpen}
               onOpenChange={setTextFieldOpen}
@@ -1948,6 +1957,13 @@ export function NewSnippetDialog() {
             <FormButtonDialog
               open={actionButtonOpen}
               onOpenChange={setActionButtonOpen}
+              onInsert={insertAtCursor}
+            />
+
+            <FormDateRangeDialog
+              open={dateRangeOpen}
+              onOpenChange={setDateRangeOpen}
+              body={form.content}
               onInsert={insertAtCursor}
             />
 

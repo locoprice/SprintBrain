@@ -1,6 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Brain, Loader2, Pin, Send, Zap } from 'lucide-react';
+import { Brain, Loader2, Pin, PinOff, Send, Trash2, Zap } from 'lucide-react';
+import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from '@/components/ui/action-menu';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LabelBadgeList } from '@/components/shared/LabelBadge';
@@ -63,6 +64,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const openPromptPreview = useUiStore((s) => s.openPromptPreview);
   const markUsed = usePromptStore((s) => s.markUsed);
   const togglePin = usePromptStore((s) => s.togglePin);
+  const removePrompt = usePromptStore((s) => s.removePrompt);
   const pushPromptToNotion = usePromptStore((s) => s.pushPromptToNotion);
   const notionPushingIds = usePromptStore((s) => s.notionPushingIds);
   const resolveUserName = useUserNameResolver();
@@ -74,6 +76,9 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     [prompt.id, labelAssignments, labelCatalog],
   );
   const pushing = notionPushingIds.has(prompt.id);
+  // Same two-step delete the snippets menu uses: one click arms, the next one
+  // commits, and closing the menu disarms it again.
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const preview = getPreviewText(prompt);
   const strategyColor = prompt.strategy_type
@@ -124,6 +129,19 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     void togglePin(prompt.id);
   }
 
+  async function handleDelete(close: () => void) {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    close();
+    try {
+      await removePrompt(prompt.id);
+    } catch {
+      // Error surfaces via store.error → page-level banner.
+    }
+  }
+
   async function handleRemoveLabel(labelId: string) {
     const current = labelAssignments.get(prompt.id) ?? [];
     try {
@@ -147,13 +165,43 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
           <h3 className="truncate text-sm font-semibold text-ink">{prompt.name}</h3>
           {status !== null && <StatusBadge status={status} detail={statusDetail} />}
         </div>
-        {prompt.strategy_type && strategyColor && (
-          <span
-            className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-[11px] font-semibold ${strategyColor}`}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {prompt.strategy_type && strategyColor && (
+            <span
+              className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-[11px] font-semibold ${strategyColor}`}
+            >
+              {prompt.strategy_type}
+            </span>
+          )}
+          <ActionMenu
+            label={`Actions for ${prompt.name}`}
+            onOpenChange={(open) => {
+              if (!open) setConfirmDelete(false);
+            }}
           >
-            {prompt.strategy_type}
-          </span>
-        )}
+            {(close) => (
+              <>
+                <ActionMenuItem
+                  icon={
+                    prompt.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />
+                  }
+                  label={prompt.pinned ? 'Unpin' : 'Pin to top'}
+                  onClick={() => {
+                    close();
+                    void togglePin(prompt.id);
+                  }}
+                />
+                <ActionMenuSeparator />
+                <ActionMenuItem
+                  icon={<Trash2 className="h-3.5 w-3.5" />}
+                  label={confirmDelete ? 'Click again to confirm' : 'Delete'}
+                  danger
+                  onClick={() => void handleDelete(close)}
+                />
+              </>
+            )}
+          </ActionMenu>
+        </div>
       </div>
 
       {/* Meta pills */}
