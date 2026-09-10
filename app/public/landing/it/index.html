@@ -1062,12 +1062,12 @@ body.cm-locked{overflow:hidden}
         </div>
         <div class="demo-arrow" id="demo-arrow">↓</div>
         <div class="demo-label">SprintBrain scrive</div>
-        <div class="demo-output" id="demo-out" aria-live="polite">Dear guest,
+        <div class="demo-output" id="demo-out" aria-live="polite">Gentile ospite,
 
-The total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.
+Il totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.
 
-Best regards,
-LeibTour Team</div>
+Cordiali saluti,
+Team LeibTour</div>
       </div>
     </div>
   </div>
@@ -1235,10 +1235,10 @@ LeibTour Team</div>
           <span class="fs-typed">::quote</span>
           <div class="fs-arrow">↓</div>
           <div class="fs-out">
-            Dear guest,<br>
-            Thank you for your interest. The total for 3 nights is
-            <b><span class="fs-num">€450</span></b> <span style="color:var(--fs-ink-subtle)">(€150/night × 3)</span>,
-            including a <b><span class="fs-num">10%</span></b> early-bird discount.
+            Gentile ospite,<br>
+            Grazie per il tuo interesse. Il totale per 3 notti è
+            <b><span class="fs-num">€450</span></b> <span style="color:var(--fs-ink-subtle)">(€150/notte × 3)</span>,
+            incluso lo sconto prenota prima del <b><span class="fs-num">10%</span></b>.
           </div>
         </div>
         <button class="fs-cta" type="button" aria-label="Scopri di più sui trigger">
@@ -1257,7 +1257,7 @@ LeibTour Team</div>
         </p>
         <div class="fs-formula" aria-hidden="true">
           <span class="fs-lbl">Notti × tariffa</span><span class="fs-val">€450.00</span>
-          <span class="fs-lbl">Early-bird −10%</span><span class="fs-val">−€45.00</span>
+          <span class="fs-lbl">Prenota prima −10%</span><span class="fs-val">−€45.00</span>
           <span class="fs-lbl">Tassa di soggiorno</span><span class="fs-val">+€7.50</span>
           <span class="fs-divider"></span>
           <span class="fs-lbl">Totale dovuto</span><span class="fs-val fs-hi">€412.50</span>
@@ -1596,7 +1596,7 @@ LeibTour Team</div>
         <div class="sec-icon" aria-hidden="true">
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
         </div>
-        <h3>Row-level security</h3>
+        <h3>Sicurezza a livello di riga</h3>
         <p>La RLS è attiva su ogni tabella. Una riga che non puoi leggere viene rifiutata da Postgres, non semplicemente nascosta dall'interfaccia.</p>
       </article>
 
@@ -1643,7 +1643,7 @@ LeibTour Team</div>
       <img class="foot-logo-google" src="../supported-google-for-startups.png" width="249" height="126" alt="Google for Startups" loading="lazy" decoding="async" draggable="false">
     </div>
   </div>
-  <nav class="foot-lang" aria-label="Language">
+  <nav class="foot-lang" aria-label="Lingua">
     <a href="/" hreflang="en">English</a>
     <span class="foot-lang-current" aria-current="true">Italiano</span>
     <a href="/es/" hreflang="es">Español</a>
@@ -1939,11 +1939,11 @@ LeibTour Team</div>
 
   var SCENES=[
     {app:'mail.google.com',trigger:'::quote',out:
-      'Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team'},
+      'Gentile ospite,\n\nIl totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.\n\nCordiali saluti,\nTeam LeibTour'},
     {app:'web.whatsapp.com',trigger:'::checkin',out:
-      'Hi Marco, check-in opens at 16:00.\n\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\n\nSee you tomorrow!'},
+      'Ciao Marco, il check-in apre alle 16:00.\n\nLe chiavi sono nella serratura smart accanto al cancello: codice 4417. Il parcheggio e i dati del wifi sono nella guida.\n\nA domani!'},
     {app:'notion.so',trigger:'::followup',out:
-      'Following up on Tuesday’s quote.\n\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\n\nWant me to reserve it?'}
+      'Riprendo il preventivo di martedì.\n\nLa villa è ancora libera per le tue date e posso tenerla bloccata fino a venerdì alle 18:00.\n\nVuoi che la prenoti?'}
   ];
 
   var TYPE_MS=58, HOLD_AFTER_TYPE=520, LINE_STAGGER=70, HOLD_SCENE=3200, FADE_MS=340;
@@ -2073,7 +2073,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.23.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.23.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

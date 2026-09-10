@@ -705,6 +705,46 @@
       "find": "var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];",
       "replace": "var MONTHS=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];",
       "count": 1
+    },
+    {
+      "find": "Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team",
+      "replace": "Gentile ospite,\n\nIl totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.\n\nCordiali saluti,\nTeam LeibTour",
+      "count": 1
+    },
+    {
+      "find": "            Dear guest,<br>\n            Thank you for your interest. The total for 3 nights is\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/night × 3)</span>,\n            including a <b><span class=\"fs-num\">10%</span></b> early-bird discount.",
+      "replace": "            Gentile ospite,<br>\n            Grazie per il tuo interesse. Il totale per 3 notti è\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/notte × 3)</span>,\n            incluso lo sconto prenota prima del <b><span class=\"fs-num\">10%</span></b>.",
+      "count": 1
+    },
+    {
+      "find": "'Dear guest,\\n\\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\\n\\nBest regards,\\nLeibTour Team'",
+      "replace": "'Gentile ospite,\\n\\nIl totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.\\n\\nCordiali saluti,\\nTeam LeibTour'",
+      "count": 1
+    },
+    {
+      "find": "'Hi Marco, check-in opens at 16:00.\\n\\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\\n\\nSee you tomorrow!'",
+      "replace": "'Ciao Marco, il check-in apre alle 16:00.\\n\\nLe chiavi sono nella serratura smart accanto al cancello: codice 4417. Il parcheggio e i dati del wifi sono nella guida.\\n\\nA domani!'",
+      "count": 1
+    },
+    {
+      "find": "'Following up on Tuesday’s quote.\\n\\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\\n\\nWant me to reserve it?'",
+      "replace": "'Riprendo il preventivo di martedì.\\n\\nLa villa è ancora libera per le tue date e posso tenerla bloccata fino a venerdì alle 18:00.\\n\\nVuoi che la prenoti?'",
+      "count": 1
+    },
+    {
+      "find": "<h3>Row-level security</h3>",
+      "replace": "<h3>Sicurezza a livello di riga</h3>",
+      "count": 1
+    },
+    {
+      "find": "<span class=\"fs-lbl\">Early-bird −10%</span>",
+      "replace": "<span class=\"fs-lbl\">Prenota prima −10%</span>",
+      "count": 1
+    },
+    {
+      "find": "<nav class=\"foot-lang\" aria-label=\"Language\">",
+      "replace": "<nav class=\"foot-lang\" aria-label=\"Lingua\">",
+      "count": 1
     }
   ]
 }

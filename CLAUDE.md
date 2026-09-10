@@ -155,20 +155,25 @@ Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRL
 
 ---
 
-## 🌐 Landing Translations — Human-Written Only, Non-Negotiable
-**The landing page ships in English, Italian and Spanish. Claude never writes the Italian or the Spanish.** Marketing copy carries the brand voice and is read by prospects and investors; a machine translation that is merely "correct" is not good enough, and a wrong one is public.
+## 🌐 Landing Translations
 
-**The rule:** whenever new text or new content is added to the English source `app/public/landing/index.html`, **stop and ask Valentina or Alessandro for the Italian and Spanish**. They supply a 100% accurate translation. Paste what they give you, verbatim, into the locale files. Do not translate it yourself, do not paraphrase what they send, and do not fill a gap with a placeholder while waiting.
+**The landing page ships in English, Italian and Spanish. Claude writes the Italian and the Spanish itself, without asking.** Alessandro granted this standing authorisation on 2026-09-10, replacing the earlier human-written-only rule.
+
+**The rule:** whenever new text or new content is added to the English source `app/public/landing/index.html`, add the Italian and Spanish in the same change. Do not leave a gap, do not ship a placeholder, and do not wait for approval.
+
+**The authorisation covers the landing page only.** The dashboard, the extension popup and the mobile app are explicitly out of scope — do not add a translation layer to them or translate their interface text.
+
+Marketing copy still carries the brand voice and is read by prospects and investors, so translate to that standard: faithful to the English meaning, natural in the target language, never a word-for-word rendering. Keep brand names, trigger literals (`::quote`), domains and proper nouns as they are. Translate the demo sample messages too — they are what a visitor reads to understand the product.
 
 **How it fits the build:**
 - English source: `app/public/landing/index.html` (the only file where new copy is authored).
 - Locale files: `app/public/landing/locales/{it,es}.json` — a list of `{find, replace, count}` exact-string swaps.
 - Generator: `node scripts/build-landing-i18n.js` writes `app/public/landing/{it,es}/index.html`. `--check` is a CI gate.
-- The `count` assertion is what makes this safe: reword English copy without updating a locale and the build **fails naming the stale key**, rather than silently leaving English on a translated page. Treat that failure as the prompt to go ask for the translation.
+- The `count` assertion is what makes this safe: reword English copy without updating a locale and the build **fails naming the stale key**, rather than silently leaving English on a translated page. Treat that failure as the prompt to write the new translation.
 
 **Corollary:** never "fix" a failing translation gate by editing the `find` string to match the new English while leaving `replace` stale. That defeats the gate and ships mixed-language copy. Adding a language = one new `<lang>.json`, never a hand-copied HTML file.
 
-> Exception, and only this one: strings that are identical in the target language (brand names, `Mobile`, `Analytics`) need no entry at all. Everything a reader actually reads as prose goes to a human.
+> Strings that are identical in the target language (brand names, `Mobile`, `Analytics`) need no entry at all. Everything else a reader actually reads as prose gets translated.
 
 ---
 
@@ -194,7 +199,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Shipping a change to snippets, prompts or memory without the same change in the other two, or giving one of them a page shell, menu, component or wording the others do not have (see the Tripartite Parity section, and its list of what stays distinct).
 - Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal (and `Sprintbrain.html`), the live preview and mobile (see ⚡ Authoring and Expansion Parity).
 - Deferring mobile to a later version, or calling a snippet change done while `app/public/mobile/index.html` still lacks it (see 📱 Mobile).
-- Writing or guessing landing-page copy in Italian or Spanish — see 🌐 Landing Translations. Ask for it.
+- Translating the dashboard, extension popup or mobile interface — the translation authorisation covers the landing page only. See 🌐 Landing Translations.
 
 ---
 
