@@ -3496,22 +3496,59 @@ function sbMemorySetComposer(el, text) {
     } catch(e) { cb(e); }
   }
 
-  ask('memory_index', null, function(err, res) {
-    if (err || !res.data || !res.data.steps.length) return;
+  // Mounted unconditionally on a supported host. Until v3.21.0 this waited for
+  // memory_index and bailed when the user had no STEPS configured, which meant
+  // no pill at all unless someone had first created a step in SQL. The panel
+  // searches instead of reading a step, so there is nothing left to configure
+  // and nothing left to gate on.
+  var BUDGET_KEY = 'sb_memory_budgets';
 
-    var steps = res.data.steps.map(SBMemoryPack.stepFromRow);
-    var shards = res.data.shards.map(SBMemoryPack.shardFromRow);
-
-    var picker = SBMemoryPicker.create({
-      getIndex: function(cb) { cb(null, { steps: steps, shards: shards }); },
-      getBodies: function(ids, cb) {
-        ask('memory_bodies', { ids: ids }, function(e, r) {
-          if (e) { cb(e); return; }
-          cb(null, r.rows || []);
+  var picker = SBMemoryPicker.create({
+    search: function(query, cb) {
+      ask('knowledge_search', { query: query, limit: 40 }, function(e, r) {
+        if (e) { cb(e); return; }
+        cb(null, r.rows || []);
+      });
+    },
+    getBodies: function(ids, cb) {
+      ask('memory_bodies', { ids: ids }, function(e, r) {
+        if (e) { cb(e); return; }
+        cb(null, r.rows || []);
+      });
+    },
+    insertText: sbMemorySetComposer,
+    // Per-host, because the same package that reads well in one composer is a
+    // wall of text in another. Failure is silent and falls back to the host
+    // default: a budget preference is not worth an error message.
+    //
+    // storage.LOCAL, never sync. Anything in storage.sync roams to every Chrome
+    // signed into the same Google account, which has already leaked a snippet
+    // library and an API key between profiles, and the privacy policy now
+    // promises local only. scripts/check-storage.js enforces that promise.
+    loadBudget: function(host, cb) {
+      try {
+        chrome.storage.local.get(BUDGET_KEY, function(d) {
+          var all = (d && d[BUDGET_KEY]) || {};
+          cb(all[host] || null);
         });
-      },
-      insertText: sbMemorySetComposer
-    });
-    picker.mount();
+      } catch(e) { cb(null); }
+    },
+    saveBudget: function(host, tokens) {
+      try {
+        chrome.storage.local.get(BUDGET_KEY, function(d) {
+          var all = (d && d[BUDGET_KEY]) || {};
+          all[host] = tokens;
+          var patch = {};
+          patch[BUDGET_KEY] = all;
+          chrome.storage.local.set(patch);
+        });
+      } catch(e) {}
+    }
+  });
+  picker.mount();
+
+  // The keyboard shortcut, relayed by the service worker.
+  chrome.runtime.onMessage.addListener(function(msg) {
+    if (msg && msg.type === 'SB_OPEN_MEMORY_PANEL') picker.open();
   });
 }());

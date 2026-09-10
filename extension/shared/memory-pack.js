@@ -124,6 +124,88 @@
     return lines.join('\n');
   }
 
+  // ── THE INJECTED BLOCK (MEMORY-002 I1) ────────────────────────────────────
+  //
+  // Presentation, not selection, so this has no twin in engine.ts and is not
+  // parity-gated. The MCP surface renders the same package as structured data;
+  // only a composer needs it as text.
+  //
+  // The markers are unusual characters on purpose. Remove finds the block by
+  // them and strips exactly that range, so it can never eat the user's own
+  // words, and a stray "##" in their draft is not mistaken for ours.
+  var BLOCK_OPEN = '⟦ SprintBrain context';
+  var BLOCK_CLOSE = '⟧ end ⟧';
+
+  /** Render a ContextPackage as the text that goes above the draft. */
+  function formatInjectedBlock(pack) {
+    if (!pack || !pack.items.length) return '';
+    var lines = [BLOCK_OPEN + ' · ' + pack.items.length + ' item' +
+                 (pack.items.length === 1 ? '' : 's') + ' ⟧', ''];
+    for (var i = 0; i < pack.items.length; i++) {
+      lines.push('## ' + pack.items[i].name);
+      lines.push(pack.items[i].text);
+      lines.push('');
+    }
+    lines.push(BLOCK_CLOSE);
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  /** True when this text already carries an injected block. */
+  function hasInjectedBlock(text) {
+    return String(text == null ? '' : text).indexOf(BLOCK_OPEN) !== -1;
+  }
+
+  /**
+   * Remove the injected block, leaving everything else byte-identical.
+   *
+   * Returns the original string untouched when there is no block, or when the
+   * markers are malformed: half-deleting someone's message because a marker got
+   * edited is far worse than leaving the block in place for them to select.
+   */
+  function stripInjectedBlock(text) {
+    var s = String(text == null ? '' : text);
+    var start = s.indexOf(BLOCK_OPEN);
+    if (start === -1) return s;
+    var end = s.indexOf(BLOCK_CLOSE, start);
+    if (end === -1) return s;
+
+    var after = end + BLOCK_CLOSE.length;
+    // Eat the blank line the block leaves behind, so removing it twice in a row
+    // does not accumulate whitespace above the draft.
+    while (after < s.length && (s.charAt(after) === '\n' || s.charAt(after) === '\r')) after++;
+    return s.slice(0, start) + s.slice(after);
+  }
+
+  /**
+   * A knowledge_search row folded into a ContextCandidate.
+   *
+   * `body` and `contentHash` are empty here, and that is the whole point of the
+   * index/body split: search returns summaries so listing a library never costs
+   * the library. `tokens` is the real cost from the database, so the panel can
+   * show and budget an item it has not fetched.
+   *
+   * Bodies arrive at insert, for the handful of ids the user actually accepted,
+   * and buildContext runs on THOSE. Deduplication therefore happens with real
+   * text rather than on a hash the search does not return: two identical bodies
+   * score 1.0 on similarity, comfortably over the near-duplicate threshold, so
+   * the near pass catches exact duplicates too. The hash is only ever a cheaper
+   * fast path, and its absence costs correctness nothing.
+   */
+  function candidateFromSearchRow(row) {
+    return {
+      id: row.source_id,
+      kind: row.kind,
+      name: row.title,
+      summary: row.summary || '',
+      body: '',
+      tokens: typeof row.tokens === 'number' ? row.tokens : 0,
+      pinned: false,
+      rank: typeof row.rank === 'number' ? row.rank : 0,
+      contentHash: ''
+    };
+  }
+
   // Rows as PostgREST returns them, folded into the shape the rule expects.
   function shardFromRow(row) {
     var ids = [];
@@ -359,6 +441,10 @@
     formatContextBlock: formatContextBlock,
     textSimilarity: textSimilarity,
     buildContext: buildContext,
+    formatInjectedBlock: formatInjectedBlock,
+    hasInjectedBlock: hasInjectedBlock,
+    stripInjectedBlock: stripInjectedBlock,
+    candidateFromSearchRow: candidateFromSearchRow,
     shardFromRow: shardFromRow,
     stepFromRow: stepFromRow
   };

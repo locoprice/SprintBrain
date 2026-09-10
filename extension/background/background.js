@@ -99,8 +99,60 @@ function memoryBodies(ids) {
     'select=id,name,body&deleted_at=is.null&id=in.(' + list.join(',') + ')');
 }
 
+// ── MEMORY-002 I1: retrieval for the injection panel ──────────────
+//
+// A separate helper from supaPost, which stamps user_id into the body. That is
+// right for a table insert and wrong for an RPC: knowledge_search takes named
+// p_* parameters, and an extra key makes PostgREST reject the call.
+//
+// knowledge_search is SECURITY INVOKER on purpose, so this carries the user's
+// own JWT and RLS decides what comes back. See the migration for why promoting
+// it to definer would hand every caller everyone's rows.
+function supaRpc(fn, params) {
+  return new Promise(function(resolve, reject) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { reject(new Error('not_authed')); return; }
+      fetch(SUPA_URL + '/rest/v1/rpc/' + fn, {
+        method: 'POST',
+        headers: {
+          'apikey': headers.apikey,
+          'Authorization': headers.Authorization,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params || {})
+      }).then(function(r) {
+        if (!r.ok) { reject(new Error('rpc_' + r.status)); return; }
+        return r.json().then(resolve, reject);
+      }, reject);
+    });
+  });
+}
+
+/**
+ * Rank candidates for a draft. Summaries and scores, never bodies: the panel
+ * lists what it found before anything is fetched to insert.
+ */
+function knowledgeSearch(query, limit) {
+  return supaRpc('knowledge_search', {
+    p_query: query || null,
+    p_kinds: null,
+    p_label_ids: null,
+    p_container_ids: null,
+    p_limit: typeof limit === 'number' ? limit : 40
+  });
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (!msg) return;
+
+  if (msg.type === 'knowledge_search') {
+    knowledgeSearch(msg.query, msg.limit).then(function(rows) {
+      try { sendResponse({ ok: true, rows: rows || [] }); } catch(e) {}
+    }, function() {
+      try { sendResponse({ ok: false }); } catch(e) {}
+    });
+    return true;
+  }
 
   if (msg.type === 'memory_index') {
     memoryIndex().then(function(data) {
@@ -744,6 +796,25 @@ function sbRefreshActionIcon() {
 chrome.runtime.onMessage.addListener(function(msg) {
   if (msg && msg.type === 'auth_changed') { initMenus(); sbRefreshActionIcon(); }
 });
+
+// ── MEMORY-002 I1: the keyboard shortcut ──────────────────────────
+//
+// The command fires here, in the service worker, so it has to be relayed to the
+// tab the user is actually looking at. Fire and forget: a tab with no content
+// script (a chrome:// page, the web store) simply has no listener, and the
+// lastError read is what stops that becoming an unchecked-error warning.
+if (chrome.commands && chrome.commands.onCommand) {
+  chrome.commands.onCommand.addListener(function(command) {
+    if (command !== 'open_memory_panel') return;
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      var tab = tabs && tabs[0];
+      if (!tab || typeof tab.id !== 'number') return;
+      chrome.tabs.sendMessage(tab.id, { type: 'SB_OPEN_MEMORY_PANEL' }, function() {
+        void chrome.runtime.lastError;
+      });
+    });
+  });
+}
 
 // ── LEGACY SEED / ROAMING-KEY PURGE ──────────────────────────────
 // Two things had to leave the browser on update:
