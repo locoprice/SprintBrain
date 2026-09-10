@@ -25,7 +25,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { LabelPicker } from '@/features/labels/LabelPicker';
@@ -155,9 +154,6 @@ const EMPTY_FORM: SnippetFormValues = {
   language: 'EN',
   pinned: false,
   alternative_queries: [],
-  enable_urgency_timer: false,
-  timer_duration_ms: 0,
-  scarcity_count: 0,
 };
 
 /**
@@ -233,21 +229,6 @@ const BUTTON_FIELDS: { label: string; hint: string }[] = [
     hint: 'Each line sets one field to the result of an expression. Later lines see the earlier results, so one can feed the next.' },
   { label: 'Spacing',
     hint: 'Whether the button trims the space around it. On a line of its own it leaves a blank line behind unless it does.' },
-];
-
-// The urgency timer is the one entry in the rail that carries a value rather
-// than inserting something, so its panel explains a mechanism instead of a
-// token. All three lines describe what extension/content/content.js actually
-// does: the expiry is held per snippet in sessionStorage (reopening does not
-// restart it), the scarcity chip is hidden at 0, and on expiry the bar and the
-// Insert button both go dead.
-const URGENCY_FIELDS: { label: string; hint: string }[] = [
-  { label: 'Duration',
-    hint: 'How long the countdown runs, in minutes. It starts the first time the snippet is opened, and reopening it does not restart the clock.' },
-  { label: 'Scarcity count',
-    hint: 'Optional. Shown beside the timer as how many are left. Left at 0, nothing is shown.' },
-  { label: 'Expiry',
-    hint: 'When it runs out the bar marks the snippet expired and the Insert button stops working, so nothing goes out on terms that have lapsed.' },
 ];
 
 const MENU_FIELDS: { label: string; hint: string }[] = [
@@ -421,7 +402,6 @@ export function NewSnippetDialog() {
   // their own and owns it. A ref, not state: nothing renders from it.
   const autoTriggerRef = useRef('');
   const [altQueryDraft, setAltQueryDraft] = useState('');
-  const [editNote, setEditNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   // Language verdict for the slot currently on screen, recomputed as the user
   // types. Separate from `errors` because nothing here came from a submit: it
@@ -506,7 +486,6 @@ export function NewSnippetDialog() {
     setSubmitError(null);
     setConfirmDelete(false);
     setConfirmClear(false);
-    setEditNote('');
     setAltQueryDraft('');
     // A new form starts with the trigger unclaimed, so the name may fill it.
     autoTriggerRef.current = '';
@@ -529,9 +508,6 @@ export function NewSnippetDialog() {
         language:             editingSnippet.language,
         pinned:               editingSnippet.pinned,
         alternative_queries:  editingSnippet.alternative_queries,
-        enable_urgency_timer: editingSnippet.enable_urgency_timer,
-        timer_duration_ms:    editingSnippet.timer_duration_ms,
-        scarcity_count:       editingSnippet.scarcity_count,
       });
       // Read once on open: the picker owns the draft from here, so a
       // background refresh can't stomp an in-progress edit.
@@ -861,11 +837,10 @@ export function NewSnippetDialog() {
       if (mode === 'edit' && editingSnippet) {
         // Every explicit "Save changes" creates a revision entry so the full
         // history is preserved. editSnippet is no longer called from the dialog.
-        await editSnippetWithRevision(
-          editingSnippet.id,
-          parsed.data,
-          editNote.trim() || undefined,
-        );
+        // No note is passed: the version list already names the editor, the
+        // time and the diff. Restore still writes its own note (see
+        // snippetStore.restoreRevision).
+        await editSnippetWithRevision(editingSnippet.id, parsed.data);
         await setSnippetLabels(editingSnippet.id, labelIds);
         closeEdit();
       } else {
@@ -915,7 +890,7 @@ export function NewSnippetDialog() {
 
         Height is FIXED (not max-) so the flex column always fills it and the
         body textarea absorbs the slack. The left rail scrolls when it has to:
-        with the urgency fields expanded it overflows even a full-height dialog.
+        with several groups open it overflows even a full-height dialog.
 
         Opening the preview grows the dialog by 321px while the preview panel
         itself takes only 261px (it matches the 260px insert rail), so the 60px
@@ -995,8 +970,8 @@ export function NewSnippetDialog() {
               they stack in one column, and the editor keeps the vertical space
               they used to take from it. Nothing else lives in this rail — it is
               the insert vocabulary and only that. It still shows its scrollbar:
-              with the urgency fields expanded it can genuinely overflow, and
-              hidden chrome would leave a group silently out of reach. */}
+              with several groups open it can genuinely overflow, and hidden
+              chrome would leave a group silently out of reach. */}
           <ToggleGroup className="w-[260px] shrink-0 overflow-y-auto flex flex-col bg-bg">
 
             {/* Fields */}
@@ -1315,88 +1290,6 @@ export function NewSnippetDialog() {
                 </p>
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {BUTTON_FIELDS.map((f) => (
-                    <div key={f.label}>
-                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
-                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </Toggle>
-
-              {/* Urgency Timer belongs with the actions: it is the other thing
-                  the snippet does at fill time, not a list-level preference
-                  like Pin to top.
-
-                  It is the only toggle in the rail holding a value rather than
-                  inserting something, and a shut panel would hide whether that
-                  value is on — so the label says so. Everything else about the
-                  row is what the other seven are. */}
-              <Toggle
-                label={form.enable_urgency_timer ? 'Urgency Timer · On' : 'Urgency Timer'}
-                className="mb-2.5"
-                footer={
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-center justify-between gap-2.5">
-                      <label htmlFor="snippet-urgency" className="text-[11px] text-ink-muted">
-                        Countdown + scarcity
-                      </label>
-                      <Switch
-                        id="snippet-urgency"
-                        checked={form.enable_urgency_timer}
-                        onChange={(v) => updateField('enable_urgency_timer', v)}
-                        disabled={saving}
-                      />
-                    </div>
-
-                    {form.enable_urgency_timer && (
-                      <div className="grid gap-2">
-                        <div>
-                          <label htmlFor="snippet-timer-minutes" className="block text-[11px] text-ink-muted mb-1">
-                            Duration (minutes)
-                          </label>
-                          <Input
-                            id="snippet-timer-minutes"
-                            type="number"
-                            min={0}
-                            value={Math.round(form.timer_duration_ms / 60000)}
-                            onChange={(e) =>
-                              updateField(
-                                'timer_duration_ms',
-                                Math.max(0, Number(e.target.value) || 0) * 60000,
-                              )
-                            }
-                            disabled={saving}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="snippet-scarcity" className="block text-[11px] text-ink-muted mb-1">
-                            Scarcity count
-                          </label>
-                          <Input
-                            id="snippet-scarcity"
-                            type="number"
-                            min={0}
-                            value={form.scarcity_count}
-                            onChange={(e) =>
-                              updateField('scarcity_count', Math.max(0, Number(e.target.value) || 0))
-                            }
-                            disabled={saving}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                }
-              >
-                <p className="text-[11px] text-ink-subtle leading-tight">
-                  A countdown shown in the fill window while you work, never in the
-                  message. It starts the moment the snippet is first opened and runs down
-                  from there, and it can take the snippet out of use when it reaches zero.
-                </p>
-                <dl className="mt-2 flex flex-col gap-1.5">
-                  {URGENCY_FIELDS.map((f) => (
                     <div key={f.label}>
                       <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
                       <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
@@ -1910,27 +1803,6 @@ export function NewSnippetDialog() {
                 </div>
               </div>
             </div>
-
-            {/* Edit note — recorded in version history. Under the body rather
-                than in the rail: it describes the edit that was just typed
-                above it, and the rail is the insert vocabulary and nothing
-                else. shrink-0 so the body keeps absorbing the panel's slack. */}
-            {mode === 'edit' && (
-              <div className="shrink-0">
-                <label htmlFor="snippet-edit-note" className={FIELD_LABEL}>
-                  Edit note{' '}
-                  <span className="font-normal text-ink-subtle">(optional)</span>
-                </label>
-                <Input
-                  id="snippet-edit-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder="What changed?"
-                  disabled={saving}
-                  maxLength={200}
-                />
-              </div>
-            )}
 
             <FormTextDialog
               open={textFieldOpen}

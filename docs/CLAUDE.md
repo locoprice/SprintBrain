@@ -33,7 +33,6 @@
 - **Real-time cloud sync** via Supabase as primary source of truth
 - **Optional Notion integration** — bi-directional sync with Notion databases
 - **Context menu** integration for right-click snippet insertion
-- **Urgency timers** — scarcity/time-sensitive snippet expiration
 
 **Goal**: Replace tools like TextBlaze / TextExpander / Magical, emphasizing dynamic formulas, AI prompts, and reliable sync.
 
@@ -118,8 +117,6 @@ chrome.storage.local
   └── Background sync locks and timestamps
   └── Notion sync state (locks, timestamps)
 
-sessionStorage
-  └── Urgency timer state (per browser session)
 ```
 
 ### Data Flow Between Files
@@ -156,7 +153,6 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 - `addKey()` / `checkBuf()` — 40-char keystroke buffer for trigger detection
 - `handleMatch()` — Triggers overlay or direct insertion
 - `showOverlay()` — Inline field input UI
-- `isUrgExpired()` — Checks urgency timer (uses sessionStorage)
 
 **`popup/popup.js`** — Read-only popup UI (instantiated on every icon click). Since v2.87.0 the popup only browses/searches/copies snippets and prompts and writes the expansion caches — all management (snippet/folder CRUD, triggers, Notion credentials, Team Sync) lives in the dashboard. The `DB` CRUD wrapper below remains as the shared data core (used by `Sprintbrain.html` and the popup's own stats/cache writes).
 - `DB` object — wraps all Supabase CRUD operations:
@@ -195,9 +191,9 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 | `field_cfg` | JSONB | Field definitions: `{ fieldName: { type, label, default, options } }` |
 | `lang_group_id` | text | Groups multi-language variants |
 | `sort_order` | integer | Display order |
-| `enable_urgency_timer` | boolean | Scarcity timer toggle |
-| `timer_duration_ms` | integer | Timer duration in milliseconds |
-| `scarcity_count` | integer | Scarcity count display |
+| `enable_urgency_timer` | boolean | Retired with the urgency timer; column kept, always false |
+| `timer_duration_ms` | integer | Retired with the urgency timer; column kept, always 0 |
+| `scarcity_count` | integer | Retired with the urgency timer; column kept, always 0 |
 | `notion_page_id` | text | Notion page ID (for synced snippets) |
 
 ### `folders` table
@@ -402,9 +398,8 @@ chore: bump manifest version to 2.38.0
 7. **Test manually** — there is no automated test suite; note what to test after changes
 8. **Storage awareness** — `content.js` reads from `chrome.storage.sync`; popup writes to both Supabase and storage
 9. **Formula engine is a whitelist** — do not add new math functions without updating `FUNS` in `content.js`
-10. **Urgency timers use sessionStorage** — cleared on browser restart; this is intentional
-11. **Do not commit autonomously** — follow the workflow; human reviews all changes
-12. **Do not push to `main` directly** — always use `develop` or feature branches
+10. **Do not commit autonomously** — follow the workflow; human reviews all changes
+11. **Do not push to `main` directly** — always use `develop` or feature branches
 
 ---
 

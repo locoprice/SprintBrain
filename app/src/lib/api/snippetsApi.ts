@@ -64,9 +64,6 @@ type DbSnippetJoined = {
   is_active: boolean | null;
   is_malformed: boolean | null;
   alternative_queries: string[] | null;
-  enable_urgency_timer: boolean | null;
-  timer_duration_ms: number | null;
-  scarcity_count: number | null;
   folders: { name: string } | null;
 };
 
@@ -132,9 +129,6 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts):
     is_active: row.is_active ?? true,
     is_malformed: row.is_malformed ?? false,
     alternative_queries: Array.isArray(row.alternative_queries) ? row.alternative_queries : [],
-    enable_urgency_timer: row.enable_urgency_timer ?? false,
-    timer_duration_ms: row.timer_duration_ms ?? 0,
-    scarcity_count: row.scarcity_count ?? 0,
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? null,
     folder_name: row.folders?.name ?? null,
@@ -166,7 +160,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
+  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, folders(name)';
 
 /**
  * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
@@ -252,9 +246,6 @@ function buildSnippetInsert(
     is_malformed: malformedFlag(bodies, payload.content),
     pinned: payload.pinned ?? false,
     alternative_queries: payload.alternative_queries ?? [],
-    enable_urgency_timer: payload.enable_urgency_timer ?? false,
-    timer_duration_ms: payload.timer_duration_ms ?? 0,
-    scarcity_count: payload.scarcity_count ?? 0,
   };
 }
 
@@ -325,11 +316,6 @@ export const snippetsApi: SnippetsApi = {
     if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
     if (patch.pinned !== undefined) update['pinned'] = patch.pinned;
     if (patch.alternative_queries !== undefined) update['alternative_queries'] = patch.alternative_queries;
-    if (patch.enable_urgency_timer !== undefined)
-      update['enable_urgency_timer'] = patch.enable_urgency_timer;
-    if (patch.timer_duration_ms !== undefined)
-      update['timer_duration_ms'] = patch.timer_duration_ms;
-    if (patch.scarcity_count !== undefined) update['scarcity_count'] = patch.scarcity_count;
 
     // Body fields need to update together so the JSONB map, the active
     // language tag, and the denormalized `body` column never drift.
@@ -414,7 +400,7 @@ export const snippetsApi: SnippetsApi = {
 
   async duplicateSnippet(id) {
     const userId = await currentUserId();
-    // Read the source row first so we copy every column (incl. urgency + pin).
+    // Read the source row first so we copy every column (incl. pin).
     // RLS governs read access (owner or shared-folder member); the inserted copy
     // below is stamped with the current user's id so they own their duplicate.
     const { data: src, error: readErr } = await supabase
@@ -449,9 +435,6 @@ export const snippetsApi: SnippetsApi = {
         source.body ?? '',
       ),
       alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
-      enable_urgency_timer: source.enable_urgency_timer ?? false,
-      timer_duration_ms: source.timer_duration_ms ?? 0,
-      scarcity_count: source.scarcity_count ?? 0,
     };
     const { data, error } = await supabase
       .from('snippets')

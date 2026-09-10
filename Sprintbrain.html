@@ -306,19 +306,6 @@
   .nv-alt-tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4}
   .nv-alt-x{cursor:pointer;opacity:.6;font-style:normal;font-size:10px}
   .nv-alt-x:hover{opacity:1}
-  /* Urgency rides the Actions chip row: it is a fill-time control like the
-     buttons beside it, and inlining it there reclaims the whole card the
-     standalone block used to cost. */
-  .nv-urgchip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-weight:600;border:1px solid var(--sb-line);background:var(--sb-bg-muted);color:var(--sb-ink-muted)}
-  .nv-urgchip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  /* The timer's own fields sit directly under its toggle, inside the Actions
-     column — they belong to the timer, not to whatever section happens to have
-     spare width. Laid out inline (label beside input) so correct grouping costs
-     one short row rather than a full stacked field. */
-  .nv-urg-fields{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px}
-  .nv-urg-fields .nv-field{flex:0 0 auto;flex-direction:row;align-items:center;gap:6px}
-  .nv-urg-fields .nv-field label{white-space:nowrap;margin:0}
-  .nv-urg-fields .nv-field input{width:66px;padding:4px 8px;font-size:var(--sb-fs-11)}
   /* Date/Time group — a format and the button that inserts it, on one line.
      Mirrors the React rail's Date/Time toggle: same two rows in the same order,
      same choices, same token preview underneath. */
@@ -641,11 +628,6 @@
               <div class="nv-chiplbl">Actions <span>— clicked while filling; never print</span></div>
               <div class="nv-chiprow">
                 <span class="nv-chip m" id="nv-chip-button" title="Build an action button — changes field values when clicked"><svg viewBox="0 0 24 24"><path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2l.9 2.1"/><path d="M2.2 7.2l2.1.9"/><path d="M4.3 12.1l-2.1.9"/><path d="M12.1 4.3l.9-2.1"/></svg>{button}</span>
-                <span class="nv-urgchip" title="Countdown + scarcity for quotes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Urgency timer<label class="nv-switch"><input type="checkbox" id="nv-f-urg"><span class="nv-slider"></span></label></span>
-              </div>
-              <div class="nv-urg-fields" id="nv-f-urg-fields" style="display:none">
-                <div class="nv-field"><label for="nv-f-urg-dur">Duration (min)</label><input type="number" id="nv-f-urg-dur" min="1" max="10080" value="30"></div>
-                <div class="nv-field"><label for="nv-f-urg-sc">Units left</label><input type="number" id="nv-f-urg-sc" min="0" max="999" value="0"></div>
               </div>
             </div>
             <div>
@@ -958,7 +940,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.23.2', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.24.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1393,7 +1375,7 @@
   // ── Editor (create/edit/delete via shared DB) ───────────────────────
   // Multi-language buffers mirror popup.js doSave(): one body per language,
   // active tab edits edBuf[edActive]; on save buildBodies() keeps every non-empty
-  // language. Urgency + alternative_queries persisted exactly as the popup does.
+  // language. alternative_queries persisted exactly as the popup does.
   var LANG_LIST = (typeof LANGS !== 'undefined') ? LANGS : ['EN','ES','IT','FR'];
   var edBuf = {}, edActive = 'EN', edAlt = [];
   // The body placeholder's opening word in the active tab's language, so an
@@ -1619,12 +1601,6 @@
     // alternative queries
     edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
     renderAltTags(); $('nv-f-alt').value = '';
-    // urgency
-    var urgOn = snip ? !!snip.enable_urgency_timer : false;
-    $('nv-f-urg').checked = urgOn;
-    $('nv-f-urg-dur').value = (snip && snip.timer_duration_ms) ? Math.round(snip.timer_duration_ms / 60000) : 30;
-    $('nv-f-urg-sc').value = (snip && snip.scarcity_count) ? snip.scarcity_count : 0;
-    $('nv-f-urg-fields').style.display = urgOn ? '' : 'none';
     updatePreview();
     $('nv-f-delete').style.display = snip ? '' : 'none';
     $('nv-modal-bg').classList.add('on');
@@ -2486,7 +2462,6 @@
     else if (e.key === 'Backspace' && ($('nv-f-alt').value || '') === '') { if (edAlt.length) { edAlt.pop(); renderAltTags(); } }
   });
   $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
-  $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
   $('nv-f-shortcut').addEventListener('input', updatePreview);
   // Typing disarms Clear and Translate: one left armed from before the edit
   // would otherwise wipe text the user has just written on a single click.
@@ -2508,17 +2483,13 @@
     if (!body.trim()) { toast('Body is required'); $('nv-f-body').focus(); return; }
     edBuf[edActive] = body;
     var bodies = {}; LANG_LIST.forEach(function(l){ var t = edBuf[l]; if (typeof t === 'string' && t.trim()) bodies[l] = t; });
-    var urgEnabled = $('nv-f-urg').checked;
-    var urgDurMs = Math.max(1, parseInt($('nv-f-urg-dur').value, 10) || 30) * 60000;
-    var urgSc = Math.max(0, parseInt($('nv-f-urg-sc').value, 10) || 0);
     var alt = edAlt.slice();
 
     var existing = nvEditId ? findSnip(nvEditId) : null, obj;
     if (existing) {
       obj = existing;
       obj.title = title; obj.shortcut = sc; obj.body = body; obj.lang = lang; obj.bodies = bodies;
-      obj.folder = folder; obj.enable_urgency_timer = urgEnabled; obj.timer_duration_ms = urgDurMs;
-      obj.scarcity_count = urgSc; obj.alternative_queries = alt; obj.manually_edited = true;
+      obj.folder = folder; obj.alternative_queries = alt; obj.manually_edited = true;
       DB.upsertSnippet(obj);
     } else {
       var id = uid();
@@ -2528,7 +2499,6 @@
         // before the next reload.
         user_id: window.SB_CURRENT_USER_ID || null,
         fieldCfg:{}, lang_group_id:id, sort_order:(window.snips||[]).length + 1,
-        enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs, scarcity_count:urgSc,
         alternative_queries:alt, notion_page_id:null, manually_edited:true, ai_generated:false, pinned:false,
         stats:{ uses:0, fills:0, lastUsed:null } };
       (window.snips = window.snips || []).unshift(obj);

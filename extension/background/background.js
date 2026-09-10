@@ -227,13 +227,13 @@ function loadData() {
       // disabled rows must not appear in the right-click context menu and must
       // not expand when their shortcut is typed. The dashboard is the only
       // surface that exposes disabled snippets (so they can be re-enabled).
-      // The body/field_cfg/urgency columns are not needed to draw the context
+      // The body/field_cfg columns are not needed to draw the context
       // menu — they are here so this one fetch can also refresh the expansion
       // cache content.js reads (see writeExpansionCache below). Without them the
       // service worker had no body to cache, which is why a snippet edited on
       // the dashboard kept expanding its old text until the popup was opened.
       var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order,' +
-        'body,bodies,field_cfg,enable_urgency_timer,timer_duration_ms,scarcity_count,pinned' +
+        'body,bodies,field_cfg,pinned' +
         '&is_active=eq.true&order=sort_order';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
@@ -626,9 +626,6 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
         lang:      s.lang || 'EN',
         folder:    s.folder_id || '',
         fieldCfg:  s.field_cfg || {},
-        enable_urgency_timer: s.enable_urgency_timer || false,
-        timer_duration_ms: s.timer_duration_ms || 0,
-        scarcity_count: s.scarcity_count || 0
       };
       chrome.tabs.sendMessage(tab.id, {
         type: 'SB_CONTEXT_INSERT',
@@ -691,9 +688,6 @@ function writeExpansionCache(rows) {
           lang_group_id: s.lang_group_id || s.id,
           sort_order: s.sort_order || 0,
           alternative_queries: Array.isArray(s.alternative_queries) ? s.alternative_queries : [],
-          enable_urgency_timer: s.enable_urgency_timer || false,
-          timer_duration_ms: s.timer_duration_ms || 0,
-          scarcity_count: s.scarcity_count || 0,
           pinned: s.pinned || false,
           // The worker does not fetch usage, but the popup hydrates its list
           // from this same cache and reads s.stats.uses unguarded. Writing the

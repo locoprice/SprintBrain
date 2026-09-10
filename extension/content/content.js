@@ -943,7 +943,6 @@ function handleMatch(el, snip, scLen) {
 function _proceedInsert(el, snip, fieldSnapshot, scLen) {
   var fields = extractFields(snip.body);
   if (!fields.length) {
-    if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {}, { lang: snip.lang });
     var _isCE = el && (el.isContentEditable || (el.getAttribute &&
       (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
@@ -1296,85 +1295,6 @@ function insertText(el, text) {
   } catch(e) {}
 }
 
-// ── URGENCY TIMER ENGINE ──────────────────────────────────────────
-function getUrgExpiry(snippetId, durationMs) {
-  var key = 'sb-urg-' + snippetId;
-  var stored = sessionStorage.getItem(key);
-  if (stored) { var exp = parseInt(stored); if (!isNaN(exp)) return exp; }
-  var exp = Date.now() + durationMs;
-  sessionStorage.setItem(key, String(exp));
-  return exp;
-}
-
-function buildUrgencyHtml(snip) {
-  if (!snip || !snip.enable_urgency_timer || !snip.timer_duration_ms) return '';
-  var exp = getUrgExpiry(snip.id, snip.timer_duration_ms);
-  var remain = Math.max(0, exp - Date.now());
-  var isExpired = remain <= 0;
-  var sc = snip.scarcity_count || 0;
-  var h = '<div id="sb-urg-bar" data-exp="'+exp+'" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid '+(isExpired?'#666':'#d93900')+';border-radius:10px;padding:10px 14px;margin:0 14px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;'+(isExpired?'opacity:.6;':'animation:sbUrgPulse 2s ease-in-out infinite;')+'">';
-  if (isExpired) {
-    h += '<span style="font-size:16px">⏰</span><span style="font-size:12px;font-weight:700;color:#c0392b;text-align:center;width:100%">Quote Expired</span>';
-  } else {
-    h += '<span style="font-size:16px">🔥</span>';
-    h += '<div id="sb-urg-timer" style="display:flex;gap:3px;align-items:center">' + renderUrgDigits(remain) + '</div>';
-    if (sc > 0) {
-      h += '<div style="display:flex;align-items:center;gap:5px;background:rgba(217,57,0,.12);border:1px solid rgba(217,57,0,.35);border-radius:16px;padding:4px 10px">'
-        + '<span style="width:6px;height:6px;border-radius:50%;background:#d93900;animation:sbScBlink 1s ease-in-out infinite"></span>'
-        + '<span style="font-size:11px;font-weight:700;color:#ff6b35;white-space:nowrap">Only '+sc+' unit'+(sc!==1?'s':'')+' left</span></div>';
-    }
-  }
-  h += '</div>';
-  return h;
-}
-
-function renderUrgDigits(ms) {
-  var totalSec = Math.ceil(ms / 1000);
-  var hr = Math.floor(totalSec / 3600);
-  var mn = Math.floor((totalSec % 3600) / 60);
-  var sc = totalSec % 60;
-  function pad(n){ return n < 10 ? '0'+n : ''+n; }
-  function dbox(val, lbl) {
-    return '<div style="background:rgba(217,57,0,.15);border:1px solid rgba(217,57,0,.4);border-radius:5px;padding:3px 5px;min-width:28px;text-align:center">'
-      + '<div style="font-size:16px;font-weight:800;color:#ff6b35;font-family:monospace;line-height:1">'+pad(val)+'</div>'
-      + '<div style="font-size:6px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:1px">'+lbl+'</div></div>';
-  }
-  var sep = '<span style="font-size:14px;font-weight:800;color:#ff6b35;opacity:.5;padding:0 1px">:</span>';
-  var html = '';
-  if (hr > 0) html += dbox(hr,'hrs') + sep;
-  html += dbox(mn,'min') + sep + dbox(sc,'sec');
-  return html;
-}
-
-var urgRAF = null;
-function startUrgTick() {
-  if (urgRAF) cancelAnimationFrame(urgRAF);
-  urgRAF = null;
-  function tick() {
-    var bar = document.getElementById('sb-urg-bar');
-    if (!bar) { urgRAF = null; return; }
-    var exp = parseInt(bar.dataset.exp);
-    var remain = Math.max(0, exp - Date.now());
-    if (remain <= 0) {
-      bar.style.opacity = '0.6'; bar.style.borderColor = '#666'; bar.style.animation = 'none';
-      bar.innerHTML = '<span style="font-size:16px">⏰</span><span style="font-size:12px;font-weight:700;color:#c0392b;text-align:center;width:100%">Quote Expired</span>';
-      var btn = document.querySelector('#sb-overlay .sb-insert');
-      if (btn) { btn.disabled = true; btn.textContent = 'Quote Expired'; btn.style.opacity = '0.5'; btn.style.background = '#666'; }
-      urgRAF = null; return;
-    }
-    var td = document.getElementById('sb-urg-timer');
-    if (td) td.innerHTML = renderUrgDigits(remain);
-    urgRAF = requestAnimationFrame(tick);
-  }
-  urgRAF = requestAnimationFrame(tick);
-}
-
-function isUrgExpired(snip) {
-  if (!snip || !snip.enable_urgency_timer || !snip.timer_duration_ms) return false;
-  var exp = getUrgExpiry(snip.id, snip.timer_duration_ms);
-  return Date.now() >= exp;
-}
-
 // ── OVERLAY ────────────────────────────────────────────────────────
 var overlayEl  = null;
 var overlayDone = null;
@@ -1564,9 +1484,6 @@ function showOverlay(targetEl, snip, scLen, done) {
     }).join('') + '</div><div class="sb-btnerr" hidden></div>';
   }
 
-  var urgHtml = buildUrgencyHtml(snip);
-  var expired = isUrgExpired(snip);
-
   var el = document.createElement('div');
   el.id = 'sb-overlay';
   el.innerHTML =
@@ -1575,12 +1492,10 @@ function showOverlay(targetEl, snip, scLen, done) {
       '<span class="sb-title">'+xesc(snip.title)+'</span>' +
       '<button class="sb-close">&#x2715;</button>' +
     '</div>' +
-    urgHtml +
     '<div class="sb-fields">'+fhtml+'</div>' +
     '<div class="sb-prev" id="sb-prev"></div>' +
     '<div class="sb-foot">' +
-      '<button class="sb-insert"'+(expired?' disabled style="opacity:.5;background:#666"':'')+'>'+
-        (expired ? 'Quote Expired' : 'Insert message \u21b5') + '</button>' +
+      '<button class="sb-insert">Insert message \u21b5</button>' +
       '<span class="sb-tip">Enter \u00b7 Esc to cancel</span>' +
     '</div>';
 
@@ -1603,7 +1518,6 @@ function showOverlay(targetEl, snip, scLen, done) {
   setTimeout(function() {
     _sbFocus(_sbFirstEmpty(el));
     updatePrev(snip);
-    if (document.getElementById('sb-urg-bar')) startUrgTick();
   }, 50);
 
   var inps = el.querySelectorAll('.sb-inp');
@@ -1898,7 +1812,6 @@ function updatePrev(snip) {
 }
 
 function doInsert(targetEl, snip) {
-  if (isUrgExpired(snip)) return;
   var vals = getVals();
   // Read BEFORE closeOverlay tears the panel down, and passed to the same
   // resolveBody the preview used, or what lands in the field prints in a
@@ -2552,7 +2465,7 @@ function selectTriggerItem(idx) {
   // Multi-language detection: if the selected snippet has sibling translations,
   // show the language picker modal instead of inserting directly. The modal
   // re-enters through handleMatch() which handles deletion + the full insertion
-  // pipeline (placeholders, formulas, fields, urgency, celebration).
+  // pipeline (placeholders, formulas, fields, celebration).
   if (mode === 'snippet') {
     var variantsMap = _findLangVariants(item);
     if (Object.keys(variantsMap).length > 1) {
@@ -2573,7 +2486,6 @@ function selectTriggerItem(idx) {
       var fields = extractFields(item.body);
       processing = true;
       if (!fields.length) {
-        if (isUrgExpired(item)) { processing = false; return; }
         var text = resolveBody(item.body, {}, { lang: item.lang });
         var _isCE2 = el && (el.isContentEditable || (el.getAttribute &&
           (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
@@ -3330,7 +3242,7 @@ document.addEventListener('input', function(e) {
   s.id = 'sb-styles';
   s.textContent =
     '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
-    // Flex column: header, urgency bar, preview and footer keep their size; the
+    // Flex column: header, preview and footer keep their size; the
     // fields area is the only part that scrolls, and only when a snippet has
     // more fields than fit in 88vh. A short form shows no scrollbar at all.
     '#sb-overlay > *{flex:none;}' +
@@ -3403,9 +3315,7 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-tip{font-size:10px;color:#A1A1AA;}' +
     '#sb-trigger-picker .sb-tp-item,#sb-sel-suggest .sb-ss-item{touch-action:manipulation;border-radius:8px;transition:background .12s ease;}' +
     '#sb-trigger-picker .sb-tp-item:hover,#sb-sel-suggest .sb-ss-item:hover{background:#F4F4F5;}' +
-    '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}' +
-    '@keyframes sbUrgPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,57,0,.3)}50%{box-shadow:0 0 14px 3px rgba(217,57,0,.15)}}' +
-    '@keyframes sbScBlink{0%,100%{opacity:1}50%{opacity:.3}}';
+    '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}';
   document.head.appendChild(s);
 })();
 
@@ -3474,7 +3384,6 @@ chrome.runtime.onMessage.addListener(function(msg) {
 function _proceedContextInsert(el, snip) {
   var fields = extractFields(snip.body);
   if (fields.length === 0) {
-    if (isUrgExpired(snip)) { processing = false; return; }
     var text = resolveBody(snip.body, {}, { lang: snip.lang });
     var isCE = el && (el.isContentEditable || (el.getAttribute &&
       (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));

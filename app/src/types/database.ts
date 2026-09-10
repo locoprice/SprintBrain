@@ -138,9 +138,6 @@ export interface Snippet {
   is_malformed: boolean;
   /** Keyword synonyms for context-based snippet matching (ALTERNATIVE-QUERIES-001). */
   alternative_queries: string[];
-  enable_urgency_timer: boolean;
-  timer_duration_ms: number;
-  scarcity_count: number;
   updated_at: IsoDateTime;
   /**
    * Last modifier — stamped in the DB by app.stamp_asset_audit whenever a

@@ -88,9 +88,6 @@ export const snippetFormSchema = z.object({
   language: languageEnum,
   pinned: z.boolean().default(false),
   alternative_queries: z.array(z.string()).default([]),
-  enable_urgency_timer: z.boolean().default(false),
-  timer_duration_ms: z.number().int().nonnegative().default(0),
-  scarcity_count: z.number().int().nonnegative().default(0),
 });
 
 export type SnippetFormValues = z.infer<typeof snippetFormSchema>;

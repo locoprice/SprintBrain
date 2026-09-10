@@ -51,9 +51,6 @@ const MOCK_SNIPPET: SnippetRow = {
   notion_page_id: null,
   pinned: false,
   is_active: true,
-  enable_urgency_timer: false,
-  timer_duration_ms: 0,
-  scarcity_count: 0,
   alternative_queries: [],
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: 'user-1',
@@ -83,9 +80,6 @@ const PATCH: SnippetFormValues = {
   folder_id: null,
   language: 'EN',
   pinned: false,
-  enable_urgency_timer: false,
-  timer_duration_ms: 0,
-  scarcity_count: 0,
   alternative_queries: [],
 };
 
