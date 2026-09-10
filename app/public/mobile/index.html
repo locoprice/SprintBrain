@@ -3067,6 +3067,23 @@ var SB_CASE_CLOSE='{/case}';
 var SB_CASE_MODES={upper:1,lower:1,title:1,sentence:1};
 var SB_CASE_WORD_RE=/[A-Za-zÀ-ÖØ-öø-ÿ'’]+/g;
 var SB_CASE_SENT_RE=/(^|[.!?]["'”’)\]]*\s+)([A-Za-zÀ-ÖØ-öø-ÿ])/g;
+/* Title case keeps the small joining words lowercase: the articles, the
+   coordinating conjunctions, and the prepositions of three letters or fewer.
+   "The Art of Public Speaking", not "The Art Of Public Speaking". The first and
+   last word always carry a capital, and so does the word opening a subtitle
+   after a colon. MIRRORED from CASE_SMALL_WORDS in extension/formula-engine.js. */
+var SB_CASE_SMALL_WORDS={
+  a:1,an:1,the:1,
+  and:1,but:1,or:1,nor:1,for:1,yet:1,so:1,
+  as:1,at:1,by:1,in:1,of:1,off:1,on:1,per:1,to:1,up:1,via:1
+};
+/* True when the word at `off` opens the text or follows a colon or a full stop. */
+function sbCaseOpensClause(str,off){
+  var i=off-1;
+  while(i>=0&&/\s/.test(str.charAt(i)))i--;
+  if(i<0)return true;
+  return ':.?!'.indexOf(str.charAt(i))!==-1;
+}
 function sbIsCaseHead(tokLow){return tokLow.slice(0,5)==='case:';}
 /* An unrecognised mode leaves the text untouched — a typo must never delete
    what the author wrote. */
@@ -3078,9 +3095,21 @@ function sbApplyCaseMode(str,mode){
   if(!str||!mode)return str;
   if(mode==='upper')return str.toUpperCase();
   if(mode==='lower')return str.toLowerCase();
-  if(mode==='title')return str.replace(SB_CASE_WORD_RE,function(w){
-    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
-  });
+  if(mode==='title'){
+    /* Where the first and last word sit, so they can be exempted below. */
+    var m,first=-1,last=-1;
+    SB_CASE_WORD_RE.lastIndex=0;
+    while((m=SB_CASE_WORD_RE.exec(str))!==null){
+      if(first<0)first=m.index;
+      last=m.index;
+    }
+    if(first<0)return str;
+    return str.replace(SB_CASE_WORD_RE,function(w,off){
+      var low=w.toLowerCase();
+      if(off!==first&&off!==last&&SB_CASE_SMALL_WORDS[low]&&!sbCaseOpensClause(str,off))return low;
+      return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+    });
+  }
   return str.toLowerCase().replace(SB_CASE_SENT_RE,function(_,lead,ch){
     return lead+ch.toUpperCase();
   });
