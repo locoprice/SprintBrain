@@ -1070,6 +1070,19 @@
           }
           continue;
         }
+        // {case: upper}…{/case} — resolve the region, then case it.
+        if (_isCaseHead(tokLow)) {
+          var cClose = body.indexOf(CASE_CLOSE, cl + 1);
+          // Unclosed: drop only the head so the rest still renders. The template
+          // validator flags this shape as 'unclosed-case'.
+          if (cClose === -1) { i = cl + 1; continue; }
+          out += _applyCaseMode(
+            resolveBody(body.slice(cl + 1, cClose), vals, subOpts),
+            _caseMode(tok.slice(5)));
+          i = cClose + CASE_CLOSE.length;
+          continue;
+        }
+        if (tok === '/case') { i = cl + 1; continue; }
         if (tokLow.slice(0,9) === 'formtext:' || tokLow.slice(0,9) === 'formdate:' || tokLow.slice(0,9) === 'formmenu:') {
           var fKey = _formFieldName(tokLow, tok.slice(9));
           var fRaw = fKey && vals[fKey] !== undefined ? vals[fKey] : '';
@@ -1203,6 +1216,47 @@
     return tokLow.length === 6 || /\s/.test(tokLow.charAt(6));
   }
 
+  // ── CASE REGION ─────────────────────────────────────────────────
+  // {case: upper}…{/case} wraps a stretch of body and prints it in the case the
+  // author asked for. The region is resolved FIRST and transformed after, so a
+  // field, a formula or a greeting inside it expands normally and only then
+  // takes the case — the author writes {case: upper}{formtext: name}{/case} and
+  // gets the value the guest typed in capitals, not the literal token.
+  var CASE_CLOSE = '{/case}';
+  var CASE_MODES = { upper: 1, lower: 1, title: 1, sentence: 1 };
+  var _CASE_LETTER = 'A-Za-zÀ-ÖØ-öø-ÿ';
+  var _CASE_WORD_RE = new RegExp("[" + _CASE_LETTER + "'’]+", 'g');
+  // A sentence opens at the start of the text and after . ! ? plus a space.
+  var _CASE_SENT_RE = new RegExp("(^|[.!?][\"'”’)\\]]*\\s+)([" + _CASE_LETTER + "])", 'g');
+
+  // True when the token opens a case region, so a field called "casework" doesn't.
+  function _isCaseHead(tokLow) {
+    return tokLow.slice(0, 5) === 'case:';
+  }
+
+  // The mode a {case:} head names, or '' when it names nothing recognised.
+  // An unrecognised mode leaves the region's text untouched rather than
+  // dropping it: a typo must never silently delete what the author wrote.
+  function _caseMode(head) {
+    var m = String(head).replace(/^\s+|\s+$/g, '').toLowerCase();
+    return CASE_MODES[m] ? m : '';
+  }
+
+  function _applyCaseMode(s, mode) {
+    if (!s || !mode) return s;
+    if (mode === 'upper') return s.toUpperCase();
+    if (mode === 'lower') return s.toLowerCase();
+    if (mode === 'title') {
+      return s.replace(_CASE_WORD_RE, function(w) {
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      });
+    }
+    // sentence
+    return s.toLowerCase().replace(_CASE_SENT_RE, function(_, lead, ch) {
+      return lead + ch.toUpperCase();
+    });
+  }
+
   /**
    * Splits a code block into `FIELD = expression` statements. Statements are
    * separated by newlines or ';'. A line the parser cannot read is reported
@@ -1288,11 +1342,11 @@
   // counts as a field — a disagreement would label the wrong control.
   function _tokenFieldKey(t) {
     if (t.charAt(0) === '=' || t.charAt(0) === '{' ||
-        t === 'endif' || t === 'else' || t === '/button' ||
+        t === 'endif' || t === 'else' || t === '/button' || t === '/case' ||
         t.slice(0,3) === 'if:' || t.slice(0,4) === 'var:' ||
         t.slice(0,7).toLowerCase() === 'elseif:' ||
         t.slice(0,5).toLowerCase() === 'time:' ||
-        _isButtonHead(t.toLowerCase()) ||
+        _isButtonHead(t.toLowerCase()) || _isCaseHead(t.toLowerCase()) ||
         _isGreetingHead(t.toLowerCase())) return '';
     var tokLow = t.toLowerCase();
     // A {gender:} token is not a field itself — it reads one, so surface that
@@ -1862,7 +1916,7 @@
   // extension source — see app/CLAUDE.md §6). Change both together.
   function validateTemplate(body) {
     var src = (body === null || body === undefined) ? '' : String(body);
-    var i = 0, depth = 0;
+    var i = 0, depth = 0, caseDepth = 0;
     while (i < src.length) {
       if (src.charAt(i) !== '{') { i++; continue; }
       if (src.charAt(i + 1) === '{') {
@@ -1889,9 +1943,17 @@
         continue;
       } else if (tok === '/button') {
         return _invalid('orphan-branch');
+      } else if (_isCaseHead(tok.toLowerCase())) {
+        // A case region wraps ordinary body text, so unlike a button it is NOT
+        // skipped whole — what is inside it still has to validate.
+        caseDepth++;
+      } else if (tok === '/case') {
+        if (caseDepth === 0) return _invalid('orphan-branch');
+        caseDepth--;
       }
       i = cl + 1;
     }
+    if (caseDepth > 0) return _invalid('unclosed-case');
     if (depth > 0) return _invalid('unclosed-if');
     return { ok: true, code: null, message: '' };
   }
@@ -1900,7 +1962,8 @@
     'unterminated-token': 'A { is never closed — it prints literally instead of filling in.',
     'orphan-branch': 'A branch tag has no matching {if:} — the condition is ignored.',
     'unclosed-if': 'An {if:} is never closed with {endif} — its content is dropped.',
-    'unclosed-button': 'A {button} is never closed with {/button} — its code prints as text.'
+    'unclosed-button': 'A {button} is never closed with {/button} — its code prints as text.',
+    'unclosed-case': 'A {case:} is never closed with {/case} — the text after it is not cased.'
   };
 
   function _invalid(code) {

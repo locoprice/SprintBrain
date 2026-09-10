@@ -126,14 +126,20 @@ function run(text: string, opts: Options = {}): Recorded {
     }
   }
 
+  // insertText also asks whether the snippet is opening a sentence, which needs
+  // a live caret this recording stub deliberately does not have. Answer no, so
+  // what is pinned here stays line-break fidelity alone. The auto-capitalization
+  // rules are pinned against the same shipping source in
+  // snippetAutoCapitalize.test.ts.
   const factory = new Function(
     'document',
     'DataTransfer',
     'ClipboardEvent',
+    '_shouldAutoCap',
     `${fnSource}\nreturn insertText;`,
-  ) as (d: unknown, dt: unknown, ce: unknown) => InsertText;
+  ) as (d: unknown, dt: unknown, ce: unknown, cap: () => boolean) => InsertText;
 
-  factory(doc, StubDataTransfer, StubClipboardEvent)(el, text);
+  factory(doc, StubDataTransfer, StubClipboardEvent, () => false)(el, text);
 
   return { cmds, pastes, inserted: textOf(cmds) };
 }

@@ -210,7 +210,7 @@ var listAnimated    = false;  // entrance animation runs once, on first data ren
 var searchAllFolders= false;  // "search all folders" escape from a folder-scoped miss
 
 // TRIGGER CONFIGURATION — cached in chrome.storage.local, owned by user_metadata
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true, autoCapitalize: true };
 
 function loadTriggerCfg(cb) {
   try {
@@ -221,6 +221,7 @@ function loadTriggerCfg(cb) {
         if (d.triggerCfg.snippetActivationKey) triggerCfg.snippetActivationKey = d.triggerCfg.snippetActivationKey;
         if (d.triggerCfg.promptActivationKey) triggerCfg.promptActivationKey = d.triggerCfg.promptActivationKey;
         if (typeof d.triggerCfg.selectionSuggestions === 'boolean') triggerCfg.selectionSuggestions = d.triggerCfg.selectionSuggestions;
+        if (typeof d.triggerCfg.autoCapitalize === 'boolean') triggerCfg.autoCapitalize = d.triggerCfg.autoCapitalize;
       }
       if (cb) cb();
     });
@@ -236,6 +237,7 @@ function applyTriggerCfgToInputs() {
   var pi = gi('iprompt'); if (pi) pi.textContent = triggerCfg.promptTrigger;
   var ie = gi('iex');     if (ie) ie.textContent = triggerCfg.snippetTrigger + 'quoteEN';
   var ss = gi('tcfg-sel-suggest'); if (ss) ss.checked = triggerCfg.selectionSuggestions !== false;
+  var ac = gi('tcfg-autocap');     if (ac) ac.checked = triggerCfg.autoCapitalize !== false;
   // Segmented-control glyphs mirror the live triggers (never hardcoded).
   var mgs = gi('mglyph-snip');  if (mgs) mgs.textContent = triggerCfg.snippetTrigger;
   var mgp = gi('mglyph-prmpt'); if (mgp) mgp.textContent = triggerCfg.promptTrigger;
@@ -982,6 +984,13 @@ function boot() {
           if (ss) {
             ss.addEventListener('change', function () {
               triggerCfg.selectionSuggestions = ss.checked;
+              saveTriggerCfg();
+            });
+          }
+          var ac = gi('tcfg-autocap');
+          if (ac) {
+            ac.addEventListener('change', function () {
+              triggerCfg.autoCapitalize = ac.checked;
               saveTriggerCfg();
             });
           }

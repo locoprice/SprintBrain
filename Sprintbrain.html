@@ -537,6 +537,7 @@
               <div class="nv-field"><label>Prompt key</label><select id="nv-tcfg-prompt-key"><option>Tab</option><option>Enter</option></select></div>
             </div>
             <label class="nv-set-check"><input type="checkbox" id="nv-tcfg-sel" checked> Suggest snippets when I select text</label>
+            <label class="nv-set-check"><input type="checkbox" id="nv-tcfg-autocap" checked> Capitalize automatically at the start of a sentence</label>
           </div>
 
           <div class="nv-set-sec">
@@ -957,7 +958,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.22.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.23.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -2757,7 +2758,8 @@
     $('nv-set-trig').value = trigChar();
     try { $('nv-tcfg-snip').value = triggerCfg.snippetTrigger || '::'; $('nv-tcfg-prompt').value = triggerCfg.promptTrigger || '"""';
       $('nv-tcfg-snip-key').value = triggerCfg.snippetActivationKey || 'Tab'; $('nv-tcfg-prompt-key').value = triggerCfg.promptActivationKey || 'Tab';
-      $('nv-tcfg-sel').checked = triggerCfg.selectionSuggestions !== false; } catch(e) {}
+      $('nv-tcfg-sel').checked = triggerCfg.selectionSuggestions !== false;
+      $('nv-tcfg-autocap').checked = triggerCfg.autoCapitalize !== false; } catch(e) {}
     try { $('nv-set-lang').value = (userPrefs && userPrefs.defaultLang) || 'EN'; } catch(e) {}
     try { $('nv-notion-key').value = (notionCfg && notionCfg.apiKey) || ''; $('nv-notion-db').value = (notionCfg && notionCfg.dbId) || ''; } catch(e) {}
     setStatus('nv-set-status', ''); setStatus('nv-team-st', '');
@@ -2792,6 +2794,7 @@
       triggerCfg.snippetActivationKey = $('nv-tcfg-snip-key').value || 'Tab';
       triggerCfg.promptActivationKey = $('nv-tcfg-prompt-key').value || 'Tab';
       triggerCfg.selectionSuggestions = $('nv-tcfg-sel').checked;
+      triggerCfg.autoCapitalize = $('nv-tcfg-autocap').checked;
       saveTriggerCfg();
     } catch(e) {}
     try { userPrefs.defaultLang = $('nv-set-lang').value || 'EN'; saveUserPrefs(); } catch(e) {}

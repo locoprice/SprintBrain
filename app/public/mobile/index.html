@@ -3057,6 +3057,35 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
+/* {case: upper}…{/case} — prints a stretch of body in the case the author
+   asked for. The region is resolved FIRST and cased after, so a field or a
+   formula inside it expands normally and only then takes the case.
+   MIRRORED from extension/formula-engine.js — the phone keeps its own parser,
+   so an engine change has to be ported here by hand or the same snippet would
+   print differently on the two surfaces. */
+var SB_CASE_CLOSE='{/case}';
+var SB_CASE_MODES={upper:1,lower:1,title:1,sentence:1};
+var SB_CASE_WORD_RE=/[A-Za-zÀ-ÖØ-öø-ÿ'’]+/g;
+var SB_CASE_SENT_RE=/(^|[.!?]["'”’)\]]*\s+)([A-Za-zÀ-ÖØ-öø-ÿ])/g;
+function sbIsCaseHead(tokLow){return tokLow.slice(0,5)==='case:';}
+/* An unrecognised mode leaves the text untouched — a typo must never delete
+   what the author wrote. */
+function sbCaseMode(head){
+  var m=String(head).replace(/^\s+|\s+$/g,'').toLowerCase();
+  return SB_CASE_MODES[m]?m:'';
+}
+function sbApplyCaseMode(str,mode){
+  if(!str||!mode)return str;
+  if(mode==='upper')return str.toUpperCase();
+  if(mode==='lower')return str.toLowerCase();
+  if(mode==='title')return str.replace(SB_CASE_WORD_RE,function(w){
+    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  });
+  return str.toLowerCase().replace(SB_CASE_SENT_RE,function(_,lead,ch){
+    return lead+ch.toUpperCase();
+  });
+}
+
 /* Greeting for the local time of day. MIRRORED from extension/formula-engine.js
    (GREETING_WORDS / sbGreetingSlot / sbGreetingText). The phone cannot load
    that module, so the table lives here too and scripts/check-snippets.js pins
@@ -3114,11 +3143,11 @@ function sbResolveGreetingToken(rest,opts){
 function sbTokenFieldKey(t){
   var tLow=t.toLowerCase();
   if(t.charAt(0)==='='||t.charAt(0)==='{'||
-     t==='endif'||t==='else'||t==='/button'||
+     t==='endif'||t==='else'||t==='/button'||t==='/case'||
      t.slice(0,3)==='if:'||t.slice(0,4)==='var:'||
      tLow.slice(0,7)==='elseif:'||
      tLow.slice(0,5)==='time:'||
-     sbIsButtonHead(tLow)||sbIsGreetingHead(tLow))return '';
+     sbIsButtonHead(tLow)||sbIsCaseHead(tLow)||sbIsGreetingHead(tLow))return '';
   if(tLow.slice(0,7)==='gender:')return sbGenderTokenField(t.slice(7));
   if(sbIsFormToken(tLow))return sbFormTokenName(tLow,t.slice(9));
   return t;
@@ -3316,6 +3345,17 @@ function resolveBody(body,vals,opts){
         }
         continue;
       }
+
+      /* {case: upper}…{/case} — resolve the region, then case it */
+      if(sbIsCaseHead(tokLow)){
+        var cClose=body.indexOf(SB_CASE_CLOSE,cl+1);
+        /* Unclosed: drop only the head so the rest still renders. */
+        if(cClose===-1){i=cl+1;continue;}
+        out+=sbApplyCaseMode(resolveBody(body.slice(cl+1,cClose),vals,subOpts),sbCaseMode(tok.slice(5)));
+        i=cClose+SB_CASE_CLOSE.length;
+        continue;
+      }
+      if(tok==='/case'){i=cl+1;continue;}
 
       /* {formtext/formdate/formmenu: …} — emits the value of the field it declares */
       if(sbIsFormToken(tokLow)){

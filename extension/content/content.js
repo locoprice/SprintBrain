@@ -62,7 +62,7 @@ var snippets = DEFAULT_SNIPPETS.slice();
 // library apart from a signed-out one and say which it is.
 var hasSession = false;
 var trigger  = '::';
-var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true };
+var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true, autoCapitalize: true };
 var lastInputTime = 0; // debounce: prevents keydown + input event double-fire on desktop
 var isPasting = false; // guards against paste events feeding the trigger buffer
 
@@ -171,6 +171,9 @@ try {
           triggerCfg.selectionSuggestions = data.triggerCfg.selectionSuggestions;
           selectionSuggestEnabled = data.triggerCfg.selectionSuggestions;
         }
+        if (typeof data.triggerCfg.autoCapitalize === 'boolean') {
+          triggerCfg.autoCapitalize = data.triggerCfg.autoCapitalize;
+        }
       }
     } catch(e) {}
   });
@@ -216,6 +219,9 @@ try {
           triggerCfg.selectionSuggestions = nc.selectionSuggestions;
           selectionSuggestEnabled = nc.selectionSuggestions;
           if (!selectionSuggestEnabled) closeSelSuggest();
+        }
+        if (typeof nc.autoCapitalize === 'boolean') {
+          triggerCfg.autoCapitalize = nc.autoCapitalize;
         }
       }
     } catch(e) {}
@@ -825,6 +831,73 @@ function _textBeforeCaret(el) {
   } catch(_) { return null; }
 }
 
+// ── AUTO-CAPITALIZATION ────────────────────────────────────────────
+// A snippet is authored once and expanded everywhere, so its body cannot know
+// whether it will land at the start of a message or halfway through a sentence.
+// The field knows. Read what sits in front of the caret and lift the first
+// letter when the snippet is opening a sentence, and only then.
+//
+// This lives inside insertText because insertText is the one funnel every
+// insertion passes through — trigger, picker, context menu, overlay, prompts.
+// Deciding it anywhere else would give one entry point a behaviour the others
+// do not have, which is exactly how the overlay entry points drifted before.
+//
+// Toggle: triggerCfg.autoCapitalize (default on).
+
+// The caret sits at the start of a line — or of an empty field.
+var AUTOCAP_LINE_RE = /(?:^|[\r\n])[ \t]*$/;
+// The caret follows a finished sentence: . ! or ?, any closing quote or
+// bracket, then whitespace. The non-digit in front of the stop is what keeps a
+// decimal ("3.14 ") from reading as a sentence break.
+var AUTOCAP_SENT_RE = /(?:[^0-9][.!?]|^[.!?])["'”’)\]]*\s+$/;
+
+// Text in front of the caret with the trigger the user typed removed. On a
+// textarea the trigger is already gone by the time we insert; on a
+// contenteditable it is still there, held inside the live selection that the
+// insertion is about to replace. Stripping a trailing whitespace-free run that
+// opens with a trigger sequence covers both, and the whitespace test is what
+// stops a "::" typed earlier in the message from being mistaken for it.
+function _autoCapContext(el) {
+  var before = _textBeforeCaret(el);
+  if (before == null) return null;
+  var seqs = [
+    (triggerCfg && triggerCfg.snippetTrigger) || '::',
+    (triggerCfg && triggerCfg.promptTrigger) || '"""'
+  ];
+  for (var i = 0; i < seqs.length; i++) {
+    if (!seqs[i]) continue;
+    var tail = before.slice(-MAX_BUF);
+    var idx = tail.lastIndexOf(seqs[i]);
+    if (idx === -1) continue;
+    var run = tail.slice(idx);
+    if (/\s/.test(run)) continue;
+    return before.slice(0, before.length - run.length);
+  }
+  return before;
+}
+
+function _shouldAutoCap(el) {
+  if (!triggerCfg || triggerCfg.autoCapitalize === false) return false;
+  var ctx = _autoCapContext(el);
+  if (ctx == null) return false;              // caret unreadable — change nothing
+  if (!/\S/.test(ctx)) return true;           // start of the field
+  if (AUTOCAP_LINE_RE.test(ctx)) return true; // start of a line
+  return AUTOCAP_SENT_RE.test(ctx);           // after . ! ?
+}
+
+// Lifts the opening letter, and nothing else. Only a lowercase letter in the
+// first non-whitespace position is touched, so "5 items" keeps its lowercase
+// "items", a URL or an email is left exactly as written, and text that already
+// opens with a capital is returned untouched.
+function _autoCapitalize(text) {
+  var s = String(text == null ? '' : text);
+  if (!s || /^\s*(?:https?:\/\/|www\.|[^\s@]+@[^\s@]+\.)/i.test(s)) return s;
+  var lead = /^\s*/.exec(s)[0].length;
+  var ch = s.charAt(lead);
+  if (!/[a-zà-öø-ÿ]/.test(ch)) return s;
+  return s.slice(0, lead) + ch.toUpperCase() + s.slice(lead + 1);
+}
+
 function _fieldTriggerSpan(el, span) {
   try {
     var seq = (triggerCfg && triggerCfg.snippetTrigger) || '::';
@@ -1181,6 +1254,8 @@ function insertText(el, text) {
   // character, and a blank line — the lone "\r" segment — loses its break
   // entirely, collapsing paragraphs into one block.
   text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+  // Read the caret's surroundings BEFORE anything below focuses or moves it.
+  if (_shouldAutoCap(el)) text = _autoCapitalize(text);
   var isCE = el.isContentEditable || el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '');
   try {
     if (isCE) {
