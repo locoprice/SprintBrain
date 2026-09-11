@@ -72,14 +72,25 @@ var DB = {
       // Real expansion counts (snippet_events), which is what the status badge
       // ranks on. snippet_stats below is a DIFFERENT metric — it only counts
       // copy-shortcut from this popup — and must never drive "top".
-      supaFetch('rpc/snippet_usage_counts','GET', null, 'select=*').then(function(r){ return r.json(); })
+      supaFetch('rpc/snippet_usage_counts','GET', null, 'select=*').then(function(r){ return r.json(); }),
+      // Last expansion date per snippet (INACTIVE-001). A sibling of the counts
+      // above over the same event log: same join, same ACL branch. Fails soft to
+      // [] because the unused-asset notice is advisory: a missing aggregate
+      // must not take the library down with it.
+      supaFetch('rpc/snippet_last_used',   'GET', null, 'select=*')
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .catch(function(){ return []; })
     ]).then(function(res) {
       var folders  = Array.isArray(res[0]) ? res[0] : [];
       var snippets = Array.isArray(res[1]) ? res[1] : [];
       var stats    = Array.isArray(res[2]) ? res[2] : [];
       var usage    = Array.isArray(res[3]) ? res[3] : [];
+      var lastUsed = Array.isArray(res[4]) ? res[4] : [];
       var um = {};
       usage.forEach(function(u) { um[u.snippet_id] = u.uses || 0; });
+      lastUsed.forEach(function(u) {
+        if (u && u.snippet_id) lastUsedMap[u.snippet_id] = u.last_used_at || null;
+      });
       var sm = {};
       stats.forEach(function(s) { sm[s.snippet_id] = s; });
       return {
@@ -101,6 +112,11 @@ var DB = {
             ai_generated: s.ai_generated || false,
             pinned: s.pinned || false,
             expansions: um[s.id] || 0,
+            // The fallback anchor for the unused-asset notice: a snippet with no
+            // expansion on record is measured from the day it was added, which
+            // is the only reading under which a never-used snippet can ever be
+            // flagged at all.
+            created_at: s.created_at || null,
             stats: { uses: st.uses || 0, fills: st.fills || 0, lastUsed: st.last_used || null }
           };
         })
@@ -146,8 +162,10 @@ var DB = {
   },
   loadPrompts: function() {
     // No user_id filter — RLS handles both personal and org-shared prompts.
+    // created_at joins the projection for INACTIVE-001: it is the anchor for a
+    // prompt that has never been used, the same way snippets fall back to theirs.
     return supaFetch('prompts', 'GET', null,
-      'select=id,user_id,name,content,shortcut,type,intent_category,last_used_at,pinned&order=updated_at.desc'
+      'select=id,user_id,name,content,shortcut,type,intent_category,last_used_at,created_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -202,6 +220,16 @@ var pSelIdx         = -1;     // keyboard selection index in the prompt list
 var loaded          = false;  // true once the authoritative Supabase load resolves
 var listAnimated    = false;  // entrance animation runs once, on first data render
 var searchAllFolders= false;  // "search all folders" escape from a folder-scoped miss
+
+// ── UNUSED-ASSET NOTICE (INACTIVE-001) ────────────────────────────
+// lastUsedMap is the server's answer (snippet_last_used(), plus prompts'
+// own last_used_at column); inaState is the local mirror and snooze list from
+// chrome.storage.local. Both feed the shared decider in shared/inactivity.js,
+// which is what keeps this surface, Sprintbrain.html and the dashboard
+// agreeing on which assets are stale and how the sentence reads.
+var lastUsedMap = {};
+var inaState    = null;   // null until storage resolves; the notice stays hidden
+var inaIndex    = 0;      // which stale asset the strip is showing
 
 // TRIGGER CONFIGURATION — cached in chrome.storage.local, owned by user_metadata
 var triggerCfg = { snippetTrigger: '::', promptTrigger: '"""', snippetActivationKey: 'Tab', promptActivationKey: 'Tab', selectionSuggestions: true, autoCapitalize: true };
@@ -991,7 +1019,14 @@ function boot() {
           // Refresh from the single source of truth (user_metadata) so the popup
           // reflects a trigger changed on the dashboard, then repaint the lists.
           if (typeof sbPullTriggerMetadata === 'function') {
-            sbPullTriggerMetadata(function () { loadTriggerCfg(function () { applyTriggerCfgToInputs(); refreshUI(); }); });
+            sbPullTriggerMetadata(function (err, meta) {
+              // The same pull carries the unused-asset threshold, which the
+              // dashboard owns for the same reason it owns the triggers: the
+              // popup does not write settings (v2.87.0), and one number that
+              // differs per surface would put the two libraries out of step.
+              inaApplyThresholdMeta(meta);
+              loadTriggerCfg(function () { applyTriggerCfgToInputs(); refreshUI(); });
+            });
           }
     });
 
@@ -999,6 +1034,11 @@ function boot() {
       var dl = gi('cfg-default-lang');
       if (dl) dl.value = userPrefs.defaultLang;
     });
+
+    // The snooze list and the offline last-used mirror. Repaints on arrival
+    // because the library load below does not wait for it, and the notice stays
+    // hidden until both have landed.
+    inaLoadState(function() { refreshUI(); });
 
     Promise.all([DB.loadAll(), DB.loadPrompts()]).then(function(results) {
       loaded = true;
@@ -1014,6 +1054,7 @@ function boot() {
       }
       syncSnippets();
       syncPrompts();
+      inaPrune();
       refreshUI();
     });
 
@@ -1204,6 +1245,224 @@ function renderLibStats(){
   var ls=gi('lib-stats'); if(!ls) return;
   ls.textContent=SBSnippetStats.statsLine(activeMode==='prompts' ? promptStats() : libraryStats());
 }
+// ── UNUSED-ASSET NOTICE (INACTIVE-001) ────────────────────────────
+//
+// One strip, two surfaces, three buttons at most. The popup is read-only
+// (v2.87.0), so it gets Review and Keep; Sprintbrain.html, which owns the
+// editor and the delete path, publishes window.SB_INACTIVE_ACTIONS and gets
+// Delete and Modify instead. The absence of that object is what guarantees the
+// popup never grows a write: this file cannot delete anything on its own.
+//
+// Everything about WHICH assets appear and HOW the sentence reads comes from
+// shared/inactivity.js, so the dashboard's React banner says the same words.
+
+function inaLoadState(cb) {
+  var SBI = window.SBInactivity;
+  if (!SBI) { if (cb) cb(); return; }
+  try {
+    chrome.storage.local.get(SBI.STORAGE_KEY, function(d) {
+      inaState = SBI.normalizeState(d && d[SBI.STORAGE_KEY]);
+      if (cb) cb();
+    });
+  } catch(e) { inaState = SBI.normalizeState(null); if (cb) cb(); }
+}
+
+// The threshold arrives with the rest of user_metadata, under the same
+// inactivity_months key the dashboard settings page writes. An absent or
+// out-of-range value leaves the current one alone; the shared module clamps.
+function inaApplyThresholdMeta(meta) {
+  var SBI = window.SBInactivity;
+  if (!SBI || !meta || typeof meta !== 'object') return;
+  if (meta.inactivity_months === null || meta.inactivity_months === undefined) return;
+  var months = SBI.clampMonths(meta.inactivity_months);
+  var next = SBI.normalizeState(inaState);
+  if (next.thresholdMonths === months) return;
+  next.thresholdMonths = months;
+  inaSaveState(next);
+  renderInactive();
+}
+
+function inaSaveState(state) {
+  var SBI = window.SBInactivity;
+  if (!SBI) return;
+  inaState = SBI.normalizeState(state);
+  try {
+    var patch = {};
+    patch[SBI.STORAGE_KEY] = inaState;
+    chrome.storage.local.set(patch);
+  } catch(e) { /* storage unavailable, the notice reappears next open */ }
+}
+
+// Language variants are one asset to the user and one row in the list, so they
+// are one notice. The group's date is the most recent use of ANY variant and
+// the earliest creation of any of them: expanding the Spanish body is using the
+// snippet, and four separate warnings for one entry would be noise.
+function inaSnippetItems() {
+  var groups = SBSnippetStats.index(snips).groups;
+  var items = [], merged = {};
+  groups.forEach(function(g) {
+    var master = g.master;
+    if (!master || !master.id) return;
+    var id = String(master.id);
+    var bestUse = null, firstMade = null;
+    (g.rows && g.rows.length ? g.rows : [master]).forEach(function(r) {
+      var raw = lastUsedMap[r.id];
+      if (raw) {
+        var t = new Date(raw).getTime();
+        if (isFinite(t) && (bestUse === null || t > bestUse)) bestUse = t;
+      }
+      var c = r.created_at ? new Date(r.created_at).getTime() : NaN;
+      if (isFinite(c) && (firstMade === null || c < firstMade)) firstMade = c;
+    });
+    if (bestUse !== null) merged[id] = bestUse;
+    items.push({
+      id: id,
+      name: String(master.title || '').replace(/\s*(EN|ES|IT|FR)$/, ''),
+      trigger: master.shortcut ? trig + shortWord(master.shortcut) : '',
+      createdAt: firstMade
+    });
+  });
+  return { items: items, serverMap: merged };
+}
+
+// Prompts carry their own last_used_at column, written by increment_prompt_usage,
+// so they need no event-log lookup. Same shape out, same decider.
+function inaPromptItems() {
+  var items = [], merged = {};
+  (prompts || []).forEach(function(p) {
+    if (!p || !p.id) return;
+    var id = String(p.id);
+    if (p.last_used_at) merged[id] = p.last_used_at;
+    items.push({
+      id: id,
+      name: p.name || 'Untitled',
+      trigger: p.shortcut || '',
+      createdAt: p.created_at || null
+    });
+  });
+  return { items: items, serverMap: merged };
+}
+
+function inaCurrent() {
+  return activeMode === 'prompts' ? inaPromptItems() : inaSnippetItems();
+}
+
+// Drop mirror entries and snoozes for assets that no longer exist. Without this
+// a deleted snippet keeps its row for ever, and an id reused by Notion sync
+// would inherit a stranger's snooze. Runs once per authoritative load, over
+// snippets AND prompts together so neither section prunes the other's keys.
+function inaPrune() {
+  var SBI = window.SBInactivity;
+  if (!SBI || !inaState) return;
+  var ids = [];
+  (snips || []).forEach(function(s) {
+    if (!s || !s.id) return;
+    ids.push(String(s.id));
+    if (s.lang_group_id) ids.push(String(s.lang_group_id));
+  });
+  (prompts || []).forEach(function(p) { if (p && p.id) ids.push(String(p.id)); });
+  if (!ids.length) return;
+  inaSaveState(SBI.pruneState(inaState, ids));
+}
+
+function inaStale() {
+  var SBI = window.SBInactivity;
+  if (!SBI || !inaState) return [];
+  var src = inaCurrent();
+  return SBI.findInactive(src.items, src.serverMap, inaState, Date.now());
+}
+
+function inaOpenInDashboard(id) {
+  var url = activeMode === 'prompts'
+    ? SB_DASHBOARD_HOME_URL + 'prompts?prompt=' + encodeURIComponent(id)
+    : SB_DASHBOARD_HOME_URL + '?snippet=' + encodeURIComponent(id);
+  try { chrome.tabs.create({ url: url }); }
+  catch(e) { try { window.open(url, '_blank'); } catch(e2) {} }
+}
+
+function renderInactive() {
+  var el = gi('ina-card');
+  if (!el) return;
+  var SBI = window.SBInactivity;
+  // Hidden until the library AND the local state have both resolved: a notice
+  // built on half the data would accuse a snippet that simply had not loaded.
+  if (!SBI || !inaState || !loaded) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  var stale = inaStale();
+  if (!stale.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  if (inaIndex >= stale.length) inaIndex = stale.length - 1;
+  if (inaIndex < 0) inaIndex = 0;
+  var entry = stale[inaIndex];
+  var noun = activeMode === 'prompts' ? 'prompt' : 'snippet';
+  // A surface publishes SB_INACTIVE_ACTIONS only for the sections it can
+  // actually edit. Sprintbrain.html owns the snippet editor but lists prompts
+  // read-only ("Authored in the SprintBrain dashboard"), so it answers false for
+  // prompts and gets the popup's Review button there instead. The popup itself
+  // publishes nothing at all and stays read-only everywhere.
+  var acts = window.SB_INACTIVE_ACTIONS;
+  if (acts && typeof acts.can === 'function' && !acts.can(activeMode)) acts = null;
+
+  var nav = stale.length > 1
+    ? '<div class="ina-nav">'
+      + '<button class="ina-arrow" id="ina-prev" type="button" title="Previous" aria-label="Previous unused ' + noun + '"'
+      + (inaIndex === 0 ? ' disabled' : '') + '><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>'
+      + '<span class="ina-step">' + (inaIndex + 1) + ' of ' + stale.length + '</span>'
+      + '<button class="ina-arrow" id="ina-next" type="button" title="Next" aria-label="Next unused ' + noun + '"'
+      + (inaIndex === stale.length - 1 ? ' disabled' : '') + '><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>'
+      + '</div>'
+    : '';
+
+  var buttons = acts
+    ? '<button class="ina-btn danger" id="ina-del" type="button">Delete</button>'
+      + '<button class="ina-btn" id="ina-mod" type="button">Modify</button>'
+      + '<button class="ina-btn primary" id="ina-keep" type="button">Keep</button>'
+    : '<button class="ina-btn" id="ina-review" type="button">Review</button>'
+      + '<button class="ina-btn primary" id="ina-keep" type="button">Keep</button>';
+
+  el.innerHTML =
+    '<div class="ina-head">'
+      + '<span class="ina-title">Unused ' + noun + '</span>'
+      + '<span class="ina-count">' + stale.length + ' not used in ' + inaState.thresholdMonths + ' months</span>'
+    + '</div>'
+    + '<div class="ina-msg">' + esc(SBI.message(entry)) + '</div>'
+    + '<div class="ina-row">' + buttons + nav + '</div>';
+  el.style.display = '';
+
+  var prev = gi('ina-prev');
+  if (prev) prev.addEventListener('click', function() { inaIndex--; renderInactive(); });
+  var next = gi('ina-next');
+  if (next) next.addEventListener('click', function() { inaIndex++; renderInactive(); });
+
+  var keep = gi('ina-keep');
+  if (keep) keep.addEventListener('click', function() {
+    // Keep does NOT write a usage event. The event log is what Analytics and
+    // the top-snippet badge read, and inventing an expansion there would make
+    // both of them lie. A local snooze answers the same question honestly.
+    inaSaveState(SBI.recordKeep(inaState, entry.id, Date.now()));
+    inaIndex = 0;
+    renderInactive();
+    try { showToast('Kept. Hidden for ' + SBI.KEEP_DAYS + ' days'); } catch(e) {}
+  });
+
+  var review = gi('ina-review');
+  if (review) review.addEventListener('click', function() { inaOpenInDashboard(entry.id); });
+
+  var mod = gi('ina-mod');
+  if (mod && acts && acts.modify) mod.addEventListener('click', function() {
+    acts.modify(entry.id, activeMode);
+  });
+
+  var del = gi('ina-del');
+  if (del && acts && acts.remove) del.addEventListener('click', function() {
+    acts.remove(entry.id, activeMode, function(done) {
+      if (!done) return;
+      inaIndex = 0;
+      renderInactive();
+    });
+  });
+}
+
 function refreshUI(){
   var tp=gi('tp'); if(tp && activeMode!=='prompts') tp.innerHTML='<span class="isc-pfx">'+esc(trig)+'</span>quoteEN';
   var st=libraryStats();
@@ -1211,6 +1470,7 @@ function refreshUI(){
   var mcp=gi('mct-prmpt'); if(mcp) mcp.textContent=prompts.length;
   renderLibStats();
   renderFolders();
+  renderInactive();
   if(activeMode==='prompts') renderPrompts(gi('sq')?gi('sq').value:'');
   else renderList(gi('sq')?gi('sq').value:'');
 }
@@ -1999,8 +2259,28 @@ function doCopyShortcut(s){
   s.stats.uses=(s.stats.uses||0)+1;
   s.stats.lastUsed=new Date().toISOString();
   DB.updateStats(s.id,s.stats.uses,s.stats.fills,s.stats.lastUsed);
+  // Copying a shortcut is using the snippet, so it clears the unused notice the
+  // same way an expansion does. Stamped on the group, matching how the notice
+  // groups language variants into one entry.
+  inaTouch(s);
   flashChip(s.id);
   showToast('Copied '+trig+shortWord(s.shortcut));
+}
+
+// Record a use in the local mirror. The popup's own copy path and (through
+// content.js) every expansion both land here, so the notice never accuses an
+// asset the user just reached for. Server-side, snippet_events remains the
+// record; this is the copy that survives being offline.
+function inaTouch(s){
+  var SBI = window.SBInactivity;
+  if (!SBI || !s || !s.id || !inaState) return;
+  var now = Date.now();
+  var next = SBI.recordUse(inaState, String(s.id), now);
+  if (s.lang_group_id) next = SBI.recordUse(next, String(s.lang_group_id), now);
+  var g = SBSnippetStats.groupFor(snips, s);
+  if (g && g.master && g.master.id) next = SBI.recordUse(next, String(g.master.id), now);
+  inaSaveState(next);
+  renderInactive();
 }
 
 // Per-language body copy \u2014 copies the RAW template (placeholders intact). Does
@@ -2088,6 +2368,9 @@ function setMode(m) {
   var ptTrig     = triggerCfg.promptTrigger || '"""';
 
   expandedId = null; selIdx = -1; pSelIdx = -1;
+  // The notice is per section, so switching tabs starts its list from the top
+  // rather than landing on "4 of 2" from the section just left.
+  inaIndex = 0;
 
   document.querySelectorAll('.mode-tab').forEach(function(t) {
     var on = t.dataset.mode === m;

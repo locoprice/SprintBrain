@@ -37,6 +37,7 @@ type DbPrompt = {
   updated_at: string;
   updated_by: string | null;
   last_used_at: string | null;
+  created_at: string | null;
   usage_count: number | null;
   is_malformed: boolean | null;
 };
@@ -46,6 +47,9 @@ const PROMPT_SELECT = [
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
   'intent_category', 'output_type', 'blocks',
   'folder_id', 'notion_page_id', 'pinned', 'updated_at', 'updated_by', 'last_used_at',
+  // created_at is the fallback anchor for the unused-asset banner: a prompt
+  // never executed is measured from the day it was added (INACTIVE-001).
+  'created_at',
   'usage_count', 'is_malformed',
 ].join(', ');
 
@@ -70,6 +74,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? null,
     last_used_at: row.last_used_at,
+    created_at: row.created_at ?? null,
     usage_count: row.usage_count ?? 0,
     is_malformed: row.is_malformed ?? false,
   };

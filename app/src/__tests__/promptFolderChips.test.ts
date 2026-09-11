@@ -36,6 +36,7 @@ const PROMPT: Prompt = {
   updated_at: '2026-07-12T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,
+  created_at: '2026-01-01T00:00:00Z',
   usage_count: 0,
   is_malformed: false,
 };

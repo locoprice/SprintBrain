@@ -24,6 +24,12 @@ export interface Profile {
   company_logo_url: string | null;
   /** Profile picture (ACCOUNT-PROFILE-001) — GoTrue-conventional metadata key. */
   avatar_url: string | null;
+  /**
+   * Calendar months of silence before the unused-asset banner names an asset
+   * (INACTIVE-001). Persisted in user_metadata so the dashboard, the web app
+   * and the extension all measure staleness the same way. Always 6-9.
+   */
+  inactivity_months: number;
 }
 
 export interface Folder {
@@ -194,6 +200,11 @@ export interface Prompt {
   updated_by: Uuid | null;
   last_used_at: IsoDateTime | null;
   /**
+   * When this prompt was added. Fallback anchor for the unused-asset banner,
+   * the same role `created_at` plays on SnippetRow (INACTIVE-001).
+   */
+  created_at: IsoDateTime | null;
+  /**
    * Executions counted by the `increment_prompt_usage` RPC (STATUS-ICONS-001).
    * Drives trophy eligibility; the efficiency score never can.
    */
@@ -241,6 +252,18 @@ export interface SnippetRevision {
 export interface SnippetRow extends Snippet {
   folder_name: string | null;
   usage_count: number;
+  /**
+   * When this snippet was added. The fallback anchor for the unused-asset
+   * banner (INACTIVE-001): a snippet with no expansion on record is measured
+   * from the day it was created, which is the only reading under which a
+   * never-used snippet can be flagged at all.
+   */
+  created_at: IsoDateTime | null;
+  /**
+   * Most recent expansion, from the `snippet_last_used()` RPC. Null means the
+   * event log holds nothing for it, not that it is new. See `created_at`.
+   */
+  last_used_at: IsoDateTime | null;
 }
 
 export interface UsagePoint {

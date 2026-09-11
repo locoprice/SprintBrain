@@ -22,6 +22,7 @@ export const mockProfile: Profile = {
   display_name: 'Alessandro Verdicchio',
   shortcut_prefix: '::',
   created_at: '2025-12-01T09:00:00Z',
+  inactivity_months: 6,
   trigger_snippet_seq: '::',
   trigger_prompt_seq: '"""',
   trigger_snippet_key: 'Tab',
@@ -462,6 +463,9 @@ const NULL_PROMPT_META = {
   pinned: false,
   usage_count: 0,
   is_malformed: false,
+  // Old enough that the unused-asset banner has something to say about the
+  // prompts whose last_used_at is null (INACTIVE-001).
+  created_at: day(-400),
 } as const;
 
 export const mockPrompts: Prompt[] = [

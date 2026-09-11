@@ -25,6 +25,39 @@ function logEvent(snip, fieldsFilled) {
         fields_filled: fieldsFilled || 0
       }
     });
+  } catch(e) { /* extension context lost during reload, silent */ }
+  touchLastUsed(snip);
+}
+
+// ── INACTIVE-001: local mirror of "when was this last used" ───────
+//
+// The server log above is the source of truth, and it is also fire and forget:
+// it can fail offline, and snippet_last_used() is only re-read when the popup
+// loads. So every expansion also stamps a local copy, which is what stops the
+// notice claiming a snippet is unused seconds after it was expanded.
+//
+// Language variants share one notice, so the stamp lands on the whole group.
+// Expanding the Spanish body is using the snippet, and the popup lists the
+// group under its master id. Without this, three of four variants would look
+// abandoned for ever.
+//
+// chrome.storage.local only, and the shared module owns the shape. Silent on
+// failure by design: a storage write must never cost the user their expansion.
+function touchLastUsed(snip) {
+  var SBI = window.SBInactivity;
+  if (!SBI || !snip || !snip.id) return;
+  var ids = [String(snip.id)];
+  if (snip.lang_group_id) ids.push(String(snip.lang_group_id));
+  try {
+    chrome.storage.local.get(SBI.STORAGE_KEY, function(d) {
+      if (chrome.runtime.lastError) return;
+      var state = SBI.normalizeState(d && d[SBI.STORAGE_KEY]);
+      var now = Date.now();
+      ids.forEach(function(id) { state = SBI.recordUse(state, id, now); });
+      var patch = {};
+      patch[SBI.STORAGE_KEY] = state;
+      try { chrome.storage.local.set(patch); } catch(e) {}
+    });
   } catch(e) { /* extension context lost during reload — silent */ }
 }
 
@@ -3494,8 +3527,11 @@ function sbMemorySetComposer(el, text) {
         cb(null, r.rows || []);
       });
     },
-    getBodies: function(ids, cb) {
-      ask('memory_bodies', { ids: ids }, function(e, r) {
+    // {id, kind} pairs, not bare ids: snippets and memory items live in
+    // different tables with different id types, and the background worker needs
+    // the kind to know which one to ask.
+    getBodies: function(items, cb) {
+      ask('memory_bodies', { items: items }, function(e, r) {
         if (e) { cb(e); return; }
         cb(null, r.rows || []);
       });

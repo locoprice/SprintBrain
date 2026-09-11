@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { PageBanner } from '@/components/layout/PageBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { InactiveAssetBanner } from '@/components/shared/InactiveAssetBanner';
 import { SearchField } from '@/components/ui/search-field';
 import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
 import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
@@ -12,6 +14,9 @@ import { NewSnippetDialog } from '@/features/snippets/NewSnippetDialog';
 import { SnippetFolderTree } from '@/features/snippets/SnippetFolderTree';
 import { SnippetsTable } from '@/features/snippets/SnippetsTable';
 import { VersionHistoryPanel } from '@/features/snippets/VersionHistoryPanel';
+import { useInactivityMonths } from '@/lib/useInactivityMonths';
+import { groupSnippetsByLanguage } from '@/lib/snippetGrouping';
+import type { InactivityCandidate } from '@/lib/inactivity';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -39,6 +44,48 @@ export function SnippetsPage() {
   const setRailOpen = useUiStore((s) => s.setFoldersRailOpen);
 
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
+  // ── Unused-snippet notice (INACTIVE-001) ──────────────────────────────────
+  const openEditSnippet = useUiStore((s) => s.openEditSnippet);
+  const removeSnippet = useSnippetStore((s) => s.removeSnippet);
+  const inactivityMonths = useInactivityMonths();
+  const [params, setParams] = useSearchParams();
+
+  // Language variants are one snippet to the user and one row in the table, so
+  // they are one notice. The group's date is the most recent use of ANY variant
+  // and the earliest creation among them: expanding the Spanish body is using
+  // the snippet, and four warnings for one entry would be noise.
+  const inactivityItems = useMemo<InactivityCandidate[]>(
+    () =>
+      groupSnippetsByLanguage(snippets).map((g) => {
+        const used = g.variants
+          .map((v) => (v.last_used_at ? Date.parse(v.last_used_at) : NaN))
+          .filter((n) => Number.isFinite(n));
+        const made = g.variants
+          .map((v) => (v.created_at ? Date.parse(v.created_at) : NaN))
+          .filter((n) => Number.isFinite(n));
+        return {
+          id: g.master.id,
+          name: g.master.name,
+          trigger: g.master.triggers[0] ?? '',
+          lastUsedAt: used.length ? Math.max(...used) : null,
+          createdAt: made.length ? Math.min(...made) : null,
+        };
+      }),
+    [snippets],
+  );
+
+  // Deep link from the extension popup's Review button (?snippet=<id>). The
+  // popup is read-only, so "open the editor on this one" has to travel in the
+  // URL. Consumed once, then stripped so a refresh does not reopen it.
+  const deepLinkId = params.get('snippet');
+  useEffect(() => {
+    if (!deepLinkId || snippets.length === 0) return;
+    if (snippets.some((s) => s.id === deepLinkId)) openEditSnippet(deepLinkId);
+    const next = new URLSearchParams(params);
+    next.delete('snippet');
+    setParams(next, { replace: true });
+  }, [deepLinkId, snippets, openEditSnippet, params, setParams]);
 
   useEffect(() => {
     if (snippets.length === 0) {
@@ -86,6 +133,14 @@ export function SnippetsPage() {
           {error}
         </PageBanner>
       )}
+
+      <InactiveAssetBanner
+        items={inactivityItems}
+        noun="snippet"
+        months={inactivityMonths}
+        onModify={openEditSnippet}
+        onDelete={(id) => void removeSnippet(id)}
+      />
 
       {importResult && (
         <PageBanner

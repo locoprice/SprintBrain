@@ -64,6 +64,7 @@ type DbSnippetJoined = {
   is_active: boolean | null;
   is_malformed: boolean | null;
   alternative_queries: string[] | null;
+  created_at: string | null;
   folders: { name: string } | null;
 };
 
@@ -103,8 +104,14 @@ function normalizeBodies(
  * Rows absent from the map have never been expanded.
  */
 export type UsageCounts = ReadonlyMap<string, number>;
+/** snippet id → ISO date of its most recent expansion (INACTIVE-001). */
+export type LastUsedDates = ReadonlyMap<string, string>;
 
-function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts): SnippetRow {
+function dbSnippetToSnippetRow(
+  row: DbSnippetJoined,
+  usageCounts?: UsageCounts,
+  lastUsed?: LastUsedDates,
+): SnippetRow {
   const usage = usageCounts?.get(row.id) ?? 0;
   const body = row.body ?? '';
   const language = normalizeLang(row.lang);
@@ -133,6 +140,8 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts):
     updated_by: row.updated_by ?? null,
     folder_name: row.folders?.name ?? null,
     usage_count: usage,
+    created_at: row.created_at ?? null,
+    last_used_at: lastUsed?.get(row.id) ?? null,
   };
 }
 
@@ -160,7 +169,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, folders(name)';
+  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, created_at, folders(name)';
 
 /**
  * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
@@ -188,6 +197,33 @@ async function fetchUsageCounts(): Promise<UsageCounts> {
   }
   const rows = (data ?? []) as Array<{ snippet_id: string; uses: number }>;
   return new Map(rows.map((r) => [r.snippet_id, Number(r.uses) || 0]));
+}
+
+/**
+ * Date of the last expansion per snippet, from the `snippet_last_used()` RPC
+ * (INACTIVE-001). A sibling of the counts above over the same event log: same
+ * join, same ACL branch, same SECURITY DEFINER reasoning, so a shared snippet
+ * reports one team-wide date rather than a different one to every member.
+ *
+ * Deliberately NOT `snippet_stats.last_used`, which is written only on a popup
+ * copy: 13 dated rows against 115 snippets would declare almost the whole
+ * library abandoned.
+ *
+ * Fails soft for the same reason the counts do: the unused-asset banner is
+ * advisory, and a missing aggregate must not take the library down with it. An
+ * empty map reads as "no expansion on record", and each row then falls back to
+ * its `created_at`.
+ */
+async function fetchLastUsed(): Promise<LastUsedDates> {
+  const { data, error } = await supabase.rpc('snippet_last_used');
+  if (error) {
+    console.error('snippet_last_used failed; last-use dates unavailable:', error);
+    return new Map();
+  }
+  const rows = (data ?? []) as Array<{ snippet_id: string; last_used_at: string | null }>;
+  return new Map(
+    rows.filter((r) => Boolean(r.last_used_at)).map((r) => [r.snippet_id, r.last_used_at as string]),
+  );
 }
 
 /**
@@ -262,15 +298,17 @@ export const snippetsApi: SnippetsApi = {
     // that live in a folder shared with them (Phase B). Personal-only users see
     // exactly what they did before.
     //
-    // Usage counts need a second round trip (see fetchUsageCounts); issued in
-    // parallel so it costs latency only, not a serial hop.
-    const [listRes, usageCounts] = await Promise.all([
+    // Usage counts and last-use dates each need their own round trip (see
+    // fetchUsageCounts / fetchLastUsed); issued in parallel with the list so
+    // they cost latency only, not two serial hops.
+    const [listRes, usageCounts, lastUsed] = await Promise.all([
       supabase.from('snippets').select(SNIPPET_SELECT).order('sort_order', { ascending: true }),
       fetchUsageCounts(),
+      fetchLastUsed(),
     ]);
     if (listRes.error) throw listRes.error;
     return ((listRes.data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
-      dbSnippetToSnippetRow(row, usageCounts),
+      dbSnippetToSnippetRow(row, usageCounts, lastUsed),
     );
   },
 

@@ -428,6 +428,30 @@
   .nv-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--sb-ink);color:#fff;padding:10px 18px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-13);font-weight:600;z-index:200;opacity:0;transition:transform .25s,opacity .25s;pointer-events:none}
   .nv-toast.on{transform:translateX(-50%) translateY(0);opacity:1}
 
+  /* ── UNUSED-ASSET NOTICE (INACTIVE-001) ──
+     Same class names and the same renderer as the extension popup; the card
+     geometry follows .nv-card on this surface rather than the popup's tighter
+     one, because that is this surface's convention. Amber ground, warn tokens,
+     no hard-coded hexes. */
+  .ina-card{margin-bottom:18px;padding:14px 18px;border-radius:16px;background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr)}
+  .ina-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .ina-title{font-size:14px;font-weight:700;color:var(--sb-warn);flex-shrink:0}
+  .ina-count{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ina-msg{font-size:var(--sb-fs-13);color:var(--sb-ink);line-height:1.5;margin-bottom:12px}
+  .ina-row{display:flex;align-items:center;gap:8px}
+  .ina-btn{height:32px;padding:0 14px;flex-shrink:0;font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;color:var(--sb-ink);background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);transition:background .12s,border-color .12s}
+  .ina-btn:hover{border-color:var(--sb-warn);background:var(--sb-warn-bg)}
+  .ina-btn.primary{color:#fff;background:var(--sb-warn);border-color:var(--sb-warn)}
+  .ina-btn.primary:hover{background:var(--sb-warn);opacity:.9}
+  .ina-btn.danger{color:var(--sb-danger);border-color:var(--sb-danger-bdr)}
+  .ina-btn.danger:hover{background:var(--sb-danger-bg);border-color:var(--sb-danger)}
+  .ina-nav{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .ina-step{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);white-space:nowrap}
+  .ina-arrow{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;color:var(--sb-ink-subtle);background:transparent;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+  .ina-arrow:hover:not(:disabled){color:var(--sb-warn);border-color:var(--sb-warn)}
+  .ina-arrow:disabled{opacity:.4;cursor:default}
+  .ina-arrow svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
   ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-thumb{background:var(--sb-line);border-radius:10px}
   ::-webkit-scrollbar-thumb:hover{background:var(--sb-line-2)}
@@ -492,6 +516,12 @@
       </div>
     </div>
     <div class="nv-body">
+      <!-- UNUSED-ASSET NOTICE (INACTIVE-001). Same id, same classes and the
+           same renderer as the extension popup (renderInactive in popup.js).
+           This surface owns the editor and the delete path, so it publishes
+           window.SB_INACTIVE_ACTIONS below and the strip draws Delete and
+           Modify where the popup draws Review. -->
+      <div class="ina-card" id="ina-card" role="status" style="display:none"></div>
       <div class="nv-kpis" id="nv-kpis"></div>
       <div class="nv-card" id="nv-list-card">
         <div class="nv-card-h"><h2 id="nv-list-title">Snippets</h2><span class="sub" id="nv-list-sub"></span></div>
@@ -940,7 +970,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.24.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.25.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -950,6 +980,7 @@
 <script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
 <script src="extension/shared/fill-form.js"></script>
+<script src="extension/shared/inactivity.js"></script>
 
 <!-- ═══ NATIVE DASHBOARD CONTROLLER (presentation only; logic via shared core) ═══ -->
 <script>
@@ -1050,6 +1081,10 @@
       window.snips   = (data && data.snippets) ? data.snippets : [];
       window.folders = (data && data.folders && data.folders.length) ? data.folders : [];
       window.prompts = Array.isArray(r[1]) ? r[1] : [];
+      // The shared renderInactive() holds its notice back until the library has
+      // actually arrived, and this is the surface's one authoritative load.
+      window.loaded = true;
+      inaLoadState(function(){ inaPrune(); renderInactive(); });
       renderAll();
       $('nv-sub').textContent = 'Synced · ' + groupCount(window.snips) + ' snippets, ' + window.folders.length + ' folders';
       // Pull Notion config (local cache → Supabase user_metadata) for the Settings view.
@@ -1057,9 +1092,44 @@
     }).catch(function(e){ $('nv-sub').textContent = 'Could not load data'; toast('Load failed — check your connection'); });
   }
 
+  // ── Unused-asset notice (INACTIVE-001) ──────────────────────────────
+  //
+  // The strip, its wording and its list of stale assets are the extension
+  // popup's renderInactive(), running here unchanged. Only two things are this
+  // surface's own: telling the shared code which section is on screen (it reads
+  // activeMode, this file tracks nvMode), and supplying the actions the popup
+  // deliberately does not have.
+  //
+  // can() is what keeps that honest per section: snippets are editable here,
+  // prompts are listed read-only and are authored on the dashboard, so the
+  // strip falls back to Review for them exactly as it does in the popup.
+  window.SB_INACTIVE_ACTIONS = {
+    can: function(mode){ return mode !== 'prompts'; },
+    modify: function(id){
+      var s = findSnip(id);
+      if (!s) { toast('That snippet is no longer in your library'); return; }
+      openEditor(s);
+    },
+    remove: function(id, mode, done){
+      var s = findSnip(id);
+      if (!s) { toast('That snippet is no longer in your library'); if (done) done(true); return; }
+      // Routed through the existing deleteSnip so the confirmation, the Supabase
+      // delete, the deletion-sync queue and the toast are the one path the row
+      // menu already uses. A second delete implementation is how the two drift.
+      var before = (window.snips || []).length;
+      deleteSnip(s);
+      if (done) done((window.snips || []).length !== before);
+    }
+  };
+
+  function syncInactiveMode(){
+    window.activeMode = (nvMode === 'prompts') ? 'prompts' : 'snippets';
+  }
+
   // ── Rendering ───────────────────────────────────────────────────────
   function renderAll(){
-    renderKpis(); renderNav(); renderFolderList(); renderMain();
+    syncInactiveMode();
+    renderKpis(); renderNav(); renderFolderList(); renderMain(); renderInactive();
   }
 
   function renderKpis(){
@@ -2743,7 +2813,9 @@
     settingsOpen = false;
     $('nv-settings').style.display = 'none'; $('nv-kpis').style.display = ''; $('nv-list-card').style.display = '';
   }
-  function gotoMode(m){ leaveSettings(); nvMode = m; expandedId = null; renderNav(); renderMain(); }
+  // inaIndex resets with the section: the notice is per section, and carrying
+  // "4 of 2" across from snippets to prompts would land on nothing.
+  function gotoMode(m){ leaveSettings(); nvMode = m; expandedId = null; inaIndex = 0; syncInactiveMode(); renderNav(); renderMain(); renderInactive(); }
 
   $('nv-trig-tiles').addEventListener('click', function(e){ var t = e.target.closest('.nv-trig-tile'); if (!t) return; $('nv-set-trig').value = t.dataset.t; updateTrigInfo(); });
   $('nv-set-trig').addEventListener('input', updateTrigInfo);

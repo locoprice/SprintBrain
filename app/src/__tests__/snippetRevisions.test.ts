@@ -56,6 +56,8 @@ const MOCK_SNIPPET: SnippetRow = {
   updated_by: 'user-1',
   folder_name: null,
   usage_count: 0,
+  created_at: '2026-01-01T00:00:00Z',
+  last_used_at: null,
   is_malformed: false,
 };
 

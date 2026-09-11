@@ -47,6 +47,9 @@ jobs:
       - name: Snippet grouping parity check
         run: node scripts/sync-snippet-stats.js --check
 
+      - name: Unused-asset rule parity check
+        run: node scripts/check-inactivity-parity.js
+
       - name: Working memory parity check
         run: node scripts/check-memory-parity.js
 

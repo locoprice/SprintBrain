@@ -369,6 +369,47 @@ html,body{
 .cap-note:empty{display:none}
 .cap-note.err{color:var(--sb-danger)}
 
+/* ── UNUSED-ASSET NOTICE (INACTIVE-001) ──
+   Same card geometry as .cap-card above so the two strips that can appear at
+   the top of the list read as one family, on the amber ground because this is
+   a caution, not a confirmation. Sprintbrain.html carries the same rules under
+   the same class names; the only difference between the surfaces is which
+   buttons the row holds, because the popup is read-only. */
+.ina-card{
+  margin:10px 16px 0;padding:10px 12px;border-radius:var(--sb-r-md);
+  background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr);
+}
+.ina-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.ina-title{font-size:var(--sb-fs-12);font-weight:700;color:var(--sb-warn);flex-shrink:0}
+.ina-count{
+  font-size:var(--sb-fs-10);color:var(--sb-ink-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ina-msg{font-size:var(--sb-fs-11);color:var(--sb-ink);line-height:1.5;margin-bottom:8px}
+.ina-row{display:flex;align-items:center;gap:8px}
+.ina-btn{
+  height:30px;padding:0 12px;flex-shrink:0;font-family:inherit;
+  font-size:var(--sb-fs-11);font-weight:600;cursor:pointer;
+  color:var(--sb-ink);background:var(--sb-bg);
+  border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);
+  transition:background var(--sb-dur-fast),border-color var(--sb-dur-fast);
+}
+.ina-btn:hover{border-color:var(--sb-warn);background:var(--sb-warn-bg)}
+.ina-btn.primary{color:#fff;background:var(--sb-warn);border-color:var(--sb-warn)}
+.ina-btn.primary:hover{background:var(--sb-warn);opacity:.9}
+.ina-btn.danger{color:var(--sb-danger);border-color:var(--sb-danger-bdr)}
+.ina-btn.danger:hover{background:var(--sb-danger-bg);border-color:var(--sb-danger)}
+.ina-nav{margin-left:auto;display:flex;align-items:center;gap:6px}
+.ina-step{font-size:var(--sb-fs-10);color:var(--sb-ink-muted);white-space:nowrap}
+.ina-arrow{
+  width:24px;height:24px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+  padding:0;cursor:pointer;color:var(--sb-ink-subtle);background:transparent;
+  border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);
+}
+.ina-arrow:hover:not(:disabled){color:var(--sb-warn);border-color:var(--sb-warn)}
+.ina-arrow:disabled{opacity:.4;cursor:default}
+.ina-arrow svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
 /* ── SETTINGS PANE ── */
 .set-hdr{height:60px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--sb-bg);border-bottom:1px solid var(--sb-line)}
 .set-hdr .set-title{flex:1;font-size:var(--sb-fs-16);font-weight:700;color:var(--sb-ink)}
@@ -528,6 +569,12 @@ html,body{
   <!-- LIBRARY BREAKDOWN -->
   <div class="lib-stats" id="lib-stats"></div>
 
+  <!-- UNUSED-ASSET NOTICE (INACTIVE-001). Sits above the search, the same
+       place the dashboard puts its page banner. Read-only here: Review opens
+       the dashboard on the asset, Keep silences it. Markup is written by the
+       shared renderInactive() in popup.js, which also drives Sprintbrain.html. -->
+  <div class="ina-card" id="ina-card" role="status" style="display:none"></div>
+
   <!-- SEARCH -->
   <div class="srow">
     <div class="search-wrap">
@@ -634,6 +681,7 @@ html,body{
 <script src="sync-deletion.js"></script>
 <script src="../formula-engine.js"></script>
 <script src="../shared/fill-form.js"></script>
+<script src="../shared/inactivity.js"></script>
 <script src="popup.js"></script>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->

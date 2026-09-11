@@ -1,0 +1,119 @@
+{
+  "_comment": [
+    "Shared case table for the unused-asset rule (INACTIVE-001).",
+    "",
+    "extension/shared/inactivity.js and app/src/lib/inactivity.ts are two copies",
+    "of one rule, because the dashboard cannot import extension source",
+    "(app/CLAUDE.md section 6). Both read THIS file and must produce the same",
+    "answers: scripts/check-inactivity-parity.js runs it against the extension",
+    "module, app/src/__tests__/inactivity.test.ts against the TypeScript one.",
+    "",
+    "Every date sits weeks away from a threshold boundary on purpose. The rule",
+    "counts calendar months via setMonth, which resolves in local time, so a",
+    "fixture placed hours from the cutoff would pass in one timezone and fail in",
+    "another without either implementation being wrong."
+  ],
+  "now": "2026-09-11T12:00:00Z",
+  "items": [
+    {
+      "id": "unnamed",
+      "name": "",
+      "trigger": "::abc",
+      "lastUsedAt": null,
+      "createdAt": "2024-05-05T00:00:00Z"
+    },
+    {
+      "id": "old-never",
+      "name": "Welcome note",
+      "trigger": "::wel",
+      "lastUsedAt": null,
+      "createdAt": "2025-06-01T00:00:00Z"
+    },
+    {
+      "id": "old-used",
+      "name": "Quote reply",
+      "trigger": "::quote",
+      "lastUsedAt": "2026-01-05T00:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "snooze-expired",
+      "name": "Late checkout",
+      "trigger": "::late",
+      "lastUsedAt": "2026-02-10T00:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "snoozed",
+      "name": "Kept one",
+      "trigger": "::kp",
+      "lastUsedAt": "2026-01-05T00:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "new-never",
+      "name": "Just added",
+      "trigger": "::new",
+      "lastUsedAt": null,
+      "createdAt": "2026-08-01T00:00:00Z"
+    },
+    {
+      "id": "fresh-used",
+      "name": "Daily driver",
+      "trigger": "::hi",
+      "lastUsedAt": "2026-09-01T00:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "no-dates",
+      "name": "Unknowable",
+      "trigger": "::nd",
+      "lastUsedAt": null,
+      "createdAt": null
+    }
+  ],
+  "keptUntil": {
+    "snoozed": "2026-12-01T00:00:00Z",
+    "snooze-expired": "2026-05-01T00:00:00Z"
+  },
+  "expect": [
+    {
+      "_case": "default 6 months: oldest first, snoozed hidden, undated skipped",
+      "months": 6,
+      "ids": ["unnamed", "old-never", "old-used", "snooze-expired"],
+      "messages": [
+        "You have never used ::abc. Added 5 May 2024.",
+        "You have never used Welcome note. Added 1 June 2025.",
+        "You have not used Quote reply since 5 January 2026.",
+        "You have not used Late checkout since 10 February 2026."
+      ],
+      "everUsed": [false, false, true, true]
+    },
+    {
+      "_case": "9 months: the two January/February dates fall inside the window",
+      "months": 9,
+      "ids": ["unnamed", "old-never"],
+      "messages": [
+        "You have never used ::abc. Added 5 May 2024.",
+        "You have never used Welcome note. Added 1 June 2025."
+      ],
+      "everUsed": [false, false]
+    }
+  ],
+  "clampMonths": [
+    { "in": 0, "out": 6 },
+    { "in": 5, "out": 6 },
+    { "in": 6, "out": 6 },
+    { "in": 7, "out": 7 },
+    { "in": 9, "out": 9 },
+    { "in": 10, "out": 9 },
+    { "in": 99, "out": 9 },
+    { "in": null, "out": 6 },
+    { "in": "nonsense", "out": 6 }
+  ],
+  "formatDate": [
+    { "in": "2026-03-12T09:00:00Z", "out": "12 March 2026" },
+    { "in": "2024-12-31T09:00:00Z", "out": "31 December 2024" },
+    { "in": "2025-01-01T09:00:00Z", "out": "1 January 2025" }
+  ]
+}

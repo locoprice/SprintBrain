@@ -38,6 +38,8 @@ function snippet(
     folder_name: 'TEAM SHARED',
     usage_count: 0,
     is_malformed: false,
+    created_at: '2026-06-10T00:00:00Z',
+    last_used_at: null,
   };
 }
 
