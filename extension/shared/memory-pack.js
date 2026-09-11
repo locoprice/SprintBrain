@@ -269,7 +269,14 @@
     return out;
   }
 
-  /** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+  /**
+   * Jaccard overlap of two strings' trigram sets, 0 to 1.
+   *
+   * A string with no trigrams shares nothing with anything, including another
+   * string with no trigrams. Two empty bodies are not the same fact, they are
+   * two facts whose bodies failed to arrive, and scoring them 1.0 made the near
+   * pass collapse an entire package into whichever item happened to rank first.
+   */
   function textSimilarity(a, b) {
     var left = {};
     var right = {};
@@ -286,7 +293,7 @@
       if (!right[grams[i]]) { right[grams[i]] = true; rightSize++; }
     }
 
-    if (leftSize === 0 || rightSize === 0) return leftSize === rightSize ? 1 : 0;
+    if (leftSize === 0 || rightSize === 0) return 0;
 
     var shared = 0;
     for (var gram in left) {
@@ -337,6 +344,14 @@
     var relevant = [];
     for (i = 0; i < candidates.length; i++) {
       var c = candidates[i];
+      // A body that never arrived has nothing to contribute. Dropping it here,
+      // before dedupe, is what keeps a failed fetch visible: the alternative is
+      // a heading with a blank underneath it, which is what the user pastes
+      // into a model without noticing. Reported, never silent.
+      if (!c.body || !String(c.body).trim()) {
+        dropped.push({ id: c.id, name: c.name, reason: 'no-body' });
+        continue;
+      }
       if (searched && !c.pinned && c.rank < minRank) {
         dropped.push({ id: c.id, name: c.name, reason: 'below-floor' });
         continue;

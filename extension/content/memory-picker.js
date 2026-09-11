@@ -163,9 +163,16 @@
     '.row .sub{display:block;font-size:11px;color:#6E6E73;margin-top:2px}',
     '.empty{padding:10px;font-size:12px;color:#6E6E73;line-height:1.5}',
     '.toast{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFFFFF;',
-    'border:1px solid #BED0FF;border-radius:10px;font-size:12px;color:#1C1C1E;',
+    'border:1px solid #BED0FF;border-radius:10px;font-size:12px;line-height:1.45;color:#1C1C1E;',
     'box-shadow:0 4px 20px rgba(27,79,216,.12)}',
-    '.undo{padding:4px 10px;background:transparent;border:1.5px solid #BED0FF;border-radius:7px;',
+    // The message takes the room that is left and wraps only once the toast has
+    // hit the width cap; min-width:0 is what lets a flex child wrap at all.
+    '.toast>span{flex:1 1 auto;min-width:0}',
+    // Undo keeps its own size whatever the message does. Without this it is the
+    // flex item that gives way, and the button is the part that must stay
+    // clickable.
+    '.undo{flex:0 0 auto;white-space:nowrap;',
+    'padding:4px 10px;background:transparent;border:1.5px solid #BED0FF;border-radius:7px;',
     'font-size:11px;font-weight:600;color:#1B4FD8;cursor:pointer}',
     // ── Injection panel (MEMORY-002 I1) ──
     // The panel is a flex column with its own scroll region, so clamping its
@@ -308,6 +315,12 @@
         html += '<div class="empty">Nothing in your memory matches what you are writing.' +
                 '<br>Save something first, or keep typing and refresh.</div>';
       } else {
+        // A browse, not a match. Say so rather than letting a list of recent
+        // items read as a list of relevant ones.
+        if (!anyMatched()) {
+          html += '<div class="empty">Your most recent items, not matches.' +
+                  '<br>Type what you are asking about, then Refresh.</div>';
+        }
         for (var i = 0; i < results.length; i++) {
           var c = results[i];
           var on = checked[c.id] ? ' checked' : '';
@@ -442,16 +455,33 @@
      * a usable selection rather than an empty one. A candidate that does not
      * fit is skipped rather than ending the loop, so a short item ranked below
      * a long one still gets in, which is the same rule the engine applies.
+     *
+     * ONLY what a search arm actually matched. With an empty composer there is
+     * nothing to match, and knowledge_search answers with a recency listing
+     * scored zero throughout. Ticking that filled the budget with the last
+     * eleven things the user happened to edit and presented them as relevant,
+     * which is worse than offering nothing: the whole promise of the panel is
+     * that what it suggests has something to do with the sentence being
+     * written. A browse is still listed, just never pre-selected.
      */
     function autoCheck() {
       checked = {};
       var used = 0;
       for (var i = 0; i < results.length; i++) {
+        if (results[i].rank <= 0) continue;
         if (used + results[i].tokens <= budget) {
           checked[results[i].id] = true;
           used += results[i].tokens;
         }
       }
+    }
+
+    /** True when a search ran and something matched it. */
+    function anyMatched() {
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].rank > 0) return true;
+      }
+      return false;
     }
 
     function search() {
@@ -485,30 +515,51 @@
       var picked = checkedCandidates();
       if (!picked.length || !composer) return;
 
-      var ids = [];
-      for (var i = 0; i < picked.length; i++) ids.push(picked[i].id);
+      // Kind travels with the id: the two kinds are stored in different tables,
+      // and keying anything on a bare id would collide the day a snippet id and
+      // a shard id match, which uuid-shaped snippet ids make possible.
+      var wanted = [];
+      for (var i = 0; i < picked.length; i++) {
+        wanted.push({ id: picked[i].id, kind: picked[i].kind });
+      }
 
-      deps.getBodies(ids, function (err, rows) {
+      deps.getBodies(wanted, function (err, rows) {
         if (err) { toast('Could not load that context.', null); return; }
 
-        var byId = {};
-        for (var j = 0; j < rows.length; j++) byId[rows[j].id] = rows[j].body;
+        var byKey = {};
+        for (var j = 0; j < rows.length; j++) {
+          byKey[rows[j].kind + ':' + rows[j].id] = rows[j].body;
+        }
 
         // Bodies are in hand, so the engine can do the real work: floor,
         // deduplicate on actual text, budget, and compress to a summary when a
-        // body will not fit.
+        // body will not fit. An item whose body did not come back is dropped by
+        // the engine and reported below, never inserted as an empty heading.
         var candidates = [];
         for (var k = 0; k < picked.length; k++) {
           var c = picked[k];
           candidates.push({
             id: c.id, kind: c.kind, name: c.name, summary: c.summary,
-            body: byId[c.id] || '', tokens: c.tokens,
+            body: byKey[c.kind + ':' + c.id] || '', tokens: c.tokens,
             pinned: false, rank: c.rank, contentHash: ''
           });
         }
 
         var pack = PACK.buildContext({ candidates: candidates, budget: budget });
-        if (!pack.items.length) { toast('Nothing fitted in the budget.', null); return; }
+
+        var unavailable = 0;
+        for (var n = 0; n < pack.dropped.length; n++) {
+          if (pack.dropped[n].reason === 'no-body') unavailable++;
+        }
+
+        if (!pack.items.length) {
+          // Two different failures, and conflating them sends someone to change
+          // a budget that was never the problem.
+          toast(unavailable
+            ? 'That content could not be loaded. Try refreshing.'
+            : 'Nothing fitted in the budget.', null);
+          return;
+        }
 
         var current = readComposer(composer);
         // Replacing rather than stacking: inserting twice should refresh the
@@ -525,7 +576,10 @@
         for (var m = 0; m < pack.items.length; m++) if (pack.items[m].compressed) compressed++;
         if (compressed) note += ' · ' + compressed + ' shortened to fit';
         if (pack.deduped.length) note += ' · ' + pack.deduped.length + ' duplicate removed';
-        if (pack.dropped.length) note += ' · ' + pack.dropped.length + ' did not fit';
+        if (unavailable) note += ' · ' + unavailable + ' could not be loaded';
+        if (pack.dropped.length - unavailable > 0) {
+          note += ' · ' + (pack.dropped.length - unavailable) + ' did not fit';
+        }
         toast(note, undo);
       });
     }
@@ -553,11 +607,35 @@
       t.style.padding = '0';
       t.style.border = '0';
       t.style.boxShadow = 'none';
-      t.style.width = 'auto';
+      t.style.overflow = 'visible';
+      // `auto` looks like the right answer and is not. The toast is absolutely
+      // positioned, so shrink-to-fit measures it against its containing block,
+      // and that block is the wrapper around the pill: about 90px. A one-line
+      // message wrapped onto three and the box came out taller than it was
+      // wide. `max-content` sizes it to the message instead.
+      t.style.width = 'max-content';
       t.innerHTML = '<div class="toast"><span>' + esc(message) + '</span>' +
                     (onUndo ? '<button class="undo" type="button">Undo</button>' : '') + '</div>';
       wrap.appendChild(t);
       menu = t;
+
+      // Two clamps, because width alone cannot solve it. A long message (every
+      // count carries its own clause) has to stay narrow enough to read, and the
+      // pill sits wherever the composer does, which on a split screen is inches
+      // from the right edge.
+      //
+      // First the width: never wider than the panel that opened it, and never
+      // wider than the window. Past that the message wraps, which is fine.
+      var viewportWidth = win.innerWidth || doc.documentElement.clientWidth || 0;
+      t.style.maxWidth = Math.round(Math.max(160, Math.min(380, viewportWidth - 32))) + 'px';
+
+      // Then the position. `.menu` pins its left edge to the pill, so a toast
+      // opened near the right edge runs off it. Slide it back by exactly the
+      // overrun rather than squeezing the text into whatever room is left, and
+      // stop at the pill's own offset so it can never leave on the other side.
+      var edge = host.getBoundingClientRect().left;
+      var overflow = Math.round(edge + t.getBoundingClientRect().width + 16 - viewportWidth);
+      if (overflow > 0) t.style.left = '-' + Math.min(overflow, Math.round(edge)) + 'px';
       // Same anchoring as the panel: a toast under a bottom-anchored composer
       // would run off screen for exactly the same reason.
       placeMenu();

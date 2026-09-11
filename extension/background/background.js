@@ -90,13 +90,84 @@ function memoryIndex() {
   });
 }
 
-function memoryBodies(ids) {
-  if (!ids || !ids.length) return Promise.resolve([]);
-  var list = ids.map(function(id) { return String(id).replace(/[^0-9a-fA-F-]/g, ''); })
-                .filter(Boolean);
-  if (!list.length) return Promise.resolve([]);
-  return supaFetch('memory_shards',
-    'select=id,name,body&deleted_at=is.null&id=in.(' + list.join(',') + ')');
+// memory_shards.id is a uuid column. Anything that is not uuid-shaped must
+// never reach the filter, because PostgREST casts the WHOLE in.() list at once:
+// one bad value fails the entire request rather than just its own row.
+var MEMORY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// snippets.id is TEXT, not uuid, and more than half the production library
+// predates uuids entirely (ids like `s17798785560855oo`). So a snippet id has no
+// safe alphabet to assume and every value is double-quoted, which is how
+// PostgREST takes a list item containing a comma, a space or a parenthesis.
+function inListQuoted(values) {
+  return values.map(function(v) {
+    return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }).join(',');
+}
+
+/**
+ * Bodies for the ids the user accepted in the injection panel.
+ *
+ * Takes `{id, kind}` pairs, never bare ids, because the two kinds live in
+ * different tables with different id types and there is no one query that
+ * serves both. Reading only memory_shards was the original defect: a snippet id
+ * matched nothing there, and because it is not uuid-shaped it also made the
+ * request 400, so the whole batch came back empty and every accepted item was
+ * inserted as a heading over a blank line.
+ *
+ * Rows come back tagged with their kind. A snippet id and a shard id are drawn
+ * from different spaces and 59 snippets are themselves uuid-shaped, so keying
+ * the result on the id alone would be one collision away from serving the wrong
+ * body.
+ *
+ * RLS composes exactly as knowledge_search did: this carries the user's own JWT
+ * and each table applies its own policy, so nothing is readable here that the
+ * search did not already return.
+ *
+ * `body` and not `bodies`: the snippet's primary body is what the view projects
+ * and what its token count was measured from. Injecting every language variant
+ * would triple the package and make the budget a fiction. Per-language
+ * retrieval is a deliberate FUTURE item, not an oversight.
+ */
+function memoryBodies(items) {
+  var list = Array.isArray(items) ? items : [];
+  var shardIds = [];
+  var snippetIds = [];
+
+  for (var i = 0; i < list.length; i++) {
+    var entry = list[i];
+    if (!entry || !entry.id) continue;
+    var id = String(entry.id);
+    if (entry.kind === 'snippet') snippetIds.push(id);
+    else if (MEMORY_ID_RE.test(id)) shardIds.push(id);
+  }
+
+  function tag(kind) {
+    return function(rows) {
+      var out = [];
+      for (var j = 0; j < (rows || []).length; j++) {
+        out.push({ kind: kind, id: rows[j].id, body: rows[j].body || '' });
+      }
+      return out;
+    };
+  }
+
+  var jobs = [];
+  if (shardIds.length) {
+    jobs.push(supaFetch('memory_shards',
+      'select=id,body&deleted_at=is.null&id=in.(' + shardIds.join(',') + ')').then(tag('memory')));
+  }
+  if (snippetIds.length) {
+    jobs.push(supaFetch('snippets',
+      'select=id,body&is_active=is.true&id=in.(' + inListQuoted(snippetIds) + ')').then(tag('snippet')));
+  }
+  if (!jobs.length) return Promise.resolve([]);
+
+  return Promise.all(jobs).then(function(batches) {
+    var rows = [];
+    for (var k = 0; k < batches.length; k++) rows = rows.concat(batches[k]);
+    return rows;
+  });
 }
 
 // ── MEMORY-002 I1: retrieval for the injection panel ──────────────
@@ -164,7 +235,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 
   if (msg.type === 'memory_bodies') {
-    memoryBodies(msg.ids).then(function(rows) {
+    memoryBodies(msg.items).then(function(rows) {
       try { sendResponse({ ok: true, rows: rows }); } catch(e) {}
     }, function() {
       try { sendResponse({ ok: false }); } catch(e) {}

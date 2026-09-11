@@ -446,7 +446,7 @@ export interface ContextItem {
   compressed: boolean;
 }
 
-export type DropReason = 'budget' | 'below-floor';
+export type DropReason = 'budget' | 'below-floor' | 'no-body';
 
 export interface DroppedCandidate {
   id: string;
@@ -519,11 +519,18 @@ function trigrams(text: string): string[] {
   return out;
 }
 
-/** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+/**
+ * Jaccard overlap of two strings' trigram sets, 0 to 1.
+ *
+ * A string with no trigrams shares nothing with anything, including another
+ * string with no trigrams. Two empty bodies are not the same fact, they are two
+ * facts whose bodies failed to arrive, and scoring them 1.0 made the near pass
+ * collapse an entire package into whichever item happened to rank first.
+ */
 export function textSimilarity(a: string, b: string): number {
   const left = new Set(trigrams(a));
   const right = new Set(trigrams(b));
-  if (left.size === 0 || right.size === 0) return left.size === right.size ? 1 : 0;
+  if (left.size === 0 || right.size === 0) return 0;
 
   let shared = 0;
   left.forEach((gram) => {
@@ -583,6 +590,14 @@ export function buildContext(request: ContextRequest): ContextPackage {
   const searched = request.candidates.some((candidate) => candidate.rank > 0);
   const relevant: ContextCandidate[] = [];
   for (const candidate of request.candidates) {
+    // A body that never arrived has nothing to contribute. Dropping it here,
+    // before dedupe, is what keeps a failed fetch visible: the alternative is a
+    // heading with a blank underneath it, which is what the user pastes into a
+    // model without noticing. Reported, never silent.
+    if (!candidate.body.trim()) {
+      dropped.push({ id: candidate.id, name: candidate.name, reason: 'no-body' });
+      continue;
+    }
     if (searched && !candidate.pinned && candidate.rank < minRank) {
       dropped.push({ id: candidate.id, name: candidate.name, reason: 'below-floor' });
       continue;

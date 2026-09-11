@@ -363,13 +363,16 @@ function candidate(id: string, overrides: Partial<ContextCandidate> = {}): Conte
 }
 
 describe('textSimilarity', () => {
-  it('is 1 for identical text and for two empty strings', () => {
+  it('is 1 for identical text', () => {
     expect(textSimilarity('same words here', 'same words here')).toBe(1);
-    expect(textSimilarity('', '')).toBe(1);
   });
 
-  it('is 0 when only one side is empty', () => {
+  it('is 0 when either side is empty, including both', () => {
     expect(textSimilarity('something', '')).toBe(0);
+    // Two bodies that failed to load are not the same fact. Scoring this pair
+    // 1.0 put every body-less candidate over the near-duplicate threshold, so a
+    // package of eleven items collapsed into whichever one ranked first.
+    expect(textSimilarity('', '')).toBe(0);
   });
 
   it('ignores punctuation and case, so a reworded duplicate still scores high', () => {
@@ -560,5 +563,60 @@ describe('buildContext output', () => {
     expect(pack.items).toHaveLength(0);
     expect(pack.usedTokens).toBe(0);
     expect(pack.overBudget).toBe(false);
+  });
+});
+
+describe('buildContext with a body that never arrived', () => {
+  it('drops it instead of inserting a heading over a blank', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('here', { rank: 0.5 }), candidate('gone', { rank: 0.4, body: '' })],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['here']);
+    expect(pack.dropped).toEqual([{ id: 'gone', name: 'gone', reason: 'no-body' }]);
+  });
+
+  it('does not treat two missing bodies as duplicates of each other', () => {
+    // The production failure: the body fetch returned nothing for any item, so
+    // every candidate scored 1.0 against every other and eleven items became
+    // one, reported to the user as "10 duplicate removed".
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('a', { rank: 0.5, body: '', contentHash: '' }),
+        candidate('b', { rank: 0.4, body: '', contentHash: '' }),
+        candidate('c', { rank: 0.3, body: '', contentHash: '' }),
+      ],
+    });
+
+    expect(pack.items).toHaveLength(0);
+    expect(pack.deduped).toHaveLength(0);
+    expect(pack.dropped.map((d) => d.reason)).toEqual(['no-body', 'no-body', 'no-body']);
+  });
+
+  it('drops a pinned item with no body too, rather than pinning a blank', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('kept', { rank: 0.5 }), candidate('pin', { pinned: true, body: '' })],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['kept']);
+    expect(pack.dropped).toEqual([{ id: 'pin', name: 'pin', reason: 'no-body' }]);
+  });
+
+  it('counts a whitespace-only body as no body at all', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('full', { rank: 0.9 }),
+        candidate('blank', { rank: 0.8, body: '' }),
+        candidate('spaces', { rank: 0.7, body: '   \n  ' }),
+      ],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['full']);
+    expect(pack.dropped.map((d) => d.id).sort()).toEqual(['blank', 'spaces']);
+    for (const item of pack.items) expect(item.text.trim()).not.toBe('');
   });
 });

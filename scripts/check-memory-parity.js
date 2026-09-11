@@ -106,7 +106,9 @@ const CASES = [
 // each dedupe pass, compression, and pinned overrunning the budget.
 function cand(id, opts) {
   const o = opts || {};
-  const body = o.body || 'body of ' + id;
+  // `=== undefined`, not `||`: a fixture has to be able to ask for an EMPTY
+  // body, which is the whole subject of the no-body cases below.
+  const body = o.body === undefined ? 'body of ' + id : o.body;
   return {
     id,
     kind: o.kind || 'memory',
@@ -243,6 +245,38 @@ const CONTEXT_CASES = [
     name: 'context: no candidates at all',
     request: { budget: 1000, candidates: [] },
   },
+  {
+    name: 'context: a body that never arrived is dropped, not inserted blank',
+    request: {
+      budget: 1000,
+      candidates: [cand('present', { rank: 0.5 }), cand('missing', { rank: 0.4, body: '' })],
+    },
+  },
+  {
+    name: 'context: bodies that never arrived are not duplicates of each other',
+    request: {
+      budget: 1000,
+      candidates: [
+        cand('gone-a', { rank: 0.5, body: '', contentHash: '' }),
+        cand('gone-b', { rank: 0.4, body: '', contentHash: '' }),
+        cand('gone-c', { rank: 0.3, body: '', contentHash: '' }),
+      ],
+    },
+  },
+  {
+    name: 'context: a pinned item with no body is dropped like any other',
+    request: {
+      budget: 1000,
+      candidates: [cand('kept', { rank: 0.5 }), cand('pin', { rank: 0, pinned: true, body: '' })],
+    },
+  },
+  {
+    name: 'context: a whitespace-only body counts as no body',
+    request: {
+      budget: 1000,
+      candidates: [cand('real', { rank: 0.5 }), cand('blankish', { rank: 0.4, body: '   \n  ' })],
+    },
+  },
 ];
 
 async function main() {
@@ -297,6 +331,22 @@ async function main() {
       overBudget: p.overBudget,
     });
 
+    // An absolute invariant, checked on every case rather than a chosen one.
+    // Parity proves the two agree; it cannot prove they agree on the right
+    // answer, and both once emitted a heading over a blank body in perfect
+    // agreement. Nothing in a package may ever have empty text.
+    for (const [label, p] of [['engine', tsPack], ['pack', jsPack]]) {
+      for (const item of p.items) {
+        if (!String(item.text).trim()) {
+          failures++;
+          console.error(
+            'X ' + testCase.name + ': ' + label + ' emitted "' + item.id +
+            '" with empty text. A package never carries a heading over a blank.'
+          );
+        }
+      }
+    }
+
     try {
       assert.deepStrictEqual(shape(jsPack), shape(tsPack), 'context packages differ');
     } catch (err) {
@@ -327,6 +377,21 @@ async function main() {
     if (tsSim !== jsSim) {
       failures++;
       console.error('X textSimilarity disagrees on ' + JSON.stringify([a, b]) + ': ts ' + tsSim + ', js ' + jsSim);
+    }
+  }
+
+  // Parity alone cannot catch this one: both sides returned 1.0 for a pair of
+  // empty bodies, agreed with each other perfectly, and collapsed every
+  // body-less candidate in a package into whichever ranked first. An absolute
+  // assertion is the only thing that holds a value the gate cannot infer.
+  for (const [label, impl] of [['engine', engine], ['pack', pack]]) {
+    const blank = impl.textSimilarity('', '');
+    if (blank !== 0) {
+      failures++;
+      console.error(
+        'X ' + label + '.textSimilarity("", "") is ' + blank + ', expected 0. ' +
+        'Two bodies that failed to load are not the same fact.'
+      );
     }
   }
 
