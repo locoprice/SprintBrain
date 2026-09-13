@@ -168,7 +168,7 @@ export type ComplexityLevel = 'simple' | 'medium' | 'complex';
 export type IntentCategory = 'Writing' | 'Coding' | 'Support' | 'SEO' | 'Analysis' | 'Planning' | 'Research' | 'Teaching';
 export type OutputType = 'JSON' | 'Markdown' | 'SOP' | 'Plain';
 
-export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'reasoning' | 'constraints';
+export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'constraints';
 
 export interface PromptBlock {
   type: PromptBlockType;

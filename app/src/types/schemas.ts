@@ -44,7 +44,7 @@ export const snippetSchema = z.object({
 });
 
 const promptBlockSchema = z.object({
-  type: z.enum(['role', 'objective', 'context', 'examples', 'reasoning', 'constraints']),
+  type: z.enum(['role', 'objective', 'context', 'examples', 'constraints']),
   content: z.string(),
   enabled: z.boolean(),
 });
@@ -138,7 +138,7 @@ export const promptFormSchema = z.object({
   blocks: z
     .array(
       z.object({
-        type: z.enum(['role', 'objective', 'context', 'examples', 'reasoning', 'constraints']),
+        type: z.enum(['role', 'objective', 'context', 'examples', 'constraints']),
         content: z.string(),
         enabled: z.boolean(),
       }),

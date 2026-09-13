@@ -13,7 +13,7 @@ import type { IntentCategory, Prompt, PromptBlock, PromptBlockType } from '../ty
 // ── Builders ────────────────────────────────────────────────────────────────────
 
 const ALL_TYPES: PromptBlockType[] = [
-  'role', 'objective', 'context', 'examples', 'reasoning', 'constraints',
+  'role', 'objective', 'context', 'examples', 'constraints',
 ];
 
 /** Build a block set, overriding specific blocks; the rest are off + empty. */
@@ -44,8 +44,7 @@ function strongInput(): EvaluatorInput {
       role: 'You are a senior B2B copywriter with deep SaaS experience.',
       objective: 'Write a 150-word product announcement email for the new analytics feature.',
       context: 'The audience is existing Pro-plan customers; the tone is friendly but concise.',
-      reasoning: 'Think step by step, then double-check the result before producing the final copy.',
-      constraints: 'Keep it under 150 words. Do not use jargon. Avoid emojis.',
+      constraints: 'Keep it under 150 words. Do not use jargon. Avoid emojis. Double-check the result before producing the final copy.',
       examples: 'Input: "new dashboard" → Output: "Meet your new dashboard…"',
     }),
     strategyType: 'One-shot',
@@ -80,9 +79,9 @@ describe('evaluatePrompt — score range', () => {
     }
   });
 
-  it('always produces exactly 12 criteria', () => {
-    expect(evaluatePrompt(input()).criteria).toHaveLength(12);
-    expect(evaluatePrompt(strongInput()).criteria).toHaveLength(12);
+  it('always produces exactly 11 criteria', () => {
+    expect(evaluatePrompt(input()).criteria).toHaveLength(11);
+    expect(evaluatePrompt(strongInput()).criteria).toHaveLength(11);
   });
 
   it('derives score as one-decimal of pct/10', () => {
@@ -231,14 +230,14 @@ describe('evaluatePrompt — audience criterion', () => {
 
 describe('evaluatePrompt — refinement criterion', () => {
   it('fails when no self-check step is requested', () => {
-    const r = r1(evaluatePrompt(input({ blocks: buildBlocks({ reasoning: 'Think step by step.' }) })), 'refinement');
+    const r = r1(evaluatePrompt(input({ blocks: buildBlocks({ constraints: 'Keep it short.' }) })), 'refinement');
     expect(r.status).toBe('fail');
     expect(r.suggestionLabel).toBe('Add self-check');
   });
 
   it('passes when the prompt asks the model to verify its work', () => {
     const r = r1(evaluatePrompt(input({
-      blocks: buildBlocks({ reasoning: 'Reason it out, then double-check the answer.' }),
+      blocks: buildBlocks({ constraints: 'Keep it short, then double-check the answer.' }),
     })), 'refinement');
     expect(r.status).toBe('pass');
     expect(r.value).toBe(1);
@@ -334,6 +333,15 @@ describe('promptToEvaluatorInput', () => {
     const blocks: PromptBlock[] = [{ type: 'role', content: 'You are an expert.', enabled: true }];
     const result = promptToEvaluatorInput({ ...baseRow, blocks });
     expect(result.blocks).toBe(blocks);
+  });
+
+  it('folds a retired Reasoning block into Constraints', () => {
+    const stored = [
+      { type: 'reasoning', content: 'Never guess.', enabled: true },
+      { type: 'constraints', content: 'Be brief.', enabled: true },
+    ] as unknown as PromptBlock[];
+    const result = promptToEvaluatorInput({ ...baseRow, blocks: stored });
+    expect(result.blocks).toEqual([{ type: 'constraints', content: 'Never guess.\n\nBe brief.', enabled: true }]);
   });
 
   it('falls back to flat content as a single objective block', () => {

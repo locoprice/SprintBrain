@@ -8,7 +8,7 @@ import type {
   OutputType,
   IntentCategory,
 } from '@/types/database';
-import { assembleBlocks } from '@/lib/promptUtils';
+import { assembleBlocks, foldReasoningIntoConstraints } from '@/lib/promptUtils';
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -100,16 +100,6 @@ const BLOCK_SPECS: BlockSpec[] = [
     strongChars: 40,
     signalHint: 'add the background the model needs (audience, goal, source data)',
     example: 'The audience is existing Pro-plan customers; tone is friendly but concise.',
-  },
-  {
-    type: 'reasoning',
-    label: 'Reasoning approach',
-    description: 'A thinking instruction is given (e.g. "Think step by step").',
-    weight: 1,
-    signal: /\b(step by step|step-by-step|think|reason|first|then|finally|because|consider|explain your|chain of thought)\b/i,
-    strongChars: 14,
-    signalHint: 'tell the model how to think (e.g. "think step by step")',
-    example: 'Think step by step, then give the final answer.',
   },
   {
     type: 'constraints',
@@ -351,12 +341,13 @@ export const MIN_BENCHMARK_CORPUS = 5;
  * Maps a persisted prompt row to evaluator input so its score can be computed
  * the same way as the live draft. Legacy rows without structured blocks fall
  * back to their flat `content` as a single objective block — mirroring how the
- * editor hydrates them.
+ * editor hydrates them. A retired Reasoning block is folded into Constraints
+ * first, the same way the editor opens it.
  */
 export function promptToEvaluatorInput(prompt: Prompt): EvaluatorInput {
   const blocks: PromptBlock[] =
     prompt.blocks && prompt.blocks.length > 0
-      ? prompt.blocks
+      ? foldReasoningIntoConstraints(prompt.blocks)
       : [{ type: 'objective', content: prompt.content, enabled: !!prompt.content.trim() }];
 
   return {

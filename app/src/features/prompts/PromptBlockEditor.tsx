@@ -7,7 +7,7 @@ import { usePromptStore } from '@/stores/promptStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { DEFAULT_TRIGGER_CONFIG, sanitizeTriggerInput } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
-import { assembleBlocks } from '@/lib/promptUtils';
+import { assembleBlocks, foldReasoningIntoConstraints } from '@/lib/promptUtils';
 import {
   usePromptEvaluator,
   evaluatePrompt,
@@ -34,7 +34,7 @@ import type { ClassificationResult } from '@/lib/intentEngine';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BLOCK_ORDER: PromptBlockType[] = [
-  'role', 'objective', 'context', 'examples', 'reasoning', 'constraints',
+  'role', 'objective', 'context', 'examples', 'constraints',
 ];
 
 const BLOCK_LABELS: Record<PromptBlockType, string> = {
@@ -42,7 +42,6 @@ const BLOCK_LABELS: Record<PromptBlockType, string> = {
   objective: 'Objective',
   context: 'Context',
   examples: 'Examples',
-  reasoning: 'Reasoning',
   constraints: 'Constraints',
 };
 
@@ -51,7 +50,6 @@ const BLOCK_HINTS: Record<PromptBlockType, string> = {
   objective: 'State the task clearly. e.g. "Your task is to review…"',
   context: 'Provide relevant background information.',
   examples: 'Show input/output pairs to guide the model.',
-  reasoning: 'Instruct the thinking approach. e.g. "Think step by step…"',
   constraints: 'What the model must not do or must stay within.',
 };
 
@@ -60,7 +58,6 @@ const DEFAULT_BLOCKS: PromptBlock[] = [
   { type: 'objective', content: '', enabled: true },
   { type: 'context', content: '', enabled: false },
   { type: 'examples', content: '', enabled: false },
-  { type: 'reasoning', content: '', enabled: true },
   { type: 'constraints', content: '', enabled: false },
 ];
 
@@ -70,7 +67,7 @@ const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
 
 // Block types that map to EvalCriterion IDs for the efficiency widget.
 const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
-  'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
+  'role', 'objective', 'context', 'constraints', 'examples',
 ];
 
 // One-click sample that scores highly — lets a new user see what "good" looks
@@ -91,8 +88,7 @@ const EXAMPLE_PROMPT: ExamplePrompt = {
     { type: 'objective', content: 'Write a 150-word product announcement email for the new analytics feature.', enabled: true },
     { type: 'context', content: 'The audience is existing Pro-plan customers; the tone is friendly but concise.', enabled: true },
     { type: 'examples', content: 'Input: "new dashboard" → Output: "Meet your new dashboard…"', enabled: true },
-    { type: 'reasoning', content: 'Think step by step, then double-check the result before producing the final copy.', enabled: true },
-    { type: 'constraints', content: 'Keep it under 150 words. Do not use jargon. Avoid emojis.', enabled: true },
+    { type: 'constraints', content: 'Keep it under 150 words. Do not use jargon. Avoid emojis. Double-check the result before producing the final copy.', enabled: true },
   ],
   strategyType: 'One-shot',
   preferredModel: 'claude-sonnet-4-6',
@@ -363,7 +359,7 @@ export function PromptBlockEditor() {
       setPromptType(editingPrompt.type);
       setBlocks(
         editingPrompt.blocks && editingPrompt.blocks.length > 0
-          ? editingPrompt.blocks
+          ? foldReasoningIntoConstraints(editingPrompt.blocks)
           : DEFAULT_BLOCKS.map((b) =>
               b.type === 'objective'
                 ? { ...b, content: editingPrompt.content, enabled: true }
@@ -511,7 +507,7 @@ export function PromptBlockEditor() {
       return;
     }
     if (criterionId === 'refinement') {
-      appendToBlock('reasoning', 'Double-check the result and flag anything you are unsure about.');
+      appendToBlock('constraints', 'Double-check the result and flag anything you are unsure about.');
       return;
     }
     if (criterionId === 'output_format') { setOutputType('Plain'); return; }
