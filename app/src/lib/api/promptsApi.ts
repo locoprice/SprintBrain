@@ -31,6 +31,7 @@ type DbPrompt = {
   intent_category: string | null;
   output_type: string | null;
   blocks: PromptBlock[] | null;
+  ask_user_questions: boolean | null;
   folder_id: string | null;
   notion_page_id: string | null;
   pinned: boolean | null;
@@ -45,7 +46,7 @@ type DbPrompt = {
 const PROMPT_SELECT = [
   'id', 'user_id', 'name', 'content', 'shortcut', 'type',
   'strategy_type', 'thinking_mode', 'preferred_model', 'complexity_level',
-  'intent_category', 'output_type', 'blocks',
+  'intent_category', 'output_type', 'blocks', 'ask_user_questions',
   'folder_id', 'notion_page_id', 'pinned', 'updated_at', 'updated_by', 'last_used_at',
   // created_at is the fallback anchor for the unused-asset banner: a prompt
   // never executed is measured from the day it was added (INACTIVE-001).
@@ -68,6 +69,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     intent_category: (row.intent_category as IntentCategory) ?? null,
     output_type: (row.output_type as OutputType) ?? null,
     blocks: row.blocks ?? null,
+    ask_user_questions: row.ask_user_questions ?? false,
     folder_id: row.folder_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
@@ -118,6 +120,7 @@ export const promptsApi: PromptsApi = {
         intent_category: payload.intent_category ?? null,
         output_type: payload.output_type ?? null,
         blocks: payload.blocks ?? null,
+        ask_user_questions: payload.ask_user_questions,
         folder_id: payload.folder_id ?? null,
         updated_at: now,
       })
@@ -143,6 +146,7 @@ export const promptsApi: PromptsApi = {
     if ('intent_category' in patch) update['intent_category'] = patch.intent_category ?? null;
     if ('output_type' in patch) update['output_type'] = patch.output_type ?? null;
     if ('blocks' in patch) update['blocks'] = patch.blocks ?? null;
+    if (patch.ask_user_questions !== undefined) update['ask_user_questions'] = patch.ask_user_questions;
     if ('folder_id' in patch) update['folder_id'] = patch.folder_id ?? null;
 
     const { data, error } = await supabase

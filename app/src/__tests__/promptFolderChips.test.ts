@@ -30,6 +30,7 @@ const PROMPT: Prompt = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  ask_user_questions: false,
   folder_id: 'folder-prompts',
   notion_page_id: null,
   pinned: false,

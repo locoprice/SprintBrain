@@ -191,6 +191,11 @@ export interface Prompt {
   intent_category: IntentCategory | null;
   output_type: OutputType | null;
   blocks: PromptBlock[] | null;
+  /**
+   * "Ask User Questions" toggle. When true, the saved content ends with an
+   * instruction to ask clarifying questions first (see assembleBlocks).
+   */
+  ask_user_questions: boolean;
   folder_id: Uuid | null;
   notion_page_id: string | null;
   /** Pin-to-top flag (prompts.pinned). Same shared-column semantics as Snippet.pinned. */

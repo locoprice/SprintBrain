@@ -63,6 +63,7 @@ export const promptSchema = z.object({
   intent_category: z.enum(['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching']).nullable(),
   output_type: z.enum(['JSON', 'Markdown', 'SOP', 'Plain']).nullable(),
   blocks: z.array(promptBlockSchema).nullable(),
+  ask_user_questions: z.boolean(),
   updated_at: z.string(),
   last_used_at: z.string().nullable(),
 });
@@ -143,6 +144,9 @@ export const promptFormSchema = z.object({
       }),
     )
     .nullable(),
+  // "Ask User Questions": when true, content already ends with the instruction;
+  // the flag is what the editor reads back to show the toggle.
+  ask_user_questions: z.boolean(),
   // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
   folder_id: z.string().nullable(),
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
@@ -203,6 +203,36 @@ function DarkSelect<T extends string>({
   );
 }
 
+// ── Panel toggle ───────────────────────────────────────────────────────────────
+
+interface PanelToggleProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick' | 'className' | 'children'> {
+  checked: boolean;
+  onToggle: () => void;
+}
+
+// The on/off pill every toggle in this panel uses, so a new one cannot drift
+// from the block toggles. The knob is placed with left/top rather than inside a
+// border, which keeps it centred at fractional display scaling.
+function PanelToggle({ checked, onToggle, ...rest }: PanelToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`relative h-5 w-9 rounded-full transition-colors ${
+        checked ? 'bg-[#1B4FD8]' : 'bg-[#2A2A2E]'
+      }`}
+      {...rest}
+    >
+      <span
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
 // ── Block section ──────────────────────────────────────────────────────────────
 
 interface BlockSectionProps {
@@ -233,20 +263,11 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
             {BLOCK_LABELS[block.type]}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`relative h-5 w-9 rounded-full transition-colors ${
-            block.enabled ? 'bg-[#1B4FD8]' : 'bg-[#2A2A2E]'
-          }`}
+        <PanelToggle
+          checked={block.enabled}
+          onToggle={onToggle}
           aria-label={block.enabled ? 'Disable block' : 'Enable block'}
-        >
-          <span
-            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-              block.enabled ? 'translate-x-4' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        />
       </div>
 
       {/* Textarea (only when enabled) */}
@@ -312,6 +333,9 @@ export function PromptBlockEditor() {
   // Labels are an association, not prompt content — they save alongside the
   // prompt rather than travelling through PromptFormValues.
   const [labelIds, setLabelIds] = useState<string[]>([]);
+  // "Ask User Questions" starts on for a new prompt; an existing prompt shows
+  // what it was saved with.
+  const [askUserQuestions, setAskUserQuestions] = useState(true);
 
   // Intent suggestion
   const [suggestion, setSuggestion] = useState<ClassificationResult | null>(null);
@@ -353,6 +377,7 @@ export function PromptBlockEditor() {
       setIntentCategory(editingPrompt.intent_category);
       setOutputType(editingPrompt.output_type);
       setFolderId(editingPrompt.folder_id);
+      setAskUserQuestions(editingPrompt.ask_user_questions);
       // Read once on open: the picker owns the draft from here, so a background
       // refresh can't stomp an in-progress edit.
       setLabelIds(useLabelStore.getState().promptLabels.get(editingPrompt.id) ?? []);
@@ -369,6 +394,7 @@ export function PromptBlockEditor() {
       setOutputType(null);
       setFolderId(null);
       setLabelIds([]);
+      setAskUserQuestions(true);
     }
   }, [isOpen, editingPrompt]);
 
@@ -505,7 +531,7 @@ export function PromptBlockEditor() {
   }
 
   function handlePreviewDraft() {
-    const assembled = assembleBlocks(blocks);
+    const assembled = assembleBlocks(blocks, { askUserQuestions });
     if (assembled) openPromptDraftPreview(assembled);
   }
 
@@ -525,7 +551,7 @@ export function PromptBlockEditor() {
     setSubmitError(null);
     setSaving(true);
 
-    const assembled = assembleBlocks(blocks);
+    const assembled = assembleBlocks(blocks, { askUserQuestions });
     const payload: PromptFormValues = {
       name: name.trim(),
       content: assembled,
@@ -538,6 +564,7 @@ export function PromptBlockEditor() {
       intent_category: intentCategory,
       output_type: outputType,
       blocks,
+      ask_user_questions: askUserQuestions,
       folder_id: folderId,
     };
 
@@ -729,6 +756,29 @@ export function PromptBlockEditor() {
               />
             );
           })}
+        </div>
+
+        {/* Ask User Questions: when on, the saved prompt ends with an instruction
+            to ask clarifying questions first (ASK_USER_QUESTIONS_SECTION). */}
+        <div className="border-b border-[#222227] px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor="prompt-ask-user-questions"
+              className="font-mono text-[12px] font-semibold uppercase tracking-widest text-[#CACAD4]"
+            >
+              Ask User Questions
+            </label>
+            <PanelToggle
+              id="prompt-ask-user-questions"
+              role="switch"
+              aria-checked={askUserQuestions}
+              checked={askUserQuestions}
+              onToggle={() => setAskUserQuestions((on) => !on)}
+            />
+          </div>
+          <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
+            The AI asks you clarifying questions before it completes the task. Turn it off to skip the questions.
+          </span>
         </div>
 
         {/* Efficiency score widget */}

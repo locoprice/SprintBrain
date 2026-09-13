@@ -33,7 +33,7 @@ export function PromptPreviewModal() {
     ? (promptDraftContent ?? '')
     : prompt
       ? (prompt.blocks && prompt.blocks.length > 0
-          ? assembleBlocks(prompt.blocks)
+          ? assembleBlocks(prompt.blocks, { askUserQuestions: prompt.ask_user_questions })
           : prompt.content)
       : '';
 
