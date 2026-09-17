@@ -6,9 +6,10 @@
  * dead `#` link — keeping the UI honest until the real destination exists.
  */
 export const RESOURCE_LINKS: Record<
-  'investors' | 'bugs' | 'github' | 'status',
+  'docs' | 'investors' | 'bugs' | 'github' | 'status',
   string | null
 > = {
+  docs: 'https://docs.sprintbrain.com',
   investors: 'https://form.jotform.com/locoprice/investors',
   bugs: 'https://form.jotform.com/locoprice/accuracy',
   github: 'https://github.com/locoprice/SprintBrain/issues',

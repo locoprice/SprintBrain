@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
+  BookOpen,
   Brain,
   Briefcase,
   Bug,
@@ -278,6 +279,19 @@ export function Sidebar() {
 
             {/* Resource links */}
             <div className="border-t border-white/[0.08]">
+              {RESOURCE_LINKS.docs && (
+                <a
+                  href={RESOURCE_LINKS.docs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <BookOpen className="h-4 w-4 text-[#8E8E93]" />
+                  Documentation
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
+                </a>
+              )}
               {RESOURCE_LINKS.investors && (
                 <a
                   href={RESOURCE_LINKS.investors}
