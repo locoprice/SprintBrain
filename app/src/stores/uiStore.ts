@@ -70,9 +70,9 @@ interface UiStore {
   foldersRailOpen: boolean;
   setFoldersRailOpen: (open: boolean) => void;
 
-  // Workspace sidebar, hidden to give the canvas the full width. Same kind of
-  // per-device layout preference as the folder rail; persisted so a screen that
-  // needs the room keeps it. Starts visible.
+  // Workspace sidebar, collapsed to a rail of icons to give the canvas more
+  // width. Same kind of per-device layout preference as the folder rail;
+  // persisted so a screen that needs the room keeps it. Starts expanded.
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
 }
@@ -133,7 +133,7 @@ function storeFoldersRailOpen(open: boolean): void {
 const SIDEBAR_KEY = 'sprintbrain-sidebar-collapsed';
 
 // Mirrors the folder-rail helpers: a blocked store throws on access and the
-// vitest 'node' environment has no localStorage. Visible is the default.
+// vitest 'node' environment has no localStorage. Expanded is the default.
 function getStoredSidebarCollapsed(): boolean {
   try {
     return localStorage.getItem(SIDEBAR_KEY) === 'collapsed';

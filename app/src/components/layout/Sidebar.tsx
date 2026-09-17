@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -9,7 +9,8 @@ import {
   Bug,
   Github,
   LogOut,
-  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   PlayCircle,
   Settings,
   Sparkles,
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { pickHttpsUrl } from '@/lib/branding';
 import { RESOURCE_LINKS } from '@/lib/links';
 import { JotFormModal } from '@/components/layout/JotFormModal';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
@@ -35,10 +37,13 @@ interface NavItem {
   count?: number;
 }
 
-function navClass({ isActive }: { isActive: boolean }): string {
+function navClass({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }): string {
   return cn(
     'group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors',
     "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-[3px] before:content-['']",
+    // The rail is too narrow for the label and the count, so they clip rather
+    // than unmount: the row keeps its height and no icon moves on toggle.
+    collapsed && 'overflow-hidden whitespace-nowrap',
     isActive
       ? 'bg-primary-light text-primary before:bg-primary'
       : 'text-ink-muted before:bg-transparent hover:bg-bg-alt hover:text-ink',
@@ -59,6 +64,27 @@ function NavCountPill({ count, active }: { count: number; active: boolean }) {
   );
 }
 
+/**
+ * Collapsed, the sidebar is a rail of icons, so each one names itself on hover.
+ * Expanded, the label is already on screen and the row renders bare.
+ */
+function RailTooltip({
+  collapsed,
+  label,
+  children,
+}: {
+  collapsed: boolean;
+  label: string;
+  children: ReactNode;
+}) {
+  if (!collapsed) return <>{children}</>;
+  return (
+    <Tooltip label={label} placement="right" className="block">
+      {children}
+    </Tooltip>
+  );
+}
+
 /** Derive a friendly display name from the Supabase user object. */
 function pickDisplayName(
   metadata: Record<string, unknown> | undefined,
@@ -73,16 +99,7 @@ function pickDisplayName(
 const MENU_ITEM =
   'flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50';
 
-interface SidebarProps {
-  /**
-   * Rendered by SidebarPeek as a hover overlay rather than docked in the
-   * layout. The collapse control then pins the sidebar open, because hiding
-   * something the user has already collapsed would do nothing.
-   */
-  peeked?: boolean;
-}
-
-export function Sidebar({ peeked = false }: SidebarProps) {
+export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const snippetCount = useSnippetStore((s) => s.snippets.length);
@@ -90,6 +107,7 @@ export function Sidebar({ peeked = false }: SidebarProps) {
   const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
   const companyLogoUrl = useSettingsStore((s) => s.profile?.company_logo_url ?? null);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
+  const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
   // Owned here rather than lifted: the trigger lives in this menu and nothing
@@ -142,57 +160,83 @@ export function Sidebar({ peeked = false }: SidebarProps) {
   }
 
   return (
-    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-line bg-bg-alt">
+    <aside
+      className={cn(
+        'flex h-full shrink-0 flex-col border-r border-line bg-bg-alt',
+        // Collapsed: a 64px rail plus its 1px border, so the icons and the
+        // avatar centre on whole pixels.
+        collapsed ? 'w-[65px]' : 'w-[260px]',
+      )}
+    >
       <nav className="shrink-0 px-3 pt-5 pb-4">
         {/* The collapse control sits on this row, flush with the right edge of
-            the nav count pills. Docked it hides the sidebar; peeked it pins the
-            overlay back into the layout. The Topbar carries the same icon while
-            the sidebar is hidden. */}
-        <div className="mb-1 flex items-center justify-between gap-2 px-3">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-            Workspace
-          </span>
+            the nav count pills. Collapsed, the sidebar narrows to a rail of
+            icons and the control is all that is left on the row. */}
+        <div
+          className={cn(
+            'mb-1 flex items-center gap-2',
+            collapsed ? 'justify-center' : 'justify-between px-3',
+          )}
+        >
+          {!collapsed && (
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+              Workspace
+            </span>
+          )}
           <button
             type="button"
-            onClick={() => setSidebarCollapsed(!peeked)}
-            aria-label={peeked ? 'Keep sidebar open' : 'Hide sidebar'}
-            title={peeked ? 'Keep sidebar open' : 'Hide sidebar'}
+            onClick={() => setSidebarCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-ink-subtle transition-colors hover:bg-card hover:text-ink"
           >
-            <PanelLeft className="h-4 w-4" aria-hidden />
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" aria-hidden />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" aria-hidden />
+            )}
           </button>
         </div>
         <div className="flex flex-col gap-0.5">
           {PRIMARY.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              {({ isActive }) => (
-                <>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                  {typeof item.count === 'number' && item.count > 0 ? (
-                    <NavCountPill count={item.count} active={isActive} />
-                  ) : null}
-                </>
-              )}
-            </NavLink>
+            <RailTooltip key={item.to} collapsed={collapsed} label={item.label}>
+              <NavLink
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => navClass({ isActive, collapsed })}
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                    {typeof item.count === 'number' && item.count > 0 ? (
+                      <NavCountPill count={item.count} active={isActive} />
+                    ) : null}
+                  </>
+                )}
+              </NavLink>
+            </RailTooltip>
           ))}
 
           {/* Getting Started — replays the onboarding animation on demand */}
-          <button
-            type="button"
-            onClick={openOnboarding}
-            className={cn(navClass({ isActive: false }), 'w-full text-left')}
-          >
-            <PlayCircle className="h-4 w-4" />
-            <span>Getting Started</span>
-          </button>
+          <RailTooltip collapsed={collapsed} label="Getting Started">
+            <button
+              type="button"
+              onClick={openOnboarding}
+              className={cn(navClass({ isActive: false, collapsed }), 'w-full text-left')}
+            >
+              <PlayCircle className="h-4 w-4 shrink-0" />
+              <span>Getting Started</span>
+            </button>
+          </RailTooltip>
         </div>
       </nav>
 
-      {/* Company watermark — the user's own logo (Settings → Company branding).
-          The flex-1 spacer stays even when no logo is set. */}
+      {/* Company watermark: the user's own logo (Settings → Company branding).
+          Wider than the collapsed rail, so it only shows while the sidebar is
+          open. The flex-1 spacer stays either way. */}
       <div className="flex flex-1 items-center justify-center">
-        {companyLogoUrl && (
+        {companyLogoUrl && !collapsed && (
           <img
             src={companyLogoUrl}
             alt=""
@@ -204,9 +248,23 @@ export function Sidebar({ peeked = false }: SidebarProps) {
       </div>
 
       {/* User block — click to open menu */}
-      <div ref={menuRef} className="relative border-t border-line p-3">
+      <div
+        ref={menuRef}
+        className={cn(
+          'relative border-t border-line',
+          // Collapsed, the side padding narrows so the avatar centres in the rail.
+          collapsed ? 'px-2 py-3' : 'p-3',
+        )}
+      >
         {menuOpen && (
-          <div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#1C1C1E] shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
+          <div
+            className={cn(
+              'absolute bottom-full left-3 mb-2 overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#1C1C1E] shadow-[0_8px_32px_rgba(0,0,0,0.45)]',
+              // The rail is narrower than the menu, so collapsed it keeps its
+              // open width and sits over the canvas.
+              collapsed ? 'z-40 w-[236px]' : 'right-3',
+            )}
+          >
             {/* Email header */}
             <div className="px-3 py-2.5 text-xs text-[#8E8E93]">{email}</div>
 
@@ -292,30 +350,35 @@ export function Sidebar({ peeked = false }: SidebarProps) {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-card"
-        >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              draggable={false}
-              className="h-8 w-8 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
-              {initial}
+        <RailTooltip collapsed={collapsed} label={displayName}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-[10px] p-2 text-left hover:bg-card',
+              collapsed && 'overflow-hidden',
+            )}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                draggable={false}
+                className="h-8 w-8 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
+                {initial}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-ink">{displayName}</div>
+              <div className="truncate text-xs text-ink-subtle">{email}</div>
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-ink">{displayName}</div>
-            <div className="truncate text-xs text-ink-subtle">{email}</div>
-          </div>
-        </button>
+          </button>
+        </RailTooltip>
       </div>
       <JotFormModal
         open={bugOpen}
