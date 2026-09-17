@@ -124,10 +124,12 @@ function inListQuoted(values) {
  * and each table applies its own policy, so nothing is readable here that the
  * search did not already return.
  *
- * `body` and not `bodies`: the snippet's primary body is what the view projects
- * and what its token count was measured from. Injecting every language variant
- * would triple the package and make the budget a fiction. Per-language
- * retrieval is a deliberate FUTURE item, not an oversight.
+ * Snippet rows also carry `lang` and `bodies`, because the panel inserts ONE
+ * translation of each fact and a translation can live inside another row's
+ * `bodies` map rather than in a row of its own. The panel picks the one body
+ * with SBMemoryPack.bodyForLang, the same precedence expansion uses. Every
+ * translation is never inserted at once: that would multiply the package and
+ * make the budget a fiction.
  */
 function memoryBodies(items) {
   var list = Array.isArray(items) ? items : [];
@@ -146,7 +148,12 @@ function memoryBodies(items) {
     return function(rows) {
       var out = [];
       for (var j = 0; j < (rows || []).length; j++) {
-        out.push({ kind: kind, id: rows[j].id, body: rows[j].body || '' });
+        var row = { kind: kind, id: rows[j].id, body: rows[j].body || '' };
+        if (kind === 'snippet') {
+          row.lang = rows[j].lang || '';
+          row.bodies = (rows[j].bodies && typeof rows[j].bodies === 'object') ? rows[j].bodies : {};
+        }
+        out.push(row);
       }
       return out;
     };
@@ -159,7 +166,7 @@ function memoryBodies(items) {
   }
   if (snippetIds.length) {
     jobs.push(supaFetch('snippets',
-      'select=id,body&is_active=is.true&id=in.(' + inListQuoted(snippetIds) + ')').then(tag('snippet')));
+      'select=id,lang,body,bodies&is_active=is.true&id=in.(' + inListQuoted(snippetIds) + ')').then(tag('snippet')));
   }
   if (!jobs.length) return Promise.resolve([]);
 

@@ -3520,6 +3520,49 @@ function sbMemorySetComposer(el, text) {
   if (!_cePasteInsert(el, text)) insertText(el, text);
 }
 
+// The memory panel's view of one snippet: which fact it belongs to, and every
+// translation of that fact. Both answers come from the functions a trigger
+// expands through (the shared grouping rule and _findLangVariants), so the panel
+// can never offer as two facts what a trigger treats as one snippet, and never
+// means a different body by "Italian" than a trigger does.
+//
+// Null when the row is not in the local library. The panel then treats the
+// search result as a fact on its own, which is exactly what it did before
+// translations were grouped, so a cold cache degrades to the old behaviour
+// rather than to anything wrong.
+function sbMemorySnippetInfo(id) {
+  var idx = _snipIndex();
+  var key = idx.keyOf[String(id)];
+  if (!key) return null;
+  var group = idx.byKey[key];
+  var row = null;
+  for (var i = 0; group && i < group.rows.length; i++) {
+    if (String(group.rows[i].id) === String(id)) { row = group.rows[i]; break; }
+  }
+  if (!row) return null;
+
+  var found = _findLangVariants(row);
+  var variants = {};
+  Object.keys(found).forEach(function (lang) {
+    variants[lang] = { id: String(found[lang].id), lang: lang, body: found[lang].body };
+  });
+  // stableKey survives a re-sort of the library, which `key` does not.
+  return { groupKey: group.stableKey || key, lang: String(row.lang || ''), variants: variants };
+}
+
+// The languages context should come in, best first. The same order
+// resolveVariant expands in: the user's default language, then the fixed
+// fallback. A snippet's context therefore arrives in the language its trigger
+// would have used.
+function sbMemoryPreferredLangs(preferred) {
+  var out = [];
+  [preferred, 'EN', 'ES', 'IT', 'FR'].forEach(function (lang) {
+    var code = String(lang == null ? '' : lang).toUpperCase();
+    if (code && out.indexOf(code) === -1) out.push(code);
+  });
+  return out;
+}
+
 (function sbInitMemoryPicker() {
   if (typeof SBMemoryPicker === 'undefined' || typeof SBMemoryPack === 'undefined') return;
   if (!SBMemoryPicker.hostConfig(location.hostname)) return;
@@ -3556,6 +3599,11 @@ function sbMemorySetComposer(el, text) {
         cb(null, r.rows || []);
       });
     },
+    // Translations of one snippet are one fact. The panel asks the local
+    // library, through the same rule expansion uses, rather than working it out
+    // from search results that cannot see it.
+    snippetInfo: sbMemorySnippetInfo,
+    preferredLangs: function() { return sbMemoryPreferredLangs(defaultLang); },
     insertText: sbMemorySetComposer,
     // Per-host, because the same package that reads well in one composer is a
     // wall of text in another. Failure is silent and falls back to the host

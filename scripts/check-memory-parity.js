@@ -279,6 +279,92 @@ const CONTEXT_CASES = [
   },
 ];
 
+// clusterCandidates fixtures. A translated snippet arrives as one search row per
+// language; these pin how a group picks the member that stands for the fact,
+// where the fact sits in the list, and what never merges.
+function member(id, groupKey, lang, rank, opts) {
+  const c = cand(id, Object.assign({ rank: rank }, opts || {}));
+  if (groupKey !== null) c.groupKey = groupKey;
+  if (lang !== null) c.lang = lang;
+  return c;
+}
+
+const PREFS = ['IT', 'EN', 'ES', 'FR'];
+
+const CLUSTER_CASES = [
+  {
+    name: 'cluster: four translations become one fact, in the preferred language',
+    prefs: PREFS,
+    candidates: [
+      member('fr', 'air', 'FR', 0.032), member('en', 'air', 'EN', 0.031),
+      member('it', 'air', 'IT', 0.030), member('es', 'air', 'ES', 0.029),
+    ],
+  },
+  {
+    name: 'cluster: with no preference the best-ranked member stands for the fact',
+    prefs: [],
+    candidates: [member('fr', 'air', 'FR', 0.032), member('it', 'air', 'IT', 0.030)],
+  },
+  {
+    name: 'cluster: a candidate with no group key is a fact on its own',
+    prefs: PREFS,
+    candidates: [member('m1', null, null, 0.3), member('m2', null, null, 0.2), member('m3', null, null, 0.1)],
+  },
+  {
+    name: 'cluster: facts keep the position of their first member',
+    prefs: PREFS,
+    candidates: [
+      member('s1', 'a', 'EN', 0.9, { kind: 'snippet' }), member('m1', null, null, 0.8),
+      member('s2', 'b', 'EN', 0.7, { kind: 'snippet' }), member('s3', 'a', 'IT', 0.6, { kind: 'snippet' }),
+    ],
+  },
+  {
+    name: 'cluster: two rows in the same language go to the better-ranked one',
+    prefs: PREFS,
+    candidates: [member('x1', 'g', 'IT', 0.2), member('x2', 'g', 'IT', 0.5)],
+  },
+  {
+    name: 'cluster: a language outside the preference list loses to one inside it',
+    prefs: ['IT', 'EN'],
+    candidates: [member('multi', 'g', 'MULTI', 0.9), member('en', 'g', 'EN', 0.1)],
+  },
+  {
+    name: 'cluster: a browse keeps its order and every rank stays zero',
+    prefs: PREFS,
+    candidates: [
+      member('b1', 'g1', 'FR', 0), member('b2', null, null, 0),
+      member('b3', 'g1', 'IT', 0), member('b4', 'g2', 'EN', 0),
+    ],
+  },
+  {
+    name: 'cluster: equal rank and equal preference fall back to name then id',
+    prefs: PREFS,
+    candidates: [
+      member('i2', 'g', 'IT', 0.5, { name: 'zulu' }),
+      member('i1', 'g', 'IT', 0.5, { name: 'alpha' }),
+      member('i0', 'g', 'IT', 0.5, { name: 'alpha' }),
+    ],
+  },
+  {
+    name: 'cluster: a group key never merges with a bare row that spells the same key',
+    prefs: PREFS,
+    candidates: [
+      member('x', 'row:snippet:y', 'EN', 0.5, { kind: 'snippet' }),
+      member('y', null, null, 0.4, { kind: 'snippet' }),
+    ],
+  },
+  {
+    name: 'cluster: the same id under two kinds is two facts',
+    prefs: PREFS,
+    candidates: [member('1', null, null, 0.5, { kind: 'memory' }), member('1', null, null, 0.4, { kind: 'snippet' })],
+  },
+  {
+    name: 'cluster: no candidates at all',
+    prefs: PREFS,
+    candidates: [],
+  },
+];
+
 async function main() {
   // pathToFileURL: on Windows a bare absolute path reads as the 'c:' protocol.
   const engine = await import(pathToFileURL(ENGINE).href);
@@ -358,6 +444,67 @@ async function main() {
     }
   }
 
+  // ── clusterCandidates (MEMORY-002 injection step A) ──────────────────────
+  //
+  // Compared whole, as the packages are. Then held to invariants that parity
+  // cannot see, because two copies can agree on dropping a candidate or on
+  // carrying the wrong rank just as easily as they agreed on 1.0 for two empty
+  // bodies.
+  const clusterShape = (clusters) =>
+    clusters.map((c) => ({
+      id: c.candidate.id,
+      kind: c.candidate.kind,
+      lang: c.candidate.lang === undefined ? null : c.candidate.lang,
+      rank: c.candidate.rank,
+      members: c.members.map((m) => m.kind + ':' + m.id),
+    }));
+
+  for (const testCase of CLUSTER_CASES) {
+    const before = JSON.stringify(testCase.candidates);
+    const tsClusters = engine.clusterCandidates(testCase.candidates, testCase.prefs);
+    const jsClusters = pack.clusterCandidates(testCase.candidates, testCase.prefs);
+
+    try {
+      assert.deepStrictEqual(clusterShape(jsClusters), clusterShape(tsClusters), 'clusters differ');
+    } catch (err) {
+      failures++;
+      console.error('X ' + testCase.name);
+      console.error('   ' + err.message);
+      console.error('   ts: ' + JSON.stringify(clusterShape(tsClusters)));
+      console.error('   js: ' + JSON.stringify(clusterShape(jsClusters)));
+    }
+
+    if (JSON.stringify(testCase.candidates) !== before) {
+      failures++;
+      console.error('X ' + testCase.name + ': the input candidates were mutated.');
+    }
+
+    for (const [label, clusters] of [['engine', tsClusters], ['pack', jsClusters]]) {
+      let seen = 0;
+      for (const c of clusters) {
+        seen += c.members.length;
+        const top = Math.max(...c.members.map((m) => m.rank));
+        if (c.candidate.rank !== top) {
+          failures++;
+          console.error('X ' + testCase.name + ': ' + label + ' carried rank ' + c.candidate.rank +
+            ' for a fact whose best member ranked ' + top + '.');
+        }
+        const isMember = c.members.some((m) =>
+          m.kind === c.candidate.kind && m.id === c.candidate.id && m.lang === c.candidate.lang);
+        if (!isMember) {
+          failures++;
+          console.error('X ' + testCase.name + ': ' + label + ' chose "' + c.candidate.id +
+            '", which is not one of the fact\'s own members.');
+        }
+      }
+      if (seen !== testCase.candidates.length) {
+        failures++;
+        console.error('X ' + testCase.name + ': ' + label + ' placed ' + seen + ' of ' +
+          testCase.candidates.length + ' candidates. Clustering may merge, never drop.');
+      }
+    }
+  }
+
   // Similarity drives near-duplicate collapsing, so the two must agree to the
   // digit. A threshold crossed on one surface and not the other means one of
   // them silently keeps a duplicate.
@@ -426,7 +573,8 @@ async function main() {
 
   console.log(
     'OK Memory parity passed ' + CASES.length + ' step cases + ' +
-    CONTEXT_CASES.length + ' context cases (+ similarity, constants, token estimator)',
+    CONTEXT_CASES.length + ' context cases + ' + CLUSTER_CASES.length +
+    ' cluster cases (+ similarity, constants, token estimator)',
   );
 }
 

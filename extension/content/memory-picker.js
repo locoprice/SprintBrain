@@ -194,6 +194,13 @@
     'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.kind{display:inline-block;padding:0 5px;border-radius:999px;background:#F2F2F7;',
     'font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6B6B70;margin-right:5px}',
+    // The language a fact will be inserted in. Same shape as .kind so the row
+    // reads as one line of labels, blue because it is the one that does
+    // something when clicked.
+    '.lang{display:inline-block;padding:0 5px;border:1px solid #BED0FF;border-radius:999px;background:#FFFFFF;',
+    'font:inherit;font-size:9px;font-weight:700;letter-spacing:.04em;line-height:inherit;color:#1B4FD8;',
+    'margin-right:4px;cursor:pointer;vertical-align:baseline}',
+    '.lang:hover{background:#EEF2FF}',
     '.pfoot{display:flex;align-items:center;gap:6px;padding:6px 10px 8px;border-top:1px solid #E5E5EA;flex:0 0 auto}',
     '.btn{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #1B4FD8;',
     'background:#1B4FD8;color:#fff}',
@@ -212,10 +219,125 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // ── One fact, one row (injection step A) ─────────────────────────────────
+  //
+  // A snippet translated into four languages is four rows in the database and
+  // four search results, and until this it was four rows in the panel, all
+  // pre-selected, costing four bodies. These turn search rows into facts before
+  // anything is shown. Which rows are one fact is not decided here: that comes
+  // from the local library through the same rule expansion uses.
+
+  // The order a fact's languages are listed and cycled through.
+  var LANG_ORDER = ['EN', 'ES', 'IT', 'FR', 'MULTI'];
+
+  function languagesOf(variants) {
+    var known = [];
+    var other = [];
+    for (var lang in variants) {
+      if (!Object.prototype.hasOwnProperty.call(variants, lang)) continue;
+      if (LANG_ORDER.indexOf(lang) === -1) other.push(lang);
+      else known.push(lang);
+    }
+    known.sort(function (a, b) { return LANG_ORDER.indexOf(a) - LANG_ORDER.indexOf(b); });
+    other.sort();
+    return known.concat(other);
+  }
+
+  // A one-line description of a body the search did not return: its first
+  // non-empty line, capped like the view caps a summary.
+  function summaryOf(body) {
+    var lines = String(body == null ? '' : body).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/^\s+|\s+$/g, '');
+      if (line) return line.slice(0, 280);
+    }
+    return '';
+  }
+
+  // The first preferred language the fact actually has. A fact with none of
+  // them keeps the language of the row the search matched, if it can.
+  function firstPreferred(langs, preferredLangs, fallback) {
+    var prefs = preferredLangs || [];
+    for (var i = 0; i < prefs.length; i++) {
+      if (langs.indexOf(prefs[i]) !== -1) return prefs[i];
+    }
+    if (fallback && langs.indexOf(fallback) !== -1) return fallback;
+    return langs[0];
+  }
+
+  /**
+   * Point a fact at one of its translations: the row to fetch at insert, and
+   * what the panel shows. The search described the row it matched, in that
+   * row's language, so any other translation is described from the local
+   * library instead. Showing a French summary and a French token count while
+   * inserting the Italian body would misstate both.
+   */
+  function useTranslation(fact, lang) {
+    var variant = fact.variants && fact.variants[lang];
+    if (!variant) return;
+    fact.lang = lang;
+    fact.variantId = variant.id;
+    if (variant.id === fact.matched.id && lang === fact.matched.lang) {
+      fact.tokens = fact.matched.tokens;
+      fact.summary = fact.matched.summary;
+    } else {
+      fact.tokens = PACK.estimateTokens(variant.body);
+      fact.summary = summaryOf(variant.body);
+    }
+  }
+
+  /**
+   * knowledge_search rows in, facts out, in the order the search ranked them.
+   *
+   * `snippetInfo(id)` answers from the local library, or null when the row is
+   * not there, in which case that row is a fact on its own, exactly as before
+   * translations were grouped. The engine collapses each group and chooses the
+   * member in the earliest preferred language; a fact with several translations
+   * then gets the first preferred language among ALL of them, including ones the
+   * search did not match, since the draft may have matched only the French
+   * wording of a fact the user reads in Italian.
+   */
+  function factsFromSearchRows(rows, snippetInfo, preferredLangs) {
+    var candidates = [];
+    var info = {};
+    var list = rows || [];
+    for (var i = 0; i < list.length; i++) {
+      var candidate = PACK.candidateFromSearchRow(list[i]);
+      if (candidate.kind === 'snippet' && snippetInfo) {
+        var known = snippetInfo(candidate.id);
+        if (known) {
+          candidate.groupKey = known.groupKey;
+          candidate.lang = known.lang;
+          info[candidate.id] = known;
+        }
+      }
+      candidates.push(candidate);
+    }
+
+    var clusters = PACK.clusterCandidates(candidates, preferredLangs || []);
+    var facts = [];
+    for (var j = 0; j < clusters.length; j++) {
+      // Already a copy, carrying the fact's best rank.
+      var fact = clusters[j].candidate;
+      var local = info[fact.id];
+      var langs = local ? languagesOf(local.variants) : [];
+      if (langs.length > 1) {
+        fact.matched = { id: fact.id, lang: fact.lang, tokens: fact.tokens, summary: fact.summary };
+        fact.variants = local.variants;
+        fact.langs = langs;
+        useTranslation(fact, firstPreferred(langs, preferredLangs, fact.lang));
+      }
+      facts.push(fact);
+    }
+    return facts;
+  }
+
   /**
    * @param {object} deps
-   *   search(query, cb)         cb(err, rows) — knowledge_search rows, no bodies
-   *   getBodies(ids, cb)        cb(err, [{id, body}]) — only for accepted ids
+   *   search(query, cb)         cb(err, rows): knowledge_search rows, no bodies
+   *   snippetInfo(id)           {groupKey, lang, variants} or null: the local library's view of a snippet
+   *   preferredLangs()          language codes, best first: the order context should arrive in
+   *   getBodies(items, cb)      cb(err, rows): bodies for accepted {id, kind} pairs only
    *   insertText(el, text, prev) writes into the composer; the surface's own inserter
    *   loadBudget(host, cb)      cb(tokens|null) — the user's override for this site
    *   saveBudget(host, tokens)  persists that override
@@ -290,6 +412,12 @@
     }
 
     function renderPanel() {
+      // Every render replaces the list, which snapped it back to the top on each
+      // tick. That was tolerable for a checkbox and is not for switching the
+      // language of the eighth row, so the scroll position is carried across.
+      var previousList = menu ? menu.querySelector('.plist') : null;
+      var scrollTop = previousList ? previousList.scrollTop : 0;
+
       closeMenu();
       menu = doc.createElement('div');
       menu.className = 'menu panel';
@@ -324,9 +452,18 @@
         for (var i = 0; i < results.length; i++) {
           var c = results[i];
           var on = checked[c.id] ? ' checked' : '';
+          // A fact with translations names the one it will insert, and that
+          // name is the control for choosing another.
+          var langHtml = '';
+          if (c.langs && c.langs.length > 1) {
+            langHtml = '<button type="button" class="lang" data-lang-for="' + esc(c.id) + '"' +
+                       ' title="Switch language" aria-label="' +
+                       esc('Inserting ' + c.lang + '. Switch language') + '">' + esc(c.lang) + '</button>' +
+                       c.langs.length + ' languages · ';
+          }
           html += '<label class="item"><input type="checkbox" data-id="' + esc(c.id) + '"' + on + '>' +
                   '<span class="txt"><span class="nm">' + esc(c.name) + '</span>' +
-                  '<span class="sub"><span class="kind">' + esc(c.kind) + '</span>' +
+                  '<span class="sub"><span class="kind">' + esc(c.kind) + '</span>' + langHtml +
                   c.tokens + 't · ' + esc(c.summary || 'No summary') + '</span></span></label>';
         }
       }
@@ -349,6 +486,10 @@
       pill.setAttribute('data-active', '1');
       placeMenu();
       wirePanel();
+
+      // After placeMenu, which may have clamped the height the offset lives in.
+      var list = menu.querySelector('.plist');
+      if (list && scrollTop) list.scrollTop = scrollTop;
     }
 
     function budgetOptions(current) {
@@ -442,6 +583,27 @@
           else if (act === 'remove') removeBlock();
         });
       }
+
+      // One click, the next translation. The selection is left exactly as the
+      // user set it: switching a language is not a reason to re-decide what
+      // goes in.
+      var langButtons = menu.querySelectorAll('button[data-lang-for]');
+      for (var m = 0; m < langButtons.length; m++) {
+        langButtons[m].addEventListener('click', function (e) {
+          // The button sits inside the row's label, and a click that reached
+          // the label would also toggle the checkbox it wraps.
+          e.preventDefault();
+          e.stopPropagation();
+          var id = e.currentTarget.getAttribute('data-lang-for');
+          for (var r = 0; r < results.length; r++) {
+            var fact = results[r];
+            if (fact.id !== id || !fact.langs) continue;
+            useTranslation(fact, fact.langs[(fact.langs.indexOf(fact.lang) + 1) % fact.langs.length]);
+            break;
+          }
+          renderPanel();
+        });
+      }
     }
 
     function hostname() {
@@ -493,9 +655,11 @@
         searching = false;
         results = [];
         if (!err && rows) {
-          for (var i = 0; i < rows.length; i++) {
-            results.push(PACK.candidateFromSearchRow(rows[i]));
-          }
+          // Facts, not rows. Grouping runs before anything is shown because the
+          // panel is where the user decides, and a translated snippet listed
+          // four times is four decisions about one thing.
+          results = factsFromSearchRows(rows, deps.snippetInfo,
+            deps.preferredLangs ? deps.preferredLangs() : []);
         }
         autoCheck();
         renderPanel();
@@ -518,9 +682,11 @@
       // Kind travels with the id: the two kinds are stored in different tables,
       // and keying anything on a bare id would collide the day a snippet id and
       // a shard id match, which uuid-shaped snippet ids make possible.
+      // The row to fetch is the chosen translation's, which is not always the
+      // row the search matched.
       var wanted = [];
       for (var i = 0; i < picked.length; i++) {
-        wanted.push({ id: picked[i].id, kind: picked[i].kind });
+        wanted.push({ id: picked[i].variantId || picked[i].id, kind: picked[i].kind });
       }
 
       deps.getBodies(wanted, function (err, rows) {
@@ -528,7 +694,7 @@
 
         var byKey = {};
         for (var j = 0; j < rows.length; j++) {
-          byKey[rows[j].kind + ':' + rows[j].id] = rows[j].body;
+          byKey[rows[j].kind + ':' + rows[j].id] = rows[j];
         }
 
         // Bodies are in hand, so the engine can do the real work: floor,
@@ -538,9 +704,13 @@
         var candidates = [];
         for (var k = 0; k < picked.length; k++) {
           var c = picked[k];
+          var row = byKey[c.kind + ':' + (c.variantId || c.id)];
+          // One translation, read the way expansion reads it: a translation
+          // can live inside another row's `bodies` map.
+          var body = !row ? '' : (c.lang ? PACK.bodyForLang(row, c.lang) : row.body);
           candidates.push({
             id: c.id, kind: c.kind, name: c.name, summary: c.summary,
-            body: byKey[c.kind + ':' + c.id] || '', tokens: c.tokens,
+            body: body || '', tokens: c.tokens,
             pinned: false, rank: c.rank, contentHash: ''
           });
         }
@@ -688,6 +858,7 @@
     findComposer: findComposer,
     hostConfig: hostConfig,
     readComposer: readComposer,
+    factsFromSearchRows: factsFromSearchRows,
     create: create
   };
 
