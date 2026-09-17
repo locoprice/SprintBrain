@@ -266,6 +266,16 @@ function bootContent(initialArea) {
 }
 
 // ── 6. the mobile copy ────────────────────────────────────────────────
+// The block is a script of its own. Placed inside mobile's <script>, it leaves
+// the app's code outside any tag and the phone prints that code as text.
+if (MOBILE_HTML.indexOf(BEGIN) !== -1) {
+  const beforeBlock = MOBILE_HTML.slice(0, MOBILE_HTML.indexOf(BEGIN));
+  check('mobile: the block does not open inside another script',
+    (beforeBlock.match(/<script\b/g) || []).length - (beforeBlock.match(/<\/script>/g) || []).length, 0);
+  check('mobile: its own script opens right after the block',
+    MOBILE_HTML.slice(MOBILE_HTML.indexOf(END) + END.length).trimStart().startsWith('<script>'), true);
+}
+
 function mobileBlock() {
   return BEGIN + '\n<script>\n' + MODULE_SRC.trimEnd() + '\n</script>\n' + END;
 }
