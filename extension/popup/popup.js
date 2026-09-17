@@ -2348,14 +2348,19 @@ function renderPrompts(q) {
   });
 }
 
+// Mirrors the Prompts tab switch, wired below with the other local prefs.
+// shared/interactive-steps.js owns the key, the storage and the block.
+var interactiveStepsOn = false;
+
 function copyPrompt(pid){
   var p = findPrompt(pid); if (!p) return;
-  try { navigator.clipboard.writeText(p.content||''); } catch(_) {}
+  var text = SBInteractiveSteps.apply(p.content||'', interactiveStepsOn);
+  try { navigator.clipboard.writeText(text); } catch(_) {}
   var nm = gi('pname-'+pid);
   var orig = nm ? nm.textContent : '';
   if (nm) nm.textContent = '✓ Copied!';
   setTimeout(function() { if (nm) nm.textContent = orig; }, 1500);
-  showToast('Prompt copied');
+  showToast(text !== (p.content||'') ? 'Prompt copied with Interactive Steps' : 'Prompt copied');
 }
 
 // ── MODE SWITCHER ──────────────────────────────────────────────────
@@ -2454,6 +2459,12 @@ on('sq','input', function(e){
   else { selIdx=-1; renderList(e.target.value); }
 });
 on('cfg-default-lang','change', function(e){ userPrefs.defaultLang = e.target.value; saveUserPrefs(); });
+// Interactive Steps switch in the Prompts tab. Sprintbrain.html has no
+// #p-steps-on and wires its own switch.
+if (gi('p-steps-on')) {
+  SBInteractiveSteps.load(function(stored){ interactiveStepsOn = stored; gi('p-steps-on').checked = stored; });
+  on('p-steps-on','change', function(e){ interactiveStepsOn = e.target.checked; SBInteractiveSteps.save(interactiveStepsOn); });
+}
 
 // Mode tabs
 document.querySelectorAll('.mode-tab').forEach(function(tab){

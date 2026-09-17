@@ -357,6 +357,8 @@
   .nv-slider:before{content:'';position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
   .nv-switch input:checked + .nv-slider{background:var(--sb-azure)}
   .nv-switch input:checked + .nv-slider:before{transform:translateX(15px)}
+  /* Interactive Steps: first row of the Prompts list, the "Multiple" toggle row on a list row's padding. */
+  .nv-steps{padding:12px 18px;border-bottom:1px solid var(--sb-line)}
   /* ── Settings view ── */
   .nv-set-body{padding:18px 20px;display:flex;flex-direction:column;gap:20px;max-width:640px}
   .nv-set-lbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
@@ -974,13 +976,14 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.29.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.30.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
 <script src="extension/popup/sync-deletion.js"></script>
+<script src="extension/shared/interactive-steps.js"></script>
 <script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
 <script src="extension/shared/fill-form.js"></script>
@@ -1408,6 +1411,15 @@
     bindDetailAdjust(el);
   }
 
+  // Interactive Steps. shared/interactive-steps.js keeps the setting in this
+  // page's localStorage, so it is read once here and written on every change.
+  var nvStepsOn = false;
+  SBInteractiveSteps.load(function(on){ nvStepsOn = on; });
+  function bindStepsSwitch(){
+    var sw = $('nv-steps-on'); if (!sw) return;
+    sw.addEventListener('change', function(){ nvStepsOn = sw.checked; SBInteractiveSteps.save(nvStepsOn); });
+  }
+
   function renderPromptsMain(){
     $('nv-title').textContent = 'Prompts';
     $('nv-list-title').textContent = 'Prompts';
@@ -1421,8 +1433,15 @@
     // read-only here). Same sort form as the snippet list above.
     filtered.sort(function(a,b){ return (b.pinned?1:0) - (a.pinned?1:0); });
     $('nv-list-sub').textContent = filtered.length + ' shown';
+    // The switch opens the list, above an empty one too.
+    var steps = '<div class="nv-steps nv-menu-toggle">'
+      + '<div><div class="nv-menu-tlbl">Interactive Steps</div>'
+      + '<div class="nv-menu-hint" style="margin-top:2px">Copied prompts start with step-by-step instructions. The AI does one step, then waits for you.</div></div>'
+      + '<label class="nv-switch"><input type="checkbox" id="nv-steps-on" aria-label="Interactive Steps"' + (nvStepsOn ? ' checked' : '') + '><span class="nv-slider"></span></label>'
+      + '</div>';
     if (!filtered.length) {
-      $('nv-list').innerHTML = '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
+      $('nv-list').innerHTML = steps + '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
+      bindStepsSwitch();
       return;
     }
     var h = '';
@@ -1438,12 +1457,14 @@
         + '<div class="nv-row-meta">'+strat+'</div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
     });
-    $('nv-list').innerHTML = h;
+    $('nv-list').innerHTML = steps + h;
+    bindStepsSwitch();
     $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
       row.addEventListener('click', function(){
         var p = findPrompt(row.dataset.pid); if (!p) return;
-        try { navigator.clipboard.writeText(p.content || ''); } catch(x) {}
-        toast('Prompt copied');
+        var text = SBInteractiveSteps.apply(p.content || '', nvStepsOn);
+        try { navigator.clipboard.writeText(text); } catch(x) {}
+        toast(text !== (p.content || '') ? 'Prompt copied with Interactive Steps' : 'Prompt copied');
       });
     });
   }

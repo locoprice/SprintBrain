@@ -56,6 +56,9 @@ jobs:
       - name: Memory chunk + chat capture check
         run: node scripts/check-memory-chunk.js
 
+      - name: Interactive Steps parity check
+        run: node scripts/check-interactive-steps.js
+
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 

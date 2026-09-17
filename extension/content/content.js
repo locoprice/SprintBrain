@@ -140,6 +140,23 @@ function promptTemplates() {
   return merged;
 }
 
+// ── INTERACTIVE STEPS ─────────────────────────────────────────────
+// The popup's Prompts tab switch, kept current by the storage listener below so
+// an insert never waits on a storage read. shared/interactive-steps.js, loaded
+// by manifest.json before this file, owns the key and the block.
+var interactiveStepsOn = false;
+
+// What a picked prompt inserts. A saved prompt gets the Interactive Steps block
+// when the switch is on. A built-in Base Prompt is a one-line opener such as
+// "Summarize the following in 2-3 sentences:" and always goes in as written.
+function _promptInsertText(item) {
+  var body = item.body || '';
+  for (var i = 0; i < BASE_PROMPTS.length; i++) {
+    if (BASE_PROMPTS[i].id === item.id) return body;
+  }
+  return SBInteractiveSteps.apply(body, interactiveStepsOn);
+}
+
 // ── SELECTION-TRIGGERED SUGGESTIONS (v2.56.0) ─────────────────────
 // When the user SELECTS text in any editable field, the selection is scanned
 // for trigger keywords and the mapped snippet(s) are offered in a floating menu
@@ -257,8 +274,11 @@ try {
           triggerCfg.autoCapitalize = nc.autoCapitalize;
         }
       }
+      if (changes[SBInteractiveSteps.KEY]) interactiveStepsOn = SBInteractiveSteps.isOn(changes[SBInteractiveSteps.KEY].newValue);
     } catch(e) {}
   });
+
+  SBInteractiveSteps.load(function(on) { interactiveStepsOn = on; });
 } catch(e) {
   console.error('[Sprintbrain] Storage unavailable, using defaults');
 }
@@ -2558,7 +2578,7 @@ function selectTriggerItem(idx) {
         showOverlay(el, item, dLen, function() { processing = false; });
       }
     } else {
-      insertText(el, item.body || '');
+      insertText(el, _promptInsertText(item));
       logEvent(item, 0);
     }
   }

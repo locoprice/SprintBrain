@@ -891,6 +891,15 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 #prompt-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 #prompt-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
+/* Interactive Steps row above the list: a prompt card's surface with the fill
+   form's checkbox, and the whole row is the tap target. */
+.psteps{margin:10px 16px 0;padding:14px;display:flex;align-items:center;gap:12px;
+  background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-sm);
+  cursor:pointer;-webkit-tap-highlight-color:transparent}
+.psteps-txt{flex:1;min-width:0}
+.psteps-t{display:block;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px}
+.psteps-d{display:block;font-size:13px;color:var(--text2);margin-top:3px;line-height:1.4}
+.psteps input{flex:none;width:18px;height:18px;accent-color:var(--primary)}
 .prompt-card{
   background:var(--card);border-radius:var(--r-card);
   padding:14px;display:flex;align-items:flex-start;gap:12px;
@@ -1243,6 +1252,14 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
   <div id="prompt-body">
+    <!-- Interactive Steps: device setting, decided by the SB_INTERACTIVE_STEPS block. -->
+    <label class="psteps" for="psteps-on">
+      <span class="psteps-txt">
+        <span class="psteps-t">Interactive Steps</span>
+        <span class="psteps-d">Copied and shared prompts start with step-by-step instructions. The AI does one step, then waits for you.</span>
+      </span>
+      <input type="checkbox" id="psteps-on">
+    </label>
     <div class="msec"><span class="msec-t">All prompts</span></div>
     <div class="psearch-meta" id="prompt-srch-meta"></div>
     <div id="prompt-list"></div>
@@ -2300,6 +2317,135 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 </script>
 <!-- SB_FILL_FORM:END -->
 <script>
+<!-- SB_INTERACTIVE_STEPS:BEGIN (generated from extension/shared/interactive-steps.js by scripts/check-interactive-steps.js --write, do not edit) -->
+<script>
+// interactive-steps.js: the "Interactive Steps" prompt setting, decided once.
+//
+// When the switch is on, a prompt handed out by SprintBrain starts with a block
+// that asks the AI to work one step at a time and wait for the user between
+// steps. Every surface that hands out a prompt carries the switch:
+//
+//   extension/popup/popup.js          Prompts tab, copy
+//   extension/content/content.js      the """ picker and """shortcut, insert
+//   Sprintbrain.html                  Prompts list, copy
+//   app/public/mobile/index.html      Prompts page, copy and share (generated copy)
+//   app/src/lib/interactiveSteps.ts   dashboard preview window, copy (TS copy)
+//
+// The block is added when a prompt leaves SprintBrain and is never saved into
+// the prompt, so switching it off gives back exactly the text that was written.
+//
+// The setting belongs to the device, not the account. The extension keeps it in
+// chrome.storage.local, where content.js follows it live. The web surfaces keep
+// it under the same key in localStorage. Sprintbrain.html runs this file under
+// chrome-shim.js, which folds chrome.storage into a single localStorage entry,
+// so the shim is skipped here: the dashboard, mobile and Sprintbrain.html share
+// one origin and read one key.
+//
+// scripts/check-interactive-steps.js pins the behaviour, compares the dashboard
+// copy, and writes the mobile copy (--write).
+(function(root) {
+  'use strict';
+
+  var KEY = 'sb_interactive_steps_enabled';
+
+  var OPEN = '<INTERACTIVE_STEPS>';
+
+  var BLOCK = [
+    OPEN,
+    'Work through this task with me one step at a time.',
+    '1. Start by listing the steps you plan to take, one short line each, and ask me to confirm the plan.',
+    '2. Then complete one step per reply. Show the result of that step and stop.',
+    '3. End each reply with one short question: continue, change something, or skip ahead.',
+    '4. Wait for my answer before you start the next step. Apply any change I ask for first.',
+    '5. After the last step, give me the complete final result in one piece.',
+    'If this prompt also asks you to ask me clarifying questions, ask them before you list the steps.',
+    '</INTERACTIVE_STEPS>'
+  ].join('\n');
+
+  // The extension stores a boolean and localStorage stores a string. Only an
+  // explicit "on" counts, so nothing stored means off.
+  function isOn(value) {
+    return value === true || value === 'true';
+  }
+
+  // The extension's own storage, or null on a web page. chrome-shim.js answers
+  // to chrome.storage too, and is told apart by its runtime id.
+  function extensionStorage() {
+    var c = root.chrome;
+    if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
+    return c.runtime.id === 'sprintbrain-web-shim' ? null : c.storage.local;
+  }
+
+  // cb(on) once the stored value is known.
+  function load(cb) {
+    var store = extensionStorage();
+    if (store) {
+      try {
+        store.get(KEY, function(d) {
+          cb(!root.chrome.runtime.lastError && isOn(d && d[KEY]));
+        });
+      } catch (e) {
+        // A page left open across an extension reload has lost its context.
+        // It keeps the default until it is reloaded, like every other setting.
+        cb(false);
+      }
+      return;
+    }
+    try {
+      cb(isOn(root.localStorage.getItem(KEY)));
+    } catch (e) {
+      console.error('Interactive Steps: could not read the setting on this device:', e);
+      cb(false);
+    }
+  }
+
+  function save(on) {
+    var store = extensionStorage();
+    if (store) {
+      var patch = {};
+      patch[KEY] = on === true;
+      store.set(patch, function() {
+        if (root.chrome.runtime.lastError) {
+          console.error('Interactive Steps: could not save the setting:', root.chrome.runtime.lastError.message);
+        }
+      });
+      return;
+    }
+    try {
+      root.localStorage.setItem(KEY, on === true ? 'true' : 'false');
+    } catch (e) {
+      console.error('Interactive Steps: could not save the setting on this device:', e);
+    }
+  }
+
+  // The text a prompt hands out. The block goes first, then a blank line, then
+  // the prompt. An empty prompt stays empty, and a prompt that already opens
+  // with the block is left alone, so the same text never carries it twice.
+  function apply(text, on) {
+    var body = text == null ? '' : String(text);
+    if (!on || !body.trim()) return body;
+    if (body.replace(/^\s+/, '').indexOf(OPEN) === 0) return body;
+    return BLOCK + '\n\n' + body;
+  }
+
+  var API = {
+    KEY: KEY,
+    BLOCK: BLOCK,
+    isOn: isOn,
+    load: load,
+    save: save,
+    apply: apply
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = API;
+  } else {
+    root.SBInteractiveSteps = API;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
+</script>
+<!-- SB_INTERACTIVE_STEPS:END -->
 var SUPA = 'https://eyowustlbqujaimaxggt.supabase.co';
 var KEY  = 'sb_publishable_F_8LSMkr9ZK-9v50sPzXbQ_zjA0D_O0';
 
@@ -4097,7 +4243,8 @@ function syncPromptClear(){
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
 }
 function promptCopy(p){
-  copyText(p.content||'',function(){showToast('Prompt copied ✓');});
+  var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
+  copyText(text,function(){showToast(text!==(p.content||'')?'Prompt copied with Interactive Steps ✓':'Prompt copied ✓');});
   promptMarkUsed(p);
 }
 /* Mirrors desktop promptsApi.markUsed — fire-and-forget PATCH on the owner row. */
@@ -4143,7 +4290,7 @@ function closePromptSheet(){
 /* Share mirrors the snippet sheet: hand the text to the OS share sheet where
    there is one, fall back to the clipboard where there is not. */
 function sharePrompt(p){
-  var text=p.content||'';
+  var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
   promptMarkUsed(p);
   closePromptSheet();
   if(navigator.share){
@@ -5593,6 +5740,14 @@ document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEven
   }
 })();
 
+/* Interactive Steps switch on the Prompts page. The module keeps it in
+   localStorage under the key the dashboard and Sprintbrain.html read too. */
+var promptStepsOn=false;
+(function(){
+  var box=document.getElementById('psteps-on');
+  SBInteractiveSteps.load(function(on){promptStepsOn=on;box.checked=on;});
+  box.addEventListener('change',function(){promptStepsOn=box.checked;SBInteractiveSteps.save(promptStepsOn);});
+})();
 /* Reusable drag-to-dismiss for a bottom sheet (single implementation for new sheets). */
 function setupSheetDrag(sheetEl,closeFn){
   if(!sheetEl)return;

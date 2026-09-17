@@ -135,6 +135,8 @@ html,body{
 .p-main{flex:1;display:none;flex-direction:column;overflow:hidden}
 .p-main.on{display:flex}
 .p-list{flex:1;overflow-y:auto}
+/* Interactive Steps row: pinned above the prompt list, drawn with the Settings pane's preference row. */
+.p-steps{flex-shrink:0;padding:10px 16px;border-bottom:1px solid var(--sb-line)}
 
 /* ── SNIPPET ROW ── */
 .item{
@@ -602,6 +604,17 @@ html,body{
 
   <!-- PROMPT LIST -->
   <div class="p-main" id="prompt-main">
+    <!-- INTERACTIVE STEPS: device setting owned by shared/interactive-steps.js.
+         Copy here and the """ picker in content.js both follow it. -->
+    <div class="p-steps">
+      <div class="set-row">
+        <label for="p-steps-on" style="font-size:11px;font-weight:600;color:var(--sb-ink);flex:1;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <span class="ic" style="color:var(--sb-azure)"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></span> Interactive Steps
+        </label>
+        <input type="checkbox" id="p-steps-on" style="width:16px;height:16px;accent-color:var(--sb-azure);cursor:pointer">
+      </div>
+      <div class="set-note">Copied and inserted prompts start with step-by-step instructions. The AI does one step, then waits for you.</div>
+    </div>
     <div class="p-list" id="plist"></div>
   </div>
 
@@ -686,6 +699,7 @@ html,body{
 <script src="../formula-engine.js"></script>
 <script src="../shared/fill-form.js"></script>
 <script src="../shared/inactivity.js"></script>
+<script src="../shared/interactive-steps.js"></script>
 <script src="popup.js"></script>
 
 <!-- ═══ CHANGELOG MODAL ═══ -->

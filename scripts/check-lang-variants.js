@@ -34,6 +34,9 @@ const CONTENT_SRC = fs.readFileSync(
 // manifest loads ahead of it. The gate has to load it in the same order.
 const STATS_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'extension', 'shared', 'snippet-stats.js'), 'utf8');
+// The same goes for the Interactive Steps setting it reads while loading.
+const STEPS_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'extension', 'shared', 'interactive-steps.js'), 'utf8');
 
 // ── minimal host: only what content.js touches while loading ────────
 const noop = function () {};
@@ -70,6 +73,7 @@ vm.createContext(sandbox);
 try {
   vm.runInContext(ENGINE_SRC, sandbox);
   vm.runInContext(STATS_SRC, sandbox);
+  vm.runInContext(STEPS_SRC, sandbox);
   vm.runInContext(CONTENT_SRC, sandbox);
 } catch (e) {
   console.error('X content.js failed to evaluate in the gate context: ' + e.message);
