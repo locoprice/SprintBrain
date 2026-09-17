@@ -79,6 +79,21 @@ Badges keep their light tints in dark mode, matching every shipped chip on the d
 
 **Sub-labels (LABELS-002).** A label may nest one level under another (`labels.parent_id`, max depth 2 — see `app/src/lib/labelTree.ts`). Nesting is rendered as a **14 px indent per level**, the same step the folder rail uses, in the label manager, the picker, and the filter menu. No new tokens: a sub-label draws from the same eight-key palette, and a new child defaults to its parent's key so a family reads as one group. The chip itself always shows the **bare child name** — a table row has no room for a path — with the full `Parent / Child` on hover. Selecting a parent in the filter also matches its children, matching how selecting a parent folder lists its subtree.
 
+### Prompt strategy chips
+
+One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list, the extension popup and `Sprintbrain.html`. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
+
+| Strategy | Fg        | Bg        | Extension token                                  |
+| -------- | --------- | --------- | ------------------------------------------------ |
+| CoT      | `#1B4FD8` | `#EEF2FF` | `--sb-azure` / `--sb-azure-bg`                   |
+| ToT      | `#7C3AED` | `#F5F3FF` | `--sb-lang-multi` / `--sb-lang-multi-bg`         |
+| Few-shot | `#15803D` | `#F0FDF4` | `--sb-lang-it` / `--sb-lang-it-bg`               |
+| One-shot | `#C2410C` | `#FFF7ED` | `--sb-lang-es` / `--sb-lang-es-bg`               |
+| RAG      | `#BE123C` | `#FFF1F2` | `--sb-strat-rag` / `--sb-strat-rag-bg`           |
+| Agentic  | `#F5F5F5` | `#0A0A0B` | `--sb-strat-agentic` / `--sb-strat-agentic-bg`   |
+
+No strategy set means no chip.
+
 ### Semantic
 
 | Token          | Hex       | Usage              |
@@ -206,6 +221,7 @@ Keep the text short. Avada centres it inside 200 px, so a sentence or two reads 
 
 - **Dashboard topbar** spans the full width (60 px) above sidebar + main. Brand square (28 px, `--primary` solid) on the left.
 - **Dashboard sidebar** active nav: `bg-primary-light` + 3 px primary left bar (painted via `::before`, reserved track so the row doesn't shift on toggle) + filled count pill (`bg-primary` + white text) when count > 0. Inactive count pill: `bg-bg-alt` + `ink-subtle`.
+- **Dashboard sidebar, collapsed** (v3.29.0): the panel control on the WORKSPACE row folds the sidebar into a 64 px icon rail (65 px with its border), cloned from DeepL's. Rows keep their size and place: the label and count pill are clipped, not removed, so no icon moves on toggle and screen readers still read the label. Each icon names itself in a right-side tooltip, the company watermark hides, and the account menu keeps its open width over the canvas. The switch is instant and remembered per browser. It replaces the v3.8.0 hide and the v3.13.0 edge peek.
 - **Mobile home** is a single-scroll canvas. Gradient hero (`linear-gradient(160deg, #1B4FD8, #1440B0)`) → floating quick-action grid (overlaps hero by `-22 px`) → search → "All snippets" + Uber-style chips (white default, `#1C1C1E` bg when active) → snippet cards (`r-card-lg`, 14 px padding, 46 × 46 colored icon well per language family) → floating Apple/Revolut tab bar (`rgba(28,28,30,.92)` + blur 20).
 - **Extension popup** active folder: light-primary bg + 2 px primary left bar + **filled** azure count pill (not tinted). All Iris purples replaced with `#1B4FD8`.
 - **Shortcut tag** (dashboard): the trigger and shortcut render as two separate chips — a muted trigger chip (`bg-bg-alt` / `ink-muted`) beside the shortcut chip (`bg-primary-light` / `primary`). Supersedes the single-pill `.sctag` (prefix at `0.45` opacity); the extension popup + mobile still use the inline form pending alignment.

@@ -263,9 +263,6 @@ var NotionSync = (function () {
             sort_order:           0,
             fieldCfg:             {},
             lang_group_id:        langGroupId,
-            enable_urgency_timer: false,
-            timer_duration_ms:    0,
-            scarcity_count:       0
           });
         }
       }
@@ -290,9 +287,6 @@ var NotionSync = (function () {
       sort_order:           0,
       fieldCfg:             {},
       lang_group_id:        langGroupId,
-      enable_urgency_timer: false,
-      timer_duration_ms:    0,
-      scarcity_count:       0
     }];
   }
 

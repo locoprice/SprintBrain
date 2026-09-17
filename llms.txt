@@ -1,0 +1,108 @@
+# SprintBrain
+
+> Text expander and dynamic snippet platform. Type a short trigger in any web field and get back a structured template with live formulas, per field prompts, and team shared libraries. Ships to every industry: nothing the product seeds names a vertical.
+
+This file is a high density orientation index for coding agents (Claude Code and similar) working in this repository. It reflects verified current state. Where it disagrees with `docs/PROJECT_CONTEXT.md`, `docs/CLAUDE.md`, or `app/CLAUDE.md`, trust this file, the root `CLAUDE.md`, and `docs/ENGINEERING_REFERENCE.md` instead (see "Superseded docs" at the bottom).
+
+## Overview
+
+SprintBrain is a Chrome extension (Manifest V3) plus a companion SaaS dashboard. A user types a trigger prefix (default `;;`, configurable per account) followed by a shortcut in any editable web field. The extension expands it into a template that can include input fields, conditionals, and inline formulas.
+
+The product is three content types in one shell: **snippets** (trigger, expand), **prompts** (longer AI-prompt text, dashboard-authored, read-only on the extension), and **memory** (durable facts an AI assistant can pull into a conversation, stored as shards and served over an MCP server). Tripartite Parity (root `CLAUDE.md`) makes this non-negotiable: a UI capability added to one is added to all three, in the same change, on every surface where they exist.
+
+Four surfaces exist. See Architecture & Parity below for exactly what stays in sync across them and what does not.
+
+| Surface | Path | Role |
+|---|---|---|
+| Chrome extension | `extension/` | Primary expansion surface. Vanilla JS, MV3, no build step. |
+| Dashboard | `app/` (React) | The real home for CRUD, team/org sharing, analytics, settings. Desktop only (viewports under 1024px redirect to `/mobile/`). |
+| Legacy shared-core app | `Sprintbrain.html` (repo root) | Vanilla web app that reuses the extension's own `popup.js` / `auth.js` / `notion-sync.js` / `formula-engine.js` via `extension/shared/chrome-shim.js`. Copied into the dashboard's build output by `nativeDashboardPlugin()` in `app/vite.config.ts` (not duplicated in git) and served at `/Sprintbrain.html`. |
+| Mobile companion | `app/public/mobile/` | Used daily; fully synchronised on what a snippet *is and does* in the same task as every other surface. Only the management layer (folder rename/delete, full CRUD admin, memory) is intentionally absent. |
+
+The marketing site (`sprintbrain.com`) is a separate Netlify deploy rooted at `app/public/landing/`. English is the only language authored directly; Italian and Spanish copy is always human supplied (ask Valentina or Alessandro), never machine translated.
+
+## Architecture & Parity
+
+There is no single "extension vs. standalone app" parity switch. What is actually non-negotiable:
+
+1. **Shared logic, not a shared runtime.** `extension/popup.js` is the CRUD/data core reused by both the extension popup and `Sprintbrain.html` (via `chrome-shim.js`, which backs `chrome.storage.*` with `window.localStorage` so the extension's own scripts run unmodified on a plain web page). Editing `popup.js` affects both surfaces; verify both.
+2. **The formula engine is duplicated exactly once, by hand.** `extension/formula-engine.js` is the single source for the extension and `Sprintbrain.html` (the manifest loads it before `content/content.js`). `app/public/mobile/index.html` carries its own, simpler resolver. Any output changing engine edit has to be ported there by hand; it will not pick up the change automatically.
+3. **The dashboard is the live data surface.** Snippets, prompts, and memory get full CRUD there directly against Supabase. All surfaces read and write the same Supabase tables, so they reconcile through the backend, not through shared frontend state.
+4. **Mobile is fully synchronised on what a snippet is and does**, in the same task as every other surface. Only the management layer (folder rename/delete, full CRUD admin, memory) is intentionally absent there; do not propose closing that gap as a "parity fix."
+5. **Tripartite Parity (snippets, prompts, memory).** One product, three content types, same dashboard shell: same page skeleton, same menus, same components, same wording pattern. A capability added to one (search, filter, sort, bulk actions, a new menu item) is added to all three in the same change. What differs by design: the organising model (snippets use folders, prompts filter by those folders as chips, memory uses its own spaces) and content type only features (form fields and triggers on snippets, block editing on prompts, shards and steps on memory).
+6. **Authoring and expansion parity, at right angles to the above.** A snippet capability is not shipped when the editor can write it, only when every fill surface can use it: the in-page overlay (`extension/content/content.js`), the popup/`Sprintbrain.html` fill modal (`extension/popup/popup.js`), the dashboard's live preview (`app/src/features/snippets/SnippetPreview.tsx`), and mobile. What a fill form *is* (fields, kinds, controls) is decided once in `extension/shared/fill-form.js`; the four renderers only draw it.
+
+## Tech Stack
+
+**Extension** (`extension/`): vanilla JavaScript (ES5+), Manifest V3. No build step, no npm, no TypeScript, no framework. Chrome loads it directly from the filesystem.
+
+**Dashboard** (`app/`): React 18 + TypeScript (strict, no `any`) + Vite 5 + Tailwind 3 + shadcn style primitives (Radix) + Zustand 5 + `react-router-dom` 6 + Zod + Recharts + `@supabase/supabase-js`. Desktop only.
+
+**Backend** (`services/supabase/`): Supabase Postgres with Row Level Security as the primary authorization layer, plus Deno edge functions for anything that needs a server side secret (Notion token exchange, session minting, invites).
+
+**Working memory** (`services/mcp-memory/`): a Node MCP server that gives an AI assistant a working memory it can swap as work moves between steps. Facts are stored as individually addressable shards (`memory_shards`, personal RLS); a step declares which labels it needs and only those shards are attached, inside a token budget. Runs TypeScript directly via Node's native type stripping (Node 22.18+), no build step. The extension's own memory UI (`shared/memory-pack.js`, `shared/memory-chunk.js`, `content/memory-picker.js`, `content/chat-capture.js`) is a separate, browser-side consumer of the same knowledge layer, not a client of this server.
+
+## Integrations & Infrastructure
+
+| Item | Value |
+|---|---|
+| Supabase project ref | `eyowustlbqujaimaxggt` |
+| Supabase URL | `https://eyowustlbqujaimaxggt.supabase.co` |
+| Supabase region | `eu-west-1` (verified live against the project; the published privacy policy currently states eu-central-1/Frankfurt, which is wrong and worth fixing separately) |
+| GitHub | `https://github.com/locoprice/SprintBrain` |
+| Dashboard (frontend) | `https://app.sprintbrain.com`. Netlify site built from the root `netlify.toml` (`base = "app"`, publishes `app/dist`). Also the origin whitelisted in `extension/manifest.json`'s `externally_connectable`, used for the extension's SSO handoff. Distinct from the marketing site below, which is a separate Netlify site with its own config at `app/public/landing/netlify.toml`. |
+| Notion sync | Per account, user configured (Settings -> Notion, `app/src/features/settings/NotionSyncPanel.tsx`). Each user supplies their own integration token and database ID. There is no single project wide Notion database, so no database ID is listed here as a system fact. |
+
+The Supabase anon/publishable key is intentionally committed client side (`app/src/lib/supabase.ts`, `extension/auth/auth.js`). Row Level Security is the actual security boundary, not key secrecy. The Notion integration token is the real secret and lives only as a Supabase edge function secret; it is never in the repo and never reaches the browser (`services/supabase/functions/notion-*-push` proxy it server to server).
+
+## Security Constraints
+
+- **No `eval()`, no `new Function()`.** The formula engine (`extension/formula-engine.js`) is a hand written, CSP-safe recursive descent parser end to end, not a library like `expr-eval` and not `Function()` with a validated expression. This is also structurally enforced: `manifest.json`'s content security policy is `script-src 'self'; object-src 'self'`.
+- **`chrome.storage.sync` may never be written to.** Enforced by the `scripts/check-storage.js` CI gate wired into `.github/workflows/ci.yml`. Reading a legacy roaming key once, to migrate it to local and delete it, is fine; writing new data to sync is not. The gate exists because of two real incidents: a snippet library that roamed across Chrome profiles, and a Notion API key that sat in a roaming key. Both are fixed, and the public privacy policy now states local only storage, which is why this is a CI gate rather than a code review note.
+- Row Level Security is the primary data isolation layer on every Supabase table. Never disable it. The extension and dashboard both authenticate with per user JWTs, not a shared service key. Memory shards carry the same per-user RLS as snippets and prompts.
+- Zero secrets committed: tokens, keys, and `.env` values stay out of the repo. The one deliberate, documented exception is the Supabase anon key described above.
+
+## Folder Layout
+
+```
+SprintBrain/
+├── CLAUDE.md                     # Root engineering standards, read first
+├── extension/                    # Chrome MV3 extension, vanilla JS, no build
+│   ├── manifest.json
+│   ├── formula-engine.js         # Shared CSP-safe formula parser, loaded before content.js
+│   ├── background/background.js
+│   ├── content/{content.js,memory-picker.js,chat-capture.js}
+│   ├── popup/{popup.html,popup.js,sync-deletion.js}
+│   ├── auth/auth.js
+│   ├── services/notion-sync/notion-sync.js
+│   ├── shared/{chrome-shim.js,fill-form.js,snippet-stats.js,inactivity.js,memory-pack.js,memory-chunk.js,tooltip.js,tokens/}
+│   └── assets/icons/
+├── app/                           # React + Vite dashboard, desktop-only SPA
+│   ├── src/{routes,features,components,stores,lib,types}/  # routes now include MemoryPage, MemorySpacePage, TeamPage, InvitePage
+│   └── public/{landing/,mobile/}  # Marketing site + mobile companion, served verbatim
+├── Sprintbrain.html               # Legacy shared-core web app, see Architecture & Parity
+├── services/
+│   ├── supabase/
+│   │   ├── migrations/            # Ordered SQL, applied via the Supabase CLI
+│   │   └── functions/             # Edge functions: Notion proxy, session minting, invites, label suggestions
+│   └── mcp-memory/                # Working-memory MCP server, see Tech Stack
+├── design_handoff_design_system/  # Canonical design tokens and reference kits
+├── scripts/                       # CI gate scripts, see Development Workflow
+└── docs/
+    ├── ENGINEERING_REFERENCE.md   # Monorepo map, CI, testing standards
+    ├── DESIGN_SYSTEM.md           # Canonical UI tokens, read before any UI change
+    ├── PROJECT_CONTEXT.md         # Superseded, see note at the bottom
+    └── CLAUDE.md                  # Superseded, see note at the bottom
+```
+
+## Development Workflow
+
+- **Branches**: `main` is stable production; `develop` carries all active work. Claude Code specifically never creates a branch and never pushes anywhere except `develop`.
+- **Commits**: Conventional Commits, `type(scope): description`, one logical change per commit.
+- **Version parity is CI-enforced across every shipped stamp** by `scripts/check-version.js`: `extension/manifest.json`, `app/package.json`, the hero version stamp in `app/public/landing/index.html`, `Sprintbrain.html`'s `__SB_MANIFEST__` literal, and `services/mcp-memory`'s own two stamps (`package.json` and the `SERVER_VERSION` constant in `src/index.ts`). All of them move together; bumping the landing one means re-running `scripts/build-landing-i18n.js`.
+- **CI** (`.github/workflows/ci.yml`, Node 22, runs on push to `develop`): version parity, formula/snippet syntax, trigger expansion timing, language variant completeness, snippet grouping consistency, storage residency (no writes to `chrome.storage.sync`), tooltip parity, snippet grouping parity, unused-asset rule parity, working memory parity (`check-memory-parity.js`, needs Node 22's native TS type stripping since it imports the memory server's `engine.ts` directly), memory chunk / chat capture parity, landing translation parity, and a file structure smoke check.
+- **Quality bar**: the root `CLAUDE.md` calls this a zero-defect, production-first standard for the current pre-seed phase. No shipped bugs, no TODOs in production code, every fix verified end to end including regressions in adjacent flows.
+
+## Superseded docs
+
+`docs/PROJECT_CONTEXT.md` (last updated at extension v2.14.1) and `docs/CLAUDE.md` (last updated at v2.80.0) are both hundreds of releases behind (as of this writing, `extension/manifest.json` is at v3.25.1) and disagree with the current code on specific, verifiable points: for example, both describe the formula engine as using `Function()` or unspecified evaluation rather than the current CSP-safe recursive descent parser, `docs/CLAUDE.md` describes `chrome.storage.sync` as the live cache for snippets and trigger config rather than a write path that CI now actively forbids, and neither mentions memory, `fill-form.js`, or the `services/mcp-memory` server at all. `app/CLAUDE.md` (last updated 2026-06-06) has the same problem for the dashboard specifically: its route and feature list predate `TeamPage`, `InvitePage`, `SignupPage`, `MemoryPage`, and `MemorySpacePage`. Treat all three as historical record, not instruction, and re-verify against actual code before citing any of them.

@@ -432,6 +432,14 @@ export interface ContextCandidate {
   rank: number;
   /** sha256 of the body. Drives the exact-duplicate pass. */
   contentHash: string;
+  /**
+   * Candidates sharing a key are the same fact, as the source defines sameness.
+   * For snippets that is the translation rule every surface already counts and
+   * expands by. Absent means the candidate is a fact on its own.
+   */
+  groupKey?: string;
+  /** Language code of this body, when the source has one. Breaks a group's tie. */
+  lang?: string;
 }
 
 /** What the item contributed, and whether it had to be shortened to fit. */
@@ -446,7 +454,7 @@ export interface ContextItem {
   compressed: boolean;
 }
 
-export type DropReason = 'budget' | 'below-floor';
+export type DropReason = 'budget' | 'below-floor' | 'no-body';
 
 export interface DroppedCandidate {
   id: string;
@@ -519,11 +527,18 @@ function trigrams(text: string): string[] {
   return out;
 }
 
-/** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+/**
+ * Jaccard overlap of two strings' trigram sets, 0 to 1.
+ *
+ * A string with no trigrams shares nothing with anything, including another
+ * string with no trigrams. Two empty bodies are not the same fact, they are two
+ * facts whose bodies failed to arrive, and scoring them 1.0 made the near pass
+ * collapse an entire package into whichever item happened to rank first.
+ */
 export function textSimilarity(a: string, b: string): number {
   const left = new Set(trigrams(a));
   const right = new Set(trigrams(b));
-  if (left.size === 0 || right.size === 0) return left.size === right.size ? 1 : 0;
+  if (left.size === 0 || right.size === 0) return 0;
 
   let shared = 0;
   left.forEach((gram) => {
@@ -583,6 +598,14 @@ export function buildContext(request: ContextRequest): ContextPackage {
   const searched = request.candidates.some((candidate) => candidate.rank > 0);
   const relevant: ContextCandidate[] = [];
   for (const candidate of request.candidates) {
+    // A body that never arrived has nothing to contribute. Dropping it here,
+    // before dedupe, is what keeps a failed fetch visible: the alternative is a
+    // heading with a blank underneath it, which is what the user pastes into a
+    // model without noticing. Reported, never silent.
+    if (!candidate.body.trim()) {
+      dropped.push({ id: candidate.id, name: candidate.name, reason: 'no-body' });
+      continue;
+    }
     if (searched && !candidate.pinned && candidate.rank < minRank) {
       dropped.push({ id: candidate.id, name: candidate.name, reason: 'below-floor' });
       continue;
@@ -703,4 +726,92 @@ export function buildContext(request: ContextRequest): ContextPackage {
     sources,
     overBudget: used > budget,
   };
+}
+
+/** One fact, and every retrieved row that says it. */
+export interface CandidateCluster {
+  /**
+   * The member that stands for the fact, carrying the group's best rank.
+   *
+   * The rank belongs to the fact, not to this member. When the French row
+   * matched best and the Italian row was chosen to be inserted, the fact still
+   * matched as well as the French row did, and the relevance floor and the
+   * pre-selection must judge it on that.
+   */
+  candidate: ContextCandidate;
+  /** Every member, best first, in the order `buildContext` would rank them. */
+  members: ContextCandidate[];
+}
+
+/**
+ * Collapse candidates that are the same fact, before anything is shown.
+ *
+ * A translated snippet reaches retrieval as one row per language, and nothing in
+ * `buildContext` can see that they are one fact: the same message in French and
+ * Italian shares almost no trigrams, so the near-duplicate pass keeps all of
+ * them. Left alone, a fact written in four languages is offered four times and
+ * costs four bodies.
+ *
+ * Membership is not decided here. `groupKey` comes from whoever owns the
+ * source's idea of sameness, and for snippets that is the rule expansion and the
+ * library counts already use, so a context panel can never disagree with a
+ * trigger about what counts as one snippet. What this owns is what a group does
+ * once it exists:
+ *
+ *   - The member chosen is the earliest language in `preferredLangs`. Not the
+ *     best-ranked one: rank between translations of one fact is a position
+ *     artifact of the search's tiebreaks, not evidence of which language the
+ *     user wants, whereas a preferred language is a choice the user made. A
+ *     tie in preference goes to rank, then name, then id.
+ *   - The fact keeps the position of its first member in the input, so a ranked
+ *     list stays ranked and a browse stays in the order it arrived.
+ *
+ * No bodies are read, and the input is never mutated.
+ */
+export function clusterCandidates(
+  candidates: readonly ContextCandidate[],
+  preferredLangs: readonly string[] = [],
+): CandidateCluster[] {
+  const order: string[] = [];
+  const groups = new Map<string, ContextCandidate[]>();
+
+  for (const candidate of candidates) {
+    // Prefixed, so a group key can never collide with a bare row's key.
+    const key = candidate.groupKey
+      ? `group:${candidate.groupKey}`
+      : `row:${candidate.kind}:${candidate.id}`;
+    const members = groups.get(key);
+    if (members) {
+      members.push(candidate);
+    } else {
+      groups.set(key, [candidate]);
+      order.push(key);
+    }
+  }
+
+  const preference = (lang: string | undefined): number => {
+    const index = lang === undefined ? -1 : preferredLangs.indexOf(lang);
+    return index === -1 ? preferredLangs.length : index;
+  };
+
+  const clusters: CandidateCluster[] = [];
+  for (const key of order) {
+    const members = orderCandidates(groups.get(key) ?? []);
+    const best = members[0];
+    if (!best) continue;
+
+    // Members are in buildContext's order, so replacing only on a strictly
+    // earlier preference leaves a tie with the member that order puts first.
+    // The best rank is read explicitly rather than taken from members[0],
+    // because that order puts a pinned member ahead of a better-ranked one.
+    let chosen = best;
+    let bestRank = best.rank;
+    for (const member of members) {
+      if (member.rank > bestRank) bestRank = member.rank;
+      if (preference(member.lang) < preference(chosen.lang)) chosen = member;
+    }
+
+    clusters.push({ candidate: { ...chosen, rank: bestRank }, members });
+  }
+  return clusters;
 }

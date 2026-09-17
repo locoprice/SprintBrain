@@ -34,6 +34,9 @@ const CONTENT_SRC = fs.readFileSync(
 // manifest loads ahead of it. The gate has to load it in the same order.
 const STATS_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'extension', 'shared', 'snippet-stats.js'), 'utf8');
+// The same goes for the Interactive Steps setting it reads while loading.
+const STEPS_SRC = fs.readFileSync(
+  path.join(__dirname, '..', 'extension', 'shared', 'interactive-steps.js'), 'utf8');
 
 // ── minimal host: only what content.js touches while loading ────────
 const noop = function () {};
@@ -70,6 +73,7 @@ vm.createContext(sandbox);
 try {
   vm.runInContext(ENGINE_SRC, sandbox);
   vm.runInContext(STATS_SRC, sandbox);
+  vm.runInContext(STEPS_SRC, sandbox);
   vm.runInContext(CONTENT_SRC, sandbox);
 } catch (e) {
   console.error('X content.js failed to evaluate in the gate context: ' + e.message);
@@ -240,6 +244,113 @@ check('a group id never collides with an unrelated base trigger', langsOf(m), ['
     // An explicit language filter still chooses inside the folder.
     check('an explicit language filter picks within the folder',
       mob.pickActiveVariant(group, 'ES', 'class-rent-a-car').title, 'WHATSAPP');
+  }
+}
+
+// -- 2d. the memory panel means what a trigger means ------------------
+// The Context panel groups search results into facts and picks one translation
+// to insert. It must use the same notion of "one snippet" and the same body per
+// language as expansion, or it offers a translated snippet several times and
+// inserts text a trigger would never have produced.
+{
+  // Loaded into the same context AFTER content.js, the order the manifest
+  // cannot use: with SBMemoryPicker already defined, content.js would try to
+  // mount the panel on a page this gate does not have.
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'extension', 'shared', 'memory-pack.js'), 'utf8'), sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'extension', 'content', 'memory-picker.js'), 'utf8'), sandbox);
+  const pack = sandbox.SBMemoryPack;
+  const picker = sandbox.SBMemoryPicker;
+  if (typeof sandbox.sbMemorySnippetInfo !== 'function' || typeof sandbox.sbMemoryPreferredLangs !== 'function') {
+    console.error('X content.js no longer exposes sbMemorySnippetInfo / sbMemoryPreferredLangs');
+    failed++;
+  } else {
+    // Four sibling rows, one fact. Production shape: the airport message.
+    sandbox.snippets = [
+      { id: 'air-en', user_id: 'u1', lang_group_id: 'air', shortcut: 'air',   lang: 'EN', body: 'EN airport', bodies: { EN: 'EN airport' } },
+      { id: 'air-es', user_id: 'u1', lang_group_id: 'air', shortcut: '::air', lang: 'ES', body: 'ES aeropuerto', bodies: { ES: 'ES aeropuerto' } },
+      { id: 'air-fr', user_id: 'u1', lang_group_id: 'air', shortcut: '::air', lang: 'FR', body: 'FR aeroport', bodies: { FR: 'FR aeroport' } },
+      { id: 'air-it', user_id: 'u1', lang_group_id: 'air', shortcut: '::air', lang: 'IT', body: 'IT aeroporto', bodies: { IT: 'IT aeroporto' } },
+      // One row holding its translations inside `bodies`, the dashboard model.
+      { id: 'bed', user_id: 'u1', lang_group_id: null, shortcut: 'bed', lang: 'MULTI', body: 'MULTI bed',
+        bodies: { MULTI: 'MULTI bed', EN: 'EN bed', IT: 'IT letto' } },
+      // A teammate whose trigger collides. Never the same snippet.
+      { id: 'air-other', user_id: 'u2', lang_group_id: null, shortcut: 'air', lang: 'EN', body: 'theirs', bodies: {} },
+    ];
+
+    const infos = ['air-en', 'air-es', 'air-fr', 'air-it'].map((id) => sandbox.sbMemorySnippetInfo(id));
+    check('every translation of one snippet reports the same fact',
+      infos.map((i) => i.groupKey).filter((k, n, all) => all.indexOf(k) === n).length, 1);
+    check('a fact lists every translation', Object.keys(infos[0].variants).sort(), ['EN', 'ES', 'FR', 'IT']);
+    check('a sibling translation points at its own row', infos[0].variants.IT.id, 'air-it');
+    check('each row reports its own language', infos.map((i) => i.lang), ['EN', 'ES', 'FR', 'IT']);
+
+    const bed = sandbox.sbMemorySnippetInfo('bed');
+    check('a bodies-map snippet lists its inside translations', Object.keys(bed.variants).sort(), ['EN', 'IT', 'MULTI']);
+    check('an inside translation points back at its own row', bed.variants.IT.id, 'bed');
+
+    check('a teammate with a colliding trigger is a different fact',
+      sandbox.sbMemorySnippetInfo('air-other').groupKey === infos[0].groupKey, false);
+    check('a row missing from the local library reports nothing', sandbox.sbMemorySnippetInfo('not-cached'), null);
+
+    // The body the panel inserts for a language, read from the row the database
+    // returns, equals the body a trigger would expand for that language.
+    let mismatches = [];
+    ['air-en', 'bed'].forEach((id) => {
+      const variants = sandbox._findLangVariants(sandbox.snippets.find((s) => s.id === id));
+      Object.keys(variants).forEach((lang) => {
+        const fetched = sandbox.snippets.find((s) => s.id === variants[lang].id);
+        const panel = pack.bodyForLang(fetched, lang);
+        if (panel !== variants[lang].body) mismatches.push(id + ':' + lang + ' panel="' + panel + '" trigger="' + variants[lang].body + '"');
+      });
+    });
+    check('the panel inserts the body a trigger would expand, for every language', mismatches, []);
+
+    // Preference order follows resolveVariant: the default language first.
+    check('preferred languages put the default first', sandbox.sbMemoryPreferredLangs('IT'), ['IT', 'EN', 'ES', 'FR']);
+    check('a default already in the fallback is not repeated', sandbox.sbMemoryPreferredLangs('EN'), ['EN', 'ES', 'IT', 'FR']);
+    check('no default still yields the fallback order', sandbox.sbMemoryPreferredLangs(undefined), ['EN', 'ES', 'IT', 'FR']);
+
+    // End to end through the engine: the four sibling rows arrive from search
+    // as four candidates and leave as one, in the default language.
+    const candidates = infos.map((info, n) => Object.assign(
+      pack.candidateFromSearchRow({ kind: 'snippet', source_id: ['air-en', 'air-es', 'air-fr', 'air-it'][n], title: 'AIRPORT', summary: '', tokens: 3, rank: 0.03 - n * 0.001 }),
+      { groupKey: info.groupKey, lang: info.lang }));
+    const clusters = pack.clusterCandidates(candidates, sandbox.sbMemoryPreferredLangs('IT'));
+    check('four translations leave the engine as one fact', clusters.length, 1);
+    check('the fact is offered in the default language', clusters[0].candidate.id, 'air-it');
+
+    // The whole panel step, search rows to facts, on the real content.js,
+    // engine and panel code. Rows arrive in the order knowledge_search ranks.
+    const row = (kind, id, tokens, rank, summary) =>
+      ({ kind, source_id: id, title: id, summary: summary || id + ' summary', tokens, rank });
+    const facts = picker.factsFromSearchRows([
+      row('snippet', 'air-fr', 3, 0.032), row('snippet', 'air-en', 3, 0.031),
+      row('snippet', 'air-it', 3, 0.03), row('snippet', 'bed', 3, 0.02),
+      row('memory', 'm1', 5, 0.01),
+    ], sandbox.sbMemorySnippetInfo, sandbox.sbMemoryPreferredLangs('IT'));
+
+    check('the panel lists facts, not rows', facts.map((f) => f.id), ['air-it', 'bed', 'm1']);
+    check('a fact carries the best rank of its translations', facts[0].rank, 0.032);
+    check('a fact lists every translation, matched or not', facts[0].langs, ['EN', 'ES', 'IT', 'FR']);
+    check('a matched translation keeps what the search said about it',
+      [facts[0].variantId, facts[0].tokens, facts[0].summary], ['air-it', 3, 'air-it summary']);
+    check('an inside translation is described from the library',
+      [facts[1].lang, facts[1].variantId, facts[1].tokens, facts[1].summary], ['IT', 'bed', 2, 'IT letto']);
+    check('a memory item passes through untouched',
+      [facts[2].langs === undefined, facts[2].variantId === undefined, facts[2].tokens], [true, true, 5]);
+
+    // The draft matched only the French wording, but the user reads Italian.
+    const french = picker.factsFromSearchRows([row('snippet', 'air-fr', 3, 0.04)],
+      sandbox.sbMemorySnippetInfo, sandbox.sbMemoryPreferredLangs('IT'));
+    check('a preferred translation the search did not match is still chosen',
+      [french[0].id, french[0].lang, french[0].variantId, french[0].summary], ['air-fr', 'IT', 'air-it', 'IT aeroporto']);
+
+    // A cold local library groups nothing, which is the behaviour before
+    // translations were grouped, not something new and wrong.
+    sandbox.snippets = [];
+    const cold = picker.factsFromSearchRows([row('snippet', 'air-fr', 3, 0.02), row('snippet', 'air-it', 3, 0.01)],
+      sandbox.sbMemorySnippetInfo, sandbox.sbMemoryPreferredLangs('IT'));
+    check('with no local library every row stays its own fact', cold.map((f) => f.id), ['air-fr', 'air-it']);
   }
 }
 

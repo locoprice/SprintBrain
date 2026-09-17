@@ -286,11 +286,11 @@ export function MemorySpacePage() {
           Add text
         </button>
         <div
-          title="Uploads arrive with document chunking"
+          title="Coming soon"
           className="flex cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-dashed border-line bg-card px-6 py-6 text-sm font-medium text-ink-subtle"
         >
           <Upload className="h-4 w-4" />
-          Upload file (not yet)
+          Upload file (coming soon)
         </div>
       </div>
 

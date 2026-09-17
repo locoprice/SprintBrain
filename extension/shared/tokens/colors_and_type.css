@@ -73,6 +73,15 @@
   --sb-lang-fr:    #0D9488;
   --sb-lang-fr-bg: #F0FDFA;
 
+  /* ── PROMPT STRATEGY: the two chip colours no other token covers.
+        CoT, ToT, Few-shot and One-shot reuse azure, MULTI violet, IT green
+        and ES orange, the same pairs as the dashboard prompt cards and the
+        /mobile/ strategy chips.                                          ── */
+  --sb-strat-rag:        #BE123C;
+  --sb-strat-rag-bg:     #FFF1F2;
+  --sb-strat-agentic:    #F5F5F5;
+  --sb-strat-agentic-bg: #0A0A0B;
+
   /* ── TYPOGRAPHY ──────────────────────────────────────────── */
   --sb-font:  -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',
               system-ui, sans-serif;

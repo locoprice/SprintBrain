@@ -100,15 +100,14 @@ const SNIPPET_A: SnippetRow = {
   notion_page_id: null,
   pinned: false,
   is_active: true,
-  enable_urgency_timer: false,
-  timer_duration_ms: 0,
-  scarcity_count: 0,
   alternative_queries: [],
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: 'user-1',
   folder_name: null,
   usage_count: 0,
   is_malformed: false,
+  created_at: '2026-01-01T00:00:00Z',
+  last_used_at: null,
 };
 
 const SNIPPET_B: SnippetRow = { ...SNIPPET_A, id: 'snip-B', name: 'Snippet B', triggers: ['b'] };
@@ -127,12 +126,14 @@ const PROMPT_A: Prompt = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  ask_user_questions: false,
   folder_id: null,
   notion_page_id: null,
   pinned: false,
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: 'user-1',
   last_used_at: null,
+  created_at: '2026-01-01T00:00:00Z',
   usage_count: 0,
   is_malformed: false,
 };

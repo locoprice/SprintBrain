@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CHARS_PER_TOKEN,
   buildContext,
+  clusterCandidates,
   textSimilarity,
   type ContextCandidate,
   attachShard,
@@ -363,13 +364,16 @@ function candidate(id: string, overrides: Partial<ContextCandidate> = {}): Conte
 }
 
 describe('textSimilarity', () => {
-  it('is 1 for identical text and for two empty strings', () => {
+  it('is 1 for identical text', () => {
     expect(textSimilarity('same words here', 'same words here')).toBe(1);
-    expect(textSimilarity('', '')).toBe(1);
   });
 
-  it('is 0 when only one side is empty', () => {
+  it('is 0 when either side is empty, including both', () => {
     expect(textSimilarity('something', '')).toBe(0);
+    // Two bodies that failed to load are not the same fact. Scoring this pair
+    // 1.0 put every body-less candidate over the near-duplicate threshold, so a
+    // package of eleven items collapsed into whichever one ranked first.
+    expect(textSimilarity('', '')).toBe(0);
   });
 
   it('ignores punctuation and case, so a reworded duplicate still scores high', () => {
@@ -560,5 +564,157 @@ describe('buildContext output', () => {
     expect(pack.items).toHaveLength(0);
     expect(pack.usedTokens).toBe(0);
     expect(pack.overBudget).toBe(false);
+  });
+});
+
+describe('buildContext with a body that never arrived', () => {
+  it('drops it instead of inserting a heading over a blank', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('here', { rank: 0.5 }), candidate('gone', { rank: 0.4, body: '' })],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['here']);
+    expect(pack.dropped).toEqual([{ id: 'gone', name: 'gone', reason: 'no-body' }]);
+  });
+
+  it('does not treat two missing bodies as duplicates of each other', () => {
+    // The production failure: the body fetch returned nothing for any item, so
+    // every candidate scored 1.0 against every other and eleven items became
+    // one, reported to the user as "10 duplicate removed".
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('a', { rank: 0.5, body: '', contentHash: '' }),
+        candidate('b', { rank: 0.4, body: '', contentHash: '' }),
+        candidate('c', { rank: 0.3, body: '', contentHash: '' }),
+      ],
+    });
+
+    expect(pack.items).toHaveLength(0);
+    expect(pack.deduped).toHaveLength(0);
+    expect(pack.dropped.map((d) => d.reason)).toEqual(['no-body', 'no-body', 'no-body']);
+  });
+
+  it('drops a pinned item with no body too, rather than pinning a blank', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [candidate('kept', { rank: 0.5 }), candidate('pin', { pinned: true, body: '' })],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['kept']);
+    expect(pack.dropped).toEqual([{ id: 'pin', name: 'pin', reason: 'no-body' }]);
+  });
+
+  it('counts a whitespace-only body as no body at all', () => {
+    const pack = buildContext({
+      budget: 1000,
+      candidates: [
+        candidate('full', { rank: 0.9 }),
+        candidate('blank', { rank: 0.8, body: '' }),
+        candidate('spaces', { rank: 0.7, body: '   \n  ' }),
+      ],
+    });
+
+    expect(pack.items.map((item) => item.id)).toEqual(['full']);
+    expect(pack.dropped.map((d) => d.id).sort()).toEqual(['blank', 'spaces']);
+    for (const item of pack.items) expect(item.text.trim()).not.toBe('');
+  });
+});
+
+describe('clusterCandidates', () => {
+  const translation = (
+    id: string,
+    groupKey: string,
+    lang: string,
+    rank: number,
+  ): ContextCandidate => candidate(id, { kind: 'snippet', groupKey, lang, rank });
+
+  it('offers a fact written in four languages once, in the preferred language', () => {
+    // The production shape: one message stored as four sibling rows. Before
+    // clustering the panel listed all four and pre-selected all four.
+    const clusters = clusterCandidates(
+      [
+        translation('fr', 'airport', 'FR', 0.032),
+        translation('en', 'airport', 'EN', 0.031),
+        translation('it', 'airport', 'IT', 0.03),
+        translation('es', 'airport', 'ES', 0.029),
+      ],
+      ['IT', 'EN', 'ES', 'FR'],
+    );
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.candidate.id).toBe('it');
+    expect(clusters[0]?.members.map((m) => m.id)).toEqual(['fr', 'en', 'it', 'es']);
+  });
+
+  it('gives the fact its best rank, whichever translation is inserted', () => {
+    // The Italian row is inserted, but the French row is what matched best, and
+    // the floor and the pre-selection must judge the fact on that.
+    const [cluster] = clusterCandidates(
+      [translation('fr', 'g', 'FR', 0.05), translation('it', 'g', 'IT', 0.01)],
+      ['IT'],
+    );
+    expect(cluster?.candidate.id).toBe('it');
+    expect(cluster?.candidate.rank).toBe(0.05);
+  });
+
+  it('falls back to the best-ranked member when no preferred language is present', () => {
+    const [cluster] = clusterCandidates(
+      [translation('multi', 'g', 'MULTI', 0.2), translation('fr', 'g', 'FR', 0.4)],
+      ['IT', 'EN'],
+    );
+    expect(cluster?.candidate.id).toBe('fr');
+  });
+
+  it('keeps each fact at the position of its first member', () => {
+    const clusters = clusterCandidates(
+      [
+        translation('a-en', 'a', 'EN', 0.9),
+        candidate('memory-item', { rank: 0.8 }),
+        translation('b-en', 'b', 'EN', 0.7),
+        translation('a-it', 'a', 'IT', 0.6),
+      ],
+      ['IT', 'EN'],
+    );
+    expect(clusters.map((c) => c.candidate.id)).toEqual(['a-it', 'memory-item', 'b-en']);
+  });
+
+  it('never merges candidates that carry no group key, even with equal names', () => {
+    const clusters = clusterCandidates(
+      [candidate('one', { name: 'same' }), candidate('two', { name: 'same' })],
+      [],
+    );
+    expect(clusters).toHaveLength(2);
+  });
+
+  it('keeps a browse in arrival order with every rank at zero', () => {
+    const clusters = clusterCandidates(
+      [translation('b1', 'g', 'FR', 0), candidate('b2'), translation('b3', 'g', 'IT', 0)],
+      ['IT'],
+    );
+    expect(clusters.map((c) => [c.candidate.id, c.candidate.rank])).toEqual([
+      ['b3', 0],
+      ['b2', 0],
+    ]);
+  });
+
+  it('does not mutate what it was given', () => {
+    const input = [translation('fr', 'g', 'FR', 0.05), translation('it', 'g', 'IT', 0.01)];
+    const before = JSON.stringify(input);
+    clusterCandidates(input, ['IT']);
+    expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it('is deterministic whatever order the rows arrive in', () => {
+    const rows = [
+      translation('i2', 'g', 'IT', 0.5),
+      translation('i1', 'g', 'IT', 0.5),
+      translation('e1', 'g', 'EN', 0.9),
+    ];
+    const chosen = clusterCandidates(rows, ['IT', 'EN'])[0]?.candidate.id;
+    const reversed = clusterCandidates([...rows].reverse(), ['IT', 'EN'])[0]?.candidate.id;
+    expect(chosen).toBe('i1');
+    expect(reversed).toBe(chosen);
   });
 });

@@ -65,9 +65,6 @@ export interface SaveRevisionParams {
   folder_id: string | null;
   pinned: boolean;
   alternative_queries: string[];
-  enable_urgency_timer: boolean;
-  timer_duration_ms: number;
-  scarcity_count: number;
 }
 
 export interface RevisionsApi {
@@ -109,9 +106,14 @@ export const revisionsApi: RevisionsApi = {
       p_lang: params.lang,
       p_folder_id: params.folder_id,
       p_pinned: params.pinned,
-      p_enable_urgency_timer: params.enable_urgency_timer,
-      p_timer_duration_ms: params.timer_duration_ms,
-      p_scarcity_count: params.scarcity_count,
+      // The urgency timer was removed from the product; these three columns are
+      // now inert. They stay in the call because the Postgres function declares
+      // them without defaults, and PostgREST resolves an RPC by its exact named
+      // arguments — omitting them would fail to match the function and break
+      // every save. They can be dropped once the function signature is.
+      p_enable_urgency_timer: false,
+      p_timer_duration_ms: 0,
+      p_scarcity_count: 0,
       p_alternative_queries: params.alternative_queries,
       p_editor_display: editorDisplay,
       p_edit_note: editNote ?? null,

@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccountPanel } from '@/features/settings/AccountPanel';
 import { BrandingPanel } from '@/features/settings/BrandingPanel';
+import { InactivityPanel } from '@/features/settings/InactivityPanel';
 import { InlineTriggerPanel } from '@/features/settings/InlineTriggerPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
@@ -38,6 +39,7 @@ export function SettingsPage() {
           <AccountPanel />
           <BrandingPanel />
           <InlineTriggerPanel />
+          <InactivityPanel />
         </TabsContent>
         <TabsContent value="security" className="space-y-4">
           <SecurityPanel />

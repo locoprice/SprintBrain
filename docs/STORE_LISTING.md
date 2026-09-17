@@ -66,7 +66,6 @@ Static text is where most text expanders stop. SprintBrain makes every template 
 • Gendered greetings that agree with the name: type "Querido {NAME}" and a booking for Lucia prints "Querida Lucia". Works across English, Italian, Spanish, and French.
 • Multi-language variants: keep EN, IT, ES, FR, and MULTI versions of the same snippet grouped together, and pick the language at expansion time.
 • Custom triggers: choose your own prefix so expansions never fire by accident in normal prose.
-• Urgency timers and scarcity counters for time-sensitive quotes and offers.
 • Fill and copy from the extension popup when the target field does not accept in-place expansion.
 
 
@@ -208,7 +207,7 @@ Rules applied:
 | Contribution heatmap, top triggers, usage charts | `ActivityHeatmap.tsx`, `TopTriggersTable.tsx`, `UsageChart.tsx`, `ContributionActivity.tsx`; `analyticsApi.ts` aggregates live over `public.snippet_events` | ✅ ANALYTICS-001 is shipped in production despite `app/CLAUDE.md` §7 listing it open (audit §6.1) |
 | Version history with diff and restore | `revisionsApi.ts`, `VersionHistoryPanel.tsx`, `diffUtils.ts`; shipped v2.54.0 | ✅ |
 | Six-digit code or magic link sign-in | `OtpInput.tsx` + `supabase.auth.verifyOtp` at `LoginPage.tsx:109` | ✅ |
-| Multi-language variants, custom triggers, urgency timers | `resolveBody()`, `lang_group_id`, trigger config, `enable_urgency_timer` | ✅ |
+| Multi-language variants, custom triggers | `resolveBody()`, `lang_group_id`, trigger config | ✅ |
 | Fill fields and copy from the popup | v2.98.0 | ✅ |
 | More than 200 releases since March 2026, automated test suite | Audit: 202 version-tagged releases, 489 commits, 248 tests green across 21 spec files | ✅ Stated as "more than 200" so it stays true without re-editing |
 | Service status page | `sprintbrain.instatus.com`, wired v2.55.1 | ✅ |

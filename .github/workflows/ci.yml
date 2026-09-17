@@ -47,11 +47,23 @@ jobs:
       - name: Snippet grouping parity check
         run: node scripts/sync-snippet-stats.js --check
 
+      - name: Fill form parity check
+        run: node scripts/sync-fill-form.js --check
+
+      - name: Fill form view model check
+        run: node scripts/check-fill-form.js
+
+      - name: Unused-asset rule parity check
+        run: node scripts/check-inactivity-parity.js
+
       - name: Working memory parity check
         run: node scripts/check-memory-parity.js
 
       - name: Memory chunk + chat capture check
         run: node scripts/check-memory-chunk.js
+
+      - name: Interactive Steps parity check
+        run: node scripts/check-interactive-steps.js
 
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check

@@ -267,4 +267,43 @@ for (const bad of ['', null, undefined]) {
 }
 console.log('OK Empty and missing input degrade to an empty form');
 
+// ── THE PREVIEW IS ALWAYS TEXT ──────────────────────────────────────
+// It is rendered directly as the body of a message. A renderer handed anything
+// other than a string puts "[object Object]" in front of a customer, and React
+// refuses outright and blanks the editor - which is what shipped in v3.20.0,
+// when a loop variable named `src` overwrote the snippet body it shares scope
+// with. Nothing above caught it because no test body carried a field ordering.
+const PREVIEW_BODIES = [
+  'plain text, no fields at all',
+  'Hola {NOMBRE}',
+  '{formdate: name=D; format=DD/MM/YYYY}',
+  // The shape that broke it: a field that points at another field.
+  '{formdate: name=S; format=DD/MM/YYYY} {formdate: name=E; after=S; format=DD/MM/YYYY}',
+  '{formdate: name=S} {formdate: name=E; after=S} {= datespan(S,E,"inclusive") } days',
+  // Pointing at something that is not there, or at itself.
+  '{formdate: name=E; after=MISSING}',
+  '{formdate: name=E; after=E}',
+  '{formtext: name=T} {formdate: name=E; after=T}',
+  '',
+];
+for (const body of PREVIEW_BODIES) {
+  const vm = ff.fillForm(body, {}, opt());
+  if (typeof vm.preview !== 'string') {
+    fail('the preview is a ' + (Array.isArray(vm.preview) ? 'array' : typeof vm.preview) +
+      ' for ' + JSON.stringify(body) + '\n' +
+      '  It is rendered as message text. Anything but a string blanks the editor.');
+  }
+  // And every field the renderers switch on must still be the right shape.
+  for (const f of vm.fields) {
+    if (typeof f.key !== 'string' || typeof f.type !== 'string') {
+      fail('a field lost its shape for ' + JSON.stringify(body) + ': ' + JSON.stringify(f));
+    }
+    if (typeof f.min !== 'string' || typeof f.notBefore !== 'string') {
+      fail('a field ordering key is not a string for ' + JSON.stringify(body) +
+        ': ' + JSON.stringify({ min: f.min, notBefore: f.notBefore }));
+    }
+  }
+}
+console.log('OK The preview is text for every body (' + PREVIEW_BODIES.length + ' shapes)');
+
 console.log('OK Fill form view model passed all gates');

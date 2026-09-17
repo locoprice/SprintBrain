@@ -44,7 +44,7 @@ export const snippetSchema = z.object({
 });
 
 const promptBlockSchema = z.object({
-  type: z.enum(['role', 'objective', 'context', 'examples', 'reasoning', 'constraints']),
+  type: z.enum(['role', 'objective', 'context', 'examples', 'constraints']),
   content: z.string(),
   enabled: z.boolean(),
 });
@@ -63,6 +63,7 @@ export const promptSchema = z.object({
   intent_category: z.enum(['Writing', 'Coding', 'Support', 'SEO', 'Analysis', 'Planning', 'Research', 'Teaching']).nullable(),
   output_type: z.enum(['JSON', 'Markdown', 'SOP', 'Plain']).nullable(),
   blocks: z.array(promptBlockSchema).nullable(),
+  ask_user_questions: z.boolean(),
   updated_at: z.string(),
   last_used_at: z.string().nullable(),
 });
@@ -88,9 +89,6 @@ export const snippetFormSchema = z.object({
   language: languageEnum,
   pinned: z.boolean().default(false),
   alternative_queries: z.array(z.string()).default([]),
-  enable_urgency_timer: z.boolean().default(false),
-  timer_duration_ms: z.number().int().nonnegative().default(0),
-  scarcity_count: z.number().int().nonnegative().default(0),
 });
 
 export type SnippetFormValues = z.infer<typeof snippetFormSchema>;
@@ -130,7 +128,8 @@ export const promptFormSchema = z.object({
         ),
     ])
     .optional(),
-  type: z.enum(['one-shot', 'few-shot']),
+  // No `type`: Strategy carries one-shot and few-shot, so the editor no longer
+  // writes the column and a new prompt keeps its database default.
   strategy_type: z.enum(['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic']).nullable(),
   thinking_mode: z.enum(['fast', 'balanced', 'deep']).nullable(),
   preferred_model: z.enum(['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5']).nullable(),
@@ -140,12 +139,15 @@ export const promptFormSchema = z.object({
   blocks: z
     .array(
       z.object({
-        type: z.enum(['role', 'objective', 'context', 'examples', 'reasoning', 'constraints']),
+        type: z.enum(['role', 'objective', 'context', 'examples', 'constraints']),
         content: z.string(),
         enabled: z.boolean(),
       }),
     )
     .nullable(),
+  // "Ask User Questions": when true, content already ends with the instruction;
+  // the flag is what the editor reads back to show the toggle.
+  ask_user_questions: z.boolean(),
   // Folder ids are TEXT (legacy + org folders), not necessarily UUIDs.
   folder_id: z.string().nullable(),
 });

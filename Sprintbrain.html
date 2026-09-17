@@ -191,8 +191,12 @@
   #nv-list .d-edit svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
   .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
-  .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
-  .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .p-badge.p-strat-CoT{background:var(--sb-azure-bg);color:var(--sb-azure)}
+  .p-badge.p-strat-ToT{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .p-badge.p-strat-Few-shot{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
+  .p-badge.p-strat-One-shot{background:var(--sb-lang-es-bg);color:var(--sb-lang-es)}
+  .p-badge.p-strat-RAG{background:var(--sb-strat-rag-bg);color:var(--sb-strat-rag)}
+  .p-badge.p-strat-Agentic{background:var(--sb-strat-agentic-bg);color:var(--sb-strat-agentic)}
 
   /* ── Auth gate ── */
   .nv-auth{position:fixed;inset:0;background:var(--sb-bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:32px}
@@ -306,19 +310,6 @@
   .nv-alt-tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-azure);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-pill);padding:2px 7px 2px 9px;line-height:1.4}
   .nv-alt-x{cursor:pointer;opacity:.6;font-style:normal;font-size:10px}
   .nv-alt-x:hover{opacity:1}
-  /* Urgency rides the Actions chip row: it is a fill-time control like the
-     buttons beside it, and inlining it there reclaims the whole card the
-     standalone block used to cost. */
-  .nv-urgchip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:var(--sb-r-sm);font-size:var(--sb-fs-10);font-weight:600;border:1px solid var(--sb-line);background:var(--sb-bg-muted);color:var(--sb-ink-muted)}
-  .nv-urgchip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  /* The timer's own fields sit directly under its toggle, inside the Actions
-     column — they belong to the timer, not to whatever section happens to have
-     spare width. Laid out inline (label beside input) so correct grouping costs
-     one short row rather than a full stacked field. */
-  .nv-urg-fields{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px}
-  .nv-urg-fields .nv-field{flex:0 0 auto;flex-direction:row;align-items:center;gap:6px}
-  .nv-urg-fields .nv-field label{white-space:nowrap;margin:0}
-  .nv-urg-fields .nv-field input{width:66px;padding:4px 8px;font-size:var(--sb-fs-11)}
   /* Date/Time group — a format and the button that inserts it, on one line.
      Mirrors the React rail's Date/Time toggle: same two rows in the same order,
      same choices, same token preview underneath. */
@@ -366,6 +357,8 @@
   .nv-slider:before{content:'';position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
   .nv-switch input:checked + .nv-slider{background:var(--sb-azure)}
   .nv-switch input:checked + .nv-slider:before{transform:translateX(15px)}
+  /* Interactive Steps: first row of the Prompts list, the "Multiple" toggle row on a list row's padding. */
+  .nv-steps{padding:12px 18px;border-bottom:1px solid var(--sb-line)}
   /* ── Settings view ── */
   .nv-set-body{padding:18px 20px;display:flex;flex-direction:column;gap:20px;max-width:640px}
   .nv-set-lbl{font-size:var(--sb-fs-10);font-weight:700;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
@@ -441,6 +434,30 @@
   .nv-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--sb-ink);color:#fff;padding:10px 18px;border-radius:var(--sb-r-pill);font-size:var(--sb-fs-13);font-weight:600;z-index:200;opacity:0;transition:transform .25s,opacity .25s;pointer-events:none}
   .nv-toast.on{transform:translateX(-50%) translateY(0);opacity:1}
 
+  /* ── UNUSED-ASSET NOTICE (INACTIVE-001) ──
+     Same class names and the same renderer as the extension popup; the card
+     geometry follows .nv-card on this surface rather than the popup's tighter
+     one, because that is this surface's convention. Amber ground, warn tokens,
+     no hard-coded hexes. */
+  .ina-card{margin-bottom:18px;padding:14px 18px;border-radius:16px;background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr)}
+  .ina-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .ina-title{font-size:14px;font-weight:700;color:var(--sb-warn);flex-shrink:0}
+  .ina-count{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ina-msg{font-size:var(--sb-fs-13);color:var(--sb-ink);line-height:1.5;margin-bottom:12px}
+  .ina-row{display:flex;align-items:center;gap:8px}
+  .ina-btn{height:32px;padding:0 14px;flex-shrink:0;font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;color:var(--sb-ink);background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-md);transition:background .12s,border-color .12s}
+  .ina-btn:hover{border-color:var(--sb-warn);background:var(--sb-warn-bg)}
+  .ina-btn.primary{color:#fff;background:var(--sb-warn);border-color:var(--sb-warn)}
+  .ina-btn.primary:hover{background:var(--sb-warn);opacity:.9}
+  .ina-btn.danger{color:var(--sb-danger);border-color:var(--sb-danger-bdr)}
+  .ina-btn.danger:hover{background:var(--sb-danger-bg);border-color:var(--sb-danger)}
+  .ina-nav{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .ina-step{font-size:var(--sb-fs-11);color:var(--sb-ink-subtle);white-space:nowrap}
+  .ina-arrow{width:26px;height:26px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;color:var(--sb-ink-subtle);background:transparent;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+  .ina-arrow:hover:not(:disabled){color:var(--sb-warn);border-color:var(--sb-warn)}
+  .ina-arrow:disabled{opacity:.4;cursor:default}
+  .ina-arrow svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
   ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-thumb{background:var(--sb-line);border-radius:10px}
   ::-webkit-scrollbar-thumb:hover{background:var(--sb-line-2)}
@@ -505,6 +522,12 @@
       </div>
     </div>
     <div class="nv-body">
+      <!-- UNUSED-ASSET NOTICE (INACTIVE-001). Same id, same classes and the
+           same renderer as the extension popup (renderInactive in popup.js).
+           This surface owns the editor and the delete path, so it publishes
+           window.SB_INACTIVE_ACTIONS below and the strip draws Delete and
+           Modify where the popup draws Review. -->
+      <div class="ina-card" id="ina-card" role="status" style="display:none"></div>
       <div class="nv-kpis" id="nv-kpis"></div>
       <div class="nv-card" id="nv-list-card">
         <div class="nv-card-h"><h2 id="nv-list-title">Snippets</h2><span class="sub" id="nv-list-sub"></span></div>
@@ -641,11 +664,6 @@
               <div class="nv-chiplbl">Actions <span>— clicked while filling; never print</span></div>
               <div class="nv-chiprow">
                 <span class="nv-chip m" id="nv-chip-button" title="Build an action button — changes field values when clicked"><svg viewBox="0 0 24 24"><path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2l.9 2.1"/><path d="M2.2 7.2l2.1.9"/><path d="M4.3 12.1l-2.1.9"/><path d="M12.1 4.3l.9-2.1"/></svg>{button}</span>
-                <span class="nv-urgchip" title="Countdown + scarcity for quotes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Urgency timer<label class="nv-switch"><input type="checkbox" id="nv-f-urg"><span class="nv-slider"></span></label></span>
-              </div>
-              <div class="nv-urg-fields" id="nv-f-urg-fields" style="display:none">
-                <div class="nv-field"><label for="nv-f-urg-dur">Duration (min)</label><input type="number" id="nv-f-urg-dur" min="1" max="10080" value="30"></div>
-                <div class="nv-field"><label for="nv-f-urg-sc">Units left</label><input type="number" id="nv-f-urg-sc" min="0" max="999" value="0"></div>
               </div>
             </div>
             <div>
@@ -958,16 +976,18 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.23.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.31.1', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
 <script src="extension/auth/auth.js"></script>
 <script src="extension/services/notion-sync/notion-sync.js"></script>
 <script src="extension/popup/sync-deletion.js"></script>
+<script src="extension/shared/interactive-steps.js"></script>
 <script src="extension/popup/popup.js"></script>
 <script src="extension/formula-engine.js"></script>
 <script src="extension/shared/fill-form.js"></script>
+<script src="extension/shared/inactivity.js"></script>
 
 <!-- ═══ NATIVE DASHBOARD CONTROLLER (presentation only; logic via shared core) ═══ -->
 <script>
@@ -1068,6 +1088,10 @@
       window.snips   = (data && data.snippets) ? data.snippets : [];
       window.folders = (data && data.folders && data.folders.length) ? data.folders : [];
       window.prompts = Array.isArray(r[1]) ? r[1] : [];
+      // The shared renderInactive() holds its notice back until the library has
+      // actually arrived, and this is the surface's one authoritative load.
+      window.loaded = true;
+      inaLoadState(function(){ inaPrune(); renderInactive(); });
       renderAll();
       $('nv-sub').textContent = 'Synced · ' + groupCount(window.snips) + ' snippets, ' + window.folders.length + ' folders';
       // Pull Notion config (local cache → Supabase user_metadata) for the Settings view.
@@ -1075,9 +1099,44 @@
     }).catch(function(e){ $('nv-sub').textContent = 'Could not load data'; toast('Load failed — check your connection'); });
   }
 
+  // ── Unused-asset notice (INACTIVE-001) ──────────────────────────────
+  //
+  // The strip, its wording and its list of stale assets are the extension
+  // popup's renderInactive(), running here unchanged. Only two things are this
+  // surface's own: telling the shared code which section is on screen (it reads
+  // activeMode, this file tracks nvMode), and supplying the actions the popup
+  // deliberately does not have.
+  //
+  // can() is what keeps that honest per section: snippets are editable here,
+  // prompts are listed read-only and are authored on the dashboard, so the
+  // strip falls back to Review for them exactly as it does in the popup.
+  window.SB_INACTIVE_ACTIONS = {
+    can: function(mode){ return mode !== 'prompts'; },
+    modify: function(id){
+      var s = findSnip(id);
+      if (!s) { toast('That snippet is no longer in your library'); return; }
+      openEditor(s);
+    },
+    remove: function(id, mode, done){
+      var s = findSnip(id);
+      if (!s) { toast('That snippet is no longer in your library'); if (done) done(true); return; }
+      // Routed through the existing deleteSnip so the confirmation, the Supabase
+      // delete, the deletion-sync queue and the toast are the one path the row
+      // menu already uses. A second delete implementation is how the two drift.
+      var before = (window.snips || []).length;
+      deleteSnip(s);
+      if (done) done((window.snips || []).length !== before);
+    }
+  };
+
+  function syncInactiveMode(){
+    window.activeMode = (nvMode === 'prompts') ? 'prompts' : 'snippets';
+  }
+
   // ── Rendering ───────────────────────────────────────────────────────
   function renderAll(){
-    renderKpis(); renderNav(); renderFolderList(); renderMain();
+    syncInactiveMode();
+    renderKpis(); renderNav(); renderFolderList(); renderMain(); renderInactive();
   }
 
   function renderKpis(){
@@ -1352,6 +1411,15 @@
     bindDetailAdjust(el);
   }
 
+  // Interactive Steps. shared/interactive-steps.js keeps the setting in this
+  // page's localStorage, so it is read once here and written on every change.
+  var nvStepsOn = false;
+  SBInteractiveSteps.load(function(on){ nvStepsOn = on; });
+  function bindStepsSwitch(){
+    var sw = $('nv-steps-on'); if (!sw) return;
+    sw.addEventListener('change', function(){ nvStepsOn = sw.checked; SBInteractiveSteps.save(nvStepsOn); });
+  }
+
   function renderPromptsMain(){
     $('nv-title').textContent = 'Prompts';
     $('nv-list-title').textContent = 'Prompts';
@@ -1365,27 +1433,38 @@
     // read-only here). Same sort form as the snippet list above.
     filtered.sort(function(a,b){ return (b.pinned?1:0) - (a.pinned?1:0); });
     $('nv-list-sub').textContent = filtered.length + ' shown';
+    // The switch opens the list, above an empty one too.
+    var steps = '<div class="nv-steps nv-menu-toggle">'
+      + '<div><div class="nv-menu-tlbl">Interactive Steps</div>'
+      + '<div class="nv-menu-hint" style="margin-top:2px">Copied prompts start with step-by-step instructions. The AI does one step, then waits for you.</div></div>'
+      + '<label class="nv-switch"><input type="checkbox" id="nv-steps-on" aria-label="Interactive Steps"' + (nvStepsOn ? ' checked' : '') + '><span class="nv-slider"></span></label>'
+      + '</div>';
     if (!filtered.length) {
-      $('nv-list').innerHTML = '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
+      $('nv-list').innerHTML = steps + '<div class="nv-empty">No prompts yet.<br><small>Authored in the SprintBrain dashboard.</small></div>';
+      bindStepsSwitch();
       return;
     }
     var h = '';
     filtered.forEach(function(p){
-      var type = (p.type || 'one-shot').replace(/_/g,'-');
-      var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
+      // Strategy is the one label a prompt carries; no strategy, no badge.
+      var strat = p.strategy_type
+        ? '<span class="p-badge p-strat-'+ec(p.strategy_type)+'">'+ec(p.strategy_type)+'</span>'
+        : '';
       h += '<div class="nv-row" data-pid="'+ec(p.id)+'">'
         + (p.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main">'
         + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
-        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span></div></div>'
+        + '<div class="nv-row-meta">'+strat+'</div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
     });
-    $('nv-list').innerHTML = h;
+    $('nv-list').innerHTML = steps + h;
+    bindStepsSwitch();
     $('nv-list').querySelectorAll('.nv-row').forEach(function(row){
       row.addEventListener('click', function(){
         var p = findPrompt(row.dataset.pid); if (!p) return;
-        try { navigator.clipboard.writeText(p.content || ''); } catch(x) {}
-        toast('Prompt copied');
+        var text = SBInteractiveSteps.apply(p.content || '', nvStepsOn);
+        try { navigator.clipboard.writeText(text); } catch(x) {}
+        toast(text !== (p.content || '') ? 'Prompt copied with Interactive Steps' : 'Prompt copied');
       });
     });
   }
@@ -1393,7 +1472,7 @@
   // ── Editor (create/edit/delete via shared DB) ───────────────────────
   // Multi-language buffers mirror popup.js doSave(): one body per language,
   // active tab edits edBuf[edActive]; on save buildBodies() keeps every non-empty
-  // language. Urgency + alternative_queries persisted exactly as the popup does.
+  // language. alternative_queries persisted exactly as the popup does.
   var LANG_LIST = (typeof LANGS !== 'undefined') ? LANGS : ['EN','ES','IT','FR'];
   var edBuf = {}, edActive = 'EN', edAlt = [];
   // The body placeholder's opening word in the active tab's language, so an
@@ -1619,12 +1698,6 @@
     // alternative queries
     edAlt = (snip && Array.isArray(snip.alternative_queries)) ? snip.alternative_queries.slice() : [];
     renderAltTags(); $('nv-f-alt').value = '';
-    // urgency
-    var urgOn = snip ? !!snip.enable_urgency_timer : false;
-    $('nv-f-urg').checked = urgOn;
-    $('nv-f-urg-dur').value = (snip && snip.timer_duration_ms) ? Math.round(snip.timer_duration_ms / 60000) : 30;
-    $('nv-f-urg-sc').value = (snip && snip.scarcity_count) ? snip.scarcity_count : 0;
-    $('nv-f-urg-fields').style.display = urgOn ? '' : 'none';
     updatePreview();
     $('nv-f-delete').style.display = snip ? '' : 'none';
     $('nv-modal-bg').classList.add('on');
@@ -2486,7 +2559,6 @@
     else if (e.key === 'Backspace' && ($('nv-f-alt').value || '') === '') { if (edAlt.length) { edAlt.pop(); renderAltTags(); } }
   });
   $('nv-f-alt').addEventListener('input', function(e){ if ((e.target.value || '').indexOf(',') !== -1) commitAltDraft(); });
-  $('nv-f-urg').addEventListener('change', function(){ $('nv-f-urg-fields').style.display = $('nv-f-urg').checked ? '' : 'none'; });
   $('nv-f-shortcut').addEventListener('input', updatePreview);
   // Typing disarms Clear and Translate: one left armed from before the edit
   // would otherwise wipe text the user has just written on a single click.
@@ -2508,17 +2580,13 @@
     if (!body.trim()) { toast('Body is required'); $('nv-f-body').focus(); return; }
     edBuf[edActive] = body;
     var bodies = {}; LANG_LIST.forEach(function(l){ var t = edBuf[l]; if (typeof t === 'string' && t.trim()) bodies[l] = t; });
-    var urgEnabled = $('nv-f-urg').checked;
-    var urgDurMs = Math.max(1, parseInt($('nv-f-urg-dur').value, 10) || 30) * 60000;
-    var urgSc = Math.max(0, parseInt($('nv-f-urg-sc').value, 10) || 0);
     var alt = edAlt.slice();
 
     var existing = nvEditId ? findSnip(nvEditId) : null, obj;
     if (existing) {
       obj = existing;
       obj.title = title; obj.shortcut = sc; obj.body = body; obj.lang = lang; obj.bodies = bodies;
-      obj.folder = folder; obj.enable_urgency_timer = urgEnabled; obj.timer_duration_ms = urgDurMs;
-      obj.scarcity_count = urgSc; obj.alternative_queries = alt; obj.manually_edited = true;
+      obj.folder = folder; obj.alternative_queries = alt; obj.manually_edited = true;
       DB.upsertSnippet(obj);
     } else {
       var id = uid();
@@ -2528,7 +2596,6 @@
         // before the next reload.
         user_id: window.SB_CURRENT_USER_ID || null,
         fieldCfg:{}, lang_group_id:id, sort_order:(window.snips||[]).length + 1,
-        enable_urgency_timer:urgEnabled, timer_duration_ms:urgDurMs, scarcity_count:urgSc,
         alternative_queries:alt, notion_page_id:null, manually_edited:true, ai_generated:false, pinned:false,
         stats:{ uses:0, fills:0, lastUsed:null } };
       (window.snips = window.snips || []).unshift(obj);
@@ -2773,7 +2840,9 @@
     settingsOpen = false;
     $('nv-settings').style.display = 'none'; $('nv-kpis').style.display = ''; $('nv-list-card').style.display = '';
   }
-  function gotoMode(m){ leaveSettings(); nvMode = m; expandedId = null; renderNav(); renderMain(); }
+  // inaIndex resets with the section: the notice is per section, and carrying
+  // "4 of 2" across from snippets to prompts would land on nothing.
+  function gotoMode(m){ leaveSettings(); nvMode = m; expandedId = null; inaIndex = 0; syncInactiveMode(); renderNav(); renderMain(); renderInactive(); }
 
   $('nv-trig-tiles').addEventListener('click', function(e){ var t = e.target.closest('.nv-trig-tile'); if (!t) return; $('nv-set-trig').value = t.dataset.t; updateTrigInfo(); });
   $('nv-set-trig').addEventListener('input', updateTrigInfo);

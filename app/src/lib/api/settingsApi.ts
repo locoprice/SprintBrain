@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { ActivationKey, NotionSyncState, Profile } from '@/types/database';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
+import { clampMonths } from '@/lib/inactivity';
 import {
   AVATAR_BUCKET,
   buildAvatarPath,
@@ -33,6 +34,13 @@ export interface ProfilePatch {
   trigger_prompt_seq?: string;
   trigger_snippet_key?: ActivationKey;
   trigger_prompt_key?: ActivationKey;
+  /**
+   * Calendar months of silence before the unused-asset banner names an asset
+   * (INACTIVE-001). Lives here rather than in local storage for the same reason
+   * the triggers do: the extension popup does not write settings, and a number
+   * that differed per surface would put the two libraries out of step.
+   */
+  inactivity_months?: number;
 }
 
 export interface SettingsApi {
@@ -72,6 +80,15 @@ function pickTriggerSeq(
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : fallback;
 }
 
+/**
+ * Read the unused-asset threshold, clamped to the supported 6-9 month range.
+ * Clamps rather than rejects, so a value written by a build that widened the
+ * range can never silently become "never warn".
+ */
+function pickInactivityMonths(metadata: Record<string, unknown> | undefined): number {
+  return clampMonths(metadata?.['inactivity_months']);
+}
+
 /** Read an activation key from user_metadata, defaulting to 'Tab'. */
 function pickActivationKey(
   metadata: Record<string, unknown> | undefined,
@@ -102,6 +119,7 @@ function userToProfile(u: { id: string; email?: string | null; user_metadata?: R
     company_name: pickCompanyName(meta),
     company_logo_url: pickHttpsUrl(meta, 'company_logo_url'),
     avatar_url: pickHttpsUrl(meta, 'avatar_url'),
+    inactivity_months: pickInactivityMonths(meta),
   };
 }
 
@@ -211,6 +229,9 @@ export const settingsApi: SettingsApi = {
     if (patch.trigger_prompt_seq  !== undefined) next['trigger_prompt_seq']  = patch.trigger_prompt_seq;
     if (patch.trigger_snippet_key !== undefined) next['trigger_snippet_key'] = patch.trigger_snippet_key;
     if (patch.trigger_prompt_key  !== undefined) next['trigger_prompt_key']  = patch.trigger_prompt_key;
+    // Clamped on write as well as on read: the control offers 6-9, and a value
+    // outside that range must never reach the extension's copy of this rule.
+    if (patch.inactivity_months !== undefined) next['inactivity_months'] = clampMonths(patch.inactivity_months);
 
     const { data, error } = await supabase.auth.updateUser({ data: next });
     if (error) throw error;

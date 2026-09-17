@@ -24,6 +24,12 @@ export interface Profile {
   company_logo_url: string | null;
   /** Profile picture (ACCOUNT-PROFILE-001) — GoTrue-conventional metadata key. */
   avatar_url: string | null;
+  /**
+   * Calendar months of silence before the unused-asset banner names an asset
+   * (INACTIVE-001). Persisted in user_metadata so the dashboard, the web app
+   * and the extension all measure staleness the same way. Always 6-9.
+   */
+  inactivity_months: number;
 }
 
 export interface Folder {
@@ -138,9 +144,6 @@ export interface Snippet {
   is_malformed: boolean;
   /** Keyword synonyms for context-based snippet matching (ALTERNATIVE-QUERIES-001). */
   alternative_queries: string[];
-  enable_urgency_timer: boolean;
-  timer_duration_ms: number;
-  scarcity_count: number;
   updated_at: IsoDateTime;
   /**
    * Last modifier — stamped in the DB by app.stamp_asset_audit whenever a
@@ -165,7 +168,7 @@ export type ComplexityLevel = 'simple' | 'medium' | 'complex';
 export type IntentCategory = 'Writing' | 'Coding' | 'Support' | 'SEO' | 'Analysis' | 'Planning' | 'Research' | 'Teaching';
 export type OutputType = 'JSON' | 'Markdown' | 'SOP' | 'Plain';
 
-export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'reasoning' | 'constraints';
+export type PromptBlockType = 'role' | 'objective' | 'context' | 'examples' | 'constraints';
 
 export interface PromptBlock {
   type: PromptBlockType;
@@ -188,6 +191,11 @@ export interface Prompt {
   intent_category: IntentCategory | null;
   output_type: OutputType | null;
   blocks: PromptBlock[] | null;
+  /**
+   * "Ask User Questions" toggle. When true, the saved content ends with an
+   * instruction to ask clarifying questions first (see assembleBlocks).
+   */
+  ask_user_questions: boolean;
   folder_id: Uuid | null;
   notion_page_id: string | null;
   /** Pin-to-top flag (prompts.pinned). Same shared-column semantics as Snippet.pinned. */
@@ -196,6 +204,11 @@ export interface Prompt {
   /** Last modifier — same DB-stamped semantics as Snippet.updated_by. */
   updated_by: Uuid | null;
   last_used_at: IsoDateTime | null;
+  /**
+   * When this prompt was added. Fallback anchor for the unused-asset banner,
+   * the same role `created_at` plays on SnippetRow (INACTIVE-001).
+   */
+  created_at: IsoDateTime | null;
   /**
    * Executions counted by the `increment_prompt_usage` RPC (STATUS-ICONS-001).
    * Drives trophy eligibility; the efficiency score never can.
@@ -244,6 +257,18 @@ export interface SnippetRevision {
 export interface SnippetRow extends Snippet {
   folder_name: string | null;
   usage_count: number;
+  /**
+   * When this snippet was added. The fallback anchor for the unused-asset
+   * banner (INACTIVE-001): a snippet with no expansion on record is measured
+   * from the day it was created, which is the only reading under which a
+   * never-used snippet can be flagged at all.
+   */
+  created_at: IsoDateTime | null;
+  /**
+   * Most recent expansion, from the `snippet_last_used()` RPC. Null means the
+   * event log holds nothing for it, not that it is new. See `created_at`.
+   */
+  last_used_at: IsoDateTime | null;
 }
 
 export interface UsagePoint {

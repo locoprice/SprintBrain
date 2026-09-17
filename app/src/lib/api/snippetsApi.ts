@@ -64,9 +64,7 @@ type DbSnippetJoined = {
   is_active: boolean | null;
   is_malformed: boolean | null;
   alternative_queries: string[] | null;
-  enable_urgency_timer: boolean | null;
-  timer_duration_ms: number | null;
-  scarcity_count: number | null;
+  created_at: string | null;
   folders: { name: string } | null;
 };
 
@@ -106,8 +104,14 @@ function normalizeBodies(
  * Rows absent from the map have never been expanded.
  */
 export type UsageCounts = ReadonlyMap<string, number>;
+/** snippet id → ISO date of its most recent expansion (INACTIVE-001). */
+export type LastUsedDates = ReadonlyMap<string, string>;
 
-function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts): SnippetRow {
+function dbSnippetToSnippetRow(
+  row: DbSnippetJoined,
+  usageCounts?: UsageCounts,
+  lastUsed?: LastUsedDates,
+): SnippetRow {
   const usage = usageCounts?.get(row.id) ?? 0;
   const body = row.body ?? '';
   const language = normalizeLang(row.lang);
@@ -132,13 +136,12 @@ function dbSnippetToSnippetRow(row: DbSnippetJoined, usageCounts?: UsageCounts):
     is_active: row.is_active ?? true,
     is_malformed: row.is_malformed ?? false,
     alternative_queries: Array.isArray(row.alternative_queries) ? row.alternative_queries : [],
-    enable_urgency_timer: row.enable_urgency_timer ?? false,
-    timer_duration_ms: row.timer_duration_ms ?? 0,
-    scarcity_count: row.scarcity_count ?? 0,
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? null,
     folder_name: row.folders?.name ?? null,
     usage_count: usage,
+    created_at: row.created_at ?? null,
+    last_used_at: lastUsed?.get(row.id) ?? null,
   };
 }
 
@@ -166,7 +169,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, enable_urgency_timer, timer_duration_ms, scarcity_count, folders(name)';
+  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, created_at, folders(name)';
 
 /**
  * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
@@ -194,6 +197,33 @@ async function fetchUsageCounts(): Promise<UsageCounts> {
   }
   const rows = (data ?? []) as Array<{ snippet_id: string; uses: number }>;
   return new Map(rows.map((r) => [r.snippet_id, Number(r.uses) || 0]));
+}
+
+/**
+ * Date of the last expansion per snippet, from the `snippet_last_used()` RPC
+ * (INACTIVE-001). A sibling of the counts above over the same event log: same
+ * join, same ACL branch, same SECURITY DEFINER reasoning, so a shared snippet
+ * reports one team-wide date rather than a different one to every member.
+ *
+ * Deliberately NOT `snippet_stats.last_used`, which is written only on a popup
+ * copy: 13 dated rows against 115 snippets would declare almost the whole
+ * library abandoned.
+ *
+ * Fails soft for the same reason the counts do: the unused-asset banner is
+ * advisory, and a missing aggregate must not take the library down with it. An
+ * empty map reads as "no expansion on record", and each row then falls back to
+ * its `created_at`.
+ */
+async function fetchLastUsed(): Promise<LastUsedDates> {
+  const { data, error } = await supabase.rpc('snippet_last_used');
+  if (error) {
+    console.error('snippet_last_used failed; last-use dates unavailable:', error);
+    return new Map();
+  }
+  const rows = (data ?? []) as Array<{ snippet_id: string; last_used_at: string | null }>;
+  return new Map(
+    rows.filter((r) => Boolean(r.last_used_at)).map((r) => [r.snippet_id, r.last_used_at as string]),
+  );
 }
 
 /**
@@ -252,9 +282,6 @@ function buildSnippetInsert(
     is_malformed: malformedFlag(bodies, payload.content),
     pinned: payload.pinned ?? false,
     alternative_queries: payload.alternative_queries ?? [],
-    enable_urgency_timer: payload.enable_urgency_timer ?? false,
-    timer_duration_ms: payload.timer_duration_ms ?? 0,
-    scarcity_count: payload.scarcity_count ?? 0,
   };
 }
 
@@ -271,15 +298,17 @@ export const snippetsApi: SnippetsApi = {
     // that live in a folder shared with them (Phase B). Personal-only users see
     // exactly what they did before.
     //
-    // Usage counts need a second round trip (see fetchUsageCounts); issued in
-    // parallel so it costs latency only, not a serial hop.
-    const [listRes, usageCounts] = await Promise.all([
+    // Usage counts and last-use dates each need their own round trip (see
+    // fetchUsageCounts / fetchLastUsed); issued in parallel with the list so
+    // they cost latency only, not two serial hops.
+    const [listRes, usageCounts, lastUsed] = await Promise.all([
       supabase.from('snippets').select(SNIPPET_SELECT).order('sort_order', { ascending: true }),
       fetchUsageCounts(),
+      fetchLastUsed(),
     ]);
     if (listRes.error) throw listRes.error;
     return ((listRes.data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
-      dbSnippetToSnippetRow(row, usageCounts),
+      dbSnippetToSnippetRow(row, usageCounts, lastUsed),
     );
   },
 
@@ -325,11 +354,6 @@ export const snippetsApi: SnippetsApi = {
     if (patch.folder_id !== undefined) update['folder_id'] = patch.folder_id;
     if (patch.pinned !== undefined) update['pinned'] = patch.pinned;
     if (patch.alternative_queries !== undefined) update['alternative_queries'] = patch.alternative_queries;
-    if (patch.enable_urgency_timer !== undefined)
-      update['enable_urgency_timer'] = patch.enable_urgency_timer;
-    if (patch.timer_duration_ms !== undefined)
-      update['timer_duration_ms'] = patch.timer_duration_ms;
-    if (patch.scarcity_count !== undefined) update['scarcity_count'] = patch.scarcity_count;
 
     // Body fields need to update together so the JSONB map, the active
     // language tag, and the denormalized `body` column never drift.
@@ -414,7 +438,7 @@ export const snippetsApi: SnippetsApi = {
 
   async duplicateSnippet(id) {
     const userId = await currentUserId();
-    // Read the source row first so we copy every column (incl. urgency + pin).
+    // Read the source row first so we copy every column (incl. pin).
     // RLS governs read access (owner or shared-folder member); the inserted copy
     // below is stamped with the current user's id so they own their duplicate.
     const { data: src, error: readErr } = await supabase
@@ -449,9 +473,6 @@ export const snippetsApi: SnippetsApi = {
         source.body ?? '',
       ),
       alternative_queries: Array.isArray(source.alternative_queries) ? source.alternative_queries : [],
-      enable_urgency_timer: source.enable_urgency_timer ?? false,
-      timer_duration_ms: source.timer_duration_ms ?? 0,
-      scarcity_count: source.scarcity_count ?? 0,
     };
     const { data, error } = await supabase
       .from('snippets')

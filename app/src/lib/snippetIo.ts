@@ -17,9 +17,6 @@ interface ExportItem {
   language: SnippetRow['language'];
   folder_name: string | null;
   pinned: boolean;
-  enable_urgency_timer: boolean;
-  timer_duration_ms: number;
-  scarcity_count: number;
 }
 
 export function exportSnippets(snippets: SnippetRow[]): void {
@@ -34,9 +31,6 @@ export function exportSnippets(snippets: SnippetRow[]): void {
       language: s.language,
       folder_name: s.folder_name,
       pinned: s.pinned,
-      enable_urgency_timer: s.enable_urgency_timer,
-      timer_duration_ms: s.timer_duration_ms,
-      scarcity_count: s.scarcity_count,
     })),
   };
 
@@ -113,11 +107,6 @@ function coerceItem(raw: Record<string, unknown>): SnippetFormValues | null {
     alternative_queries: Array.isArray(raw['alternative_queries'])
       ? (raw['alternative_queries'] as string[]).filter((q) => typeof q === 'string')
       : [],
-    enable_urgency_timer: raw['enable_urgency_timer'] === true,
-    timer_duration_ms:
-      typeof raw['timer_duration_ms'] === 'number' ? raw['timer_duration_ms'] : 0,
-    scarcity_count:
-      typeof raw['scarcity_count'] === 'number' ? raw['scarcity_count'] : 0,
   };
 }
 

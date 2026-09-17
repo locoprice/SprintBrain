@@ -1228,6 +1228,16 @@
   var _CASE_WORD_RE = new RegExp("[" + _CASE_LETTER + "'’]+", 'g');
   // A sentence opens at the start of the text and after . ! ? plus a space.
   var _CASE_SENT_RE = new RegExp("(^|[.!?][\"'”’)\\]]*\\s+)([" + _CASE_LETTER + "])", 'g');
+  // Title case keeps the small joining words lowercase: the articles, the
+  // coordinating conjunctions, and the prepositions of three letters or fewer.
+  // "The Art of Public Speaking", not "The Art Of Public Speaking". The first
+  // and last word are always capitalised, whatever they are, and so is the word
+  // that opens a subtitle after a colon.
+  var CASE_SMALL_WORDS = {
+    a: 1, an: 1, the: 1,
+    and: 1, but: 1, or: 1, nor: 1, for: 1, yet: 1, so: 1,
+    as: 1, at: 1, by: 1, in: 1, of: 1, off: 1, on: 1, per: 1, to: 1, up: 1, via: 1
+  };
 
   // True when the token opens a case region, so a field called "casework" doesn't.
   function _isCaseHead(tokLow) {
@@ -1242,12 +1252,33 @@
     return CASE_MODES[m] ? m : '';
   }
 
+  // True when the word at `off` opens the text or follows a colon or a full
+  // stop. A subtitle starts a new run, so "a" carries a capital in
+  // "The Guide: A Manual for Beginners" even though it is a small word.
+  function _caseOpensClause(s, off) {
+    var i = off - 1;
+    while (i >= 0 && /\s/.test(s.charAt(i))) i--;
+    if (i < 0) return true;
+    return ':.?!'.indexOf(s.charAt(i)) !== -1;
+  }
+
   function _applyCaseMode(s, mode) {
     if (!s || !mode) return s;
     if (mode === 'upper') return s.toUpperCase();
     if (mode === 'lower') return s.toLowerCase();
     if (mode === 'title') {
-      return s.replace(_CASE_WORD_RE, function(w) {
+      // Where the first and last word sit, so they can be exempted below.
+      var m, first = -1, last = -1;
+      _CASE_WORD_RE.lastIndex = 0;
+      while ((m = _CASE_WORD_RE.exec(s)) !== null) {
+        if (first < 0) first = m.index;
+        last = m.index;
+      }
+      if (first < 0) return s;
+      return s.replace(_CASE_WORD_RE, function(w, off) {
+        var low = w.toLowerCase();
+        if (off !== first && off !== last &&
+            CASE_SMALL_WORDS[low] && !_caseOpensClause(s, off)) return low;
         return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
       });
     }

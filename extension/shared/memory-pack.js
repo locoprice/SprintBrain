@@ -269,7 +269,14 @@
     return out;
   }
 
-  /** Jaccard overlap of two strings' trigram sets, 0 to 1. */
+  /**
+   * Jaccard overlap of two strings' trigram sets, 0 to 1.
+   *
+   * A string with no trigrams shares nothing with anything, including another
+   * string with no trigrams. Two empty bodies are not the same fact, they are
+   * two facts whose bodies failed to arrive, and scoring them 1.0 made the near
+   * pass collapse an entire package into whichever item happened to rank first.
+   */
   function textSimilarity(a, b) {
     var left = {};
     var right = {};
@@ -286,7 +293,7 @@
       if (!right[grams[i]]) { right[grams[i]] = true; rightSize++; }
     }
 
-    if (leftSize === 0 || rightSize === 0) return leftSize === rightSize ? 1 : 0;
+    if (leftSize === 0 || rightSize === 0) return 0;
 
     var shared = 0;
     for (var gram in left) {
@@ -337,6 +344,14 @@
     var relevant = [];
     for (i = 0; i < candidates.length; i++) {
       var c = candidates[i];
+      // A body that never arrived has nothing to contribute. Dropping it here,
+      // before dedupe, is what keeps a failed fetch visible: the alternative is
+      // a heading with a blank underneath it, which is what the user pastes
+      // into a model without noticing. Reported, never silent.
+      if (!c.body || !String(c.body).trim()) {
+        dropped.push({ id: c.id, name: c.name, reason: 'no-body' });
+        continue;
+      }
       if (searched && !c.pinned && c.rank < minRank) {
         dropped.push({ id: c.id, name: c.name, reason: 'below-floor' });
         continue;
@@ -429,6 +444,91 @@
     };
   }
 
+  /**
+   * Collapse candidates that are the same fact, before anything is shown.
+   *
+   * The twin of clusterCandidates in engine.ts, under the same parity gate. A
+   * translated snippet arrives as one row per language and the near-duplicate
+   * pass cannot see that they are one fact, so without this the panel offers a
+   * four-language fact four times. `groupKey` comes from the caller (for
+   * snippets, the rule expansion already uses); the member chosen is the
+   * earliest preferred language, and it carries the group's best rank because
+   * that rank belongs to the fact. See engine.ts for the reasoning.
+   */
+  function clusterCandidates(candidates, preferredLangs) {
+    var prefs = preferredLangs || [];
+    var list = candidates || [];
+    var order = [];
+    var groups = {};
+    var i, j;
+
+    for (i = 0; i < list.length; i++) {
+      var c = list[i];
+      var key = c.groupKey ? 'group:' + c.groupKey : 'row:' + c.kind + ':' + c.id;
+      if (Object.prototype.hasOwnProperty.call(groups, key)) {
+        groups[key].push(c);
+      } else {
+        groups[key] = [c];
+        order.push(key);
+      }
+    }
+
+    function preference(lang) {
+      var index = lang === undefined ? -1 : prefs.indexOf(lang);
+      return index === -1 ? prefs.length : index;
+    }
+
+    var clusters = [];
+    for (i = 0; i < order.length; i++) {
+      var members = orderCandidates(groups[order[i]]);
+      var best = members[0];
+      if (!best) continue;
+
+      var chosen = best;
+      var bestRank = best.rank;
+      for (j = 0; j < members.length; j++) {
+        if (members[j].rank > bestRank) bestRank = members[j].rank;
+        if (preference(members[j].lang) < preference(chosen.lang)) chosen = members[j];
+      }
+
+      var copy = {};
+      for (var field in chosen) {
+        if (Object.prototype.hasOwnProperty.call(chosen, field)) copy[field] = chosen[field];
+      }
+      copy.rank = bestRank;
+      clusters.push({ candidate: copy, members: members });
+    }
+    return clusters;
+  }
+
+  /**
+   * The body a fetched snippet row carries for one language.
+   *
+   * Not parity-gated: this is how a row is read, not how candidates are chosen,
+   * so it has no twin in engine.ts. The precedence is the one expansion uses in
+   * content.js (_findLangVariants): a row's own body answers for its own
+   * language, and its `bodies` map fills in the languages it holds inside.
+   * scripts/check-lang-variants.js holds the two to the same answer.
+   *
+   * Falls back to the row's own body when the language is gone, which only
+   * happens when the local library is older than the database. Something in the
+   * wrong language is more use to the reader than an item dropped as unloadable.
+   */
+  function bodyForLang(row, lang) {
+    if (!row) return '';
+    var own = row.body == null ? '' : String(row.body);
+    var wanted = String(lang == null ? '' : lang).toUpperCase();
+    if (!wanted || String(row.lang == null ? '' : row.lang).toUpperCase() === wanted) {
+      if (own.trim()) return own;
+    }
+    var map = row.bodies;
+    if (wanted && map && typeof map === 'object') {
+      var text = map[wanted];
+      if (typeof text === 'string' && text.trim()) return text;
+    }
+    return own;
+  }
+
   var API = {
     CHARS_PER_TOKEN: CHARS_PER_TOKEN,
     DEFAULT_MIN_RANK: DEFAULT_MIN_RANK,
@@ -441,6 +541,8 @@
     formatContextBlock: formatContextBlock,
     textSimilarity: textSimilarity,
     buildContext: buildContext,
+    clusterCandidates: clusterCandidates,
+    bodyForLang: bodyForLang,
     formatInjectedBlock: formatInjectedBlock,
     hasInjectedBlock: hasInjectedBlock,
     stripInjectedBlock: stripInjectedBlock,

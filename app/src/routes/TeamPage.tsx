@@ -317,7 +317,7 @@ interface SharedFolderCardProps {
   scope: FolderShareScope;
   faces: StackMember[];
   snippets: { id: string; name: string; triggers: string[]; user_id: string }[];
-  prompts: { id: string; name: string; type: string; user_id: string }[];
+  prompts: { id: string; name: string; strategy_type: string | null; user_id: string }[];
   query: string;
   canManage: boolean;
   onManage: () => void;
@@ -430,9 +430,11 @@ function SharedFolderCard({
                 <span className="truncate text-sm text-ink">{p.name}</span>
                 <span className="flex shrink-0 items-center gap-2">
                   <CreatorAvatar info={resolveCreator(p.user_id)} />
-                  <span className="rounded-full bg-bg-alt px-2 py-0.5 text-[11px] font-medium text-ink-subtle">
-                    {p.type}
-                  </span>
+                  {p.strategy_type && (
+                    <span className="rounded-full bg-bg-alt px-2 py-0.5 text-[11px] font-medium text-ink-subtle">
+                      {p.strategy_type}
+                    </span>
+                  )}
                 </span>
               </div>
             ))

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
@@ -7,7 +7,7 @@ import { usePromptStore } from '@/stores/promptStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { DEFAULT_TRIGGER_CONFIG, sanitizeTriggerInput } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
-import { assembleBlocks } from '@/lib/promptUtils';
+import { assembleBlocks, foldReasoningIntoConstraints } from '@/lib/promptUtils';
 import {
   usePromptEvaluator,
   evaluatePrompt,
@@ -34,7 +34,7 @@ import type { ClassificationResult } from '@/lib/intentEngine';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BLOCK_ORDER: PromptBlockType[] = [
-  'role', 'objective', 'context', 'examples', 'reasoning', 'constraints',
+  'role', 'objective', 'context', 'examples', 'constraints',
 ];
 
 const BLOCK_LABELS: Record<PromptBlockType, string> = {
@@ -42,7 +42,6 @@ const BLOCK_LABELS: Record<PromptBlockType, string> = {
   objective: 'Objective',
   context: 'Context',
   examples: 'Examples',
-  reasoning: 'Reasoning',
   constraints: 'Constraints',
 };
 
@@ -51,7 +50,6 @@ const BLOCK_HINTS: Record<PromptBlockType, string> = {
   objective: 'State the task clearly. e.g. "Your task is to review…"',
   context: 'Provide relevant background information.',
   examples: 'Show input/output pairs to guide the model.',
-  reasoning: 'Instruct the thinking approach. e.g. "Think step by step…"',
   constraints: 'What the model must not do or must stay within.',
 };
 
@@ -60,7 +58,6 @@ const DEFAULT_BLOCKS: PromptBlock[] = [
   { type: 'objective', content: '', enabled: true },
   { type: 'context', content: '', enabled: false },
   { type: 'examples', content: '', enabled: false },
-  { type: 'reasoning', content: '', enabled: true },
   { type: 'constraints', content: '', enabled: false },
 ];
 
@@ -70,7 +67,7 @@ const OUTPUT_TYPES: OutputType[] = ['JSON', 'Markdown', 'SOP', 'Plain'];
 
 // Block types that map to EvalCriterion IDs for the efficiency widget.
 const BLOCK_CRITERION_TYPES: PromptBlockType[] = [
-  'role', 'objective', 'context', 'reasoning', 'constraints', 'examples',
+  'role', 'objective', 'context', 'constraints', 'examples',
 ];
 
 // One-click sample that scores highly — lets a new user see what "good" looks
@@ -91,8 +88,7 @@ const EXAMPLE_PROMPT: ExamplePrompt = {
     { type: 'objective', content: 'Write a 150-word product announcement email for the new analytics feature.', enabled: true },
     { type: 'context', content: 'The audience is existing Pro-plan customers; the tone is friendly but concise.', enabled: true },
     { type: 'examples', content: 'Input: "new dashboard" → Output: "Meet your new dashboard…"', enabled: true },
-    { type: 'reasoning', content: 'Think step by step, then double-check the result before producing the final copy.', enabled: true },
-    { type: 'constraints', content: 'Keep it under 150 words. Do not use jargon. Avoid emojis.', enabled: true },
+    { type: 'constraints', content: 'Keep it under 150 words. Do not use jargon. Avoid emojis. Double-check the result before producing the final copy.', enabled: true },
   ],
   strategyType: 'One-shot',
   preferredModel: 'claude-sonnet-4-6',
@@ -203,6 +199,36 @@ function DarkSelect<T extends string>({
   );
 }
 
+// ── Panel toggle ───────────────────────────────────────────────────────────────
+
+interface PanelToggleProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick' | 'className' | 'children'> {
+  checked: boolean;
+  onToggle: () => void;
+}
+
+// The on/off pill every toggle in this panel uses, so a new one cannot drift
+// from the block toggles. The knob is placed with left/top rather than inside a
+// border, which keeps it centred at fractional display scaling.
+function PanelToggle({ checked, onToggle, ...rest }: PanelToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`relative h-5 w-9 rounded-full transition-colors ${
+        checked ? 'bg-[#1B4FD8]' : 'bg-[#2A2A2E]'
+      }`}
+      {...rest}
+    >
+      <span
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
 // ── Block section ──────────────────────────────────────────────────────────────
 
 interface BlockSectionProps {
@@ -233,20 +259,11 @@ function BlockSection({ block, onChange, onToggle }: BlockSectionProps) {
             {BLOCK_LABELS[block.type]}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`relative h-5 w-9 rounded-full transition-colors ${
-            block.enabled ? 'bg-[#1B4FD8]' : 'bg-[#2A2A2E]'
-          }`}
+        <PanelToggle
+          checked={block.enabled}
+          onToggle={onToggle}
           aria-label={block.enabled ? 'Disable block' : 'Enable block'}
-        >
-          <span
-            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-              block.enabled ? 'translate-x-4' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        />
       </div>
 
       {/* Textarea (only when enabled) */}
@@ -300,7 +317,6 @@ export function PromptBlockEditor() {
   // Form state
   const [name, setName] = useState('');
   const [shortcut, setShortcut] = useState('');
-  const [promptType, setPromptType] = useState<'one-shot' | 'few-shot'>('one-shot');
   const [blocks, setBlocks] = useState<PromptBlock[]>(DEFAULT_BLOCKS);
   const [strategyType, setStrategyType] = useState<StrategyType | null>(null);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode | null>(null);
@@ -312,6 +328,9 @@ export function PromptBlockEditor() {
   // Labels are an association, not prompt content — they save alongside the
   // prompt rather than travelling through PromptFormValues.
   const [labelIds, setLabelIds] = useState<string[]>([]);
+  // "Ask User Questions" starts on for a new prompt; an existing prompt shows
+  // what it was saved with.
+  const [askUserQuestions, setAskUserQuestions] = useState(true);
 
   // Intent suggestion
   const [suggestion, setSuggestion] = useState<ClassificationResult | null>(null);
@@ -336,10 +355,9 @@ export function PromptBlockEditor() {
     if (editingPrompt) {
       setName(editingPrompt.name);
       setShortcut(editingPrompt.shortcut ?? '');
-      setPromptType(editingPrompt.type);
       setBlocks(
         editingPrompt.blocks && editingPrompt.blocks.length > 0
-          ? editingPrompt.blocks
+          ? foldReasoningIntoConstraints(editingPrompt.blocks)
           : DEFAULT_BLOCKS.map((b) =>
               b.type === 'objective'
                 ? { ...b, content: editingPrompt.content, enabled: true }
@@ -353,13 +371,13 @@ export function PromptBlockEditor() {
       setIntentCategory(editingPrompt.intent_category);
       setOutputType(editingPrompt.output_type);
       setFolderId(editingPrompt.folder_id);
+      setAskUserQuestions(editingPrompt.ask_user_questions);
       // Read once on open: the picker owns the draft from here, so a background
       // refresh can't stomp an in-progress edit.
       setLabelIds(useLabelStore.getState().promptLabels.get(editingPrompt.id) ?? []);
     } else {
       setName('');
       setShortcut('');
-      setPromptType('one-shot');
       setBlocks(DEFAULT_BLOCKS);
       setStrategyType(null);
       setThinkingMode(null);
@@ -369,6 +387,7 @@ export function PromptBlockEditor() {
       setOutputType(null);
       setFolderId(null);
       setLabelIds([]);
+      setAskUserQuestions(true);
     }
   }, [isOpen, editingPrompt]);
 
@@ -485,7 +504,7 @@ export function PromptBlockEditor() {
       return;
     }
     if (criterionId === 'refinement') {
-      appendToBlock('reasoning', 'Double-check the result and flag anything you are unsure about.');
+      appendToBlock('constraints', 'Double-check the result and flag anything you are unsure about.');
       return;
     }
     if (criterionId === 'output_format') { setOutputType('Plain'); return; }
@@ -495,7 +514,6 @@ export function PromptBlockEditor() {
 
   function loadExample() {
     setName(EXAMPLE_PROMPT.name);
-    setPromptType('one-shot');
     setBlocks(EXAMPLE_PROMPT.blocks.map((b) => ({ ...b })));
     setStrategyType(EXAMPLE_PROMPT.strategyType);
     setPreferredModel(EXAMPLE_PROMPT.preferredModel);
@@ -505,7 +523,7 @@ export function PromptBlockEditor() {
   }
 
   function handlePreviewDraft() {
-    const assembled = assembleBlocks(blocks);
+    const assembled = assembleBlocks(blocks, { askUserQuestions });
     if (assembled) openPromptDraftPreview(assembled);
   }
 
@@ -525,12 +543,11 @@ export function PromptBlockEditor() {
     setSubmitError(null);
     setSaving(true);
 
-    const assembled = assembleBlocks(blocks);
+    const assembled = assembleBlocks(blocks, { askUserQuestions });
     const payload: PromptFormValues = {
       name: name.trim(),
       content: assembled,
       shortcut: trimmedShortcut,
-      type: promptType,
       strategy_type: strategyType,
       thinking_mode: thinkingMode,
       preferred_model: preferredModel,
@@ -538,6 +555,7 @@ export function PromptBlockEditor() {
       intent_category: intentCategory,
       output_type: outputType,
       blocks,
+      ask_user_questions: askUserQuestions,
       folder_id: folderId,
     };
 
@@ -731,6 +749,29 @@ export function PromptBlockEditor() {
           })}
         </div>
 
+        {/* Ask User Questions: when on, the saved prompt ends with an instruction
+            to ask clarifying questions first (ASK_USER_QUESTIONS_SECTION). */}
+        <div className="border-b border-[#222227] px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor="prompt-ask-user-questions"
+              className="font-mono text-[12px] font-semibold uppercase tracking-widest text-[#CACAD4]"
+            >
+              Ask User Questions
+            </label>
+            <PanelToggle
+              id="prompt-ask-user-questions"
+              role="switch"
+              aria-checked={askUserQuestions}
+              checked={askUserQuestions}
+              onToggle={() => setAskUserQuestions((on) => !on)}
+            />
+          </div>
+          <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
+            The AI asks you clarifying questions before it completes the task. Turn it off to skip the questions.
+          </span>
+        </div>
+
         {/* Efficiency score widget */}
         {evalResult && (
           <PromptEfficiencyWidget
@@ -746,26 +787,6 @@ export function PromptBlockEditor() {
             Metadata
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {/* Type toggle */}
-            <div className="col-span-2">
-              <label className="mb-1.5 block text-[10px] text-[#9C9CA6]">Type</label>
-              <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#34343C]">
-                {(['one-shot', 'few-shot'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setPromptType(t)}
-                    className={`py-1.5 text-xs font-medium transition-colors ${
-                      promptType === t
-                        ? 'bg-[#1B4FD8] text-white'
-                        : 'bg-[#1C1C22] text-[#CACAD4] hover:text-[#A0A0A8]'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div>
               <label className="mb-1 block text-[10px] text-[#9C9CA6]">Strategy</label>
               <DarkSelect

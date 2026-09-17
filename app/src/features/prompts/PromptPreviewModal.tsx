@@ -2,9 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { assembleBlocks } from '@/lib/promptUtils';
+import {
+  applyInteractiveSteps,
+  loadInteractiveSteps,
+  saveInteractiveSteps,
+} from '@/lib/interactiveSteps';
 
 const MODEL_LABELS: Record<string, string> = {
   'claude-opus-4-7': 'Opus 4',
@@ -17,9 +23,13 @@ export function PromptPreviewModal() {
   const closePromptPreview = useUiStore((s) => s.closePromptPreview);
   const promptDraftContent = useUiStore((s) => s.promptDraftContent);
   const closePromptDraftPreview = useUiStore((s) => s.closePromptDraftPreview);
+  const showToast = useUiStore((s) => s.showToast);
   const prompts = usePromptStore((s) => s.prompts);
 
   const [copied, setCopied] = useState(false);
+  // Interactive Steps is a device setting (lib/interactiveSteps), read again on
+  // every open so a change made in another tab shows here.
+  const [stepsOn, setStepsOn] = useState(false);
   const timerRef = useRef<number | null>(null);
 
   const prompt = promptPreviewId
@@ -33,9 +43,16 @@ export function PromptPreviewModal() {
     ? (promptDraftContent ?? '')
     : prompt
       ? (prompt.blocks && prompt.blocks.length > 0
-          ? assembleBlocks(prompt.blocks)
+          ? assembleBlocks(prompt.blocks, { askUserQuestions: prompt.ask_user_questions })
           : prompt.content)
       : '';
+
+  // What Copy puts on the clipboard, so the preview never differs from the paste.
+  const output = applyInteractiveSteps(assembled, stepsOn);
+
+  useEffect(() => {
+    if (isOpen) setStepsOn(loadInteractiveSteps());
+  }, [isOpen]);
 
   useEffect(() => {
     setCopied(false);
@@ -51,9 +68,14 @@ export function PromptPreviewModal() {
     }
   }
 
+  function handleStepsChange(next: boolean) {
+    setStepsOn(next);
+    if (!saveInteractiveSteps(next)) showToast('Could not save Interactive Steps in this browser', 'error');
+  }
+
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(assembled);
+      await navigator.clipboard.writeText(output);
       setCopied(true);
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => setCopied(false), 1800);
@@ -93,9 +115,9 @@ export function PromptPreviewModal() {
 
         {/* Assembled prompt text */}
         <div className="max-h-[420px] overflow-y-auto px-6 py-5">
-          {assembled ? (
+          {output ? (
             <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-ink">
-              {assembled}
+              {output}
             </pre>
           ) : (
             <p className="text-sm italic text-ink-subtle">
@@ -109,28 +131,37 @@ export function PromptPreviewModal() {
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-line px-6 py-4">
           <p className="text-xs text-ink-subtle">
-            {assembled.length > 0
-              ? `${assembled.length.toLocaleString()} characters`
+            {output.length > 0
+              ? `${output.length.toLocaleString()} characters`
               : isDraftMode ? 'Empty draft' : 'Empty prompt'}
           </p>
-          <button
-            type="button"
-            onClick={handleCopy}
-            disabled={!assembled}
-            className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
-          >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy to clipboard
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-4">
+            <label
+              className="flex cursor-pointer items-center gap-2 text-xs font-medium text-ink-muted"
+              title="Copied prompts start with step-by-step instructions. The AI does one step, then waits for you."
+            >
+              <Switch checked={stepsOn} onChange={handleStepsChange} />
+              Interactive Steps
+            </label>
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={!output}
+              className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy to clipboard
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

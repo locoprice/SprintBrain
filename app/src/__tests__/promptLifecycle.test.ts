@@ -37,12 +37,14 @@ const BASE_PROMPT: Prompt = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  ask_user_questions: false,
   folder_id: null,
   notion_page_id: null,
   pinned: false,
   updated_at: '2026-06-19T00:00:00Z',
   updated_by: 'user-001',
   last_used_at: null,
+  created_at: '2026-01-01T00:00:00Z',
   usage_count: 0,
   is_malformed: false,
 };
@@ -58,7 +60,6 @@ const MODIFIED_PROMPT: Prompt = {
 const CREATE_PAYLOAD = {
   name: 'Reservation Confirmation Template',
   content: 'Dear {{guest}}, your reservation for {{date}} is confirmed.',
-  type: 'one-shot' as const,
   strategy_type: null,
   thinking_mode: null,
   preferred_model: null,
@@ -66,6 +67,7 @@ const CREATE_PAYLOAD = {
   intent_category: null,
   output_type: null,
   blocks: null,
+  ask_user_questions: false,
   folder_id: null,
 };
 

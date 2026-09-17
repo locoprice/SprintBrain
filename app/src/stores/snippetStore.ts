@@ -543,9 +543,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           folder_id: patch.folder_id,
           pinned: patch.pinned ?? false,
           alternative_queries: patch.alternative_queries ?? [],
-          enable_urgency_timer: patch.enable_urgency_timer ?? false,
-          timer_duration_ms: patch.timer_duration_ms ?? 0,
-          scarcity_count: patch.scarcity_count ?? 0,
         },
         editNote,
       );
@@ -566,9 +563,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
             : (folder?.name ?? null),
         pinned: patch.pinned ?? false,
         alternative_queries: patch.alternative_queries ?? [],
-        enable_urgency_timer: patch.enable_urgency_timer ?? false,
-        timer_duration_ms: patch.timer_duration_ms ?? 0,
-        scarcity_count: patch.scarcity_count ?? 0,
         updated_at: new Date().toISOString(),
         // The DB stamps updated_by = auth.uid() on this write; mirror it
         // locally so the attribution labels stay fresh without a refetch.
@@ -606,9 +600,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
           lang: snippet.language,
           folder_id: snippet.folder_id,
           pinned: snippet.pinned,
-          enable_urgency_timer: snippet.enable_urgency_timer,
-          timer_duration_ms: snippet.timer_duration_ms,
-          scarcity_count: snippet.scarcity_count,
           alternative_queries: snippet.alternative_queries,
         },
         `Restored from v${revision.version_number}`,
