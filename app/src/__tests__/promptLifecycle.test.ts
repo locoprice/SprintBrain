@@ -60,7 +60,6 @@ const MODIFIED_PROMPT: Prompt = {
 const CREATE_PAYLOAD = {
   name: 'Reservation Confirmation Template',
   content: 'Dear {{guest}}, your reservation for {{date}} is confirmed.',
-  type: 'one-shot' as const,
   strategy_type: null,
   thinking_mode: null,
   preferred_model: null,

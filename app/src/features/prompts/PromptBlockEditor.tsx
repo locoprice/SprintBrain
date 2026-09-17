@@ -317,7 +317,6 @@ export function PromptBlockEditor() {
   // Form state
   const [name, setName] = useState('');
   const [shortcut, setShortcut] = useState('');
-  const [promptType, setPromptType] = useState<'one-shot' | 'few-shot'>('one-shot');
   const [blocks, setBlocks] = useState<PromptBlock[]>(DEFAULT_BLOCKS);
   const [strategyType, setStrategyType] = useState<StrategyType | null>(null);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode | null>(null);
@@ -356,7 +355,6 @@ export function PromptBlockEditor() {
     if (editingPrompt) {
       setName(editingPrompt.name);
       setShortcut(editingPrompt.shortcut ?? '');
-      setPromptType(editingPrompt.type);
       setBlocks(
         editingPrompt.blocks && editingPrompt.blocks.length > 0
           ? foldReasoningIntoConstraints(editingPrompt.blocks)
@@ -380,7 +378,6 @@ export function PromptBlockEditor() {
     } else {
       setName('');
       setShortcut('');
-      setPromptType('one-shot');
       setBlocks(DEFAULT_BLOCKS);
       setStrategyType(null);
       setThinkingMode(null);
@@ -517,7 +514,6 @@ export function PromptBlockEditor() {
 
   function loadExample() {
     setName(EXAMPLE_PROMPT.name);
-    setPromptType('one-shot');
     setBlocks(EXAMPLE_PROMPT.blocks.map((b) => ({ ...b })));
     setStrategyType(EXAMPLE_PROMPT.strategyType);
     setPreferredModel(EXAMPLE_PROMPT.preferredModel);
@@ -552,7 +548,6 @@ export function PromptBlockEditor() {
       name: name.trim(),
       content: assembled,
       shortcut: trimmedShortcut,
-      type: promptType,
       strategy_type: strategyType,
       thinking_mode: thinkingMode,
       preferred_model: preferredModel,
@@ -792,26 +787,6 @@ export function PromptBlockEditor() {
             Metadata
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {/* Type toggle */}
-            <div className="col-span-2">
-              <label className="mb-1.5 block text-[10px] text-[#9C9CA6]">Type</label>
-              <div className="grid grid-cols-2 overflow-hidden rounded-[8px] border border-[#34343C]">
-                {(['one-shot', 'few-shot'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setPromptType(t)}
-                    className={`py-1.5 text-xs font-medium transition-colors ${
-                      promptType === t
-                        ? 'bg-[#1B4FD8] text-white'
-                        : 'bg-[#1C1C22] text-[#CACAD4] hover:text-[#A0A0A8]'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div>
               <label className="mb-1 block text-[10px] text-[#9C9CA6]">Strategy</label>
               <DarkSelect

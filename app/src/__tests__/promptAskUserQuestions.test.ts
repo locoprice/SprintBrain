@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // the saved content because content is what every surface pastes: the in-page
 // picker, the popup, Sprintbrain.html, mobile and the Notion mirror. These
 // tests pin both halves: how content is assembled, and that the flag travels
-// to and from the database.
+// to and from the database. The last block pins that the retired prompt type
+// is never written.
 
 const sb = vi.hoisted(() => {
   interface Builder {
@@ -95,7 +96,6 @@ const PAYLOAD: PromptFormValues = {
   name: 'Tighten a paragraph',
   content: assembleBlocks(BLOCKS, { askUserQuestions: true }),
   shortcut: '',
-  type: 'one-shot',
   strategy_type: null,
   thinking_mode: null,
   preferred_model: null,
@@ -142,5 +142,17 @@ describe('promptsApi: ask_user_questions round trip', () => {
   it('leaves the flag alone when an edit does not mention it', async () => {
     await promptsApi.updatePrompt('prompt-1', { name: 'Renamed' });
     expect(sb.state.update).not.toHaveProperty('ask_user_questions');
+  });
+});
+
+describe('promptsApi: the retired type is left to the database', () => {
+  // The editor has no Type box: Strategy carries one-shot and few-shot, so the
+  // API never writes the old column and new prompts keep its default.
+  it('sends no type when creating or editing a prompt', async () => {
+    sb.state.row = { id: 'prompt-1', user_id: 'user-1', name: PAYLOAD.name, content: PAYLOAD.content, type: 'one-shot' };
+    await promptsApi.createPrompt(PAYLOAD);
+    expect(sb.state.insert).not.toHaveProperty('type');
+    await promptsApi.updatePrompt('prompt-1', { strategy_type: 'Few-shot' });
+    expect(sb.state.update).not.toHaveProperty('type');
   });
 });

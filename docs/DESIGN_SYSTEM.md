@@ -79,6 +79,21 @@ Badges keep their light tints in dark mode, matching every shipped chip on the d
 
 **Sub-labels (LABELS-002).** A label may nest one level under another (`labels.parent_id`, max depth 2 — see `app/src/lib/labelTree.ts`). Nesting is rendered as a **14 px indent per level**, the same step the folder rail uses, in the label manager, the picker, and the filter menu. No new tokens: a sub-label draws from the same eight-key palette, and a new child defaults to its parent's key so a family reads as one group. The chip itself always shows the **bare child name** — a table row has no room for a path — with the full `Parent / Child` on hover. Selecting a parent in the filter also matches its children, matching how selecting a parent folder lists its subtree.
 
+### Prompt strategy chips
+
+One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list, the extension popup and `Sprintbrain.html`. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
+
+| Strategy | Fg        | Bg        | Extension token                                  |
+| -------- | --------- | --------- | ------------------------------------------------ |
+| CoT      | `#1B4FD8` | `#EEF2FF` | `--sb-azure` / `--sb-azure-bg`                   |
+| ToT      | `#7C3AED` | `#F5F3FF` | `--sb-lang-multi` / `--sb-lang-multi-bg`         |
+| Few-shot | `#15803D` | `#F0FDF4` | `--sb-lang-it` / `--sb-lang-it-bg`               |
+| One-shot | `#C2410C` | `#FFF7ED` | `--sb-lang-es` / `--sb-lang-es-bg`               |
+| RAG      | `#BE123C` | `#FFF1F2` | `--sb-strat-rag` / `--sb-strat-rag-bg`           |
+| Agentic  | `#F5F5F5` | `#0A0A0B` | `--sb-strat-agentic` / `--sb-strat-agentic-bg`   |
+
+No strategy set means no chip.
+
 ### Semantic
 
 | Token          | Hex       | Usage              |

@@ -4157,7 +4157,7 @@ function openPromptInfo(p){
   var f=getFolderById(p.folder_id);
   showInfoSheet(p.name||'Prompt',[
     ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
-    ['Type', p.type||'—'],
+    ['Strategy', p.strategy_type||'None'],
     ['Model', p.preferred_model||'—'],
     ['Characters', String((p.content||'').length)],
     ['Updated', p.updated_at?timeAgo(p.updated_at):'—'],

@@ -112,7 +112,6 @@ export const promptsApi: PromptsApi = {
         name: payload.name,
         content: payload.content,
         shortcut: payload.shortcut?.trim() || null,
-        type: payload.type,
         strategy_type: payload.strategy_type ?? null,
         thinking_mode: payload.thinking_mode ?? null,
         preferred_model: payload.preferred_model ?? null,
@@ -138,7 +137,6 @@ export const promptsApi: PromptsApi = {
     if (patch.name !== undefined) update['name'] = patch.name;
     if (patch.content !== undefined) update['content'] = patch.content;
     if ('shortcut' in patch) update['shortcut'] = patch.shortcut?.trim() || null;
-    if (patch.type !== undefined) update['type'] = patch.type;
     if ('strategy_type' in patch) update['strategy_type'] = patch.strategy_type ?? null;
     if ('thinking_mode' in patch) update['thinking_mode'] = patch.thinking_mode ?? null;
     if ('preferred_model' in patch) update['preferred_model'] = patch.preferred_model ?? null;

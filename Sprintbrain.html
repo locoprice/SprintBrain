@@ -191,8 +191,12 @@
   #nv-list .d-edit svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
   .p-badge{font-size:var(--sb-fs-10);font-weight:700;padding:2px 7px;border-radius:var(--sb-r-xs);text-transform:uppercase;letter-spacing:.3px}
-  .p-badge.one-shot{background:var(--sb-azure-bg);color:var(--sb-azure)}
-  .p-badge.few-shot{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .p-badge.p-strat-CoT{background:var(--sb-azure-bg);color:var(--sb-azure)}
+  .p-badge.p-strat-ToT{background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi)}
+  .p-badge.p-strat-Few-shot{background:var(--sb-lang-it-bg);color:var(--sb-lang-it)}
+  .p-badge.p-strat-One-shot{background:var(--sb-lang-es-bg);color:var(--sb-lang-es)}
+  .p-badge.p-strat-RAG{background:var(--sb-strat-rag-bg);color:var(--sb-strat-rag)}
+  .p-badge.p-strat-Agentic{background:var(--sb-strat-agentic-bg);color:var(--sb-strat-agentic)}
 
   /* ── Auth gate ── */
   .nv-auth{position:fixed;inset:0;background:var(--sb-bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:32px}
@@ -970,7 +974,7 @@
 <div class="nv-toast" id="nv-toast"></div>
 
 <!-- ═══ SHARED CORE (chrome-shim first, then the unchanged extension scripts) ═══ -->
-<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.27.0', manifest_version: 3 };</script>
+<script>window.__SB_MANIFEST__ = { name: 'SprintBrain', version: '3.28.0', manifest_version: 3 };</script>
 <script src="extension/shared/chrome-shim.js"></script>
 <script src="extension/shared/tooltip.js"></script>
 <script src="extension/shared/snippet-stats.js"></script>
@@ -1423,13 +1427,15 @@
     }
     var h = '';
     filtered.forEach(function(p){
-      var type = (p.type || 'one-shot').replace(/_/g,'-');
-      var badge = type === 'few-shot' ? 'Few-shot' : 'One-shot';
+      // Strategy is the one label a prompt carries; no strategy, no badge.
+      var strat = p.strategy_type
+        ? '<span class="p-badge p-strat-'+ec(p.strategy_type)+'">'+ec(p.strategy_type)+'</span>'
+        : '';
       h += '<div class="nv-row" data-pid="'+ec(p.id)+'">'
         + (p.pinned ? '<span class="nv-pin"><svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6l1-4H8l1 4v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : '')
         + '<div class="nv-row-main">'
         + '<div class="nv-row-title">'+ec(p.name||'Untitled')+'</div>'
-        + '<div class="nv-row-meta"><span class="p-badge '+ec(type)+'">'+badge+'</span></div></div>'
+        + '<div class="nv-row-meta">'+strat+'</div></div>'
         + '<span class="sctag" style="background:var(--sb-lang-multi-bg);color:var(--sb-lang-multi);border-color:#DDD6FE">Copy</span></div>';
     });
     $('nv-list').innerHTML = h;

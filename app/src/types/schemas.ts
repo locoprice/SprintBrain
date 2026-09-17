@@ -128,7 +128,8 @@ export const promptFormSchema = z.object({
         ),
     ])
     .optional(),
-  type: z.enum(['one-shot', 'few-shot']),
+  // No `type`: Strategy carries one-shot and few-shot, so the editor no longer
+  // writes the column and a new prompt keeps its database default.
   strategy_type: z.enum(['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic']).nullable(),
   thinking_mode: z.enum(['fast', 'balanced', 'deep']).nullable(),
   preferred_model: z.enum(['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5']).nullable(),

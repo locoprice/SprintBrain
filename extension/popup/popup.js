@@ -165,7 +165,7 @@ var DB = {
     // created_at joins the projection for INACTIVE-001: it is the anchor for a
     // prompt that has never been used, the same way snippets fall back to theirs.
     return supaFetch('prompts', 'GET', null,
-      'select=id,user_id,name,content,shortcut,type,intent_category,last_used_at,created_at,pinned&order=updated_at.desc'
+      'select=id,user_id,name,content,shortcut,strategy_type,intent_category,last_used_at,created_at,pinned&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -2326,15 +2326,18 @@ function renderPrompts(q) {
   var pt = triggerCfg.promptTrigger || '"""';
   var h = '';
   filtered.forEach(function(p) {
-    var type = (p.type || 'one-shot').replace(/_/g,'-');
-    var badgeLbl = type === 'few-shot' ? 'Few-shot' : 'One-shot';
+    // Strategy is the one label a prompt carries (it covers one-shot and
+    // few-shot); no strategy, no badge.
+    var stratHtml = p.strategy_type
+      ? '<span class="p-badge p-strat-'+esc(p.strategy_type)+'">'+esc(p.strategy_type)+'</span>'
+      : '';
     var scHtml = p.shortcut
       ? '<span class="p-sc"><span class="isc-pfx">'+esc(pt)+'</span>'+esc(shortWord(p.shortcut))+'</span>'
       : '';
     h += '<div class="p-item" data-pid="'+esc(p.id)+'" tabindex="-1" role="button" aria-label="'+esc(p.name||'Untitled')+' — copy prompt">'
       + '<div class="p-body">'
       + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</div>'
-      + '<div class="p-meta"><span class="p-badge '+esc(type)+'">'+esc(badgeLbl)+'</span>'+scHtml+'</div>'
+      + '<div class="p-meta">'+stratHtml+scHtml+'</div>'
       + '</div>'
       + '<button class="p-copy" type="button" title="Copy prompt" aria-label="Copy prompt"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'
       + '</div>';
