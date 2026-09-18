@@ -174,6 +174,13 @@ check('Sprintbrain.html copies through the module', fnSource(SB_HTML, 'function 
 check('mobile copies through the module', fnSource(MOBILE_HTML, 'function promptCopy(', '').indexOf(APPLY) !== -1, true);
 check('mobile shares through the module', fnSource(MOBILE_HTML, 'function sharePrompt(', '').indexOf(APPLY) !== -1, true);
 check('dashboard preview copies what it shows', /writeText\(output\)/.test(MODAL) && /applyInteractiveSteps\(assembled, stepsOn\)/.test(MODAL), true);
+// The dashboard switch lives in the prompt editor, directly under Ask User
+// Questions (Valentina, 2026-09-18). The preview window only reads it.
+const EDITOR = readText(path.join(ROOT, 'app', 'src', 'features', 'prompts', 'PromptBlockEditor.tsx'));
+check('dashboard: the switch sits right under Ask User Questions in the prompt editor',
+  before(EDITOR, 'id="prompt-ask-user-questions"', 'id="prompt-interactive-steps"') &&
+  before(EDITOR, 'id="prompt-interactive-steps"', 'Efficiency score widget'), true);
+check('dashboard: the preview window has no switch of its own', MODAL.indexOf('saveInteractiveSteps') === -1, true);
 
 // ── 5. the in-page picker, on the real content.js ─────────────────────
 function bootContent(initialArea) {

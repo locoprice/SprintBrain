@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { DEFAULT_TRIGGER_CONFIG, sanitizeTriggerInput } from '@/lib/triggerUtils';
 import { classifyPrompt } from '@/lib/intentEngine';
 import { assembleBlocks, foldReasoningIntoConstraints } from '@/lib/promptUtils';
+import { loadInteractiveSteps, saveInteractiveSteps } from '@/lib/interactiveSteps';
 import {
   usePromptEvaluator,
   evaluatePrompt,
@@ -331,6 +332,9 @@ export function PromptBlockEditor() {
   // "Ask User Questions" starts on for a new prompt; an existing prompt shows
   // what it was saved with.
   const [askUserQuestions, setAskUserQuestions] = useState(true);
+  // "Interactive Steps" is not saved with the prompt: it is one setting for
+  // every prompt copied in this browser (lib/interactiveSteps).
+  const [interactiveSteps, setInteractiveSteps] = useState(false);
 
   // Intent suggestion
   const [suggestion, setSuggestion] = useState<ClassificationResult | null>(null);
@@ -419,6 +423,18 @@ export function PromptBlockEditor() {
     return () => window.removeEventListener('keydown', onKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // Read again each time the panel opens, so a change made in another tab shows.
+  useEffect(() => {
+    if (isOpen) setInteractiveSteps(loadInteractiveSteps());
+  }, [isOpen]);
+
+  // Saved on the spot, not on Save: it belongs to the browser, not this prompt.
+  function toggleInteractiveSteps() {
+    const next = !interactiveSteps;
+    setInteractiveSteps(next);
+    if (!saveInteractiveSteps(next)) showToast('Could not save Interactive Steps in this browser', 'error');
+  }
 
   function applyIntentSuggestion() {
     if (!suggestion) return;
@@ -769,6 +785,30 @@ export function PromptBlockEditor() {
           </div>
           <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
             The AI asks you clarifying questions before it completes the task. Turn it off to skip the questions.
+          </span>
+        </div>
+
+        {/* Interactive Steps: when on, a copied prompt starts with the
+            step-by-step block. Drawn like Ask User Questions, but not saved with
+            the prompt (lib/interactiveSteps). */}
+        <div className="border-b border-[#222227] px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor="prompt-interactive-steps"
+              className="font-mono text-[12px] font-semibold uppercase tracking-widest text-[#CACAD4]"
+            >
+              Interactive Steps
+            </label>
+            <PanelToggle
+              id="prompt-interactive-steps"
+              role="switch"
+              aria-checked={interactiveSteps}
+              checked={interactiveSteps}
+              onToggle={toggleInteractiveSteps}
+            />
+          </div>
+          <span className="mt-1.5 block text-[11px] leading-relaxed text-[#7A7A85]">
+            The AI works one step at a time and waits for you before the next. Applies to all your prompts, not just this one.
           </span>
         </div>
 
