@@ -136,6 +136,7 @@ export function MemoryPage() {
     <div>
       <PageHeader
         title="Memory"
+        tag="context assets"
         description="Facts, notes and documents your assistant can read."
         action={
           <Button onClick={() => setDialogTarget('new')}>

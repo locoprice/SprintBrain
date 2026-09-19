@@ -94,6 +94,7 @@ export function PromptsPage() {
     <div className={cn(editorOpen && 'pr-[420px] 2xl:pr-[520px]')}>
       <PageHeader
         title="Prompts"
+        tag="reasoning assets"
         description="AI reasoning infrastructure. Structured, executable workflows."
         action={
           <>
