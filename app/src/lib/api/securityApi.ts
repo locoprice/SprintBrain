@@ -112,6 +112,15 @@ export const securityApi = {
   },
 
   /**
+   * Set or replace the account password. Email links and Google keep working
+   * alongside it. Throws GoTrue's error so the caller can word it.
+   */
+  async setPassword(password: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  },
+
+  /**
    * Record a login in the activity log. IP, user-agent, country and timestamp
    * are derived server-side; repeat calls for the same session are no-ops.
    * Never throws — a failed log write must not break the login flow.

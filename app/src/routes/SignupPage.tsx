@@ -13,10 +13,20 @@ import { ErrorBanner } from '@/components/auth/ErrorBanner';
 import { OtpInput, OTP_LENGTH } from '@/components/auth/OtpInput';
 import { RecentSignups } from '@/components/auth/RecentSignups';
 import { GoogleSignIn } from '@/components/auth/GoogleSignIn';
+import { AuthMethodTabs, type AuthMethod } from '@/components/auth/AuthMethodTabs';
+import { PasswordInput } from '@/components/auth/PasswordInput';
+import {
+  isExistingAccountSignup,
+  isNewPasswordLongEnough,
+  passwordErrorMessage,
+  PASSWORD_MIN_LENGTH,
+} from '@/lib/passwordAuth';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type SignupView = 'email' | 'sent';
+// 'sent' waits for the email code; 'confirm' waits for the password sign-up's
+// confirmation link.
+type SignupView = AuthMethod | 'sent' | 'confirm';
 
 export function SignupPage() {
   const status = useAuthStore((s) => s.status);
@@ -24,6 +34,7 @@ export function SignupPage() {
 
   const [view, setView] = useState<SignupView>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,8 +118,49 @@ export function SignupPage() {
     // On success: onAuthStateChange fires → status becomes 'authed' → Navigate fires above.
   }
 
-  function handleBackToEmail() {
-    setView('email');
+  async function handleSubmitPassword(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!isNewPasswordLongEnough(password)) return;
+
+    const { allowed } = checkRateLimit(`signup:${trimmed}`);
+    if (!allowed) {
+      setError('Too many requests. Wait a few minutes and try again.');
+      return;
+    }
+
+    analytics.track('auth_method_selected', { method: 'password', source: 'signup_page' });
+    analytics.track('signup_started', { method: 'password' });
+    setLoading(true);
+    setError(null);
+
+    // Signup has no remember-me checkbox, always persistent.
+    setRememberMe(true);
+
+    const { data, error: err } = await supabase.auth.signUp({
+      email: trimmed,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+
+    if (err) {
+      analytics.track('auth_failed', { method: 'password', error: err.message });
+      setError(passwordErrorMessage(err));
+    } else if (isExistingAccountSignup(data.user)) {
+      setError(
+        'This email already has an account. Sign in, then set a password in Settings → Security.',
+      );
+    } else if (data.session) {
+      // Only when email confirmation is off: onAuthStateChange redirects above.
+      void securityApi.logLoginEvent('password');
+    } else {
+      setView('confirm');
+    }
+    setLoading(false);
+  }
+
+  function goTo(next: SignupView) {
+    setView(next);
     setOtpCode('');
     setError(null);
   }
@@ -130,45 +182,90 @@ export function SignupPage() {
           </span>
         </div>
 
-        <div key={view} className="w-full max-w-[400px] animate-fade-in">
+        {/* The two sign-up tabs share one key, so switching tabs does not replay the fade-in. */}
+        <div
+          key={view === 'password' ? 'email' : view}
+          className="w-full max-w-[400px] animate-fade-in"
+        >
 
-          {/* ── Step 1: Email ──────────────────────────────────────────── */}
-          {view === 'email' && (
-            <form onSubmit={handleSubmitEmail} noValidate className="space-y-5">
-              <div className="space-y-1.5">
-                <h1 className="text-[26px] font-bold tracking-tight text-ink">
-                  Create your account
-                </h1>
-                <p className="text-sm text-ink-muted">
-                  Enter your work email. We'll send a sign-in link and a one-time code.
-                </p>
-              </div>
+          {/* ── Step 1: choose a method, email link or password ────────── */}
+          {(view === 'email' || view === 'password') && (
+            <div className="space-y-5">
+              <h1 className="text-[26px] font-bold tracking-tight text-ink">
+                Create your account
+              </h1>
 
-              <div className="space-y-3">
-                <Input
-                  type="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoFocus
-                  required
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  className="min-h-[46px]"
-                />
-                {error && <ErrorBanner message={error} />}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                  disabled={loading || !email.trim()}
-                >
-                  {loading ? 'Sending…' : 'Continue →'}
-                </Button>
-              </div>
+              <AuthMethodTabs value={view} onChange={goTo} disabled={loading} />
+
+              {view === 'email' ? (
+                <form onSubmit={handleSubmitEmail} noValidate className="space-y-3">
+                  <p className="text-sm text-ink-muted">
+                    Enter your work email. We'll send a sign-in link and a one-time code.
+                  </p>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoFocus
+                    required
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  {error && <ErrorBanner message={error} />}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || !email.trim()}
+                  >
+                    {loading ? 'Sending…' : 'Continue →'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmitPassword} noValidate className="space-y-3">
+                  <p className="text-sm text-ink-muted">
+                    Choose a password. We'll email you a link to confirm your address.
+                  </p>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoFocus={!email}
+                    required
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  <PasswordInput
+                    autoComplete="new-password"
+                    autoFocus={!!email}
+                    required
+                    placeholder={`Password, at least ${PASSWORD_MIN_LENGTH} characters`}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  {error && <ErrorBanner message={error} />}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || !email.trim() || !isNewPasswordLongEnough(password)}
+                  >
+                    {loading ? 'Creating…' : 'Create account →'}
+                  </Button>
+                </form>
+              )}
 
               {/* Signup has no remember-me checkbox, so Google is always persistent too. */}
               <GoogleSignIn next="/" remember disabled={loading} onError={setError} />
@@ -206,7 +303,7 @@ export function SignupPage() {
                   Sign in
                 </Link>
               </p>
-            </form>
+            </div>
           )}
 
           {/* ── Step 2: OTP verification ───────────────────────────────── */}
@@ -253,7 +350,7 @@ export function SignupPage() {
                   <button
                     type="button"
                     className="font-medium text-primary underline-offset-2 hover:underline"
-                    onClick={handleBackToEmail}
+                    onClick={() => goTo('email')}
                   >
                     Try a different address
                   </button>
@@ -262,6 +359,39 @@ export function SignupPage() {
                 </p>
               </div>
             </form>
+          )}
+
+          {/* ── Step 2 (password): confirm the address ─────────────────── */}
+          {view === 'confirm' && (
+            <div className="space-y-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-light text-primary">
+                <MailCheck className="h-6 w-6" aria-hidden="true" />
+              </div>
+
+              <div className="space-y-1.5">
+                <h1 className="text-[26px] font-bold tracking-tight text-ink">
+                  Confirm your email
+                </h1>
+                <p className="text-sm text-ink-muted">
+                  We sent a confirmation link to{' '}
+                  <span className="font-medium text-ink">{email}</span>. Open it to finish
+                  creating your account.
+                </p>
+              </div>
+
+              <p className="text-center text-xs text-ink-subtle">
+                Wrong email?{' '}
+                <button
+                  type="button"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                  onClick={() => goTo('password')}
+                >
+                  Try a different address
+                </button>
+                {' · '}
+                Check your spam folder.
+              </p>
+            </div>
           )}
 
         </div>
