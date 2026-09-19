@@ -103,6 +103,14 @@ function pickCompanyName(metadata: Record<string, unknown> | undefined): string 
   return typeof v === 'string' ? v.trim() : '';
 }
 
+// Google sign-in rewrites full_name and avatar_url in user_metadata at every
+// sign-in. What the person sets here is also written to these chosen_* keys,
+// and the app.keep_chosen_profile trigger puts it back after Google's rewrite
+// (migration 20260919120000_google_sign_in.sql). Every surface keeps reading
+// full_name and avatar_url.
+const CHOSEN_NAME_KEY = 'chosen_full_name';
+const CHOSEN_AVATAR_KEY = 'chosen_avatar_url';
+
 function userToProfile(u: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; created_at?: string }): Profile {
   const email = u.email ?? '';
   const meta = u.user_metadata;
@@ -133,6 +141,7 @@ async function uploadUserImage(
   buildPath: (userId: string, mime: string, now: number) => string,
   metaKey: string,
   file: File,
+  chosenKey?: string,
 ): Promise<Profile> {
   const invalid = validateImageFile(file);
   if (invalid) throw new Error(invalid);
@@ -154,6 +163,7 @@ async function uploadUserImage(
 
   const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
   next[metaKey] = publicUrl;
+  if (chosenKey) next[chosenKey] = publicUrl;
   const { data, error } = await supabase.auth.updateUser({ data: next });
   if (error || !data.user) {
     // The pointer never landed — drop the fresh object instead of orphaning it.
@@ -170,7 +180,11 @@ async function uploadUserImage(
 }
 
 /** Clear a user-image metadata pointer, then best-effort delete its object. */
-async function removeUserImage(bucket: string, metaKey: string): Promise<Profile> {
+async function removeUserImage(
+  bucket: string,
+  metaKey: string,
+  chosenKey?: string,
+): Promise<Profile> {
   const { data: cur, error: getErr } = await supabase.auth.getUser();
   if (getErr) throw getErr;
   if (!cur.user) throw new Error('Not authenticated');
@@ -181,6 +195,8 @@ async function removeUserImage(bucket: string, metaKey: string): Promise<Profile
   // (harmless), while the reverse order could leave a dangling URL.
   const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
   next[metaKey] = null;
+  // An empty choice means "no photo, on purpose", so Google does not put one back.
+  if (chosenKey) next[chosenKey] = '';
   const { data, error } = await supabase.auth.updateUser({ data: next });
   if (error) throw error;
   if (!data.user) throw new Error('Update returned no user');
@@ -222,7 +238,10 @@ export const settingsApi: SettingsApi = {
     // Merge into existing user_metadata so unrelated keys (e.g. set by other
     // surfaces) survive. Only forward keys the caller actually changed.
     const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
-    if (patch.display_name !== undefined) next['full_name'] = patch.display_name.trim();
+    if (patch.display_name !== undefined) {
+      next['full_name'] = patch.display_name.trim();
+      next[CHOSEN_NAME_KEY] = next['full_name'];
+    }
     if (patch.company_name !== undefined) next['company_name'] = patch.company_name.trim();
     if (patch.shortcut_prefix !== undefined) next['shortcut_prefix'] = patch.shortcut_prefix;
     if (patch.trigger_snippet_seq !== undefined) next['trigger_snippet_seq'] = patch.trigger_snippet_seq;
@@ -248,11 +267,11 @@ export const settingsApi: SettingsApi = {
   },
 
   async uploadAvatar(file: File) {
-    return uploadUserImage(AVATAR_BUCKET, buildAvatarPath, 'avatar_url', file);
+    return uploadUserImage(AVATAR_BUCKET, buildAvatarPath, 'avatar_url', file, CHOSEN_AVATAR_KEY);
   },
 
   async removeAvatar() {
-    return removeUserImage(AVATAR_BUCKET, 'avatar_url');
+    return removeUserImage(AVATAR_BUCKET, 'avatar_url', CHOSEN_AVATAR_KEY);
   },
 
   async getNotionSync() {

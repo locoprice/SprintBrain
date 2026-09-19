@@ -2,23 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { securityApi } from '@/lib/api/securityApi';
+import { callbackErrorCode, loginErrorPath, type AuthErrorCode } from '@/lib/authCallback';
 
 /**
- * The magic link from the email lands here. Supabase SDK auto-detects
- * the token in the URL hash (detectSessionInUrl: true) and persists the
- * session before this component mounts. We just wait briefly for the
- * auth store to pick it up, then bounce to the dashboard.
+ * The magic link from the email, and the return from Google sign-in
+ * (`?provider=google`), land here. Supabase SDK auto-detects the code in the
+ * URL (detectSessionInUrl: true) and persists the session. We just wait
+ * briefly for the auth store to pick it up, then bounce to the dashboard.
  */
 export function AuthCallback() {
   const status = useAuthStore((s) => s.status);
   const init = useAuthStore((s) => s.init);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [params] = useSearchParams();
   // The `next` query param is preserved by LoginPage when it crafted the
   // magic-link redirectTo. After auth succeeds we land back on the original
   // deep link (e.g. /extension-link) instead of always bouncing to /.
   const next = params.get('next') || '/';
+  const provider = params.get('provider');
   const activityLogged = useRef(false);
 
   useEffect(() => {
@@ -26,17 +28,16 @@ export function AuthCallback() {
     // (e.g. email-change confirmations also land here).
     if (status === 'authed' && !activityLogged.current) {
       activityLogged.current = true;
-      void securityApi.logLoginEvent('magic_link');
+      void securityApi.logLoginEvent(provider === 'google' ? 'google' : 'magic_link');
     }
-  }, [status]);
+  }, [status, provider]);
 
   useEffect(() => {
-    // Surface any hash-level error the redirect carries.
-    const hash = window.location.hash.replace(/^#/, '');
-    const params = new URLSearchParams(hash);
-    const err = params.get('error_description') ?? params.get('error');
-    if (err) {
-      setErrorMsg(err);
+    // Surface any error the redirect carries: a cancelled Google consent
+    // screen, a failed exchange, an expired email link.
+    const code = callbackErrorCode(window.location.search, window.location.hash, provider);
+    if (code) {
+      setErrorCode(code);
       return;
     }
 
@@ -50,10 +51,10 @@ export function AuthCallback() {
     // failed callback rather than spinning forever.
     const t = window.setTimeout(() => setTimedOut(true), 5000);
     return () => window.clearTimeout(t);
-  }, [init]);
+  }, [init, provider]);
 
-  if (errorMsg) {
-    return <Navigate to={`/login?error=${encodeURIComponent(errorMsg)}`} replace />;
+  if (errorCode) {
+    return <Navigate to={loginErrorPath(errorCode, next)} replace />;
   }
 
   if (status === 'authed') {
@@ -71,7 +72,7 @@ export function AuthCallback() {
   if (status === 'anon' || timedOut) {
     return (
       <Navigate
-        to="/login?error=Sign-in+link+expired+or+was+already+used"
+        to={loginErrorPath(provider === 'google' ? 'google_failed' : 'link_expired', next)}
         replace
       />
     );

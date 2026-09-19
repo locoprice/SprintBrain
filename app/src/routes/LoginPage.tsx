@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 import { ErrorBanner } from '@/components/auth/ErrorBanner';
 import { OtpInput, OTP_LENGTH } from '@/components/auth/OtpInput';
+import { GoogleSignIn } from '@/components/auth/GoogleSignIn';
+import { authErrorMessage } from '@/lib/authCallback';
 
 type LoginView = 'email' | 'sent' | 'password' | 'recovery' | 'recovery_sent';
 
@@ -29,7 +31,10 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // A failed Google or email-link return lands here with ?error=<code>.
+  const [error, setError] = useState<string | null>(() =>
+    authErrorMessage(params.get('error')),
+  );
 
   useEffect(() => {
     void init();
@@ -255,6 +260,13 @@ export function LoginPage() {
                   {loading ? 'Sending…' : 'Continue →'}
                 </Button>
               </div>
+
+              <GoogleSignIn
+                next={next}
+                remember={remember}
+                disabled={loading}
+                onError={setError}
+              />
 
               <button
                 type="button"

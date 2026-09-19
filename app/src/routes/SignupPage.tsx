@@ -12,6 +12,7 @@ import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 import { ErrorBanner } from '@/components/auth/ErrorBanner';
 import { OtpInput, OTP_LENGTH } from '@/components/auth/OtpInput';
 import { RecentSignups } from '@/components/auth/RecentSignups';
+import { GoogleSignIn } from '@/components/auth/GoogleSignIn';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -168,6 +169,9 @@ export function SignupPage() {
                   {loading ? 'Sending…' : 'Continue →'}
                 </Button>
               </div>
+
+              {/* Signup has no remember-me checkbox, so Google is always persistent too. */}
+              <GoogleSignIn next="/" remember disabled={loading} onError={setError} />
 
               <RecentSignups />
 

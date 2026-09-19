@@ -86,4 +86,23 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
+/**
+ * Whether an OAuth provider is switched on in Supabase Auth. signInWithOAuth
+ * cannot tell: with the provider off it still sends the browser to Supabase,
+ * which answers with a bare JSON error page. Fails open, so a slow or failed
+ * check never blocks a provider that works.
+ */
+export async function isAuthProviderEnabled(provider: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+      headers: { apikey: SUPABASE_ANON_KEY },
+    });
+    if (!res.ok) return true;
+    const body = (await res.json()) as { external?: Record<string, unknown> };
+    return body.external?.[provider] !== false;
+  } catch {
+    return true;
+  }
+}
+
 export type { Session, User };

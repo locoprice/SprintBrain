@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 // 20260702000000_security_sessions_and_login_activity.sql); login activity is
 // a plain RLS-scoped read of public.auth_audit_log.
 
-export type LoginMethod = 'password' | 'magic_link' | 'email_otp';
+export type LoginMethod = 'password' | 'magic_link' | 'email_otp' | 'google';
 
 export interface DeviceSession {
   id: string;

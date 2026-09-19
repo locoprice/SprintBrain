@@ -17,7 +17,7 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 >  - Extension + overlay: `extension/shared/tokens/colors_and_type.css`
 >  - Mobile companion: inline `:root` in `app/public/mobile/index.html` (kept in sync with this table)
 >
-> Hard-coded hex values in component files are forbidden outside two documented exceptions: the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette), and the **dark prompt-editor vocabulary** in `PromptBlockEditor.tsx` — an untokenized side-panel palette that predates this table. Components rendered *inside* that panel (`LabelPicker`'s `dark` tone) may reuse those exact hexes; they may not invent new ones. Tokenizing the panel is an open follow-up.
+> Hard-coded hex values in component files are forbidden outside three documented exceptions: the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette), and the **dark prompt-editor vocabulary** in `PromptBlockEditor.tsx`, an untokenized side-panel palette that predates this table. Components rendered *inside* that panel (`LabelPicker`'s `dark` tone) may reuse those exact hexes; they may not invent new ones. Tokenizing the panel is an open follow-up. The third exception is the four colours of Google's "G" mark in `components/auth/GoogleSignIn.tsx`: Google's branding guidelines fix them, so they are never tokenized or recoloured. The button around it uses the standard `ghost` variant.
 
 ### Neutrals
 
