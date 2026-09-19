@@ -24,10 +24,6 @@ function check(name, actual, expected) {
 }
 
 // ── 1. no writes to storage.sync anywhere in the shipped extension ──
-// chrome-shim.js is excluded: it BACKS both areas with localStorage so the
-// extension scripts run unchanged inside Sprintbrain.html. Nothing it writes
-// reaches Google.
-const SHIM = path.join('extension', 'shared', 'chrome-shim.js');
 function walk(dir, out) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -39,7 +35,6 @@ function walk(dir, out) {
 const offenders = [];
 for (const file of walk(path.join(ROOT, 'extension'), [])) {
   const rel = path.relative(ROOT, file);
-  if (rel.split(path.sep).join('/') === SHIM.split(path.sep).join('/')) continue;
   const src = fs.readFileSync(file, 'utf8');
   src.split('\n').forEach((line, i) => {
     if (line.trim().startsWith('//')) return;

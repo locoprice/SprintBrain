@@ -81,7 +81,7 @@ Badges keep their light tints in dark mode, matching every shipped chip on the d
 
 ### Prompt strategy chips
 
-One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list, the extension popup and `Sprintbrain.html`. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
+One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list and the extension popup. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
 
 | Strategy | Fg        | Bg        | Extension token                                  |
 | -------- | --------- | --------- | ------------------------------------------------ |
@@ -202,7 +202,7 @@ These are deliberately **not** tokenised. They mirror an external design system,
 | Surface | Implementation |
 | --- | --- |
 | Dashboard (React) | `app/src/components/ui/tooltip.tsx`, `<Tooltip label="…" placement="top">`. Portalled, because every panel that hosts one scrolls and would clip it. Tracks the trigger per frame. |
-| Popup, `Sprintbrain.html` | `extension/shared/tooltip.js` via `<script src>` |
+| Popup | `extension/shared/tooltip.js` via `<script src>` |
 | `/mobile/`, landing site | the same file, inlined between `SB_TOOLTIP` markers |
 
 `/mobile/` is a single-file app and the landing site is a separate Netlify site rooted at `app/public/landing/`, so neither can reach `extension/` at runtime. Their copies are generated, never hand-edited:
@@ -245,4 +245,4 @@ Keep the text short. Avada centres it inside 200 px, so a sentence or two reads 
 - **Extension popup redesign (v2.97.0):** the popup became a single-column launcher (search-first, folder chips, per-language inline detail); it now ships at 540×600 (width widened from the original 480 in v2.110.0). Approved review mock at `design_handoff_design_system/mockups/popup-launcher-v2.html`. The extension section of `harmonized-final.html` and `kits/extension.html` still show the pre-redesign popup (sidebar + 32px sync bar + iris-gradient logo) — update them to this layout so the canonical mockup matches shipped UI.
 - **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
 - **Danger token alignment:** move the extension's `--sb-danger` from `#DC2626` to the canonical `#D70015` so the two surfaces match. Touches every danger element in the popup, so it wants its own change and a visual pass — not a side effect of the ticket that surfaced it.
-- **Status badges on `/mobile/` and `Sprintbrain.html`:** neither surface renders them yet. `Sprintbrain.html` reuses `popup.js` but has no `#list` element, so `renderList` returns early and no markup is emitted — adding them there means porting the `.sb-stat` rules too.
+- **Status badges on `/mobile/`:** not rendered there yet.

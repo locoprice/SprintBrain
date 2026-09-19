@@ -60,7 +60,7 @@ Across `/` (snippets), `/prompts` and `/memory`, the page shell is 100% identica
 - No section gets a "slightly better" layout. If a layout is better, it is applied to all three in the same change.
 - Each section's own content sits *inside* that identical shell. A folder tree and a space list occupy the same slot, styled the same way.
 
-The extension, `Sprintbrain.html` and the mobile app follow their own surface conventions. They must not contradict the dashboard's visual language, and rule 1 still binds them.
+The extension and the mobile app follow their own surface conventions. They must not contradict the dashboard's visual language, and rule 1 still binds them.
 
 ### 4. UI component parity is exact (React dashboard)
 A component built for one section is the same component in the other two: same structure, styling, spacing, states and interaction logic. This covers menus and dropdowns, context menus, filter panels, sort controls, search fields, selection and bulk-action bars, row and card actions, hover and focus states, buttons, dialogs, previews, toggles, chips, badges, tooltips and confirmations.
@@ -76,7 +76,8 @@ Rule 1 is per surface, and each surface keeps its own copies in sync:
 - React dashboard: `app/src/features/snippets`, `app/src/features/prompts`, `app/src/features/memory` and their pages in `app/src/routes/`.
 - Mobile web app: `app/public/mobile/index.html` (its own renderers, kept aligned by hand).
 - Chrome extension: `extension/popup/`, `extension/content/`, `extension/shared/`.
-- `Sprintbrain.html` (shares the popup logic core).
+
+`Sprintbrain.html`, the old vanilla dashboard, was retired in v3.36.0. Comments and older docs that still name it describe history, not a surface to update.
 
 Where a section is deliberately absent or read-only on a surface (see 2), that decision stands and parity applies to the surfaces where it exists. Two rules keep this from becoming a loophole:
 
@@ -99,7 +100,7 @@ Add a field kind, a token, an attribute, a control, a default, a validation, a p
 | Surface | File | What it is |
 |---|---|---|
 | **In-page overlay** | `extension/content/content.js` | The fill modal that opens when a trigger fires. **The primary surface.** Three entry points: trigger, picker, context menu |
-| **Popup detail modal** | `extension/popup/popup.js` | The popup's fill form, and `Sprintbrain.html`'s, from one file |
+| **Popup detail modal** | `extension/popup/popup.js` | The popup's fill form |
 | **Editor live preview** | `app/src/features/snippets/SnippetPreview.tsx` | What the author sees while writing |
 | **Mobile** | `app/public/mobile/index.html` | `sprintbrain.com/mobile`. Its own renderer, kept aligned by hand. **A daily driver, not an afterthought** |
 
@@ -113,7 +114,7 @@ What a fill form **is** (which fields, of what kind, what each control offers, w
 A new token in `extension/formula-engine.js` needs a renderer on every surface in the same task. A surface that has not caught up does not show a broken field, it shows **no field at all**, and the snippet quietly prints the wrong thing.
 
 ### 3. Mind the surfaces that keep their own copy
-`app/public/mobile/index.html` cannot load `extension/`: it carries a generated copy of the shared module (`node scripts/sync-fill-form.js`) plus **its own parser**, so any engine change that alters output has to be ported there by hand. `extension/popup/popup.js` is also `Sprintbrain.html`'s logic core, and the two style it separately, so a new control needs CSS in **both** stylesheets.
+`app/public/mobile/index.html` cannot load `extension/`: it carries a generated copy of the shared module (`node scripts/sync-fill-form.js`) plus **its own parser**, so any engine change that alters output has to be ported there by hand.
 
 ### 4. Name the gaps, never invent one
 Where a surface deliberately does not carry something (prompts expand raw and have no fill form; memory has no body fields; the popup is read-only), that decision stands and is stated in the summary. If a change genuinely cannot reach a surface, stop and ask Valentina or Alessandro before shipping the partial version.
@@ -151,7 +152,7 @@ Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRL
 - **Quantities are numeric fields.** Price, total, count, duration, quantity — declared as a numeric field, never as a text field, and never as a text field a formula happens to add up.
 - **Never rewrite user data to satisfy this.** Snippets already written keep working exactly as written. The rule governs what SprintBrain ships, not what people typed into it.
 
-> **Open gap — the numeric rule cannot be satisfied yet.** No body token declares a numeric field: `buildFormFieldCfg` recognises `{formtext:}` / `{formdate:}` / `{formmenu:}` only, and the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and the mobile app, and by neither the popup nor `Sprintbrain.html`. Closing this needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the two missing renderers. Until it lands, say so rather than shipping a quantity as text and calling it done.
+> **Open gap: the numeric rule cannot be satisfied yet.** No body token declares a numeric field: `buildFormFieldCfg` recognises `{formtext:}` / `{formdate:}` / `{formmenu:}` only, and the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and the mobile app, and not by the popup. Closing this needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the missing popup renderer. Until it lands, say so rather than shipping a quantity as text and calling it done.
 
 ---
 
@@ -197,7 +198,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Vertical vocabulary in anything the product ships — see 🌍 Industry-Neutral.
 - Declaring a quantity as a text field.
 - Shipping a change to snippets, prompts or memory without the same change in the other two, or giving one of them a page shell, menu, component or wording the others do not have (see the Tripartite Parity section, and its list of what stays distinct).
-- Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal (and `Sprintbrain.html`), the live preview and mobile (see ⚡ Authoring and Expansion Parity).
+- Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal, the live preview and mobile (see ⚡ Authoring and Expansion Parity).
 - Deferring mobile to a later version, or calling a snippet change done while `app/public/mobile/index.html` still lacks it (see 📱 Mobile).
 - Translating the dashboard, extension popup or mobile interface — the translation authorisation covers the landing page only. See 🌐 Landing Translations.
 
@@ -254,7 +255,7 @@ Every implementation summary must include:
 **Changes made:** …
 **Verification:** lint / typecheck / build — PASS / FAIL / N/A · manual test — PASS / FAIL
 **Regression check:** Result PASS / FAIL · Impacted scope [modules / routes / components / APIs]
-**Expansion check** (snippet changes only): overlay / popup + `Sprintbrain.html` / live preview / mobile — each opened and exercised, or the reason it does not apply.
+**Expansion check** (snippet changes only): overlay / popup / live preview / mobile: each opened and exercised, or the reason it does not apply.
 
 ---
 

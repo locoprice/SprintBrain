@@ -154,7 +154,7 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
 - `handleMatch()` — Triggers overlay or direct insertion
 - `showOverlay()` — Inline field input UI
 
-**`popup/popup.js`** — Read-only popup UI (instantiated on every icon click). Since v2.87.0 the popup only browses/searches/copies snippets and prompts and writes the expansion caches — all management (snippet/folder CRUD, triggers, Notion credentials, Team Sync) lives in the dashboard. The `DB` CRUD wrapper below remains as the shared data core (used by `Sprintbrain.html` and the popup's own stats/cache writes).
+**`popup/popup.js`**: Read-only popup UI (instantiated on every icon click). Since v2.87.0 the popup only browses/searches/copies snippets and prompts and writes the expansion caches. All management (snippet/folder CRUD, triggers, Notion credentials, Team Sync) lives in the dashboard. The `DB` CRUD wrapper below remains for the popup's own stats and cache writes.
 - `DB` object — wraps all Supabase CRUD operations:
   - `DB.loadAll()` — Loads folders, snippets, stats
   - `DB.upsertSnippet(s)` — Create/update snippet
@@ -162,10 +162,10 @@ auth/auth.js  ────  importScripts'd by background.js  ────  Supa
   - `DB.upsertFolder(f)` / `DB.deleteFolder(id)` — Folder management
   - `DB.updateStats(snippetId, uses, fills, lastUsed)` — Usage tracking
 - `supaFetch(table, method, body, qs)` — Full REST wrapper (GET/POST/DELETE)
-- **Also the logic core of the web dashboard** (`Sprintbrain.html`, repo root): its `DB`, model helpers, and `window.*` globals (incl. `CHANGELOG`) are reused there behind `extension/shared/chrome-shim.js`. Editing popup.js affects **both** the extension popup and the dashboard — verify both surfaces. See §14.
+- Until v3.36.0 it was also the logic core of `Sprintbrain.html`, run behind `extension/shared/chrome-shim.js`. That page and the shim are retired, so popup.js now serves the popup only. See §14.
 
 **`auth/auth.js`** — Supabase OTP + session management
-- Loaded via `importScripts()` in `background.js` and as a plain script by the popup and `Sprintbrain.html`
+- Loaded via `importScripts()` in `background.js` and as a plain script by the popup
 - `sbRequestOtp(email)`, `sbVerifyOtp(email, code, rememberMe)`, `sbVerifyTokenHash(tokenHash)` — the dashboard SSO handoff (AUTH-EXT-003) redeems a one-time token_hash minted by the `mint-extension-session` edge function, so the extension owns a refresh-token family independent from the dashboard's
 - `sbRefreshToken()` is fail-open: only a definitive GoTrue rejection (or a closed remember-me window) clears the session; transient errors keep it. The 30-day remember window slides forward on every successful refresh
 - Stores the session in `chrome.storage.local` (`sb_session`, `sb_remember_until`)
@@ -357,7 +357,6 @@ var SUPA_KEY = 'sb_publishable_...';
 # From repo root
 python3 -m http.server 8080
 # Popup:     http://localhost:8080/extension/popup/popup.html
-# Dashboard: http://localhost:8080/Sprintbrain.html   (shared-core web dashboard)
 ```
 
 ### CI (GitHub Actions)
@@ -417,7 +416,7 @@ chore: bump manifest version to 2.38.0
 ## 14. Planned / Future Work
 
 - Pro tier with Stripe payments
-- ~~Web dashboard~~ ✅ shipped — **two surfaces**: React + Vite (`app/`, app.sprintbrain.com) AND the vanilla **shared-core dashboard `Sprintbrain.html`** (repo root) that drives the same `popup.js` / `auth.js` / `notion-sync.js` / `formula-engine.js` behind `chrome-shim.js`. The popup→dashboard parity migration is complete (v2.79.0–2.80.0): full snippet/folder/prompt CRUD, settings, context menus, and a **changelog** modal (renders the shared `window.CHANGELOG`). Supabase is the single source of truth; both surfaces reconcile through it.
+- ~~Web dashboard~~ ✅ shipped: React + Vite (`app/`, app.sprintbrain.com). A second, vanilla dashboard, `Sprintbrain.html` (repo root), ran the same `popup.js` / `auth.js` / `notion-sync.js` / `formula-engine.js` behind `chrome-shim.js` from v2.79.0. It was retired in v3.36.0: everything it did lives in the React dashboard, and nothing linked to it. Supabase is the single source of truth.
   - **Composer removed in v3.5.0.** It was a template tester on its own page in `Sprintbrain.html`, reached by a sidebar link out of the React app. It could not open a saved snippet — testing one meant copying the body across and pasting it back — and the React editor had no preview at all, so a formula was written blind and verified only after a customer received it. Both problems close in one move: the same three panes are now a **live preview panel beside the body field** in the dashboard editor (`app/src/features/snippets/SnippetPreview.tsx`), loading the shared `formula-engine.js` + `shared/fill-form.js` from `/extension/*` via `app/src/lib/fillFormEngine.ts`. No second engine, no fork; `scripts/check-fill-form.js` and `scripts/check-snippets.js` cover the new surface exactly as they covered the composer.
 - Semantic search across snippets
 - ~~Per-user authentication via Supabase Auth~~ ✅ shipped (per-user JWT)

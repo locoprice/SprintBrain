@@ -132,7 +132,7 @@ const MENU_RENDERERS = [
   // The popup detail reads its fields from the shared view model (see
   // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
   // assertion is unchanged: the control is still picked by the menu's kind.
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+  ['extension/popup/popup.js', 'popup detail',
     "f.multiple?'checkbox':'radio'", ' name="d-'],
   // The mobile companion reads its fields from the shared view model (inlined
   // by scripts/sync-fill-form.js), so its marker names `fld`, not `c`. The
@@ -180,9 +180,8 @@ console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' f
 const PICKER_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay',
     ["cfg.type === 'date'", 'type="date"', "cfg.type === 'time'", 'type="time"']],
-  // The popup detail (and Sprintbrain.html's, which shares popup.js as its
-  // logic core) maps both kinds straight through to the input type.
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+  // The popup detail maps both kinds straight through to the input type.
+  ['extension/popup/popup.js', 'popup detail',
     ["(f.type==='date'||f.type==='time')?f.type"]],
   ['app/public/mobile/index.html', 'mobile companion',
     ["t==='date'", 'type="date"', "t==='time'", 'type="time"']],
@@ -241,7 +240,6 @@ console.log('OK Declared date/time kinds reach the renderers (' +
 const MENU_OPTION_CSS = [
   ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
   ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
-  ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
   // Tailwind, not a stylesheet rule: the option list is the flex column here.
   ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
     'flex flex-col gap-0.5'],
@@ -1035,7 +1033,7 @@ for (const [dstType, srcValue, want] of [
 // picker, which is exactly the bug this closes.
 const ORDER_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay', ['_sbOrderAttrs', '_sbReorder(el)', 'data-after']],
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html', ['reorderDetailDates', 'data-after']],
+  ['extension/popup/popup.js', 'popup detail', ['reorderDetailDates', 'data-after']],
   ['app/public/mobile/index.html', 'mobile companion', ['sbOrderAttrs', 'sbReorderDates', 'data-after']],
   ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview', ['field.min']],
 ];

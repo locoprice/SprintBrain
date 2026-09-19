@@ -3,15 +3,15 @@
 //
 // "Interactive Steps" puts a block before a prompt when SprintBrain hands it
 // out. It is decided once in extension/shared/interactive-steps.js and reaches
-// five surfaces, so this gate pins what they share:
+// four surfaces, so this gate pins what they share:
 //
 //   1. the module: the key, the block, and when the block is added
 //   2. where the setting is stored: chrome.storage.local in the extension, a
-//      plain localStorage key on the web, including under chrome-shim.js
+//      plain localStorage key on the web
 //   3. the dashboard copy (app/src/lib/interactiveSteps.ts): same key, same
 //      block, same answer for every case
-//   4. the load order: manifest.json, popup.html and Sprintbrain.html load the
-//      module before the code that uses it, and every copy or insert applies it
+//   4. the load order: manifest.json and popup.html load the module before
+//      the code that uses it, and every copy or insert applies it
 //   5. the in-page picker: the real content.js inserts a saved prompt with the
 //      block only while the popup switch is on, and never changes a Base Prompt
 //   6. the mobile copy, generated between markers like the other shared modules
@@ -123,17 +123,6 @@ function stored(api) {
   api.save(false);
   check('web: reads back off', stored(api), false);
 }
-{
-  const area = {};
-  const page = memoryLocalStorage();
-  const api = runModule({
-    localStorage: page,
-    chrome: { runtime: { id: 'sprintbrain-web-shim', lastError: null }, storage: { local: chromeStorage(area) } },
-  });
-  api.save(true);
-  check('Sprintbrain.html: chrome-shim is not used', Object.keys(area), []);
-  check('Sprintbrain.html: kept under the plain localStorage key', page.data[S.KEY], 'true');
-}
 
 // ── 4. load order, and every copy or insert applies the block ────────
 function before(text, first, then) {
@@ -161,16 +150,11 @@ check('popup.html loads the module before popup.js',
 check('popup.html draws the switch in the Prompts tab',
   before(POPUP_HTML, 'id="prompt-main"', 'id="p-steps-on"') && before(POPUP_HTML, 'id="p-steps-on"', 'id="plist"'), true);
 
-const SB_HTML = readText(path.join(ROOT, 'Sprintbrain.html'));
-check('Sprintbrain.html loads the module before popup.js',
-  before(SB_HTML, '<script src="extension/shared/interactive-steps.js"></script>', '<script src="extension/popup/popup.js"></script>'), true);
-
 const POPUP_JS = readText(path.join(ROOT, 'extension', 'popup', 'popup.js'));
 const MOBILE_HTML = readText(MOBILE_PATH);
 const MODAL = readText(path.join(ROOT, 'app', 'src', 'features', 'prompts', 'PromptPreviewModal.tsx'));
 const APPLY = 'SBInteractiveSteps.apply(';
 check('popup copies through the module', fnSource(POPUP_JS, 'function copyPrompt(', '').indexOf(APPLY) !== -1, true);
-check('Sprintbrain.html copies through the module', fnSource(SB_HTML, 'function renderPromptsMain(', '  ').indexOf(APPLY) !== -1, true);
 check('mobile copies through the module', fnSource(MOBILE_HTML, 'function promptCopy(', '').indexOf(APPLY) !== -1, true);
 check('mobile shares through the module', fnSource(MOBILE_HTML, 'function sharePrompt(', '').indexOf(APPLY) !== -1, true);
 check('dashboard preview copies what it shows', /writeText\(output\)/.test(MODAL) && /applyInteractiveSteps\(assembled, stepsOn\)/.test(MODAL), true);
