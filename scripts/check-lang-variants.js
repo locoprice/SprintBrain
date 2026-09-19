@@ -351,6 +351,22 @@ check('a group id never collides with an unrelated base trigger', langsOf(m), ['
     const cold = picker.factsFromSearchRows([row('snippet', 'air-fr', 3, 0.02), row('snippet', 'air-it', 3, 0.01)],
       sandbox.sbMemorySnippetInfo, sandbox.sbMemoryPreferredLangs('IT'));
     check('with no local library every row stays its own fact', cold.map((f) => f.id), ['air-fr', 'air-it']);
+
+    // Pre-selection. knowledge_search returns everything that plausibly matches;
+    // only facts close to the best score start ticked, the rest stay listed.
+    // Score shapes taken from real drafts against a production library.
+    const fact = (id, rank, tokens) => ({ id, rank, tokens });
+    check('only facts close to the best score start ticked',
+      Object.keys(picker.preselect([fact('airport', 46.6, 60), fact('client', 26.9, 70), fact('late-fee', 24.6, 50)], 2000)),
+      ['airport']);
+    check('a close second starts ticked too',
+      Object.keys(picker.preselect([fact('discount', 26.3, 180), fact('extra-seat', 24.0, 80)], 2000)).sort(),
+      ['discount', 'extra-seat']);
+    check('a browse starts with nothing ticked',
+      Object.keys(picker.preselect([fact('recent-a', 0, 10), fact('recent-b', 0, 10)], 2000)), []);
+    check('a strong fact that does not fit is skipped, not terminal',
+      Object.keys(picker.preselect([fact('long', 50, 900), fact('short', 45, 200), fact('shorter', 44, 90)], 1000)).sort(),
+      ['long', 'shorter']);
   }
 }
 

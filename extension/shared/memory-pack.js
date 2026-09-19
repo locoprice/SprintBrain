@@ -250,8 +250,9 @@
   // This is the half the injection panel calls: the user is mid-sentence, the
   // draft is the query, and this decides what actually goes in the box.
 
-  // Score of a result ranked 15th by a single arm, under the 1/(60+rank)
-  // fusion knowledge_search uses. Below it a match is incidental.
+  // The floor for fusion ranks: a result ranked 15th by a single arm under
+  // 1/(60+rank). knowledge_search no longer fuses; it gates its own results and
+  // scores them 8 and up, so this never drops one of them. See engine.ts.
   var DEFAULT_MIN_RANK = 1 / 75;
   var NEAR_DUPLICATE_THRESHOLD = 0.85;
 

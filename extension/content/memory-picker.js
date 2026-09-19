@@ -77,6 +77,40 @@
     return null;
   }
 
+  /**
+   * The part of an element that is on screen: its box, cut down by every
+   * ancestor that clips its content (overflow other than visible) and by the
+   * viewport. A composer that holds more text than fits scrolls inside such an
+   * ancestor, so its own box runs far above and below what the user sees.
+   * Returns {top, left, right, bottom, width, height}; width or height of zero
+   * when nothing of it shows.
+   */
+  function visibleRect(el, win) {
+    var w = win || root;
+    var r = el.getBoundingClientRect();
+    var top = r.top, left = r.left, right = r.right, bottom = r.bottom;
+    for (var node = el.parentElement; node; node = node.parentElement) {
+      var cs = w.getComputedStyle ? w.getComputedStyle(node) : null;
+      if (!cs) continue;
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+      var c = node.getBoundingClientRect();
+      if (c.top > top) top = c.top;
+      if (c.left > left) left = c.left;
+      if (c.right < right) right = c.right;
+      if (c.bottom < bottom) bottom = c.bottom;
+    }
+    var vw = w.innerWidth || right;
+    var vh = w.innerHeight || bottom;
+    if (top < 0) top = 0;
+    if (left < 0) left = 0;
+    if (right > vw) right = vw;
+    if (bottom > vh) bottom = vh;
+    return {
+      top: top, left: left, right: right, bottom: bottom,
+      width: Math.max(0, right - left), height: Math.max(0, bottom - top)
+    };
+  }
+
   function isVisible(el) {
     if (!el) return false;
     var r = el.getBoundingClientRect();
@@ -332,6 +366,53 @@
     return facts;
   }
 
+  // A fact starts ticked only when it scores close to the best one. The rest are
+  // listed, unticked, for the user to add. See preselect().
+  var PRESELECT_RATIO = 0.8;
+
+  /**
+   * The facts the panel opens with ticked, as {id: true}.
+   *
+   * The common case is accepting what was suggested, so the panel opens with a
+   * usable selection rather than an empty one. But knowledge_search returns
+   * everything that plausibly matches, and a draft about an airport also matches
+   * a reply that happens to mention the client. Ticking all of it put those in
+   * the box too, which is exactly what made injected context read as noise. So
+   * only facts within PRESELECT_RATIO of the best score start ticked; the looser
+   * ones stay visible, one click away.
+   *
+   * Nothing is ticked for a browse. An empty composer, or one holding only
+   * greetings and function words, has nothing to match, and knowledge_search
+   * answers with a recency listing scored zero throughout. Ticking that would
+   * present the last things the user edited as relevant.
+   *
+   * Top down, and a fact that does not fit the budget is skipped rather than
+   * ending the loop, so a short one ranked below a long one still gets in: the
+   * same rule the engine applies at insert.
+   */
+  function preselect(facts, budget) {
+    var list = facts || [];
+    var top = 0;
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i].rank > top) top = list[i].rank;
+    }
+
+    var picked = {};
+    if (top <= 0) return picked;
+
+    var used = 0;
+    for (i = 0; i < list.length; i++) {
+      var fact = list[i];
+      if (fact.rank < PRESELECT_RATIO * top) continue;
+      if (used + fact.tokens <= budget) {
+        picked[fact.id] = true;
+        used += fact.tokens;
+      }
+    }
+    return picked;
+  }
+
   /**
    * @param {object} deps
    *   search(query, cb)         cb(err, rows): knowledge_search rows, no bodies
@@ -369,14 +450,25 @@
     var composer = null;
     var lastUndo = null;
 
+    // Anchored to the part of the composer the user can see, not to the text
+    // element itself. Once a composer fills up, the text scrolls inside a box of
+    // fixed height, and the element's own top edge moves far above that box:
+    // the pill followed it up the page, away from the field it belongs to.
     function position() {
       if (!composer) { host.style.display = 'none'; return; }
-      var r = composer.getBoundingClientRect();
-      if (r.width < 80) { host.style.display = 'none'; return; }
+      var r = visibleRect(composer, win);
+      if (r.width < 80 || r.height <= 0) { host.style.display = 'none'; return; }
       host.style.display = 'block';
       host.style.left = Math.round(r.left) + 'px';
       host.style.top = Math.round(r.top - 34) + 'px';
     }
+
+    // The composer grows as text goes in, whether typed or inserted from this
+    // panel, and nothing scrolls while it does. Without this the pill kept its
+    // old place until the next refresh tick.
+    var sizeWatch = typeof win.ResizeObserver === 'function'
+      ? new win.ResizeObserver(function () { position(); })
+      : null;
 
     function closeMenu() {
       if (menu) { menu.remove(); menu = null; }
@@ -610,32 +702,9 @@
       return (win.location && win.location.hostname) || '';
     }
 
-    /**
-     * Pre-check from the top down until the budget is full.
-     *
-     * The common case is accepting what was suggested, so the panel opens with
-     * a usable selection rather than an empty one. A candidate that does not
-     * fit is skipped rather than ending the loop, so a short item ranked below
-     * a long one still gets in, which is the same rule the engine applies.
-     *
-     * ONLY what a search arm actually matched. With an empty composer there is
-     * nothing to match, and knowledge_search answers with a recency listing
-     * scored zero throughout. Ticking that filled the budget with the last
-     * eleven things the user happened to edit and presented them as relevant,
-     * which is worse than offering nothing: the whole promise of the panel is
-     * that what it suggests has something to do with the sentence being
-     * written. A browse is still listed, just never pre-selected.
-     */
+    // See preselect(): the rule lives outside the panel so the gate can test it.
     function autoCheck() {
-      checked = {};
-      var used = 0;
-      for (var i = 0; i < results.length; i++) {
-        if (results[i].rank <= 0) continue;
-        if (used + results[i].tokens <= budget) {
-          checked[results[i].id] = true;
-          used += results[i].tokens;
-        }
-      }
+      checked = preselect(results, budget);
     }
 
     /** True when a search ran and something matched it. */
@@ -829,7 +898,14 @@
 
     function refresh() {
       var found = findComposer(doc, (win.location && win.location.hostname) || '');
-      if (found !== composer) { composer = found; closeMenu(); }
+      if (found !== composer) {
+        if (sizeWatch) {
+          sizeWatch.disconnect();
+          if (found) sizeWatch.observe(found);
+        }
+        composer = found;
+        closeMenu();
+      }
       position();
     }
 
@@ -859,6 +935,9 @@
     hostConfig: hostConfig,
     readComposer: readComposer,
     factsFromSearchRows: factsFromSearchRows,
+    preselect: preselect,
+    visibleRect: visibleRect,
+    PRESELECT_RATIO: PRESELECT_RATIO,
     create: create
   };
 

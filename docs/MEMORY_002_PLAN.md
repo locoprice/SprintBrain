@@ -191,6 +191,12 @@ score blending, because a `ts_rank` and a trigram similarity are not comparable 
 needs no normalisation between arms. It also degrades cleanly: with an arm returning nothing,
 the ranking stays stable.
 
+> **Superseded 2026-09-18.** The full-text arm ANDed every word of the draft and the trigram arm
+> compared the whole draft to a title, so neither matched a written sentence and fusion had nothing
+> to fuse. `knowledge_search` now scores content words directly (idf squared, title boost, length
+> normalisation, typo fallback) and gates its own results. The SQL/TypeScript line is unchanged:
+> SQL still only filters and ranks. See `docs/MEMORY_INJECTION_ENGINE.md` §0b.
+
 The parity gate covers the TypeScript side. Candidate generation is covered by SQL fixtures.
 Ranking never straddles the two, which is what keeps P-2 enforceable rather than aspirational.
 
