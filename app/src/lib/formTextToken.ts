@@ -26,6 +26,13 @@ export interface FormTextConfig {
   name: string;
   /** Value the field starts with, or '' for an empty field. */
   default: string;
+  /**
+   * The field holds a person's name, written as `format=name`. What is typed
+   * then prints with a name's capitals in the snippet's language:
+   * "giovanni rossi" becomes "Giovanni Rossi", "signor rossi" stays
+   * "signor Rossi" in Italian. The default prints exactly as written.
+   */
+  personName?: boolean;
 }
 
 /**
@@ -57,7 +64,8 @@ export function sanitizeTextDefault(raw: string): string {
 
 export function buildFormTextToken(cfg: FormTextConfig): string {
   const value = sanitizeTextDefault(cfg.default);
-  const out = `{formtext: name=${sanitizeTextName(cfg.name)}`;
+  const head = `{formtext: name=${sanitizeTextName(cfg.name)}`;
+  const out = cfg.personName ? `${head}; format=name` : head;
   return `${value === '' ? out : `${out}; default=${value}`}}`;
 }
 

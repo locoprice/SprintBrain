@@ -405,6 +405,12 @@ const fieldCfgCases = [
   '{formmenu: A,B}',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
+  // NAME FIELD: format=name on a text field. Any other format on a text field,
+  // and a name format on a number, is a typo that leaves the field as it was.
+  '{formtext: name=GUEST; format=name}',
+  '{formtext: name=GUEST; FORMAT=Name; default=huésped}',
+  '{formtext: name=GUEST; format=nome}',
+  '{formtext: name=N; type=number; format=name}',
   '{formdate: name=CHECKIN; default=2026-08-06}',
   // NUMBER FIELD — the type and format ride on {formtext:} rather than a token
   // of their own, so both parsers must read the same attributes off the same
@@ -603,6 +609,122 @@ if (engine.resolveBody('{formdate: name=D; format=DD/MM/YYYY} and {D}',
   fail('a bare reference to a formatted date field is not printing formatted');
 }
 console.log('OK Date formatting parity passed all ' + dok + ' cases');
+
+// ── NAME FIELD + {case:} LANGUAGE PARITY ────────────────────────────
+// A name field and the sentence and title modes of {case:} decide capitals by
+// language, from word lists the phone keeps its own copy of. A list edited on
+// one side only would print a guest's name, a day or a title differently on the
+// phone, so every case below runs through both copies in all five languages.
+for (const fn of ['sbFormatPersonName', 'sbApplyCaseMode']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+const NAME_LANGS = ['EN', 'IT', 'ES', 'FR', ''];
+const NAME_VALUES = [
+  'giovanni rossi', 'GIOVANNI ROSSI', 'Giovanni rossi', 'McDonald', 'maria de la cruz',
+  'de la cruz', 'sr. de la cruz', 'signor rossi', 'dott.ssa bianchi', 'SIG. ROSSI',
+  'anna di maio', 'mr smith', 'doctor rossi', 'jean de la fontaine',
+  "valéry giscard d'estaing", 'm. dupont', 'madame dupont', 'mme dupont',
+  'ludwig van beethoven', 'henry viii', "o'brien", 'jean-luc picard', 'don pedro',
+  'doña maría', 'j. r. r. tolkien', '  giovanni  ', '', '12 b', 'łukasz żółć',
+];
+const CASE_TEXTS = [
+  'WE ARRIVE ON MONDAY IN SEPTEMBER. MR. SMITH SPEAKS ENGLISH.',
+  'you may pay on 3 may. i think so. the doctor said no. i met Doctor Rossi.',
+  'ARRIVO LUNEDÌ 5 SETTEMBRE. GLI ITALIANI BEVONO VINO ITALIANO. IL DOTT. ROSSI.',
+  'llegada el lunes. el sr. pérez habla inglés. Julio llega en julio.',
+  "ARRIVÉE LUNDI. LES ITALIENS AIMENT LE VIN ITALIEN. MME DUPONT. IL ME DIT.",
+  "la guida dell'isola: l'arte e il mare", 'the art of public speaking',
+  'I HAVE A ROOM. VINO E PANE.', 'HELLO there. HOW are you? fine!', '   ', '123 456',
+];
+let nok = 0;
+for (const lang of NAME_LANGS) {
+  for (const v of NAME_VALUES) {
+    const want = engine.sbFormatPersonName(v, lang);
+    const got = mobile.sbFormatPersonName(v, lang);
+    if (got !== want) {
+      fail('name formatting drift for ' + JSON.stringify([v, lang]) +
+        '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+    }
+    nok++;
+  }
+  for (const text of CASE_TEXTS) {
+    for (const mode of ['sentence', 'title', 'upper', 'lower']) {
+      const want = engine.sbApplyCaseMode(text, mode, lang);
+      const got = mobile.sbApplyCaseMode(text, mode, lang);
+      if (got !== want) {
+        fail('{case: ' + mode + '} drift for ' + JSON.stringify([text, lang]) +
+          '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+      }
+      nok++;
+    }
+  }
+  const nameBody = '{formtext: name=G; format=name; default=huésped}';
+  const wantMap = JSON.stringify(engine.buildFormFieldCfg(nameBody));
+  const gotMap = JSON.stringify(mobile.sbFieldFormatMap(nameBody, null, lang));
+  const wantFmt = JSON.stringify({ G: { kind: 'name', lang: lang, dflt: 'huésped' } });
+  if (gotMap !== wantFmt) {
+    fail('mobile sbFieldFormatMap for a name field in ' + JSON.stringify(lang) +
+      ' -> ' + gotMap + ', expected ' + wantFmt + ' (field cfg ' + wantMap + ')');
+  }
+}
+
+// Valentina's capitalization rules, pinned to what the engine prints. Parity
+// above only proves the two copies agree; these prove they agree on the rules.
+const NAME_OUTPUT = [
+  ['giovanni rossi', 'IT', 'Giovanni Rossi'],
+  ['GIOVANNI ROSSI', 'EN', 'Giovanni Rossi'],
+  ['maria de la cruz', 'ES', 'Maria de la Cruz'],
+  ['signor rossi', 'IT', 'signor Rossi'],
+  ['dott.ssa bianchi', 'IT', 'Dott.ssa Bianchi'],
+  ['mr smith', 'EN', 'Mr Smith'],
+  ['doctor rossi', 'EN', 'Doctor Rossi'],
+  ['sr. pérez', 'ES', 'Sr. Pérez'],
+  ['madame dupont', 'FR', 'madame Dupont'],
+  ['jean de la fontaine', 'FR', 'Jean de La Fontaine'],
+  ['McDonald', 'EN', 'McDonald'],
+];
+for (const [v, lang, want] of NAME_OUTPUT) {
+  const got = engine.sbFormatPersonName(v, lang);
+  if (got !== want) {
+    fail('name ' + JSON.stringify([v, lang]) + ' -> ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want));
+  }
+}
+const CASE_OUTPUT = [
+  ['sentence', 'EN', 'WE ARRIVE ON MONDAY IN SEPTEMBER. MR. SMITH SPEAKS ENGLISH.',
+    'We arrive on Monday in September. Mr. Smith speaks English.'],
+  ['sentence', 'EN', 'you may pay on 3 may.', 'You may pay on 3 May.'],
+  ['sentence', 'IT', 'ARRIVO LUNEDÌ 5 SETTEMBRE. GLI ITALIANI BEVONO VINO ITALIANO.',
+    'Arrivo lunedì 5 settembre. Gli Italiani bevono vino italiano.'],
+  ['sentence', 'ES', 'LLEGADA EL LUNES. EL SR. PÉREZ HABLA INGLÉS.',
+    'Llegada el lunes. El Sr. Pérez habla inglés.'],
+  ['sentence', 'FR', 'LES ITALIENS AIMENT LE VIN ITALIEN. MME DUPONT PARLE ANGLAIS.',
+    'Les Italiens aiment le vin italien. Mme Dupont parle anglais.'],
+  ['sentence', 'EN', 'this is Giovanni\'s room.', 'This is Giovanni\'s room.'],
+  ['title', 'IT', 'arrivo lunedì, camera di giovanni', 'Arrivo lunedì, Camera di Giovanni'],
+  ['title', 'ES', 'llegada el lunes a la habitación', 'Llegada el lunes a la Habitación'],
+  ['title', 'IT', "la guida dell'isola", "La Guida dell'Isola"],
+];
+for (const [mode, lang, text, want] of CASE_OUTPUT) {
+  const got = engine.sbApplyCaseMode(text, mode, lang);
+  if (got !== want) {
+    fail('{case: ' + mode + '} ' + JSON.stringify([text, lang]) + ' -> ' +
+      JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+  }
+}
+// The default is the author's wording, so it prints as written; what is typed
+// prints as a name, and a bare {G} later in the body prints the same way.
+const nameField = 'Estimado {formtext: name=G; format=name; default=huésped}. {G}';
+if (engine.resolveBody(nameField, { G: 'huésped' }, { lang: 'ES' }) !== 'Estimado huésped. huésped') {
+  fail('a name field is re-casing the default the author wrote');
+}
+if (engine.resolveBody(nameField, { G: 'sr. pérez' }, { lang: 'ES' }) !== 'Estimado Sr. Pérez. Sr. Pérez') {
+  fail('a name field is not printing what was typed as a name');
+}
+if (engine.resolveBody('Hey {formtext: name=G}!', { G: 'giovanni' }, { lang: 'EN' }) !== 'Hey giovanni!') {
+  fail('a text field without format=name is being re-cased');
+}
+console.log('OK Name field + {case:} language parity passed all ' + nok + ' cases');
 
 // ── SHIFT + ANCHORED TIME PARITY ────────────────────────────────────
 // A {time:} token decides which DAY a message is talking about. The phone and

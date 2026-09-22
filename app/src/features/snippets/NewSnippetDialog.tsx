@@ -1153,6 +1153,13 @@ export function NewSnippetDialog() {
                       only the exception needs typing.
                     </dd>
                   </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Person name</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. A name typed in lowercase gets its capitals when the snippet
+                      expands, following the snippet&apos;s language.
+                    </dd>
+                  </div>
                 </dl>
               </Toggle>
 

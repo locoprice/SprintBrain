@@ -866,11 +866,14 @@
   // `override` is resolveBody's `fmtOverride` opt: a format chosen while the
   // form is being filled in, rather than by the author. Only a date, a time or
   // a datetime accepts one, and only from its own closed list, so a stray key can
-  // never turn a number field into a date. '' is a real answer there — print
+  // never turn a number field into a date. '' is a real answer there (print
   // the picker's own value, which is what a {formdate:} with no format= has
-  // always done — so the override is read with hasOwnProperty rather than for
+  // always done), so the override is read with hasOwnProperty rather than for
   // truthiness.
-  function _fieldFormatMap(body, override) {
+  //
+  // `lang` is the body's language, which a name field needs: "signor rossi"
+  // prints as "signor Rossi" in Italian and "Signor Rossi" in English.
+  function _fieldFormatMap(body, override, lang) {
     var cfg = buildFormFieldCfg(body), out = null, ov = override || null;
     for (var k in cfg) {
       if (!Object.prototype.hasOwnProperty.call(cfg, k)) continue;
@@ -894,6 +897,9 @@
         if (!dfmt) continue;
         if (!out) out = {};
         out[k] = { kind: 'date', format: dfmt };
+      } else if (f.type === 'text' && f.format === 'name') {
+        if (!out) out = {};
+        out[k] = { kind: 'name', lang: lang || '', dflt: f['default'] || '' };
       }
     }
     return out;
@@ -902,6 +908,12 @@
   function _emitField(key, value, fmtMap) {
     var f = fmtMap && key ? fmtMap[key] : null;
     if (!f) return value;
+    if (f.kind === 'name') {
+      // The default is the author's own wording and prints as they wrote it:
+      // "Estimado {formtext: name=NAME; format=name; default=huésped}" must not
+      // turn the generic word into "Huésped". Only what was typed is a name.
+      return String(value) === f.dflt ? value : sbFormatPersonName(value, f.lang);
+    }
     return f.kind === 'date'
       ? sbFormatDateValue(value, f.format)
       : sbFormatNumber(value, f.format, f.currency);
@@ -1006,7 +1018,7 @@
     if (Object.prototype.hasOwnProperty.call(_o, '_fmtMap')) {
       fmtMap = _o._fmtMap; subOpts = _o;
     } else {
-      fmtMap = _fieldFormatMap(body, _o.fmtOverride);
+      fmtMap = _fieldFormatMap(body, _o.fmtOverride, _o.lang);
       subOpts = {};
       for (var _k in _o) if (Object.prototype.hasOwnProperty.call(_o, _k)) subOpts[_k] = _o[_k];
       subOpts._fmtMap = fmtMap;
@@ -1079,7 +1091,7 @@
           if (cClose === -1) { i = cl + 1; continue; }
           out += _applyCaseMode(
             resolveBody(body.slice(cl + 1, cClose), vals, subOpts),
-            _caseMode(tok.slice(5)));
+            _caseMode(tok.slice(5)), _o.lang);
           i = cClose + CASE_CLOSE.length;
           continue;
         }
@@ -1221,14 +1233,13 @@
   // {case: upper}…{/case} wraps a stretch of body and prints it in the case the
   // author asked for. The region is resolved FIRST and transformed after, so a
   // field, a formula or a greeting inside it expands normally and only then
-  // takes the case — the author writes {case: upper}{formtext: name}{/case} and
+  // takes the case: the author writes {case: upper}{formtext: name}{/case} and
   // gets the value the guest typed in capitals, not the literal token.
   var CASE_CLOSE = '{/case}';
   var CASE_MODES = { upper: 1, lower: 1, title: 1, sentence: 1 };
-  var _CASE_LETTER = 'A-Za-zÀ-ÖØ-öø-ÿ';
+  // Latin-1 plus Latin Extended-A and B, so Łódź and Ştefan are words too.
+  var _CASE_LETTER = 'A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ';
   var _CASE_WORD_RE = new RegExp("[" + _CASE_LETTER + "'’]+", 'g');
-  // A sentence opens at the start of the text and after . ! ? plus a space.
-  var _CASE_SENT_RE = new RegExp("(^|[.!?][\"'”’)\\]]*\\s+)([" + _CASE_LETTER + "])", 'g');
   // Title case keeps the small joining words lowercase: the articles, the
   // coordinating conjunctions, and the prepositions of three letters or fewer.
   // "The Art of Public Speaking", not "The Art Of Public Speaking". The first
@@ -1239,6 +1250,374 @@
     and: 1, but: 1, or: 1, nor: 1, for: 1, yet: 1, so: 1,
     as: 1, at: 1, by: 1, in: 1, of: 1, off: 1, on: 1, per: 1, to: 1, up: 1, via: 1
   };
+
+  // ── LANGUAGE CASING ─────────────────────────────────────────────
+  // Which words carry a capital depends on the language being written. Two
+  // features need the same answer: a text field that holds a person's name
+  // (format=name), and the sentence and title modes of {case:}.
+  //
+  //   Names           capitalized in all four languages.
+  //   Days, months    EN capitalized (Monday, September). IT, ES, FR lowercase.
+  //   Languages and   EN capitalized (Italian wine, I speak English). IT, ES, FR
+  //   nationalities   lowercase, except that Italian and French capitalize the
+  //                   plural noun for a people (gli Italiani, les Italiens).
+  //   Titles          EN capitalized before a name (Doctor Rossi). IT, ES, FR
+  //                   lowercase in running text (il dottor Rossi), with the
+  //                   capital kept for the abbreviation (Dott., Sr., M.).
+  //
+  // One rule sits above the lists: a capital someone typed on purpose is never
+  // taken away. A word that carries a capital without being in all caps
+  // (Giovanni, McDonald, Julio) prints as written, and only lowercase words and
+  // words in all caps are re-cased. That is what keeps Julio or Russo intact in
+  // a language where julio and russo are ordinary words too, at the price of
+  // leaving an author's "Lunedì" as they wrote it.
+  //
+  // Keys are lowercase with accents stripped (sbStripAccents), so "lunedi"
+  // matches lunedì and LUNEDÌ alike.
+  function _sbWordSet(words) {
+    var set = {}, list = String(words).split(' ');
+    for (var i = 0; i < list.length; i++) if (list[i]) set[list[i]] = 1;
+    return set;
+  }
+
+  // Own keys only, so a word like "constructor" never matches a list.
+  function _sbIn(set, key) {
+    return !!set && Object.prototype.hasOwnProperty.call(set, key);
+  }
+
+  // English writes these with a capital wherever they fall. "may" and "march"
+  // are kept apart: as verbs they are far more common than as months, so they
+  // take a capital only where the context says month (see _caseEnMonth).
+  var EN_CAPITAL_WORDS = _sbWordSet(
+    'monday tuesday wednesday thursday friday saturday sunday ' +
+    'january february april june july august september october november december ' +
+    'english italian spanish french german dutch portuguese russian chinese japanese ' +
+    'korean arabic greek turkish hebrew latin catalan basque galician ' +
+    'american british irish scottish welsh european canadian australian mexican ' +
+    'brazilian argentinian argentine swiss belgian austrian swedish norwegian danish ' +
+    'finnish hungarian czech croatian romanian ukrainian israeli indian moroccan ' +
+    'italians spaniards americans germans europeans canadians australians mexicans ' +
+    'brazilians belgians austrians norwegians russians greeks');
+  var EN_MONTH_VERBS = _sbWordSet('may march');
+  // A word in front that makes "may" or "march" read as the month: "in May".
+  var EN_MONTH_CUES = _sbWordSet('in of since until till from during early late mid next last');
+
+  // Abbreviated titles take a capital in every language. Each needs its full
+  // stop to count, so "ing" or "rag" inside a sentence is never taken for one.
+  // The few written without a stop are listed apart. French "Me" (Maître) is
+  // left out on purpose: "me" is also an everyday French pronoun.
+  var TITLE_ABBR = {
+    EN: _sbWordSet('mr mrs ms dr prof'),
+    IT: _sbWordSet('sig sigg dott prof avv ing geom rag arch egr gent spett cav comm dr'),
+    ES: _sbWordSet('sr sra srta sres dr dra dna lic ing arq'),
+    FR: _sbWordSet('m mm mme mmes mlle mlles dr pr mgr')
+  };
+  var TITLE_ABBR_BARE = {
+    EN: _sbWordSet('mr mrs ms dr'),
+    FR: _sbWordSet('mme mmes mlle mlles dr pr')
+  };
+  // Titles spelled out. English capitalizes them before a name; the other
+  // three write them lowercase.
+  var TITLE_WORDS = {
+    EN: _sbWordSet('doctor professor mister miss sir madam lady lord'),
+    IT: _sbWordSet('signor signore signora signorina signori dottor dottore dottoressa ' +
+      'professor professore professoressa avvocato avvocata ingegner ingegnere ' +
+      'architetto geometra ragionier ragioniere don'),
+    ES: _sbWordSet('senor senora senorita senores doctor doctora don dona ' +
+      'licenciado licenciada ingeniero ingeniera'),
+    FR: _sbWordSet('monsieur madame mademoiselle messieurs mesdames docteur maitre professeur')
+  };
+
+  // Parts of a surname that stay lowercase once the name has started: Maria de
+  // la Cruz, Jean de La Fontaine, Ludwig van Beethoven. Leading the name they
+  // take the capital (De la Cruz on its own). Italian lists none: Di Maio and
+  // De Luca are written with the capital.
+  var NAME_PARTICLES_ANY = _sbWordSet('van von der den ter ten');
+  var NAME_PARTICLES = {
+    ES: _sbWordSet('de del la las los y e'),
+    FR: _sbWordSet('de du des')
+  };
+  var NAME_ROMAN = _sbWordSet('ii iii iv vi vii viii ix');
+
+  // Italian and French capitalize a nationality used as the plural noun for a
+  // people (gli Italiani, les Italiens) and write it lowercase everywhere else
+  // (un vino italiano, un vin italien). The plural article in front is what
+  // tells the two apart. The singular is left alone: "le français" is the
+  // language.
+  var PEOPLE_ARTICLES = {
+    IT: _sbWordSet('gli i degli agli dagli negli sugli dei ai dai nei sui'),
+    FR: _sbWordSet('les des aux')
+  };
+  var PEOPLE_NOUNS = {
+    IT: _sbWordSet('italiani spagnoli francesi inglesi tedeschi americani europei olandesi ' +
+      'belgi svizzeri portoghesi russi cinesi giapponesi irlandesi scozzesi austriaci ' +
+      'greci polacchi svedesi norvegesi danesi argentini brasiliani messicani canadesi ' +
+      'australiani'),
+    FR: _sbWordSet('italiens italiennes espagnols espagnoles francais francaises anglais ' +
+      'anglaises allemands allemandes americains americaines europeens europeennes belges ' +
+      'suisses hollandais hollandaises neerlandais neerlandaises portugais portugaises ' +
+      'russes chinois chinoises japonais japonaises irlandais irlandaises grecs grecques ' +
+      'polonais polonaises suedois suedoises canadiens canadiennes quebecois quebecoises')
+  };
+
+  // Written lowercase inside a title in Italian, Spanish and French: the days,
+  // the months, the languages and the nationalities.
+  var CASE_LOWER_WORDS = {
+    IT: _sbWordSet('lunedi martedi mercoledi giovedi venerdi sabato domenica ' +
+      'gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre ' +
+      'novembre dicembre italiano italiana italiani italiane inglese inglesi spagnolo ' +
+      'spagnola spagnoli spagnole francese francesi tedesco tedesca tedeschi tedesche ' +
+      'portoghese portoghesi olandese olandesi russo russa russi russe cinese cinesi ' +
+      'giapponese giapponesi americano americana americani americane europeo europea ' +
+      'europei europee'),
+    ES: _sbWordSet('lunes martes miercoles jueves viernes sabado domingo ' +
+      'enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre ' +
+      'noviembre diciembre espanol espanola espanoles espanolas ingles inglesa ingleses ' +
+      'inglesas italiano italiana italianos italianas frances francesa franceses francesas ' +
+      'aleman alemana alemanes alemanas portugues portuguesa ruso rusa rusos rusas chino ' +
+      'chinos japones japonesa americano americana americanos americanas europeo europea ' +
+      'europeos europeas catalan catalana'),
+    FR: _sbWordSet('lundi mardi mercredi jeudi vendredi samedi dimanche ' +
+      'janvier fevrier mars avril mai juin juillet aout septembre octobre novembre ' +
+      'decembre francais francaise anglais anglaise italien italienne espagnol espagnole ' +
+      'allemand allemande portugais portugaise russe chinois chinoise japonais japonaise ' +
+      'americain americaine europeen europeenne')
+  };
+
+  // Title case in Italian, Spanish and French: the articles, the prepositions
+  // and the conjunctions stay lowercase. English keeps CASE_SMALL_WORDS, and so
+  // does a body with no single language.
+  var CASE_SMALL_WORDS_BY_LANG = {
+    IT: _sbWordSet('il lo la i gli le un uno una di a da in con su per tra fra ' +
+      'del dello della dei degli delle al allo alla ai agli alle dal dallo dalla dai ' +
+      'dagli dalle nel nello nella nei negli nelle sul sullo sulla sui sugli sulle ' +
+      'col coi e ed o od ma'),
+    ES: _sbWordSet('el la los las lo un una unos unas de del a al en con por para sin ' +
+      'y e o u ni que'),
+    FR: _sbWordSet('le la les un une des du de au aux a en et ou sur par pour dans ' +
+      'avec chez')
+  };
+
+  // Elided articles and prepositions glued to the next word: l'hotel,
+  // dell'isola, d'Italie. Inside a title the elided part stays lowercase and
+  // the word after it takes the capital (dell'Isola). Leading it, both do.
+  var CASE_ELISIONS = {
+    IT: _sbWordSet('l dell all dall nell sull un d'),
+    FR: _sbWordSet('l d qu j')
+  };
+
+  var _SB_IS_LETTER_RE = new RegExp('[' + _CASE_LETTER + ']');
+  var _SB_NOT_LETTER_RE = new RegExp('[^' + _CASE_LETTER + ']', 'g');
+  var _SB_PREV_WORD_RE = new RegExp('([' + _CASE_LETTER + "'’]+)\\s+$");
+  var _SB_NEXT_WORD_RE = new RegExp('^\\s+([' + _CASE_LETTER + "'’]+)");
+
+  // A capital typed on purpose: the word mixes capitals with lowercase letters
+  // (Giovanni, McDonald). A word in all caps is shouting, and a lone letter
+  // says nothing either way: in "I HAVE A ROOM" the A is an article.
+  function _sbDeliberateCaps(w) {
+    var letters = w.replace(_SB_NOT_LETTER_RE, '');
+    return letters !== letters.toUpperCase() && letters !== letters.toLowerCase();
+  }
+
+  function _sbCap(low) {
+    return low.charAt(0).toUpperCase() + low.slice(1);
+  }
+
+  // A capital on the first letter and again after a hyphen or an apostrophe:
+  // jean-luc is Jean-Luc, o'brien is O'Brien, d'angelo is D'Angelo.
+  function _sbNameCase(low) {
+    var out = '', up = true;
+    for (var i = 0; i < low.length; i++) {
+      var ch = low.charAt(i);
+      if (_SB_IS_LETTER_RE.test(ch)) {
+        out += up ? ch.toUpperCase() : ch;
+        up = false;
+      } else {
+        out += ch;
+        if (ch === '-' || ch === "'" || ch === '’') up = true;
+      }
+    }
+    return out;
+  }
+
+  // 'abbr' for an abbreviated title (dott., Sr., Mme), 'word' for one spelled
+  // out (signor, doctor), '' for anything else. `low` is the word lowercased
+  // with its stop still attached.
+  function _sbTitleKind(low, lang) {
+    var key = sbStripAccents(low), dot = key.indexOf('.');
+    if (dot > 0 && _sbIn(TITLE_ABBR[lang], key.slice(0, dot))) return 'abbr';
+    var bare = key.replace(/[.,;:]+$/, '');
+    if (_sbIn(TITLE_ABBR_BARE[lang], bare)) return 'abbr';
+    if (_sbIn(TITLE_WORDS[lang], bare)) return 'word';
+    return '';
+  }
+
+  // One word of a name, lowercased. `named` is true once an earlier word
+  // started the name, which is when particles stay lowercase.
+  function _sbNamePart(low, lang, named) {
+    var key = sbStripAccents(low);
+    if (named) {
+      if (_sbIn(NAME_PARTICLES_ANY, key) || _sbIn(NAME_PARTICLES[lang], key)) return low;
+      if (_sbIn(NAME_ROMAN, key)) return low.toUpperCase();
+      // French elides "de" before a vowel: Valéry Giscard d'Estaing.
+      if (lang === 'FR' && /^d['’]./.test(low)) return low.slice(0, 2) + _sbNameCase(low.slice(2));
+    }
+    return _sbNameCase(low);
+  }
+
+  /**
+   * What someone typed into a name field, with the capitals a person's name
+   * takes in `lang` ('EN', 'IT', 'ES', 'FR', or '' when the body has no single
+   * language). Only letter case changes: spacing and punctuation print as typed.
+   *
+   *   giovanni rossi     Giovanni Rossi
+   *   GIOVANNI ROSSI     Giovanni Rossi
+   *   maria de la cruz   Maria de la Cruz     (ES)
+   *   signor rossi       signor Rossi         (IT)
+   *   dott.ssa bianchi   Dott.ssa Bianchi     (IT)
+   *   mr smith           Mr Smith             (EN)
+   *   McDonald           McDonald             (a capital typed on purpose stays)
+   */
+  function sbFormatPersonName(value, lang) {
+    var s = (value === null || value === undefined) ? '' : String(value);
+    var L = String(lang || '').toUpperCase();
+    var parts = s.split(/(\s+)/), named = false;
+    for (var i = 0; i < parts.length; i++) {
+      var w = parts[i];
+      if (!_SB_IS_LETTER_RE.test(w)) continue;
+      var keep = _sbDeliberateCaps(w), low = w.toLowerCase();
+      var kind = _sbTitleKind(low, L);
+      if (kind === 'abbr') {
+        if (!keep) parts[i] = _sbNameCase(low);
+        continue;
+      }
+      if (kind === 'word') {
+        if (!keep) parts[i] = L === 'EN' ? _sbNameCase(low) : low;
+        continue;
+      }
+      if (!keep) parts[i] = _sbNamePart(low, L, named);
+      named = true;
+    }
+    return parts.join('');
+  }
+
+  // The word right before `off` when only spaces sit between the two, else ''.
+  function _casePrevWord(s, off) {
+    var m = _SB_PREV_WORD_RE.exec(s.slice(Math.max(0, off - 40), off));
+    return m ? m[1] : '';
+  }
+
+  // True when the token right before `off` is an abbreviated title ("Dott.",
+  // "Mme"), which makes the word at `off` the name it introduces. A number in
+  // front of the token makes it a unit instead: "3 m. de large".
+  function _caseFollowsTitle(s, off, lang) {
+    var m = /(\S+)\s+$/.exec(s.slice(Math.max(0, off - 40), off));
+    if (!m || _sbTitleKind(m[1].toLowerCase(), lang) !== 'abbr') return false;
+    return !_casePrevIsNumber(s, off - m[0].length);
+  }
+
+  // The word right after `end` when only spaces sit between the two, else ''.
+  function _caseNextWord(s, end) {
+    var m = _SB_NEXT_WORD_RE.exec(s.slice(end, end + 40));
+    return m ? m[1] : '';
+  }
+
+  // True when a number sits just before `off`: "200 ms" or "3 m." is a unit,
+  // not a title.
+  function _casePrevIsNumber(s, off) {
+    return /\d[\s,.]*$/.test(s.slice(Math.max(0, off - 8), off));
+  }
+
+  // "may" and "march" are the month beside a number or after a word like "in":
+  // "arriving 3 May", "in March". Anywhere else they are the verb.
+  function _caseEnMonth(s, off, len) {
+    if (_sbIn(EN_MONTH_CUES, _casePrevWord(s, off).toLowerCase())) return true;
+    return _casePrevIsNumber(s, off) || /^[\s,.]*\d/.test(s.slice(off + len, off + len + 8));
+  }
+
+  // True when the word at `off` is a nationality used as the plural noun for a
+  // people: gli Italiani, les Italiens.
+  function _casePeopleNoun(s, off, key, lang) {
+    if (!_sbIn(PEOPLE_NOUNS[lang], key)) return false;
+    return _sbIn(PEOPLE_ARTICLES[lang], sbStripAccents(_casePrevWord(s, off).toLowerCase()));
+  }
+
+  // True when a sentence opens at `off`: the start of the text, or after
+  // . ! ? and a space, with any closing quote or bracket in between.
+  function _caseOpensSentence(s, off) {
+    var i = off - 1;
+    if (i < 0) return true;
+    if (!/\s/.test(s.charAt(i))) return false;
+    while (i >= 0 && /\s/.test(s.charAt(i))) i--;
+    while (i >= 0 && '"\'”’)]'.indexOf(s.charAt(i)) !== -1) i--;
+    return i >= 0 && '.!?'.indexOf(s.charAt(i)) !== -1;
+  }
+
+  // True when a lowercase word in the middle of a sentence takes a capital in
+  // `lang` anyway: an English day, month, language or "I", an English title in
+  // front of a name, an abbreviated title, the name that follows one, or a
+  // people noun.
+  function _caseTakesCapital(s, off, len, low, lang) {
+    var key = sbStripAccents(low);
+    if (_caseFollowsTitle(s, off, lang)) return true;
+    if (lang === 'EN') {
+      if (key === 'i' || /^i['’](m|ll|ve|d)$/.test(key)) return true;
+      if (_sbIn(EN_CAPITAL_WORDS, key)) return true;
+      if (_sbIn(EN_MONTH_VERBS, key)) return _caseEnMonth(s, off, len);
+      if (_sbIn(TITLE_WORDS.EN, key)) return _sbDeliberateCaps(_caseNextWord(s, off + len));
+    }
+    if (!_casePrevIsNumber(s, off)) {
+      if (_sbIn(TITLE_ABBR[lang], key) && s.charAt(off + len) === '.') return true;
+      if (_sbIn(TITLE_ABBR_BARE[lang], key)) return true;
+    }
+    return _casePeopleNoun(s, off, key, lang);
+  }
+
+  function _caseSentence(s, lang) {
+    return s.replace(_CASE_WORD_RE, function(w, off) {
+      if (_sbDeliberateCaps(w)) return w;
+      var low = w.toLowerCase();
+      if (_caseOpensSentence(s, off) || _caseTakesCapital(s, off, w.length, low, lang)) {
+        return _sbCap(low);
+      }
+      return low;
+    });
+  }
+
+  // An elided word inside a title (dell'isola), or null when `low` is not one.
+  // `opens` is true when the word starts the title or a clause in it, the only
+  // place the elided part takes a capital: the word after it always does, so
+  // closing a title ("La Guida dell'Isola") changes nothing.
+  function _caseElision(low, lang, opens) {
+    if (!CASE_ELISIONS[lang]) return null;
+    var m = /^([^'’]+)(['’])(.+)$/.exec(low);
+    if (!m || !_sbIn(CASE_ELISIONS[lang], sbStripAccents(m[1]))) return null;
+    return (opens ? _sbCap(m[1]) : m[1]) + m[2] + _sbCap(m[3]);
+  }
+
+  function _caseTitle(s, lang) {
+    // Where the first and last word sit, so they can be exempted below.
+    var m, first = -1, last = -1;
+    _CASE_WORD_RE.lastIndex = 0;
+    while ((m = _CASE_WORD_RE.exec(s)) !== null) {
+      if (first < 0) first = m.index;
+      last = m.index;
+    }
+    if (first < 0) return s;
+    var small = CASE_SMALL_WORDS_BY_LANG[lang] || CASE_SMALL_WORDS;
+    return s.replace(_CASE_WORD_RE, function(w, off) {
+      if (_sbDeliberateCaps(w)) return w;
+      var low = w.toLowerCase(), key = sbStripAccents(low);
+      var opens = off === first || _caseOpensClause(s, off);
+      var edge = opens || off === last;
+      var elided = _caseElision(low, lang, opens);
+      if (elided !== null) return elided;
+      if (!edge && _sbIn(small, key)) return low;
+      if (_casePeopleNoun(s, off, key, lang)) return _sbCap(low);
+      if (!edge && _sbIn(CASE_LOWER_WORDS[lang], key)) return low;
+      return _sbCap(low);
+    });
+  }
 
   // True when the token opens a case region, so a field called "casework" doesn't.
   function _isCaseHead(tokLow) {
@@ -1263,30 +1642,14 @@
     return ':.?!'.indexOf(s.charAt(i)) !== -1;
   }
 
-  function _applyCaseMode(s, mode) {
+  // `lang` is the body's language ('EN', 'IT', 'ES', 'FR', or '' for none),
+  // which decides the language rules in sentence and title mode.
+  function _applyCaseMode(s, mode, lang) {
     if (!s || !mode) return s;
     if (mode === 'upper') return s.toUpperCase();
     if (mode === 'lower') return s.toLowerCase();
-    if (mode === 'title') {
-      // Where the first and last word sit, so they can be exempted below.
-      var m, first = -1, last = -1;
-      _CASE_WORD_RE.lastIndex = 0;
-      while ((m = _CASE_WORD_RE.exec(s)) !== null) {
-        if (first < 0) first = m.index;
-        last = m.index;
-      }
-      if (first < 0) return s;
-      return s.replace(_CASE_WORD_RE, function(w, off) {
-        var low = w.toLowerCase();
-        if (off !== first && off !== last &&
-            CASE_SMALL_WORDS[low] && !_caseOpensClause(s, off)) return low;
-        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-      });
-    }
-    // sentence
-    return s.toLowerCase().replace(_CASE_SENT_RE, function(_, lead, ch) {
-      return lead + ch.toUpperCase();
-    });
+    var L = String(lang || '').toUpperCase();
+    return mode === 'title' ? _caseTitle(s, L) : _caseSentence(s, L);
   }
 
   /**
@@ -1557,12 +1920,25 @@
     return n === null ? '' : String(n);
   }
 
+  // A text field that holds a person's name says so with `format=name`, and
+  // what is typed into it prints with a name's capitals: "giovanni rossi"
+  // becomes "Giovanni Rossi" (see sbFormatPersonName). It stays a text field in
+  // every other respect, so a surface that cannot read the format still draws
+  // the same box and prints the value as typed. Any other format on a text
+  // field is a typo and reads as plain text, the same way an unknown `type` does.
+  function _textCfg(attrSrc, defVal) {
+    var out = { type: 'text', 'default': defVal };
+    var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+    if (fmtM && fmtM[1].toLowerCase() === 'name') out.format = 'name';
+    return out;
+  }
+
   function _numberOrTextCfg(attrSrc, defVal) {
     var typeM = /(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
     // An unrecognised type is a typo, not a field type the product has, so it
     // reads as the plain text field the token meant before `type` existed.
     if (!typeM || typeM[1].toLowerCase() !== 'number') {
-      return { type: 'text', default: defVal };
+      return _textCfg(attrSrc, defVal);
     }
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
     var fmt = fmtM ? fmtM[1].toLowerCase() : '';
@@ -1975,7 +2351,9 @@
     sbFormatDate:      sbFormatDate,
     sbGreetingSlot:    sbGreetingSlot,
     sbGreetingText:    sbGreetingText,
-    sbParseTimeToken:  sbParseTimeToken
+    sbParseTimeToken:  sbParseTimeToken,
+    sbFormatPersonName: sbFormatPersonName,
+    sbApplyCaseMode:   _applyCaseMode
   };
 
   // UMD: supports browser globals, CommonJS (Node), and AMD.

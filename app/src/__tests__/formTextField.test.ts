@@ -26,12 +26,17 @@ function loadHelper<T>(path: string): T {
 interface FieldCfg {
   type: string;
   default?: string;
+  format?: string;
 }
 
 interface FormulaEngine {
   buildFormFieldCfg: (body: string) => Record<string, FieldCfg>;
   extractFields: (body: string) => string[];
-  resolveBody: (body: string, vals: Record<string, unknown>) => string;
+  resolveBody: (
+    body: string,
+    vals: Record<string, unknown>,
+    opts?: { lang?: string },
+  ) => string;
 }
 
 const engine = loadHelper<FormulaEngine>(
@@ -65,6 +70,61 @@ describe('formTextToken — writer', () => {
 
   it('drops a default that is only whitespace', () => {
     expect(buildFormTextToken({ name: 'N', default: '   ' })).toBe('{formtext: name=N}');
+  });
+
+  it('marks a field that holds a person name', () => {
+    expect(buildFormTextToken({ name: 'GUEST', default: '', personName: true })).toBe(
+      '{formtext: name=GUEST; format=name}',
+    );
+    expect(buildFormTextToken({ name: 'GUEST', default: 'huésped', personName: true })).toBe(
+      '{formtext: name=GUEST; format=name; default=huésped}',
+    );
+  });
+});
+
+describe('formTextToken: a person name through the shipping engine', () => {
+  const token = buildFormTextToken({ name: 'GUEST', default: 'huésped', personName: true });
+
+  it('declares a text field that prints as a name', () => {
+    expect(engine.buildFormFieldCfg(token).GUEST).toEqual({
+      type: 'text',
+      default: 'huésped',
+      format: 'name',
+    });
+  });
+
+  it('prints what was typed with the capitals of the snippet language', () => {
+    expect(engine.resolveBody(`Hey ${token}!`, { GUEST: 'giovanni rossi' }, { lang: 'EN' })).toBe(
+      'Hey Giovanni Rossi!',
+    );
+    expect(engine.resolveBody(`Ciao ${token}!`, { GUEST: 'signor rossi' }, { lang: 'IT' })).toBe(
+      'Ciao signor Rossi!',
+    );
+    expect(engine.resolveBody(`Hola ${token}`, { GUEST: 'maria de la cruz' }, { lang: 'ES' })).toBe(
+      'Hola Maria de la Cruz',
+    );
+    expect(engine.resolveBody(`Hey ${token}`, { GUEST: 'GIOVANNI ROSSI' }, { lang: 'EN' })).toBe(
+      'Hey Giovanni Rossi',
+    );
+  });
+
+  it('prints the default exactly as the author wrote it', () => {
+    expect(engine.resolveBody(`Estimado ${token}`, { GUEST: 'huésped' }, { lang: 'ES' })).toBe(
+      'Estimado huésped',
+    );
+  });
+
+  it('leaves a capital typed on purpose alone', () => {
+    expect(engine.resolveBody(`Hi ${token}`, { GUEST: 'McDonald' }, { lang: 'EN' })).toBe(
+      'Hi McDonald',
+    );
+  });
+
+  it('never re-cases a plain text field', () => {
+    const plain = buildFormTextToken({ name: 'GUEST', default: '' });
+    expect(engine.resolveBody(`Hey ${plain}!`, { GUEST: 'giovanni rossi' }, { lang: 'EN' })).toBe(
+      'Hey giovanni rossi!',
+    );
   });
 });
 
