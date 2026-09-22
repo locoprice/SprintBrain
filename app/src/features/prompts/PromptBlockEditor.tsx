@@ -31,6 +31,7 @@ import type {
 } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
 import type { ClassificationResult } from '@/lib/intentEngine';
+import { sanitizeName } from '@/lib/nameText';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -635,7 +636,7 @@ export function PromptBlockEditor() {
             type="text"
             value={name}
             onChange={(e) => {
-              setName(e.target.value);
+              setName(sanitizeName(e.target.value));
               if (nameError) setNameError(null);
             }}
             placeholder="Prompt name…"

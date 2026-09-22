@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { estimateTokens } from '@/lib/memory/engine';
+import { sanitizeName } from '@/lib/nameText';
 import type { MemoryItem, MemoryItemKind } from '@/types/database';
 import type { SaveMemoryItemInput } from '@/lib/api/memoryApi';
 
@@ -120,7 +121,7 @@ export function ItemEditor({ target, spaceId, onClose, onSave }: ItemEditorProps
                 maxLength={NAME_MAX}
                 autoFocus
                 placeholder="house-style"
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => setName(sanitizeName(event.target.value))}
               />
             </div>
 

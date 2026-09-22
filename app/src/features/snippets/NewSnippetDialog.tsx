@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
+import { sanitizeName } from '@/lib/nameText';
 import {
   Dialog,
   DialogContent,
@@ -83,20 +84,6 @@ const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'M
 // The width at which the dialog can afford its third panel: 839px of rail and
 // editor plus the preview's 321px, with 94vw to spare for the backdrop.
 const PREVIEW_MIN_WIDTH = 1280;
-
-/**
- * A snippet name is read back as plain text everywhere else: the extension
- * picker, the popup list, the mobile rows, each of which lays the name out in
- * a fixed-height line that a pictograph breaks. Emoji and the joiners, keycaps,
- * flags and skin tones that build them are dropped as they are typed or
- * pasted. Letters in any script, digits, spaces and punctuation pass through.
- */
-const NAME_EMOJI =
-  /[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Emoji_Modifier}\u{FE0F}\u{20E3}\u{200D}]/gu;
-
-function sanitizeName(value: string): string {
-  return value.replace(NAME_EMOJI, '');
-}
 
 /**
  * Alternative queries are stored on the row being edited, not on the language
