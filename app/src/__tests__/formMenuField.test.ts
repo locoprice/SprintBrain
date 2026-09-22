@@ -47,8 +47,6 @@ interface FormulaEngine {
   }) => string;
   formMenuPicks: (value: string | null | undefined) => string[];
   fieldContext: (body: string) => Record<string, { before: string; after: string }>;
-  parseFormMenuToken: (raw: string) => FormMenuConfig | null;
-  findMenuTokenAt: (body: string, caret: number) => MenuTokenRange | null;
   resolveBody: (body: string, vals: Record<string, unknown>) => string;
   extractFields: (body: string) => string[];
 }
@@ -262,8 +260,9 @@ describe('formMenuToken — round-trips through the shipping engine', () => {
 });
 
 // Reading a token back is what turns "insert a menu" into "edit this menu".
-// The same matrix is asserted engine-side in scripts/check-snippets.js as
-// MENU_READ_CASES, so the two readers cannot drift.
+// The dashboard is the only surface that does it, so this file is where the
+// reader is pinned; scripts/check-snippets.js pins the engine's writer against
+// the same shapes.
 const MENU_READ_CASES = [
   '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
   '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
@@ -307,13 +306,6 @@ describe('formMenuToken — reader', () => {
   it('returns null for anything that is not a complete menu token', () => {
     for (const raw of NOT_MENU_TOKENS) {
       expect(parseFormMenuToken(raw), raw).toBeNull();
-      expect(engine.parseFormMenuToken(raw), raw).toBeNull();
-    }
-  });
-
-  it('agrees with the engine-side reader on every case', () => {
-    for (const raw of MENU_READ_CASES) {
-      expect(parseFormMenuToken(raw), raw).toEqual(engine.parseFormMenuToken(raw));
     }
   });
 
@@ -365,14 +357,6 @@ describe('formMenuToken — locating the menu under the caret', () => {
   it('clamps a caret outside the body instead of throwing', () => {
     expect(findMenuTokenAt(body, -10)).toBeNull();
     expect(findMenuTokenAt(body, 9999)).toEqual(second);
-  });
-
-  it('agrees with the engine-side finder across the whole body', () => {
-    for (let caret = 0; caret <= body.length; caret += 1) {
-      expect(findMenuTokenAt(body, caret), `caret ${caret}`).toEqual(
-        engine.findMenuTokenAt(body, caret),
-      );
-    }
   });
 });
 

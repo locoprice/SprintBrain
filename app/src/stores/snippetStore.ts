@@ -320,10 +320,10 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     const target = all.find((s) => s.id === id);
     if (!target) return;
     const next = !target.pinned;
-    // Pin the whole language group, not just the acted-on row. Mobile and
-    // Sprintbrain.html do the same, so "pinned" stays an all-or-nothing group
-    // property on every surface. A single-row (bodies-model) snippet is a group
-    // of one. The group key is owner-namespaced, so this never spans owners.
+    // Pin the whole language group, not just the acted-on row. Mobile does the
+    // same, so "pinned" stays an all-or-nothing group property on every
+    // surface. A single-row (bodies-model) snippet is a group of one. The
+    // group key is owner-namespaced, so this never spans owners.
     const key = snippetGroupKey(target);
     const groupIds = all.filter((s) => snippetGroupKey(s) === key).map((s) => s.id);
     // Optimistic update.

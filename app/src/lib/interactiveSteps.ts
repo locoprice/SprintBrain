@@ -2,13 +2,13 @@
  * "Interactive Steps": a device setting that starts a copied prompt with
  * instructions to work one step at a time and wait between steps.
  *
- * The extension, Sprintbrain.html and mobile run
- * extension/shared/interactive-steps.js. The dashboard cannot load extension
- * code, so this is its copy, and scripts/check-interactive-steps.js runs both
- * over the same cases and fails when they differ.
+ * The extension and mobile run extension/shared/interactive-steps.js. The
+ * dashboard cannot load extension code, so this is its copy, and
+ * scripts/check-interactive-steps.js runs both over the same cases and fails
+ * when they differ.
  *
- * The key is shared with Sprintbrain.html and mobile, which are served from the
- * same origin, so one browser keeps one setting across the three.
+ * The key is shared with mobile, which is served from the same origin, so one
+ * browser keeps one setting across both.
  */
 
 export const INTERACTIVE_STEPS_KEY = 'sb_interactive_steps_enabled';

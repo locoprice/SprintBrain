@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // "Ask User Questions" (prompts.ask_user_questions). The instruction lives in
 // the saved content because content is what every surface pastes: the in-page
-// picker, the popup, Sprintbrain.html, mobile and the Notion mirror. These
-// tests pin both halves: how content is assembled, and that the flag travels
-// to and from the database. The last block pins that the retired prompt type
-// is never written.
+// picker, the popup, mobile and the Notion mirror. These tests pin both
+// halves: how content is assembled, and that the flag travels to and from the
+// database. The last block pins that the retired prompt type is never written.
 
 const sb = vi.hoisted(() => {
   interface Builder {

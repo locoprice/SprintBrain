@@ -1527,7 +1527,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 // siblings a shared `lang_group_id`; the dashboard model keeps one row and puts
 // the translations in `bodies`. Counting rows therefore counts a snippet once
 // per language, and every surface that shows a number has to collapse the rows
-// the same way — otherwise the popup, Sprintbrain.html and the dashboard each
+// the same way. Otherwise the popup, the mobile app and the dashboard each
 // report a different library size for the same account.
 //
 // The rule, in order:
@@ -1742,7 +1742,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 // Four surfaces draw a fill form and each builds its own markup:
 //
 //   extension/content/content.js   the in-page overlay (three entry points)
-//   extension/popup/popup.js       the popup detail + Sprintbrain.html detail
+//   extension/popup/popup.js       the popup detail
 //   app/src/features/snippets/     the dashboard editor's live preview
 //     SnippetPreview.tsx           (was Sprintbrain.html's composer until v3.5.0)
 //   app/public/mobile/index.html   the mobile companion (inlined copy)
@@ -2335,7 +2335,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 //
 //   extension/popup/popup.js          Prompts tab, copy
 //   extension/content/content.js      the """ picker and """shortcut, insert
-//   Sprintbrain.html                  Prompts list, copy
 //   app/public/mobile/index.html      Prompts page, copy and share (generated copy)
 //   app/src/lib/interactiveSteps.ts   dashboard preview window, copy (TS copy)
 //
@@ -2344,10 +2343,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 //
 // The setting belongs to the device, not the account. The extension keeps it in
 // chrome.storage.local, where content.js follows it live. The web surfaces keep
-// it under the same key in localStorage. Sprintbrain.html runs this file under
-// chrome-shim.js, which folds chrome.storage into a single localStorage entry,
-// so the shim is skipped here: the dashboard, mobile and Sprintbrain.html share
-// one origin and read one key.
+// it under the same key in localStorage: the dashboard and mobile are served
+// from one origin and read one key.
 //
 // scripts/check-interactive-steps.js pins the behaviour, compares the dashboard
 // copy, and writes the mobile copy (--write).
@@ -2376,12 +2373,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return value === true || value === 'true';
   }
 
-  // The extension's own storage, or null on a web page. chrome-shim.js answers
-  // to chrome.storage too, and is told apart by its runtime id.
+  // The extension's own storage, or null on a web page.
   function extensionStorage() {
     var c = root.chrome;
     if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
-    return c.runtime.id === 'sprintbrain-web-shim' ? null : c.storage.local;
+    return c.storage.local;
   }
 
   // cb(on) once the stored value is known.
@@ -3623,10 +3619,10 @@ function rememberLang(gkey,lang){
 }
 
 /* Pinned rows float to the top of their list. The flag is persisted on the
-   row itself — snippets.pinned and prompts.pinned — the same columns the
-   desktop dashboard and Sprintbrain.html write, so a pin survives a reload and
-   shows on every surface. (It used to live in localStorage under 'sb_mob_pins',
-   which the mobile browser evicted on its own, losing the pin.) */
+   row itself (snippets.pinned and prompts.pinned), the same columns the
+   desktop dashboard writes, so a pin survives a reload and shows on every
+   surface. (It used to live in localStorage under 'sb_mob_pins', which the
+   mobile browser evicted on its own, losing the pin.) */
 
 /* Group stable-keys that have at least one pinned language row, for the list
    sort. Built once per render; groupKey() reads the cached snipIndex(). */
@@ -3887,8 +3883,8 @@ function folderIcon(f){
 }
 /* ── LANG-VARIANT GROUPING KEY ────────────────────────────
    The rule is not defined here. It lives in extension/shared/snippet-stats.js,
-   inlined above by scripts/sync-snippet-stats.js, so the popup, Sprintbrain.html
-   and this app collapse variants identically instead of drifting apart.
+   inlined above by scripts/sync-snippet-stats.js, so the popup and this app
+   collapse variants identically instead of drifting apart.
 
    Mobile used to hand-roll the key and got it wrong three ways: it merged rows
    across owners, it stripped a trailing language code even when that code was
@@ -5750,7 +5746,7 @@ document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEven
 })();
 
 /* Interactive Steps switch on the Prompts page. The module keeps it in
-   localStorage under the key the dashboard and Sprintbrain.html read too. */
+   localStorage under the key the dashboard reads too. */
 var promptStepsOn=false;
 (function(){
   var box=document.getElementById('psteps-on');
@@ -6509,12 +6505,12 @@ if(requireAuth()){
 <!-- SB_TOOLTIP:BEGIN (generated from extension/shared/tooltip.js by scripts/sync-tooltip.js, do not edit) -->
 <script>
 // ── SPRINTBRAIN SHARED TOOLTIP (Avada style) ──────────────────────
-// Canonical vanilla implementation. Loaded by extension/popup/popup.html and
-// Sprintbrain.html. The mobile app and the landing site inline a copy of this
-// file because neither can reach extension/ at runtime: /mobile/ is a
-// single-file app by design, and the landing site is a separate Netlify site
-// rooted at app/public/landing/. Keep the three in sync; the React dashboard
-// carries the same values in app/src/components/ui/tooltip.tsx.
+// Canonical vanilla implementation. Loaded by extension/popup/popup.html. The
+// mobile app and the landing site inline a copy of this file because neither
+// can reach extension/ at runtime: /mobile/ is a single-file app by design,
+// and the landing site is a separate Netlify site rooted at
+// app/public/landing/. Keep the three in sync; the React dashboard carries
+// the same values in app/src/components/ui/tooltip.tsx.
 //
 // Values are Avada's, read off a live theme-fusion tooltip. The documentation
 // publishes the option list but no CSS. Canonical table: docs/DESIGN_SYSTEM.md.

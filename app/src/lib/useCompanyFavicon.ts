@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 
 // Reflects the company logo (Settings → Branding) as the dashboard's browser-tab
-// favicon, matching the extension toolbar and Sprintbrain.html. When no logo is
-// set it shows the SprintBrain brand mark shipped as the static favicon; the mark
-// is also restored when the dashboard unmounts (sign-out).
+// favicon, matching the extension toolbar. When no logo is set it shows the
+// SprintBrain brand mark shipped as the static favicon; the mark is also
+// restored when the dashboard unmounts (sign-out).
 
 /** The SprintBrain brand mark shipped as the dashboard's static favicon (app/public/icon128.png). */
 export const BRAND_FAVICON = '/icon128.png';

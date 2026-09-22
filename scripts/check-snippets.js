@@ -280,74 +280,67 @@ if (!overlayBody.includes('fieldCfg: snip.fieldCfg')) {
 }
 console.log('OK showOverlay builds the body-declared field config itself');
 
-// ── FORM MENU READER ────────────────────────────────────────────────
-// parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
-// already in a body. Sprintbrain.html calls them directly; the dashboard keeps
-// a mirror in app/src/lib/formMenuToken.ts, and the identical matrix lives in
-// app/src/__tests__/formMenuField.test.ts as MENU_READ_CASES.
-const MENU_READ_CASES = [
-  '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
-  '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
-  '{formmenu: 1980; 1985; name=YEAR; default=1985}',
-  '{formmenu: name=YEAR; 1980; 1985}',
-  '{formmenu: A,B; name=M; default=ZZ}',
-  '{formmenu: A,B,C; name=M; default=A,C}',
-  '{formmenu: A,B}',
-  '{formmenu: red; green; blue}',
+// ── FORM MENU WRITER ────────────────────────────────────────────────
+// buildFormMenuToken is the engine's {formmenu:} writer. Reading a token back
+// into a builder belongs to the dashboard, which keeps its own reader in
+// app/src/lib/formMenuToken.ts, pinned by app/src/__tests__/formMenuField.test.ts.
+//
+// What is pinned here is the half that has to hold inside the extension. The
+// writer normalises whatever it is handed (a default that is not one of the
+// options is dropped, a single-choice menu keeps one pick, duplicates and
+// unusable names are repaired), and what it emits has to be the menu the fill
+// form then renders. A disagreement between the two ships a menu that looks
+// right in the editor and resolves to nothing in a page.
+const MENU_WRITE_CASES = [
+  [{ options: ['Choice A', 'Choice B', 'Choice C'], selected: ['Choice B'], name: 'MENU_1', multiple: false, cols: null },
+    '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
+    'Choice A\nChoice B\nChoice C'],
+  [{ options: ['Bank transfer', 'Card'], selected: ['Card', 'Bank transfer'], name: 'PAYMENT', multiple: true, cols: 24 },
+    '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
+    'Bank transfer\nCard'],
+  [{ options: ['1980', '1985'], selected: ['1985'], name: 'YEAR', multiple: false, cols: null },
+    '{formmenu: 1980,1985; name=YEAR; default=1985}', '1980\n1985'],
+  [{ options: ['1980', '1985'], selected: [], name: 'YEAR', multiple: false, cols: null },
+    '{formmenu: 1980,1985; name=YEAR}', '1980\n1985'],
+  // A default nobody could have picked is not written at all.
+  [{ options: ['A', 'B'], selected: ['ZZ'], name: 'M', multiple: false, cols: null },
+    '{formmenu: A,B; name=M}', 'A\nB'],
+  // A single-choice menu holds one preselection, whatever it was handed.
+  [{ options: ['A', 'B', 'C'], selected: ['A', 'C'], name: 'M', multiple: false, cols: null },
+    '{formmenu: A,B,C; name=M; default=A}', 'A\nB\nC'],
+  // An unnamed menu stays unnamed: the engine keys it off the token itself, and
+  // writing that derived key back would pin a name the author never chose.
+  [{ options: ['A', 'B'], selected: [], name: '', multiple: false, cols: null },
+    '{formmenu: A,B}', 'A\nB'],
+  [{ options: ['red', 'green', 'blue'], selected: [], name: '', multiple: false, cols: null },
+    '{formmenu: red,green,blue}', 'red\ngreen\nblue'],
+  // Duplicates and blanks dropped, a name that cannot open an identifier repaired.
+  [{ options: ['A', 'A', 'B', ' '], selected: ['B'], name: '9bad', multiple: false, cols: 0 },
+    '{formmenu: A,B; name=MENU_9bad; default=B}', 'A\nB'],
 ];
 
-if (typeof engine.parseFormMenuToken !== 'function' || typeof engine.findMenuTokenAt !== 'function') {
-  fail('formula-engine no longer exports parseFormMenuToken / findMenuTokenAt');
+if (typeof engine.buildFormMenuToken !== 'function') {
+  fail('formula-engine no longer exports buildFormMenuToken');
 }
 
-let rok = 0;
-for (const raw of MENU_READ_CASES) {
-  const cfg = engine.parseFormMenuToken(raw);
-  if (!cfg) fail('parseFormMenuToken(' + JSON.stringify(raw) + ') returned null');
-  // Saving an edited menu must not keep rewriting the body: build() normalises
-  // once, and every save after that has to be a no-op.
-  const once = engine.buildFormMenuToken(cfg);
-  const twice = engine.buildFormMenuToken(engine.parseFormMenuToken(once));
-  if (once !== twice) {
-    fail('menu round-trip is not idempotent for ' + JSON.stringify(raw) +
-      '\n  first:  ' + once + '\n  second: ' + twice);
+let mwok = 0;
+for (const [cfg, want, opts] of MENU_WRITE_CASES) {
+  const token = engine.buildFormMenuToken(cfg);
+  if (token !== want) {
+    fail('buildFormMenuToken(' + JSON.stringify(cfg) + ')\n' +
+      '  wrote    ' + token + '\n  expected ' + want);
   }
-  // What the builder reopens must be the menu the fill form renders.
-  const viaCfg = engine.buildFormFieldCfg(once);
+  const viaCfg = engine.buildFormFieldCfg(token);
   const key = Object.keys(viaCfg)[0];
-  if (!key || viaCfg[key].opts !== cfg.options.join('\n')) {
-    fail('reader and buildFormFieldCfg disagree on options for ' + JSON.stringify(raw));
+  if (!key || viaCfg[key].opts !== opts) {
+    fail('writer and buildFormFieldCfg disagree on options for ' + token +
+      '\n  form sees ' + JSON.stringify(key ? viaCfg[key].opts : null) +
+      '\n  expected  ' + JSON.stringify(opts));
   }
-  rok++;
+  mwok++;
 }
 
-for (const junk of ['{formtext: name=G}', '{formmenuish: A}', 'plain text', '{formmenu: A,B', '', null, undefined]) {
-  if (engine.parseFormMenuToken(junk) !== null) {
-    fail('parseFormMenuToken(' + JSON.stringify(junk) + ') should be null');
-  }
-}
-
-// A caret on either brace counts as inside; between two touching menus the
-// earlier one wins. Getting this wrong replaces the wrong span of the body.
-const findBody = 'Hi {formtext: name=G}, pick {formmenu: A,B; name=P} then {formmenu: X,Y}';
-const findCases = [
-  [0, null], [10, null], [54, null],
-  [28, 28], [40, 28], [51, 28],
-  [57, 57], [60, 57], [72, 57],
-  [-5, null], [9999, 57],
-];
-for (const [caret, wantStart] of findCases) {
-  const got = engine.findMenuTokenAt(findBody, caret);
-  const gotStart = got ? got.start : null;
-  if (gotStart !== wantStart) {
-    fail('findMenuTokenAt(caret ' + caret + ') -> start ' + gotStart + ', expected ' + wantStart);
-  }
-  if (got && findBody.slice(got.start, got.end) !== got.raw) {
-    fail('findMenuTokenAt(caret ' + caret + ') returned a range that does not hold its raw text');
-  }
-}
-
-console.log('OK Form menu reader passed all ' + rok + ' cases');
+console.log('OK Form menu writer passed all ' + mwok + ' cases');
 
 // ── MOBILE FIELD-CONFIG PARITY ──────────────────────────────────────
 // The mobile companion (app/public/mobile/index.html) keeps its own resolver —

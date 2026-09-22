@@ -169,8 +169,7 @@ const LANGUAGE_CHECK_DELAY_MS = 500;
 // The rail was a row of Quick Insert chips until v3.14.4: one token per chip,
 // its whole explanation in a hover title. Every one of them is now a toggle
 // that says what the token does before it writes it, which is why no chip list
-// survives here. Note this no longer mirrors the Sprintbrain.html chip rail:
-// that surface still shows the five original field chips.
+// survives here.
 //
 // Everything the rail offers has to read as built for the reader's own trade,
 // whichever that is: a clinic, a repair shop and a law firm each open it and

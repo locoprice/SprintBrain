@@ -6,7 +6,6 @@
 //
 //   extension/popup/popup.js          Prompts tab, copy
 //   extension/content/content.js      the """ picker and """shortcut, insert
-//   Sprintbrain.html                  Prompts list, copy
 //   app/public/mobile/index.html      Prompts page, copy and share (generated copy)
 //   app/src/lib/interactiveSteps.ts   dashboard preview window, copy (TS copy)
 //
@@ -15,10 +14,8 @@
 //
 // The setting belongs to the device, not the account. The extension keeps it in
 // chrome.storage.local, where content.js follows it live. The web surfaces keep
-// it under the same key in localStorage. Sprintbrain.html runs this file under
-// chrome-shim.js, which folds chrome.storage into a single localStorage entry,
-// so the shim is skipped here: the dashboard, mobile and Sprintbrain.html share
-// one origin and read one key.
+// it under the same key in localStorage: the dashboard and mobile are served
+// from one origin and read one key.
 //
 // scripts/check-interactive-steps.js pins the behaviour, compares the dashboard
 // copy, and writes the mobile copy (--write).
@@ -47,12 +44,11 @@
     return value === true || value === 'true';
   }
 
-  // The extension's own storage, or null on a web page. chrome-shim.js answers
-  // to chrome.storage too, and is told apart by its runtime id.
+  // The extension's own storage, or null on a web page.
   function extensionStorage() {
     var c = root.chrome;
     if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
-    return c.runtime.id === 'sprintbrain-web-shim' ? null : c.storage.local;
+    return c.storage.local;
   }
 
   // cb(on) once the stored value is known.

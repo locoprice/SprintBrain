@@ -1,10 +1,10 @@
 // ── SPRINTBRAIN SHARED TOOLTIP (Avada style) ──────────────────────
-// Canonical vanilla implementation. Loaded by extension/popup/popup.html and
-// Sprintbrain.html. The mobile app and the landing site inline a copy of this
-// file because neither can reach extension/ at runtime: /mobile/ is a
-// single-file app by design, and the landing site is a separate Netlify site
-// rooted at app/public/landing/. Keep the three in sync; the React dashboard
-// carries the same values in app/src/components/ui/tooltip.tsx.
+// Canonical vanilla implementation. Loaded by extension/popup/popup.html. The
+// mobile app and the landing site inline a copy of this file because neither
+// can reach extension/ at runtime: /mobile/ is a single-file app by design,
+// and the landing site is a separate Netlify site rooted at
+// app/public/landing/. Keep the three in sync; the React dashboard carries
+// the same values in app/src/components/ui/tooltip.tsx.
 //
 // Values are Avada's, read off a live theme-fusion tooltip. The documentation
 // publishes the option list but no CSS. Canonical table: docs/DESIGN_SYSTEM.md.

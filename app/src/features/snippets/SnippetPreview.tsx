@@ -19,7 +19,7 @@ import {
  * Replaces the standalone Composer view in `Sprintbrain.html`: same three
  * panes, same shared engine, but reading the snippet being edited instead of
  * something pasted into a second app. Nothing here decides what a field is —
- * `extension/shared/fill-form.js` answers that for all five fill surfaces and
+ * `extension/shared/fill-form.js` answers that for all four fill surfaces and
  * this component only draws the view model it returns.
  */
 

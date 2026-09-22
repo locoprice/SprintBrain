@@ -14,8 +14,8 @@
  * the author no thought — while a menu is free to stay anonymous.
  *
  * Nothing writes these tokens outside the dashboard, so there is no engine-side
- * mirror to keep in step (`formMenuToken.ts` has one because Sprintbrain.html
- * builds menus too). The engine is still the parser they must satisfy:
+ * mirror to keep in step, unlike `formMenuToken.ts`, whose writer the engine
+ * still carries. The engine is still the parser they must satisfy:
  * `src/__tests__/formTextField.test.ts` pins the round trip against it.
  */
 

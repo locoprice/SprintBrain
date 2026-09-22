@@ -1,14 +1,14 @@
 // Snippet library counting gate (STATS-001).
 //
-// Pins the four numbers the popup and Sprintbrain.html both print — total,
-// personal, shared, owners — against the row shapes that actually exist in
-// production. The bug this gate exists for: a snippet with four translations is
-// four rows, and every surface used to fold them differently, so the same
-// account reported a different library size in the popup, in Sprintbrain.html
-// and in the dashboard.
+// Pins the four numbers the popup prints (total, personal, shared, owners)
+// against the row shapes that actually exist in production. The bug this gate
+// exists for: a snippet with four translations is four rows, and every surface
+// used to fold them differently, so the same account reported a different
+// library size in the popup, on the phone and in the dashboard.
 //
-// Loads the REAL shipping module (extension/shared/snippet-stats.js) — the same
-// file both surfaces load — so a rule change that breaks a count fails here.
+// Loads the REAL shipping module (extension/shared/snippet-stats.js), the file
+// the popup loads and the phone inlines, so a rule change that breaks a count
+// fails here.
 const path = require('path');
 const S = require(path.join(__dirname, '..', 'extension', 'shared', 'snippet-stats.js'));
 

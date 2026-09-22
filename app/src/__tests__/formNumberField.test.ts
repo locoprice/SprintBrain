@@ -290,8 +290,7 @@ describe('number formatting — output only', () => {
 });
 
 describe('two writers, one token', () => {
-  // Sprintbrain.html builds number fields too, and cannot import the dashboard's
-  // TypeScript writer, so the engine carries its own — the same arrangement
+  // The engine carries its own number-field writer, the same arrangement
   // {formmenu:} and {button} already have. These cases exist so the two cannot
   // drift into emitting different tokens for the same choices, which would mean
   // one surface writing a field the other could not reproduce.

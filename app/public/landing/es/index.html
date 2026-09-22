@@ -2132,7 +2132,7 @@ Equipo LeibTour</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.36.1';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.36.2';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.
@@ -2146,12 +2146,12 @@ Equipo LeibTour</div>
 <!-- SB_TOOLTIP:BEGIN (generated from extension/shared/tooltip.js by scripts/sync-tooltip.js, do not edit) -->
 <script>
 // ── SPRINTBRAIN SHARED TOOLTIP (Avada style) ──────────────────────
-// Canonical vanilla implementation. Loaded by extension/popup/popup.html and
-// Sprintbrain.html. The mobile app and the landing site inline a copy of this
-// file because neither can reach extension/ at runtime: /mobile/ is a
-// single-file app by design, and the landing site is a separate Netlify site
-// rooted at app/public/landing/. Keep the three in sync; the React dashboard
-// carries the same values in app/src/components/ui/tooltip.tsx.
+// Canonical vanilla implementation. Loaded by extension/popup/popup.html. The
+// mobile app and the landing site inline a copy of this file because neither
+// can reach extension/ at runtime: /mobile/ is a single-file app by design,
+// and the landing site is a separate Netlify site rooted at
+// app/public/landing/. Keep the three in sync; the React dashboard carries
+// the same values in app/src/components/ui/tooltip.tsx.
 //
 // Values are Avada's, read off a live theme-fusion tooltip. The documentation
 // publishes the option list but no CSS. Canonical table: docs/DESIGN_SYSTEM.md.

@@ -31,7 +31,7 @@ export function DashboardLayout() {
   const [contactOpen, setContactOpen] = useState(false);
 
   // Reflect the company logo (Settings → Branding) as the browser-tab favicon,
-  // matching the extension toolbar + Sprintbrain.html; brand mark when unset.
+  // matching the extension toolbar; brand mark when unset.
   useCompanyFavicon(profile?.company_logo_url ?? null);
 
   // Settings drives the user block in the sidebar and the sync pill in the

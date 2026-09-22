@@ -540,12 +540,12 @@ function _bareTrigger(s, seq) {
 
 // Which snippet group a row belongs to. The rule lives in
 // shared/snippet-stats.js (loaded ahead of this file by the manifest) so the
-// content script, the popup, Sprintbrain.html and the mobile companion collapse
-// variants identically. The copy that used to live here merged rows across
-// owners and stripped a trailing language code that was not the row's own
-// language, so "wait" (FR) shed an "IT" it never had and became a variant of
-// "WA". Two different people's snippets, one of which then expanded in place
-// of the other.
+// content script, the popup and the mobile companion collapse variants
+// identically. The copy that used to live here merged rows across owners and
+// stripped a trailing language code that was not the row's own language, so
+// "wait" (FR) shed an "IT" it never had and became a variant of "WA". Two
+// different people's snippets, one of which then expanded in place of the
+// other.
 //
 // `snippets` is only ever reassigned, never mutated, so its identity is a safe
 // cache key for the index.
