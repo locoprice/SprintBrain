@@ -216,18 +216,18 @@ Rules applied:
 | Mobile browser access | `app/public/mobile/` (read-only browse, search, copy) | ✅ |
 | Devices list, login activity, sign out everywhere | v2.86.0 `SecurityPanel.tsx` | ✅ |
 | Supabase in the EU with RLS | Project `eyowustlbqujaimaxggt`, region eu-west-1, RLS on all tables | ✅ |
+| One search bar across snippets, prompts and memory | `MasterSearch.tsx` in the topbar filters the page you are on; Enter or ⌘K opens `GlobalSearch.tsx`, results grouped by type. Rules in `searchIndex.ts`. Shipped SEARCH-001 | ✅ Closes the Audit P1 stub |
 
 No aspirational or unshipped feature is claimed. Mobile is described as browse, search, and
 copy only, with no sharing UI, matching the build.
 
 ### Deliberately NOT claimed
-Four items surfaced by the full-history audit are shipped-adjacent but **must stay out of the copy**
+Three items surfaced by the full-history audit are shipped-adjacent but **must stay out of the copy**
 until they are real. Do not add them in a future edit without re-checking:
 
 | Not claimed | Why | Ref |
 |---|---|---|
 | Dark mode | Roadmap open. A `uiStore` seam exists, no theme ships | Audit §6.1 #7 |
-| Global search across the library | [Topbar.tsx:56](app/src/components/layout/Topbar.tsx:56) renders a search input with a ⌘K badge and **no handler**. It is a stub that looks functional | Audit P1 |
 | Triggering Notion sync from the dashboard | [NotionSyncPanel.tsx:85](app/src/features/settings/NotionSyncPanel.tsx:85) is a `disabled` button titled "Available in next release". Sync runs from the extension alarm only | Audit §6.1 #6, NOTION-SYNC-DASH-001 |
 | `{elseif:}` / `{else}` / `{{…}}` on **mobile** | The mobile companion keeps a simpler resolver that handles only `{if:}…{endif}`. Claiming full conditional logic "everywhere" would be false on that surface | Audit §5.3 |
 

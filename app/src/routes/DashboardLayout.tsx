@@ -5,6 +5,7 @@ import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
 import { JotFormModal } from '@/components/layout/JotFormModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
+import { GlobalSearch } from '@/features/search/GlobalSearch';
 import { PendingInviteBanner } from '@/features/org/PendingInviteBanner';
 import { Toast } from '@/components/ui/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -142,6 +143,7 @@ export function DashboardLayout() {
         title="Support"
       />
       <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} />
+      <GlobalSearch />
       <Toast />
     </div>
   );

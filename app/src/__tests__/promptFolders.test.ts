@@ -133,13 +133,13 @@ describe('promptStore — folder actions', () => {
 
   it('resetFilters clears the folder selection along with the filters', () => {
     usePromptStore.setState({ selectedFolderId: 'folder-1' });
-    usePromptStore.getState().setFilters({ search: 'quote' });
+    usePromptStore.getState().setFilters({ strategy: 'CoT' });
 
     usePromptStore.getState().resetFilters();
 
     const state = usePromptStore.getState();
     expect(state.selectedFolderId).toBeNull();
-    expect(state.filters.search).toBe('');
+    expect(state.filters.strategy).toBeNull();
   });
 
   it('folder action surfaces an error without throwing the store into a bad state', async () => {

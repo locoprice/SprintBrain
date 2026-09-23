@@ -9,10 +9,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from '@/components/ui/action-menu';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { SearchField } from '@/components/ui/search-field';
 import { SpaceDialog } from '@/features/memory/SpaceDialog';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
 import { useMemoryStore } from '@/stores/memoryStore';
+import { useSearchStore } from '@/stores/searchStore';
+import { normalizeQuery, scoreSpace } from '@/lib/searchIndex';
 import { useUiStore } from '@/stores/uiStore';
 import type { MemorySpace } from '@/types/database';
 
@@ -106,21 +107,18 @@ export function MemoryPage() {
   const trashSpace = useMemoryStore((s) => s.trashSpace);
   const showToast = useUiStore((s) => s.showToast);
 
-  const [query, setQuery] = useState('');
   const [dialogTarget, setDialogTarget] = useState<'new' | MemorySpace | null>(null);
+  // The one search bar in the header owns the text (SEARCH-001).
+  const query = useSearchStore((s) => s.query);
 
   useEffect(() => {
     if (!loaded) void loadSpaces();
   }, [loaded, loadSpaces]);
 
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = normalizeQuery(query);
     if (!needle) return spaces;
-    return spaces.filter(
-      (space) =>
-        space.name.toLowerCase().includes(needle) ||
-        space.description.toLowerCase().includes(needle),
-    );
+    return spaces.filter((space) => scoreSpace(space, needle) > 0);
   }, [spaces, query]);
 
   async function onTrash(space: MemorySpace) {
@@ -153,7 +151,6 @@ export function MemoryPage() {
       ) : null}
 
       <div className="mb-5 flex items-center gap-3">
-        <SearchField value={query} onChange={setQuery} placeholder="Search spaces…" />
         {/* Held back until the first load finishes: "0 spaces" beside a spinner
             reads as an answer, and it is not one yet. */}
         <span className="text-xs text-ink-subtle">

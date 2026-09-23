@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { PageBanner } from '@/components/layout/PageBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InactiveAssetBanner } from '@/components/shared/InactiveAssetBanner';
-import { SearchField } from '@/components/ui/search-field';
 import { FolderBreadcrumb } from '@/features/org/FolderBreadcrumb';
 import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
 import { BulkActionsBar } from '@/features/snippets/BulkActionsBar';
@@ -26,8 +24,6 @@ export function SnippetsPage() {
   const loadLabels = useLabelStore((s) => s.load);
   const labelsLoaded = useLabelStore((s) => s.loaded);
   const snippets = useSnippetStore((s) => s.snippets);
-  const storeQuery = useSnippetStore((s) => s.searchQuery);
-  const setQuery = useSnippetStore((s) => s.setSearchQuery);
   const error = useSnippetStore((s) => s.error);
   const clearError = useSnippetStore((s) => s.clearError);
   // The header takes on the selected folder's identity, so its description has
@@ -40,8 +36,8 @@ export function SnippetsPage() {
 
   // The rail costs the table 272px. On a 1280px screen that is the difference
   // between reading the table and scrolling it sideways, so it can be put away.
+  // The toggle itself sits in the filter bar.
   const railOpen = useUiStore((s) => s.foldersRailOpen);
-  const setRailOpen = useUiStore((s) => s.setFoldersRailOpen);
 
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
@@ -158,30 +154,6 @@ export function SnippetsPage() {
         {railOpen && <SnippetFolderTree />}
 
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex items-center gap-2">
-            {/* Sits with the search rather than on the rail itself: it has to
-                be in the same place whether the rail is there or not. */}
-            <button
-              type="button"
-              onClick={() => setRailOpen(!railOpen)}
-              aria-pressed={railOpen}
-              title={railOpen ? 'Hide folders' : 'Show folders'}
-              aria-label={railOpen ? 'Hide folders' : 'Show folders'}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-line bg-card text-ink-subtle transition-colors hover:border-primary/30 hover:text-primary"
-            >
-              {railOpen ? (
-                <PanelLeftClose className="h-4 w-4" aria-hidden />
-              ) : (
-                <PanelLeftOpen className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-            <SearchField
-              value={storeQuery}
-              onChange={setQuery}
-              placeholder="Search by name, trigger, or tag…"
-            />
-          </div>
-
           <FilterToolbar />
           <BulkActionsBar />
           <SnippetsTable />

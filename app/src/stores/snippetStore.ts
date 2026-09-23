@@ -6,6 +6,8 @@ import { permissionsApi } from '@/lib/api/permissionsApi';
 import { revisionsApi } from '@/lib/api/revisionsApi';
 import { useAuthStore } from '@/stores/authStore';
 import { useLabelStore } from '@/stores/labelStore';
+import { useSearchStore } from '@/stores/searchStore';
+import { labelNameLookup, normalizeQuery, scoreSnippet } from '@/lib/searchIndex';
 import { buildFolderShares } from '@/lib/folderShares';
 import { matchesLabelFilter } from '@/lib/labelUtils';
 import { subtreeIds } from '@/lib/folderTree';
@@ -28,7 +30,6 @@ interface SnippetStore {
   loading: boolean;
   error: string | null;
   selectedFolderId: string | null; // null = "All"
-  searchQuery: string;
   /** Set of snippet IDs currently awaiting a Notion push. */
   notionPushingIds: Set<string>;
   /** IDs of rows checked in the bulk-selection column. */
@@ -44,7 +45,6 @@ interface SnippetStore {
   bulkDeleting: boolean;
   load: () => Promise<void>;
   setSelectedFolder: (id: string | null) => void;
-  setSearchQuery: (q: string) => void;
   clearError: () => void;
   toggleSelectSnippet: (id: string) => void;
   /** Replace the current selection with the provided ids. */
@@ -122,7 +122,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
   revisionsSnippetId: null,
   revisionsLoading: false,
   selectedFolderId: null,
-  searchQuery: '',
   notionPushingIds: new Set<string>(),
   selectedIds: new Set<string>(),
   sortBy: 'updated_at',
@@ -156,7 +155,6 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     set({ folderShares: await sharesPromise });
   },
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
-  setSearchQuery: (q) => set({ searchQuery: q }),
   clearError: () => set({ error: null }),
 
   toggleSelectSnippet: (id) =>
@@ -633,7 +631,9 @@ export function useFilteredSnippets(): SnippetRow[] {
   const snippets = useSnippetStore((s) => s.snippets);
   const folders = useSnippetStore((s) => s.folders);
   const folderId = useSnippetStore((s) => s.selectedFolderId);
-  const query = useSnippetStore((s) => s.searchQuery.trim().toLowerCase());
+  // The one search bar in the header owns the text (SEARCH-001). This page no
+  // longer has a box of its own to read it from.
+  const query = useSearchStore((s) => normalizeQuery(s.query));
   const languageFilter = useSnippetStore((s) => s.languageFilter);
   const labelFilter = useSnippetStore((s) => s.labelFilter);
   // Assignments live in labelStore because the vocabulary is shared with
@@ -652,15 +652,15 @@ export function useFilteredSnippets(): SnippetRow[] {
   // below, which runs per snippet.
   const labelScope = expandWithDescendants(labelCatalog, labelFilter);
 
+  // Built once per render, not per row: the list re-filters on every keystroke.
+  const labelNamesFor = labelNameLookup(labelCatalog, labelAssignments);
+
   const filtered = snippets.filter((s) => {
     if (scope !== null && (s.folder_id === null || !scope.has(s.folder_id))) return false;
     if (languageFilter !== null && s.language !== languageFilter) return false;
     if (!matchesLabelFilter(s.id, labelScope, labelAssignments)) return false;
     if (query.length === 0) return true;
-    if (s.name.toLowerCase().includes(query)) return true;
-    if (s.triggers.some((t) => t.toLowerCase().includes(query))) return true;
-    if (s.alternative_queries.some((q) => q.toLowerCase().includes(query))) return true;
-    return false;
+    return scoreSnippet(s, query, labelNamesFor(s.id)) > 0;
   });
 
   return [...filtered].sort((a, b) => {
