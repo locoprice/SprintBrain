@@ -68,6 +68,27 @@ export function normalizeQuery(raw: string): string {
 }
 
 /**
+ * Which of the three a route belongs to, or null on a page that holds none of
+ * them (analytics, team, settings).
+ *
+ * One rule, read by the bar to word its placeholder and by the panel to scope
+ * results to "this section". A second copy would let the two disagree about
+ * where the user is.
+ */
+export function sectionForPath(pathname: string): SearchKind | null {
+  if (pathname === '/') return 'snippet';
+  if (pathname.startsWith('/prompts')) return 'prompt';
+  if (pathname.startsWith('/memory')) return 'memory';
+  return null;
+}
+
+/** The space being viewed, for scoping memory results to it. Null elsewhere. */
+export function spaceForPath(pathname: string): string | null {
+  const match = /^\/memory\/([^/]+)/.exec(pathname);
+  return match ? (match[1] ?? null) : null;
+}
+
+/**
  * Resolve an asset id to the names of its labels.
  *
  * The id-to-name map is built once per call rather than per asset, because the

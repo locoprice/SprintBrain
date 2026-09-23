@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Command, Search, X } from 'lucide-react';
 import { useSearchStore } from '@/stores/searchStore';
+import { sectionForPath, spaceForPath } from '@/lib/searchIndex';
 
 // The one search bar (SEARCH-001).
 //
@@ -19,11 +20,13 @@ import { useSearchStore } from '@/stores/searchStore';
  * the way the three sections word everything else.
  */
 export function searchPlaceholder(pathname: string): string {
-  if (pathname === '/') return 'Search snippets…';
-  if (pathname.startsWith('/prompts')) return 'Search prompts…';
-  // A space's own page filters the notes inside it; the index filters spaces.
-  if (/^\/memory\/[^/]+/.test(pathname)) return 'Search this space…';
-  if (pathname.startsWith('/memory')) return 'Search spaces…';
+  const section = sectionForPath(pathname);
+  if (section === 'snippet') return 'Search snippets…';
+  if (section === 'prompt') return 'Search prompts…';
+  if (section === 'memory') {
+    // A space's own page filters the notes inside it; the index filters spaces.
+    return spaceForPath(pathname) !== null ? 'Search this space…' : 'Search spaces…';
+  }
   return 'Search everything…';
 }
 

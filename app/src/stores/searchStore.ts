@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { SearchKind } from '@/lib/searchIndex';
 
 // The one search query on the dashboard (SEARCH-001).
 //
@@ -21,6 +22,12 @@ import { create } from 'zustand';
 /** Matches the pause the per-page search fields used, so the feel is unchanged. */
 const DEBOUNCE_MS = 300;
 
+/** How wide the results panel looks. Typing always filters the page in view. */
+export type SearchScope = 'everywhere' | 'section';
+
+/** Which type the panel lists. `all` keeps every group. */
+export type SearchTypeFilter = 'all' | SearchKind;
+
 interface SearchStore {
   /** What the bar shows. Instant. */
   input: string;
@@ -28,6 +35,10 @@ interface SearchStore {
   query: string;
   /** The aggregated, cross-type results panel. */
   paletteOpen: boolean;
+  /** What the panel covers. Everywhere by default: the panel exists to look wide. */
+  scope: SearchScope;
+  /** The panel's type filter. Only bites while the scope is everywhere. */
+  typeFilter: SearchTypeFilter;
 
   /** Type a character. Schedules the commit to `query`. */
   setInput: (next: string) => void;
@@ -35,6 +46,8 @@ interface SearchStore {
   commit: () => void;
   /** Empty both fields. The "Clear filters" actions and section changes use this. */
   clear: () => void;
+  setScope: (scope: SearchScope) => void;
+  setTypeFilter: (filter: SearchTypeFilter) => void;
   openPalette: () => void;
   closePalette: () => void;
 }
@@ -55,6 +68,8 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   input: '',
   query: '',
   paletteOpen: false,
+  scope: 'everywhere',
+  typeFilter: 'all',
 
   setInput: (next) => {
     set({ input: next });
@@ -72,8 +87,14 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
   clear: () => {
     cancel();
-    set({ input: '', query: '' });
+    // The type filter goes with the text. A filter left armed over an empty box
+    // would silently hide results from the next search.
+    set({ input: '', query: '', typeFilter: 'all' });
   },
+
+  setScope: (scope) => set({ scope }),
+
+  setTypeFilter: (typeFilter) => set({ typeFilter }),
 
   openPalette: () => {
     // Opening applies whatever is half-typed: the panel is the same query read

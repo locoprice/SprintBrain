@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeQuery,
+  sectionForPath,
+  spaceForPath,
   scoreMemoryItem,
   scorePrompt,
   scoreSnippet,
@@ -312,5 +314,31 @@ describe('searchAll', () => {
       'invoice',
     );
     expect(results.snippets.map((hit) => hit.name)).toEqual(['Invoice reminder', 'Late fee']);
+  });
+});
+
+describe('sectionForPath', () => {
+  it('maps each section route to its type', () => {
+    expect(sectionForPath('/')).toBe('snippet');
+    expect(sectionForPath('/prompts')).toBe('prompt');
+    expect(sectionForPath('/memory')).toBe('memory');
+    expect(sectionForPath('/memory/space-1')).toBe('memory');
+  });
+
+  it('returns null on a page that holds none of the three', () => {
+    expect(sectionForPath('/analytics')).toBeNull();
+    expect(sectionForPath('/settings')).toBeNull();
+    expect(sectionForPath('/team')).toBeNull();
+  });
+});
+
+describe('spaceForPath', () => {
+  it('picks out the space being viewed', () => {
+    expect(spaceForPath('/memory/space-1')).toBe('space-1');
+  });
+
+  it('is null on the index and off the memory route', () => {
+    expect(spaceForPath('/memory')).toBeNull();
+    expect(spaceForPath('/prompts')).toBeNull();
   });
 });
