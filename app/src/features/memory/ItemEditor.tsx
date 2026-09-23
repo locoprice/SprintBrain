@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, Pin } from 'lucide-react';
+import { AlertCircle, Clock, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,9 +46,11 @@ interface ItemEditorProps {
   spaceId: string;
   onClose: () => void;
   onSave: (input: SaveMemoryItemInput) => Promise<unknown>;
+  /** Opens this item's saved versions. Absent where history is not offered. */
+  onOpenHistory?: (item: MemoryItem) => void;
 }
 
-export function ItemEditor({ target, spaceId, onClose, onSave }: ItemEditorProps) {
+export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: ItemEditorProps) {
   const editing = target !== null && target !== 'new' ? target : null;
 
   const [name, setName] = useState('');
@@ -102,11 +104,26 @@ export function ItemEditor({ target, spaceId, onClose, onSave }: ItemEditorProps
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Edit item' : 'Add text'}</DialogTitle>
-          <DialogDescription>
-            One item, one fact. The summary is what gets listed when an agent decides
-            what is worth reading, so it earns its place more than the body does.
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <div className="flex flex-col gap-1.5">
+              <DialogTitle>{editing ? 'Edit item' : 'Add text'}</DialogTitle>
+              <DialogDescription>
+                One item, one fact. The summary is what gets listed when an agent decides
+                what is worth reading, so it earns its place more than the body does.
+              </DialogDescription>
+            </div>
+            {/* Only an existing item has anything behind it to look at. */}
+            {editing && onOpenHistory ? (
+              <button
+                type="button"
+                onClick={() => onOpenHistory(editing)}
+                className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-line bg-card px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-alt hover:text-ink"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                History
+              </button>
+            ) : null}
+          </div>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">

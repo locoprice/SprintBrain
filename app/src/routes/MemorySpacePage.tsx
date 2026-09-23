@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -7,6 +7,7 @@ import {
   Clock,
   Coins,
   FileText,
+  FileUp,
   Layers,
   Pencil,
   Pin,
@@ -20,12 +21,15 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ItemEditor } from '@/features/memory/ItemEditor';
+import { HistoryPanel, type HistoryEntry } from '@/features/history/HistoryPanel';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
 import { useMemoryStore } from '@/stores/memoryStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { useUiStore } from '@/stores/uiStore';
 import { normalizeQuery, scoreMemoryItem } from '@/lib/searchIndex';
-import type { MemoryItem, MemoryItemKind } from '@/types/database';
+import { memoryApi } from '@/lib/api/memoryApi';
+import { ACCEPTED_EXTENSIONS, DocumentTextError } from '@/lib/documentText';
+import type { MemoryDocument, MemoryItem, MemoryItemKind } from '@/types/database';
 
 // One space and its items.
 //
@@ -40,6 +44,97 @@ const KIND_LABEL: Record<MemoryItemKind, string> = {
   document: 'Document',
   conversation: 'Conversation',
 };
+
+/**
+ * What to say when a file does not go in.
+ *
+ * Each reason has a different next step, and "upload failed" hides all of them:
+ * a scan needs retyping or a different export, an unsupported file needs
+ * converting, a large one needs splitting. The reader's own message already
+ * names the file, so these read as a sentence about that file.
+ */
+function uploadFailureMessage(fileName: string, err: unknown): string {
+  if (err instanceof DocumentTextError) {
+    if (err.reason === 'no-text') {
+      return `${fileName} has no text to copy. If it is a scan or a photo of a page, the words are a picture, so they have to be typed in.`;
+    }
+    if (err.reason === 'unsupported') {
+      return `${fileName} is not a kind we can read. PDF, Word (.docx), text and Markdown work.`;
+    }
+    if (err.reason === 'too-large') return `${fileName} is over 20 MB. Split it and upload the parts.`;
+    return `${fileName} could not be opened. It may be damaged or password-protected.`;
+  }
+  return err instanceof Error ? err.message : `${fileName} could not be added.`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** One uploaded file, above the pieces it became. */
+function DocumentCard({
+  document: doc,
+  onOpen,
+  onTrash,
+  onRestore,
+}: {
+  document: MemoryDocument;
+  onOpen: () => void;
+  onTrash: () => void;
+  onRestore: () => void;
+}) {
+  const trashed = doc.deleted_at !== null;
+  return (
+    <Card className={cn('flex items-start justify-between gap-3 p-4', trashed && 'opacity-60')}>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-bg-alt text-ink-muted">
+          <FileUp className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-primary"
+            title={`Open ${doc.name}`}
+          >
+            {doc.name}
+          </button>
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-ink-subtle">
+            <span className="tabular-nums">
+              {doc.chunk_count === 1 ? '1 piece' : `${doc.chunk_count} pieces`}
+            </span>
+            <span className="tabular-nums">{formatBytes(doc.byte_size)}</span>
+            <span>Added {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        {trashed ? (
+          <button
+            type="button"
+            onClick={onRestore}
+            title="Restore this file and its pieces"
+            className="rounded-[8px] p-1.5 text-ink-subtle transition-colors hover:bg-bg-alt hover:text-ink"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onTrash}
+            title="Move this file and its pieces to the trash"
+            className="rounded-[8px] p-1.5 text-ink-subtle transition-colors hover:bg-danger-bg hover:text-danger"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 function StatTile({
   label,
@@ -186,13 +281,59 @@ export function MemorySpacePage() {
   const query = useSearchStore((s) => s.query);
   const clearSearch = useSearchStore((s) => s.clear);
 
+  const documents = useMemoryStore((s) => s.documents);
+  const importing = useMemoryStore((s) => s.importing);
+  const loadDocuments = useMemoryStore((s) => s.loadDocuments);
+  const importDocument = useMemoryStore((s) => s.importDocument);
+  const trashDocument = useMemoryStore((s) => s.trashDocument);
+  const restoreDocument = useMemoryStore((s) => s.restoreDocument);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const versions = useMemoryStore((s) => s.versions);
+  const versionsLoading = useMemoryStore((s) => s.versionsLoading);
+  const loadVersions = useMemoryStore((s) => s.loadVersions);
+  const restoreVersion = useMemoryStore((s) => s.restoreVersion);
+  // The item whose history is open. Held here rather than in the store because
+  // it is one panel on one page, and the store already carries the versions.
+  const [historyItem, setHistoryItem] = useState<MemoryItem | null>(null);
+
+  const historyEntries = useMemo<HistoryEntry[]>(
+    () =>
+      versions.map((version) => ({
+        id: version.id,
+        versionNumber: version.version_number,
+        editorDisplay: version.editor_display,
+        createdAt: version.created_at,
+        body: version.body,
+        note: version.edit_note,
+      })),
+    [versions],
+  );
+
+  async function handleRestoreVersion(entry: HistoryEntry) {
+    const version = versions.find((candidate) => candidate.id === entry.id);
+    if (!historyItem || !version) return;
+    try {
+      await restoreVersion(historyItem, version);
+      showToast(`Restored to v${version.version_number} — saved as the latest version.`);
+      setHistoryItem(null);
+      setEditorTarget(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not restore that version.', 'error');
+    }
+  }
+
   useEffect(() => {
     if (!loaded) void loadSpaces();
   }, [loaded, loadSpaces]);
 
   useEffect(() => {
-    if (spaceId) void loadItems(spaceId);
-  }, [spaceId, loadItems]);
+    if (spaceId) {
+      void loadItems(spaceId);
+      void loadDocuments(spaceId);
+    }
+  }, [spaceId, loadItems, loadDocuments]);
 
   const space = spaces.find((candidate) => candidate.id === spaceId) ?? null;
 
@@ -225,6 +366,36 @@ export function MemorySpacePage() {
       showToast(success);
     } catch (err) {
       showToast(err instanceof Error ? err.message : failure, 'error');
+    }
+  }
+
+  /**
+   * Files are taken one at a time rather than in parallel: each one is read,
+   * split and written in a single transaction, and three of those at once would
+   * make the progress line meaningless and the failure message ambiguous.
+   */
+  async function importFiles(list: FileList | null) {
+    if (!list || !spaceId) return;
+    for (const file of Array.from(list)) {
+      try {
+        const result = await importDocument(file, spaceId);
+        const pieces = result.chunkCount === 1 ? '1 piece' : `${result.chunkCount} pieces`;
+        showToast(
+          result.forced > 0
+            ? `${file.name} added as ${pieces}. ${result.forced} had to be cut mid-paragraph.`
+            : `${file.name} added as ${pieces}`,
+        );
+      } catch (err) {
+        showToast(uploadFailureMessage(file.name, err), 'error');
+      }
+    }
+  }
+
+  async function openDocument(doc: MemoryDocument) {
+    try {
+      window.open(await memoryApi.documentUrl(doc.storage_path), '_blank', 'noopener');
+    } catch {
+      showToast('Could not open that file.', 'error');
     }
   }
 
@@ -304,14 +475,74 @@ export function MemorySpacePage() {
           <Pencil className="h-4 w-4" />
           Add text
         </button>
-        <div
-          title="Coming soon"
-          className="flex cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-dashed border-line bg-card px-6 py-6 text-sm font-medium text-ink-subtle"
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void importFiles(event.dataTransfer.files);
+          }}
+          disabled={importing !== null}
+          className={cn(
+            'flex items-center justify-center gap-2 rounded-[16px] border border-dashed px-6 py-6 text-sm font-semibold transition-colors',
+            importing !== null
+              ? 'cursor-wait border-line bg-card text-ink-subtle'
+              : dragging
+                ? 'border-primary bg-primary-bg text-primary'
+                : 'border-primary/50 bg-primary-bg/40 text-primary hover:bg-primary-bg',
+          )}
         >
           <Upload className="h-4 w-4" />
-          Upload file (coming soon)
-        </div>
+          {importing !== null ? `Reading ${importing}…` : 'Upload file'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED_EXTENSIONS}
+          className="hidden"
+          onChange={(event) => {
+            void importFiles(event.target.files);
+            // Cleared so picking the same file twice in a row still fires.
+            event.target.value = '';
+          }}
+        />
       </div>
+
+      {documents.length > 0 ? (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-ink">Files ({documents.length})</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {documents.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onOpen={() => void openDocument(doc)}
+                onTrash={() =>
+                  void run(
+                    trashDocument(doc.id),
+                    `${doc.name} and its ${doc.chunk_count} pieces moved to the trash`,
+                    'Could not remove that file.',
+                  )
+                }
+                onRestore={() =>
+                  void run(
+                    restoreDocument(doc.id),
+                    `${doc.name} is back`,
+                    'Could not restore that file.',
+                  )
+                }
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink">
@@ -389,6 +620,20 @@ export function MemorySpacePage() {
         spaceId={spaceId}
         onClose={() => setEditorTarget(null)}
         onSave={saveItem}
+        onOpenHistory={(item) => {
+          setHistoryItem(item);
+          void loadVersions(item.id);
+        }}
+      />
+
+      <HistoryPanel
+        open={historyItem !== null}
+        subject={historyItem?.name ?? null}
+        noun="item"
+        entries={historyEntries}
+        loading={versionsLoading}
+        onClose={() => setHistoryItem(null)}
+        onRestore={handleRestoreVersion}
       />
     </div>
   );

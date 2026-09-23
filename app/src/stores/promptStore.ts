@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import type {
   Prompt,
+  PromptVersion,
   Folder,
   FolderShareInfo,
   StrategyType,
@@ -65,6 +66,23 @@ interface PromptStore {
   setSelectedFolder: (id: string | null) => void;
   addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
+  /**
+   * The editor's save: writes the prompt and records what it said, in one
+   * transaction (HISTORY-001). `editPrompt` stays for small patches that are
+   * not worth a version, such as pinning or a folder move.
+   */
+  editPromptWithVersion: (
+    id: string,
+    values: PromptFormValues,
+    editNote?: string,
+  ) => Promise<Prompt>;
+  /** Saved versions of `versionsPromptId`, newest first. */
+  versions: PromptVersion[];
+  versionsPromptId: string | null;
+  versionsLoading: boolean;
+  loadPromptVersions: (promptId: string) => Promise<void>;
+  /** Saves an older version's text back as the newest version. */
+  restorePromptVersion: (promptId: string, version: PromptVersion) => Promise<void>;
   removePrompt: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a prompt. Optimistic; rolls back on failure. */
   togglePin: (id: string) => Promise<void>;
@@ -94,6 +112,9 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   folders: [],
   folderShares: new Map<string, FolderShareInfo>(),
   selectedFolderId: null,
+  versions: [],
+  versionsPromptId: null,
+  versionsLoading: false,
 
   // Legacy shim
   get filter() {
@@ -143,6 +164,45 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
       set({ error: err instanceof Error ? err.message : 'Failed to create prompt' });
       throw err;
     }
+  },
+
+  editPromptWithVersion: async (id, values, editNote) => {
+    try {
+      await promptsApi.saveWithVersion(id, values, editNote);
+      // Refetched rather than patched in place: the RPC stamps updated_at and
+      // updated_by, and rebuilding those here would be a second copy of rules
+      // the database already owns.
+      const rows = await promptsApi.listPrompts();
+      set({ prompts: rows, error: null });
+      const saved = rows.find((p) => p.id === id);
+      if (!saved) throw new Error('Prompt not found after saving');
+      return saved;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update prompt' });
+      throw err;
+    }
+  },
+
+  loadPromptVersions: async (promptId) => {
+    set({ versionsLoading: true, versionsPromptId: promptId });
+    try {
+      set({ versions: await promptsApi.listVersions(promptId) });
+    } catch (err) {
+      set({
+        versions: [],
+        error: err instanceof Error ? err.message : 'Failed to load version history',
+      });
+    } finally {
+      set({ versionsLoading: false });
+    }
+  },
+
+  restorePromptVersion: async (promptId, version) => {
+    const current = get().prompts.find((p) => p.id === promptId);
+    if (!current) throw new Error('Prompt not found');
+    await promptsApi.restoreVersion(promptId, version, current);
+    await get().loadPromptVersions(promptId);
+    set({ prompts: await promptsApi.listPrompts() });
   },
 
   editPrompt: async (id, patch) => {

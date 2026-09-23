@@ -424,7 +424,7 @@ Every phase is independently shippable and independently revertible.
 
 ### Independent phases
 
-### D1. Documents
+### D1. Documents — SHIPPED v3.41.0 (2026-09-23)
 - **Objective**: private bucket, upload, chunking into shards.
 - **Affects**: migration (`memory_documents`, `source_id`, `chunk_index`), storage policies,
   dashboard upload target, reuses `extension/shared/memory-chunk.js`.
@@ -433,12 +433,36 @@ Every phase is independently shippable and independently revertible.
   extended for the document path.
 - **Accept**: chunks carry provenance; deleting a document removes its chunks.
 
-### H1. Version history panel
+**As built.** PDF, `.docx`, `.txt` and `.md` are read **in the browser**
+(`lib/documentText.ts`, PDF.js and mammoth imported lazily) so a contract never
+passes through a third party; the file itself then goes to the private
+`memory-docs` bucket, whose four policies gate on the first path segment being
+the owner's id. `memory_import_document` writes the document row, every chunk
+shard and each chunk's first version in **one transaction** — a dropped
+connection cannot leave a source whose text is half there. A file with no
+selectable text (a scan) is refused before anything is stored, and the storage
+object is removed if the import call fails. Naming and summarising the chunks
+lives in `lib/documentImport.ts`, covered by `documentImport.test.ts`; where the
+cut falls stays in the shared chunker, with four document cases added to
+`scripts/check-memory-chunk.js`.
+
+### H1. Version history panel — SHIPPED v3.41.0 (2026-09-23)
 - **Objective**: surface the versions K1 already writes.
 - **Affects**: dashboard only.
-- **Database**: none.
+- **Database**: none for memory. **Prompts needed one**: see below.
 - **Tests**: editing twice shows v1 and v2; restore writes v3 rather than mutating history.
 - **Accept**: restore is an append, never an edit.
+
+**As built.** The panel is now shared by all three sections
+(`features/history/HistoryPanel.tsx`): the snippet panel became a thin adapter
+over it, memory items reached it through the Edit item dialog's History button,
+and **prompts had no history at all**, so they got `public.prompt_versions` plus
+`save_prompt_with_version` (migration `20260923120000`). That function is the
+prompt editor's only save path, so the row and its version are written together;
+pinning and folder moves stay unversioned, the same line snippets draw. A
+restore re-saves the old text as the next version on every surface, and leaves
+the properties around it — space, kind, pin, strategy, shortcut, folder —
+exactly as they stand.
 
 ### IO1. Import and export
 - **Objective**: JSON, Markdown, CSV, TXT and the SBMF archive (§9).

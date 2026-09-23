@@ -140,6 +140,46 @@ check('toBlocks is safe on empty input', () => {
   assert.deepStrictEqual(capture.toBlocks({ turns: [] }), []);
 });
 
+console.log('document upload (MEMORY-002 D1)');
+
+// The dashboard's upload loads this same file at runtime rather than carrying a
+// splitter of its own, so the cases below are the document path, not a second
+// implementation of it. What the pieces are CALLED lives in the dashboard
+// (app/src/lib/documentImport.ts) and is covered by documentImport.test.ts.
+
+check('a document is cut on its paragraphs, and every piece fits the column', () => {
+  // A long contract: many paragraphs, none of them oversized on its own.
+  const clause = 'Clause text that runs on for a while and says something binding. ';
+  const doc = Array.from({ length: 400 }, (_, i) => 'Article ' + i + '\n' + clause.repeat(8)).join('\n\n');
+  const out = chunk.chunkText(doc);
+  assert.ok(out.chunks.length > 1, 'a long document should not come back as one piece');
+  assert.strictEqual(out.forced, 0, 'paragraph boundaries were available, so nothing should be forced');
+  for (const piece of out.chunks) assert.ok(piece.length <= MAX);
+  // Nothing is lost between the pieces: every article still appears once.
+  const joined = out.chunks.join('\n\n');
+  assert.ok(joined.includes('Article 0') && joined.includes('Article 399'));
+});
+
+check('a PDF that extracts as one unbroken block is still cut, and says so', () => {
+  // Some PDFs carry no paragraph breaks at all once the text is pulled out.
+  const wall = 'word '.repeat(12000);
+  const out = chunk.chunkText(wall);
+  assert.ok(out.chunks.length > 1);
+  for (const piece of out.chunks) assert.ok(piece.length <= MAX);
+  assert.ok(out.forced > 0, 'a wall of text has to be cut mid-paragraph, and that is reported');
+});
+
+check('a short file stays a single piece', () => {
+  const out = chunk.chunkText('Cancellation is free up to 48 hours before the agreed date.');
+  assert.strictEqual(out.chunks.length, 1);
+  assert.strictEqual(out.forced, 0);
+});
+
+check('a file whose text is only whitespace produces nothing to import', () => {
+  assert.deepStrictEqual(chunk.chunkText('   \n\n  \t ').chunks, []);
+  assert.deepStrictEqual(chunk.chunkText('').chunks, []);
+});
+
 if (failures > 0) {
   console.error('\nX Memory chunk check FAILED: ' + failures + ' case(s).');
   process.exit(1);

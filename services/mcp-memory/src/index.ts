@@ -45,7 +45,7 @@ import {
 } from './supabase.ts';
 
 const SERVER_NAME = 'sprintbrain-memory';
-const SERVER_VERSION = '3.42.0';
+const SERVER_VERSION = '3.43.0';
 
 /** Budget before any step has been entered. Replaced by the step's own budget on the first transition. */
 const DEFAULT_BUDGET = 4000;

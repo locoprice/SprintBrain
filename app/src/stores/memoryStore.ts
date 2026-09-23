@@ -1,6 +1,16 @@
 import { create } from 'zustand';
-import type { MemoryItem, MemorySpace, MemorySpaceTotals } from '@/types/database';
-import { memoryApi, type SaveMemoryItemInput } from '@/lib/api/memoryApi';
+import type {
+  MemoryDocument,
+  MemoryItem,
+  MemorySpace,
+  MemorySpaceTotals,
+  MemoryVersion,
+} from '@/types/database';
+import {
+  memoryApi,
+  type DocumentImportResult,
+  type SaveMemoryItemInput,
+} from '@/lib/api/memoryApi';
 
 // Memory spaces and their items (MEMORY-002).
 //
@@ -53,6 +63,24 @@ interface MemoryStore {
   saveItem: (input: SaveMemoryItemInput) => Promise<void>;
   trashItem: (id: string) => Promise<void>;
   restoreItem: (id: string) => Promise<void>;
+
+  /** Saved versions of `versionsItemId`, newest first. */
+  versions: MemoryVersion[];
+  /** The item `versions` belongs to, so reopening the same one does not refetch. */
+  versionsItemId: string | null;
+  versionsLoading: boolean;
+  loadVersions: (itemId: string) => Promise<void>;
+  /** Saves an older version's text back as the newest version. */
+  restoreVersion: (item: MemoryItem, version: MemoryVersion) => Promise<void>;
+
+  /** Uploaded files of `activeSpaceId`. Their text is in `items`. */
+  documents: MemoryDocument[];
+  /** File name being read and filed, or null. One at a time, by design. */
+  importing: string | null;
+  loadDocuments: (spaceId: string) => Promise<void>;
+  importDocument: (file: File, spaceId: string) => Promise<DocumentImportResult>;
+  trashDocument: (id: string) => Promise<void>;
+  restoreDocument: (id: string) => Promise<void>;
 }
 
 function message(err: unknown, fallback: string): string {
@@ -84,6 +112,11 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   loadingAllItems: false,
   loaded: false,
   error: null,
+  documents: [],
+  importing: null,
+  versions: [],
+  versionsItemId: null,
+  versionsLoading: false,
 
   loadSpaces: async () => {
     if (get().loadingSpaces) return;
@@ -131,7 +164,10 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   setShowTrashed: (show) => {
     set({ showTrashed: show });
     const spaceId = get().activeSpaceId;
-    if (spaceId) void get().loadItems(spaceId);
+    if (spaceId) {
+      void get().loadItems(spaceId);
+      void get().loadDocuments(spaceId);
+    }
   },
 
   clearError: () => set({ error: null }),
@@ -184,6 +220,70 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     await memoryApi.restoreItem(id, name);
     const spaceId = get().activeSpaceId;
     if (spaceId) await get().loadItems(spaceId);
+    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+  },
+
+  loadVersions: async (itemId) => {
+    set({ versionsLoading: true, versionsItemId: itemId });
+    try {
+      set({ versions: await memoryApi.listVersions(itemId) });
+    } catch (err) {
+      set({ versions: [], error: message(err, 'Could not load this item history.') });
+    } finally {
+      set({ versionsLoading: false });
+    }
+  },
+
+  restoreVersion: async (item, version) => {
+    await memoryApi.restoreVersion(item, version);
+    // The restore is itself a save, so the list it came from is now one version
+    // short, and the space holds different text.
+    await get().loadVersions(item.id);
+    const spaceId = get().activeSpaceId;
+    if (spaceId) await get().loadItems(spaceId);
+    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+  },
+
+  loadDocuments: async (spaceId) => {
+    try {
+      set({ documents: await memoryApi.listDocuments(spaceId, get().showTrashed) });
+    } catch (err) {
+      set({ error: message(err, 'Could not load the files in this space.') });
+    }
+  },
+
+  importDocument: async (file, spaceId) => {
+    set({ importing: file.name });
+    try {
+      const result = await memoryApi.importDocument(file, spaceId);
+      // The items the file became are new rows, so the space is reloaded the
+      // same way a save reloads it rather than guessing at what landed.
+      await get().loadItems(spaceId);
+      await get().loadDocuments(spaceId);
+      set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+      return result;
+    } finally {
+      set({ importing: null });
+    }
+  },
+
+  trashDocument: async (id) => {
+    await memoryApi.trashDocument(id);
+    const spaceId = get().activeSpaceId;
+    if (spaceId) {
+      await get().loadItems(spaceId);
+      await get().loadDocuments(spaceId);
+    }
+    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+  },
+
+  restoreDocument: async (id) => {
+    await memoryApi.restoreDocument(id);
+    const spaceId = get().activeSpaceId;
+    if (spaceId) {
+      await get().loadItems(spaceId);
+      await get().loadDocuments(spaceId);
+    }
     set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
   },
 }));
