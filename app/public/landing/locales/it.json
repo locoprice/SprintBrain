@@ -52,8 +52,8 @@
       "count": 1
     },
     {
-      "find": "<span class=\"trusted-label\">Trusted by operators at</span>",
-      "replace": "<span class=\"trusted-label\">Scelto dagli operatori di</span>",
+      "find": "<span class=\"trusted-label\" id=\"trusted-heading\">Trusted by operators at</span>",
+      "replace": "<span class=\"trusted-label\" id=\"trusted-heading\">Scelto dagli operatori di</span>",
       "count": 1
     },
     {
@@ -802,8 +802,8 @@
       "count": 1
     },
     {
-      "find": ">ChatGPT. Claude. Gemini. Kimi. DeepSeek. And the next AI that comes along.<",
-      "replace": ">ChatGPT. Claude. Gemini. Kimi. DeepSeek. E la prossima AI che arriverà.<",
+      "find": ">And the next AI that comes along.<",
+      "replace": ">E la prossima AI che arriverà.<",
       "count": 1
     },
     {
@@ -832,8 +832,8 @@
       "count": 1
     },
     {
-      "find": ">Capture → Organize → Contextualize → Execute<",
-      "replace": ">Raccogli → Organizza → Contestualizza → Esegui<",
+      "find": ">Capture<",
+      "replace": ">Raccogli<",
       "count": 1
     },
     {
@@ -919,6 +919,26 @@
     {
       "find": ">Your AI can change. Your context shouldn’t.<",
       "replace": ">La tua AI può cambiare. Il tuo contesto no.<",
+      "count": 1
+    },
+    {
+      "find": ">Organize<",
+      "replace": ">Organizza<",
+      "count": 1
+    },
+    {
+      "find": ">Contextualize<",
+      "replace": ">Contestualizza<",
+      "count": 1
+    },
+    {
+      "find": ">Execute<",
+      "replace": ">Esegui<",
+      "count": 1
+    },
+    {
+      "find": ">Portable context<",
+      "replace": ">Contesto portabile<",
       "count": 1
     }
   ]

@@ -133,6 +133,36 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 | `r-card-lg`   | 18 px | Mobile snippet card                      |
 | `r-pill`      | 9999  | Pills, chips, count badges               |
 
+### Landing context container (v3.41.1)
+
+The landing groups its three layers, portable context, execution flow and audience
+inside one bordered surface. It retains the canonical azure, neutral palette,
+16 px card radius and small shadow. This intentionally replaces the four separate
+marketing sections; the dashboard, extension and mobile app keep their own shells.
+
+Landing spacing tokens (inline `:root` in `app/public/landing/index.html`):
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `space-1` | 4 px | Tight text spacing |
+| `space-2` | 8 px | Inline gaps |
+| `space-3` | 12 px | Text groups |
+| `space-4` | 16 px | Card gaps and compact inset |
+| `space-6` | 24 px | Card inset |
+| `space-8` | 32 px | Container divisions |
+| `space-10` | 40 px | Desktop container inset |
+| `space-12` | 48 px | Section separation |
+| `space-16` | 64 px | Outer section separation |
+
+The flow wraps to two columns on phones, the layer cards stack below 760 px,
+and every paragraph stays visible without tabs or accordions.
+
+The portable-context panel uses a neutral split layout and a static node diagram,
+inspired by Attio's restrained grids: canonical `card` / `bg` / `line` colors,
+6 px small radius, monospaced labels, and a subtle dotted ground. The adjacent
+partner strip is a stationary 3 × 3 grid with hairline separators. It retains
+SprintBrain's existing nine brands; Attio's customer marks are not imported.
+
 ### Shadows
 
 | Token       | Value                                                            |
