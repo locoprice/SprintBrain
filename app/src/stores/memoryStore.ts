@@ -20,17 +20,29 @@ interface MemoryStore {
   totals: Map<string, MemorySpaceTotals>;
   /** Items of `activeSpaceId`, including trashed ones when `showTrashed`. */
   items: MemoryItem[];
+  /**
+   * Live items across every space, for the one search bar's panel (SEARCH-001).
+   * Separate from `items` on purpose: that one is the space being viewed and is
+   * refetched on every write, while this is a read-only index fetched once.
+   */
+  allItems: MemoryItem[];
+  /** True once `loadAllItems` has completed, so searching again does not refetch. */
+  allItemsLoaded: boolean;
   activeSpaceId: string | null;
   showTrashed: boolean;
 
   loadingSpaces: boolean;
   loadingItems: boolean;
+  /** True while the cross-space index is being fetched. */
+  loadingAllItems: boolean;
   /** True once spaces have loaded, so a remount does not refetch. */
   loaded: boolean;
   error: string | null;
 
   loadSpaces: () => Promise<void>;
   loadItems: (spaceId: string) => Promise<void>;
+  /** Fetch every space's items once, the first time someone searches. */
+  loadAllItems: () => Promise<void>;
   setShowTrashed: (show: boolean) => void;
   clearError: () => void;
 
@@ -62,11 +74,14 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   spaces: [],
   totals: new Map<string, MemorySpaceTotals>(),
   items: [],
+  allItems: [],
+  allItemsLoaded: false,
   activeSpaceId: null,
   showTrashed: false,
 
   loadingSpaces: false,
   loadingItems: false,
+  loadingAllItems: false,
   loaded: false,
   error: null,
 
@@ -96,6 +111,20 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
       set({ error: message(err, 'Could not load this space.') });
     } finally {
       set({ loadingItems: false });
+    }
+  },
+
+  loadAllItems: async () => {
+    if (get().allItemsLoaded || get().loadingAllItems) return;
+    set({ loadingAllItems: true });
+    try {
+      set({ allItems: await memoryApi.listAllItems(), allItemsLoaded: true });
+    } catch (err) {
+      // Non-fatal: searching still finds snippets, prompts and space names. A
+      // banner here would interrupt a search the user is in the middle of.
+      set({ error: message(err, 'Could not search your memory notes.') });
+    } finally {
+      set({ loadingAllItems: false });
     }
   },
 
@@ -138,14 +167,16 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     // implementation of the server's rules.
     if (spaceId) await get().loadItems(spaceId);
     const totals = await memoryApi.spaceTotals();
-    set({ totals });
+    // The cross-space search index no longer reflects what is stored, so the
+    // next search rebuilds it rather than offering the old text.
+    set({ totals, allItemsLoaded: false });
   },
 
   trashItem: async (id) => {
     await memoryApi.trashItem(id);
     const spaceId = get().activeSpaceId;
     if (spaceId) await get().loadItems(spaceId);
-    set({ totals: await memoryApi.spaceTotals() });
+    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
   },
 
   restoreItem: async (id) => {
@@ -153,6 +184,6 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     await memoryApi.restoreItem(id, name);
     const spaceId = get().activeSpaceId;
     if (spaceId) await get().loadItems(spaceId);
-    set({ totals: await memoryApi.spaceTotals() });
+    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
   },
 }));

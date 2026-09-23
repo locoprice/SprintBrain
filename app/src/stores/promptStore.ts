@@ -17,6 +17,8 @@ import { buildFolderShares } from '@/lib/folderShares';
 import { matchesLabelFilter } from '@/lib/labelUtils';
 import { expandWithDescendants } from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
+import { useSearchStore } from '@/stores/searchStore';
+import { labelNameLookup, normalizeQuery, scorePrompt } from '@/lib/searchIndex';
 import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
 export interface PromptFilters {
@@ -28,7 +30,6 @@ export interface PromptFilters {
   outputType: OutputType | null;
   /** Label ids narrowing the list; empty = no label filter. Catalog lives in labelStore. */
   labels: string[];
-  search: string;
 }
 
 // Legacy alias kept for components that read a single `filter` value.
@@ -42,7 +43,6 @@ const DEFAULT_FILTERS: PromptFilters = {
   complexity: null,
   outputType: null,
   labels: [],
-  search: '',
 };
 
 interface PromptStore {
@@ -50,7 +50,6 @@ interface PromptStore {
   loading: boolean;
   error: string | null;
   filters: PromptFilters;
-  cmdKOpen: boolean;
   /** Set of prompt IDs currently awaiting a Notion push. */
   notionPushingIds: Set<string>;
   /** Folders (shared with snippets) for grouping prompts + team sharing. */
@@ -62,7 +61,6 @@ interface PromptStore {
   load: () => Promise<void>;
   setFilters: (patch: Partial<PromptFilters>) => void;
   resetFilters: () => void;
-  setCmdKOpen: (open: boolean) => void;
   clearError: () => void;
   setSelectedFolder: (id: string | null) => void;
   addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
@@ -92,7 +90,6 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
   loading: false,
   error: null,
   filters: DEFAULT_FILTERS,
-  cmdKOpen: false,
   notionPushingIds: new Set<string>(),
   folders: [],
   folderShares: new Map<string, FolderShareInfo>(),
@@ -132,8 +129,6 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
     set((s) => ({ filters: { ...s.filters, ...patch } })),
 
   resetFilters: () => set({ filters: DEFAULT_FILTERS, selectedFolderId: null }),
-
-  setCmdKOpen: (open) => set({ cmdKOpen: open }),
 
   clearError: () => set({ error: null }),
 
@@ -312,6 +307,13 @@ export function useFilteredPrompts(): Prompt[] {
     [labelCatalog, filters.labels],
   );
 
+  // The one search bar in the header owns the text (SEARCH-001).
+  const query = useSearchStore((s) => normalizeQuery(s.query));
+  const labelNamesFor = useMemo(
+    () => labelNameLookup(labelCatalog, labelAssignments),
+    [labelCatalog, labelAssignments],
+  );
+
   return useMemo(() => {
     const list = prompts.filter((p) => {
       if (selectedFolderId !== null && p.folder_id !== selectedFolderId) return false;
@@ -322,13 +324,7 @@ export function useFilteredPrompts(): Prompt[] {
       if (filters.model && p.preferred_model !== filters.model) return false;
       if (filters.complexity && p.complexity_level !== filters.complexity) return false;
       if (filters.outputType && p.output_type !== filters.outputType) return false;
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        const inName = p.name.toLowerCase().includes(q);
-        const inIntent = (p.intent_category ?? '').toLowerCase().includes(q);
-        const inContent = p.content.toLowerCase().includes(q);
-        if (!inName && !inIntent && !inContent) return false;
-      }
+      if (query !== '' && scorePrompt(p, query, labelNamesFor(p.id)) === 0) return false;
       return true;
     });
     // Pinned prompts float to the top; the sort is stable so each half keeps
@@ -337,12 +333,15 @@ export function useFilteredPrompts(): Prompt[] {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return 0;
     });
-  }, [prompts, filters, selectedFolderId, labelAssignments, labelScope]);
+  }, [prompts, filters, selectedFolderId, labelAssignments, labelScope, query, labelNamesFor]);
 }
 
 export function useActiveFilterCount(): number {
   const filters = usePromptStore((s) => s.filters);
   const selectedFolderId = usePromptStore((s) => s.selectedFolderId);
+  // The search text counts as an active filter even though its box now lives in
+  // the header: it is narrowing this list, so "Clear 2 filters" must include it.
+  const query = useSearchStore((s) => normalizeQuery(s.query));
   let count = 0;
   if (selectedFolderId !== null) count++;
   if (filters.type !== 'all') count++;
@@ -352,6 +351,6 @@ export function useActiveFilterCount(): number {
   if (filters.complexity) count++;
   if (filters.outputType) count++;
   if (filters.labels.length > 0) count++;
-  if (filters.search) count++;
+  if (query !== '') count++;
   return count;
 }

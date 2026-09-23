@@ -22,7 +22,9 @@ import { cn } from '@/lib/utils';
 import { ItemEditor } from '@/features/memory/ItemEditor';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
 import { useMemoryStore } from '@/stores/memoryStore';
+import { useSearchStore } from '@/stores/searchStore';
 import { useUiStore } from '@/stores/uiStore';
+import { normalizeQuery, scoreMemoryItem } from '@/lib/searchIndex';
 import type { MemoryItem, MemoryItemKind } from '@/types/database';
 
 // One space and its items.
@@ -180,6 +182,9 @@ export function MemorySpacePage() {
   const showToast = useUiStore((s) => s.showToast);
 
   const [editorTarget, setEditorTarget] = useState<'new' | MemoryItem | null>(null);
+  // The one search bar in the header owns the text (SEARCH-001).
+  const query = useSearchStore((s) => s.query);
+  const clearSearch = useSearchStore((s) => s.clear);
 
   useEffect(() => {
     if (!loaded) void loadSpaces();
@@ -194,6 +199,20 @@ export function MemorySpacePage() {
   // Tiles count live items only, even when the trash is on screen: a trashed
   // item is not attachable, so counting it would overstate what the space holds.
   const live = useMemo(() => items.filter((item) => item.deleted_at === null), [items]);
+
+  // A space had no way to filter its own contents before the one search bar
+  // (SEARCH-001). The tiles above stay whole-space counts: they describe the
+  // space, not the search.
+  const needle = normalizeQuery(query);
+  const visible = useMemo(() => {
+    if (needle === '') return items;
+    return items.filter((item) => scoreMemoryItem(item, needle, space?.name ?? null) > 0);
+  }, [items, needle, space]);
+  // What is actually listed, so the heading never counts rows the filter hid.
+  const visibleLive = useMemo(
+    () => visible.filter((item) => item.deleted_at === null).length,
+    [visible],
+  );
   const tokens = useMemo(
     () => live.reduce((total, item) => total + item.token_estimate, 0),
     [live],
@@ -296,7 +315,7 @@ export function MemorySpacePage() {
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink">
-          Contents ({live.length})
+          Contents ({visibleLive})
         </h2>
         <button
           type="button"
@@ -317,21 +336,31 @@ export function MemorySpacePage() {
         <div className="flex items-center justify-center py-16 text-sm text-ink-subtle">
           Loading items…
         </div>
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="Nothing in here yet"
-          description="Add one fact. Keep it to a single idea, and give it a summary so it can be listed without being read."
+          title={items.length === 0 ? 'Nothing in here yet' : 'Nothing matches'}
+          description={
+            items.length === 0
+              ? 'Add one fact. Keep it to a single idea, and give it a summary so it can be listed without being read.'
+              : 'Try a different search, or clear the search box in the header.'
+          }
           action={
-            <Button onClick={() => setEditorTarget('new')}>
-              <Plus className="h-4 w-4" />
-              Add text
-            </Button>
+            items.length === 0 ? (
+              <Button onClick={() => setEditorTarget('new')}>
+                <Plus className="h-4 w-4" />
+                Add text
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={clearSearch}>
+                Clear search
+              </Button>
+            )
           }
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map((item) => (
+          {visible.map((item) => (
             <ItemCard
               key={item.id}
               item={item}

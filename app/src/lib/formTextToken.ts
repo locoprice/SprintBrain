@@ -14,8 +14,8 @@
  * the author no thought — while a menu is free to stay anonymous.
  *
  * Nothing writes these tokens outside the dashboard, so there is no engine-side
- * mirror to keep in step (`formMenuToken.ts` has one because Sprintbrain.html
- * builds menus too). The engine is still the parser they must satisfy:
+ * mirror to keep in step, unlike `formMenuToken.ts`, whose writer the engine
+ * still carries. The engine is still the parser they must satisfy:
  * `src/__tests__/formTextField.test.ts` pins the round trip against it.
  */
 
@@ -26,6 +26,13 @@ export interface FormTextConfig {
   name: string;
   /** Value the field starts with, or '' for an empty field. */
   default: string;
+  /**
+   * The field holds a person's name, written as `format=name`. What is typed
+   * then prints with a name's capitals in the snippet's language:
+   * "giovanni rossi" becomes "Giovanni Rossi", "signor rossi" stays
+   * "signor Rossi" in Italian. The default prints exactly as written.
+   */
+  personName?: boolean;
 }
 
 /**
@@ -57,7 +64,8 @@ export function sanitizeTextDefault(raw: string): string {
 
 export function buildFormTextToken(cfg: FormTextConfig): string {
   const value = sanitizeTextDefault(cfg.default);
-  const out = `{formtext: name=${sanitizeTextName(cfg.name)}`;
+  const head = `{formtext: name=${sanitizeTextName(cfg.name)}`;
+  const out = cfg.personName ? `${head}; format=name` : head;
   return `${value === '' ? out : `${out}; default=${value}`}}`;
 }
 

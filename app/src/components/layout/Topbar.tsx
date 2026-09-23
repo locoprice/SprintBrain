@@ -1,8 +1,9 @@
-import { CheckCircle2, Command, Search } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserDropdown } from '@/components/layout/UserDropdown';
+import { MasterSearch } from '@/features/search/MasterSearch';
 
 /**
  * Top bar — design system v1.1.
@@ -23,7 +24,7 @@ export function Topbar() {
     <header className="flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-card px-6">
       {/* Brand — small azure square + wordmark, co-branded with the user's
           company mark (Settings → Company branding) when one is set. */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-2.5">
         <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-primary text-sm font-extrabold text-white">
           S
         </div>
@@ -52,21 +53,9 @@ export function Topbar() {
         )}
       </div>
 
-      {/* Global search (stub) */}
-      <div className="relative w-[360px]">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
-        <input
-          type="text"
-          placeholder="Search snippets, prompts, settings…"
-          className="h-9 w-full rounded-[10px] border border-line bg-bg-alt pl-9 pr-12 text-sm text-ink placeholder:text-ink-subtle focus:border-primary focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        <kbd className="pointer-events-none absolute right-2 top-1/2 inline-flex h-6 -translate-y-1/2 items-center gap-1 rounded-md border border-line bg-card px-1.5 text-[11px] font-medium text-ink-subtle">
-          <Command className="h-3 w-3" />
-          K
-        </kbd>
-      </div>
+      <MasterSearch />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {/* Notion mirror status pill — distinct from team sharing */}
         <div
           title="Status of the optional Notion mirror. Team sharing is separate — share a folder from the Team page."

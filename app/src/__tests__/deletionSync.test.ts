@@ -150,7 +150,6 @@ function resetSnippetStore(): void {
     loading: false,
     error: null,
     selectedFolderId: null,
-    searchQuery: '',
     notionPushingIds: new Set(),
     selectedIds: new Set(['snip-A', 'snip-B']),
     sortBy: 'updated_at',

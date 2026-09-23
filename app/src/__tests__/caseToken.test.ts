@@ -29,7 +29,11 @@ function loadHelper<T>(path: string): T {
 }
 
 interface FormulaEngine {
-  resolveBody: (body: string, vals: Record<string, unknown>) => string;
+  resolveBody: (
+    body: string,
+    vals: Record<string, unknown>,
+    opts?: { lang?: string },
+  ) => string;
   extractFields: (body: string) => string[];
   validateTemplate: (body: string) => { ok: boolean; code: string | null; message: string };
 }
@@ -119,5 +123,81 @@ describe('{case: title} — small words stay lowercase', () => {
   it('leaves text with no letters untouched', () => {
     expect(title('   ')).toBe('   ');
     expect(title('123 456')).toBe('123 456');
+  });
+});
+
+// Sentence and title mode follow the snippet's language, and neither takes
+// away a capital someone typed on purpose. That second rule is what keeps a
+// guest's name intact: before it, {case: sentence} turned "Giovanni" into
+// "giovanni". The phone runs its own copy of these rules, pinned to this one
+// by scripts/check-snippets.js.
+describe('{case:} follows the language of the snippet', () => {
+  const cased = (mode: string, text: string, lang: string) =>
+    engine.resolveBody(`{case: ${mode}}${text}{/case}`, {}, { lang });
+
+  it('keeps a name typed with its capital', () => {
+    expect(
+      engine.resolveBody(
+        "{case: sentence}this is {formtext: name=who}'s room.{/case}",
+        { who: 'Giovanni' },
+        { lang: 'EN' },
+      ),
+    ).toBe("This is Giovanni's room.");
+  });
+
+  it('capitalizes English days, months, languages and titles', () => {
+    expect(cased('sentence', 'WE ARRIVE ON MONDAY IN SEPTEMBER. MR. SMITH SPEAKS ENGLISH.', 'EN')).toBe(
+      'We arrive on Monday in September. Mr. Smith speaks English.',
+    );
+  });
+
+  it('reads "may" as the month only beside a date', () => {
+    expect(cased('sentence', 'you may pay on 3 may.', 'EN')).toBe('You may pay on 3 May.');
+  });
+
+  it('writes Italian, Spanish and French days, months and languages lowercase', () => {
+    expect(cased('sentence', 'ARRIVO LUNEDÌ 5 SETTEMBRE. PARLO INGLESE.', 'IT')).toBe(
+      'Arrivo lunedì 5 settembre. Parlo inglese.',
+    );
+    expect(cased('sentence', 'LLEGADA EL LUNES. HABLO INGLÉS.', 'ES')).toBe(
+      'Llegada el lunes. Hablo inglés.',
+    );
+    expect(cased('sentence', 'ARRIVÉE LUNDI. JE PARLE ANGLAIS.', 'FR')).toBe(
+      'Arrivée lundi. Je parle anglais.',
+    );
+  });
+
+  it('capitalizes the Italian and French plural noun for a people', () => {
+    expect(cased('sentence', 'GLI ITALIANI BEVONO VINO ITALIANO.', 'IT')).toBe(
+      'Gli Italiani bevono vino italiano.',
+    );
+    expect(cased('sentence', 'LES ITALIENS AIMENT LE VIN ITALIEN.', 'FR')).toBe(
+      'Les Italiens aiment le vin italien.',
+    );
+  });
+
+  it('keeps the capital on an abbreviated title and on the name after it', () => {
+    expect(cased('sentence', 'IL DOTT. ROSSI È ARRIVATO.', 'IT')).toBe('Il Dott. Rossi è arrivato.');
+    expect(cased('sentence', 'EL SR. PÉREZ HA LLEGADO.', 'ES')).toBe('El Sr. Pérez ha llegado.');
+    expect(cased('sentence', 'MME DUPONT EST ARRIVÉE.', 'FR')).toBe('Mme Dupont est arrivée.');
+  });
+
+  it('does not read an everyday word as a title', () => {
+    expect(cased('sentence', 'IL ME DIT OUI.', 'FR')).toBe('Il me dit oui.');
+    expect(cased('sentence', 'THE DOCTOR SAID NO.', 'EN')).toBe('The doctor said no.');
+  });
+
+  it('keeps small words and calendar words lowercase inside an Italian or Spanish title', () => {
+    expect(cased('title', 'arrivo lunedì, camera di giovanni', 'IT')).toBe(
+      'Arrivo lunedì, Camera di Giovanni',
+    );
+    expect(cased('title', 'llegada el lunes a la habitación', 'ES')).toBe(
+      'Llegada el lunes a la Habitación',
+    );
+    expect(cased('title', "la guida dell'isola", 'IT')).toBe("La Guida dell'Isola");
+  });
+
+  it('treats a lone capital letter in shouting text as an ordinary word', () => {
+    expect(cased('sentence', 'I HAVE A ROOM.', 'EN')).toBe('I have a room.');
   });
 });

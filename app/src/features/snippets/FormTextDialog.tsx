@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { buildFormTextToken, isValidFieldName } from '@/lib/formTextToken';
 
@@ -39,6 +40,7 @@ export function FormTextDialog({
 }: FormTextDialogProps) {
   const [name, setName] = useState('');
   const [defaultValue, setDefaultValue] = useState('');
+  const [personName, setPersonName] = useState(false);
 
   const nameRef = useRef<HTMLInputElement | null>(null);
 
@@ -48,13 +50,14 @@ export function FormTextDialog({
     if (!open) return;
     setName(suggestedName);
     setDefaultValue('');
+    setPersonName(false);
   }, [open, suggestedName]);
 
   const nameValid = isValidFieldName(name);
 
   const token = useMemo(
-    () => buildFormTextToken({ name, default: defaultValue }),
-    [name, defaultValue],
+    () => buildFormTextToken({ name, default: defaultValue, personName }),
+    [name, defaultValue, personName],
   );
 
   function handleSubmit() {
@@ -142,6 +145,20 @@ export function FormTextDialog({
             />
             <p className={HINT}>
               The value the field starts with. Left blank, it opens empty.
+            </p>
+          </div>
+
+          {/* ── Person name ── */}
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="form-text-person" className="text-xs font-medium text-ink-muted">
+                Person name
+              </label>
+              <Switch id="form-text-person" checked={personName} onChange={setPersonName} />
+            </div>
+            <p className={HINT}>
+              Adds capitals in the snippet&apos;s language: giovanni rossi prints as Giovanni
+              Rossi, signor rossi as signor Rossi. The default prints as written.
             </p>
           </div>
 

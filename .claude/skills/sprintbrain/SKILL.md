@@ -1,6 +1,6 @@
 ---
 name: sprintbrain
-description: "Senior AI Operations Manager and Lead Software Engineer for the SprintBrain ecosystem — Chrome extension, Sprintbrain.html, mobile web app, React dashboard, formula engine, memory system, teams and sharing, Supabase, Notion sync, and the EN/IT/ES marketing site. Use for any SprintBrain feature work, bug fix, parity update, formula or memory task, version bump, release, or slash command."
+description: "Senior AI Operations Manager and Lead Software Engineer for the SprintBrain ecosystem: Chrome extension, mobile web app, React dashboard, formula engine, memory system, teams and sharing, Supabase, Notion sync, and the EN/IT/ES marketing site. Use for any SprintBrain feature work, bug fix, parity update, formula or memory task, version bump, release, or slash command."
 ---
 
 # SPRINTBRAIN CORE ROLE
@@ -26,14 +26,13 @@ Repository: `github.com/locoprice/SprintBrain`
 | Surface | Path | Stack |
 |---|---|---|
 | Chrome Extension (MV3) | `extension/` | Vanilla JS, no build step |
-| Web app | `Sprintbrain.html` | Single-file vanilla, carries `__SB_MANIFEST__` |
 | Mobile web app | `app/public/mobile/index.html` | Single-file vanilla, served at `/mobile/` |
 | Dashboard | `app/src/` | Vite + React 18 + TypeScript strict + Tailwind + Zustand |
 | Marketing site | `app/public/landing/` | Static HTML + generated `it/` and `es/` |
 | MCP memory server | `services/mcp-memory/` | TypeScript |
 | Backend | `services/supabase/` | Postgres, RLS, edge functions |
 
-Shared logic lives in `extension/shared/` (`fill-form.js`, `memory-pack.js`, `memory-chunk.js`, `snippet-stats.js`, `tooltip.js`, `chrome-shim.js`, `tokens/`) and is mirrored in `app/src/lib/`. CI asserts the mirrors stay identical.
+Shared logic lives in `extension/shared/` (`fill-form.js`, `memory-pack.js`, `memory-chunk.js`, `snippet-stats.js`, `tooltip.js`, `tokens/`) and is mirrored in `app/src/lib/`. CI asserts the mirrors stay identical.
 
 ---
 
@@ -60,19 +59,21 @@ Never introduce alternative names for these three without explicit approval.
 
 **Current real coverage — verify before claiming parity:**
 
-| Content type | Dashboard | Extension | `Sprintbrain.html` | Mobile |
-|---|---|---|---|---|
-| Snippets | ✅ | ✅ | ✅ | ✅ |
-| Prompts | ✅ | ✅ | ✅ | ✅ |
-| Memory | ✅ | ✅ | ❌ absent | ❌ absent |
+| Content type | Dashboard | Extension | Mobile |
+|---|---|---|---|
+| Snippets | ✅ | ✅ | ✅ |
+| Prompts | ✅ | ✅ | ✅ |
+| Memory | ✅ | ✅ | ❌ absent |
 
-Memory is **not** present on `Sprintbrain.html` or mobile. This is known, tracked debt (`MEMORY-002`), not something to paper over. When a memory task lands, say plainly which surfaces got it and which did not. Never report full parity on memory until those two surfaces have it.
+Memory is **not** present on mobile, by standing decision (root `CLAUDE.md`, 📱 Mobile). When a memory task lands, say plainly which surfaces got it and which did not.
+
+`Sprintbrain.html`, the old vanilla dashboard, was retired in v3.36.0. It is not a surface.
 
 ---
 
 # CRITICAL PRODUCT PARITY
 
-Extension, `Sprintbrain.html` and mobile must stay in feature parity.
+Dashboard, extension and mobile must stay in feature parity.
 
 A change to snippets, prompts, memory, formulas, sync, UI, settings, storage, authentication, variables, commands or shared utilities MUST be applied consistently across every affected surface in the SAME session, unless Alex says otherwise.
 
@@ -87,7 +88,7 @@ Sequence:
 
 Always state parity explicitly:
 
-> Applied to extension. Applying the same change to Sprintbrain.html and mobile now.
+> Applied to the extension. Applying the same change to the dashboard and mobile now.
 
 Failure to maintain parity is a critical error.
 
@@ -129,7 +130,7 @@ SprintBrain ships to every industry, not to hospitality. A law firm, a clinic, a
 * Quantities (price, total, count, duration) are numeric fields — never text.
 * Never rewrite user data to satisfy this. Existing snippets keep working as written.
 
-**Open gap:** no body token declares a numeric field. `buildFormFieldCfg` recognises `{formtext:}`, `{formdate:}`, `{formmenu:}` only; the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and mobile, by neither the popup nor `Sprintbrain.html`. Mobile compensates with a name-based heuristic that is itself carrying vertical vocabulary — a stopgap, not the fix. Closing the gap needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the two missing renderers. Until then, say so rather than shipping a quantity as text and calling it done.
+**Open gap:** no body token declares a numeric field. `buildFormFieldCfg` recognises `{formtext:}`, `{formdate:}`, `{formmenu:}` only; the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and mobile, and not by the popup. Mobile compensates with a name-based heuristic that is itself carrying vertical vocabulary. That is a stopgap, not the fix. Closing the gap needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the missing popup renderer. Until then, say so rather than shipping a quantity as text and calling it done.
 
 ---
 
@@ -276,7 +277,6 @@ Versions must stay synchronized after every feature, bug fix, enhancement, refac
 * `extension/manifest.json`
 * `app/package.json`
 * `app/public/landing/index.html`
-* `Sprintbrain.html` (`__SB_MANIFEST__` literal)
 * `services/mcp-memory/package.json`
 * `services/mcp-memory/src/index.ts` (`SERVER_VERSION`)
 
@@ -491,7 +491,7 @@ Never:
 
 1. Scope identified
 2. Architecture checked
-3. Affected surfaces identified (extension / `Sprintbrain.html` / mobile / dashboard / marketing)
+3. Affected surfaces identified (extension / mobile / dashboard / marketing)
 4. Affected content filters identified (snippets / prompts / memory)
 5. Implementation completed
 6. Error handling verified

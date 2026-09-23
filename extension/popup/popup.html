@@ -78,8 +78,8 @@ html,body{
 .mode-tab.on .mc{background:var(--sb-azure-bg);color:var(--sb-azure)}
 
 /* ── SEARCH ── */
-/* Library breakdown — same string Sprintbrain.html prints under its Snippets
-   KPI, so the two surfaces cannot report different numbers. */
+/* Library breakdown. The string comes from the shared counting rule, so no two
+   surfaces can report different numbers. */
 .lib-stats{flex-shrink:0;padding:0 16px 4px;background:var(--sb-bg);font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow{height:56px;flex-shrink:0;padding:6px 16px;display:flex;gap:8px;align-items:center;background:var(--sb-bg)}
 .search-wrap{position:relative;flex:1;display:flex;align-items:center}
@@ -223,7 +223,7 @@ html,body{
 .d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
 .d-frow input:focus,.d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
 /* Inline sentence: the control sits inside the prose that surrounds it in the
-   body. MIRRORED in Sprintbrain.html — it styles .d-frow separately. */
+   body. */
 .d-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .d-row input,.d-row select{flex:1 1 130px;width:auto;min-width:0}
 .d-ctx,.d-ctxline{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);line-height:1.35}
@@ -237,7 +237,7 @@ html,body{
    filled. Open, it indents under the field it belongs to so the rows read as
    part of that field. The width/height reset is deliberate — .d-frow sizes
    every input full-width and 34px tall, which is right for a field and wrong
-   for a row of three small controls. MIRRORED in Sprintbrain.html. */
+   for a row of three small controls. */
 .d-adj{align-self:flex-start;margin-top:2px;padding:2px 4px;background:none;border:none;font-family:inherit;font-size:var(--sb-fs-11);font-weight:600;color:var(--sb-ink-subtle);cursor:pointer;line-height:1.4}
 .d-adj:hover,.d-adj[aria-expanded=true]{color:var(--sb-azure)}
 .d-adjbox{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding:8px 10px;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
@@ -378,9 +378,7 @@ html,body{
 /* ── UNUSED-ASSET NOTICE (INACTIVE-001) ──
    Same card geometry as .cap-card above so the two strips that can appear at
    the top of the list read as one family, on the amber ground because this is
-   a caution, not a confirmation. Sprintbrain.html carries the same rules under
-   the same class names; the only difference between the surfaces is which
-   buttons the row holds, because the popup is read-only. */
+   a caution, not a confirmation. */
 .ina-card{
   margin:10px 16px 0;padding:10px 12px;border-radius:var(--sb-r-md);
   background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr);
@@ -403,8 +401,6 @@ html,body{
 .ina-btn:hover{border-color:var(--sb-warn);background:var(--sb-warn-bg)}
 .ina-btn.primary{color:#fff;background:var(--sb-warn);border-color:var(--sb-warn)}
 .ina-btn.primary:hover{background:var(--sb-warn);opacity:.9}
-.ina-btn.danger{color:var(--sb-danger);border-color:var(--sb-danger-bdr)}
-.ina-btn.danger:hover{background:var(--sb-danger-bg);border-color:var(--sb-danger)}
 .ina-nav{margin-left:auto;display:flex;align-items:center;gap:6px}
 .ina-step{font-size:var(--sb-fs-10);color:var(--sb-ink-muted);white-space:nowrap}
 .ina-arrow{
@@ -577,8 +573,8 @@ html,body{
 
   <!-- UNUSED-ASSET NOTICE (INACTIVE-001). Sits above the search, the same
        place the dashboard puts its page banner. Read-only here: Review opens
-       the dashboard on the asset, Keep silences it. Markup is written by the
-       shared renderInactive() in popup.js, which also drives Sprintbrain.html. -->
+       the dashboard on the asset, Keep silences it. Markup is written by
+       renderInactive() in popup.js. -->
   <div class="ina-card" id="ina-card" role="status" style="display:none"></div>
 
   <!-- SEARCH -->

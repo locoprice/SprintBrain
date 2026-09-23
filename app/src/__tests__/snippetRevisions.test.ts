@@ -96,7 +96,6 @@ beforeEach(() => {
     loading: false,
     error: null,
     selectedFolderId: null,
-    searchQuery: '',
     notionPushingIds: new Set(),
     selectedIds: new Set(),
     sortBy: 'updated_at',

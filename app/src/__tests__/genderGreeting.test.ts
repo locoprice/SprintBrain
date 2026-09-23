@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 // Same loading trick as formulaConditions.test.ts: run the REAL shipping engine
 // (extension/formula-engine.js) rather than a copy, so these expectations pin
-// the behaviour the extension and Sprintbrain.html actually get.
+// the behaviour the extension actually gets.
 interface FormulaEngine {
   resolveBody: (body: string, vals: Record<string, unknown>, opts?: { lang?: string }) => string;
   extractFields: (body: string) => string[];

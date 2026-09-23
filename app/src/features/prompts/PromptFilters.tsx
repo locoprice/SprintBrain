@@ -5,6 +5,7 @@ import { FolderIcon } from '@/lib/folderIcons';
 import { FolderShareBadge } from '@/features/org/FolderTree';
 import { LabelFilter } from '@/features/labels/LabelFilter';
 import { usePromptStore, useActiveFilterCount } from '@/stores/promptStore';
+import { useSearchStore } from '@/stores/searchStore';
 import type { Folder, IntentCategory, Prompt, StrategyType } from '@/types/database';
 
 const STRATEGIES: StrategyType[] = ['CoT', 'ToT', 'Few-shot', 'One-shot', 'RAG', 'Agentic'];
@@ -213,6 +214,9 @@ export const PromptFilters = memo(function PromptFilters({ onManageLabels }: Pro
   const filters = usePromptStore((s) => s.filters);
   const setFilters = usePromptStore((s) => s.setFilters);
   const resetFilters = usePromptStore((s) => s.resetFilters);
+  // The search text lives in the header bar now (SEARCH-001), so clearing the
+  // filters has to reach across and empty a box this page does not own.
+  const clearSearch = useSearchStore((s) => s.clear);
   const activeCount = useActiveFilterCount();
 
   return (
@@ -241,7 +245,10 @@ export const PromptFilters = memo(function PromptFilters({ onManageLabels }: Pro
       {activeCount > 0 && (
         <button
           type="button"
-          onClick={resetFilters}
+          onClick={() => {
+            resetFilters();
+            clearSearch();
+          }}
           className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-ink-muted hover:text-danger"
         >
           <X className="h-3.5 w-3.5" />

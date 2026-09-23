@@ -14,6 +14,7 @@ import {
   useSnippetStore,
 } from '@/stores/snippetStore';
 import type { SortColumn } from '@/stores/snippetStore';
+import { useSearchStore } from '@/stores/searchStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -196,8 +197,9 @@ export function SnippetsTable() {
   }, [library]);
   const pushSnippetToNotion = useSnippetStore((s) => s.pushSnippetToNotion);
   const notionPushingIds = useSnippetStore((s) => s.notionPushingIds);
-  const query = useSnippetStore((s) => s.searchQuery);
-  const setQuery = useSnippetStore((s) => s.setSearchQuery);
+  // The search text lives in the header bar now (SEARCH-001), so "Clear
+  // filters" has to reach across and empty a box this page does not own.
+  const clearSearch = useSearchStore((s) => s.clear);
   const setFolder = useSnippetStore((s) => s.setSelectedFolder);
   const setLanguageFilter = useSnippetStore((s) => s.setLanguageFilter);
   const setLabelFilter = useSnippetStore((s) => s.setLabelFilter);
@@ -221,7 +223,7 @@ export function SnippetsTable() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Read filter state to reset to page 1 whenever the visible set changes
-  const filterQuery = useSnippetStore((s) => s.searchQuery);
+  const filterQuery = useSearchStore((s) => s.query);
   const filterFolder = useSnippetStore((s) => s.selectedFolderId);
   const filterLang = useSnippetStore((s) => s.languageFilter);
   const filterLabels = useSnippetStore((s) => s.labelFilter);
@@ -276,13 +278,13 @@ export function SnippetsTable() {
       <EmptyState
         icon={Search}
         title="No snippets match your filters"
-        description="Try a different folder or clear the search to see your full library."
+        description="Try a different folder, or clear the search box in the header."
         action={
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              setQuery('');
+              clearSearch();
               setFolder(null);
               setLanguageFilter(null);
               setLabelFilter([]);
@@ -579,7 +581,7 @@ export function SnippetsTable() {
           {totalGroups === 0 ? '0 snippets' : (
             <>
               {startIdx + 1}–{endIdx} of {totalGroups} snippet{totalGroups === 1 ? '' : 's'}
-              {query.trim().length > 0 ? ` matching "${query.trim()}"` : ''}
+              {filterQuery.trim().length > 0 ? ` matching "${filterQuery.trim()}"` : ''}
             </>
           )}
         </span>

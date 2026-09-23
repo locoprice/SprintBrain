@@ -2,7 +2,7 @@ import type { Folder } from '@/types/database';
 
 // Folder hierarchy helpers. Pure functions over a flat Folder[] — no store, no
 // React — so the same rules drive the snippet rail, the prompt chips, and the
-// tests. The vanilla surfaces (Sprintbrain.html, popup.js) mirror this logic.
+// tests. The extension popup (popup.js) mirrors this logic.
 
 /** Property > Category > Sub. Matches the DB trigger in 20260731000000_folder_hierarchy.sql. */
 export const MAX_FOLDER_DEPTH = 3;

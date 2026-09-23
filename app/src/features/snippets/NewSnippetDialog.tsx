@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
+import { sanitizeName } from '@/lib/nameText';
 import {
   Dialog,
   DialogContent,
@@ -83,20 +84,6 @@ const LANG_PICKER: SnippetFormValues['language'][] = ['EN', 'IT', 'ES', 'FR', 'M
 // The width at which the dialog can afford its third panel: 839px of rail and
 // editor plus the preview's 321px, with 94vw to spare for the backdrop.
 const PREVIEW_MIN_WIDTH = 1280;
-
-/**
- * A snippet name is read back as plain text everywhere else: the extension
- * picker, the popup list, the mobile rows, each of which lays the name out in
- * a fixed-height line that a pictograph breaks. Emoji and the joiners, keycaps,
- * flags and skin tones that build them are dropped as they are typed or
- * pasted. Letters in any script, digits, spaces and punctuation pass through.
- */
-const NAME_EMOJI =
-  /[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Emoji_Modifier}\u{FE0F}\u{20E3}\u{200D}]/gu;
-
-function sanitizeName(value: string): string {
-  return value.replace(NAME_EMOJI, '');
-}
 
 /**
  * Alternative queries are stored on the row being edited, not on the language
@@ -169,8 +156,7 @@ const LANGUAGE_CHECK_DELAY_MS = 500;
 // The rail was a row of Quick Insert chips until v3.14.4: one token per chip,
 // its whole explanation in a hover title. Every one of them is now a toggle
 // that says what the token does before it writes it, which is why no chip list
-// survives here. Note this no longer mirrors the Sprintbrain.html chip rail:
-// that surface still shows the five original field chips.
+// survives here.
 //
 // Everything the rail offers has to read as built for the reader's own trade,
 // whichever that is: a clinic, a repair shop and a law firm each open it and
@@ -1165,6 +1151,13 @@ export function NewSnippetDialog() {
                     <dd className="text-[11px] text-ink-subtle leading-tight">
                       Optional. Prefills the box, so the common answer is already there and
                       only the exception needs typing.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">Person name</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. A name typed in lowercase gets its capitals when the snippet
+                      expands, following the snippet&apos;s language.
                     </dd>
                   </div>
                 </dl>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccountPanel } from '@/features/settings/AccountPanel';
@@ -7,12 +8,19 @@ import { InactivityPanel } from '@/features/settings/InactivityPanel';
 import { InlineTriggerPanel } from '@/features/settings/InlineTriggerPanel';
 import { IntegrationsPanel } from '@/features/settings/IntegrationsPanel';
 import { NotionSyncPanel } from '@/features/settings/NotionSyncPanel';
+import { PasswordPanel } from '@/features/settings/PasswordPanel';
 import { SecurityPanel } from '@/features/settings/SecurityPanel';
 import { useSettingsStore } from '@/stores/settingsStore';
+
+const TABS = ['account', 'security', 'notion', 'integrations'] as const;
 
 export function SettingsPage() {
   const profile = useSettingsStore((s) => s.profile);
   const load = useSettingsStore((s) => s.load);
+  // ?tab=security opens straight on that tab (the password reset link lands there).
+  const [params] = useSearchParams();
+  const requestedTab = params.get('tab');
+  const initialTab = TABS.find((t) => t === requestedTab) ?? 'account';
 
   useEffect(() => {
     if (!profile) {
@@ -27,7 +35,7 @@ export function SettingsPage() {
         description="Manage your account, sync sources, and connected surfaces."
       />
 
-      <Tabs defaultValue="account" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
@@ -42,6 +50,7 @@ export function SettingsPage() {
           <InactivityPanel />
         </TabsContent>
         <TabsContent value="security" className="space-y-4">
+          <PasswordPanel />
           <SecurityPanel />
         </TabsContent>
         <TabsContent value="notion">

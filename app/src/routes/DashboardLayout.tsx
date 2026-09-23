@@ -5,6 +5,7 @@ import { Topbar } from '@/components/layout/Topbar';
 import { ChangelogModal } from '@/components/layout/ChangelogModal';
 import { JotFormModal } from '@/components/layout/JotFormModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
+import { GlobalSearch } from '@/features/search/GlobalSearch';
 import { PendingInviteBanner } from '@/features/org/PendingInviteBanner';
 import { Toast } from '@/components/ui/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -31,7 +32,7 @@ export function DashboardLayout() {
   const [contactOpen, setContactOpen] = useState(false);
 
   // Reflect the company logo (Settings → Branding) as the browser-tab favicon,
-  // matching the extension toolbar + Sprintbrain.html; brand mark when unset.
+  // matching the extension toolbar; brand mark when unset.
   useCompanyFavicon(profile?.company_logo_url ?? null);
 
   // Settings drives the user block in the sidebar and the sync pill in the
@@ -142,6 +143,7 @@ export function DashboardLayout() {
         title="Support"
       />
       <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} />
+      <GlobalSearch />
       <Toast />
     </div>
   );

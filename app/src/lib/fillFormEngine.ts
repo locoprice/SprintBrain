@@ -3,13 +3,13 @@
  * a snippet through exactly the code that expands it in Gmail or WhatsApp.
  *
  * `extension/formula-engine.js` and `extension/shared/fill-form.js` are UMD and
- * already shipped as plain scripts to every other surface (the popup, the
- * in-page overlay, `Sprintbrain.html`). This module loads those same two files
+ * already shipped as plain scripts to the popup and the in-page overlay.
+ * This module loads those same two files
  * and reads the globals they install — it does NOT re-implement or re-bundle
  * them, so the preview can never disagree with what the extension produces.
  * `scripts/check-fill-form.js` guards the shape both sides depend on.
  *
- * Serving: `nativeDashboardPlugin` in vite.config.ts copies `extension/` into
+ * Serving: `extensionScriptsPlugin` in vite.config.ts copies `extension/` into
  * dist at build and serves it from the repo root in dev, so `/extension/*`
  * resolves on both.
  */

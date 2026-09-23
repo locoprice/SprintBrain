@@ -25,8 +25,8 @@ export interface SnippetsApi {
   deleteSnippet(id: string): Promise<void>;
   /**
    * Toggle the pinned flag without touching other fields. Accepts a list so a
-   * multilingual snippet pins as a group — every surface (mobile, popup,
-   * Sprintbrain.html) reads "pinned" as an all-or-nothing group property.
+   * multilingual snippet pins as a group: every surface (mobile, popup) reads
+   * "pinned" as an all-or-nothing group property.
    * Returns only the rows RLS let it write.
    */
   setPinned(ids: string | string[], pinned: boolean): Promise<SnippetRow[]>;

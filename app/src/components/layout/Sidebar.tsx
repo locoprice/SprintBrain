@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { Fragment, useState, useRef, useEffect, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { pickHttpsUrl } from '@/lib/branding';
 import { RESOURCE_LINKS } from '@/lib/links';
 import { JotFormModal } from '@/components/layout/JotFormModal';
+import { Separator } from '@/components/ui/separator';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -36,6 +37,8 @@ interface NavItem {
   end?: boolean;
   /** When provided, renders a count pill — filled (primary) when active, muted otherwise. */
   count?: number;
+  /** Renders a hairline above this item, splitting the content trio from the rest. */
+  dividerBefore?: boolean;
 }
 
 function navClass({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }): string {
@@ -129,7 +132,7 @@ export function Sidebar() {
     // No count pill: the spaces list is loaded by the Memory page itself, and
     // pulling that store into the sidebar would make every page fetch it.
     { to: '/memory', label: 'Memory', icon: Brain },
-    { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount },
+    { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount, dividerBefore: true },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
@@ -200,23 +203,26 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col gap-0.5">
           {PRIMARY.map((item) => (
-            <RailTooltip key={item.to} collapsed={collapsed} label={item.label}>
-              <NavLink
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => navClass({ isActive, collapsed })}
-              >
-                {({ isActive }) => (
-                  <>
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
-                    {typeof item.count === 'number' && item.count > 0 ? (
-                      <NavCountPill count={item.count} active={isActive} />
-                    ) : null}
-                  </>
-                )}
-              </NavLink>
-            </RailTooltip>
+            <Fragment key={item.to}>
+              {item.dividerBefore && <Separator className="my-2" />}
+              <RailTooltip collapsed={collapsed} label={item.label}>
+                <NavLink
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => navClass({ isActive, collapsed })}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                      {typeof item.count === 'number' && item.count > 0 ? (
+                        <NavCountPill count={item.count} active={isActive} />
+                      ) : null}
+                    </>
+                  )}
+                </NavLink>
+              </RailTooltip>
+            </Fragment>
           ))}
 
           {/* Getting Started — replays the onboarding animation on demand */}

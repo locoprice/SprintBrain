@@ -2,15 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { useUiStore } from '@/stores/uiStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { assembleBlocks } from '@/lib/promptUtils';
-import {
-  applyInteractiveSteps,
-  loadInteractiveSteps,
-  saveInteractiveSteps,
-} from '@/lib/interactiveSteps';
+import { applyInteractiveSteps, loadInteractiveSteps } from '@/lib/interactiveSteps';
 
 const MODEL_LABELS: Record<string, string> = {
   'claude-opus-4-7': 'Opus 4',
@@ -23,12 +18,11 @@ export function PromptPreviewModal() {
   const closePromptPreview = useUiStore((s) => s.closePromptPreview);
   const promptDraftContent = useUiStore((s) => s.promptDraftContent);
   const closePromptDraftPreview = useUiStore((s) => s.closePromptDraftPreview);
-  const showToast = useUiStore((s) => s.showToast);
   const prompts = usePromptStore((s) => s.prompts);
 
   const [copied, setCopied] = useState(false);
-  // Interactive Steps is a device setting (lib/interactiveSteps), read again on
-  // every open so a change made in another tab shows here.
+  // Interactive Steps is switched in the prompt editor and kept by the browser
+  // (lib/interactiveSteps). Read again on every open so the latest choice shows.
   const [stepsOn, setStepsOn] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -66,11 +60,6 @@ export function PromptPreviewModal() {
       if (isDraftMode) closePromptDraftPreview();
       else closePromptPreview();
     }
-  }
-
-  function handleStepsChange(next: boolean) {
-    setStepsOn(next);
-    if (!saveInteractiveSteps(next)) showToast('Could not save Interactive Steps in this browser', 'error');
   }
 
   async function handleCopy() {
@@ -135,33 +124,24 @@ export function PromptPreviewModal() {
               ? `${output.length.toLocaleString()} characters`
               : isDraftMode ? 'Empty draft' : 'Empty prompt'}
           </p>
-          <div className="flex items-center gap-4">
-            <label
-              className="flex cursor-pointer items-center gap-2 text-xs font-medium text-ink-muted"
-              title="Copied prompts start with step-by-step instructions. The AI does one step, then waits for you."
-            >
-              <Switch checked={stepsOn} onChange={handleStepsChange} />
-              Interactive Steps
-            </label>
-            <button
-              type="button"
-              onClick={handleCopy}
-              disabled={!output}
-              className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  Copy to clipboard
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleCopy}
+            disabled={!output}
+            className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
+          >
+            {copied ? (
+              <>
+                <Check className="h-4 w-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                Copy to clipboard
+              </>
+            )}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

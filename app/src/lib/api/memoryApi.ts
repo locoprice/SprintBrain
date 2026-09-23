@@ -53,6 +53,8 @@ export interface MemoryApi {
   restoreSpace(id: string): Promise<void>;
 
   listItems(spaceId: string, includeTrashed?: boolean): Promise<MemoryItem[]>;
+  /** Live items across every space. Feeds the one search bar's panel (SEARCH-001). */
+  listAllItems(): Promise<MemoryItem[]>;
   /** Returns the item id, new or existing. Appends a version and an audit entry. */
   saveItem(input: SaveMemoryItemInput): Promise<string>;
   trashItem(id: string): Promise<void>;
@@ -256,6 +258,19 @@ export const memoryApi: MemoryApi = {
     if (!includeTrashed) query = query.is('deleted_at', null);
     const { data, error } = await query
       .order('pinned', { ascending: false })
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as unknown as DbItem[]).map(dbItemToItem);
+  },
+
+  async listAllItems() {
+    // No space filter: RLS already scopes the read to this user. Trashed rows
+    // are left behind because a trashed note is not attachable, so offering it
+    // as a search result would promise something that cannot be used.
+    const { data, error } = await supabase
+      .from('memory_shards')
+      .select(ITEM_SELECT)
+      .is('deleted_at', null)
       .order('updated_at', { ascending: false });
     if (error) throw error;
     return ((data ?? []) as unknown as DbItem[]).map(dbItemToItem);

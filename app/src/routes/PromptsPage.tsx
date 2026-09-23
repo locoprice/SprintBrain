@@ -1,18 +1,16 @@
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Brain, Command, Plus } from 'lucide-react';
+import { Brain, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { LoadingBlock } from '@/components/layout/LoadingBlock';
 import { PageBanner } from '@/components/layout/PageBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InactiveAssetBanner } from '@/components/shared/InactiveAssetBanner';
 import { Button } from '@/components/ui/button';
-import { SearchField } from '@/components/ui/search-field';
 import { LabelManagerDialog } from '@/features/labels/LabelManagerDialog';
 import { PromptCard } from '@/features/prompts/PromptCard';
 import { PromptBlockEditor } from '@/features/prompts/PromptBlockEditor';
 import { PromptFilters } from '@/features/prompts/PromptFilters';
-import { PromptCmdK, usePromptCmdKShortcut } from '@/features/prompts/PromptCmdK';
 import { PromptPreviewModal } from '@/features/prompts/PromptPreviewModal';
 import type { InactivityCandidate } from '@/lib/inactivity';
 import { useInactivityMonths } from '@/lib/useInactivityMonths';
@@ -29,9 +27,6 @@ export function PromptsPage() {
   const loading = usePromptStore((s) => s.loading);
   const error = usePromptStore((s) => s.error);
   const clearError = usePromptStore((s) => s.clearError);
-  const search = usePromptStore((s) => s.filters.search);
-  const setFilters = usePromptStore((s) => s.setFilters);
-  const setCmdKOpen = usePromptStore((s) => s.setCmdKOpen);
   const filtered = useFilteredPrompts();
   const openNewPrompt = useUiStore((s) => s.openNewPrompt);
   // Stable across renders (zustand action), so PromptFilters stays memoized.
@@ -72,8 +67,6 @@ export function PromptsPage() {
     setParams(next, { replace: true });
   }, [deepLinkId, prompts, openEditPrompt, params, setParams]);
 
-  usePromptCmdKShortcut();
-
   useEffect(() => {
     if (prompts.length === 0) {
       void load();
@@ -94,18 +87,13 @@ export function PromptsPage() {
     <div className={cn(editorOpen && 'pr-[420px] 2xl:pr-[520px]')}>
       <PageHeader
         title="Prompts"
+        tag="reasoning assets"
         description="AI reasoning infrastructure. Structured, executable workflows."
         action={
-          <>
-            <Button variant="ghost" size="md" onClick={() => setCmdKOpen(true)} title="Search prompts">
-              <Command className="h-4 w-4" />
-              Search
-            </Button>
-            <Button onClick={openNewPrompt}>
-              <Plus className="h-4 w-4" />
-              New prompt
-            </Button>
-          </>
+          <Button onClick={openNewPrompt}>
+            <Plus className="h-4 w-4" />
+            New prompt
+          </Button>
         }
       />
 
@@ -124,12 +112,6 @@ export function PromptsPage() {
       />
 
       <div className="flex min-w-0 flex-col gap-3">
-        <SearchField
-          value={search}
-          onChange={(next) => setFilters({ search: next })}
-          placeholder="Search by name, content, or tag…"
-        />
-
         <PromptFilters onManageLabels={openLabelManager} />
 
         {loading && prompts.length === 0 ? (
@@ -141,7 +123,7 @@ export function PromptsPage() {
             description={
               prompts.length === 0
                 ? 'A prompt holds a reusable instruction for your assistant. Create one to get started.'
-                : 'Try a different search or clear your filters.'
+                : 'Try a different search, or clear the search box in the header.'
             }
             action={
               prompts.length === 0 ? (
@@ -169,7 +151,6 @@ export function PromptsPage() {
       </div>
 
       <PromptBlockEditor />
-      <PromptCmdK />
       <PromptPreviewModal />
       <LabelManagerDialog />
     </div>

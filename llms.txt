@@ -10,13 +10,12 @@ SprintBrain is a Chrome extension (Manifest V3) plus a companion SaaS dashboard.
 
 The product is three content types in one shell: **snippets** (trigger, expand), **prompts** (longer AI-prompt text, dashboard-authored, read-only on the extension), and **memory** (durable facts an AI assistant can pull into a conversation, stored as shards and served over an MCP server). Tripartite Parity (root `CLAUDE.md`) makes this non-negotiable: a UI capability added to one is added to all three, in the same change, on every surface where they exist.
 
-Four surfaces exist. See Architecture & Parity below for exactly what stays in sync across them and what does not.
+Three surfaces exist. See Architecture & Parity below for exactly what stays in sync across them and what does not.
 
 | Surface | Path | Role |
 |---|---|---|
 | Chrome extension | `extension/` | Primary expansion surface. Vanilla JS, MV3, no build step. |
 | Dashboard | `app/` (React) | The real home for CRUD, team/org sharing, analytics, settings. Desktop only (viewports under 1024px redirect to `/mobile/`). |
-| Legacy shared-core app | `Sprintbrain.html` (repo root) | Vanilla web app that reuses the extension's own `popup.js` / `auth.js` / `notion-sync.js` / `formula-engine.js` via `extension/shared/chrome-shim.js`. Copied into the dashboard's build output by `nativeDashboardPlugin()` in `app/vite.config.ts` (not duplicated in git) and served at `/Sprintbrain.html`. |
 | Mobile companion | `app/public/mobile/` | Used daily; fully synchronised on what a snippet *is and does* in the same task as every other surface. Only the management layer (folder rename/delete, full CRUD admin, memory) is intentionally absent. |
 
 The marketing site (`sprintbrain.com`) is a separate Netlify deploy rooted at `app/public/landing/`. English is the only language authored directly; Italian and Spanish copy is always human supplied (ask Valentina or Alessandro), never machine translated.
@@ -25,12 +24,12 @@ The marketing site (`sprintbrain.com`) is a separate Netlify deploy rooted at `a
 
 There is no single "extension vs. standalone app" parity switch. What is actually non-negotiable:
 
-1. **Shared logic, not a shared runtime.** `extension/popup.js` is the CRUD/data core reused by both the extension popup and `Sprintbrain.html` (via `chrome-shim.js`, which backs `chrome.storage.*` with `window.localStorage` so the extension's own scripts run unmodified on a plain web page). Editing `popup.js` affects both surfaces; verify both.
-2. **The formula engine is duplicated exactly once, by hand.** `extension/formula-engine.js` is the single source for the extension and `Sprintbrain.html` (the manifest loads it before `content/content.js`). `app/public/mobile/index.html` carries its own, simpler resolver. Any output changing engine edit has to be ported there by hand; it will not pick up the change automatically.
+1. **Shared logic, not a shared runtime.** Rules several surfaces must agree on are written once in `extension/shared/`. The popup and the content script load those files as they are. `app/public/mobile/index.html` (and, for the tooltip, the landing site) carries generated copies between markers, and the dashboard either loads the file itself (the snippet preview loads `fill-form.js`) or keeps a TypeScript mirror. The `scripts/sync-*.js` and `scripts/check-*.js` gates fail on drift. The vanilla `Sprintbrain.html` page that once reused `popup.js` was retired in v3.36.0.
+2. **The formula engine is duplicated exactly once, by hand.** `extension/formula-engine.js` is the single source for the extension (the manifest loads it before `content/content.js`) and the dashboard's snippet preview. `app/public/mobile/index.html` carries its own, simpler resolver. Any output changing engine edit has to be ported there by hand; it will not pick up the change automatically.
 3. **The dashboard is the live data surface.** Snippets, prompts, and memory get full CRUD there directly against Supabase. All surfaces read and write the same Supabase tables, so they reconcile through the backend, not through shared frontend state.
 4. **Mobile is fully synchronised on what a snippet is and does**, in the same task as every other surface. Only the management layer (folder rename/delete, full CRUD admin, memory) is intentionally absent there; do not propose closing that gap as a "parity fix."
 5. **Tripartite Parity (snippets, prompts, memory).** One product, three content types, same dashboard shell: same page skeleton, same menus, same components, same wording pattern. A capability added to one (search, filter, sort, bulk actions, a new menu item) is added to all three in the same change. What differs by design: the organising model (snippets use folders, prompts filter by those folders as chips, memory uses its own spaces) and content type only features (form fields and triggers on snippets, block editing on prompts, shards and steps on memory).
-6. **Authoring and expansion parity, at right angles to the above.** A snippet capability is not shipped when the editor can write it, only when every fill surface can use it: the in-page overlay (`extension/content/content.js`), the popup/`Sprintbrain.html` fill modal (`extension/popup/popup.js`), the dashboard's live preview (`app/src/features/snippets/SnippetPreview.tsx`), and mobile. What a fill form *is* (fields, kinds, controls) is decided once in `extension/shared/fill-form.js`; the four renderers only draw it.
+6. **Authoring and expansion parity, at right angles to the above.** A snippet capability is not shipped when the editor can write it, only when every fill surface can use it: the in-page overlay (`extension/content/content.js`), the popup fill modal (`extension/popup/popup.js`), the dashboard's live preview (`app/src/features/snippets/SnippetPreview.tsx`), and mobile. What a fill form *is* (fields, kinds, controls) is decided once in `extension/shared/fill-form.js`; the four renderers only draw it.
 
 ## Tech Stack
 
@@ -75,12 +74,11 @@ SprintBrain/
 │   ├── popup/{popup.html,popup.js,sync-deletion.js}
 │   ├── auth/auth.js
 │   ├── services/notion-sync/notion-sync.js
-│   ├── shared/{chrome-shim.js,fill-form.js,snippet-stats.js,inactivity.js,memory-pack.js,memory-chunk.js,tooltip.js,tokens/}
+│   ├── shared/{fill-form.js,snippet-stats.js,inactivity.js,memory-pack.js,memory-chunk.js,tooltip.js,tokens/}
 │   └── assets/icons/
 ├── app/                           # React + Vite dashboard, desktop-only SPA
 │   ├── src/{routes,features,components,stores,lib,types}/  # routes now include MemoryPage, MemorySpacePage, TeamPage, InvitePage
 │   └── public/{landing/,mobile/}  # Marketing site + mobile companion, served verbatim
-├── Sprintbrain.html               # Legacy shared-core web app, see Architecture & Parity
 ├── services/
 │   ├── supabase/
 │   │   ├── migrations/            # Ordered SQL, applied via the Supabase CLI
@@ -99,7 +97,7 @@ SprintBrain/
 
 - **Branches**: `main` is stable production; `develop` carries all active work. Claude Code specifically never creates a branch and never pushes anywhere except `develop`.
 - **Commits**: Conventional Commits, `type(scope): description`, one logical change per commit.
-- **Version parity is CI-enforced across every shipped stamp** by `scripts/check-version.js`: `extension/manifest.json`, `app/package.json`, the hero version stamp in `app/public/landing/index.html`, `Sprintbrain.html`'s `__SB_MANIFEST__` literal, and `services/mcp-memory`'s own two stamps (`package.json` and the `SERVER_VERSION` constant in `src/index.ts`). All of them move together; bumping the landing one means re-running `scripts/build-landing-i18n.js`.
+- **Version parity is CI-enforced across every shipped stamp** by `scripts/check-version.js`: `extension/manifest.json`, `app/package.json`, the hero version stamp in `app/public/landing/index.html`, and `services/mcp-memory`'s own two stamps (`package.json` and the `SERVER_VERSION` constant in `src/index.ts`). All of them move together; bumping the landing one means re-running `scripts/build-landing-i18n.js`.
 - **CI** (`.github/workflows/ci.yml`, Node 22, runs on push to `develop`): version parity, formula/snippet syntax, trigger expansion timing, language variant completeness, snippet grouping consistency, storage residency (no writes to `chrome.storage.sync`), tooltip parity, snippet grouping parity, unused-asset rule parity, working memory parity (`check-memory-parity.js`, needs Node 22's native TS type stripping since it imports the memory server's `engine.ts` directly), memory chunk / chat capture parity, landing translation parity, and a file structure smoke check.
 - **Quality bar**: the root `CLAUDE.md` calls this a zero-defect, production-first standard for the current pre-seed phase. No shipped bugs, no TODOs in production code, every fix verified end to end including regressions in adjacent flows.
 

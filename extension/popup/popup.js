@@ -152,9 +152,6 @@ var DB = {
       description: (f.description || '').trim() || null
     }).catch(function(e) { console.error('upsertFolder:', e); });
   },
-  deleteFolder: function(id) {
-    supaFetch('folders', 'DELETE', null, 'id=eq.' + id).catch(function(e) { console.error('deleteFolder:', e); });
-  },
   updateStats: function(snippetId, uses, fills, lastUsed) {
     supaFetch('snippet_stats', 'POST', {
       snippet_id: snippetId, user_id: SB_CURRENT_USER_ID, uses: uses, fills: fills, last_used: lastUsed
@@ -209,8 +206,7 @@ var trig         = '::';
 var selFolder    = 'ALL';
 var activeMode   = 'snippets';
 
-// v2 launcher UI state (popup-only; all null-guarded so the shared core in
-// Sprintbrain.html is unaffected — it drives its own nv-* presentation).
+// v2 launcher UI state (popup-only, and null-guarded throughout).
 var expandedId      = null;   // snippet id whose inline detail is open
 var detailLang      = null;   // active language inside the open detail
 var detailFieldVals = {};     // user-entered field values for the open detail's fill form
@@ -225,8 +221,8 @@ var searchAllFolders= false;  // "search all folders" escape from a folder-scope
 // lastUsedMap is the server's answer (snippet_last_used(), plus prompts'
 // own last_used_at column); inaState is the local mirror and snooze list from
 // chrome.storage.local. Both feed the shared decider in shared/inactivity.js,
-// which is what keeps this surface, Sprintbrain.html and the dashboard
-// agreeing on which assets are stale and how the sentence reads.
+// which is what keeps this surface and the dashboard agreeing on which assets
+// are stale and how the sentence reads.
 var lastUsedMap = {};
 var inaState    = null;   // null until storage resolves; the notice stays hidden
 var inaIndex    = 0;      // which stale asset the strip is showing
@@ -394,12 +390,10 @@ function syncPrompts(){
 
 
 // ── FAVICON — brand mark by default, company logo when the user sets one ──
-// Shared by the popup and Sprintbrain.html (both load popup.js), so the DOM
-// behaviour is identical on both surfaces (parity). The per-surface brand path
-// lives on the <link data-brand>, so this stays path-agnostic. On the extension
-// the *visible* toolbar icon is driven separately by the service worker
-// (background.js → chrome.action.setIcon); the popup <link> is invisible but
-// kept in parity here.
+// The brand path lives on the <link data-brand>, so this stays path-agnostic.
+// On the extension the *visible* toolbar icon is driven separately by the
+// service worker (background.js → chrome.action.setIcon); the popup <link> is
+// invisible but kept in parity with the dashboard tab here.
 function sbSetFavicon(href) {
   var link = document.getElementById('sb-favicon');
   if (!link) return;
@@ -1232,9 +1226,9 @@ function _runNotionSync(cb, force) {
 }
 
 // UI REFRESH
-// Every count on both surfaces comes from the shared core — a snippet with four
-// translations is one snippet here, in Sprintbrain.html and in the folder
-// badges. See extension/shared/snippet-stats.js for the grouping rule.
+// Every count comes from the shared core. A snippet with four translations is
+// one snippet here and in the folder badges. See
+// extension/shared/snippet-stats.js for the grouping rule.
 function groupCount(arr){ return SBSnippetStats.count(arr); }
 function libraryStats(){ return SBSnippetStats.stats(snips, SB_CURRENT_USER_ID); }
 // A prompt has no translations, so a row is a prompt. rowStats keeps the
@@ -1247,11 +1241,9 @@ function renderLibStats(){
 }
 // ── UNUSED-ASSET NOTICE (INACTIVE-001) ────────────────────────────
 //
-// One strip, two surfaces, three buttons at most. The popup is read-only
-// (v2.87.0), so it gets Review and Keep; Sprintbrain.html, which owns the
-// editor and the delete path, publishes window.SB_INACTIVE_ACTIONS and gets
-// Delete and Modify instead. The absence of that object is what guarantees the
-// popup never grows a write: this file cannot delete anything on its own.
+// One strip, two buttons. The popup is read-only (v2.87.0), so it gets Review,
+// which opens the dashboard on the asset, and Keep, which silences it locally.
+// This file cannot delete or edit anything on its own.
 //
 // Everything about WHICH assets appear and HOW the sentence reads comes from
 // shared/inactivity.js, so the dashboard's React banner says the same words.
@@ -1395,13 +1387,6 @@ function renderInactive() {
   if (inaIndex < 0) inaIndex = 0;
   var entry = stale[inaIndex];
   var noun = activeMode === 'prompts' ? 'prompt' : 'snippet';
-  // A surface publishes SB_INACTIVE_ACTIONS only for the sections it can
-  // actually edit. Sprintbrain.html owns the snippet editor but lists prompts
-  // read-only ("Authored in the SprintBrain dashboard"), so it answers false for
-  // prompts and gets the popup's Review button there instead. The popup itself
-  // publishes nothing at all and stays read-only everywhere.
-  var acts = window.SB_INACTIVE_ACTIONS;
-  if (acts && typeof acts.can === 'function' && !acts.can(activeMode)) acts = null;
 
   var nav = stale.length > 1
     ? '<div class="ina-nav">'
@@ -1413,12 +1398,8 @@ function renderInactive() {
       + '</div>'
     : '';
 
-  var buttons = acts
-    ? '<button class="ina-btn danger" id="ina-del" type="button">Delete</button>'
-      + '<button class="ina-btn" id="ina-mod" type="button">Modify</button>'
-      + '<button class="ina-btn primary" id="ina-keep" type="button">Keep</button>'
-    : '<button class="ina-btn" id="ina-review" type="button">Review</button>'
-      + '<button class="ina-btn primary" id="ina-keep" type="button">Keep</button>';
+  var buttons = '<button class="ina-btn" id="ina-review" type="button">Review</button>'
+    + '<button class="ina-btn primary" id="ina-keep" type="button">Keep</button>';
 
   el.innerHTML =
     '<div class="ina-head">'
@@ -1447,20 +1428,6 @@ function renderInactive() {
 
   var review = gi('ina-review');
   if (review) review.addEventListener('click', function() { inaOpenInDashboard(entry.id); });
-
-  var mod = gi('ina-mod');
-  if (mod && acts && acts.modify) mod.addEventListener('click', function() {
-    acts.modify(entry.id, activeMode);
-  });
-
-  var del = gi('ina-del');
-  if (del && acts && acts.remove) del.addEventListener('click', function() {
-    acts.remove(entry.id, activeMode, function(done) {
-      if (!done) return;
-      inaIndex = 0;
-      renderInactive();
-    });
-  });
 }
 
 function refreshUI(){
@@ -1483,9 +1450,9 @@ function findPrompt(id){ for(var i=0;i<prompts.length;i++){ if(prompts[i].id===i
 
 // ── FOLDER HIERARCHY ────────────────────────────────────────────────────────
 // Folders nest (Property > Category > Sub) via parent_id. These mirror
-// app/src/lib/folderTree.ts so the popup, Sprintbrain.html and the dashboard
-// agree on ordering, depth and rolled-up counts. Every walk is depth-capped so
-// a bad parent_id chain can never hang the UI.
+// app/src/lib/folderTree.ts so the popup and the dashboard agree on ordering,
+// depth and rolled-up counts. Every walk is depth-capped so a bad parent_id
+// chain can never hang the UI.
 var MAX_FOLDER_DEPTH = 3;
 
 function folderParent(f){ return (f && f.parent_id) || ''; }
@@ -1730,7 +1697,7 @@ function renderSkeleton(el){
 // Resolve a language's body with the single-row bodies map taking priority over
 // the raw row (whose `.body` is empty when content lives in `bodies`), then any
 // sibling-row variant, then the primary row's own body. Mirrors the dashboard
-// editor (Sprintbrain.html openEditor), which reads bodies[lang] first.
+// editor, which reads bodies[lang] first.
 function detailBody(s, lang, vars){
   var bm = (s.bodies && typeof s.bodies==='object') ? s.bodies[lang] : null;
   if(typeof bm==='string' && bm.trim()) return bm;
@@ -1807,8 +1774,7 @@ function copyDetailPrimary(id){
 // words and the same order as the builder in the dashboard rail.
 //
 // Collapsed behind one link: nearly every fill wants the day the field already
-// opens on. Shared by the popup and Sprintbrain.html, like the rest of this
-// file; both style .d-adjbox in their own stylesheet.
+// opens on. The popup styles .d-adjbox in popup.html.
 function detailAdjustHtml(f){
   var a=f.adjust;
   if(!a) return '';
@@ -1849,7 +1815,7 @@ function detailAdjustHtml(f){
 }
 
 // Binds one rendered detail's Adjust panels. Called from the popup's own
-// binding pass and from Sprintbrain.html's, the same way runDetailButton is.
+// binding pass, the same way runDetailButton is.
 //
 // A day or a clock choice writes a value into the picker that the operator
 // could have set by hand, so it lands in detailFieldVals and everything
@@ -2049,7 +2015,7 @@ function isTopByUsage(uses,max){
 }
 
 // First malformed body across every language a snippet carries. The engine is
-// loaded after popup.js in Sprintbrain.html, so it is resolved at call time.
+// read at call time, so a load-order change cannot leave it captured undefined.
 function snipIssue(s,variants){
   var eng=(typeof SBFormulaEngine!=='undefined')?SBFormulaEngine:null;
   if(!eng||!eng.validateTemplate) return null;
@@ -2147,8 +2113,7 @@ function renderList(q){
 
 /* A closing date may not open before its opening one. Re-run after any value
    changes: the limit follows what the operator just picked, and a closing date
-   the new opening one invalidated is cleared rather than left impossible.
-   Shared by the popup detail and Sprintbrain.html, which run this same file. */
+   the new opening one invalidated is cleared rather than left impossible. */
 function reorderDetailDates(el){
   if(!el||!window.SBFillForm||!window.SBFillForm.orderedMin)return;
   el.querySelectorAll('[data-after]').forEach(function(dst){
@@ -2207,8 +2172,8 @@ function wireListRows(el){
 }
 
 // Runs one {button}'s code block against the live fill-form values, writes the
-// results back into the inputs and re-resolves the preview. Shared: the popup
-// binds it above, Sprintbrain.html binds it from its own render pass.
+// results back into the inputs and re-resolves the preview. The popup binds it
+// above.
 function runDetailButton(btn){
   var FE=window.SBFormulaEngine; if(!FE||!FE.applyButtonCode) return;
   var box=btn.closest('.d-fields'); if(!box) return;
@@ -2459,8 +2424,7 @@ on('sq','input', function(e){
   else { selIdx=-1; renderList(e.target.value); }
 });
 on('cfg-default-lang','change', function(e){ userPrefs.defaultLang = e.target.value; saveUserPrefs(); });
-// Interactive Steps switch in the Prompts tab. Sprintbrain.html has no
-// #p-steps-on and wires its own switch.
+// Interactive Steps switch in the Prompts tab.
 if (gi('p-steps-on')) {
   SBInteractiveSteps.load(function(stored){ interactiveStepsOn = stored; gi('p-steps-on').checked = stored; });
   on('p-steps-on','change', function(e){ interactiveStepsOn = e.target.checked; SBInteractiveSteps.save(interactiveStepsOn); });
@@ -2471,8 +2435,7 @@ document.querySelectorAll('.mode-tab').forEach(function(tab){
   tab.addEventListener('click', function(){ setMode(tab.dataset.mode); });
 });
 
-// ── KEYBOARD NAVIGATION (popup only; guarded by #pane-list so the shared core
-//    in Sprintbrain.html — which has no #pane-list — is never affected) ──────
+// ── KEYBOARD NAVIGATION (popup only, guarded by #pane-list) ─────────────
 function listRows(){ var el=gi('list'); return el?Array.prototype.slice.call(el.querySelectorAll('.item')):[]; }
 function setSel(i){
   var rows=listRows(); if(!rows.length){ selIdx=-1; return; }
@@ -2854,10 +2817,6 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
 // could own it because the dashboard can reach the same rows. Capture is not
 // management and has no such option. Only the extension can see your ChatGPT
 // tab, so this is the one surface where the action is possible at all.
-//
-// Degrades to nothing on Sprintbrain.html. chrome-shim's tabs.query reports no
-// tabs, so the card stays hidden and never asks for a conversation that a web
-// page could not read anyway.
 (function() {
   'use strict';
 

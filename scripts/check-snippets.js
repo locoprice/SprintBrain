@@ -132,7 +132,7 @@ const MENU_RENDERERS = [
   // The popup detail reads its fields from the shared view model (see
   // extension/shared/fill-form.js), so its marker names `f`, not `def`. The
   // assertion is unchanged: the control is still picked by the menu's kind.
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+  ['extension/popup/popup.js', 'popup detail',
     "f.multiple?'checkbox':'radio'", ' name="d-'],
   // The mobile companion reads its fields from the shared view model (inlined
   // by scripts/sync-fill-form.js), so its marker names `fld`, not `c`. The
@@ -180,9 +180,8 @@ console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' f
 const PICKER_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay',
     ["cfg.type === 'date'", 'type="date"', "cfg.type === 'time'", 'type="time"']],
-  // The popup detail (and Sprintbrain.html's, which shares popup.js as its
-  // logic core) maps both kinds straight through to the input type.
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html detail',
+  // The popup detail maps both kinds straight through to the input type.
+  ['extension/popup/popup.js', 'popup detail',
     ["(f.type==='date'||f.type==='time')?f.type"]],
   ['app/public/mobile/index.html', 'mobile companion',
     ["t==='date'", 'type="date"', "t==='time'", 'type="time"']],
@@ -241,7 +240,6 @@ console.log('OK Declared date/time kinds reach the renderers (' +
 const MENU_OPTION_CSS = [
   ['extension/content/content.js', 'in-page overlay', '.sb-multi{display:flex;flex-direction:column'],
   ['extension/popup/popup.html', 'popup detail', '.d-multi{display:flex;flex-direction:column'],
-  ['Sprintbrain.html', 'detail list', '#nv-list .d-multi{display:flex;flex-direction:column'],
   // Tailwind, not a stylesheet rule: the option list is the flex column here.
   ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview',
     'flex flex-col gap-0.5'],
@@ -282,74 +280,67 @@ if (!overlayBody.includes('fieldCfg: snip.fieldCfg')) {
 }
 console.log('OK showOverlay builds the body-declared field config itself');
 
-// ── FORM MENU READER ────────────────────────────────────────────────
-// parseFormMenuToken / findMenuTokenAt are what let a builder re-open a menu
-// already in a body. Sprintbrain.html calls them directly; the dashboard keeps
-// a mirror in app/src/lib/formMenuToken.ts, and the identical matrix lives in
-// app/src/__tests__/formMenuField.test.ts as MENU_READ_CASES.
-const MENU_READ_CASES = [
-  '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
-  '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
-  '{formmenu: 1980; 1985; name=YEAR; default=1985}',
-  '{formmenu: name=YEAR; 1980; 1985}',
-  '{formmenu: A,B; name=M; default=ZZ}',
-  '{formmenu: A,B,C; name=M; default=A,C}',
-  '{formmenu: A,B}',
-  '{formmenu: red; green; blue}',
+// ── FORM MENU WRITER ────────────────────────────────────────────────
+// buildFormMenuToken is the engine's {formmenu:} writer. Reading a token back
+// into a builder belongs to the dashboard, which keeps its own reader in
+// app/src/lib/formMenuToken.ts, pinned by app/src/__tests__/formMenuField.test.ts.
+//
+// What is pinned here is the half that has to hold inside the extension. The
+// writer normalises whatever it is handed (a default that is not one of the
+// options is dropped, a single-choice menu keeps one pick, duplicates and
+// unusable names are repaired), and what it emits has to be the menu the fill
+// form then renders. A disagreement between the two ships a menu that looks
+// right in the editor and resolves to nothing in a page.
+const MENU_WRITE_CASES = [
+  [{ options: ['Choice A', 'Choice B', 'Choice C'], selected: ['Choice B'], name: 'MENU_1', multiple: false, cols: null },
+    '{formmenu: Choice A,Choice B,Choice C; name=MENU_1; default=Choice B}',
+    'Choice A\nChoice B\nChoice C'],
+  [{ options: ['Bank transfer', 'Card'], selected: ['Card', 'Bank transfer'], name: 'PAYMENT', multiple: true, cols: 24 },
+    '{formmenu: Bank transfer,Card; name=PAYMENT; default=Card,Bank transfer; multiple=yes; cols=24}',
+    'Bank transfer\nCard'],
+  [{ options: ['1980', '1985'], selected: ['1985'], name: 'YEAR', multiple: false, cols: null },
+    '{formmenu: 1980,1985; name=YEAR; default=1985}', '1980\n1985'],
+  [{ options: ['1980', '1985'], selected: [], name: 'YEAR', multiple: false, cols: null },
+    '{formmenu: 1980,1985; name=YEAR}', '1980\n1985'],
+  // A default nobody could have picked is not written at all.
+  [{ options: ['A', 'B'], selected: ['ZZ'], name: 'M', multiple: false, cols: null },
+    '{formmenu: A,B; name=M}', 'A\nB'],
+  // A single-choice menu holds one preselection, whatever it was handed.
+  [{ options: ['A', 'B', 'C'], selected: ['A', 'C'], name: 'M', multiple: false, cols: null },
+    '{formmenu: A,B,C; name=M; default=A}', 'A\nB\nC'],
+  // An unnamed menu stays unnamed: the engine keys it off the token itself, and
+  // writing that derived key back would pin a name the author never chose.
+  [{ options: ['A', 'B'], selected: [], name: '', multiple: false, cols: null },
+    '{formmenu: A,B}', 'A\nB'],
+  [{ options: ['red', 'green', 'blue'], selected: [], name: '', multiple: false, cols: null },
+    '{formmenu: red,green,blue}', 'red\ngreen\nblue'],
+  // Duplicates and blanks dropped, a name that cannot open an identifier repaired.
+  [{ options: ['A', 'A', 'B', ' '], selected: ['B'], name: '9bad', multiple: false, cols: 0 },
+    '{formmenu: A,B; name=MENU_9bad; default=B}', 'A\nB'],
 ];
 
-if (typeof engine.parseFormMenuToken !== 'function' || typeof engine.findMenuTokenAt !== 'function') {
-  fail('formula-engine no longer exports parseFormMenuToken / findMenuTokenAt');
+if (typeof engine.buildFormMenuToken !== 'function') {
+  fail('formula-engine no longer exports buildFormMenuToken');
 }
 
-let rok = 0;
-for (const raw of MENU_READ_CASES) {
-  const cfg = engine.parseFormMenuToken(raw);
-  if (!cfg) fail('parseFormMenuToken(' + JSON.stringify(raw) + ') returned null');
-  // Saving an edited menu must not keep rewriting the body: build() normalises
-  // once, and every save after that has to be a no-op.
-  const once = engine.buildFormMenuToken(cfg);
-  const twice = engine.buildFormMenuToken(engine.parseFormMenuToken(once));
-  if (once !== twice) {
-    fail('menu round-trip is not idempotent for ' + JSON.stringify(raw) +
-      '\n  first:  ' + once + '\n  second: ' + twice);
+let mwok = 0;
+for (const [cfg, want, opts] of MENU_WRITE_CASES) {
+  const token = engine.buildFormMenuToken(cfg);
+  if (token !== want) {
+    fail('buildFormMenuToken(' + JSON.stringify(cfg) + ')\n' +
+      '  wrote    ' + token + '\n  expected ' + want);
   }
-  // What the builder reopens must be the menu the fill form renders.
-  const viaCfg = engine.buildFormFieldCfg(once);
+  const viaCfg = engine.buildFormFieldCfg(token);
   const key = Object.keys(viaCfg)[0];
-  if (!key || viaCfg[key].opts !== cfg.options.join('\n')) {
-    fail('reader and buildFormFieldCfg disagree on options for ' + JSON.stringify(raw));
+  if (!key || viaCfg[key].opts !== opts) {
+    fail('writer and buildFormFieldCfg disagree on options for ' + token +
+      '\n  form sees ' + JSON.stringify(key ? viaCfg[key].opts : null) +
+      '\n  expected  ' + JSON.stringify(opts));
   }
-  rok++;
+  mwok++;
 }
 
-for (const junk of ['{formtext: name=G}', '{formmenuish: A}', 'plain text', '{formmenu: A,B', '', null, undefined]) {
-  if (engine.parseFormMenuToken(junk) !== null) {
-    fail('parseFormMenuToken(' + JSON.stringify(junk) + ') should be null');
-  }
-}
-
-// A caret on either brace counts as inside; between two touching menus the
-// earlier one wins. Getting this wrong replaces the wrong span of the body.
-const findBody = 'Hi {formtext: name=G}, pick {formmenu: A,B; name=P} then {formmenu: X,Y}';
-const findCases = [
-  [0, null], [10, null], [54, null],
-  [28, 28], [40, 28], [51, 28],
-  [57, 57], [60, 57], [72, 57],
-  [-5, null], [9999, 57],
-];
-for (const [caret, wantStart] of findCases) {
-  const got = engine.findMenuTokenAt(findBody, caret);
-  const gotStart = got ? got.start : null;
-  if (gotStart !== wantStart) {
-    fail('findMenuTokenAt(caret ' + caret + ') -> start ' + gotStart + ', expected ' + wantStart);
-  }
-  if (got && findBody.slice(got.start, got.end) !== got.raw) {
-    fail('findMenuTokenAt(caret ' + caret + ') returned a range that does not hold its raw text');
-  }
-}
-
-console.log('OK Form menu reader passed all ' + rok + ' cases');
+console.log('OK Form menu writer passed all ' + mwok + ' cases');
 
 // ── MOBILE FIELD-CONFIG PARITY ──────────────────────────────────────
 // The mobile companion (app/public/mobile/index.html) keeps its own resolver —
@@ -414,6 +405,12 @@ const fieldCfgCases = [
   '{formmenu: A,B}',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
+  // NAME FIELD: format=name on a text field. Any other format on a text field,
+  // and a name format on a number, is a typo that leaves the field as it was.
+  '{formtext: name=GUEST; format=name}',
+  '{formtext: name=GUEST; FORMAT=Name; default=huésped}',
+  '{formtext: name=GUEST; format=nome}',
+  '{formtext: name=N; type=number; format=name}',
   '{formdate: name=CHECKIN; default=2026-08-06}',
   // NUMBER FIELD — the type and format ride on {formtext:} rather than a token
   // of their own, so both parsers must read the same attributes off the same
@@ -612,6 +609,122 @@ if (engine.resolveBody('{formdate: name=D; format=DD/MM/YYYY} and {D}',
   fail('a bare reference to a formatted date field is not printing formatted');
 }
 console.log('OK Date formatting parity passed all ' + dok + ' cases');
+
+// ── NAME FIELD + {case:} LANGUAGE PARITY ────────────────────────────
+// A name field and the sentence and title modes of {case:} decide capitals by
+// language, from word lists the phone keeps its own copy of. A list edited on
+// one side only would print a guest's name, a day or a title differently on the
+// phone, so every case below runs through both copies in all five languages.
+for (const fn of ['sbFormatPersonName', 'sbApplyCaseMode']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+const NAME_LANGS = ['EN', 'IT', 'ES', 'FR', ''];
+const NAME_VALUES = [
+  'giovanni rossi', 'GIOVANNI ROSSI', 'Giovanni rossi', 'McDonald', 'maria de la cruz',
+  'de la cruz', 'sr. de la cruz', 'signor rossi', 'dott.ssa bianchi', 'SIG. ROSSI',
+  'anna di maio', 'mr smith', 'doctor rossi', 'jean de la fontaine',
+  "valéry giscard d'estaing", 'm. dupont', 'madame dupont', 'mme dupont',
+  'ludwig van beethoven', 'henry viii', "o'brien", 'jean-luc picard', 'don pedro',
+  'doña maría', 'j. r. r. tolkien', '  giovanni  ', '', '12 b', 'łukasz żółć',
+];
+const CASE_TEXTS = [
+  'WE ARRIVE ON MONDAY IN SEPTEMBER. MR. SMITH SPEAKS ENGLISH.',
+  'you may pay on 3 may. i think so. the doctor said no. i met Doctor Rossi.',
+  'ARRIVO LUNEDÌ 5 SETTEMBRE. GLI ITALIANI BEVONO VINO ITALIANO. IL DOTT. ROSSI.',
+  'llegada el lunes. el sr. pérez habla inglés. Julio llega en julio.',
+  "ARRIVÉE LUNDI. LES ITALIENS AIMENT LE VIN ITALIEN. MME DUPONT. IL ME DIT.",
+  "la guida dell'isola: l'arte e il mare", 'the art of public speaking',
+  'I HAVE A ROOM. VINO E PANE.', 'HELLO there. HOW are you? fine!', '   ', '123 456',
+];
+let nok = 0;
+for (const lang of NAME_LANGS) {
+  for (const v of NAME_VALUES) {
+    const want = engine.sbFormatPersonName(v, lang);
+    const got = mobile.sbFormatPersonName(v, lang);
+    if (got !== want) {
+      fail('name formatting drift for ' + JSON.stringify([v, lang]) +
+        '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+    }
+    nok++;
+  }
+  for (const text of CASE_TEXTS) {
+    for (const mode of ['sentence', 'title', 'upper', 'lower']) {
+      const want = engine.sbApplyCaseMode(text, mode, lang);
+      const got = mobile.sbApplyCaseMode(text, mode, lang);
+      if (got !== want) {
+        fail('{case: ' + mode + '} drift for ' + JSON.stringify([text, lang]) +
+          '\n  engine: ' + JSON.stringify(want) + '\n  mobile: ' + JSON.stringify(got));
+      }
+      nok++;
+    }
+  }
+  const nameBody = '{formtext: name=G; format=name; default=huésped}';
+  const wantMap = JSON.stringify(engine.buildFormFieldCfg(nameBody));
+  const gotMap = JSON.stringify(mobile.sbFieldFormatMap(nameBody, null, lang));
+  const wantFmt = JSON.stringify({ G: { kind: 'name', lang: lang, dflt: 'huésped' } });
+  if (gotMap !== wantFmt) {
+    fail('mobile sbFieldFormatMap for a name field in ' + JSON.stringify(lang) +
+      ' -> ' + gotMap + ', expected ' + wantFmt + ' (field cfg ' + wantMap + ')');
+  }
+}
+
+// Valentina's capitalization rules, pinned to what the engine prints. Parity
+// above only proves the two copies agree; these prove they agree on the rules.
+const NAME_OUTPUT = [
+  ['giovanni rossi', 'IT', 'Giovanni Rossi'],
+  ['GIOVANNI ROSSI', 'EN', 'Giovanni Rossi'],
+  ['maria de la cruz', 'ES', 'Maria de la Cruz'],
+  ['signor rossi', 'IT', 'signor Rossi'],
+  ['dott.ssa bianchi', 'IT', 'Dott.ssa Bianchi'],
+  ['mr smith', 'EN', 'Mr Smith'],
+  ['doctor rossi', 'EN', 'Doctor Rossi'],
+  ['sr. pérez', 'ES', 'Sr. Pérez'],
+  ['madame dupont', 'FR', 'madame Dupont'],
+  ['jean de la fontaine', 'FR', 'Jean de La Fontaine'],
+  ['McDonald', 'EN', 'McDonald'],
+];
+for (const [v, lang, want] of NAME_OUTPUT) {
+  const got = engine.sbFormatPersonName(v, lang);
+  if (got !== want) {
+    fail('name ' + JSON.stringify([v, lang]) + ' -> ' + JSON.stringify(got) +
+      ', expected ' + JSON.stringify(want));
+  }
+}
+const CASE_OUTPUT = [
+  ['sentence', 'EN', 'WE ARRIVE ON MONDAY IN SEPTEMBER. MR. SMITH SPEAKS ENGLISH.',
+    'We arrive on Monday in September. Mr. Smith speaks English.'],
+  ['sentence', 'EN', 'you may pay on 3 may.', 'You may pay on 3 May.'],
+  ['sentence', 'IT', 'ARRIVO LUNEDÌ 5 SETTEMBRE. GLI ITALIANI BEVONO VINO ITALIANO.',
+    'Arrivo lunedì 5 settembre. Gli Italiani bevono vino italiano.'],
+  ['sentence', 'ES', 'LLEGADA EL LUNES. EL SR. PÉREZ HABLA INGLÉS.',
+    'Llegada el lunes. El Sr. Pérez habla inglés.'],
+  ['sentence', 'FR', 'LES ITALIENS AIMENT LE VIN ITALIEN. MME DUPONT PARLE ANGLAIS.',
+    'Les Italiens aiment le vin italien. Mme Dupont parle anglais.'],
+  ['sentence', 'EN', 'this is Giovanni\'s room.', 'This is Giovanni\'s room.'],
+  ['title', 'IT', 'arrivo lunedì, camera di giovanni', 'Arrivo lunedì, Camera di Giovanni'],
+  ['title', 'ES', 'llegada el lunes a la habitación', 'Llegada el lunes a la Habitación'],
+  ['title', 'IT', "la guida dell'isola", "La Guida dell'Isola"],
+];
+for (const [mode, lang, text, want] of CASE_OUTPUT) {
+  const got = engine.sbApplyCaseMode(text, mode, lang);
+  if (got !== want) {
+    fail('{case: ' + mode + '} ' + JSON.stringify([text, lang]) + ' -> ' +
+      JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+  }
+}
+// The default is the author's wording, so it prints as written; what is typed
+// prints as a name, and a bare {G} later in the body prints the same way.
+const nameField = 'Estimado {formtext: name=G; format=name; default=huésped}. {G}';
+if (engine.resolveBody(nameField, { G: 'huésped' }, { lang: 'ES' }) !== 'Estimado huésped. huésped') {
+  fail('a name field is re-casing the default the author wrote');
+}
+if (engine.resolveBody(nameField, { G: 'sr. pérez' }, { lang: 'ES' }) !== 'Estimado Sr. Pérez. Sr. Pérez') {
+  fail('a name field is not printing what was typed as a name');
+}
+if (engine.resolveBody('Hey {formtext: name=G}!', { G: 'giovanni' }, { lang: 'EN' }) !== 'Hey giovanni!') {
+  fail('a text field without format=name is being re-cased');
+}
+console.log('OK Name field + {case:} language parity passed all ' + nok + ' cases');
 
 // ── SHIFT + ANCHORED TIME PARITY ────────────────────────────────────
 // A {time:} token decides which DAY a message is talking about. The phone and
@@ -1035,7 +1148,7 @@ for (const [dstType, srcValue, want] of [
 // picker, which is exactly the bug this closes.
 const ORDER_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay', ['_sbOrderAttrs', '_sbReorder(el)', 'data-after']],
-  ['extension/popup/popup.js', 'popup detail + Sprintbrain.html', ['reorderDetailDates', 'data-after']],
+  ['extension/popup/popup.js', 'popup detail', ['reorderDetailDates', 'data-after']],
   ['app/public/mobile/index.html', 'mobile companion', ['sbOrderAttrs', 'sbReorderDates', 'data-after']],
   ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview', ['field.min']],
 ];

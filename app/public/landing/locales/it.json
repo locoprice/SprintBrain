@@ -7,16 +7,6 @@
       "count": 1
     },
     {
-      "find": "<title>SprintBrain: Text expansion with formulas</title>",
-      "replace": "<title>SprintBrain: espansione di testo con formule</title>",
-      "count": 1
-    },
-    {
-      "find": "Chrome extension that expands snippets, runs formulas inside them, and shares folders with your team. Synced across Chrome, web, and mobile for operators who type the same things every day.",
-      "replace": "Estensione Chrome che espande gli snippet, calcola formule al loro interno e condivide folder con il team. Sincronizzata su Chrome, web e mobile per chi scrive ogni giorno le stesse cose.",
-      "count": 1
-    },
-    {
       "find": "<a href=\"#features\" class=\"nav-link\">Features</a>",
       "replace": "<a href=\"#features\" class=\"nav-link\">Funzioni</a>",
       "count": 2
@@ -52,46 +42,6 @@
       "count": 1
     },
     {
-      "find": "Type once.<br><span>Use it everywhere.</span>",
-      "replace": "Scrivilo una volta.<br><span>Usalo ovunque.</span>",
-      "count": 2
-    },
-    {
-      "find": "<p>Snippets, formulas, and prompts that expand wherever you type. One library, synced across Chrome and mobile.</p>",
-      "replace": "<p>Snippet, formule e prompt che si espandono ovunque tu scriva. Una sola libreria, sincronizzata su Chrome e mobile.</p>",
-      "count": 1
-    },
-    {
-      "find": "<p class=\"hero-slogan\">Stress the model, not yourself.</p>",
-      "replace": "<p class=\"hero-slogan\">Stressa il modello, non te stesso.</p>",
-      "count": 1
-    },
-    {
-      "find": "        No credit card required\n",
-      "replace": "        Nessuna carta di credito\n",
-      "count": 1
-    },
-    {
-      "find": "        Works in Gmail, Notion &amp; Slack\n",
-      "replace": "        Funziona in Gmail, Notion e Slack\n",
-      "count": 1
-    },
-    {
-      "find": "        Set up in 2 minutes\n",
-      "replace": "        Pronto in 2 minuti\n",
-      "count": 1
-    },
-    {
-      "find": "        Add to Chrome\n      </a>",
-      "replace": "        Aggiungi a Chrome\n      </a>",
-      "count": 1
-    },
-    {
-      "find": "class=\"btn btn-ghost\">Open mobile app</a>",
-      "replace": "class=\"btn btn-ghost\">Apri l'app mobile</a>",
-      "count": 1
-    },
-    {
       "find": "<div class=\"demo-label\">You type</div>",
       "replace": "<div class=\"demo-label\">Tu scrivi</div>",
       "count": 1
@@ -102,8 +52,8 @@
       "count": 1
     },
     {
-      "find": "<span class=\"trusted-label\">Trusted by operators at</span>",
-      "replace": "<span class=\"trusted-label\">Scelto dagli operatori di</span>",
+      "find": "<span class=\"trusted-label\" id=\"trusted-heading\">Trusted by operators at</span>",
+      "replace": "<span class=\"trusted-label\" id=\"trusted-heading\">Scelto dagli operatori di</span>",
       "count": 1
     },
     {
@@ -744,6 +694,251 @@
     {
       "find": "<nav class=\"foot-lang\" aria-label=\"Language\">",
       "replace": "<nav class=\"foot-lang\" aria-label=\"Lingua\">",
+      "count": 1
+    },
+    {
+      "find": "<title>SprintBrain: Your context. Every AI. One direction.</title>",
+      "replace": "<title>SprintBrain: Il tuo contesto. Ogni AI. Una direzione.</title>",
+      "count": 1
+    },
+    {
+      "find": "content=\"One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.\"",
+      "replace": "content=\"Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.\"",
+      "count": 1
+    },
+    {
+      "find": ">Your AI can change.<",
+      "replace": ">La tua AI può cambiare.<",
+      "count": 1
+    },
+    {
+      "find": ">Your context shouldn’t.<",
+      "replace": ">Il tuo contesto no.<",
+      "count": 1
+    },
+    {
+      "find": ">One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.<",
+      "replace": ">Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.<",
+      "count": 1
+    },
+    {
+      "find": ">SprintBrain brings your reusable knowledge, instructions and workflows together in one intelligent workspace, so you can move between AI tools without starting from zero.<",
+      "replace": ">SprintBrain riunisce le tue conoscenze riutilizzabili, le istruzioni e i flussi di lavoro in un unico spazio intelligente, così puoi passare da uno strumento AI all’altro senza ripartire da zero.<",
+      "count": 1
+    },
+    {
+      "find": ">Try SprintBrain Free →<",
+      "replace": ">Prova SprintBrain gratis →<",
+      "count": 2
+    },
+    {
+      "find": ">No lock-in. No unnecessary complexity. Just your context, ready to use.<",
+      "replace": ">Nessun vincolo a una piattaforma. Nessuna complessità inutile. Solo il tuo contesto, pronto all’uso.<",
+      "count": 1
+    },
+    {
+      "find": ">Stop starting from zero.<",
+      "replace": ">Smetti di ripartire da zero.<",
+      "count": 1
+    },
+    {
+      "find": ">Every time you open a new AI tool, you bring the same instructions, information and context with you.<",
+      "replace": ">Ogni volta che apri un nuovo strumento AI, porti con te le stesse istruzioni, informazioni e lo stesso contesto.<",
+      "count": 1
+    },
+    {
+      "find": ">SprintBrain changes that.<",
+      "replace": ">SprintBrain cambia le cose.<",
+      "count": 1
+    },
+    {
+      "find": ">Store what matters once. Organize it. Reuse it. Inject the right context when you need it.<",
+      "replace": ">Salva una volta ciò che conta. Organizzalo. Riutilizzalo. Inserisci il contesto giusto quando ti serve.<",
+      "count": 1
+    },
+    {
+      "find": ">Less repetition. More execution.<",
+      "replace": ">Meno ripetizioni. Più azione.<",
+      "count": 1
+    },
+    {
+      "find": ">One system. Three powerful layers.<",
+      "replace": ">Un sistema. Tre livelli di potenzialità.<",
+      "count": 1
+    },
+    {
+      "find": ">Your reusable content, always ready when you need it.<",
+      "replace": ">I tuoi contenuti riutilizzabili, sempre pronti quando ti servono.<",
+      "count": 1
+    },
+    {
+      "find": ">Save frequently used text, responses, templates and workflows. Expand them instantly wherever you work.<",
+      "replace": ">Salva testi, risposte, modelli e flussi di lavoro che usi spesso. Espandili all’istante, ovunque lavori.<",
+      "count": 1
+    },
+    {
+      "find": ">Your best instructions, structured and ready to execute.<",
+      "replace": ">Le tue migliori istruzioni, strutturate e pronte da eseguire.<",
+      "count": 1
+    },
+    {
+      "find": ">Build, organize and reuse prompts without recreating them every time you switch between tasks or AI tools.<",
+      "replace": ">Crea, organizza e riutilizza i prompt senza doverli riscrivere ogni volta che passi a un’altra attività o a un altro strumento AI.<",
+      "count": 1
+    },
+    {
+      "find": ">Your persistent context.<",
+      "replace": ">Il tuo contesto persistente.<",
+      "count": 1
+    },
+    {
+      "find": ">Keep the knowledge, decisions, preferences and information that help AI understand what you are working on.<",
+      "replace": ">Conserva le conoscenze, le decisioni, le preferenze e le informazioni che aiutano l’AI a capire a cosa stai lavorando.<",
+      "count": 1
+    },
+    {
+      "find": ">Together, they create a single context system designed around the way you actually work.<",
+      "replace": ">Insieme, creano un unico sistema di contesto pensato per il tuo modo di lavorare.<",
+      "count": 1
+    },
+    {
+      "find": ">And the next AI that comes along.<",
+      "replace": ">E la prossima AI che arriverà.<",
+      "count": 1
+    },
+    {
+      "find": ">SprintBrain is designed to sit above the individual AI tools, helping you keep your own context organized and portable.<",
+      "replace": ">SprintBrain è pensato come uno spazio comune ai diversi strumenti AI, per aiutarti a mantenere il tuo contesto organizzato e portabile.<",
+      "count": 1
+    },
+    {
+      "find": ">Choose the AI you want. Keep the context you need.<",
+      "replace": ">Scegli l’AI che vuoi. Conserva il contesto che ti serve.<",
+      "count": 1
+    },
+    {
+      "find": ">From information to execution.<",
+      "replace": ">Dalle informazioni all’azione.<",
+      "count": 1
+    },
+    {
+      "find": ">SprintBrain isn't just a place to store things.<",
+      "replace": ">SprintBrain è molto più di un archivio.<",
+      "count": 1
+    },
+    {
+      "find": ">It is designed to help transform knowledge into action:<",
+      "replace": ">È pensato per aiutarti a trasformare la conoscenza in azione:<",
+      "count": 1
+    },
+    {
+      "find": ">Capture<",
+      "replace": ">Raccogli<",
+      "count": 1
+    },
+    {
+      "find": ">The goal is simple:<",
+      "replace": ">L’obiettivo è semplice:<",
+      "count": 1
+    },
+    {
+      "find": ">Reduce repetitive work<",
+      "replace": ">Ridurre il lavoro ripetitivo<",
+      "count": 1
+    },
+    {
+      "find": ">Increase execution speed<",
+      "replace": ">Velocizzare l’esecuzione<",
+      "count": 1
+    },
+    {
+      "find": ">Standardize processes<",
+      "replace": ">Standardizzare i processi<",
+      "count": 1
+    },
+    {
+      "find": ">Keep important knowledge organized<",
+      "replace": ">Tenere organizzate le conoscenze importanti<",
+      "count": 1
+    },
+    {
+      "find": ">Reduce context switching<",
+      "replace": ">Ridurre i continui cambi di contesto<",
+      "count": 1
+    },
+    {
+      "find": ">Build workflows that scale<",
+      "replace": ">Creare flussi di lavoro che crescono con te<",
+      "count": 1
+    },
+    {
+      "find": ">This execution-first philosophy is at the core of SprintBrain.<",
+      "replace": ">Questa filosofia orientata all’azione è al centro di SprintBrain.<",
+      "count": 1
+    },
+    {
+      "find": ">Built for people who work with AI every day.<",
+      "replace": ">Pensato per chi lavora con l’AI ogni giorno.<",
+      "count": 1
+    },
+    {
+      "find": ">Whether someone is building a business, writing, coding, managing a team, creating content or developing AI workflows, SprintBrain gives them a centralized place for the context behind their work.<",
+      "replace": ">Che tu stia creando un’impresa, scrivendo, programmando, gestendo un team, producendo contenuti o sviluppando flussi di lavoro con l’AI, SprintBrain ti offre uno spazio centrale per il contesto alla base del tuo lavoro.<",
+      "count": 1
+    },
+    {
+      "find": ">Your knowledge. Your prompts. Your workflows. Your AI.<",
+      "replace": ">Le tue conoscenze. I tuoi prompt. I tuoi flussi di lavoro. La tua AI.<",
+      "count": 1
+    },
+    {
+      "find": ">One system.<",
+      "replace": ">Un unico sistema.<",
+      "count": 1
+    },
+    {
+      "find": ">Experience SprintBrain<",
+      "replace": ">Scopri SprintBrain<",
+      "count": 1
+    },
+    {
+      "find": ">Give your AI the context it needs.<",
+      "replace": ">Dai alla tua AI il contesto di cui ha bisogno.<",
+      "count": 1
+    },
+    {
+      "find": ">Start building your personal AI context system today.<",
+      "replace": ">Inizia oggi a costruire il tuo sistema personale di contesto per l’AI.<",
+      "count": 1
+    },
+    {
+      "find": ">Your context. Every AI. One direction.<",
+      "replace": ">Il tuo contesto. Ogni AI. Una direzione.<",
+      "count": 1
+    },
+    {
+      "find": ">Your AI can change. Your context shouldn’t.<",
+      "replace": ">La tua AI può cambiare. Il tuo contesto no.<",
+      "count": 1
+    },
+    {
+      "find": ">Organize<",
+      "replace": ">Organizza<",
+      "count": 1
+    },
+    {
+      "find": ">Contextualize<",
+      "replace": ">Contestualizza<",
+      "count": 1
+    },
+    {
+      "find": ">Execute<",
+      "replace": ">Esegui<",
+      "count": 1
+    },
+    {
+      "find": ">Portable context<",
+      "replace": ">Contesto portabile<",
       "count": 1
     }
   ]

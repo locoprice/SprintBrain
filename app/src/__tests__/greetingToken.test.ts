@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 // Same loading trick as genderGreeting.test.ts: run the REAL shipping engine
 // (extension/formula-engine.js) rather than a copy, so these expectations pin
-// what the extension, the popup and Sprintbrain.html actually resolve.
+// what the extension and the popup actually resolve.
 interface FormulaEngine {
   resolveBody: (body: string, vals: Record<string, unknown>, opts?: { lang?: string }) => string;
   extractFields: (body: string) => string[];

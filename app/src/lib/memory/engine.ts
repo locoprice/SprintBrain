@@ -494,12 +494,15 @@ export interface ContextRequest {
 }
 
 /**
- * Reciprocal-rank score of a result ranked 15th by a single arm.
+ * Relevance floor for ranks produced by reciprocal-rank fusion: the score of a
+ * result ranked 15th by a single arm under 1 / (60 + rank). Below it, a result
+ * is matching on a stray word rather than on the subject.
  *
- * `knowledge_search` fuses with 1 / (60 + rank), so this is the score of
- * something that only one arm found and did not find near the top. Below it,
- * a result is matching on a stray word rather than on the subject, and putting
- * it in someone's context costs tokens and attention for nothing.
+ * `knowledge_search` no longer fuses. Since
+ * 20260918120000_knowledge_search_natural_drafts.sql it scores its own results,
+ * gates them itself and returns nothing under 8, so this floor never drops one
+ * of them. It stays for callers that rank by fusion, and it keeps the meaning of
+ * a rank of zero: a browse, where nothing was searched.
  */
 export const DEFAULT_MIN_RANK = 1 / 75;
 

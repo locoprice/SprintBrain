@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { LabelFilter } from '@/features/labels/LabelFilter';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -28,9 +28,30 @@ export function FilterToolbar() {
   const sortBy = useSnippetStore((s) => s.sortBy);
   const sortDir = useSnippetStore((s) => s.sortDir);
   const setSortBy = useSnippetStore((s) => s.setSortBy);
+  // Moved here when the page lost its own search box (SEARCH-001): on its own
+  // it was a lone button on an otherwise empty row.
+  const railOpen = useUiStore((s) => s.foldersRailOpen);
+  const setRailOpen = useUiStore((s) => s.setFoldersRailOpen);
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-card px-3 py-2">
+      <button
+        type="button"
+        onClick={() => setRailOpen(!railOpen)}
+        aria-pressed={railOpen}
+        title={railOpen ? 'Hide folders' : 'Show folders'}
+        aria-label={railOpen ? 'Hide folders' : 'Show folders'}
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-ink-muted transition-colors hover:bg-bg-alt hover:text-primary"
+      >
+        {railOpen ? (
+          <PanelLeftClose className="h-4 w-4" aria-hidden />
+        ) : (
+          <PanelLeftOpen className="h-4 w-4" aria-hidden />
+        )}
+      </button>
+
+      <span className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+
       {/* Language filter chips */}
       <div className="flex items-center gap-1">
         <button

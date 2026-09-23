@@ -1,7 +1,7 @@
 // translate-body — Supabase Edge Function (Deno)
 // Translates a snippet body from English into IT, ES or FR (TRANSLATE-001).
-// Called by the dashboard (supabase.functions.invoke) and by Sprintbrain.html
-// (plain fetch), which are the two surfaces carrying a body editor.
+// Called by the dashboard (supabase.functions.invoke), the one surface that
+// carries a body editor.
 //
 // It takes draft TEXT, not a snippet_id: translation happens in the editor,
 // before anything is saved, and nothing here writes to the database.

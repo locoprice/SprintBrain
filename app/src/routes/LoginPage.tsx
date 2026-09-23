@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { supabase, setRememberMe } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { analytics } from '@/lib/analytics';
@@ -11,11 +11,17 @@ import { Button } from '@/components/ui/button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 import { ErrorBanner } from '@/components/auth/ErrorBanner';
 import { OtpInput, OTP_LENGTH } from '@/components/auth/OtpInput';
+import { GoogleSignIn } from '@/components/auth/GoogleSignIn';
+import { AuthMethodTabs } from '@/components/auth/AuthMethodTabs';
+import { PasswordInput } from '@/components/auth/PasswordInput';
+import { authErrorMessage } from '@/lib/authCallback';
 
 type LoginView = 'email' | 'sent' | 'password' | 'recovery' | 'recovery_sent';
 
 const TERMS_URL = 'https://sprintbrain.com/legal/terms-and-conditions.html';
 const PRIVACY_URL = 'https://sprintbrain.com/legal/privacy-policy.html';
+/** Where a password reset link lands: the Password card in Settings. */
+const PASSWORD_SETTINGS_PATH = '/settings?tab=security';
 
 export function LoginPage() {
   const status = useAuthStore((s) => s.status);
@@ -26,10 +32,12 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // A failed Google or email-link return lands here with ?error=<code>.
+  const [error, setError] = useState<string | null>(() =>
+    authErrorMessage(params.get('error')),
+  );
 
   useEffect(() => {
     void init();
@@ -177,7 +185,8 @@ export function LoginPage() {
       return;
     }
 
-    // Recover via a passwordless sign-in link, consistent with magic-link-first auth.
+    // Recover with a sign-in link that lands on Settings > Security, where the
+    // Password card sets the new one.
     analytics.track('password_recovery_started', { email: trimmed });
     setLoading(true);
     setError(null);
@@ -186,7 +195,9 @@ export function LoginPage() {
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(PASSWORD_SETTINGS_PATH)}`,
+      },
     });
 
     if (err) {
@@ -212,57 +223,110 @@ export function LoginPage() {
           </span>
         </div>
 
-        <div key={view} className="w-full max-w-[400px] animate-fade-in">
-          {/* ── Email (magic link) ─────────────────────────────────────── */}
-          {view === 'email' && (
-            <form onSubmit={onMagicLink} noValidate className="space-y-5">
-              <div className="space-y-1.5">
-                <h1 className="text-[26px] font-bold tracking-tight text-ink">
-                  Welcome back
-                </h1>
-                <p className="text-sm text-ink-muted">
-                  Enter your email. We'll send a sign-in link and a one-time code.
-                </p>
-              </div>
+        {/* The two sign-in tabs share one key, so switching tabs does not replay the fade-in. */}
+        <div
+          key={view === 'password' ? 'email' : view}
+          className="w-full max-w-[400px] animate-fade-in"
+        >
+          {/* ── Choose a method: email link or password ────────────────── */}
+          {(view === 'email' || view === 'password') && (
+            <div className="space-y-5">
+              <h1 className="text-[26px] font-bold tracking-tight text-ink">
+                Welcome back
+              </h1>
 
-              <div className="space-y-3">
-                <Input
-                  type="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoFocus
-                  required
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  className="min-h-[46px]"
-                />
-                <RememberMeField
-                  checked={remember}
-                  onChange={setRemember}
-                  disabled={loading}
-                />
-                {error && <ErrorBanner message={error} />}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                  disabled={loading || !email.trim()}
-                >
-                  {loading ? 'Sending…' : 'Continue →'}
-                </Button>
-              </div>
+              <AuthMethodTabs value={view} onChange={goTo} disabled={loading} />
 
-              <button
-                type="button"
-                onClick={() => goTo('password')}
-                className="block w-full text-center text-sm text-ink-muted underline-offset-2 hover:underline"
-              >
-                Use password instead
-              </button>
+              {view === 'email' ? (
+                <form onSubmit={onMagicLink} noValidate className="space-y-3">
+                  <p className="text-sm text-ink-muted">
+                    Enter your email. We'll send a sign-in link and a one-time code.
+                  </p>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoFocus
+                    required
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  <RememberMeField
+                    checked={remember}
+                    onChange={setRemember}
+                    disabled={loading}
+                  />
+                  {error && <ErrorBanner message={error} />}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || !email.trim()}
+                  >
+                    {loading ? 'Sending…' : 'Continue →'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={onPassword} noValidate className="space-y-3">
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoFocus={!email}
+                    required
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  <PasswordInput
+                    autoComplete="current-password"
+                    autoFocus={!!email}
+                    required
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    className="min-h-[46px]"
+                  />
+                  <RememberMeField
+                    checked={remember}
+                    onChange={setRemember}
+                    disabled={loading}
+                  />
+                  {error && <ErrorBanner message={error} />}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || !email.trim() || !password}
+                  >
+                    {loading ? 'Signing in…' : 'Sign in →'}
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-xs text-ink-muted underline-offset-2 hover:underline"
+                    onClick={() => goTo('recovery')}
+                  >
+                    Forgot password?
+                  </button>
+                </form>
+              )}
+
+              <GoogleSignIn
+                next={next}
+                remember={remember}
+                disabled={loading}
+                onError={setError}
+              />
 
               <p className="text-center text-[11px] text-ink-subtle">
                 By continuing you agree to our{' '}
@@ -295,7 +359,7 @@ export function LoginPage() {
                   Create an account
                 </Link>
               </p>
-            </form>
+            </div>
           )}
 
           {/* ── OTP verification ───────────────────────────────────────── */}
@@ -351,106 +415,16 @@ export function LoginPage() {
             </form>
           )}
 
-          {/* ── Password sign-in ───────────────────────────────────────── */}
-          {view === 'password' && (
-            <form onSubmit={onPassword} noValidate className="space-y-5">
-              <div className="space-y-1.5">
-                <h1 className="text-[26px] font-bold tracking-tight text-ink">
-                  Sign in with password
-                </h1>
-                <p className="text-sm text-ink-muted">
-                  Enter your email and password to continue.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Input
-                  type="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoFocus
-                  required
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  className="min-h-[46px]"
-                />
-
-                <div className="relative">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    required
-                    minLength={8}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
-                    className="min-h-[46px] pr-12"
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-
-                <RememberMeField
-                  checked={remember}
-                  onChange={setRemember}
-                  disabled={loading}
-                />
-
-                {error && <ErrorBanner message={error} />}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                  disabled={loading || !email.trim() || !password}
-                >
-                  {loading ? 'Signing in…' : 'Sign in →'}
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  className="text-ink-muted underline-offset-2 hover:underline"
-                  onClick={() => goTo('recovery')}
-                >
-                  Forgot password?
-                </button>
-                <button
-                  type="button"
-                  className="text-ink-muted underline-offset-2 hover:underline"
-                  onClick={() => goTo('email')}
-                >
-                  Use magic link
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* ── Recovery (passwordless link) ───────────────────────────── */}
+          {/* ── Recovery: a sign-in link that opens Settings > Security ──── */}
           {view === 'recovery' && (
             <form onSubmit={onRecovery} noValidate className="space-y-5">
               <div className="space-y-1.5">
                 <h1 className="text-[26px] font-bold tracking-tight text-ink">
-                  Sign in with a link
+                  Reset your password
                 </h1>
                 <p className="text-sm text-ink-muted">
-                  Enter your email and we'll send a sign-in link.
+                  We'll email you a sign-in link. It opens Settings, where you choose a
+                  new password.
                 </p>
               </div>
 
@@ -499,12 +473,12 @@ export function LoginPage() {
 
               <div className="space-y-1.5">
                 <h1 className="text-[26px] font-bold tracking-tight text-ink">
-                  Access link sent
+                  Check your email
                 </h1>
                 <p className="text-sm text-ink-muted">
                   We sent a sign-in link to{' '}
-                  <span className="font-medium text-ink">{email}</span>. Click it to
-                  regain access.
+                  <span className="font-medium text-ink">{email}</span>. Open it to choose
+                  a new password.
                 </p>
               </div>
 

@@ -123,6 +123,22 @@ anything larger is a document, and no budget survives attaching one.
 | `memory_attach` | Attaches one shard by name or id, outside the step's selection. |
 | `memory_detach` | Detaches one shard, freeing its tokens. |
 | `memory_state` | What is attached and how much budget it uses. `include_bodies` re-reads the full pack. |
+| `memory_save` | Writes one new item into memory. Creates only, never edits. Needs a token issued with the `write` scope. |
+
+### Issuing a token that can write
+
+Every other tool reads, and a token is read-only unless write was asked for
+when it was minted. That is deny by default: an existing token cannot start
+writing, whoever ends up holding it.
+
+```sql
+-- Run as the signed-in user, in the SQL editor.
+select * from public.memory_issue_token('agent laptop', null, array['read', 'write']);
+```
+
+The plaintext token is returned once and never stored. Put it in the MCP client
+config as `SPRINTBRAIN_MEMORY_TOKEN`. Leaving the third argument off issues a
+read-only token, as before.
 
 ## How selection works
 

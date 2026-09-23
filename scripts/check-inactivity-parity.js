@@ -2,7 +2,7 @@
 //
 // The rule that decides whether a snippet or prompt is "unused" exists twice:
 //
-//   extension/shared/inactivity.js   popup + Sprintbrain.html + content.js
+//   extension/shared/inactivity.js   popup + content.js
 //   app/src/lib/inactivity.ts        the React dashboard
 //
 // Twice because app/CLAUDE.md section 6 forbids the dashboard importing

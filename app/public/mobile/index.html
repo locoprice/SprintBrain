@@ -557,8 +557,11 @@ body{
   transition:transform .1s,border-color .15s,background .15s,color .15s
 }
 .lang-tile:active{transform:scale(.96)}
-.lang-tile-flag{font-size:24px;line-height:1}
-.lang-tile-code{font-size:13px;font-weight:700;letter-spacing:.3px}
+.lang-tile-code{font-size:15px;font-weight:800;letter-spacing:.4px;line-height:1}
+.lang-tile-name{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.2px;line-height:1}
+/* The selected tile carries the language colour, so the name drops its muted
+   grey and reads in that colour with the code. */
+.lang-tile.on .lang-tile-name{color:inherit}
 .lang-tile.on{font-weight:800}
 .lang-tile.on.lEN{background:#EEF2FF;color:#1B4FD8;border-color:#1B4FD8}
 .lang-tile.on.lES{background:#FFF7ED;color:#C2410C;border-color:#C2410C}
@@ -1152,10 +1155,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   <!-- Language chips -->
   <div class="lang-tabs" id="ltabs">
     <button class="lang-pill on" data-l="ALL">All</button>
-    <button class="lang-pill" data-l="EN">🇬🇧 EN</button>
-    <button class="lang-pill" data-l="ES">🇪🇸 ES</button>
-    <button class="lang-pill" data-l="IT">🇮🇹 IT</button>
-    <button class="lang-pill" data-l="MULTI">🌍 Multi</button>
+    <button class="lang-pill" data-l="EN">EN</button>
+    <button class="lang-pill" data-l="ES">ES</button>
+    <button class="lang-pill" data-l="IT">IT</button>
+    <button class="lang-pill" data-l="MULTI">Multi</button>
   </div>
 
   <!-- Snippet list -->
@@ -1527,7 +1530,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 // siblings a shared `lang_group_id`; the dashboard model keeps one row and puts
 // the translations in `bodies`. Counting rows therefore counts a snippet once
 // per language, and every surface that shows a number has to collapse the rows
-// the same way — otherwise the popup, Sprintbrain.html and the dashboard each
+// the same way. Otherwise the popup, the mobile app and the dashboard each
 // report a different library size for the same account.
 //
 // The rule, in order:
@@ -1742,7 +1745,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 // Four surfaces draw a fill form and each builds its own markup:
 //
 //   extension/content/content.js   the in-page overlay (three entry points)
-//   extension/popup/popup.js       the popup detail + Sprintbrain.html detail
+//   extension/popup/popup.js       the popup detail
 //   app/src/features/snippets/     the dashboard editor's live preview
 //     SnippetPreview.tsx           (was Sprintbrain.html's composer until v3.5.0)
 //   app/public/mobile/index.html   the mobile companion (inlined copy)
@@ -2335,7 +2338,6 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 //
 //   extension/popup/popup.js          Prompts tab, copy
 //   extension/content/content.js      the """ picker and """shortcut, insert
-//   Sprintbrain.html                  Prompts list, copy
 //   app/public/mobile/index.html      Prompts page, copy and share (generated copy)
 //   app/src/lib/interactiveSteps.ts   dashboard preview window, copy (TS copy)
 //
@@ -2344,10 +2346,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 //
 // The setting belongs to the device, not the account. The extension keeps it in
 // chrome.storage.local, where content.js follows it live. The web surfaces keep
-// it under the same key in localStorage. Sprintbrain.html runs this file under
-// chrome-shim.js, which folds chrome.storage into a single localStorage entry,
-// so the shim is skipped here: the dashboard, mobile and Sprintbrain.html share
-// one origin and read one key.
+// it under the same key in localStorage: the dashboard and mobile are served
+// from one origin and read one key.
 //
 // scripts/check-interactive-steps.js pins the behaviour, compares the dashboard
 // copy, and writes the mobile copy (--write).
@@ -2376,12 +2376,11 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return value === true || value === 'true';
   }
 
-  // The extension's own storage, or null on a web page. chrome-shim.js answers
-  // to chrome.storage too, and is told apart by its runtime id.
+  // The extension's own storage, or null on a web page.
   function extensionStorage() {
     var c = root.chrome;
     if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
-    return c.runtime.id === 'sprintbrain-web-shim' ? null : c.storage.local;
+    return c.storage.local;
   }
 
   // cb(on) once the stored value is known.
@@ -3142,10 +3141,13 @@ function sbFormatNumber(raw,format,currency){
    `override` is resolveBody's `fmtOverride` opt: a format chosen while the form
    is being filled in, rather than by the author. Only a date or a time accepts
    one, and only from its own closed list, so a stray key can never turn a
-   number field into a date. '' is a real answer there — print the picker's own
-   value — so it is read by presence, and a non-empty format this kind of field
-   does not have is ignored rather than dropping the author's. */
-function sbFieldFormatMap(body,override){
+   number field into a date. '' is a real answer there (print the picker's own
+   value), so it is read by presence, and a non-empty format this kind of field
+   does not have is ignored rather than dropping the author's.
+
+   `lang` is the body's language, which a name field needs: "signor rossi"
+   prints as "signor Rossi" in Italian and "Signor Rossi" in English. */
+function sbFieldFormatMap(body,override,lang){
   var cfg=sbBodyFieldCfg(body),out=null,ov=override||null;
   for(var k in cfg){
     if(!Object.prototype.hasOwnProperty.call(cfg,k))continue;
@@ -3164,6 +3166,9 @@ function sbFieldFormatMap(body,override){
       if(!dfmt)continue;
       if(!out)out={};
       out[k]={kind:'date',format:dfmt};
+    }else if(f.type==='text'&&f.format==='name'){
+      if(!out)out={};
+      out[k]={kind:'name',lang:lang||'',dflt:f.default||''};
     }
   }
   return out;
@@ -3172,14 +3177,28 @@ function sbFieldFormatMap(body,override){
 function sbEmitField(key,value,fmtMap){
   var f=fmtMap&&key?fmtMap[key]:null;
   if(!f)return value;
+  /* The default is the author's own wording and prints as they wrote it. Only
+     what was typed is treated as a name. */
+  if(f.kind==='name')return String(value)===f.dflt?value:sbFormatPersonName(value,f.lang);
   return f.kind==='date'?sbFormatDateValue(value,f.format)
                         :sbFormatNumber(value,f.format,f.currency);
+}
+
+/* A text field that holds a person's name says so with `format=name`. It stays
+   a text field in every other respect. Any other format on a text field is a
+   typo and reads as plain text. MIRRORED from _textCfg in
+   extension/formula-engine.js. */
+function sbTextCfg(attrSrc,defVal){
+  var out={type:'text',default:defVal};
+  var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
+  if(fmtM&&fmtM[1].toLowerCase()==='name')out.format='name';
+  return out;
 }
 
 function sbNumberOrTextCfg(attrSrc,defVal){
   var typeM=/(?:^|;)\s*type\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   /* An unrecognised type is a typo, not a field type the product has. */
-  if(!typeM||typeM[1].toLowerCase()!=='number')return {type:'text',default:defVal};
+  if(!typeM||typeM[1].toLowerCase()!=='number')return sbTextCfg(attrSrc,defVal);
   var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   var fmt=fmtM?fmtM[1].toLowerCase():'';
   var format=SB_NUMBER_FORMATS.indexOf(fmt)===-1?'plain':fmt;
@@ -3212,16 +3231,18 @@ function sbButtonTrim(head){
   return String(m[1]!==undefined?m[1]:(m[2]!==undefined?m[2]:m[3])).toLowerCase();
 }
 
-/* {case: upper}…{/case} — prints a stretch of body in the case the author
-   asked for. The region is resolved FIRST and cased after, so a field or a
-   formula inside it expands normally and only then takes the case.
-   MIRRORED from extension/formula-engine.js — the phone keeps its own parser,
-   so an engine change has to be ported here by hand or the same snippet would
-   print differently on the two surfaces. */
+/* {case: upper}…{/case} prints a stretch of body in the case the author asked
+   for. The region is resolved FIRST and cased after, so a field or a formula
+   inside it expands normally and only then takes the case.
+   MIRRORED from extension/formula-engine.js. The phone keeps its own parser, so
+   an engine change has to be ported here by hand or the same snippet would
+   print differently on the two surfaces. scripts/check-snippets.js pins the
+   two against each other. */
 var SB_CASE_CLOSE='{/case}';
 var SB_CASE_MODES={upper:1,lower:1,title:1,sentence:1};
-var SB_CASE_WORD_RE=/[A-Za-zÀ-ÖØ-öø-ÿ'’]+/g;
-var SB_CASE_SENT_RE=/(^|[.!?]["'”’)\]]*\s+)([A-Za-zÀ-ÖØ-öø-ÿ])/g;
+/* Latin-1 plus Latin Extended-A and B, so Łódź and Ştefan are words too. */
+var SB_CASE_LETTER='A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ';
+var SB_CASE_WORD_RE=new RegExp('['+SB_CASE_LETTER+"'’]+",'g');
 /* Title case keeps the small joining words lowercase: the articles, the
    coordinating conjunctions, and the prepositions of three letters or fewer.
    "The Art of Public Speaking", not "The Art Of Public Speaking". The first and
@@ -3232,6 +3253,252 @@ var SB_CASE_SMALL_WORDS={
   and:1,but:1,or:1,nor:1,for:1,yet:1,so:1,
   as:1,at:1,by:1,in:1,of:1,off:1,on:1,per:1,to:1,up:1,via:1
 };
+
+/* LANGUAGE CASING. MIRRORED from the section of the same name in
+   extension/formula-engine.js, which explains each rule. In short: names are
+   capitalized everywhere; days, months, languages and nationalities are
+   capitalized in English and lowercase in Italian, Spanish and French (except
+   the plural people noun, gli Italiani, les Italiens); titles are capitalized
+   in English and lowercase in the other three, with the abbreviation keeping
+   its capital. A capital typed on purpose is never taken away. */
+function sbWordSet(words){
+  var set={},list=String(words).split(' ');
+  for(var i=0;i<list.length;i++)if(list[i])set[list[i]]=1;
+  return set;
+}
+function sbIn(set,key){return !!set&&Object.prototype.hasOwnProperty.call(set,key);}
+var SB_EN_CAPITAL_WORDS=sbWordSet(
+  'monday tuesday wednesday thursday friday saturday sunday '+
+  'january february april june july august september october november december '+
+  'english italian spanish french german dutch portuguese russian chinese japanese '+
+  'korean arabic greek turkish hebrew latin catalan basque galician '+
+  'american british irish scottish welsh european canadian australian mexican '+
+  'brazilian argentinian argentine swiss belgian austrian swedish norwegian danish '+
+  'finnish hungarian czech croatian romanian ukrainian israeli indian moroccan '+
+  'italians spaniards americans germans europeans canadians australians mexicans '+
+  'brazilians belgians austrians norwegians russians greeks');
+var SB_EN_MONTH_VERBS=sbWordSet('may march');
+var SB_EN_MONTH_CUES=sbWordSet('in of since until till from during early late mid next last');
+var SB_TITLE_ABBR={
+  EN:sbWordSet('mr mrs ms dr prof'),
+  IT:sbWordSet('sig sigg dott prof avv ing geom rag arch egr gent spett cav comm dr'),
+  ES:sbWordSet('sr sra srta sres dr dra dna lic ing arq'),
+  FR:sbWordSet('m mm mme mmes mlle mlles dr pr mgr')
+};
+var SB_TITLE_ABBR_BARE={
+  EN:sbWordSet('mr mrs ms dr'),
+  FR:sbWordSet('mme mmes mlle mlles dr pr')
+};
+var SB_TITLE_WORDS={
+  EN:sbWordSet('doctor professor mister miss sir madam lady lord'),
+  IT:sbWordSet('signor signore signora signorina signori dottor dottore dottoressa '+
+    'professor professore professoressa avvocato avvocata ingegner ingegnere '+
+    'architetto geometra ragionier ragioniere don'),
+  ES:sbWordSet('senor senora senorita senores doctor doctora don dona '+
+    'licenciado licenciada ingeniero ingeniera'),
+  FR:sbWordSet('monsieur madame mademoiselle messieurs mesdames docteur maitre professeur')
+};
+var SB_NAME_PARTICLES_ANY=sbWordSet('van von der den ter ten');
+var SB_NAME_PARTICLES={
+  ES:sbWordSet('de del la las los y e'),
+  FR:sbWordSet('de du des')
+};
+var SB_NAME_ROMAN=sbWordSet('ii iii iv vi vii viii ix');
+var SB_PEOPLE_ARTICLES={
+  IT:sbWordSet('gli i degli agli dagli negli sugli dei ai dai nei sui'),
+  FR:sbWordSet('les des aux')
+};
+var SB_PEOPLE_NOUNS={
+  IT:sbWordSet('italiani spagnoli francesi inglesi tedeschi americani europei olandesi '+
+    'belgi svizzeri portoghesi russi cinesi giapponesi irlandesi scozzesi austriaci '+
+    'greci polacchi svedesi norvegesi danesi argentini brasiliani messicani canadesi '+
+    'australiani'),
+  FR:sbWordSet('italiens italiennes espagnols espagnoles francais francaises anglais '+
+    'anglaises allemands allemandes americains americaines europeens europeennes belges '+
+    'suisses hollandais hollandaises neerlandais neerlandaises portugais portugaises '+
+    'russes chinois chinoises japonais japonaises irlandais irlandaises grecs grecques '+
+    'polonais polonaises suedois suedoises canadiens canadiennes quebecois quebecoises')
+};
+var SB_CASE_LOWER_WORDS={
+  IT:sbWordSet('lunedi martedi mercoledi giovedi venerdi sabato domenica '+
+    'gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre '+
+    'novembre dicembre italiano italiana italiani italiane inglese inglesi spagnolo '+
+    'spagnola spagnoli spagnole francese francesi tedesco tedesca tedeschi tedesche '+
+    'portoghese portoghesi olandese olandesi russo russa russi russe cinese cinesi '+
+    'giapponese giapponesi americano americana americani americane europeo europea '+
+    'europei europee'),
+  ES:sbWordSet('lunes martes miercoles jueves viernes sabado domingo '+
+    'enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre '+
+    'noviembre diciembre espanol espanola espanoles espanolas ingles inglesa ingleses '+
+    'inglesas italiano italiana italianos italianas frances francesa franceses francesas '+
+    'aleman alemana alemanes alemanas portugues portuguesa ruso rusa rusos rusas chino '+
+    'chinos japones japonesa americano americana americanos americanas europeo europea '+
+    'europeos europeas catalan catalana'),
+  FR:sbWordSet('lundi mardi mercredi jeudi vendredi samedi dimanche '+
+    'janvier fevrier mars avril mai juin juillet aout septembre octobre novembre '+
+    'decembre francais francaise anglais anglaise italien italienne espagnol espagnole '+
+    'allemand allemande portugais portugaise russe chinois chinoise japonais japonaise '+
+    'americain americaine europeen europeenne')
+};
+var SB_CASE_SMALL_WORDS_BY_LANG={
+  IT:sbWordSet('il lo la i gli le un uno una di a da in con su per tra fra '+
+    'del dello della dei degli delle al allo alla ai agli alle dal dallo dalla dai '+
+    'dagli dalle nel nello nella nei negli nelle sul sullo sulla sui sugli sulle '+
+    'col coi e ed o od ma'),
+  ES:sbWordSet('el la los las lo un una unos unas de del a al en con por para sin '+
+    'y e o u ni que'),
+  FR:sbWordSet('le la les un une des du de au aux a en et ou sur par pour dans '+
+    'avec chez')
+};
+var SB_CASE_ELISIONS={
+  IT:sbWordSet('l dell all dall nell sull un d'),
+  FR:sbWordSet('l d qu j')
+};
+var SB_IS_LETTER_RE=new RegExp('['+SB_CASE_LETTER+']');
+var SB_NOT_LETTER_RE=new RegExp('[^'+SB_CASE_LETTER+']','g');
+var SB_PREV_WORD_RE=new RegExp('(['+SB_CASE_LETTER+"'’]+)\\s+$");
+var SB_NEXT_WORD_RE=new RegExp('^\\s+(['+SB_CASE_LETTER+"'’]+)");
+
+/* A capital typed on purpose: the word mixes capitals with lowercase letters. */
+function sbDeliberateCaps(w){
+  var letters=w.replace(SB_NOT_LETTER_RE,'');
+  return letters!==letters.toUpperCase()&&letters!==letters.toLowerCase();
+}
+function sbCap(low){return low.charAt(0).toUpperCase()+low.slice(1);}
+/* A capital on the first letter and again after a hyphen or an apostrophe. */
+function sbNameCase(low){
+  var out='',up=true;
+  for(var i=0;i<low.length;i++){
+    var ch=low.charAt(i);
+    if(SB_IS_LETTER_RE.test(ch)){out+=up?ch.toUpperCase():ch;up=false;}
+    else{out+=ch;if(ch==='-'||ch==="'"||ch==='’')up=true;}
+  }
+  return out;
+}
+/* 'abbr' for an abbreviated title, 'word' for one spelled out, '' otherwise. */
+function sbTitleKind(low,lang){
+  var key=sbStripAccents(low),dot=key.indexOf('.');
+  if(dot>0&&sbIn(SB_TITLE_ABBR[lang],key.slice(0,dot)))return 'abbr';
+  var bare=key.replace(/[.,;:]+$/,'');
+  if(sbIn(SB_TITLE_ABBR_BARE[lang],bare))return 'abbr';
+  if(sbIn(SB_TITLE_WORDS[lang],bare))return 'word';
+  return '';
+}
+function sbNamePart(low,lang,named){
+  var key=sbStripAccents(low);
+  if(named){
+    if(sbIn(SB_NAME_PARTICLES_ANY,key)||sbIn(SB_NAME_PARTICLES[lang],key))return low;
+    if(sbIn(SB_NAME_ROMAN,key))return low.toUpperCase();
+    if(lang==='FR'&&/^d['’]./.test(low))return low.slice(0,2)+sbNameCase(low.slice(2));
+  }
+  return sbNameCase(low);
+}
+/* What someone typed into a name field, with the capitals a person's name
+   takes in `lang`. Only letter case changes. MIRRORED from sbFormatPersonName
+   in extension/formula-engine.js. */
+function sbFormatPersonName(value,lang){
+  var s=(value===null||value===undefined)?'':String(value);
+  var L=String(lang||'').toUpperCase();
+  var parts=s.split(/(\s+)/),named=false;
+  for(var i=0;i<parts.length;i++){
+    var w=parts[i];
+    if(!SB_IS_LETTER_RE.test(w))continue;
+    var keep=sbDeliberateCaps(w),low=w.toLowerCase();
+    var kind=sbTitleKind(low,L);
+    if(kind==='abbr'){if(!keep)parts[i]=sbNameCase(low);continue;}
+    if(kind==='word'){if(!keep)parts[i]=L==='EN'?sbNameCase(low):low;continue;}
+    if(!keep)parts[i]=sbNamePart(low,L,named);
+    named=true;
+  }
+  return parts.join('');
+}
+function sbCasePrevWord(str,off){
+  var m=SB_PREV_WORD_RE.exec(str.slice(Math.max(0,off-40),off));
+  return m?m[1]:'';
+}
+function sbCaseNextWord(str,end){
+  var m=SB_NEXT_WORD_RE.exec(str.slice(end,end+40));
+  return m?m[1]:'';
+}
+function sbCasePrevIsNumber(str,off){
+  return /\d[\s,.]*$/.test(str.slice(Math.max(0,off-8),off));
+}
+/* True when the token before `off` is an abbreviated title, which makes the
+   word at `off` the name it introduces. A number in front makes it a unit. */
+function sbCaseFollowsTitle(str,off,lang){
+  var m=/(\S+)\s+$/.exec(str.slice(Math.max(0,off-40),off));
+  if(!m||sbTitleKind(m[1].toLowerCase(),lang)!=='abbr')return false;
+  return !sbCasePrevIsNumber(str,off-m[0].length);
+}
+function sbCaseEnMonth(str,off,len){
+  if(sbIn(SB_EN_MONTH_CUES,sbCasePrevWord(str,off).toLowerCase()))return true;
+  return sbCasePrevIsNumber(str,off)||/^[\s,.]*\d/.test(str.slice(off+len,off+len+8));
+}
+function sbCasePeopleNoun(str,off,key,lang){
+  if(!sbIn(SB_PEOPLE_NOUNS[lang],key))return false;
+  return sbIn(SB_PEOPLE_ARTICLES[lang],sbStripAccents(sbCasePrevWord(str,off).toLowerCase()));
+}
+function sbCaseOpensSentence(str,off){
+  var i=off-1;
+  if(i<0)return true;
+  if(!/\s/.test(str.charAt(i)))return false;
+  while(i>=0&&/\s/.test(str.charAt(i)))i--;
+  while(i>=0&&'"\'”’)]'.indexOf(str.charAt(i))!==-1)i--;
+  return i>=0&&'.!?'.indexOf(str.charAt(i))!==-1;
+}
+function sbCaseTakesCapital(str,off,len,low,lang){
+  var key=sbStripAccents(low);
+  if(sbCaseFollowsTitle(str,off,lang))return true;
+  if(lang==='EN'){
+    if(key==='i'||/^i['’](m|ll|ve|d)$/.test(key))return true;
+    if(sbIn(SB_EN_CAPITAL_WORDS,key))return true;
+    if(sbIn(SB_EN_MONTH_VERBS,key))return sbCaseEnMonth(str,off,len);
+    if(sbIn(SB_TITLE_WORDS.EN,key))return sbDeliberateCaps(sbCaseNextWord(str,off+len));
+  }
+  if(!sbCasePrevIsNumber(str,off)){
+    if(sbIn(SB_TITLE_ABBR[lang],key)&&str.charAt(off+len)==='.')return true;
+    if(sbIn(SB_TITLE_ABBR_BARE[lang],key))return true;
+  }
+  return sbCasePeopleNoun(str,off,key,lang);
+}
+function sbCaseSentence(str,lang){
+  return str.replace(SB_CASE_WORD_RE,function(w,off){
+    if(sbDeliberateCaps(w))return w;
+    var low=w.toLowerCase();
+    if(sbCaseOpensSentence(str,off)||sbCaseTakesCapital(str,off,w.length,low,lang))return sbCap(low);
+    return low;
+  });
+}
+function sbCaseElision(low,lang,opens){
+  if(!SB_CASE_ELISIONS[lang])return null;
+  var m=/^([^'’]+)(['’])(.+)$/.exec(low);
+  if(!m||!sbIn(SB_CASE_ELISIONS[lang],sbStripAccents(m[1])))return null;
+  return (opens?sbCap(m[1]):m[1])+m[2]+sbCap(m[3]);
+}
+function sbCaseTitle(str,lang){
+  /* Where the first and last word sit, so they can be exempted below. */
+  var m,first=-1,last=-1;
+  SB_CASE_WORD_RE.lastIndex=0;
+  while((m=SB_CASE_WORD_RE.exec(str))!==null){
+    if(first<0)first=m.index;
+    last=m.index;
+  }
+  if(first<0)return str;
+  var small=SB_CASE_SMALL_WORDS_BY_LANG[lang]||SB_CASE_SMALL_WORDS;
+  return str.replace(SB_CASE_WORD_RE,function(w,off){
+    if(sbDeliberateCaps(w))return w;
+    var low=w.toLowerCase(),key=sbStripAccents(low);
+    var opens=off===first||sbCaseOpensClause(str,off);
+    var edge=opens||off===last;
+    var elided=sbCaseElision(low,lang,opens);
+    if(elided!==null)return elided;
+    if(!edge&&sbIn(small,key))return low;
+    if(sbCasePeopleNoun(str,off,key,lang))return sbCap(low);
+    if(!edge&&sbIn(SB_CASE_LOWER_WORDS[lang],key))return low;
+    return sbCap(low);
+  });
+}
+
 /* True when the word at `off` opens the text or follows a colon or a full stop. */
 function sbCaseOpensClause(str,off){
   var i=off-1;
@@ -3240,34 +3507,20 @@ function sbCaseOpensClause(str,off){
   return ':.?!'.indexOf(str.charAt(i))!==-1;
 }
 function sbIsCaseHead(tokLow){return tokLow.slice(0,5)==='case:';}
-/* An unrecognised mode leaves the text untouched — a typo must never delete
+/* An unrecognised mode leaves the text untouched: a typo must never delete
    what the author wrote. */
 function sbCaseMode(head){
   var m=String(head).replace(/^\s+|\s+$/g,'').toLowerCase();
   return SB_CASE_MODES[m]?m:'';
 }
-function sbApplyCaseMode(str,mode){
+/* `lang` is the body's language, which decides the rules in sentence and
+   title mode. */
+function sbApplyCaseMode(str,mode,lang){
   if(!str||!mode)return str;
   if(mode==='upper')return str.toUpperCase();
   if(mode==='lower')return str.toLowerCase();
-  if(mode==='title'){
-    /* Where the first and last word sit, so they can be exempted below. */
-    var m,first=-1,last=-1;
-    SB_CASE_WORD_RE.lastIndex=0;
-    while((m=SB_CASE_WORD_RE.exec(str))!==null){
-      if(first<0)first=m.index;
-      last=m.index;
-    }
-    if(first<0)return str;
-    return str.replace(SB_CASE_WORD_RE,function(w,off){
-      var low=w.toLowerCase();
-      if(off!==first&&off!==last&&SB_CASE_SMALL_WORDS[low]&&!sbCaseOpensClause(str,off))return low;
-      return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
-    });
-  }
-  return str.toLowerCase().replace(SB_CASE_SENT_RE,function(_,lead,ch){
-    return lead+ch.toUpperCase();
-  });
+  var L=String(lang||'').toUpperCase();
+  return mode==='title'?sbCaseTitle(str,L):sbCaseSentence(str,L);
 }
 
 /* Greeting for the local time of day. MIRRORED from extension/formula-engine.js
@@ -3420,7 +3673,7 @@ function resolveBody(body,vals,opts){
   var _o=opts||{},fmtMap,subOpts;
   if(Object.prototype.hasOwnProperty.call(_o,'_fmtMap')){fmtMap=_o._fmtMap;subOpts=_o;}
   else{
-    fmtMap=sbFieldFormatMap(body,_o.fmtOverride);subOpts={};
+    fmtMap=sbFieldFormatMap(body,_o.fmtOverride,_o.lang);subOpts={};
     for(var _k in _o)if(Object.prototype.hasOwnProperty.call(_o,_k))subOpts[_k]=_o[_k];
     subOpts._fmtMap=fmtMap;
   }
@@ -3535,7 +3788,7 @@ function resolveBody(body,vals,opts){
         var cClose=body.indexOf(SB_CASE_CLOSE,cl+1);
         /* Unclosed: drop only the head so the rest still renders. */
         if(cClose===-1){i=cl+1;continue;}
-        out+=sbApplyCaseMode(resolveBody(body.slice(cl+1,cClose),vals,subOpts),sbCaseMode(tok.slice(5)));
+        out+=sbApplyCaseMode(resolveBody(body.slice(cl+1,cClose),vals,subOpts),sbCaseMode(tok.slice(5)),_o.lang);
         i=cClose+SB_CASE_CLOSE.length;
         continue;
       }
@@ -3623,10 +3876,10 @@ function rememberLang(gkey,lang){
 }
 
 /* Pinned rows float to the top of their list. The flag is persisted on the
-   row itself — snippets.pinned and prompts.pinned — the same columns the
-   desktop dashboard and Sprintbrain.html write, so a pin survives a reload and
-   shows on every surface. (It used to live in localStorage under 'sb_mob_pins',
-   which the mobile browser evicted on its own, losing the pin.) */
+   row itself (snippets.pinned and prompts.pinned), the same columns the
+   desktop dashboard writes, so a pin survives a reload and shows on every
+   surface. (It used to live in localStorage under 'sb_mob_pins', which the
+   mobile browser evicted on its own, losing the pin.) */
 
 /* Group stable-keys that have at least one pinned language row, for the list
    sort. Built once per render; groupKey() reads the cached snipIndex(). */
@@ -3887,8 +4140,8 @@ function folderIcon(f){
 }
 /* ── LANG-VARIANT GROUPING KEY ────────────────────────────
    The rule is not defined here. It lives in extension/shared/snippet-stats.js,
-   inlined above by scripts/sync-snippet-stats.js, so the popup, Sprintbrain.html
-   and this app collapse variants identically instead of drifting apart.
+   inlined above by scripts/sync-snippet-stats.js, so the popup and this app
+   collapse variants identically instead of drifting apart.
 
    Mobile used to hand-roll the key and got it wrong three ways: it merged rows
    across owners, it stripped a trailing language code even when that code was
@@ -4406,7 +4659,10 @@ function renderFolderChips(){
 }
 
 var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
-var LANG_FLAGS={EN:'🇬🇧',IT:'🇮🇹',ES:'🇪🇸',FR:'🇫🇷',MULTI:'🌍'};
+/* A language reads as its code plus its name, never as a flag: flags were emoji
+   and Windows has no country glyphs, so they drew as "GB"/"ES" there. The tile
+   itself carries the language palette when selected. See docs/DESIGN_SYSTEM.md. */
+var LANG_NAMES={EN:'English',IT:'Italiano',ES:'Español',FR:'Français',MULTI:'Multi'};
 function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
 // Render-scoped lookup of every rendered variant, keyed by vkey(). Rebuilt each
 // renderList() so card / pill / menu handlers can resolve a DOM id back to the
@@ -4742,8 +4998,8 @@ function renderDetail(snip,keepVals){
       var on=vkey(v)===vkey(snip)?' on l'+lg:'';
       return '<button type="button" class="lang-tile'+on+'" data-vid="'+esc(vkey(v))+'" '
         +'aria-pressed="'+(on?'true':'false')+'">'
-        +'<span class="lang-tile-flag">'+(LANG_FLAGS[lg]||'🌐')+'</span>'
         +'<span class="lang-tile-code">'+esc(lg)+'</span>'
+        +'<span class="lang-tile-name">'+esc(LANG_NAMES[lg]||lg)+'</span>'
       +'</button>';
     }).join('');
     langPick.querySelectorAll('.lang-tile').forEach(function(t){
@@ -5750,7 +6006,7 @@ document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEven
 })();
 
 /* Interactive Steps switch on the Prompts page. The module keeps it in
-   localStorage under the key the dashboard and Sprintbrain.html read too. */
+   localStorage under the key the dashboard reads too. */
 var promptStepsOn=false;
 (function(){
   var box=document.getElementById('psteps-on');
@@ -6254,7 +6510,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
 
 /* ── ANALYTICS ──────────────────────────────────── */
 var LANG_COLORS={EN:'#1B4FD8',IT:'#15803D',ES:'#C2410C',MULTI:'#7C3AED'};
-var LANG_LABELS={EN:'🇬🇧 EN',IT:'🇮🇹 IT',ES:'🇪🇸 ES',MULTI:'🌍 Multi'};
+var LANG_LABELS={EN:'EN',IT:'IT',ES:'ES',MULTI:'Multi'};
 
 function relativeTime(iso){
   if(!iso)return '';
@@ -6509,12 +6765,12 @@ if(requireAuth()){
 <!-- SB_TOOLTIP:BEGIN (generated from extension/shared/tooltip.js by scripts/sync-tooltip.js, do not edit) -->
 <script>
 // ── SPRINTBRAIN SHARED TOOLTIP (Avada style) ──────────────────────
-// Canonical vanilla implementation. Loaded by extension/popup/popup.html and
-// Sprintbrain.html. The mobile app and the landing site inline a copy of this
-// file because neither can reach extension/ at runtime: /mobile/ is a
-// single-file app by design, and the landing site is a separate Netlify site
-// rooted at app/public/landing/. Keep the three in sync; the React dashboard
-// carries the same values in app/src/components/ui/tooltip.tsx.
+// Canonical vanilla implementation. Loaded by extension/popup/popup.html. The
+// mobile app and the landing site inline a copy of this file because neither
+// can reach extension/ at runtime: /mobile/ is a single-file app by design,
+// and the landing site is a separate Netlify site rooted at
+// app/public/landing/. Keep the three in sync; the React dashboard carries
+// the same values in app/src/components/ui/tooltip.tsx.
 //
 // Values are Avada's, read off a live theme-fusion tooltip. The documentation
 // publishes the option list but no CSS. Canonical table: docs/DESIGN_SYSTEM.md.

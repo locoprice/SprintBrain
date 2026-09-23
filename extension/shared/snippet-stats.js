@@ -4,7 +4,7 @@
 // siblings a shared `lang_group_id`; the dashboard model keeps one row and puts
 // the translations in `bodies`. Counting rows therefore counts a snippet once
 // per language, and every surface that shows a number has to collapse the rows
-// the same way — otherwise the popup, Sprintbrain.html and the dashboard each
+// the same way. Otherwise the popup, the mobile app and the dashboard each
 // report a different library size for the same account.
 //
 // The rule, in order:

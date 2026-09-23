@@ -44,6 +44,46 @@ the row.**
 
 ---
 
+## 0b. The search never read a draft (found 2026-09-18)
+
+A second finding, larger than the first, and made by running the real search on a real library
+rather than feeding the panel prepared results.
+
+`knowledge_search` built its full-text query with `websearch_to_tsquery`, which joins every word
+with AND, function words included. A draft such as "scrivi al cliente che sono in aeroporto e
+rispondo appena posso" became `'scrivi' & 'al' & 'cliente' & 'che' & ...`. No item contains every
+word of a sentence, so every real draft returned nothing, and the trigram arm, which compared the
+whole sentence to each title, matched nothing either. One or two bare keywords worked, which is
+why the original fixtures passed. Four ordinary drafts in three languages all returned zero,
+including one describing an existing snippet almost word for word. The panel could only ever
+offer a recency browse.
+
+Replaced in `20260918120000_knowledge_search_natural_drafts.sql`, same signature and shape:
+
+| Step | Rule |
+| --- | --- |
+| Content words | Unaccented, split on non-alphanumerics, 3+ characters, minus the stop words of the Italian, Spanish, English and French stemmers Postgres ships |
+| Word forms | The shortest stem across the four languages, matched as a prefix when it has 4+ characters (recibido finds RECIBO); shorter words exactly or with an s |
+| Scoring | Sum of idf squared over the words an item contains; title matches count double; body matches are scaled by the length of one language, so a snippet storing four translations is not penalised |
+| Typos | A word matching nothing may match a title that reads almost the same (aeropoto finds AEROPORTO) |
+| Gate | Score at least 8 and at least half the best, and either a title match or two different words of the draft |
+| Languages | The view gained `search_text`: every language a snippet holds, not only its primary body |
+
+`rank` is now that score, not a reciprocal-rank fusion. The panel pre-selects only facts within
+0.8 of the best score (`preselect` in `memory-picker.js`); looser matches are listed unticked.
+
+Measured on the same library afterwards: the right item first for 11 of 12 drafts, and nothing for
+"ciao come stai", which is the correct answer. About 40 ms per search at 106 items. The function
+computes every item's text vector per query, so at thousands of items it will need a stored,
+indexed vector over `search_text`: noted, not yet needed.
+
+Still lexical. A draft in English cannot find a snippet whose English wording shares none of its
+words, and a role word like cliente still pulls in the odd loosely related reply, which is why
+those are listed unticked rather than hidden. Meaning, as opposed to wording, needs the semantic
+arm (step H) and its vendor decision.
+
+---
+
 ## 1. The ideal architecture
 
 The shape that shipped is right. Three structural changes, none of which is a rewrite.
@@ -418,7 +458,12 @@ draft is the user's private writing and storing it would be a change in what the
 collects, requiring consent rather than a migration.
 
 **C. The absolute relevance gate.** Calibrate the threshold against the real library rather than
-picking a number. B makes the calibration possible.
+picking a number. B makes the calibration possible. **Largely delivered with the draft search fix
+(§0b):** the gate now lives in `knowledge_search`, calibrated by hand on 17 drafts against a
+production library, and the panel pre-selects only the strongest matches. What remains is
+recalibrating on real accept and reject data once B records it. The old mismatch, where the panel
+ticked an item the engine's floor then dropped as "did not fit", no longer occurs: nothing the
+search returns falls under that floor.
 
 **D. Source weighting and the named-container boost.** The biggest quality lever once there are
 many spaces. Explicit weights first, implicit weights once B has produced data.

@@ -2,9 +2,8 @@ import type { SnippetLanguage, SnippetRow } from '@/types/database';
 
 /**
  * Trailing language code on a trigger or title. Mirrors the canonical rule in
- * `extension/shared/snippet-stats.js`, which the popup, Sprintbrain.html, the
- * mobile companion and the content script all run, so every surface collapses
- * the same variants:
+ * `extension/shared/snippet-stats.js`, which the popup, the mobile companion
+ * and the content script all run, so every surface collapses the same variants:
  *   - `::quoteEN` + `::quoteES`  → share the base `quote`
  *   - `::air` + `::airEN`        → share the base `air`
  *   - `::budgetstay` (no suffix) → groups with its same-trigger siblings

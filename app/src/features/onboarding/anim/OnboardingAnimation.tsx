@@ -1102,10 +1102,10 @@ function CompanionHome({ scroll = 0 }: { scroll?: number }): ReactElement {
   ];
   const chips: Array<[string, boolean]> = [
     ['All', true],
-    ['🇬🇧 EN', false],
-    ['🇪🇸 ES', false],
-    ['🇮🇹 IT', false],
-    ['🌍 Multi', false],
+    ['EN', false],
+    ['ES', false],
+    ['IT', false],
+    ['Multi', false],
   ];
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#F2F2F7', overflow: 'hidden' }}>
@@ -1233,10 +1233,11 @@ function CompanionHome({ scroll = 0 }: { scroll?: number }): ReactElement {
 /* ── STEP 5: detail page → copy ── */
 function DetailScreen({ t }: { t: number }): ReactElement {
   const copied = t >= 1.7;
-  const langs: Array<[string, boolean]> = [
-    ['EN', true],
-    ['IT', false],
-    ['ES', false],
+  // Code over name, the same tile the mobile app draws. No flag: see LangBadge.
+  const langs: Array<[string, string, boolean]> = [
+    ['EN', 'English', true],
+    ['IT', 'Italiano', false],
+    ['ES', 'Español', false],
   ];
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#F2F2F7', display: 'flex', flexDirection: 'column' }}>
@@ -1255,7 +1256,7 @@ function DetailScreen({ t }: { t: number }): ReactElement {
         <div>
           <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: INK_MUT, textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 8 }}>Language</div>
           <div style={{ display: 'flex', gap: 10 }}>
-            {langs.map(([l, on]) => (
+            {langs.map(([l, langName, on]) => (
               <div
                 key={l}
                 style={{
@@ -1274,8 +1275,8 @@ function DetailScreen({ t }: { t: number }): ReactElement {
                   fontWeight: on ? 800 : 600,
                 }}
               >
-                <span style={{ fontSize: 22 }}>{l === 'EN' ? '🇬🇧' : l === 'IT' ? '🇮🇹' : '🇪🇸'}</span>
-                <span style={{ fontSize: 12 }}>{l}</span>
+                <span style={{ fontSize: 15, letterSpacing: '.4px' }}>{l}</span>
+                <span style={{ fontSize: 11 }}>{langName}</span>
               </div>
             ))}
           </div>

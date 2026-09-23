@@ -17,7 +17,7 @@ When the mockup and a piece of shipped UI disagree, the mockup wins by default. 
 >  - Extension + overlay: `extension/shared/tokens/colors_and_type.css`
 >  - Mobile companion: inline `:root` in `app/public/mobile/index.html` (kept in sync with this table)
 >
-> Hard-coded hex values in component files are forbidden outside two documented exceptions: the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette), and the **dark prompt-editor vocabulary** in `PromptBlockEditor.tsx` — an untokenized side-panel palette that predates this table. Components rendered *inside* that panel (`LabelPicker`'s `dark` tone) may reuse those exact hexes; they may not invent new ones. Tokenizing the panel is an open follow-up.
+> Hard-coded hex values in component files are forbidden outside three documented exceptions: the per-language inline tints in `SnippetsTable.tsx` (which intentionally mirror the mobile palette), and the **dark prompt-editor vocabulary** in `PromptBlockEditor.tsx`, an untokenized side-panel palette that predates this table. Components rendered *inside* that panel (`LabelPicker`'s `dark` tone) may reuse those exact hexes; they may not invent new ones. Tokenizing the panel is an open follow-up. The third exception is the four colours of Google's "G" mark in `components/auth/GoogleSignIn.tsx`: Google's branding guidelines fix them, so they are never tokenized or recoloured. The button around it uses the standard `ghost` variant.
 
 ### Neutrals
 
@@ -81,7 +81,7 @@ Badges keep their light tints in dark mode, matching every shipped chip on the d
 
 ### Prompt strategy chips
 
-One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list, the extension popup and `Sprintbrain.html`. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
+One label per prompt, shown on the dashboard prompt cards, the `/mobile/` prompt list and the extension popup. It replaced the separate one-shot / few-shot type badge when the editor's Type box was removed, since Strategy already carries both.
 
 | Strategy | Fg        | Bg        | Extension token                                  |
 | -------- | --------- | --------- | ------------------------------------------------ |
@@ -132,6 +132,36 @@ Azure intensity ramp for the GitHub-style contribution graph. Replaces GitHub's 
 | `r-card`      | 16 px | Cards (dashboard, mockup KPI + table)    |
 | `r-card-lg`   | 18 px | Mobile snippet card                      |
 | `r-pill`      | 9999  | Pills, chips, count badges               |
+
+### Landing context container (v3.41.1)
+
+The landing groups its three layers, portable context, execution flow and audience
+inside one bordered surface. It retains the canonical azure, neutral palette,
+16 px card radius and small shadow. This intentionally replaces the four separate
+marketing sections; the dashboard, extension and mobile app keep their own shells.
+
+Landing spacing tokens (inline `:root` in `app/public/landing/index.html`):
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `space-1` | 4 px | Tight text spacing |
+| `space-2` | 8 px | Inline gaps |
+| `space-3` | 12 px | Text groups |
+| `space-4` | 16 px | Card gaps and compact inset |
+| `space-6` | 24 px | Card inset |
+| `space-8` | 32 px | Container divisions |
+| `space-10` | 40 px | Desktop container inset |
+| `space-12` | 48 px | Section separation |
+| `space-16` | 64 px | Outer section separation |
+
+The flow wraps to two columns on phones, the layer cards stack below 760 px,
+and every paragraph stays visible without tabs or accordions.
+
+The portable-context panel uses a neutral split layout and a static node diagram,
+inspired by Attio's restrained grids: canonical `card` / `bg` / `line` colors,
+6 px small radius, monospaced labels, and a subtle dotted ground. The adjacent
+partner strip is a stationary 3 × 3 grid with hairline separators. It retains
+SprintBrain's existing nine brands; Attio's customer marks are not imported.
 
 ### Shadows
 
@@ -202,7 +232,7 @@ These are deliberately **not** tokenised. They mirror an external design system,
 | Surface | Implementation |
 | --- | --- |
 | Dashboard (React) | `app/src/components/ui/tooltip.tsx`, `<Tooltip label="…" placement="top">`. Portalled, because every panel that hosts one scrolls and would clip it. Tracks the trigger per frame. |
-| Popup, `Sprintbrain.html` | `extension/shared/tooltip.js` via `<script src>` |
+| Popup | `extension/shared/tooltip.js` via `<script src>` |
 | `/mobile/`, landing site | the same file, inlined between `SB_TOOLTIP` markers |
 
 `/mobile/` is a single-file app and the landing site is a separate Netlify site rooted at `app/public/landing/`, so neither can reach `extension/` at runtime. Their copies are generated, never hand-edited:
@@ -220,6 +250,7 @@ Keep the text short. Avada centres it inside 200 px, so a sentence or two reads 
 ## Surface-specific rules (v1.1)
 
 - **Dashboard topbar** spans the full width (60 px) above sidebar + main. Brand square (28 px, `--primary` solid) on the left.
+- **Master search bar** (SEARCH-001): the one text search on the dashboard, in the topbar between the brand and the status pill. `r-in` (10 px), 36 px tall, `bg-alt` at rest and `--card` on focus, capped at 360 px and allowed to shrink so a long company name never pushes the right-hand cluster off a 1024 px screen. It carries a ⌘K badge at rest and a clear cross once there is text. Typing filters the page in view; Enter or ⌘K opens the aggregated panel (560 px, `r-card`, `shadow-md`, results grouped Snippets / Prompts / Memory). The panel carries its own control row under the input: a **Scope** segmented pair (`Everywhere`, the default, and a `<Section> only` button that appears only on a page that has a section, reading `Snippets only` / `Prompts only` / `Memory only`), and, while the scope is Everywhere, **type chips** (`All` / `Snippets` / `Prompts` / `Memory`) on the right of the same row. Inside a single space, `Memory only` narrows to that space rather than to memory at large. Scope and chips narrow what has already matched; they never change the matching rules, which live once in `searchIndex.ts`. Snippets, prompts and memory carry **no search box of their own**. A second one on a page is a defect, not a feature.
 - **Dashboard sidebar** active nav: `bg-primary-light` + 3 px primary left bar (painted via `::before`, reserved track so the row doesn't shift on toggle) + filled count pill (`bg-primary` + white text) when count > 0. Inactive count pill: `bg-bg-alt` + `ink-subtle`.
 - **Dashboard sidebar, collapsed** (v3.29.0): the panel control on the WORKSPACE row folds the sidebar into a 64 px icon rail (65 px with its border), cloned from DeepL's. Rows keep their size and place: the label and count pill are clipped, not removed, so no icon moves on toggle and screen readers still read the label. Each icon names itself in a right-side tooltip, the company watermark hides, and the account menu keeps its open width over the canvas. The switch is instant and remembered per browser. It replaces the v3.8.0 hide and the v3.13.0 edge peek.
 - **Mobile home** is a single-scroll canvas. Gradient hero (`linear-gradient(160deg, #1B4FD8, #1440B0)`) → floating quick-action grid (overlaps hero by `-22 px`) → search → "All snippets" + Uber-style chips (white default, `#1C1C1E` bg when active) → snippet cards (`r-card-lg`, 14 px padding, 46 × 46 colored icon well per language family) → floating Apple/Revolut tab bar (`rgba(28,28,30,.92)` + blur 20).
@@ -245,4 +276,4 @@ Keep the text short. Avada centres it inside 200 px, so a sentence or two reads 
 - **Extension popup redesign (v2.97.0):** the popup became a single-column launcher (search-first, folder chips, per-language inline detail); it now ships at 540×600 (width widened from the original 480 in v2.110.0). Approved review mock at `design_handoff_design_system/mockups/popup-launcher-v2.html`. The extension section of `harmonized-final.html` and `kits/extension.html` still show the pre-redesign popup (sidebar + 32px sync bar + iris-gradient logo) — update them to this layout so the canonical mockup matches shipped UI.
 - **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
 - **Danger token alignment:** move the extension's `--sb-danger` from `#DC2626` to the canonical `#D70015` so the two surfaces match. Touches every danger element in the popup, so it wants its own change and a visual pass — not a side effect of the ticket that surfaced it.
-- **Status badges on `/mobile/` and `Sprintbrain.html`:** neither surface renders them yet. `Sprintbrain.html` reuses `popup.js` but has no `#list` element, so `renderList` returns early and no markup is emitted — adding them there means porting the `.sb-stat` rules too.
+- **Status badges on `/mobile/`:** not rendered there yet.

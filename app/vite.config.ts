@@ -221,18 +221,15 @@ function mobileVersionPlugin(): Plugin {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-// ── Native dashboard (Sprintbrain.html) deploy plugin ───────────────────────
-// The vanilla shared-core dashboard lives at the repo root (Sprintbrain.html) and
-// loads the extension/* scripts by relative path. Neither is part of the app/ tree
-// Vite builds, so copy both into dist/ after the bundle is written — single source
-// preserved (no committed duplication of the extension code). Served at
-// /Sprintbrain.html with its deps under /extension/*; real files take precedence
-// over the SPA fallback, so they resolve directly.
+// ── Extension scripts for the snippet preview ───────────────────────────────
+// The dashboard's snippet preview loads formula-engine.js and shared/fill-form.js
+// from /extension/* (src/lib/fillFormEngine.ts). extension/ is not part of the
+// app/ tree Vite builds, so it is copied into dist/ after the bundle is written:
+// one source, no committed duplicate. Real files take precedence over the SPA
+// fallback, so they resolve directly.
 //
-// The dashboard's own snippet preview also loads formula-engine.js and
-// shared/fill-form.js from /extension/*, so the middleware below serves the same
-// tree in dev. Without it those two scripts 404 under `npm run dev` and the
-// preview panel can never start.
+// The middleware below serves the same tree in dev. Without it those two scripts
+// 404 under `npm run dev` and the preview panel can never start.
 
 const EXTENSION_MIME: Record<string, string> = {
   '.js':   'text/javascript; charset=utf-8',
@@ -243,14 +240,13 @@ const EXTENSION_MIME: Record<string, string> = {
   '.png':  'image/png',
 };
 
-function nativeDashboardPlugin(): Plugin {
+function extensionScriptsPlugin(): Plugin {
   const repoRoot = path.resolve(__dirname, '..');
-  const htmlSrc  = path.join(repoRoot, 'Sprintbrain.html');
   const extSrc   = path.join(repoRoot, 'extension');
   const distDir  = path.resolve(__dirname, 'dist');
 
   return {
-    name: 'sprintbrain-native-dashboard',
+    name: 'sprintbrain-extension-scripts',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url ?? '').split('?')[0] ?? '';
@@ -287,7 +283,6 @@ function nativeDashboardPlugin(): Plugin {
       });
     },
     closeBundle() {
-      fs.copyFileSync(htmlSrc, path.join(distDir, 'Sprintbrain.html'));
       fs.cpSync(extSrc, path.join(distDir, 'extension'), { recursive: true });
     },
   };
@@ -295,7 +290,7 @@ function nativeDashboardPlugin(): Plugin {
 // ────────────────────────────────────────────────────────────────────────────
 
 export default defineConfig({
-  plugins: [react(), landingVersionPlugin(), mobileVersionPlugin(), nativeDashboardPlugin()],
+  plugins: [react(), landingVersionPlugin(), mobileVersionPlugin(), extensionScriptsPlugin()],
   define: {
     // Injected at build time — components read these as plain constants.
     __APP_CHANGELOG__:    JSON.stringify(CHANGELOG),

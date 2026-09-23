@@ -28,6 +28,7 @@ const METHOD_LABELS: Record<string, string> = {
   password: 'Password',
   magic_link: 'Magic link',
   email_otp: 'Email code',
+  google: 'Google',
 };
 
 function DeviceIcon({ userAgent }: { userAgent: string | null }) {

@@ -1,15 +1,14 @@
 // inactivity.js: the single source of truth for WHAT counts as unused.
 //
-// Four surfaces show the unused-asset notice and each builds its own markup:
+// Three surfaces show the unused-asset notice and each builds its own markup:
 //
 //   extension/popup/popup.js       the popup strip (read-only: Review + Keep)
-//   Sprintbrain.html               the same strip, plus Delete and Modify
 //   app/src/features/shared/       the dashboard banner, snippets and prompts
 //     InactiveAssetBanner.tsx
 //   (the in-page overlay shows none: it expands, it does not manage)
 //
 // They keep their own markup and their own action sets, because the popup is
-// read-only by design (v2.87.0) and the other two are not. What they must NOT
+// read-only by design (v2.87.0) and the dashboard is not. What they must NOT
 // keep is their own answer to "is this stale", "since when", and "what does the
 // sentence say". Those are decided here, once.
 //
@@ -32,8 +31,7 @@
 
   // Where every surface keeps its copy. chrome.storage.local ONLY: the roaming
   // area is gated (scripts/check-storage.js) and a snooze is a per-device
-  // decision anyway. Sprintbrain.html reaches the same key through the shim,
-  // which is backed by localStorage, so the two surfaces behave identically.
+  // decision anyway.
   var STORAGE_KEY = 'sb_inactivity';
 
   var MIN_MONTHS = 6;
