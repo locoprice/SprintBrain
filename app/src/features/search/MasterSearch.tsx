@@ -25,7 +25,7 @@ export function searchPlaceholder(pathname: string): string {
   if (section === 'prompt') return 'Search prompts…';
   if (section === 'memory') {
     // A space's own page filters the notes inside it; the index filters spaces.
-    return spaceForPath(pathname) !== null ? 'Search this space…' : 'Search spaces…';
+    return spaceForPath(pathname) !== null ? 'Search this Brain…' : 'Search Brains…';
   }
   return 'Search everything…';
 }

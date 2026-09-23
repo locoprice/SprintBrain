@@ -58,7 +58,7 @@ function SpaceCard({
                 icon={<Trash2 className="h-3.5 w-3.5" />}
                 label="Move to trash"
                 disabled={space.is_default}
-                title={space.is_default ? 'The default space cannot be trashed' : undefined}
+                title={space.is_default ? 'The default Brain cannot be trashed' : undefined}
                 danger
                 onClick={() => {
                   close();
@@ -126,20 +126,20 @@ export function MemoryPage() {
       await trashSpace(space.id);
       showToast(`"${space.name}" moved to trash.`);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not trash that space.', 'error');
+      showToast(err instanceof Error ? err.message : 'Could not trash that Brain.', 'error');
     }
   }
 
   return (
     <div>
       <PageHeader
-        title="Memory"
+        title="Brains"
         tag="context assets"
         description="Facts, notes and documents your assistant can read."
         action={
           <Button onClick={() => setDialogTarget('new')}>
             <Plus className="h-4 w-4" />
-            New space
+            New Brain
           </Button>
         }
       />
@@ -151,29 +151,29 @@ export function MemoryPage() {
       ) : null}
 
       <div className="mb-5 flex items-center gap-3">
-        {/* Held back until the first load finishes: "0 spaces" beside a spinner
+        {/* Held back until the first load finishes: "0 Brains" beside a spinner
             reads as an answer, and it is not one yet. */}
         <span className="text-xs text-ink-subtle">
-          {loaded ? `${spaces.length} space${spaces.length === 1 ? '' : 's'}` : ''}
+          {loaded ? `${spaces.length} Brain${spaces.length === 1 ? '' : 's'}` : ''}
         </span>
       </div>
 
       {loading && spaces.length === 0 ? (
-        <LoadingBlock what="your spaces" />
+        <LoadingBlock what="your Brains" />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Brain}
-          title={spaces.length === 0 ? 'No spaces yet' : 'Nothing matches'}
+          title={spaces.length === 0 ? 'No Brains yet' : 'Nothing matches'}
           description={
             spaces.length === 0
-              ? 'A space holds the facts one kind of work needs. Create one and add your first note.'
+              ? 'A Brain holds the facts one kind of work needs. Create one and add your first note.'
               : 'Try a different search.'
           }
           action={
             spaces.length === 0 ? (
               <Button onClick={() => setDialogTarget('new')}>
                 <Plus className="h-4 w-4" />
-                New space
+                New Brain
               </Button>
             ) : null
           }

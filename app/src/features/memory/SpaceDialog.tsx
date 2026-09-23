@@ -58,7 +58,7 @@ export function SpaceDialog({ target, onClose, onCreate, onRename }: SpaceDialog
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the space.');
+      setError(err instanceof Error ? err.message : 'Could not save the Brain.');
       setSaving(false);
     }
   }
@@ -67,9 +67,9 @@ export function SpaceDialog({ target, onClose, onCreate, onRename }: SpaceDialog
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Rename space' : 'New space'}</DialogTitle>
+          <DialogTitle>{editing ? 'Rename Brain' : 'New Brain'}</DialogTitle>
           <DialogDescription>
-            A space holds the facts one kind of work needs. Keeping them apart is what
+            A Brain holds the facts one kind of work needs. Keeping them apart is what
             lets a step attach a few of them instead of all of them.
           </DialogDescription>
         </DialogHeader>
@@ -114,7 +114,7 @@ export function SpaceDialog({ target, onClose, onCreate, onRename }: SpaceDialog
               Cancel
             </Button>
             <Button type="submit" disabled={!canSave}>
-              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create space'}
+              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create Brain'}
             </Button>
           </div>
         </form>

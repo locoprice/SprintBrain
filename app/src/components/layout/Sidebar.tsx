@@ -131,7 +131,7 @@ export function Sidebar() {
     { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
     // No count pill: the spaces list is loaded by the Memory page itself, and
     // pulling that store into the sidebar would make every page fetch it.
-    { to: '/memory', label: 'Memory', icon: Brain },
+    { to: '/memory', label: 'Brains', icon: Brain },
     { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount, dividerBefore: true },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   ];

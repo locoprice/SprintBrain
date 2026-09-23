@@ -407,10 +407,10 @@ export function MemorySpacePage() {
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" />
-          Memory
+          Brains
         </Link>
         <EmptyState
-          title="That space is not here"
+          title="That Brain is not here"
           description="It may have been moved to the trash, or the link may be stale."
         />
       </div>
@@ -424,7 +424,7 @@ export function MemorySpacePage() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" />
-        Memory
+        Brains
       </Link>
 
       <div className="mb-6 flex items-end justify-between gap-4">
@@ -434,7 +434,7 @@ export function MemorySpacePage() {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold tracking-tight text-ink">
-              {space?.name ?? 'Space'}
+              {space?.name ?? 'Brain'}
             </h1>
             {space?.description ? (
               <p className="mt-0.5 truncate text-sm text-ink-muted">{space.description}</p>

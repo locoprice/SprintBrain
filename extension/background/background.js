@@ -502,7 +502,7 @@ function buildContextMenus(data) {
     // session exists.
     chrome.contextMenus.create({
       id: 'sb-save-selection',
-      title: 'Save selection to SprintBrain memory',
+      title: 'Save selection to SprintBrain',
       contexts: ['selection']
     });
 

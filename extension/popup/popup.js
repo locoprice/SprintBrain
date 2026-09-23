@@ -2878,7 +2878,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
             if (!spaces || !spaces.length) {
               selEl.style.display = 'none';
               saveEl.disabled = true;
-              note('Create a memory space in the dashboard first.');
+              note('Create a Brain in the dashboard first.');
               return;
             }
             selEl.innerHTML = '';
@@ -2891,7 +2891,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
           })
           .catch(function() {
             saveEl.disabled = true;
-            note('Could not load your spaces.', true);
+            note('Could not load your Brains.', true);
           });
 
         saveEl.addEventListener('click', function() {
@@ -2947,7 +2947,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
             }
             saveEl.textContent = 'Saved';
             var detail = payloads.length > 1 ? ' as ' + payloads.length + ' items' : '';
-            note('Saved to memory' + detail +
+            note('Saved to Brain' + detail +
                  (packed.forced ? '. ' + packed.forced + ' long message(s) were split mid-paragraph.' : '.'));
           });
         });

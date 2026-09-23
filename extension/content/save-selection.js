@@ -108,7 +108,7 @@
     card.id = CARD_ID;
 
     card.appendChild(el('div',
-      'font-size:17px;font-weight:700;color:#18181B;margin-bottom:3px', 'Save to memory'));
+      'font-size:17px;font-weight:700;color:#18181B;margin-bottom:3px', 'Save to Brain'));
     card.appendChild(el('div',
       'font-size:11px;color:#A1A1AA;margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
       [host, words + ' words'].filter(Boolean).join(' · ')));
@@ -151,7 +151,7 @@
         select.style.display = 'none';
         // Covers both causes: supaFetch answers [] for a failed request as well
         // as for an account with no spaces yet.
-        setNote('No memory spaces available. Open the dashboard and check you are signed in.', true);
+        setNote('No Brains available. Open the dashboard and check you are signed in.', true);
         return;
       }
       spaces.forEach(function (s) {
@@ -214,7 +214,7 @@
       (function next(i) {
         if (i >= payloads.length) {
           save.textContent = 'Saved';
-          setNote('Saved to memory' + (payloads.length > 1 ? ' as ' + payloads.length + ' items' : '') +
+          setNote('Saved to Brain' + (payloads.length > 1 ? ' as ' + payloads.length + ' items' : '') +
                   (packed.forced ? '. Long text was split mid-paragraph.' : '.'));
           setTimeout(close, 1400);
           return;

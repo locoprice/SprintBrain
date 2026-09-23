@@ -266,7 +266,7 @@ function memoryWriteError(
       : new Error(`${subject} already exists. Names have to be unique.`);
   }
   if (error.code === '23514') return new Error('That does not fit: check the name, the body length and the item kind.');
-  if (error.code === '42501') return new Error('You do not have access to that space.');
+  if (error.code === '42501') return new Error('You do not have access to that Brain.');
   return new Error(error.message);
 }
 

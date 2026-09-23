@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1B4FD8">
 <title>SprintBrain: Il tuo contesto. Ogni AI. Una direzione.</title>
-<meta name="description" content="Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.">
+<meta name="description" content="Un unico spazio per i tuoi Snippet, Prompt e Brains. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.">
 <link rel="alternate" hreflang="en" href="https://sprintbrain.com/">
 <link rel="alternate" hreflang="es" href="https://sprintbrain.com/es/">
 <link rel="alternate" hreflang="it" href="https://sprintbrain.com/it/">
@@ -1154,7 +1154,7 @@ body.cm-locked{overflow:hidden}
   <div class="hero-inner">
     <div class="hero-eyebrow">Estensione Chrome · {{EXT_VERSION}}</div>
     <h1>La tua AI può cambiare.<br><span>Il tuo contesto no.</span></h1>
-    <p><strong>Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.</strong></p>
+    <p><strong>Un unico spazio per i tuoi Snippet, Prompt e Brains. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.</strong></p>
     <p>SprintBrain riunisce le tue conoscenze riutilizzabili, le istruzioni e i flussi di lavoro in un unico spazio intelligente, così puoi passare da uno strumento AI all’altro senza ripartire da zero.</p>
     <div class="hero-ctas"><a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Prova SprintBrain gratis →</a></div>
     <p class="context-note">Nessun vincolo a una piattaforma. Nessuna complessità inutile. Solo il tuo contesto, pronto all’uso.</p>
@@ -1224,7 +1224,7 @@ Team LeibTour</div>
         <article class="context-layer">
           <div class="context-layer-heading">
             <span class="context-layer-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg></span>
-            <h3>Memory</h3>
+            <h3>Brains</h3>
           </div>
           <p class="context-layer-lead">Il tuo contesto persistente.</p>
           <p>Conserva le conoscenze, le decisioni, le preferenze e le informazioni che aiutano l’AI a capire a cosa stai lavorando.</p>
@@ -1242,7 +1242,7 @@ Team LeibTour</div>
       <div class="context-map">
         <div class="context-source" aria-hidden="true">
           <div class="context-source-brand"><img src="../leib-tour-icon.png" width="28" height="28" alt="" loading="lazy"><span>SprintBrain</span></div>
-          <div class="context-source-layers"><span>Snippets</span><span>Prompts</span><span>Memory</span></div>
+          <div class="context-source-layers"><span>Snippets</span><span>Prompts</span><span>Brains</span></div>
         </div>
         <div class="context-connector" aria-hidden="true"></div>
         <div class="context-models"><span>ChatGPT</span><span>Claude</span><span>Gemini</span><span>Kimi</span><span>DeepSeek</span><span class="context-model-future" aria-hidden="true">+</span></div>
@@ -2201,7 +2201,7 @@ Team LeibTour</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.43.1';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.44.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

@@ -687,8 +687,8 @@
       "count": 1
     },
     {
-      "find": "content=\"One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.\"",
-      "replace": "content=\"Un solo lugar para tus Snippets, Prompts y Memory. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.\"",
+      "find": "content=\"One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.\"",
+      "replace": "content=\"Un solo lugar para tus Snippets, Prompts y Brains. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.\"",
       "count": 1
     },
     {
@@ -702,8 +702,8 @@
       "count": 1
     },
     {
-      "find": ">One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.<",
-      "replace": ">Un solo lugar para tus Snippets, Prompts y Memory. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.<",
+      "find": ">One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.<",
+      "replace": ">Un solo lugar para tus Snippets, Prompts y Brains. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.<",
       "count": 1
     },
     {
