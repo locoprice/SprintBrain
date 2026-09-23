@@ -94,7 +94,7 @@ Don't invent new mappings. If a concept isn't in this table, add it here first.
 |---|---|
 | UI chrome (buttons, nav, tables, status) | **No.** Use Lucide. |
 | Folder icons (user-picked) | Yes — from a curated set of 10 SVG glyphs (see `popup.html` folder-modal picker). Emoji fallback only for legacy Notion-synced folders. |
-| Language flags (🇬🇧 🇮🇹 🇪🇸 🇫🇷) | Accepted in compact placements (sidebar folder row) but **prefer** the 2-letter lang pill with the language color. Flags are politically fraught (e.g. 🇬🇧 vs 🇺🇸 for EN); lang codes are neutral. |
+| Language flags | **No.** Always the 2-letter lang pill in the language color. Two reasons, and the first is not a preference: flag emoji do not render on Windows, which ships no country glyphs in its emoji font, so Chrome draws the regional-indicator letters and a flag reads as bare "GB" / "ES". Flags are also politically fraught (🇬🇧 vs 🇺🇸 for EN); lang codes are neutral. Removed from the last four surfaces in v3.39.0 (overlay language modal, mobile chips / tiles / analytics, onboarding animation). |
 | Empty states / illustrations | No. Lucide `ic-3xl` in `--sb-ink-subtle`. |
 | Snippet body (user content) | Unlimited — it's the user's text. |
 

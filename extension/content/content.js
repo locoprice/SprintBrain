@@ -540,12 +540,12 @@ function _bareTrigger(s, seq) {
 
 // Which snippet group a row belongs to. The rule lives in
 // shared/snippet-stats.js (loaded ahead of this file by the manifest) so the
-// content script, the popup and the mobile companion collapse variants
-// identically. The copy that used to live here merged rows across owners and
-// stripped a trailing language code that was not the row's own language, so
-// "wait" (FR) shed an "IT" it never had and became a variant of "WA". Two
-// different people's snippets, one of which then expanded in place of the
-// other.
+// content script, the popup, Sprintbrain.html and the mobile companion collapse
+// variants identically. The copy that used to live here merged rows across
+// owners and stripped a trailing language code that was not the row's own
+// language, so "wait" (FR) shed an "IT" it never had and became a variant of
+// "WA". Two different people's snippets, one of which then expanded in place
+// of the other.
 //
 // `snippets` is only ever reassigned, never mutated, so its identity is a safe
 // cache key for the index.
@@ -588,7 +588,12 @@ function _uniquePrefixSnippet(typed, seq) {
 }
 
 // ── LANGUAGE VARIANT DETECTION ───────────────────────────────────────
-var LANG_FLAGS = { EN: '🇬🇧', IT: '🇮🇹', ES: '🇪🇸', FR: '🇫🇷', MULTI: '🌐' };
+// A language shows as its two-letter pill in the shared language palette, never
+// as a flag. Flags were emoji, and Windows ships no country glyphs in its emoji
+// font, so Chrome drew the regional-indicator letters ("GB", "ES") in place of
+// every flag; the pill renders the same on every OS. A flag also has to pick a
+// country for a language (GB or US for English), which the code avoids.
+// Palette: docs/DESIGN_SYSTEM.md · ruling: design_handoff_design_system/docs/ICONOGRAPHY.md
 var LANG_NAMES = { EN: 'English', IT: 'Italiano', ES: 'Español', FR: 'Français', MULTI: 'Multi' };
 var LANG_SUFFIX_RE = /(?:EN|ES|IT|FR|MULTI)$/i;
 
@@ -658,7 +663,12 @@ function injectLangModal(variantsMap, el, scLen) {
     '.sb-lang-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;}' +
     '.sb-lang-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 18px;border-radius:10px;border:1.5px solid #e0e0e0;background:#fafafa;cursor:pointer;font-size:13px;font-weight:500;color:#333;transition:border-color 0.15s,background 0.15s;min-width:80px;flex:1;}' +
     '.sb-lang-btn:hover{border-color:#5c6bc0;background:#eef0fb;color:#5c6bc0;}' +
-    '.sb-lang-flag{font-size:26px;line-height:1;}' +
+    '.sb-lang-pill{font-size:11px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;padding:3px 9px;border-radius:5px;background:#f1f1f4;color:#555;}' +
+    '.sb-lang-pill.sb-lEN{background:#EEF2FF;color:#1B4FD8;}' +
+    '.sb-lang-pill.sb-lES{background:#FFF7ED;color:#C2410C;}' +
+    '.sb-lang-pill.sb-lIT{background:#F0FDF4;color:#15803D;}' +
+    '.sb-lang-pill.sb-lFR{background:#F0FDFA;color:#0D9488;}' +
+    '.sb-lang-pill.sb-lMULTI{background:#F5F3FF;color:#7C3AED;}' +
     '.sb-cancel-row{display:flex;justify-content:flex-end;}' +
     '.sb-btn-cancel{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#f0f0f0;color:#555;transition:opacity 0.15s;}' +
     '.sb-btn-cancel:hover{opacity:0.75;}';
@@ -682,12 +692,14 @@ function injectLangModal(variantsMap, el, scLen) {
   langs.forEach(function(langCode) {
     var btn = document.createElement('button');
     btn.className = 'sb-lang-btn';
-    var flag = document.createElement('span');
-    flag.className = 'sb-lang-flag';
-    flag.textContent = LANG_FLAGS[langCode] || '🌐';
+    // An unknown code still reads: the pill falls back to the neutral tint and
+    // prints the code itself, and the line under it repeats the code as its name.
+    var pill = document.createElement('span');
+    pill.className = 'sb-lang-pill sb-l' + langCode;
+    pill.textContent = langCode;
     var name = document.createElement('span');
     name.textContent = LANG_NAMES[langCode] || langCode;
-    btn.appendChild(flag);
+    btn.appendChild(pill);
     btn.appendChild(name);
     btn.addEventListener('click', function() {
       cleanup();

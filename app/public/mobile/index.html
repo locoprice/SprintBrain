@@ -557,8 +557,11 @@ body{
   transition:transform .1s,border-color .15s,background .15s,color .15s
 }
 .lang-tile:active{transform:scale(.96)}
-.lang-tile-flag{font-size:24px;line-height:1}
-.lang-tile-code{font-size:13px;font-weight:700;letter-spacing:.3px}
+.lang-tile-code{font-size:15px;font-weight:800;letter-spacing:.4px;line-height:1}
+.lang-tile-name{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.2px;line-height:1}
+/* The selected tile carries the language colour, so the name drops its muted
+   grey and reads in that colour with the code. */
+.lang-tile.on .lang-tile-name{color:inherit}
 .lang-tile.on{font-weight:800}
 .lang-tile.on.lEN{background:#EEF2FF;color:#1B4FD8;border-color:#1B4FD8}
 .lang-tile.on.lES{background:#FFF7ED;color:#C2410C;border-color:#C2410C}
@@ -1152,10 +1155,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   <!-- Language chips -->
   <div class="lang-tabs" id="ltabs">
     <button class="lang-pill on" data-l="ALL">All</button>
-    <button class="lang-pill" data-l="EN">🇬🇧 EN</button>
-    <button class="lang-pill" data-l="ES">🇪🇸 ES</button>
-    <button class="lang-pill" data-l="IT">🇮🇹 IT</button>
-    <button class="lang-pill" data-l="MULTI">🌍 Multi</button>
+    <button class="lang-pill" data-l="EN">EN</button>
+    <button class="lang-pill" data-l="ES">ES</button>
+    <button class="lang-pill" data-l="IT">IT</button>
+    <button class="lang-pill" data-l="MULTI">Multi</button>
   </div>
 
   <!-- Snippet list -->
@@ -4656,7 +4659,10 @@ function renderFolderChips(){
 }
 
 var LANG_ORDER=['EN','IT','ES','FR','MULTI'];
-var LANG_FLAGS={EN:'🇬🇧',IT:'🇮🇹',ES:'🇪🇸',FR:'🇫🇷',MULTI:'🌍'};
+/* A language reads as its code plus its name, never as a flag: flags were emoji
+   and Windows has no country glyphs, so they drew as "GB"/"ES" there. The tile
+   itself carries the language palette when selected. See docs/DESIGN_SYSTEM.md. */
+var LANG_NAMES={EN:'English',IT:'Italiano',ES:'Español',FR:'Français',MULTI:'Multi'};
 function langRank(l){ var i=LANG_ORDER.indexOf(l||'EN'); return i<0?99:i; }
 // Render-scoped lookup of every rendered variant, keyed by vkey(). Rebuilt each
 // renderList() so card / pill / menu handlers can resolve a DOM id back to the
@@ -4992,8 +4998,8 @@ function renderDetail(snip,keepVals){
       var on=vkey(v)===vkey(snip)?' on l'+lg:'';
       return '<button type="button" class="lang-tile'+on+'" data-vid="'+esc(vkey(v))+'" '
         +'aria-pressed="'+(on?'true':'false')+'">'
-        +'<span class="lang-tile-flag">'+(LANG_FLAGS[lg]||'🌐')+'</span>'
         +'<span class="lang-tile-code">'+esc(lg)+'</span>'
+        +'<span class="lang-tile-name">'+esc(LANG_NAMES[lg]||lg)+'</span>'
       +'</button>';
     }).join('');
     langPick.querySelectorAll('.lang-tile').forEach(function(t){
@@ -6504,7 +6510,7 @@ document.querySelector('.mtab').addEventListener('click',function(e){
 
 /* ── ANALYTICS ──────────────────────────────────── */
 var LANG_COLORS={EN:'#1B4FD8',IT:'#15803D',ES:'#C2410C',MULTI:'#7C3AED'};
-var LANG_LABELS={EN:'🇬🇧 EN',IT:'🇮🇹 IT',ES:'🇪🇸 ES',MULTI:'🌍 Multi'};
+var LANG_LABELS={EN:'EN',IT:'IT',ES:'ES',MULTI:'Multi'};
 
 function relativeTime(iso){
   if(!iso)return '';
