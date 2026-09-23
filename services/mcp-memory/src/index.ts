@@ -40,11 +40,12 @@ import {
   fetchBodies,
   fetchIndex,
   fetchManifest,
+  saveShard,
   type SupabaseConfig,
 } from './supabase.ts';
 
 const SERVER_NAME = 'sprintbrain-memory';
-const SERVER_VERSION = '3.39.0';
+const SERVER_VERSION = '3.40.0';
 
 /** Budget before any step has been entered. Replaced by the step's own budget on the first transition. */
 const DEFAULT_BUDGET = 4000;
@@ -341,6 +342,42 @@ server.registerTool(
 
     const bodies = pack.shards.map((s) => `## ${s.name}\n${shards.get(s.id)?.body ?? s.body}`);
     return text(`${header}\n${lines.join('\n')}\n\n${bodies.join('\n\n')}`);
+  },
+);
+
+server.registerTool(
+  'memory_save',
+  {
+    title: 'Save something to memory',
+    description:
+      'Write one new item into the user\'s SprintBrain memory, so a later session can attach it. Use it when something worth keeping comes out of this conversation: a decision and its reason, a constraint, a fact about how their systems work. Creates a new item every time and never edits an existing one. Needs a token issued with the write scope.',
+    inputSchema: {
+      name: z.string().describe('Short title, how the item is listed. Make it specific enough to recognise months later.'),
+      body: z.string().describe('The text to remember, in full.'),
+      summary: z.string().optional().describe('One line describing the item. This is what ranking and listings read, so write it for a reader who has forgotten the context.'),
+      space_id: z.string().optional().describe('Memory space id. Omitted files it in the default space.'),
+      kind: z.enum(['fact', 'note', 'document', 'conversation']).optional().describe('What kind of item this is. Defaults to fact.'),
+    },
+  },
+  async ({ name, body, summary, space_id, kind }) => {
+    let id: string | null;
+    try {
+      id = await saveShard(config, { name, body, summary, spaceId: space_id, kind });
+    } catch (error: unknown) {
+      return text(`Could not save: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    if (id === null) {
+      return text(
+        'Could not save: this token cannot write. Tokens are read-only unless the write scope was asked for when it was issued. Issue a new one and put it in the MCP client config.',
+      );
+    }
+
+    // The cached index predates this item. Dropping the flag rather than
+    // re-reading now means the next listing picks it up and a save costs one
+    // round trip, not two.
+    indexLoaded = false;
+    return text(`Saved "${name}" to memory. It will appear the next time you call memory_index.`);
   },
 );
 

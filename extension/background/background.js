@@ -249,6 +249,33 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     });
     return true;
   }
+
+  // The save card asks for the spaces it offers. Same list and same order the
+  // popup's chat capture shows, so the two capture paths never disagree about
+  // which space is first.
+  if (msg.type === 'memory_spaces') {
+    // supaFetch resolves to [] when the request fails, so an empty list here
+    // means "nothing to offer" without saying why. The card words its empty
+    // state to cover both.
+    supaFetch('memory_spaces',
+      'select=id,name&deleted_at=is.null&order=is_default.desc,name.asc')
+      .then(function(rows) {
+        try { sendResponse({ ok: true, rows: rows || [] }); } catch(e) {}
+      });
+    return true;
+  }
+
+  // Writes one shard. The page never calls this itself: a content script runs
+  // in the page's world, so giving it the session would hand every site the
+  // user visits a way to write into their memory.
+  if (msg.type === 'memory_save') {
+    supaRpc('memory_save_shard', msg.payload || {}).then(function(id) {
+      try { sendResponse({ ok: true, id: id }); } catch(e) {}
+    }, function() {
+      try { sendResponse({ ok: false }); } catch(e) {}
+    });
+    return true;
+  }
 });
 
 // ── AUTH-EXT-002/003: accept session handoff from the dashboard ───
@@ -463,6 +490,21 @@ function renderSnippetGroups(parentId, groups, ico) {
 // ── BUILD CONTEXT MENUS (v2.15.6: Recent + Folders + Unfiled) ─────
 function buildContextMenus(data) {
   chrome.contextMenus.removeAll(function() {
+
+    // Capture — the mirror image of the insert tree below. That one appears in
+    // an editable field and pushes a snippet INTO the page; this one appears
+    // over selected text and pulls the page OUT into memory. They are separate
+    // roots rather than one menu because no context shows both: a selection is
+    // not editable, and an empty field has nothing to select.
+    //
+    // Created here so it is rebuilt by the same removeAll the insert tree is,
+    // and inside the signed-in path only: there is nowhere to save to until a
+    // session exists.
+    chrome.contextMenus.create({
+      id: 'sb-save-selection',
+      title: 'Save selection to SprintBrain memory',
+      contexts: ['selection']
+    });
 
     // Root — only in editable fields
     chrome.contextMenus.create({
@@ -683,6 +725,23 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
     } catch (e) {
       chrome.tabs.create({ url: SB_DASHBOARD_URL });
     }
+    return;
+  }
+
+  // Save selection — the page reads its own selection rather than taking
+  // info.selectionText, which Chrome truncates. A silently shortened clipping
+  // is the one outcome worth engineering against here: the user would have no
+  // way to tell that the tail of what they highlighted never arrived.
+  if (id === 'sb-save-selection') {
+    if (!tab || typeof tab.id !== 'number' || tab.id < 0) return;
+    chrome.tabs.sendMessage(tab.id, {
+      type: 'SB_SAVE_SELECTION',
+      // Only a fallback, for the case where the selection is gone by the time
+      // the message lands. Truncated is better than empty.
+      fallbackText: info.selectionText || ''
+    }).catch(function() {
+      // No content script here (chrome:// page, Web Store, PDF). Nothing to read.
+    });
     return;
   }
 

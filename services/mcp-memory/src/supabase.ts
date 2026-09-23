@@ -33,7 +33,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv): SupabaseConfig {
   };
 }
 
-async function rpc<T>(config: SupabaseConfig, fn: string, body: Record<string, unknown>): Promise<T[]> {
+async function call(config: SupabaseConfig, fn: string, body: Record<string, unknown>): Promise<unknown> {
   const response = await fetch(`${config.url}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
@@ -49,13 +49,26 @@ async function rpc<T>(config: SupabaseConfig, fn: string, body: Record<string, u
     throw new Error(`${fn} failed: ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
   }
 
-  const parsed: unknown = await response.json();
+  return response.json();
+}
+
+async function rpc<T>(config: SupabaseConfig, fn: string, body: Record<string, unknown>): Promise<T[]> {
+  const parsed = await call(config, fn, body);
   // A set-returning function always yields an array. Anything else means the
   // migration was applied with a different signature than this client expects.
   if (!Array.isArray(parsed)) {
     throw new Error(`${fn} returned ${typeof parsed}, expected an array. Check that the MEMORY-001 migration is applied.`);
   }
   return parsed as T[];
+}
+
+/** A function returning a single value rather than a set: PostgREST answers with the bare value. */
+async function rpcScalar<T>(config: SupabaseConfig, fn: string, body: Record<string, unknown>): Promise<T> {
+  const parsed = await call(config, fn, body);
+  if (Array.isArray(parsed)) {
+    throw new Error(`${fn} returned an array, expected a single value. Check which migration is applied.`);
+  }
+  return parsed as T;
 }
 
 export interface ManifestRow {
@@ -98,4 +111,32 @@ export function fetchIndex(config: SupabaseConfig): Promise<IndexRow[]> {
 export function fetchBodies(config: SupabaseConfig, ids: readonly string[]): Promise<BodyRow[]> {
   if (ids.length === 0) return Promise.resolve([]);
   return rpc<BodyRow>(config, 'memory_mcp_bodies', { p_token: config.token, p_ids: ids });
+}
+
+export interface SaveInput {
+  name: string;
+  body: string;
+  summary?: string;
+  spaceId?: string;
+  kind?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Create one memory item.
+ *
+ * Resolves to the new shard's id, or null when the token cannot write: unknown,
+ * revoked, expired or read-only, which the function deliberately does not
+ * distinguish. The caller turns that into an explanation.
+ */
+export function saveShard(config: SupabaseConfig, input: SaveInput): Promise<string | null> {
+  return rpcScalar<string | null>(config, 'memory_mcp_save', {
+    p_token: config.token,
+    p_name: input.name,
+    p_body: input.body,
+    p_summary: input.summary ?? null,
+    p_space_id: input.spaceId ?? null,
+    p_kind: input.kind ?? 'fact',
+    p_metadata: input.metadata ?? {},
+  });
 }
