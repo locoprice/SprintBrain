@@ -17,6 +17,7 @@ const sb = vi.hoisted(() => {
     calls: [] as string[],
     removed: [] as string[][],
     rpcArgs: null as unknown,
+    selectResult: { data: [] as unknown, error: null as { message: string } | null },
     removeResult: { data: [] as unknown, error: null as { message: string } | null },
     rpcResult: {
       data: { items: 0, documents: 0 } as unknown,
@@ -28,6 +29,14 @@ const sb = vi.hoisted(() => {
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
+    from: vi.fn((table: string) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn((column: string, value: string) => {
+          sb.state.calls.push(`select ${table} ${column}=${value}`);
+          return Promise.resolve(sb.state.selectResult);
+        }),
+      })),
+    })),
     storage: {
       from: vi.fn((bucket: string) => ({
         remove: vi.fn((paths: string[]) => {
@@ -100,6 +109,7 @@ beforeEach(() => {
   sb.state.calls = [];
   sb.state.removed = [];
   sb.state.rpcArgs = null;
+  sb.state.selectResult = { data: [], error: null };
   sb.state.removeResult = { data: [], error: null };
   sb.state.rpcResult = { data: { items: 0, documents: 0 }, error: null };
   useMemoryStore.setState({ activeSpaceId: 'space-1', error: null, items: [], documents: [] });
@@ -164,6 +174,61 @@ describe('memoryApi.deleteForever', () => {
     await expect(memoryApi.deleteForever('space-1', ['a'], [])).rejects.toThrow(
       'Could not delete permanently: space not found',
     );
+  });
+});
+
+describe('memoryApi.deleteSpaceForever', () => {
+  it('reads every file of the Brain, removes them, then deletes the rows naming those files', async () => {
+    sb.state.selectResult = {
+      data: [
+        { id: 'f1', storage_path: 'user-1/f1.pdf' },
+        { id: 'f2', storage_path: 'user-1/f2.pdf' },
+      ],
+      error: null,
+    };
+    sb.state.rpcResult = { data: { items: 7, documents: 2 }, error: null };
+
+    const removed = await memoryApi.deleteSpaceForever('space-9');
+
+    expect(sb.state.calls).toEqual([
+      'select memory_documents space_id=space-9',
+      'remove memory-docs 2',
+      'rpc memory_purge_space',
+    ]);
+    expect(sb.state.removed).toEqual([['user-1/f1.pdf', 'user-1/f2.pdf']]);
+    expect(sb.state.rpcArgs).toEqual({ p_space_id: 'space-9', p_document_ids: ['f1', 'f2'] });
+    expect(removed).toEqual({ items: 7, documents: 2 });
+  });
+
+  it('goes straight to the rows when the Brain holds no files', async () => {
+    await memoryApi.deleteSpaceForever('space-9');
+
+    expect(sb.state.calls).toEqual([
+      'select memory_documents space_id=space-9',
+      'rpc memory_purge_space',
+    ]);
+  });
+
+  it('touches nothing when the file list cannot be read', async () => {
+    sb.state.selectResult = { data: null, error: { message: 'offline' } };
+
+    await expect(memoryApi.deleteSpaceForever('space-9')).rejects.toThrow(
+      'Could not delete permanently: offline',
+    );
+    expect(sb.state.calls).toEqual(['select memory_documents space_id=space-9']);
+  });
+
+  it('never reaches the rows when a file cannot be removed', async () => {
+    sb.state.selectResult = { data: [{ id: 'f1', storage_path: 'user-1/f1.pdf' }], error: null };
+    sb.state.removeResult = { data: null, error: { message: 'storage is down' } };
+
+    await expect(memoryApi.deleteSpaceForever('space-9')).rejects.toThrow(
+      'Could not delete permanently: storage is down',
+    );
+    expect(sb.state.calls).toEqual([
+      'select memory_documents space_id=space-9',
+      'remove memory-docs 1',
+    ]);
   });
 });
 

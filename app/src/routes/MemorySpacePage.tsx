@@ -23,8 +23,8 @@ import { ItemEditor } from '@/features/memory/ItemEditor';
 import { HistoryPanel, type HistoryEntry } from '@/features/history/HistoryPanel';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
 import { KIND_LABEL } from '@/features/memory/kindLabel';
-import { TrashPanel } from '@/features/memory/TrashPanel';
-import { buildTrashRows, describePieces, type TrashRow } from '@/features/memory/trashRows';
+import { TrashPanel, type TrashPanelRow } from '@/features/memory/TrashPanel';
+import { buildTrashRows, describePieces, describeTrashRows } from '@/features/memory/trashRows';
 import { useMemoryStore } from '@/stores/memoryStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -312,6 +312,28 @@ export function MemorySpacePage() {
     [documents],
   );
   const trashRows = useMemo(() => buildTrashRows(items, documents), [items, documents]);
+  const trashPanelRows = useMemo<TrashPanelRow[]>(
+    () =>
+      trashRows.map((row) =>
+        row.kind === 'file'
+          ? {
+              id: row.id,
+              name: row.name,
+              icon: <FileUp className="h-4 w-4" />,
+              tag: 'File',
+              detail: row.pieces > 0 ? describePieces(row.pieces) : undefined,
+              deletedAt: row.deletedAt,
+            }
+          : {
+              id: row.id,
+              name: row.name,
+              icon: <FileText className="h-4 w-4" />,
+              tag: KIND_LABEL[row.item.kind],
+              deletedAt: row.deletedAt,
+            },
+      ),
+    [trashRows],
+  );
 
   // A space had no way to filter its own contents before the one search bar
   // (SEARCH-001). The tiles above stay whole-space counts: they describe the
@@ -368,12 +390,16 @@ export function MemorySpacePage() {
     );
   }
 
-  function restoreRow(row: TrashRow) {
+  function restoreRow(id: string) {
+    const row = trashRows.find((candidate) => candidate.id === id);
+    if (!row) return;
     if (row.kind === 'file') restoreDocumentNow(row.document);
     else restoreItemNow(row.item);
   }
 
-  async function deleteRow(row: TrashRow) {
+  async function deleteRow(id: string) {
+    const row = trashRows.find((candidate) => candidate.id === id);
+    if (!row) return;
     try {
       await deleteForever(
         spaceId,
@@ -638,8 +664,11 @@ export function MemorySpacePage() {
 
       <TrashPanel
         open={trashOpen}
-        spaceName={space?.name ?? 'Brain'}
-        rows={trashRows}
+        subject={space?.name ?? 'Brain'}
+        description="Hidden from your assistant. Everything here stays stored until you delete it or empty the trash."
+        emptyHint="Anything you delete from this Brain waits here until you empty the trash."
+        rows={trashPanelRows}
+        summary={describeTrashRows(trashRows)}
         onClose={() => setTrashOpen(false)}
         onRestore={restoreRow}
         onDelete={deleteRow}

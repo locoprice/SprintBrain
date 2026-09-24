@@ -500,8 +500,17 @@ and writes a content-free `item.purge` or
 calls the function second: a failure in between leaves rows whose file is gone, which a retry
 finishes, never files that nothing points at. A piece of a purged file that is still live
 stays and loses its link to the file; a live file that loses pieces has its `chunk_count`
-recounted. Still open: purging a whole Brain or account, and any way back to a trashed Brain,
-which can be trashed but not listed, restored or emptied.
+recounted.
+
+**Trashed Brains, as built (v3.47.0).** The Brains page has the same Trash button and the same
+panel, now a generic component each page feeds its own rows. A trashed Brain can be restored
+(a name taken meanwhile is refused with the reason) or deleted for good with everything in it:
+`memory_purge_space` (migration `20260924100000`) only takes a Brain that is in the trash, and
+refuses unless the caller names every file the Brain holds, so the stored files are always gone
+before the rows. It writes one content-free `space.purge` entry. Still open: purging a whole
+account. **Known gap:** items inside a trashed Brain keep their own `deleted_at`, and every
+reader (the extension picker, the `memory_mcp_*` functions, `knowledge_index`) filters on the
+item only, so a trashed Brain's items still reach the assistant.
 
 ### E1. Semantic arm  ⚠ decision-gated
 - **Objective**: pgvector as a fourth RRF arm, per-space opt-in, default off.

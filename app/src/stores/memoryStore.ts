@@ -36,8 +36,11 @@ export interface DeleteForeverTarget {
 }
 
 interface MemoryStore {
+  /** Live spaces. Everything else in the app lists, links to and searches these. */
   spaces: MemorySpace[];
-  /** Live item and token counts per space id. */
+  /** Spaces in the trash, most recently trashed first. Only the Brains trash panel reads them. */
+  trashedSpaces: MemorySpace[];
+  /** Live item and token counts per space id, trashed spaces included. */
   totals: Map<string, MemorySpaceTotals>;
   /**
    * Every item of `activeSpaceId`, trashed ones included. The page lists the
@@ -72,6 +75,9 @@ interface MemoryStore {
   createSpace: (name: string, description?: string) => Promise<MemorySpace>;
   renameSpace: (id: string, patch: { name?: string; description?: string }) => Promise<void>;
   trashSpace: (id: string) => Promise<void>;
+  restoreSpace: (id: string) => Promise<void>;
+  /** Permanently deletes a trashed space and everything in it, stored files included. */
+  deleteSpaceForever: (id: string) => Promise<DeleteForeverResult>;
 
   saveItem: (input: SaveMemoryItemInput) => Promise<void>;
   trashItem: (id: string) => Promise<void>;
@@ -111,10 +117,38 @@ function bySpaceOrder(a: MemorySpace, b: MemorySpace): number {
   return a.name.localeCompare(b.name);
 }
 
+/** Most recently trashed first, the order someone looks for what they just removed. */
+function byTrashedOrder(a: MemorySpace, b: MemorySpace): number {
+  return (b.deleted_at ?? '').localeCompare(a.deleted_at ?? '');
+}
+
 /** Pinned first, then most recently touched. Matches the server ordering. */
 function byItemOrder(a: MemoryItem, b: MemoryItem): number {
   if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
   return b.updated_at.localeCompare(a.updated_at);
+}
+
+/**
+ * Moves a space between the live list and the trash, stamped with
+ * `deletedAt`, and returns the row as it was, for `putSpaceBack`.
+ */
+function moveSpace(id: string, deletedAt: string | null): MemorySpace | undefined {
+  const { spaces, trashedSpaces } = useMemoryStore.getState();
+  const original = [...spaces, ...trashedSpaces].find((space) => space.id === id);
+  if (!original) return undefined;
+  const moved = { ...original, deleted_at: deletedAt };
+  useMemoryStore.setState((state) => {
+    const liveRest = state.spaces.filter((space) => space.id !== id);
+    const trashedRest = state.trashedSpaces.filter((space) => space.id !== id);
+    return deletedAt === null
+      ? { spaces: [...liveRest, moved].sort(bySpaceOrder), trashedSpaces: trashedRest }
+      : { spaces: liveRest, trashedSpaces: [moved, ...trashedRest].sort(byTrashedOrder) };
+  });
+  return original;
+}
+
+function putSpaceBack(original: MemorySpace | undefined): void {
+  if (original) moveSpace(original.id, original.deleted_at);
 }
 
 /**
@@ -167,6 +201,7 @@ function revertDocument(original: MemoryDocument | undefined): void {
 
 export const useMemoryStore = create<MemoryStore>((set, get) => ({
   spaces: [],
+  trashedSpaces: [],
   totals: new Map<string, MemorySpaceTotals>(),
   items: [],
   allItems: [],
@@ -189,11 +224,18 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     set({ loadingSpaces: true, error: null });
     try {
       // Totals come from a separate read of ids and token counts, never bodies.
-      const [spaces, totals] = await Promise.all([
-        memoryApi.listSpaces(),
+      // Trashed spaces come in the same read, so the trash count is known
+      // before anyone opens the trash.
+      const [all, totals] = await Promise.all([
+        memoryApi.listSpaces(true),
         memoryApi.spaceTotals(),
       ]);
-      set({ spaces: [...spaces].sort(bySpaceOrder), totals, loaded: true });
+      set({
+        spaces: all.filter((space) => space.deleted_at === null).sort(bySpaceOrder),
+        trashedSpaces: all.filter((space) => space.deleted_at !== null).sort(byTrashedOrder),
+        totals,
+        loaded: true,
+      });
     } catch (err) {
       set({ error: message(err, 'Could not load your memory spaces.') });
     } finally {
@@ -242,13 +284,38 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     }));
   },
 
+  // Trashing a space moves it at once and keeps its totals: the trash panel
+  // shows how many items would come back with it.
   trashSpace: async (id) => {
-    await memoryApi.trashSpace(id);
+    const original = moveSpace(id, new Date().toISOString());
+    try {
+      await memoryApi.trashSpace(id);
+    } catch (err) {
+      putSpaceBack(original);
+      throw err;
+    }
+  },
+
+  restoreSpace: async (id) => {
+    const original = moveSpace(id, null);
+    try {
+      await memoryApi.restoreSpace(id, original?.name);
+    } catch (err) {
+      putSpaceBack(original);
+      throw err;
+    }
+  },
+
+  deleteSpaceForever: async (id) => {
+    const removed = await memoryApi.deleteSpaceForever(id);
     set((state) => {
       const totals = new Map(state.totals);
       totals.delete(id);
-      return { spaces: state.spaces.filter((s) => s.id !== id), totals };
+      return { trashedSpaces: state.trashedSpaces.filter((space) => space.id !== id), totals };
     });
+    // The cross-space search index may still hold the items that just went.
+    set({ allItemsLoaded: false });
+    return removed;
   },
 
   saveItem: async (input) => {

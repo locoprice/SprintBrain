@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, FileUp, Loader2, RotateCcw, Trash2, X } from 'lucide-react';
+import { Loader2, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,24 +10,47 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { KIND_LABEL } from '@/features/memory/kindLabel';
-import { describePieces, describeTrashRows, type TrashRow } from '@/features/memory/trashRows';
 
-// A Brain's trash, in a panel over the page (same shell as the History panel).
+// One trash panel for Brains: the trash inside a Brain and the trash of Brains
+// themselves. Same shell as the History panel.
+//
+// It only draws. Each page hands it rows already worded for that trash, plus
+// what restoring and deleting mean there, so the two trashes cannot drift
+// apart in how they look or how they ask.
 //
 // Everything that ends in a permanent delete confirms in place rather than in a
 // second dialog stacked on this one: the button asks once more, and the footer
 // turns into the question when the whole trash is about to go.
 
+/** One thing in the trash, as the panel shows it. */
+export interface TrashPanelRow {
+  id: string;
+  name: string;
+  /** Drawn in the row's icon well. */
+  icon: ReactNode;
+  /** The short tag under the name: File, Fact, Brain. */
+  tag: string;
+  /** Anything else worth a glance, such as "3 pieces" or "12 items". */
+  detail?: string;
+  deletedAt: string;
+}
+
 interface TrashPanelProps {
   open: boolean;
-  spaceName: string;
-  rows: TrashRow[];
+  /** Whose trash this is, shown after the title. */
+  subject: string;
+  /** What being in this trash means. */
+  description: string;
+  /** What the empty trash says will wait in it. */
+  emptyHint: string;
+  rows: TrashPanelRow[];
+  /** What emptying would delete, as "1 file and 2 items". */
+  summary: string;
   onClose: () => void;
   /** Takes effect at once; a refusal puts the row back and is reported by the page. */
-  onRestore: (row: TrashRow) => void;
+  onRestore: (id: string) => void;
   /** Settles once the row is gone or the page has reported why it is not. */
-  onDelete: (row: TrashRow) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   /** Same contract as `onDelete`, for every row at once. */
   onEmpty: () => Promise<void>;
 }
@@ -43,14 +66,13 @@ function TrashRowView({
   onRestore,
   onDelete,
 }: {
-  row: TrashRow;
+  row: TrashPanelRow;
   armed: boolean;
   pending: boolean;
   locked: boolean;
   onRestore: () => void;
   onDelete: () => void;
 }) {
-  const Icon = row.kind === 'file' ? FileUp : FileText;
   return (
     <div
       className={cn(
@@ -59,18 +81,14 @@ function TrashRowView({
       )}
     >
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-bg-alt text-ink-muted">
-        <Icon className="h-4 w-4" />
+        {row.icon}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-ink">{row.name}</div>
         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-ink-subtle">
-          <span className="rounded-full bg-bg-alt px-2 py-0.5 font-medium">
-            {row.kind === 'file' ? 'File' : KIND_LABEL[row.item.kind]}
-          </span>
-          {row.kind === 'file' && row.pieces > 0 ? (
-            <span className="tabular-nums">{describePieces(row.pieces)}</span>
-          ) : null}
+          <span className="rounded-full bg-bg-alt px-2 py-0.5 font-medium">{row.tag}</span>
+          {row.detail ? <span className="tabular-nums">{row.detail}</span> : null}
           <span>Deleted {formatDistanceToNow(new Date(row.deletedAt), { addSuffix: true })}</span>
         </div>
       </div>
@@ -113,8 +131,11 @@ function TrashRowView({
 
 export function TrashPanel({
   open,
-  spaceName,
+  subject,
+  description,
+  emptyHint,
   rows,
+  summary,
   onClose,
   onRestore,
   onDelete,
@@ -136,16 +157,16 @@ export function TrashPanel({
     }
   }, [open]);
 
-  async function handleDelete(row: TrashRow) {
-    if (armedId !== row.id) {
-      setArmedId(row.id);
+  async function handleDelete(id: string) {
+    if (armedId !== id) {
+      setArmedId(id);
       setConfirmEmpty(false);
       return;
     }
     setArmedId(null);
-    setPendingId(row.id);
+    setPendingId(id);
     try {
-      await onDelete(row);
+      await onDelete(id);
     } finally {
       setPendingId(null);
     }
@@ -169,13 +190,10 @@ export function TrashPanel({
             <Trash2 className="h-4 w-4 text-ink-muted shrink-0" />
             <DialogTitle className="truncate">
               Trash
-              <span className="ml-1.5 font-normal text-ink-muted">· {spaceName}</span>
+              <span className="ml-1.5 font-normal text-ink-muted">· {subject}</span>
             </DialogTitle>
           </div>
-          <DialogDescription>
-            Hidden from your assistant. Everything here stays stored until you delete it or
-            empty the trash.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-2.5 min-h-0">
@@ -183,9 +201,7 @@ export function TrashPanel({
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
               <Trash2 className="h-8 w-8 text-line" />
               <p className="text-sm font-medium text-ink">The trash is empty</p>
-              <p className="text-xs text-ink-subtle max-w-[280px]">
-                Anything you delete from this Brain waits here until you empty the trash.
-              </p>
+              <p className="text-xs text-ink-subtle max-w-[280px]">{emptyHint}</p>
             </div>
           ) : (
             rows.map((row) => (
@@ -197,9 +213,9 @@ export function TrashPanel({
                 locked={busy}
                 onRestore={() => {
                   setArmedId(null);
-                  onRestore(row);
+                  onRestore(row.id);
                 }}
-                onDelete={() => void handleDelete(row)}
+                onDelete={() => void handleDelete(row.id)}
               />
             ))
           )}
@@ -209,7 +225,7 @@ export function TrashPanel({
           {confirmEmpty ? (
             <>
               <span className="text-xs font-medium text-danger">
-                Delete {describeTrashRows(rows)} permanently? This can't be undone.
+                Delete {summary} permanently? This can't be undone.
               </span>
               <div className="flex shrink-0 items-center gap-2">
                 <Button variant="ghost" disabled={emptying} onClick={() => setConfirmEmpty(false)}>

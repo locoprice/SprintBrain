@@ -9,6 +9,7 @@ vi.mock('@/lib/api/memoryApi', () => ({
     updateSpace: vi.fn(),
     trashSpace: vi.fn(),
     restoreSpace: vi.fn(),
+    deleteSpaceForever: vi.fn(),
     listItems: vi.fn(),
     saveItem: vi.fn(),
     trashItem: vi.fn(),
@@ -23,8 +24,10 @@ import type { MemoryItem, MemorySpace } from '@/types/database';
 
 const mockListSpaces = vi.mocked(memoryApi.listSpaces);
 const mockSpaceTotals = vi.mocked(memoryApi.spaceTotals);
+const mockTrashSpace = vi.mocked(memoryApi.trashSpace);
+const mockRestoreSpace = vi.mocked(memoryApi.restoreSpace);
+const mockDeleteSpaceForever = vi.mocked(memoryApi.deleteSpaceForever);
 const mockListItems = vi.mocked(memoryApi.listItems);
-const mockTrashItem = vi.mocked(memoryApi.trashItem);
 const mockRestoreItem = vi.mocked(memoryApi.restoreItem);
 const mockSaveItem = vi.mocked(memoryApi.saveItem);
 
@@ -68,7 +71,9 @@ function item(id: string, name: string, overrides: Partial<MemoryItem> = {}): Me
 function reset() {
   useMemoryStore.setState({
     spaces: [],
+    trashedSpaces: [],
     totals: new Map(),
+    allItemsLoaded: false,
     items: [],
     activeSpaceId: null,
     loadingSpaces: false,
@@ -119,6 +124,22 @@ describe('loadSpaces', () => {
       'Zulu',
     ]);
     expect(useMemoryStore.getState().loaded).toBe(true);
+  });
+
+  it('reads trashed Brains in the same request and keeps them out of the live list', async () => {
+    mockListSpaces.mockResolvedValue([
+      space('a', 'Personal', { is_default: true }),
+      space('old', 'Old', { deleted_at: '2026-09-01T00:00:00Z' }),
+      space('new', 'New', { deleted_at: '2026-09-20T00:00:00Z' }),
+    ]);
+
+    await useMemoryStore.getState().loadSpaces();
+
+    const state = useMemoryStore.getState();
+    expect(mockListSpaces).toHaveBeenCalledWith(true);
+    expect(state.spaces.map((s) => s.id)).toEqual(['a']);
+    // Most recently trashed first.
+    expect(state.trashedSpaces.map((s) => s.id)).toEqual(['new', 'old']);
   });
 
   it('surfaces a failure as a message instead of throwing', async () => {
@@ -187,8 +208,8 @@ describe('mutations', () => {
     expect(mockRestoreItem).toHaveBeenCalledWith('item-9', 'house-style');
   });
 
-  it('drops a trashed space from the totals map as well as the list', async () => {
-    mockTrashItem.mockResolvedValue(undefined);
+  it('moves a trashed Brain into the trash and keeps its totals for the trash panel', async () => {
+    mockTrashSpace.mockResolvedValue(undefined);
     useMemoryStore.setState({
       spaces: [space('space-1', 'One'), space('space-2', 'Two')],
       totals: new Map([
@@ -201,6 +222,74 @@ describe('mutations', () => {
 
     const state = useMemoryStore.getState();
     expect(state.spaces.map((s) => s.id)).toEqual(['space-2']);
-    expect(state.totals.has('space-1')).toBe(false);
+    expect(state.trashedSpaces.map((s) => s.id)).toEqual(['space-1']);
+    expect(state.trashedSpaces[0]?.deleted_at).not.toBeNull();
+    expect(state.totals.get('space-1')).toEqual({ items: 3, tokens: 30 });
+  });
+
+  it('leaves the Brain in the grid when trashing it fails', async () => {
+    mockTrashSpace.mockRejectedValue(new Error('offline'));
+    useMemoryStore.setState({ spaces: [space('space-1', 'One')] });
+
+    await expect(useMemoryStore.getState().trashSpace('space-1')).rejects.toThrow('offline');
+
+    const state = useMemoryStore.getState();
+    expect(state.spaces.map((s) => s.id)).toEqual(['space-1']);
+    expect(state.trashedSpaces).toEqual([]);
+  });
+
+  it('restores a Brain into the grid in order, sending its name for a collision message', async () => {
+    mockRestoreSpace.mockResolvedValue(undefined);
+    useMemoryStore.setState({
+      spaces: [space('p', 'Personal', { is_default: true }), space('z', 'Zulu')],
+      trashedSpaces: [space('m', 'Middle', { deleted_at: '2026-09-20T00:00:00Z' })],
+    });
+
+    await useMemoryStore.getState().restoreSpace('m');
+
+    const state = useMemoryStore.getState();
+    expect(mockRestoreSpace).toHaveBeenCalledWith('m', 'Middle');
+    expect(state.spaces.map((s) => s.name)).toEqual(['Personal', 'Middle', 'Zulu']);
+    expect(state.trashedSpaces).toEqual([]);
+  });
+
+  it('keeps a Brain in the trash when its name was taken meanwhile', async () => {
+    mockRestoreSpace.mockRejectedValue(new Error('"Middle" was taken while this was in the trash.'));
+    const trashed = space('m', 'Middle', { deleted_at: '2026-09-20T00:00:00Z' });
+    useMemoryStore.setState({ spaces: [space('m2', 'Middle')], trashedSpaces: [trashed] });
+
+    await expect(useMemoryStore.getState().restoreSpace('m')).rejects.toThrow('was taken');
+
+    const state = useMemoryStore.getState();
+    expect(state.spaces.map((s) => s.id)).toEqual(['m2']);
+    expect(state.trashedSpaces).toEqual([trashed]);
+  });
+
+  it('forgets a Brain deleted for good, and drops the stale search index', async () => {
+    mockDeleteSpaceForever.mockResolvedValue({ items: 4, documents: 1 });
+    useMemoryStore.setState({
+      trashedSpaces: [space('gone', 'Gone', { deleted_at: '2026-09-20T00:00:00Z' })],
+      totals: new Map([['gone', { items: 4, tokens: 40 }]]),
+      allItemsLoaded: true,
+    });
+
+    await useMemoryStore.getState().deleteSpaceForever('gone');
+
+    const state = useMemoryStore.getState();
+    expect(state.trashedSpaces).toEqual([]);
+    expect(state.totals.has('gone')).toBe(false);
+    expect(state.allItemsLoaded).toBe(false);
+  });
+
+  it('keeps a Brain in the trash when the permanent delete fails', async () => {
+    mockDeleteSpaceForever.mockRejectedValue(new Error('storage is down'));
+    const trashed = space('kept', 'Kept', { deleted_at: '2026-09-20T00:00:00Z' });
+    useMemoryStore.setState({ trashedSpaces: [trashed] });
+
+    await expect(useMemoryStore.getState().deleteSpaceForever('kept')).rejects.toThrow(
+      'storage is down',
+    );
+
+    expect(useMemoryStore.getState().trashedSpaces).toEqual([trashed]);
   });
 });

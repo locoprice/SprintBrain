@@ -86,7 +86,13 @@ export interface MemoryApi {
   createSpace(name: string, description?: string): Promise<MemorySpace>;
   updateSpace(id: string, patch: { name?: string; description?: string; ico?: string }): Promise<MemorySpace>;
   trashSpace(id: string): Promise<void>;
-  restoreSpace(id: string): Promise<void>;
+  /** `name` is only used to word the collision message when the name was reused. */
+  restoreSpace(id: string, name?: string): Promise<void>;
+  /**
+   * Permanently deletes a trashed space with everything in it: items, their
+   * versions, file rows and the stored originals.
+   */
+  deleteSpaceForever(spaceId: string): Promise<DeleteForeverResult>;
 
   /** Every saved version of one item, newest first. */
   listVersions(itemId: string): Promise<MemoryVersion[]>;
@@ -292,6 +298,23 @@ function memoryWriteError(
   return new Error(error.message);
 }
 
+/**
+ * Removes stored originals ahead of a permanent delete. Files first, rows
+ * second: the storage schema refuses deletes from SQL, so the two cannot share
+ * a transaction, and this is the order that fails safe. A break in between
+ * leaves rows whose file is already gone, which the next attempt finishes; the
+ * other order would leave files that nothing points at, invisible and never
+ * deleted.
+ */
+async function removeStoredFiles(paths: string[]): Promise<void> {
+  for (let start = 0; start < paths.length; start += STORAGE_REMOVE_LIMIT) {
+    const { error } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .remove(paths.slice(start, start + STORAGE_REMOVE_LIMIT));
+    if (error) throw new Error(`Could not delete permanently: ${error.message}`);
+  }
+}
+
 export const memoryApi: MemoryApi = {
   async listSpaces(includeTrashed = false) {
     let query = supabase.from('memory_spaces').select(SPACE_SELECT);
@@ -361,12 +384,35 @@ export const memoryApi: MemoryApi = {
     if (error) throw new Error(error.message);
   },
 
-  async restoreSpace(id) {
+  async restoreSpace(id, name) {
+    // Restoring can fail on the partial unique index when a live space took the
+    // name while this one sat in the trash. The caller passes the name because
+    // a failed UPDATE returns no row to read it from.
     const { error } = await supabase
       .from('memory_spaces')
       .update({ deleted_at: null })
       .eq('id', id);
-    if (error) throw memoryWriteError(error, undefined, 'restore');
+    if (error) throw memoryWriteError(error, name, 'restore');
+  },
+
+  async deleteSpaceForever(spaceId) {
+    // Every file of the space, live or trashed: the whole space goes. The
+    // function refuses the rows unless each of these was removed first.
+    const { data, error } = await supabase
+      .from('memory_documents')
+      .select('id, storage_path')
+      .eq('space_id', spaceId);
+    if (error) throw new Error(`Could not delete permanently: ${error.message}`);
+    const documents = (data ?? []) as { id: string; storage_path: string }[];
+
+    await removeStoredFiles(documents.map((doc) => doc.storage_path));
+
+    const { data: removed, error: purgeError } = await supabase.rpc('memory_purge_space', {
+      p_space_id: spaceId,
+      p_document_ids: documents.map((doc) => doc.id),
+    });
+    if (purgeError) throw new Error(`Could not delete permanently: ${purgeError.message}`);
+    return removed as DeleteForeverResult;
   },
 
   async listItems(spaceId, includeTrashed = false) {
@@ -541,18 +587,7 @@ export const memoryApi: MemoryApi = {
   },
 
   async deleteForever(spaceId, itemIds, documents) {
-    // Files first, rows second. The storage schema refuses deletes from SQL, so
-    // the two cannot share a transaction, and this is the order that fails
-    // safe: a break in between leaves trash rows whose file is already gone,
-    // which the next attempt finishes. The other order would leave files that
-    // nothing points at, invisible and never deleted.
-    const paths = documents.map((doc) => doc.storage_path);
-    for (let start = 0; start < paths.length; start += STORAGE_REMOVE_LIMIT) {
-      const { error } = await supabase.storage
-        .from(DOCUMENT_BUCKET)
-        .remove(paths.slice(start, start + STORAGE_REMOVE_LIMIT));
-      if (error) throw new Error(`Could not delete permanently: ${error.message}`);
-    }
+    await removeStoredFiles(documents.map((doc) => doc.storage_path));
 
     const { data, error } = await supabase.rpc('memory_empty_trash', {
       p_space_id: spaceId,
