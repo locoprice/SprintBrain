@@ -180,6 +180,12 @@ interface SbFormulaEngineApi {
    * place in the product where a date could be formatted a different way.
    */
   sbFormatDate(d: Date, fmt: string): string;
+  /**
+   * Resolves a body with the values given, whether or not the body declares
+   * those fields itself. The formula builder previews a lone `{= }` with it,
+   * which the fill form cannot do: it only fills fields its text declares.
+   */
+  resolveBody(body: string, vals: Record<string, string>): string;
 }
 
 /** The engine's date formatter, or null until the scripts have loaded. */

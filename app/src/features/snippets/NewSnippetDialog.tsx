@@ -35,6 +35,7 @@ import {
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
+import { FormFormulaDialog } from '@/features/snippets/FormFormulaDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
@@ -250,23 +251,20 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
-// What the Formula toggle writes. A and B are deliberately meaningless: the
-// author replaces them with their own field names, and a placeholder that
-// looked like a real name would invite leaving it there.
-const FORMULA_TOKEN = '{=A - B}';
-
-// The parts of a formula, in the order the author meets them. There is no
-// builder dialog behind this one — the token lands in the body ready to edit —
-// so this list is the only place the rail can say what an expression may hold.
-// Everything here is the engine's own vocabulary (extension/formula-engine.js:
-// FUNS, safeEval, evalFormula), not a superset of it.
+// The three inputs FormFormulaDialog offers, named as it names them.
+// The last entry is the engine's own vocabulary (extension/formula-engine.js:
+// FUNS, safeEval), for anything the builder does not write.
 const FORMULA_FIELDS: { label: string; hint: string }[] = [
-  { label: 'Fields',
-    hint: 'Refer to a field by its name. Number fields are the ones a formula can always read, since a text field may hold anything.' },
-  { label: 'Operators',
-    hint: '+, -, * and / with brackets, plus round(), floor(), ceil(), abs(), min() and max(). The answer is rounded to two decimals.' },
-  { label: 'Result',
-    hint: 'Prints where the token sits. A field holding something that is not a number prints nothing at all, rather than a wrong total.' },
+  { label: 'Adjust a price',
+    hint: 'Works from a price box the snippet already has: minus or plus a percentage, a part of it, or the gap to another price. Inserts only the answer.' },
+  { label: 'New numbers',
+    hint: 'Add, Subtract, Multiply, Divide, Average, Percent of or Percent change on new number boxes. Prints the working with the answer.' },
+  { label: 'Rates',
+    hint: 'Save a percentage as a rate, like BANK_DISCOUNT = 1.5. Every line using it follows when you change that one number in the text.' },
+  { label: 'Rounding',
+    hint: 'A whole number, 1 decimal or 2. A negative answer keeps its minus sign.' },
+  { label: 'By hand',
+    hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
 ];
 
 // A > 0 is the safest opening condition to hand someone: it is true of any
@@ -435,6 +433,8 @@ export function NewSnippetDialog() {
   const [numberFieldOpen, setNumberFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
+  // Formula builder: writes the number fields and the {= } answer together.
+  const [formulaOpen, setFormulaOpen] = useState(false);
 
   // Auto-suggestions: derived from snippet name + trigger. Suggestions from
   // matching keyword rules that haven't been added yet are shown as one-click chips.
@@ -1319,20 +1319,24 @@ export function NewSnippetDialog() {
                     size="sm"
                     variant="primary"
                     disabled={saving}
-                    onClick={() => insertAtCursor(FORMULA_TOKEN)}
+                    onClick={() => {
+                      // Read from the field itself: which rates the builder
+                      // offers, and whether it sits inside a condition, depend
+                      // on exactly where the answer will land.
+                      if (contentRef.current) setCaret(contentRef.current.selectionStart);
+                      setFormulaOpen(true);
+                    }}
                   >
                     <Plus className="mr-1 h-3 w-3" />
-                    Insert formula
+                    Build the formula
                   </Button>
                 }
               >
                 <p className="text-[11px] text-ink-subtle leading-tight">
-                  Works out a number from the fields around it and prints the answer, so
-                  nobody does the arithmetic by hand.{' '}
-                  <code className="font-mono text-primary/80">{'{=LIST_PRICE - DISCOUNT}'}</code>{' '}
-                  reads both fields as they are filled and writes the result. Nothing is
-                  asked of the person filling the form: a formula is worked out, never
-                  typed in.
+                  Works out numbers typed in when the snippet expands, so nobody does the
+                  arithmetic by hand. With YOUR_PRICE in the snippet, Minus 1.5% inserts{' '}
+                  <code className="font-mono text-primary/80">{'{=YOUR_PRICE * 0.985}'}</code>,
+                  which prints 98.5 when 100 is typed.
                 </p>
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {FORMULA_FIELDS.map((f) => (
@@ -1823,6 +1827,15 @@ export function NewSnippetDialog() {
               open={actionButtonOpen}
               onOpenChange={setActionButtonOpen}
               onInsert={insertAtCursor}
+            />
+
+            <FormFormulaDialog
+              open={formulaOpen}
+              onOpenChange={setFormulaOpen}
+              body={form.content}
+              caret={caret}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
             />
 
             <FormDateRangeDialog

@@ -229,7 +229,7 @@ Templates support three interpolation forms:
 {endif}                → End conditional block
 ```
 
-**Formula functions** (whitelist only): `round()`, `floor()`, `ceil()`, `abs()`, `min()`, `max()`
+**Formula functions** (whitelist only): `round()`, `round(X, N)` (N decimals), `floor()`, `ceil()`, `abs()`, `min()`, `max()`, `avg()`
 
 **Example**:
 ```
