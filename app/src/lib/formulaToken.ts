@@ -274,7 +274,7 @@ export function buildFormulaToken(cfg: FormulaConfig): string {
 // ── ADJUST A PRICE ──────────────────────────────────────────────────
 // The second mode of the builder, for a price the snippet already asks for.
 // A quote types its prices once and works several lines out of them, so this
-// writes only the answer, `{=YOUR_PRICE * 0.985}`, at the cursor: no new box,
+// writes only the answer, `{=YOUR_PRICE * (100 - 1.5) / 100}`, at the cursor: no new box,
 // and no working printed beside it.
 
 export type PriceAdjustment =
@@ -287,8 +287,14 @@ export type PriceAdjustment =
 
 export interface PriceAdjustmentSpec {
   id: PriceAdjustment;
+  /** The choice as a person would say it. */
   label: string;
+  /** What it is for, with one worked example. */
   hint: string;
+  /** What the percentage box is called, for a change that takes one. */
+  percentLabel?: string;
+  /** What the second price is called, for a change that takes one. */
+  otherLabel?: string;
   /** Takes a percentage: typed in the builder, or a rate the snippet has. */
   needsPercent: boolean;
   /** Takes a second price from the snippet. */
@@ -311,8 +317,9 @@ export interface PriceAdjustmentSpec {
 export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   {
     id: 'minusPercent',
-    label: 'Minus %',
-    hint: 'The price less a percentage, like a discount. 1.5 turns 100 into 98.5.',
+    label: 'Minus a percentage',
+    hint: 'For a discount. 1.5% off 100 is 98.5.',
+    percentLabel: 'Percentage to take off',
     needsPercent: true,
     needsOther: false,
     rateName: 'DISCOUNT',
@@ -321,8 +328,9 @@ export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   },
   {
     id: 'plusPercent',
-    label: 'Plus %',
-    hint: 'The price plus a percentage, like a fee or a markup. 3 turns 100 into 103.',
+    label: 'Plus a percentage',
+    hint: 'For a fee or a markup. 3% on 100 is 103.',
+    percentLabel: 'Percentage to add',
     needsPercent: true,
     needsOther: false,
     rateName: 'MARKUP',
@@ -331,8 +339,9 @@ export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   },
   {
     id: 'percentOf',
-    label: '% of',
-    hint: 'A part of the price, like a deposit. 30 turns 100 into 30.',
+    label: 'A percentage of it',
+    hint: 'For a deposit. 30% of 100 is 30.',
+    percentLabel: 'Percentage',
     needsPercent: true,
     needsOther: false,
     rateName: 'PERCENT',
@@ -341,8 +350,9 @@ export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   },
   {
     id: 'minusPrice',
-    label: 'Minus a price',
-    hint: 'This price less another one, like what the client saves. 150 less 100 is 50.',
+    label: 'Minus another price',
+    hint: 'For what the client saves. 150 minus 100 is 50.',
+    otherLabel: 'Minus this price',
     needsPercent: false,
     needsOther: true,
     defaultDecimals: 2,
@@ -350,8 +360,9 @@ export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   },
   {
     id: 'savingPercent',
-    label: 'Saving in %',
-    hint: 'How much lower the other price is, as a percentage of this one. 150 against 100 is 33%. Prints nothing while this price is empty.',
+    label: 'Saving as a percentage',
+    hint: 'How much lower the second price is. 150 against 100 is 33%.',
+    otherLabel: 'Compared with this price',
     needsPercent: false,
     needsOther: true,
     defaultDecimals: 0,

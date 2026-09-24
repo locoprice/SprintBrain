@@ -34,8 +34,9 @@ import {
   LabelSuggestions,
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
+import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
+import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
-import { FormFormulaDialog } from '@/features/snippets/FormFormulaDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
@@ -251,18 +252,16 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
-// The three inputs FormFormulaDialog offers, named as it names them.
-// The last entry is the engine's own vocabulary (extension/formula-engine.js:
-// FUNS, safeEval), for anything the builder does not write.
+// What the two formula windows do, in the words the buttons use. The last entry
+// is the engine's own vocabulary (extension/formula-engine.js: FUNS, safeEval),
+// for anything the windows do not write.
 const FORMULA_FIELDS: { label: string; hint: string }[] = [
-  { label: 'Adjust a price',
-    hint: 'Works from a price box the snippet already has: minus or plus a percentage, a part of it, or the gap to another price. Inserts only the answer.' },
-  { label: 'New numbers',
-    hint: 'Add, Subtract, Multiply, Divide, Average, Percent of or Percent change on new number boxes. Prints the working with the answer.' },
-  { label: 'Rates',
-    hint: 'Save a percentage as a rate, like BANK_DISCOUNT = 1.5. Every line using it follows when you change that one number in the text.' },
-  { label: 'Rounding',
-    hint: 'A whole number, 1 decimal or 2. A negative answer keeps its minus sign.' },
+  { label: 'Price line',
+    hint: 'One line of a quote from a price: minus a discount, plus a fee, a deposit, or what the client saves. Adds the price box if the snippet has none.' },
+  { label: 'Calculator',
+    hint: 'Add, subtract, multiply, divide, average or percentages on numbers filled in when the snippet expands. Prints 100 - 25 - 5 = 70.' },
+  { label: 'Remove',
+    hint: 'Both windows show how many formulas the snippet has. Manage lists them, each with Remove and Undo.' },
   { label: 'By hand',
     hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
 ];
@@ -433,8 +432,15 @@ export function NewSnippetDialog() {
   const [numberFieldOpen, setNumberFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
-  // Formula builder: writes the number fields and the {= } answer together.
-  const [formulaOpen, setFormulaOpen] = useState(false);
+  // Which formula window is open: a line of a quote from a price, or a calculator.
+  const [formulaWindow, setFormulaWindow] = useState<'price' | 'calculator' | null>(null);
+
+  // Read from the field itself: which saved percentages a window offers, and
+  // whether it sits inside a condition, depend on exactly where the answer lands.
+  function openFormulaWindow(which: 'price' | 'calculator') {
+    if (contentRef.current) setCaret(contentRef.current.selectionStart);
+    setFormulaWindow(which);
+  }
 
   // Auto-suggestions: derived from snippet name + trigger. Suggestions from
   // matching keyword rules that haven't been added yet are shown as one-click chips.
@@ -1314,29 +1320,34 @@ export function NewSnippetDialog() {
                 label="Formula"
                 className="mb-2.5 mt-2.5"
                 footer={
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={saving}
-                    onClick={() => {
-                      // Read from the field itself: which rates the builder
-                      // offers, and whether it sits inside a condition, depend
-                      // on exactly where the answer will land.
-                      if (contentRef.current) setCaret(contentRef.current.selectionStart);
-                      setFormulaOpen(true);
-                    }}
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Build the formula
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      disabled={saving}
+                      onClick={() => openFormulaWindow('price')}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Price line
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      disabled={saving}
+                      onClick={() => openFormulaWindow('calculator')}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Calculator
+                    </Button>
+                  </div>
                 }
               >
                 <p className="text-[11px] text-ink-subtle leading-tight">
-                  Works out numbers typed in when the snippet expands, so nobody does the
-                  arithmetic by hand. With YOUR_PRICE in the snippet, Minus 1.5% inserts{' '}
-                  <code className="font-mono text-primary/80">{'{=YOUR_PRICE * 0.985}'}</code>,
-                  which prints 98.5 when 100 is typed.
+                  Works out a number from prices or figures filled in when the snippet
+                  expands, so nobody does the arithmetic by hand. Two buttons, each one
+                  complete on its own.
                 </p>
                 <dl className="mt-2 flex flex-col gap-1.5">
                   {FORMULA_FIELDS.map((f) => (
@@ -1829,9 +1840,18 @@ export function NewSnippetDialog() {
               onInsert={insertAtCursor}
             />
 
-            <FormFormulaDialog
-              open={formulaOpen}
-              onOpenChange={setFormulaOpen}
+            <FormPriceLineDialog
+              open={formulaWindow === 'price'}
+              onOpenChange={(open) => setFormulaWindow(open ? 'price' : null)}
+              body={form.content}
+              caret={caret}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
+            />
+
+            <FormCalculatorDialog
+              open={formulaWindow === 'calculator'}
+              onOpenChange={(open) => setFormulaWindow(open ? 'calculator' : null)}
               body={form.content}
               caret={caret}
               onInsert={insertAtCursor}

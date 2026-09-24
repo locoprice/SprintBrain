@@ -12,6 +12,7 @@ import {
   isValidPriceAdjust,
   MAX_OPERANDS,
   nextNumberNames,
+  PRICE_ADJUSTMENTS,
   freeName,
   insideCondition,
   priceFieldNames,
@@ -218,6 +219,15 @@ describe('formulaToken: adjust a price', () => {
     expect(buildPriceAdjustToken({ ...base, adjustment: 'savingPercent', decimals: 0 })).toBe(
       '{if: YOUR_PRICE > 0}{=round((YOUR_PRICE - LIST_PRICE) / YOUR_PRICE * 100)}%{endif}',
     );
+  });
+
+  it('names every input a change needs, so the Price line window can label it', () => {
+    for (const spec of PRICE_ADJUSTMENTS) {
+      expect(spec.label.length).toBeGreaterThan(0);
+      expect(spec.hint.length).toBeGreaterThan(0);
+      if (spec.needsPercent) expect(spec.percentLabel, `${spec.id} needs a percentLabel`).toBeTruthy();
+      if (spec.needsOther) expect(spec.otherLabel, `${spec.id} needs an otherLabel`).toBeTruthy();
+    }
   });
 
   it('writes no guard of its own inside a condition, since blocks cannot nest', () => {
