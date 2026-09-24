@@ -72,6 +72,12 @@ export interface FormNumberConfig {
   currency: CurrencyCode;
   /** Value the field starts with, or '' for an empty field. */
   default: string;
+  /**
+   * A caption for the box in the fill form, such as "Add: first number". Drawn
+   * above the box and never printed. Left out, the box is titled by the prose
+   * around it, or its name.
+   */
+  label?: string;
 }
 
 /**
@@ -129,6 +135,10 @@ export function buildFormNumberToken(cfg: FormNumberConfig): string {
     out += `; currency=${cfg.currency}`;
   }
   if (value !== '') out += `; default=${value}`;
+  // Last, because it is free text and everything else is a fixed word. `;`,
+  // braces and line breaks would end the token or split it, so they go.
+  const label = (cfg.label ?? '').replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (label !== '') out += `; label=${label}`;
   return `${out}}`;
 }
 

@@ -258,11 +258,30 @@ export function isValidFormula(cfg: FormulaConfig): boolean {
   return !hasDuplicateNames(names);
 }
 
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+
+/**
+ * What the fill form calls a Calculator box: the operation and the box's part in
+ * it, "Add: first number" or "Percent of: amount". Without it each row is a
+ * bare number beside a sign, and nobody can tell which calculation it belongs to.
+ * Shown above the box, never printed.
+ */
+export function boxLabel(spec: FormulaOperationSpec, index: number): string {
+  const part = spec.roles?.[index]?.toLowerCase() ?? `${ORDINALS[index] ?? `number ${index + 1}`} number`;
+  return `${spec.label}: ${part}`;
+}
+
 /** Writes the block: the number fields, then ` = ` and the answer. */
 export function buildFormulaToken(cfg: FormulaConfig): string {
   const spec = getFormulaOperation(cfg.operation);
-  const fields = cfg.names.map((name) =>
-    buildFormNumberToken({ name, format: 'plain', currency: DEFAULT_CURRENCY, default: '' }),
+  const fields = cfg.names.map((name, i) =>
+    buildFormNumberToken({
+      name,
+      format: 'plain',
+      currency: DEFAULT_CURRENCY,
+      default: '',
+      label: boxLabel(spec, i),
+    }),
   );
   const answer = withRounding(spec.expression(cfg.names), cfg.decimals);
   const result = spec.guard && !cfg.inCondition

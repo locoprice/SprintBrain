@@ -3188,10 +3188,19 @@ function sbEmitField(key,value,fmtMap){
    a text field in every other respect. Any other format on a text field is a
    typo and reads as plain text. MIRRORED from _textCfg in
    extension/formula-engine.js. */
+/* A caption for the box in the fill form (label=Add: first number). Drawn above
+   the box, never printed. Mirrors _labelAttr in the engine. */
+function sbLabelAttr(attrSrc){
+  var m=/(?:^|;)\s*label\s*=\s*([^;]+)/i.exec(attrSrc);
+  return m?m[1].replace(/^\s+|\s+$/g,''):'';
+}
+
 function sbTextCfg(attrSrc,defVal){
   var out={type:'text',default:defVal};
   var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   if(fmtM&&fmtM[1].toLowerCase()==='name')out.format='name';
+  var label=sbLabelAttr(attrSrc);
+  if(label)out.label=label;
   return out;
 }
 
@@ -3209,6 +3218,8 @@ function sbNumberOrTextCfg(attrSrc,defVal){
     var cur=curM?curM[1].toUpperCase():'';
     out.currency=Object.prototype.hasOwnProperty.call(SB_CURRENCIES,cur)?cur:SB_DEFAULT_CURRENCY;
   }
+  var label=sbLabelAttr(attrSrc);
+  if(label)out.label=label;
   return out;
 }
 
@@ -5091,7 +5102,7 @@ function renderDetail(snip,keepVals){
          label survives only for a field with no prose around it to describe it. */
       var pre=fld.before?'<span class="field-ctx">'+esc(fld.before)+'</span>':'';
       var post=fld.after?'<span class="field-ctx">'+esc(fld.after)+'</span>':'';
-      var head=(pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>';
+      var head=fld.label?'<div class="field-lbl">'+esc(fld.label)+'</div>':((pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>');
       return '<div class="field-row">'+head+(blockControl
         ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
           (post?'<div class="field-ctxline">'+post+'</div>':'')

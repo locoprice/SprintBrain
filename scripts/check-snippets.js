@@ -167,6 +167,30 @@ for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
 }
 console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' fill-form surfaces');
 
+// ── A BOX CAPTION IS DRAWN ON EVERY FILL SURFACE ────────────────────
+// {formtext: ...; label=Add: first number} names a box. It is read by the engine
+// (checked above against the phone), carried by the shared view model as
+// field.label, and then it has to be DRAWN, on each surface that builds a fill
+// form. A surface that forgot would show the Calculator as a column of bare
+// numbers again. Same source-assertion approach as the menu and picker checks:
+// the markup sits inside large DOM-bound render functions.
+const LABEL_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay', 'cfg.label ? '],
+  ['extension/popup/popup.js', 'popup detail', 'f.label?'],
+  ['app/public/mobile/index.html', 'mobile companion', 'fld.label?'],
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview', 'field.label ||'],
+];
+for (const [rel, label, marker] of LABEL_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  if (!src.includes(marker)) {
+    fail(rel + ' (' + label + ') no longer draws a box caption.\n' +
+      '  A box declared with label=... must show that caption above it on every\n' +
+      '  surface, or a Calculator snippet reads as a column of bare numbers.\n' +
+      '  Expected to find: ' + marker);
+  }
+}
+console.log('OK Box captions drawn on all ' + LABEL_RENDERERS.length + ' fill-form surfaces');
+
 // ── A DATE FILLS AS A CALENDAR, A TIME AS A CLOCK ───────────────────
 // The format an author picks decides how the value READS. What they type it
 // into is decided here, and it must never be a text box: a date typed by hand
@@ -455,6 +479,13 @@ const fieldCfgCases = [
   '{formmenu: A,B}',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
+  // BOX CAPTION: label= names a box in the fill form. Free text, so it can hold
+  // a colon and spaces; it reads on a number and on a text box, sits beside a
+  // default, and an empty one is no caption at all.
+  '{formtext: name=NUM_1; type=number; label=Add: first number}',
+  '{formtext: name=NUM_1; type=number; default=5; label=Percent of: amount}',
+  '{formtext: name=GUEST; label=Guest name}',
+  '{formtext: name=GUEST; label=}',
   // NAME FIELD: format=name on a text field. Any other format on a text field,
   // and a name format on a number, is a typo that leaves the field as it was.
   '{formtext: name=GUEST; format=name}',

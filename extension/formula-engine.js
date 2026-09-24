@@ -1948,10 +1948,23 @@
   // every other respect, so a surface that cannot read the format still draws
   // the same box and prints the value as typed. Any other format on a text
   // field is a typo and reads as plain text, the same way an unknown `type` does.
+  // `label=Add: first number` names the box in the fill form. It is a caption
+  // and nothing else: drawn above the box on every surface that fills a snippet
+  // in, never printed, and read by nothing but the renderers. A release from
+  // before it existed ignores the attribute, so the field still fills in.
+  //
+  // MIRRORED in app/public/mobile/index.html (sbLabelAttr).
+  function _labelAttr(attrSrc) {
+    var m = /(?:^|;)\s*label\s*=\s*([^;]+)/i.exec(attrSrc);
+    return m ? m[1].replace(/^\s+|\s+$/g, '') : '';
+  }
+
   function _textCfg(attrSrc, defVal) {
     var out = { type: 'text', 'default': defVal };
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
     if (fmtM && fmtM[1].toLowerCase() === 'name') out.format = 'name';
+    var label = _labelAttr(attrSrc);
+    if (label) out.label = label;
     return out;
   }
 
@@ -1975,6 +1988,8 @@
       var cur = curM ? curM[1].toUpperCase() : '';
       out.currency = Object.prototype.hasOwnProperty.call(CURRENCIES, cur) ? cur : DEFAULT_CURRENCY;
     }
+    var label = _labelAttr(attrSrc);
+    if (label) out.label = label;
     return out;
   }
 
@@ -2006,6 +2021,11 @@
       }
     }
     if (value !== '') out += '; default=' + value;
+    // The caption goes last: it is free text, and everything else is a fixed word.
+    // `;`, braces and line breaks would end the token or split it, so they go.
+    var label = String(c.label === undefined ? '' : c.label)
+      .replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+    if (label !== '') out += '; label=' + label;
     return out + '}';
   }
 

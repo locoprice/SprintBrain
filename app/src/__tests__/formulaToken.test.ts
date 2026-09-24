@@ -6,8 +6,10 @@ import {
   buildFormulaToken,
   buildPriceAdjustToken,
   describeFormula,
+  boxLabel,
   FORMULA_OPERATIONS,
   formulasInBody,
+  getFormulaOperation,
   isValidFormula,
   isValidPriceAdjust,
   MAX_OPERANDS,
@@ -35,7 +37,8 @@ function loadHelper<T>(path: string): T {
 
 interface FormulaEngine {
   extractFields: (body: string) => string[];
-  buildFormFieldCfg: (body: string) => Record<string, { type: string }>;
+  buildFormFieldCfg: (body: string) => Record<string, { type: string; label?: string }>;
+  buildFormNumberToken: (cfg: Record<string, unknown>) => string;
   resolveBody: (body: string, vals: Record<string, unknown>) => string;
   validateTemplate: (body: string) => { ok: boolean };
 }
@@ -56,18 +59,73 @@ function run(operation: FormulaOperation, values: string[], decimals: FormulaDec
 describe('formulaToken: writer', () => {
   it('writes the number fields and the answer in one block', () => {
     expect(buildFormulaToken({ operation: 'subtract', names: ['NUM_1', 'NUM_2'], decimals: 2 })).toBe(
-      '{formtext: name=NUM_1; type=number} - {formtext: name=NUM_2; type=number} = {=NUM_1 - NUM_2}',
+      '{formtext: name=NUM_1; type=number; label=Subtract: first number} - ' +
+        '{formtext: name=NUM_2; type=number; label=Subtract: second number} = {=NUM_1 - NUM_2}',
     );
+  });
+
+  it('names every box after its calculation, so the fill form is not a row of bare numbers', () => {
+    for (const spec of FORMULA_OPERATIONS) {
+      const names = nextNumberNames('', spec.minOperands);
+      const body = buildFormulaToken({ operation: spec.id, names, decimals: 2 });
+      const cfg = engine.buildFormFieldCfg(body) as Record<string, { label?: string }>;
+      names.forEach((n, i) => {
+        expect(cfg[n]?.label, `${spec.id} box ${i + 1}`).toBe(boxLabel(spec, i));
+        expect(cfg[n]?.label).toMatch(new RegExp(`^${spec.label}: `));
+      });
+    }
+    expect(boxLabel(getFormulaOperation('add'), 0)).toBe('Add: first number');
+    expect(boxLabel(getFormulaOperation('add'), 2)).toBe('Add: third number');
+    expect(boxLabel(getFormulaOperation('percentOf'), 0)).toBe('Percent of: amount');
+    expect(boxLabel(getFormulaOperation('percentChange'), 1)).toBe('Percent change: to');
+  });
+
+  it('writes a caption identically on both sides, reads it back, and drops what would break the token', () => {
+    const cfg = { name: 'NUM_1', format: 'plain' as const, currency: 'EUR' as const, default: '', label: 'Add: first number' };
+    expect(buildFormNumberToken(cfg)).toBe('{formtext: name=NUM_1; type=number; label=Add: first number}');
+    expect(engine.buildFormNumberToken(cfg)).toBe(buildFormNumberToken(cfg));
+    expect(engine.buildFormFieldCfg(buildFormNumberToken(cfg)).NUM_1).toMatchObject({
+      type: 'number',
+      label: 'Add: first number',
+    });
+    // A semicolon, braces or a line break would end the token or split it.
+    const dirty = { ...cfg, label: ' a;b {c}\nd ' };
+    expect(buildFormNumberToken(dirty)).toBe('{formtext: name=NUM_1; type=number; label=a b c d}');
+    expect(engine.buildFormNumberToken(dirty)).toBe(buildFormNumberToken(dirty));
+    // Nothing written for an empty caption, and it sits after a default.
+    expect(buildFormNumberToken({ ...cfg, label: '   ' })).toBe('{formtext: name=NUM_1; type=number}');
+    expect(buildFormNumberToken({ ...cfg, default: '5' })).toBe(
+      '{formtext: name=NUM_1; type=number; default=5; label=Add: first number}',
+    );
+    expect(engine.buildFormFieldCfg('{formtext: name=A; type=number; default=5; label=Amount}').A).toMatchObject({
+      default: '5',
+      label: 'Amount',
+    });
+    // A plain text box takes a caption too.
+    expect(engine.buildFormFieldCfg('{formtext: name=GUEST; label=Guest name}').GUEST).toMatchObject({
+      type: 'text',
+      label: 'Guest name',
+    });
+    // No caption, no key: a box without one reads as it always did.
+    expect(engine.buildFormFieldCfg('{formtext: name=A; type=number}').A).not.toHaveProperty('label');
+  });
+
+  it('never prints a box name: the message carries the numbers and the answer only', () => {
+    const names = nextNumberNames('', 2);
+    const body = buildFormulaToken({ operation: 'percentOf', names, decimals: 2 });
+    expect(engine.resolveBody(body, { [names[0]!]: '100', [names[1]!]: '20' })).toBe('100 × 20% = 20');
   });
 
   it('wraps the answer in round() only when fewer than two decimals are asked for', () => {
     // Only the one-argument round(), which every released extension reads:
     // an extension older than v3.48.0 drops round()'s second argument.
     expect(buildFormulaToken({ operation: 'divide', names: ['A', 'B'], decimals: 0 })).toBe(
-      '{formtext: name=A; type=number} / {formtext: name=B; type=number} = {=round(A / B)}',
+      '{formtext: name=A; type=number; label=Divide: first number} / ' +
+        '{formtext: name=B; type=number; label=Divide: second number} = {=round(A / B)}',
     );
     expect(buildFormulaToken({ operation: 'divide', names: ['A', 'B'], decimals: 1 })).toBe(
-      '{formtext: name=A; type=number} / {formtext: name=B; type=number} = {=round((A / B) * 10) / 10}',
+      '{formtext: name=A; type=number; label=Divide: first number} / ' +
+        '{formtext: name=B; type=number; label=Divide: second number} = {=round((A / B) * 10) / 10}',
     );
   });
 
@@ -243,7 +301,8 @@ describe('formulaToken: adjust a price', () => {
     // The nested version printed a stray ")" here.
     expect(engine.resolveBody(line, { LIST_PRICE: '0', YOUR_PRICE: '100' })).toBe('END');
     expect(buildFormulaToken({ operation: 'percentChange', names: ['A', 'B'], decimals: 2, inCondition: true })).toBe(
-      '{formtext: name=A; type=number} → {formtext: name=B; type=number} = {=(B - A) / A * 100}%',
+      '{formtext: name=A; type=number; label=Percent change: from} → ' +
+        '{formtext: name=B; type=number; label=Percent change: to} = {=(B - A) / A * 100}%',
     );
   });
 
@@ -398,7 +457,8 @@ describe('formulaToken: formulas already in a body', () => {
     const block = buildFormulaToken({ operation: 'add', names: ['NUM_1', 'NUM_2'], decimals: 2 });
     const body = `${block}\nDouble: {=NUM_1 * 2}`;
     expect(remove(body, 0)).toBe(
-      '{formtext: name=NUM_1; type=number} + {formtext: name=NUM_2; type=number} = \nDouble: {=NUM_1 * 2}',
+      '{formtext: name=NUM_1; type=number; label=Add: first number} + ' +
+        '{formtext: name=NUM_2; type=number; label=Add: second number} = \nDouble: {=NUM_1 * 2}',
     );
   });
 

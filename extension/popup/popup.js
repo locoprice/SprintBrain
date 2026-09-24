@@ -1936,7 +1936,9 @@ function renderDetailHtml(s){
         // is otherwise noise: an unnamed menu's key is a hash.
         var pre=f.before?'<span class="d-ctx">'+esc(f.before)+'</span>':'';
         var post=f.after?'<span class="d-ctx">'+esc(f.after)+'</span>':'';
-        var lbl=(pre||post)?'':'<label>'+esc(label)+'</label>';
+        // A caption the author gave the box wins; otherwise only a box with no
+        // prose around it falls back to its key.
+        var lbl=f.label?'<label>'+esc(f.label)+'</label>':((pre||post)?'':'<label>'+esc(label)+'</label>');
         form+='<div class="d-frow">'+lbl+(f.block
           ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
             (post?'<div class="d-ctxline">'+post+'</div>':'')
