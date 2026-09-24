@@ -215,9 +215,10 @@ describe('formulaToken: adjust a price', () => {
   });
 
   it('writes the gap to another price, and the saving in % behind a guard', () => {
-    expect(buildPriceAdjustToken({ ...base, adjustment: 'minusPrice' })).toBe('{=YOUR_PRICE - LIST_PRICE}');
+    // Your price first, the original second: the saving is original minus yours.
+    expect(buildPriceAdjustToken({ ...base, adjustment: 'minusPrice' })).toBe('{=LIST_PRICE - YOUR_PRICE}');
     expect(buildPriceAdjustToken({ ...base, adjustment: 'savingPercent', decimals: 0 })).toBe(
-      '{if: YOUR_PRICE > 0}{=round((YOUR_PRICE - LIST_PRICE) / YOUR_PRICE * 100)}%{endif}',
+      '{if: LIST_PRICE > 0}{=round((LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100)}%{endif}',
     );
   });
 
@@ -234,7 +235,7 @@ describe('formulaToken: adjust a price', () => {
     expect(insideCondition('{if: LIST_PRICE > 0}You save (-')).toBe(true);
     expect(insideCondition('{if: A > 0}x{endif} then ')).toBe(false);
     const saving = buildPriceAdjustToken({
-      ...base, adjustment: 'savingPercent', price: 'LIST_PRICE', other: 'YOUR_PRICE', decimals: 0, inCondition: true,
+      ...base, adjustment: 'savingPercent', decimals: 0, inCondition: true,
     });
     expect(saving).toBe('{=round((LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100)}%');
     const line = `{if: LIST_PRICE > 0}You save (-${saving}){endif}END`;
@@ -284,9 +285,31 @@ describe('formulaToken: adjust a price', () => {
     expect(at({ adjustment: 'plusPercent', percent: '3' }, { YOUR_PRICE: '100' })).toBe('103');
     expect(at({ adjustment: 'percentOf', percent: '30' }, { YOUR_PRICE: '100' })).toBe('30');
     expect(at({ percent: '1.5', newRate: 'R' }, { YOUR_PRICE: '100' })).toBe('98.5');
-    expect(at({ adjustment: 'minusPrice' }, { YOUR_PRICE: '150', LIST_PRICE: '100' })).toBe('50');
-    expect(at({ adjustment: 'savingPercent', decimals: 0 }, { YOUR_PRICE: '150', LIST_PRICE: '100' })).toBe('33%');
-    expect(at({ adjustment: 'savingPercent', decimals: 0 }, { YOUR_PRICE: '', LIST_PRICE: '100' })).toBe('');
+    expect(at({ adjustment: 'minusPrice' }, { YOUR_PRICE: '100', LIST_PRICE: '150' })).toBe('50');
+    expect(at({ adjustment: 'savingPercent', decimals: 0 }, { YOUR_PRICE: '100', LIST_PRICE: '150' })).toBe('33%');
+    // No original price, no percentage: nothing prints rather than a stray %.
+    expect(at({ adjustment: 'savingPercent', decimals: 0 }, { YOUR_PRICE: '100', LIST_PRICE: '' })).toBe('');
+  });
+
+  it('measures a saving against the original price: 100 against 200 is 50%, not -100%', () => {
+    // The Carla snippet: the difference and the percentage, both from the same two boxes.
+    const cfg = { ...base, price: 'PRICE', other: 'OTHER_PRICE' };
+    const line =
+      buildPriceAdjustToken({ ...cfg, adjustment: 'minusPrice' }) + ' ' +
+      buildPriceAdjustToken({ ...cfg, adjustment: 'savingPercent', decimals: 0 });
+    expect(engine.resolveBody(line, { PRICE: '100', OTHER_PRICE: '200' })).toBe('100 50%');
+    // A price above the original is a negative saving, which stays visible.
+    expect(engine.resolveBody(line, { PRICE: '200', OTHER_PRICE: '100' })).toBe('-100 -100%');
+  });
+
+  it('gives the two price choices the same labels, so the order is never a guess', () => {
+    for (const id of ['minusPrice', 'savingPercent'] as const) {
+      const spec = PRICE_ADJUSTMENTS.find((a) => a.id === id)!;
+      expect(spec.priceLabel).toBe('Your price');
+      expect(spec.otherLabel).toBe('Original price');
+      // The example needs the original above the price, or it would print a negative saving.
+      expect(Number(spec.sample?.other)).toBeGreaterThan(Number(spec.sample?.price));
+    }
   });
 
   // Every row of a real quote, built with the button alone: the discount is
@@ -297,11 +320,11 @@ describe('formulaToken: adjust a price', () => {
   const quote = (rateLine: string) =>
     `Your price: ${price}€\n` +
     `Bank transfer: ${rateLine}€\n` +
-    `Pay by transfer and save ${adj({ adjustment: 'minusPrice', price: 'LIST_PRICE', other: 'YOUR_PRICE' })}€ + ` +
+    `Pay by transfer and save ${adj({ adjustment: 'minusPrice' })}€ + ` +
     `${adj({ adjustment: 'percentOf', percentSource: 'rate', rate: 'BANK_DISCOUNT' })}€\n` +
     `List price: ${list}€\n` +
-    `You save: ${adj({ adjustment: 'minusPrice', price: 'LIST_PRICE', other: 'YOUR_PRICE' })}€ ` +
-    `(-${adj({ adjustment: 'savingPercent', price: 'LIST_PRICE', other: 'YOUR_PRICE', decimals: 0 })})`;
+    `You save: ${adj({ adjustment: 'minusPrice' })}€ ` +
+    `(-${adj({ adjustment: 'savingPercent', decimals: 0 })})`;
 
   it('builds every row of a quote from two typed prices and one rate', () => {
     const body = quote(adj({ percent: '1.5', newRate: 'BANK_DISCOUNT' }));

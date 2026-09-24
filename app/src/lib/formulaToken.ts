@@ -291,6 +291,8 @@ export interface PriceAdjustmentSpec {
   label: string;
   /** What it is for, with one worked example. */
   hint: string;
+  /** What the first price is called. Defaults to "Price". */
+  priceLabel?: string;
   /** What the percentage box is called, for a change that takes one. */
   percentLabel?: string;
   /** What the second price is called, for a change that takes one. */
@@ -304,6 +306,11 @@ export interface PriceAdjustmentSpec {
   /** Where the rounding starts when this change is picked. */
   defaultDecimals: FormulaDecimals;
   /**
+   * The two prices the example fills in, for a change where which is larger
+   * matters: a saving needs the original above the price.
+   */
+  sample?: { price: string; other: string };
+  /**
    * `percent` goes into the expression as written: a number such as `1.5`, or
    * a rate's name. Either way it stays readable in the body, so changing 1.5
    * to 2 later is an edit of the number itself, not of a multiplier like 0.985
@@ -311,7 +318,7 @@ export interface PriceAdjustmentSpec {
    */
   expression: (price: string, other: string, percent: string) => string;
   suffix?: string;
-  guard?: (price: string) => string;
+  guard?: (price: string, other: string) => string;
 }
 
 export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
@@ -350,25 +357,32 @@ export const PRICE_ADJUSTMENTS: readonly PriceAdjustmentSpec[] = [
   },
   {
     id: 'minusPrice',
-    label: 'Minus another price',
-    hint: 'For what the client saves. 150 minus 100 is 50.',
-    otherLabel: 'Minus this price',
+    label: 'What the client saves',
+    hint: 'The original price minus your price. 150 and 100 gives 50.',
+    priceLabel: 'Your price',
+    otherLabel: 'Original price',
+    sample: { price: '100', other: '150' },
     needsPercent: false,
     needsOther: true,
     defaultDecimals: 2,
-    expression: (price, other) => `${price} - ${other}`,
+    // Your price is the one typed first, the original the one it is compared with,
+    // so the saving reads as a positive number when your price is the lower one.
+    expression: (price, other) => `${other} - ${price}`,
   },
   {
     id: 'savingPercent',
     label: 'Saving as a percentage',
-    hint: 'How much lower the second price is. 150 against 100 is 33%.',
-    otherLabel: 'Compared with this price',
+    hint: 'How much lower your price is than the original. 150 and 100 gives 33%.',
+    priceLabel: 'Your price',
+    otherLabel: 'Original price',
+    sample: { price: '100', other: '150' },
     needsPercent: false,
     needsOther: true,
     defaultDecimals: 0,
-    expression: (price, other) => `(${price} - ${other}) / ${price} * 100`,
+    // Measured against the original, so 100 against 200 is 50%, not 100%.
+    expression: (price, other) => `(${other} - ${price}) / ${other} * 100`,
     suffix: '%',
-    guard: (price) => `${price} > 0`,
+    guard: (_price, other) => `${other} > 0`,
   },
 ];
 
@@ -495,7 +509,7 @@ export function buildPriceAdjustToken(cfg: PriceAdjustConfig): string {
   }
   const expr = spec.expression(cfg.price, cfg.other, operand);
   const answer = `{=${withRounding(expr, cfg.decimals)}}${spec.suffix ?? ''}`;
-  return rateToken + (spec.guard && !cfg.inCondition ? `{if: ${spec.guard(cfg.price)}}${answer}{endif}` : answer);
+  return rateToken + (spec.guard && !cfg.inCondition ? `{if: ${spec.guard(cfg.price, cfg.other)}}${answer}{endif}` : answer);
 }
 
 // ── FORMULAS ALREADY IN A BODY ──────────────────────────────────────

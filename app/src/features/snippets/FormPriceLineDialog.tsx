@@ -38,7 +38,7 @@ const PERCENT_SOURCE_OPTIONS: readonly { value: 'typed' | 'rate'; label: string 
 
 const ADJUSTMENT_CARDS = PRICE_ADJUSTMENTS.map((a) => ({ id: a.id, label: a.label, detail: a.hint }));
 
-// What the example fills the prices with.
+// What the example fills the prices with, unless the change names its own.
 const SAMPLE_PRICE = '100';
 const SAMPLE_OTHER = '80';
 
@@ -138,6 +138,8 @@ export function FormPriceLineDialog({
 
   const priceFields = useMemo(() => priceFieldNames(fields), [fields]);
   const spec = getPriceAdjustment(adjustment);
+  const samplePrice = spec.sample?.price ?? SAMPLE_PRICE;
+  const sampleOther = spec.sample?.other ?? SAMPLE_OTHER;
 
   // ── Which price, and which other price ──
   const priceSel = price === NEW_BOX || priceFields.includes(price) ? price : (priceFields[0] ?? NEW_BOX);
@@ -216,12 +218,12 @@ export function FormPriceLineDialog({
   const engine = engineReady ? formulaEngine() : null;
   const example = useMemo(() => {
     if (!engine || !valid) return '';
-    const vals: Record<string, string> = { [priceName]: SAMPLE_PRICE };
-    if (spec.needsOther) vals[otherName] = SAMPLE_OTHER;
+    const vals: Record<string, string> = { [priceName]: samplePrice };
+    if (spec.needsOther) vals[otherName] = sampleOther;
     const used = rates.find((r) => r.name === rateSel);
     if (useRate && used) vals[used.name] = used.value;
     return engine.resolveBody(answerToken, vals);
-  }, [answerToken, valid, spec.needsOther, priceName, otherName, useRate, rateSel, rates, engine]);
+  }, [answerToken, valid, spec.needsOther, samplePrice, sampleOther, priceName, otherName, useRate, rateSel, rates, engine]);
 
   const note = valid
     ? ''
@@ -235,7 +237,7 @@ export function FormPriceLineDialog({
     onOpenChange(false);
   }
 
-  const heading = spec.needsOther ? 'Start from this price' : 'Price';
+  const heading = spec.priceLabel ?? 'Price';
 
   return (
     <FormulaDialogFrame
@@ -425,8 +427,8 @@ export function FormPriceLineDialog({
                 Example
               </p>
               <p className="mt-1 text-xs text-ink">
-                With {priceName} at {SAMPLE_PRICE}
-                {spec.needsOther ? ` and ${otherName} at ${SAMPLE_OTHER}` : ''}, the line prints{' '}
+                With {priceName} at {samplePrice}
+                {spec.needsOther ? ` and ${otherName} at ${sampleOther}` : ''}, the line prints{' '}
                 <span className="font-mono font-semibold text-primary">{example}</span>
               </p>
             </div>
