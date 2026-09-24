@@ -32,7 +32,7 @@ const SPACE_SELECT =
 
 const ITEM_SELECT =
   'id, user_id, space_id, name, summary, body, kind, metadata, token_estimate, ' +
-  'pinned, priority, content_hash, created_at, updated_at, deleted_at';
+  'pinned, priority, content_hash, source_id, created_at, updated_at, deleted_at';
 
 const VERSION_SELECT =
   'id, shard_id, version_number, editor_id, editor_display, name, summary, body, ' +
@@ -45,6 +45,9 @@ const DOCUMENT_SELECT =
 /** The private bucket the original files live in (migration 20260923090000). */
 const DOCUMENT_BUCKET = 'memory-docs';
 
+/** Storage deletes at most this many objects per request. */
+const STORAGE_REMOVE_LIMIT = 1000;
+
 /** What the interface needs to report after a file has landed. */
 export interface DocumentImportResult {
   documentId: string;
@@ -54,6 +57,12 @@ export interface DocumentImportResult {
   forced: number;
   /** Pages, for a PDF. Zero for everything else. */
   pages: number;
+}
+
+/** What a permanent delete removed, as counted by the server. */
+export interface DeleteForeverResult {
+  items: number;
+  documents: number;
 }
 
 /** Everything a save needs. `id` absent creates; `space_id` absent files it in the default space. */
@@ -112,6 +121,17 @@ export interface MemoryApi {
   trashItem(id: string): Promise<void>;
   /** `name` is only used to word the collision message when the name was reused. */
   restoreItem(id: string, name?: string): Promise<void>;
+  /**
+   * Permanently deletes the listed trashed items and files of one space,
+   * stored originals included. Emptying the trash lists all of it; deleting one
+   * row lists that row. Anything restored since the list was drawn is skipped
+   * rather than deleted.
+   */
+  deleteForever(
+    spaceId: string,
+    itemIds: string[],
+    documents: MemoryDocument[],
+  ): Promise<DeleteForeverResult>;
 }
 
 type DbSpace = {
@@ -139,6 +159,7 @@ type DbItem = {
   pinned: boolean;
   priority: number;
   content_hash: string;
+  source_id: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -192,6 +213,7 @@ function dbItemToItem(row: DbItem): MemoryItem {
     pinned: row.pinned,
     priority: row.priority,
     content_hash: row.content_hash,
+    source_id: row.source_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at,
@@ -516,5 +538,28 @@ export const memoryApi: MemoryApi = {
       .createSignedUrl(storagePath, 600);
     if (error) throw new Error(error.message);
     return data.signedUrl;
+  },
+
+  async deleteForever(spaceId, itemIds, documents) {
+    // Files first, rows second. The storage schema refuses deletes from SQL, so
+    // the two cannot share a transaction, and this is the order that fails
+    // safe: a break in between leaves trash rows whose file is already gone,
+    // which the next attempt finishes. The other order would leave files that
+    // nothing points at, invisible and never deleted.
+    const paths = documents.map((doc) => doc.storage_path);
+    for (let start = 0; start < paths.length; start += STORAGE_REMOVE_LIMIT) {
+      const { error } = await supabase.storage
+        .from(DOCUMENT_BUCKET)
+        .remove(paths.slice(start, start + STORAGE_REMOVE_LIMIT));
+      if (error) throw new Error(`Could not delete permanently: ${error.message}`);
+    }
+
+    const { data, error } = await supabase.rpc('memory_empty_trash', {
+      p_space_id: spaceId,
+      p_item_ids: itemIds,
+      p_document_ids: documents.map((doc) => doc.id),
+    });
+    if (error) throw new Error(`Could not delete permanently: ${error.message}`);
+    return data as DeleteForeverResult;
   },
 };

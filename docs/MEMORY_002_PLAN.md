@@ -488,6 +488,21 @@ exactly as they stand.
 - **Accept**: revoking removes access completely, with no `organization_id`-style stamp left
   behind. If sharing is deferred, the purge half still ships.
 
+**Trash half, as built (v3.46.0).** The Brain page lists live rows only; the trash opens in
+its own panel (`features/memory/TrashPanel.tsx`), one row per thing deleted, with a file and
+its pieces folded into one row. Each row restores or deletes for good, and *Empty trash* asks
+once, in the panel's footer. Moving to and from the trash is optimistic, with Undo in the
+toast. `memory_empty_trash` (migration `20260924090000`) serves both kinds of permanent
+delete: it removes exactly the items and files it is given, skips anything restored since,
+and writes a content-free `item.purge` or
+`document.purge` entry for each. The stored originals cannot be deleted from SQL
+(`storage.protect_delete`), so the dashboard removes them through the Storage API first and
+calls the function second: a failure in between leaves rows whose file is gone, which a retry
+finishes, never files that nothing points at. A piece of a purged file that is still live
+stays and loses its link to the file; a live file that loses pieces has its `chunk_count`
+recounted. Still open: purging a whole Brain or account, and any way back to a trashed Brain,
+which can be trashed but not listed, restored or emptied.
+
 ### E1. Semantic arm  ⚠ decision-gated
 - **Objective**: pgvector as a fourth RRF arm, per-space opt-in, default off.
 - **Blocked on**: the vendor decision in §11.

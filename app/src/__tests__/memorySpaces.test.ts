@@ -57,6 +57,7 @@ function item(id: string, name: string, overrides: Partial<MemoryItem> = {}): Me
     pinned: false,
     priority: 0,
     content_hash: 'hash',
+    source_id: null,
     created_at: '2026-08-01T00:00:00Z',
     updated_at: '2026-08-01T00:00:00Z',
     deleted_at: null,
@@ -70,7 +71,6 @@ function reset() {
     totals: new Map(),
     items: [],
     activeSpaceId: null,
-    showTrashed: false,
     loadingSpaces: false,
     loadingItems: false,
     loaded: false,
@@ -148,8 +148,7 @@ describe('loadItems', () => {
     ]);
   });
 
-  it('passes the trash flag through to the query', async () => {
-    useMemoryStore.setState({ showTrashed: true });
+  it('reads trashed rows too, so the trash count is known without opening the trash', async () => {
     await useMemoryStore.getState().loadItems('space-1');
     expect(mockListItems).toHaveBeenCalledWith('space-1', true);
   });
@@ -170,7 +169,7 @@ describe('mutations', () => {
     });
 
     expect(mockSaveItem).toHaveBeenCalledOnce();
-    expect(mockListItems).toHaveBeenCalledWith('space-1', false);
+    expect(mockListItems).toHaveBeenCalledWith('space-1', true);
     expect(mockSpaceTotals).toHaveBeenCalled();
   });
 

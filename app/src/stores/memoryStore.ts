@@ -8,6 +8,7 @@ import type {
 } from '@/types/database';
 import {
   memoryApi,
+  type DeleteForeverResult,
   type DocumentImportResult,
   type SaveMemoryItemInput,
 } from '@/lib/api/memoryApi';
@@ -23,12 +24,26 @@ import {
 // is bounded by a token budget, not by a page, and the detail view is the only
 // consumer; caching every space's items would trade memory for a refetch nobody
 // waits on.
+//
+// Moving to and from the trash is optimistic: the row changes on screen first
+// and goes back if the server refuses. That is what lets Undo feel instant, and
+// the trash panel count stay right without a second read.
+
+/** Which trashed rows a permanent delete takes. A file brings its trashed pieces. */
+export interface DeleteForeverTarget {
+  itemIds: string[];
+  documentIds: string[];
+}
 
 interface MemoryStore {
   spaces: MemorySpace[];
   /** Live item and token counts per space id. */
   totals: Map<string, MemorySpaceTotals>;
-  /** Items of `activeSpaceId`, including trashed ones when `showTrashed`. */
+  /**
+   * Every item of `activeSpaceId`, trashed ones included. The page lists the
+   * live ones and the trash panel the rest, so both counts stay current from
+   * one read.
+   */
   items: MemoryItem[];
   /**
    * Live items across every space, for the one search bar's panel (SEARCH-001).
@@ -39,7 +54,6 @@ interface MemoryStore {
   /** True once `loadAllItems` has completed, so searching again does not refetch. */
   allItemsLoaded: boolean;
   activeSpaceId: string | null;
-  showTrashed: boolean;
 
   loadingSpaces: boolean;
   loadingItems: boolean;
@@ -53,7 +67,6 @@ interface MemoryStore {
   loadItems: (spaceId: string) => Promise<void>;
   /** Fetch every space's items once, the first time someone searches. */
   loadAllItems: () => Promise<void>;
-  setShowTrashed: (show: boolean) => void;
   clearError: () => void;
 
   createSpace: (name: string, description?: string) => Promise<MemorySpace>;
@@ -73,7 +86,7 @@ interface MemoryStore {
   /** Saves an older version's text back as the newest version. */
   restoreVersion: (item: MemoryItem, version: MemoryVersion) => Promise<void>;
 
-  /** Uploaded files of `activeSpaceId`. Their text is in `items`. */
+  /** Every uploaded file of `activeSpaceId`, trashed ones included. Their text is in `items`. */
   documents: MemoryDocument[];
   /** File name being read and filed, or null. One at a time, by design. */
   importing: string | null;
@@ -81,6 +94,12 @@ interface MemoryStore {
   importDocument: (file: File, spaceId: string) => Promise<DocumentImportResult>;
   trashDocument: (id: string) => Promise<void>;
   restoreDocument: (id: string) => Promise<void>;
+
+  /**
+   * Permanently deletes trashed rows of `spaceId`: one row from the trash
+   * panel, or all of them when the trash is emptied.
+   */
+  deleteForever: (spaceId: string, target: DeleteForeverTarget) => Promise<DeleteForeverResult>;
 }
 
 function message(err: unknown, fallback: string): string {
@@ -98,6 +117,54 @@ function byItemOrder(a: MemoryItem, b: MemoryItem): number {
   return b.updated_at.localeCompare(a.updated_at);
 }
 
+/**
+ * The totals only feed the Brains index, so they are refreshed without holding
+ * up the caller: the page has already shown the change.
+ */
+function refreshTotals(): void {
+  memoryApi
+    .spaceTotals()
+    .then((totals) => useMemoryStore.setState({ totals }))
+    .catch((err: unknown) =>
+      useMemoryStore.setState({ error: message(err, 'Could not update the Brain totals.') }),
+    );
+}
+
+/**
+ * Applies `change` to every item `match` picks and returns the rows as they
+ * were, for `revertItems`. The server's own update trigger stamps updated_at,
+ * so callers stamp it here too and the order does not jump on the next read.
+ */
+function patchItems(match: (item: MemoryItem) => boolean, change: Partial<MemoryItem>): MemoryItem[] {
+  const originals = useMemoryStore.getState().items.filter(match);
+  useMemoryStore.setState((state) => ({
+    items: state.items.map((item) => (match(item) ? { ...item, ...change } : item)).sort(byItemOrder),
+  }));
+  return originals;
+}
+
+function revertItems(originals: MemoryItem[]): void {
+  const byId = new Map(originals.map((item) => [item.id, item]));
+  useMemoryStore.setState((state) => ({
+    items: state.items.map((item) => byId.get(item.id) ?? item).sort(byItemOrder),
+  }));
+}
+
+function patchDocument(id: string, change: Partial<MemoryDocument>): MemoryDocument | undefined {
+  const original = useMemoryStore.getState().documents.find((doc) => doc.id === id);
+  useMemoryStore.setState((state) => ({
+    documents: state.documents.map((doc) => (doc.id === id ? { ...doc, ...change } : doc)),
+  }));
+  return original;
+}
+
+function revertDocument(original: MemoryDocument | undefined): void {
+  if (!original) return;
+  useMemoryStore.setState((state) => ({
+    documents: state.documents.map((doc) => (doc.id === original.id ? original : doc)),
+  }));
+}
+
 export const useMemoryStore = create<MemoryStore>((set, get) => ({
   spaces: [],
   totals: new Map<string, MemorySpaceTotals>(),
@@ -105,7 +172,6 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   allItems: [],
   allItemsLoaded: false,
   activeSpaceId: null,
-  showTrashed: false,
 
   loadingSpaces: false,
   loadingItems: false,
@@ -138,7 +204,7 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   loadItems: async (spaceId) => {
     set({ loadingItems: true, activeSpaceId: spaceId, error: null });
     try {
-      const items = await memoryApi.listItems(spaceId, get().showTrashed);
+      const items = await memoryApi.listItems(spaceId, true);
       set({ items: [...items].sort(byItemOrder) });
     } catch (err) {
       set({ error: message(err, 'Could not load this space.') });
@@ -158,15 +224,6 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
       set({ error: message(err, 'Could not search your memory notes.') });
     } finally {
       set({ loadingAllItems: false });
-    }
-  },
-
-  setShowTrashed: (show) => {
-    set({ showTrashed: show });
-    const spaceId = get().activeSpaceId;
-    if (spaceId) {
-      void get().loadItems(spaceId);
-      void get().loadDocuments(spaceId);
     }
   },
 
@@ -209,18 +266,32 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   },
 
   trashItem: async (id) => {
-    await memoryApi.trashItem(id);
-    const spaceId = get().activeSpaceId;
-    if (spaceId) await get().loadItems(spaceId);
-    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+    const now = new Date().toISOString();
+    const originals = patchItems((item) => item.id === id, { deleted_at: now, updated_at: now });
+    try {
+      await memoryApi.trashItem(id);
+    } catch (err) {
+      revertItems(originals);
+      throw err;
+    }
+    set({ allItemsLoaded: false });
+    refreshTotals();
   },
 
   restoreItem: async (id) => {
     const name = get().items.find((item) => item.id === id)?.name;
-    await memoryApi.restoreItem(id, name);
-    const spaceId = get().activeSpaceId;
-    if (spaceId) await get().loadItems(spaceId);
-    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+    const originals = patchItems((item) => item.id === id, {
+      deleted_at: null,
+      updated_at: new Date().toISOString(),
+    });
+    try {
+      await memoryApi.restoreItem(id, name);
+    } catch (err) {
+      revertItems(originals);
+      throw err;
+    }
+    set({ allItemsLoaded: false });
+    refreshTotals();
   },
 
   loadVersions: async (itemId) => {
@@ -246,7 +317,7 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
 
   loadDocuments: async (spaceId) => {
     try {
-      set({ documents: await memoryApi.listDocuments(spaceId, get().showTrashed) });
+      set({ documents: await memoryApi.listDocuments(spaceId, true) });
     } catch (err) {
       set({ error: message(err, 'Could not load the files in this space.') });
     }
@@ -268,22 +339,72 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
   },
 
   trashDocument: async (id) => {
-    await memoryApi.trashDocument(id);
-    const spaceId = get().activeSpaceId;
-    if (spaceId) {
-      await get().loadItems(spaceId);
-      await get().loadDocuments(spaceId);
+    const now = new Date().toISOString();
+    const original = patchDocument(id, { deleted_at: now });
+    // The live pieces go with it, the same rows memory_trash_document moves.
+    const pieces = patchItems((item) => item.source_id === id && item.deleted_at === null, {
+      deleted_at: now,
+      updated_at: now,
+    });
+    try {
+      await memoryApi.trashDocument(id);
+    } catch (err) {
+      revertDocument(original);
+      revertItems(pieces);
+      throw err;
     }
-    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+    set({ allItemsLoaded: false });
+    refreshTotals();
   },
 
   restoreDocument: async (id) => {
-    await memoryApi.restoreDocument(id);
-    const spaceId = get().activeSpaceId;
-    if (spaceId) {
-      await get().loadItems(spaceId);
-      await get().loadDocuments(spaceId);
+    const original = patchDocument(id, { deleted_at: null });
+    // Every piece comes back, as memory_restore_document brings them all.
+    const pieces = patchItems((item) => item.source_id === id, {
+      deleted_at: null,
+      updated_at: new Date().toISOString(),
+    });
+    try {
+      await memoryApi.restoreDocument(id);
+    } catch (err) {
+      revertDocument(original);
+      revertItems(pieces);
+      throw err;
     }
-    set({ totals: await memoryApi.spaceTotals(), allItemsLoaded: false });
+    set({ allItemsLoaded: false });
+    refreshTotals();
+  },
+
+  deleteForever: async (spaceId, target) => {
+    const { items, documents } = get();
+    const files = documents.filter(
+      (doc) =>
+        doc.space_id === spaceId && doc.deleted_at !== null && target.documentIds.includes(doc.id),
+    );
+    const fileIds = new Set(files.map((doc) => doc.id));
+    // A file's trashed pieces go with it, so deleting the file never leaves
+    // them behind as loose rows in the trash.
+    const itemIds = items
+      .filter(
+        (item) =>
+          item.space_id === spaceId &&
+          item.deleted_at !== null &&
+          (target.itemIds.includes(item.id) ||
+            (item.source_id !== null && fileIds.has(item.source_id))),
+      )
+      .map((item) => item.id);
+
+    const removed = await memoryApi.deleteForever(spaceId, itemIds, files);
+
+    const gone = new Set(itemIds);
+    set((state) => ({
+      items: state.items.filter((item) => !gone.has(item.id)),
+      documents: state.documents.filter((doc) => !fileIds.has(doc.id)),
+    }));
+    // Read back once in the background: the server may have recounted a live
+    // file's pieces or unlinked a live piece from a file it deleted.
+    void get().loadItems(spaceId);
+    void get().loadDocuments(spaceId);
+    return removed;
   },
 }));

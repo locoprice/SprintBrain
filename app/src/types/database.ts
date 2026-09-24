@@ -482,6 +482,8 @@ export interface MemoryItem {
   priority: number;
   /** sha256 of the body, generated. Drives the exact-duplicate pass. */
   content_hash: string;
+  /** The uploaded file this item was cut from, or null when it was typed. */
+  source_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
   deleted_at: IsoDateTime | null;
