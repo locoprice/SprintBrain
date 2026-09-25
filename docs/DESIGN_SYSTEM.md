@@ -260,6 +260,16 @@ Keep the text short. Avada centres it inside 200 px, so a sentence or two reads 
 
 ## Visual references
 
+### Landing platforms and security (v3.49.0)
+
+The approved landing composition merges the three platform cards and security section into four tabs: Chrome Extension, Web Dashboard, Mobile Website, and Security. It retains the existing copy and azure palette. `#platforms` scopes the styling; the blue, ink, muted text and paper aliases inherit the landing's `--primary`, `--text`, `--text2` and `--card`. The section registers `--sb-line: #dde2ef`, `--sb-bg: #f7f8fc` and `--sb-radius: 24px`. The pale azure gradients, translucent backplates and cube shading are decorative artwork, local to this marketing composition. They do not introduce new product status colours.
+
+The screenshot stage uses CSS perspective, floating layers and pointer tilt, with no 3D runtime. The Mobile Website tab has a dedicated vector scene inspired by the technical wireframes in Bending Spoons and Scale: the same pale azure background as the other tabs, projected orbital geometry, snippet-to-browser data paths and the actual product capture framed in a detailed device. The geometry stays sharp at any resolution; the screenshot retains its original pixel resolution. The azure highlights and metallic device shading are decorative artwork scoped to `.sb-mobile-scene`.
+
+Transforms and opacity drive the device and layers; four lightweight SVG stroke paths animate their dash offsets. All loops share `--sb-animation-state`, pausing outside the viewport, in a hidden document, or through the 44 px pause control. Manual pause freezes their current positions. Reduced-motion preferences disable motion. Tabs support Left/Right, Home/End, visible focus and a labelled panel. Below 590 px the four tabs stay visible above stacked copy and artwork. Without JavaScript, the original platform and security text remains readable.
+
+The four local, content-hashed image assets live in `app/public/landing/assets/platforms/`. Chrome Extension and Web Dashboard use real SprintBrain captures from the official Chrome Web Store gallery; Security uses a capture of the existing SprintBrain security section. Mobile Website uses the original 1080 × 2316 JPEG supplied by the user, displayed in full with `object-fit: contain`, without resampling or altering its contents. Each image retains its source link, intrinsic dimensions and percentage crop inside a clipping frame. Update `RELATIVE_ASSETS` in `scripts/build-landing-i18n.js` when replacing an asset, then regenerate IT/ES from the English source and locale maps.
+
 | Surface  | Mockup section                                | Live screenshot                                                       |
 | -------- | --------------------------------------------- | --------------------------------------------------------------------- |
 | Mobile   | "Landing + mobile home" + "Mobile · states"   | `design_handoff_design_system/screenshots/step-a.png`                 |

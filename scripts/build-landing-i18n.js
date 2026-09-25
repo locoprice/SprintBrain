@@ -34,6 +34,10 @@ const RELATIVE_ASSETS = [
   'supported-aws-startups.png',
   'supported-nvidia-inception.png',
   'supported-google-for-startups.png',
+  'assets/platforms/chrome-extension-2346f49352.webp',
+  'assets/platforms/web-dashboard-f279d50f4a.webp',
+  'assets/platforms/mobile-app-2be08c95f8.jpg',
+  'assets/platforms/security-b15d62fdd2.webp',
 ];
 
 const CANONICAL = 'https://sprintbrain.com/';
