@@ -181,7 +181,7 @@ const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracki
 const FIELDS_HINT =
   'A field is a blank you fill in when the snippet expands. Insert one from a group below and it becomes a box in the fill form. Open a group to see what it does.';
 
-// The other two groups answer the same question about themselves, in the same
+// The other three groups answer the same question about themselves, in the same
 // three beats: what the thing is, what it does to the message, and where to
 // look next. Each opens with the line that used to sit under the heading in
 // the rail itself — the rail is 260px wide and every line spent explaining it
@@ -189,8 +189,10 @@ const FIELDS_HINT =
 // column stays a column of things you can click.
 const ACTIONS_HINT =
   'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
+const MATH_HINT =
+  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open Formula below to see what it does.';
 const LOGIC_HINT =
-  'Worked out on its own. A total, a line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
+  'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
@@ -1298,24 +1300,25 @@ export function NewSnippetDialog() {
               </Toggle>
             </div>
 
-            {/* Logic */}
-            <div className="flex-1 p-4">
+            {/* Math */}
+            <div className="p-4 border-b border-line">
               <div className="flex items-center gap-1.5">
-                <p className={SIDEBAR_LABEL}>Logic</p>
+                <p className={SIDEBAR_LABEL}>Math</p>
                 <Tooltip
-                  label={LOGIC_HINT}
+                  label={MATH_HINT}
                   placement="right"
                   className="flex items-center text-ink-subtle hover:text-ink transition-colors"
                 >
                   <Info className="h-3 w-3" aria-hidden />
                 </Tooltip>
               </div>
-              {/* The three read as the field toggles above them read: what the
-                  token is, what it may contain, then the button that writes it.
-                  Each replaces a chip that carried its whole explanation in a
-                  hover title, which no one hovers before clicking — and these
-                  three needed the explanation most, since a condition and a
-                  formula are the only tokens that can silently print nothing. */}
+              {/* Formula, Condition and Greeting read as the field toggles above
+                  them read: what the token is, what it may contain, then the
+                  button that writes it. Each replaces a chip that carried its
+                  whole explanation in a hover title, which no one hovers before
+                  clicking, and these needed the explanation most, since a
+                  condition and a formula are the only tokens that can silently
+                  print nothing. */}
               <Toggle
                 label="Formula"
                 className="mb-2.5 mt-2.5"
@@ -1358,10 +1361,23 @@ export function NewSnippetDialog() {
                   ))}
                 </dl>
               </Toggle>
+            </div>
 
+            {/* Logic */}
+            <div className="flex-1 p-4">
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Logic</p>
+                <Tooltip
+                  label={LOGIC_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
+                >
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
+              </div>
               <Toggle
                 label="Condition"
-                className="mb-2.5"
+                className="mb-2.5 mt-2.5"
                 footer={
                   <Button
                     type="button"
