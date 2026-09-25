@@ -9,6 +9,7 @@ import {
   Briefcase,
   Bug,
   Github,
+  Lightbulb,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -326,6 +327,19 @@ export function Sidebar() {
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
                   Report a bug
                 </button>
+              )}
+              {RESOURCE_LINKS.discussions && (
+                <a
+                  href={RESOURCE_LINKS.discussions}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Lightbulb className="h-4 w-4 text-[#8E8E93]" />
+                  Feature requests
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
+                </a>
               )}
               {RESOURCE_LINKS.github && (
                 <a
