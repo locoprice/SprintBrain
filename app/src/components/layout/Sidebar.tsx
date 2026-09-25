@@ -9,6 +9,7 @@ import {
   Briefcase,
   Bug,
   Github,
+  Lightbulb,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -131,7 +132,7 @@ export function Sidebar() {
     { to: '/prompts', label: 'Prompts', icon: Sparkles, count: promptCount },
     // No count pill: the spaces list is loaded by the Memory page itself, and
     // pulling that store into the sidebar would make every page fetch it.
-    { to: '/memory', label: 'Memory', icon: Brain },
+    { to: '/memory', label: 'Brains', icon: Brain },
     { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount, dividerBefore: true },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   ];
@@ -326,6 +327,19 @@ export function Sidebar() {
                   <Bug className="h-4 w-4 text-[#8E8E93]" />
                   Report a bug
                 </button>
+              )}
+              {RESOURCE_LINKS.discussions && (
+                <a
+                  href={RESOURCE_LINKS.discussions}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={MENU_ITEM}
+                >
+                  <Lightbulb className="h-4 w-4 text-[#8E8E93]" />
+                  Feature requests
+                  <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#9B9BA1]" />
+                </a>
               )}
               {RESOURCE_LINKS.github && (
                 <a

@@ -51,6 +51,7 @@ const MIME = {
   '.jpg':   'image/jpeg',
   '.jpeg':  'image/jpeg',
   '.svg':   'image/svg+xml',
+  '.webp':  'image/webp',
   '.woff':  'font/woff',
   '.woff2': 'font/woff2',
   '.ico':   'image/x-icon',
@@ -65,7 +66,10 @@ function stamp(html) {
 
 http.createServer((req, res) => {
   const urlPath = req.url.split('?')[0];
-  const filePath = path.join(ROOT, urlPath === '/' ? 'index.html' : urlPath);
+  let filePath = path.join(ROOT, urlPath === '/' ? 'index.html' : urlPath);
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(filePath, 'index.html');
+  }
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     res.writeHead(404);

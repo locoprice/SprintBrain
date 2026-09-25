@@ -482,8 +482,53 @@ export interface MemoryItem {
   priority: number;
   /** sha256 of the body, generated. Drives the exact-duplicate pass. */
   content_hash: string;
+  /** The uploaded file this item was cut from, or null when it was typed. */
+  source_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+  deleted_at: IsoDateTime | null;
+}
+
+/**
+ * One saved version of a prompt: a row of `public.prompt_versions`
+ * (HISTORY-001). Append-only, like a snippet revision. Restoring writes a new
+ * row rather than rewriting an old one.
+ */
+export interface PromptVersion {
+  id: Uuid;
+  prompt_id: Uuid;
+  version_number: number;
+  editor_id: Uuid | null;
+  editor_display: string;
+  name: string;
+  content: string;
+  blocks: PromptBlock[] | null;
+  edit_note: string | null;
+  created_at: IsoDateTime;
+}
+
+/**
+ * One uploaded file: a row of `public.memory_documents` (MEMORY-002 D1).
+ *
+ * The row holds no text. What the file said lives in `MemoryItem` rows whose
+ * `source_id` points back here, cut by the shared chunker, and deleting the
+ * document takes them with it.
+ */
+export interface MemoryDocument {
+  id: Uuid;
+  user_id: Uuid;
+  space_id: Uuid;
+  /** The file name as uploaded, which is what the space lists. */
+  name: string;
+  mime: string;
+  byte_size: number;
+  /** `<user_id>/<random>.<ext>` inside the private `memory-docs` bucket. */
+  storage_path: string;
+  /** Items this file became. */
+  chunk_count: number;
+  /** sha256 of the extracted text, so a re-upload is recognisable. */
+  content_hash: string | null;
+  created_at: IsoDateTime;
   deleted_at: IsoDateTime | null;
 }
 

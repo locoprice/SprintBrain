@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1B4FD8">
 <title>SprintBrain: Your context. Every AI. One direction.</title>
-<meta name="description" content="One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.">
+<meta name="description" content="One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.">
 <link rel="alternate" hreflang="en" href="https://sprintbrain.com/">
 <link rel="alternate" hreflang="es" href="https://sprintbrain.com/es/">
 <link rel="alternate" hreflang="it" href="https://sprintbrain.com/it/">
@@ -393,45 +393,9 @@ img,svg{display:block;max-width:100%}
 .feature p{font-size:14.5px;color:var(--text2);line-height:1.55}
 
 
-/* SECURITY */
-.sec{padding:100px 24px 108px;background:var(--bg-alt);border-top:1px solid var(--border)}
-.sec-inner{max-width:var(--max);margin:0 auto}
-.sec-head{text-align:center;margin-bottom:48px}
-.sec-eyebrow{display:inline-block;background:var(--card);border:1px solid var(--border);
-  color:var(--text);padding:6px 16px;border-radius:100px;
-  font-size:12.5px;font-weight:700;letter-spacing:.02em;margin-bottom:20px}
-.sec-head h2{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-1.4px;
-  line-height:1.08;color:var(--text);margin-bottom:16px}
-.sec-head p{font-size:17px;color:var(--text2);max-width:620px;margin:0 auto;line-height:1.6}
+/* Shared call to action in the closing statement. */
 .sec-ctas{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:30px}
-.sec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.sec-card{background:var(--card);border:1px solid var(--border);border-radius:18px;
-  padding:28px 24px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
-.sec-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);
-  border-color:rgba(27,79,216,.18)}
-.sec-icon{width:42px;height:42px;border-radius:12px;background:var(--primary-lt);
-  color:var(--primary);display:flex;align-items:center;justify-content:center;
-  margin-bottom:18px}
-.sec-card h3{font-size:16px;font-weight:700;letter-spacing:-.2px;
-  color:var(--text);margin-bottom:8px}
-.sec-card p{font-size:14px;color:var(--text2);line-height:1.55}
-.sec-strip{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
-  gap:8px 0;margin-top:42px;font-size:13.5px;color:var(--text3);text-align:center}
-.sec-strip span{padding:0 16px;border-right:1px solid var(--border)}
-.sec-strip span:last-child{border-right:none}
-
-@media(max-width:900px){
-  .sec-grid{grid-template-columns:1fr 1fr}
-}
-@media(max-width:560px){
-  .sec{padding:64px 20px 72px}
-  .sec-head{margin-bottom:34px}
-  .sec-grid{grid-template-columns:1fr;gap:14px}
-  .sec-ctas{flex-direction:column;align-items:stretch}
-  .sec-ctas .btn{width:100%}
-  .sec-strip{margin-top:30px;font-size:12.5px}
-  .sec-strip span{border-right:none;padding:0 10px}
-}
+@media(max-width:560px){.sec-ctas{flex-direction:column;align-items:stretch}.sec-ctas .btn{width:100%}}
 
 /* FOOTER STATEMENT */
 .foot-statement{background:#0d0d0d;padding:clamp(64px,10vw,120px) clamp(24px,6vw,80px) clamp(72px,11vw,140px);overflow:hidden}
@@ -716,182 +680,126 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .fs-card-title{font-size:26px}
 }
 
-/* ── PLATFORMS v2: premium 3-surface section ─────────────── */
-.plat{
-  padding:120px 24px 128px;
-  background:linear-gradient(168deg,#edf2ff 0%,#fafafa 52%,#f0f5ff 100%);
-  position:relative;overflow:hidden}
-.plat-orb{position:absolute;border-radius:50%;pointer-events:none}
-.plat-orb-a{
-  width:900px;height:900px;
-  background:radial-gradient(circle,rgba(27,79,216,.08) 0%,transparent 62%);
-  top:-300px;right:-220px}
-.plat-orb-b{
-  width:600px;height:600px;
-  background:radial-gradient(circle,rgba(27,79,216,.055) 0%,transparent 62%);
-  bottom:-180px;left:-140px}
-.plat-inner{
-  max-width:var(--max);margin:0 auto;
-  position:relative;z-index:1;text-align:center}
-.plat-badge{
-  display:inline-flex;align-items:center;gap:8px;
-  background:rgba(52,199,89,.1);color:#15803d;
-  border:1px solid rgba(52,199,89,.3);
-  padding:6px 16px;border-radius:100px;
-  font-size:13px;font-weight:700;letter-spacing:.01em;margin-bottom:28px}
-.plat-title{
-  font-size:clamp(40px,5.8vw,68px);font-weight:800;
-  letter-spacing:-2.8px;line-height:1.03;
-  margin-bottom:20px;color:var(--text)}
-.plat-title span{
-  background:linear-gradient(125deg,var(--primary) 0%,#4F7FE8 50%,#7FA8F8 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.plat-sub{
-  font-size:19px;color:var(--text2);
-  max-width:540px;margin:0 auto 72px;line-height:1.55}
+/* PLATFORMS + SECURITY */
+#platforms{--sb-blue:var(--primary);--sb-ink:var(--text);--sb-muted:var(--text2);--sb-line:#dde2ef;--sb-paper:var(--card);--sb-bg:#f7f8fc;--sb-radius:24px;--sb-tilt-x:0deg;--sb-tilt-y:0deg;color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;color:var(--sb-ink);background:var(--sb-bg);container-type:inline-size;overflow:hidden;isolation:isolate}
+#platforms *{box-sizing:border-box}
+#platforms button,#platforms a{-webkit-tap-highlight-color:transparent}
+#platforms h2,#platforms h3,#platforms h4,#platforms p,#platforms figure{margin:0}
+#platforms .sb-inner{max-width:1200px;margin:auto;padding:48px 30px 26px}
+#platforms .sb-header{text-align:center;max-width:690px;margin:0 auto 35px}
+#platforms .sb-eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--sb-muted);font-size:12px;font-weight:600;line-height:1.4;letter-spacing:.02em;margin-bottom:16px}
+#platforms .sb-eyebrow:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sb-blue);box-shadow:0 0 0 4px #1b4fd80b}
+#platforms .sb-header h2{font-size:clamp(34px,6.7cqi,61px);font-weight:720;line-height:1.07;letter-spacing:-.055em;color:var(--sb-ink)}
+#platforms .sb-header h2 span{display:block;color:var(--sb-blue)}
+#platforms .sb-header p{max-width:590px;margin:20px auto 0;font-size:15px;line-height:1.7;color:var(--sb-muted)}
+#platforms .sb-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;border-bottom:1px solid var(--sb-line);padding:0 0 9px;margin-bottom:28px}
+#platforms .sb-tab{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9px;background:transparent;color:var(--sb-muted);line-height:1.25;font-family:inherit;font-size:12px;font-weight:600;min-height:51px;padding:10px 6px;transition:background .22s,color .22s}
+#platforms .sb-tab:hover{background:#eaf0ff}
+#platforms .sb-tab[aria-selected="true"]{background:#e9efff;color:var(--sb-blue)}
+#platforms .sb-tab[aria-selected="true"]:after{content:"";position:absolute;left:15px;right:15px;bottom:-10px;height:2px;background:var(--sb-blue);border-radius:2px}
+#platforms .sb-tab svg{width:17px;height:17px;flex:none;stroke-width:1.8}
+#platforms .sb-panel-layout{display:grid;grid-template-columns:minmax(0,.77fr) minmax(0,1.4fr);align-items:center;gap:26px;min-height:365px}
+#platforms .sb-copy{padding:10px 0 18px}
+#platforms .sb-index{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-size:11px;color:var(--sb-blue);font-weight:600;letter-spacing:.06em}
+#platforms .sb-index-line{height:1px;width:32px;background:#b9c9f3}
+#platforms .sb-copy h3{font-size:clamp(25px,4cqi,35px);font-weight:680;letter-spacing:-.045em;line-height:1.1;margin-bottom:16px;text-wrap:balance}
+#platforms .sb-copy p{font-size:14px;line-height:1.78;color:var(--sb-muted)}
+#platforms .sb-badge{display:inline-flex;align-items:center;gap:7px;color:var(--sb-blue);font-size:11px;font-weight:600;margin-top:20px}
+#platforms .sb-badge svg{width:14px;height:14px}
+#platforms .sb-stage{position:relative;min-width:0;aspect-ratio:1.08;border:1px solid #e0e7f8;border-radius:var(--sb-radius);background:radial-gradient(ellipse at 67% 28%,#cfdbff 0,transparent 52%),linear-gradient(140deg,#f0f4ff,#e6ecfb 70%,#e0e9ff);perspective:1200px;overflow:hidden;contain:layout paint}
+#platforms .sb-stage:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#1b4fd805 1px,transparent 1px),linear-gradient(90deg,#1b4fd805 1px,transparent 1px);background-size:30px 30px;mask-image:linear-gradient(135deg,#000,transparent 75%)}
+#platforms .sb-orbit{position:absolute;width:93%;height:42%;border:1px solid #1b4fd813;border-radius:50%;bottom:-6%;left:9%;transform:rotate(-20deg)}
+#platforms .sb-orbit:after{content:"";position:absolute;inset:19px;border:1px solid #1b4fd80d;border-radius:inherit}
+#platforms .sb-motion{position:absolute;z-index:6;right:12px;top:12px;width:30px;height:30px;display:grid;place-items:center;color:var(--sb-blue);background:#ffffffd9;border:1px solid #ffffff;border-radius:50%;padding:7px}
+#platforms .sb-motion svg{width:13px;height:13px;grid-area:1/1}
+#platforms .sb-motion[aria-pressed="true"] .sb-pause,#platforms .sb-motion[aria-pressed="false"] .sb-play{display:none}
+#platforms .sb-assembly{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(var(--sb-tilt-x)) rotateY(var(--sb-tilt-y));transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+#platforms .sb-float{position:absolute;inset:0;transform-style:preserve-3d;animation:sb-drift 7s ease-in-out infinite;animation-play-state:paused}
+#platforms .sb-backplate{position:absolute;left:20%;top:19%;width:70%;height:65%;border:1px solid #ffffffbe;border-radius:14px;background:linear-gradient(145deg,#ffffffd9,#cbd9fb);box-shadow:0 18px 25px #193c8a0b;transform:rotateX(8deg) rotateY(-14deg) rotateZ(-9deg) translateZ(-25px)}
+#platforms .sb-backplate.second{left:16%;top:17%;background:#f8fbff;transform:rotateX(8deg) rotateY(-14deg) rotateZ(3deg) translateZ(-13px);opacity:.7}
+#platforms .sb-frame{position:absolute;left:13%;top:15%;width:77%;height:auto;aspect-ratio:1.075;overflow:hidden;border-radius:12px;border:1px solid #ffffff;box-shadow:9px 22px 32px #21428f27,0 2px 4px #21428f10;background:#f4f6ff;transform:rotateX(6deg) rotateY(-13deg) rotateZ(-3deg);transition:transform .5s}
+#platforms .sb-frame img{position:absolute;max-width:none!important;display:block;height:auto;user-select:none;pointer-events:none}
+#platforms .sb-float-label{position:absolute;left:7%;bottom:10%;padding:11px 14px;background:#fff;border:1px solid #e3e8f4;border-radius:10px;box-shadow:0 9px 20px #244c9514;color:var(--sb-ink);font-size:11px;font-weight:600;display:flex;gap:8px;align-items:center;transform:translateZ(45px) rotateZ(-2deg)}
+#platforms .sb-float-label svg{width:15px;height:15px;color:var(--sb-blue)}
+#platforms .sb-cube{position:absolute;right:5%;top:13%;width:47px;height:47px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#5280f4,var(--sb-blue) 68%);border:1px solid #5981e9;color:#fff;box-shadow:4px 6px 0 #173daa,8px 13px 18px #153d9940;transform:translateZ(60px) rotateX(10deg) rotateY(-18deg) rotateZ(10deg)}
+#platforms .sb-cube svg{width:23px;height:23px;stroke-width:1.6}
+#platforms .sb-source{font-size:11px;line-height:1.5;margin:10px 0 0;color:#677186;display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+#platforms .sb-source a{color:#677186;text-decoration:underline;text-decoration-color:#c4ccdc;text-underline-offset:3px}
+#platforms .sb-security-features{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin-top:27px;padding-top:7px;border-top:1px solid var(--sb-line)}
+#platforms .sb-security-item{padding:22px 0 4px}
+#platforms .sb-security-item h4{font-size:14px;font-weight:650;letter-spacing:-.02em;line-height:1.4;display:flex;gap:9px;align-items:center;margin-bottom:9px}
+#platforms .sb-security-item svg{width:17px;height:17px;color:var(--sb-blue);flex:none}
+#platforms .sb-security-item p{font-size:12px;line-height:1.75;color:var(--sb-muted)}
+#platforms .sb-trust{display:flex;flex-wrap:wrap;gap:10px 17px;padding-top:24px;color:var(--sb-muted);font-size:11px;line-height:1.6}
+#platforms .sb-trust span{display:inline-flex;gap:5px;align-items:center}
+#platforms .sb-trust span:before{content:"✓";color:var(--sb-blue)}
+#platforms .sb-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:19px}
+#platforms .sb-actions a{font-size:11px;font-weight:600;text-decoration:none;color:var(--sb-blue);line-height:1.3;padding:12px 0}
+#platforms .sb-actions .sb-primary{background:var(--sb-blue);color:white;padding:12px 15px;border-radius:8px;box-shadow:0 3px 7px #1b4fd81c}
+#platforms .sb-footer{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:35px;padding:24px 0 0;background:transparent;border-top:1px solid var(--sb-line);color:#677186;font-size:11px;letter-spacing:.055em;line-height:1.6;text-align:center}
+#platforms [hidden]{display:none!important}
+#platforms[data-tab="web-dashboard"] .sb-frame{left:6%;top:27%;width:92%;aspect-ratio:1.72;transform:rotateX(9deg) rotateY(-13deg) rotateZ(-4deg)}
+#platforms[data-tab="web-dashboard"] .sb-backplate{top:24%;height:50%;width:80%;left:13%}
+#platforms[data-tab="mobile"] .sb-frame{left:8%;top:13%;width:87%;aspect-ratio:1.14;transform:rotateX(4deg) rotateY(-10deg) rotateZ(2deg);border-radius:16px}
+#platforms[data-tab="security"] .sb-frame{left:5%;top:28%;width:92%;aspect-ratio:1.83;transform:rotateX(8deg) rotateY(-12deg) rotateZ(-3deg)}
+#platforms[data-tab="security"] .sb-backplate{top:27%;height:49%}
+#platforms[data-motion="off"] .sb-float{animation-play-state:paused}
+#platforms[data-motion="off"] .sb-assembly{transform:none}
+@keyframes sb-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@container (min-width:920px){#platforms .sb-inner{padding:60px 55px 30px}#platforms .sb-panel-layout{grid-template-columns:.8fr 1.4fr;gap:55px}#platforms .sb-copy p{font-size:16px}#platforms .sb-tab{font-size:14px}#platforms .sb-stage{aspect-ratio:1.28}#platforms .sb-frame{width:66%;left:21%;top:10%}#platforms .sb-float-label{font-size:12px}#platforms .sb-cube{width:58px;height:58px}#platforms .sb-header p{font-size:17px}}
+@container (max-width:590px){#platforms .sb-inner{padding:34px 20px 23px}#platforms .sb-header{margin-bottom:27px}#platforms .sb-header p{font-size:14px;line-height:1.65;margin-top:17px}#platforms .sb-tab{flex-direction:column;font-size:11px;gap:7px;padding:10px 3px;min-height:67px}#platforms .sb-tabs{gap:2px;margin-bottom:25px}#platforms .sb-panel-layout{grid-template-columns:1fr;gap:8px;min-height:0}#platforms .sb-copy{padding:0 0 18px}#platforms .sb-copy h3{font-size:27px;margin-bottom:12px}#platforms .sb-copy p{font-size:14px;line-height:1.65}#platforms .sb-index{margin-bottom:12px}#platforms .sb-stage{aspect-ratio:1.12;max-width:430px;margin:auto}#platforms .sb-badge{margin-top:14px}#platforms .sb-security-features{grid-template-columns:1fr;gap:0;margin-top:22px}#platforms .sb-security-item{padding:18px 0 0}#platforms .sb-footer{margin-top:26px;font-size:11px;letter-spacing:.02em}#platforms .sb-trust{font-size:11px}#platforms .sb-source{font-size:11px}}
+@media(prefers-reduced-motion:reduce){#platforms *,#platforms *:before,#platforms *:after{animation:none!important;transition:none!important}#platforms .sb-assembly{transform:none!important}}
+#platforms{scroll-margin-top:90px}
+#platforms button,#platforms a{cursor:pointer}
+#platforms .sb-motion{width:44px;height:44px}
+#platforms .sb-motion:disabled{cursor:default;opacity:.6}
+#platforms :focus-visible{outline:3px solid var(--sb-blue);outline-offset:4px}
+#platforms .sb-copies{min-width:0}
+#platforms .sb-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+#platforms .sb-cube{pointer-events:none}
+#platforms .sb-security-item h4>span{min-width:0}
+#platforms .sb-panel-enter{animation:sb-panel-enter .32s ease-out}
+#platforms .sb-shot-enter{animation:sb-shot-enter .42s cubic-bezier(.2,.7,.2,1)}
+#platforms[data-motion="off"] .sb-panel-enter,#platforms[data-motion="off"] .sb-shot-enter{animation:none}
+@keyframes sb-panel-enter{from{opacity:.2;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sb-shot-enter{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── 3D DEVICE STAGE ─────────────────────────────────────── */
-.plat-stage{
-  perspective:1400px;
-  height:300px;
-  position:relative;
-  margin-bottom:80px;
-  display:flex;align-items:center;justify-content:center}
-.plat-device{
-  position:absolute;background:#fff;
-  border:1px solid rgba(27,79,216,.12);overflow:hidden;
-  box-shadow:0 28px 70px rgba(27,79,216,.16),0 4px 14px rgba(0,0,0,.07)}
 
-/* Dashboard: back layer */
-.plat-device--dash{
-  width:580px;height:206px;border-radius:14px;
-  transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px);
-  animation:platDash 7s ease-in-out infinite}
-@keyframes platDash{
-  0%,100%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(0)}
-  50%{transform:rotateX(14deg) rotateY(-2deg) translateZ(-50px) translateY(-13px)}}
-
-/* Extension popup: right, mid-depth */
-.plat-device--popup{
-  width:200px;height:240px;border-radius:12px;
-  right:calc(50% - 374px);
-  transform:rotateX(10deg) rotateY(-7deg) translateZ(28px);
-  animation:platPopup 7s ease-in-out infinite .85s}
-@keyframes platPopup{
-  0%,100%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(0)}
-  50%{transform:rotateX(10deg) rotateY(-7deg) translateZ(28px) translateY(-17px)}}
-
-/* Mobile: left, front */
-.plat-device--mobile{
-  width:110px;height:236px;border-radius:24px;
-  left:calc(50% - 374px);
-  transform:rotateX(8deg) rotateY(8deg) translateZ(86px);
-  animation:platMobile 7s ease-in-out infinite 1.7s}
-@keyframes platMobile{
-  0%,100%{transform:rotateX(8deg) rotateY(8deg) translateZ(86px) translateY(0)}
-  50%{transform:rotateX(8deg) rotateY(8deg) translateZ(86px) translateY(-9px)}}
-
-/* dashboard chrome */
-.pd-topbar{height:32px;background:#F2F2F7;border-bottom:1px solid #E5E5EA;
-  display:flex;align-items:center;padding:0 12px;gap:6px}
-.pd-dot{width:9px;height:9px;border-radius:50%}
-.pd-body{display:flex;height:calc(100% - 32px)}
-.pd-sidebar{width:100px;background:#F7F7FA;border-right:1px solid #E5E5EA;
-  padding:10px 8px;display:flex;flex-direction:column;gap:5px}
-.pd-nav-row{height:22px;border-radius:6px;background:rgba(27,79,216,.08);
-  display:flex;align-items:center;padding:0 7px;gap:5px}
-.pd-nav-row.pd-active{background:var(--primary)}
-.pd-nav-dot{width:7px;height:7px;border-radius:2px;background:rgba(27,79,216,.35)}
-.pd-nav-row.pd-active .pd-nav-dot{background:rgba(255,255,255,.7)}
-.pd-nav-line{flex:1;height:3px;border-radius:2px;background:rgba(27,79,216,.15)}
-.pd-nav-row.pd-active .pd-nav-line{background:rgba(255,255,255,.45)}
-.pd-main{flex:1;padding:10px;display:flex;flex-direction:column;gap:6px}
-.pd-row{height:24px;border-radius:6px;background:#F2F2F7;
-  display:flex;align-items:center;padding:0 10px;gap:8px}
-.pd-tag{width:36px;height:9px;border-radius:3px;background:rgba(27,79,216,.14);flex-shrink:0}
-.pd-tag.pd-hi{background:var(--primary)}
-.pd-bar{height:8px;border-radius:3px;background:#D1D1D6}
-
-/* popup chrome */
-.pp-head{height:44px;background:var(--primary);
-  display:flex;align-items:center;padding:0 14px;gap:9px}
-.pp-logo{width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.22);
-  display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:800;color:#fff;font-family:-apple-system,sans-serif}
-.pp-label{font-size:12px;font-weight:700;color:#fff;letter-spacing:-.2px}
-.pp-body{padding:10px;display:flex;flex-direction:column;gap:6px}
-.pp-row{height:28px;border-radius:7px;background:#F7F7FA;border:1px solid #E5E5EA;
-  display:flex;align-items:center;padding:0 10px;gap:7px}
-.pp-row.pp-active{background:var(--primary-lt);border-color:rgba(27,79,216,.2)}
-.pp-trigger{font-family:ui-monospace,monospace;font-size:10px;
-  color:var(--primary);font-weight:700}
-.pp-name{font-size:10px;color:#8E8E93;flex:1}
-.pp-lang{font-size:9px;font-weight:700;background:rgba(27,79,216,.1);
-  color:var(--primary);padding:1px 5px;border-radius:4px}
-
-/* mobile chrome */
-.pm-notch{height:18px;background:#1C1C1E;
-  display:flex;align-items:center;justify-content:center}
-.pm-pill{width:36px;height:4px;border-radius:3px;background:#333}
-.pm-hero{height:50px;background:linear-gradient(160deg,var(--primary),#1440B0);
-  display:flex;align-items:center;padding:0 10px}
-.pm-brand{font-size:11px;font-weight:800;color:#fff;letter-spacing:-.3px;font-family:-apple-system,sans-serif}
-.pm-body{padding:8px;display:flex;flex-direction:column;gap:5px}
-.pm-row{height:26px;border-radius:8px;background:#F2F2F7;
-  display:flex;align-items:center;padding:0 8px;gap:6px}
-.pm-swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-.pm-stripe{height:6px;border-radius:3px;background:#D1D1D6}
-
-/* ── FEATURE CARDS ───────────────────────────────────────── */
-.plat-cards{
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:20px;margin-bottom:48px}
-.plat-card{
-  position:relative;background:#fff;
-  border:1px solid rgba(27,79,216,.1);border-radius:20px;
-  padding:32px 28px;text-align:left;
-  cursor:default;will-change:transform;
-  transition:box-shadow .3s ease,border-color .3s ease}
-.plat-card::after{
-  content:"";position:absolute;inset:0;border-radius:20px;
-  opacity:0;pointer-events:none;
-  background:linear-gradient(135deg,rgba(27,79,216,.04) 0%,transparent 60%);
-  transition:opacity .3s ease}
-.plat-card:hover::after{opacity:1}
-.plat-card:hover{
-  box-shadow:0 20px 64px rgba(27,79,216,.14),0 4px 16px rgba(0,0,0,.05);
-  border-color:rgba(27,79,216,.22)}
-.plat-icon{
-  width:52px;height:52px;border-radius:14px;
-  background:var(--primary-lt);color:var(--primary);
-  display:flex;align-items:center;justify-content:center;margin-bottom:20px}
-.plat-card h3{
-  font-size:19px;font-weight:700;letter-spacing:-.4px;
-  margin-bottom:10px;color:var(--text)}
-.plat-card p{
-  font-size:14.5px;color:var(--text2);line-height:1.6;margin-bottom:20px}
-.plat-pill{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--primary-lt);color:var(--primary);
-  border:1px solid rgba(27,79,216,.18);
-  padding:5px 12px;border-radius:100px;font-size:12px;font-weight:700}
-.plat-note{
-  font-size:14px;color:var(--text3);
-  display:flex;align-items:center;justify-content:center;
-  gap:14px;letter-spacing:.03em}
-.plat-note::before,.plat-note::after{
-  content:"";flex:1;max-width:140px;height:1px;background:var(--border)}
-
-@media(max-width:920px){
-  .plat-stage{display:none}
-  .plat-sub{margin-bottom:56px}
-  .plat-cards{grid-template-columns:1fr 1fr}
-  .plat-cards .plat-card:last-child{grid-column:span 2}}
-@media(max-width:560px){
-  .plat{padding:80px 20px 96px}
-  .plat-cards{grid-template-columns:1fr}
-  .plat-cards .plat-card:last-child{grid-column:span 1}
-  .plat-sub{font-size:17px;margin-bottom:48px}}
+/* Mobile: vector data paths and orbital geometry around the real product capture. */
+#platforms .sb-mobile-scene{position:absolute;inset:0;color:var(--sb-ink);overflow:hidden;container-type:inline-size;background:transparent}
+#platforms[data-tab="mobile"] .sb-stage{aspect-ratio:1.2}
+#platforms[data-tab="mobile"] .sb-stage:before,#platforms[data-tab="mobile"] .sb-orbit{display:none}
+#platforms[data-tab="mobile"] .sb-motion{background:#ffffffd9;border-color:#fff;color:var(--sb-blue)}
+#platforms .sb-mobile-heading{position:absolute;left:6%;right:15%;top:7%;display:flex;align-items:center;gap:10px;font:500 clamp(7px,1.5cqi,11px)/1.3 var(--sb-mono,monospace);letter-spacing:.15em;color:#5c7094;z-index:2}
+#platforms .sb-mobile-heading-rule{height:1px;background:#c4d1eb;flex:1;margin:0 3%}
+#platforms .sb-mobile-signal{width:5px;height:5px;border-radius:50%;background:var(--sb-blue);box-shadow:0 0 10px #1b4fd833}
+#platforms .sb-mobile-depth{position:absolute;inset:0;transform:rotateX(var(--sb-tilt-x)) rotateY(var(--sb-tilt-y));transition:transform .7s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d}
+#platforms .sb-mobile-blueprint{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#platforms .sb-mobile-phone{position:absolute;left:43%;top:16.8%;width:23%;height:57%;transform:translateY(0) rotateZ(-5deg);transform-style:preserve-3d;animation:sb-mobile-device 9s cubic-bezier(.45,0,.55,1) infinite;animation-play-state:var(--sb-animation-state,paused)}
+#platforms .sb-mobile-phone-front{position:absolute;inset:0;padding:5%;border:1px solid #8898b5;border-radius:9% / 4.5%;background:linear-gradient(110deg,#bcc8dc 0,#1d2940 1.5%,#0a101b 8%,#141c2c 86%,#8093b6 99%);box-shadow:inset 1px 0 1px #e7f0ff88,3px 3px 1px #040711,14px 19px 24px #00000055;overflow:hidden}
+#platforms .sb-mobile-phone-edge{position:absolute;inset:0 -3.5% 0 4%;border:1px solid #7186aa;border-radius:10% / 5%;background:linear-gradient(90deg,#050a12,#465a7b 94%,#121b2d);transform:translateZ(-6px)}
+#platforms .sb-mobile-screen{position:absolute;inset:4.8% 5.5%;border-radius:7% / 3%;overflow:hidden;background:#f7f8fc}
+#platforms .sb-mobile-screen img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;pointer-events:none;user-select:none}
+#platforms .sb-mobile-glass{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,#fff0 30%,#d6e4ff12 48%,#fff0 49%,#fff0 70%,#cbdfff0a);pointer-events:none}
+#platforms .sb-mobile-speaker{position:absolute;width:21%;height:1%;left:39.5%;top:2%;border-radius:10px;background:#060a12;box-shadow:0 1px #a4b8d82e}
+#platforms .sb-mobile-node{position:absolute;display:flex;align-items:center;gap:8px;font:500 clamp(7px,1.55cqi,11px)/1.3 var(--sb-mono,monospace);letter-spacing:-.025em;color:#405579;background:linear-gradient(125deg,#ffffffed,#f1f5ffed);border:1px solid #b8c9ec;box-shadow:0 10px 25px #1b4fd812,inset 0 1px #fff;border-radius:8px;padding:2.4% 2.7%;animation:sb-mobile-node 9s ease-in-out infinite;animation-play-state:var(--sb-animation-state,paused)}
+#platforms .sb-mobile-node svg{width:clamp(13px,3cqi,22px);height:clamp(13px,3cqi,22px);flex:none;color:var(--sb-blue)}
+#platforms .sb-mobile-node-library{left:9%;top:40%;display:grid;grid-template-columns:auto 1fr;gap:5px 9px;transform:perspective(600px) rotateY(12deg) rotateZ(-4deg);animation-delay:-3s}
+#platforms .sb-mobile-node-glyph{font:400 clamp(14px,4cqi,26px)/1.1 var(--sb-mono,monospace);color:var(--sb-blue);grid-row:span 2}
+#platforms .sb-mobile-node-code{font-size:.8em;color:#6b7e9e}
+#platforms .sb-mobile-node-browser{left:72%;top:30%;padding:2.2%;flex-direction:column;gap:7px;animation-delay:-5s}
+#platforms .sb-mobile-node-sync{right:7%;max-width:30%;top:62%;padding:2%;font-size:clamp(6px,1.4cqi,10px);gap:5px;animation-delay:-7s}
+#platforms .sb-mobile-caption{position:absolute;left:6%;right:6%;bottom:6%;display:flex;align-items:center;gap:10px;color:#687a9b;font:400 clamp(7px,1.4cqi,10px)/1.3 var(--sb-mono,monospace);letter-spacing:.03em}
+#platforms .sb-mobile-caption-line{height:1px;flex:1;background:linear-gradient(90deg,#b2c3e7,#b2c3e720)}
+#platforms .sb-mobile-orbit{animation:sb-mobile-orbit 18s linear infinite;animation-play-state:var(--sb-animation-state,paused)}
+#platforms .sb-mobile-rise{animation:sb-mobile-rise 8s ease-in-out infinite;animation-play-state:var(--sb-animation-state,paused)}
+#platforms .sb-mobile-data path{animation:sb-mobile-packet 6s linear infinite;animation-play-state:var(--sb-animation-state,paused)}
+#platforms[data-motion="off"] .sb-mobile-depth{transform:none}
+@keyframes sb-mobile-device{0%,100%{transform:translateY(0) rotateZ(-5deg)}50%{transform:translateY(-2.5%) rotateZ(-3deg)}}
+@keyframes sb-mobile-node{0%,100%{translate:0 0}50%{translate:0 -6px}}
+@keyframes sb-mobile-orbit{from{stroke-dashoffset:0}to{stroke-dashoffset:-1300}}
+@keyframes sb-mobile-rise{0%,100%{transform:translateY(8px);opacity:.35}50%{transform:translateY(-30px);opacity:.8}}
+@keyframes sb-mobile-packet{from{stroke-dashoffset:300}to{stroke-dashoffset:0}}
 
 /* ── FEATURE MODAL ───────────────────────────────────────── */
 .fm-backdrop{
@@ -1154,7 +1062,7 @@ body.cm-locked{overflow:hidden}
   <div class="hero-inner">
     <div class="hero-eyebrow">Chrome Extension · {{EXT_VERSION}}</div>
     <h1>Your AI can change.<br><span>Your context shouldn’t.</span></h1>
-    <p><strong>One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.</strong></p>
+    <p><strong>One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.</strong></p>
     <p>SprintBrain brings your reusable knowledge, instructions and workflows together in one intelligent workspace, so you can move between AI tools without starting from zero.</p>
     <div class="hero-ctas"><a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Try SprintBrain Free →</a></div>
     <p class="context-note">No lock-in. No unnecessary complexity. Just your context, ready to use.</p>
@@ -1224,7 +1132,7 @@ LeibTour Team</div>
         <article class="context-layer">
           <div class="context-layer-heading">
             <span class="context-layer-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg></span>
-            <h3>Memory</h3>
+            <h3>Brains</h3>
           </div>
           <p class="context-layer-lead">Your persistent context.</p>
           <p>Keep the knowledge, decisions, preferences and information that help AI understand what you are working on.</p>
@@ -1242,7 +1150,7 @@ LeibTour Team</div>
       <div class="context-map">
         <div class="context-source" aria-hidden="true">
           <div class="context-source-brand"><img src="leib-tour-icon.png" width="28" height="28" alt="" loading="lazy"><span>SprintBrain</span></div>
-          <div class="context-source-layers"><span>Snippets</span><span>Prompts</span><span>Memory</span></div>
+          <div class="context-source-layers"><span>Snippets</span><span>Prompts</span><span>Brains</span></div>
         </div>
         <div class="context-connector" aria-hidden="true"></div>
         <div class="context-models"><span>ChatGPT</span><span>Claude</span><span>Gemini</span><span>Kimi</span><span>DeepSeek</span><span class="context-model-future" aria-hidden="true">+</span></div>
@@ -1511,119 +1419,143 @@ LeibTour Team</div>
   </div>
 </section>
 
-<section class="plat">
-  <div class="plat-orb plat-orb-a" aria-hidden="true"></div>
-  <div class="plat-orb plat-orb-b" aria-hidden="true"></div>
-  <div class="plat-inner">
-
-    <div class="plat-badge">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-      No app to download
+<!-- Platforms and security: approved four-tab design. All copy remains readable without JavaScript. -->
+<section id="platforms" aria-labelledby="sb-platforms-heading" data-tab="chrome-extension" data-motion="off">
+  <div class="sb-inner">
+    <header class="sb-header">
+      <div class="sb-eyebrow">No app to download</div>
+      <h2 id="sb-platforms-heading">One account. <span>Three surfaces.</span></h2>
+      <p>SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once. Your snippets and formulas are everywhere, instantly.</p>
+    </header>
+    <div class="sb-tabs" role="tablist" aria-label="Explore SprintBrain" hidden>
+      <button type="button" class="sb-tab" role="tab" id="sb-tab-chrome-extension" aria-controls="sb-platform-panel" aria-selected="true" tabindex="0" data-key="chrome-extension"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"></path></svg><span>Chrome Extension</span></button>
+      <button type="button" class="sb-tab" role="tab" id="sb-tab-web-dashboard" aria-controls="sb-platform-panel" aria-selected="false" tabindex="-1" data-key="web-dashboard"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M9 21V9"></path></svg><span>Web Dashboard</span></button>
+      <button type="button" class="sb-tab" role="tab" id="sb-tab-mobile" aria-controls="sb-platform-panel" aria-selected="false" tabindex="-1" data-key="mobile"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg><span>Mobile Website</span></button>
+      <button type="button" class="sb-tab" role="tab" id="sb-tab-security" aria-controls="sb-platform-panel" aria-selected="false" tabindex="-1" data-key="security"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><span>Security</span></button>
     </div>
-
-    <h2 class="plat-title">One account.<br><span>Three surfaces.</span></h2>
-    <p class="plat-sub">SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once. Your snippets and formulas are everywhere, instantly.</p>
-
-    <!-- 3D floating device stack -->
-    <div class="plat-stage" aria-hidden="true">
-
-      <!-- Dashboard: back layer -->
-      <div class="plat-device plat-device--dash">
-        <div class="pd-topbar">
-          <span class="pd-dot" style="background:#FF5F57"></span>
-          <span class="pd-dot" style="background:#FEBC2E"></span>
-          <span class="pd-dot" style="background:#28C840"></span>
-        </div>
-        <div class="pd-body">
-          <div class="pd-sidebar">
-            <div class="pd-nav-row pd-active"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
-            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
-            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
-            <div class="pd-nav-row"><span class="pd-nav-dot"></span><span class="pd-nav-line"></span></div>
+    <div id="sb-platform-panel">
+      <div class="sb-panel-layout">
+        <div class="sb-copies">
+          <div class="sb-copy" data-platform="chrome-extension">
+            <div class="sb-index" aria-hidden="true"><span>01 / 04</span><span class="sb-index-line"></span></div>
+            <h3>Chrome Extension</h3>
+            <p>One-click install from the Chrome Web Store. The popup puts every snippet at your fingertips while you type, in Gmail, Slack, Notion, your CRM, anywhere.</p>
+            <div class="sb-badge"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg><span>Ready to install</span></div>
           </div>
-          <div class="pd-main">
-            <div class="pd-row"><span class="pd-tag pd-hi"></span><span class="pd-bar" style="width:60px"></span><span class="pd-bar" style="width:40px;margin-left:auto"></span></div>
-            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:80px"></span><span class="pd-bar" style="width:30px;margin-left:auto"></span></div>
-            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:55px"></span><span class="pd-bar" style="width:46px;margin-left:auto"></span></div>
-            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:70px"></span><span class="pd-bar" style="width:36px;margin-left:auto"></span></div>
-            <div class="pd-row"><span class="pd-tag"></span><span class="pd-bar" style="width:50px"></span><span class="pd-bar" style="width:52px;margin-left:auto"></span></div>
+          <div class="sb-copy" data-platform="web-dashboard">
+            <div class="sb-index" aria-hidden="true"><span>02 / 04</span><span class="sb-index-line"></span></div>
+            <h3>Web Dashboard</h3>
+            <p>Manage your full library from any browser. Create folders, write snippets with live formulas, share folders with your team, review analytics, and configure Notion sync. Nothing to install.</p>
+            <div class="sb-badge"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg><span>Lives in your browser</span></div>
+          </div>
+          <div class="sb-copy" data-platform="mobile">
+            <div class="sb-index" aria-hidden="true"><span>03 / 04</span><span class="sb-index-line"></span></div>
+            <h3>Mobile Website</h3>
+            <p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>
+            <div class="sb-badge"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg><span>No download required</span></div>
+          </div>
+          <div class="sb-copy" data-platform="security">
+            <div class="sb-index" aria-hidden="true"><span>04 / 04</span><span class="sb-index-line"></span></div>
+            <h3>Built for scale and security</h3>
+            <p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface, whether you're a "team" of one or an org of hundreds.</p>
+            <div class="sb-actions"><a class="sb-primary" href="https://app.sprintbrain.com/signup">Get started · it's free</a><a href="/legal/privacy-policy.html">Learn more</a></div>
           </div>
         </div>
+        <figure class="sb-visual">
+          <div class="sb-stage" aria-label="Interactive screenshot with depth and perspective">
+            <div class="sb-orbit" aria-hidden="true"></div>
+            <button class="sb-motion" type="button" aria-label="Pause animation" aria-pressed="false" data-pause-label="Pause animation" data-resume-label="Resume animation" hidden><svg width="20" height="20" aria-hidden="true" focusable="false" class="sb-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="3" width="5" height="18" rx="1"></rect><rect x="5" y="3" width="5" height="18" rx="1"></rect></svg><svg width="20" height="20" aria-hidden="true" focusable="false" class="sb-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg></button>
+            <div class="sb-mobile-scene" hidden>
+              <div class="sb-mobile-heading" aria-hidden="true"><span class="sb-mobile-signal"></span><span>SPRINTBRAIN</span><span class="sb-mobile-heading-rule"></span><span>03 / 04</span></div>
+              <div class="sb-mobile-depth">
+                <svg class="sb-mobile-blueprint" viewBox="0 0 720 600" fill="none" aria-hidden="true" focusable="false">
+                  <defs>
+                    <radialGradient id="sb-mobile-halo"><stop stop-color="#1b4fd8" stop-opacity=".12"/><stop offset="1" stop-color="#1b4fd8" stop-opacity="0"/></radialGradient>
+                    <linearGradient id="sb-mobile-wire" x1="100" y1="100" x2="600" y2="560" gradientUnits="userSpaceOnUse"><stop stop-color="#436bb9" stop-opacity=".5"/><stop offset=".5" stop-color="#4267ac" stop-opacity=".22"/><stop offset="1" stop-color="#315db5" stop-opacity=".6"/></linearGradient>
+                    <linearGradient id="sb-mobile-light" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#517fdf"/><stop offset=".5" stop-color="#4267ac"/><stop offset="1" stop-color="#1b4fd8"/></linearGradient>
+                    <linearGradient id="sb-mobile-base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf3ff"/><stop offset="1" stop-color="#cfddfa"/></linearGradient>
+                    <pattern id="sb-mobile-grid" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#315db5" fill-opacity=".2"/></pattern>
+                  </defs>
+                  <rect width="720" height="600" fill="url(#sb-mobile-grid)"/>
+                  <ellipse cx="390" cy="323" rx="320" ry="277" fill="url(#sb-mobile-halo)"/>
+                  <g stroke="url(#sb-mobile-wire)" stroke-width=".8">
+                    <path d="M72 458 365 568 650 448M113 399 369 493 610 405M153 351 371 431 567 361M196 304 373 369 525 317" opacity=".45"/>
+                    <path d="m72 458 124-154m17 207 70-198m82 255 8-254m141 194-64-191m200 131L525 317" opacity=".4"/>
+                    <ellipse cx="371" cy="437" rx="265" ry="100" stroke-dasharray="3 7"/>
+                    <ellipse cx="371" cy="416" rx="221" ry="84"/>
+                    <ellipse cx="371" cy="416" rx="189" ry="71" opacity=".45"/>
+                    <path d="M149 416 208 186M592 416 534 186M221 478 256 219M523 478 486 219" opacity=".55"/>
+                    <ellipse cx="371" cy="183" rx="164" ry="57" stroke-dasharray="2 7"/>
+                    <ellipse cx="371" cy="227" rx="179" ry="64" opacity=".3"/>
+                    <path d="M206 183c0-59 330-59 330 0" stroke="#5176bd" opacity=".58"/>
+                  </g>
+                  <g class="sb-mobile-orbit" style="transform-origin:371px 416px">
+                    <ellipse cx="371" cy="416" rx="265" ry="100" stroke="#426bcc" stroke-opacity=".55" stroke-dasharray="80 1220" stroke-width="1.3"/>
+                    <circle cx="109" cy="401" r="3" fill="#1b4fd8"/><circle cx="109" cy="401" r="8" stroke="#426bcc" stroke-opacity=".45"/>
+                  </g>
+                  <g class="sb-mobile-rise" stroke="#4872c2" stroke-opacity=".34" stroke-width=".7">
+                    <ellipse cx="371" cy="300" rx="204" ry="74"/>
+                    <ellipse cx="371" cy="335" rx="212" ry="78" opacity=".4"/>
+                  </g>
+                  <ellipse cx="387" cy="448" rx="109" ry="29" fill="#1b4fd8" fill-opacity=".1"/>
+                  <path d="M277 452v9c0 35 222 35 222 0v-9" fill="url(#sb-mobile-base)" stroke="#c4d3f1" stroke-width=".7"/>
+                  <ellipse cx="388" cy="452" rx="111" ry="29" fill="url(#sb-mobile-base)" stroke="#91abdc" stroke-width=".7"/>
+                  <ellipse cx="388" cy="452" rx="91" ry="22" stroke="#88a5dd" stroke-opacity=".34"/>
+                  <g stroke="#6084cf" stroke-opacity=".32" stroke-width="1">
+                    <path d="M167 273C215 273 198 354 311 354"/>
+                    <path d="M553 231C475 231 508 284 456 284"/>
+                    <path d="M584 384C524 384 513 394 458 394"/>
+                  </g>
+                  <g class="sb-mobile-data" stroke="url(#sb-mobile-light)" stroke-width="2" stroke-linecap="round" stroke-dasharray="20 280">
+                    <path d="M167 273C215 273 198 354 311 354"/>
+                    <path d="M553 231C475 231 508 284 456 284" style="animation-delay:-2s"/>
+                    <path d="M584 384C524 384 513 394 458 394" style="animation-delay:-4s"/>
+                  </g>
+                  <g fill="#1b4fd8"><circle cx="311" cy="354" r="2"/><circle cx="456" cy="284" r="2"/><circle cx="458" cy="394" r="2"/></g>
+                </svg>
+                <div class="sb-mobile-phone">
+                  <div class="sb-mobile-phone-edge"></div>
+                  <div class="sb-mobile-phone-front">
+                    <div class="sb-mobile-screen">
+                      <img src="assets/platforms/mobile-app-2be08c95f8.jpg" width="1080" height="2316" loading="lazy" decoding="async" draggable="false" alt="SprintBrain mobile snippet form with language selection and copy preview">
+                    </div>
+                    <div class="sb-mobile-glass" aria-hidden="true"></div>
+                    <div class="sb-mobile-speaker" aria-hidden="true"></div>
+                  </div>
+                </div>
+                <div class="sb-mobile-node sb-mobile-node-library" aria-hidden="true"><span class="sb-mobile-node-glyph">{ }</span><span>Snippets</span><span class="sb-mobile-node-code">::time</span></div>
+                <div class="sb-mobile-node sb-mobile-node-browser" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2Z"/><path d="m10 14 4-4"/></svg><span>Safari / Chrome</span></div>
+                <div class="sb-mobile-node sb-mobile-node-sync" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m3 12 5 5L20 5"/></svg><span>Always in sync</span></div>
+              </div>
+              <div class="sb-mobile-caption" aria-hidden="true"><span>iOS / Android</span><span class="sb-mobile-caption-line"></span><span>No download required</span></div>
+            </div>
+            <div class="sb-assembly"><div class="sb-float">
+              <div class="sb-backplate" aria-hidden="true"></div><div class="sb-backplate second" aria-hidden="true"></div>
+              <div class="sb-frame" style="aspect-ratio:750/594">
+                <img data-platform="chrome-extension" src="assets/platforms/chrome-extension-2346f49352.webp" width="1280" height="800" alt="SprintBrain extension and snippet picker, cropped from the official Chrome Web Store screenshot" loading="lazy" decoding="async" draggable="false" data-aspect="750/594" data-source="https://chromewebstore.google.com/detail/sprintbrain/khdpimdpkgmmaimpbfjgglnpaemmopoo" data-source-label="SprintBrain · Chrome Web Store" style="width:170.666667%;left:-69.333333%;top:-17.676768%">
+                <img data-platform="web-dashboard" src="assets/platforms/web-dashboard-f279d50f4a.webp" width="1280" height="800" alt="SprintBrain web dashboard prompt library, cropped from the official Chrome Web Store screenshot" loading="lazy" decoding="async" draggable="false" data-aspect="795/465" data-source="https://chromewebstore.google.com/detail/sprintbrain/khdpimdpkgmmaimpbfjgglnpaemmopoo" data-source-label="SprintBrain · Chrome Web Store" style="width:161.006289%;left:-60.000000%;top:-30.107527%" hidden>
+                <img data-platform="mobile" src="assets/platforms/mobile-app-2be08c95f8.jpg" width="1080" height="2316" alt="SprintBrain mobile snippet form with language selection and copy preview" loading="lazy" decoding="async" draggable="false" data-aspect="1080/2316" data-source="https://app.sprintbrain.com/mobile/" data-source-label="SprintBrain · Mobile Website" style="width:100%;left:0;top:0" hidden>
+                <img data-platform="security" src="assets/platforms/security-b15d62fdd2.webp" width="833" height="684" alt="The four security features captured directly from the live SprintBrain website" loading="lazy" decoding="async" draggable="false" data-aspect="800/440" data-source="https://sprintbrain.com/" data-source-label="sprintbrain.com · Security" style="width:104.125000%;left:-2.250000%;top:-52.272727%" hidden>
+              </div>
+              <div class="sb-cube" aria-hidden="true"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"></path><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"></path></svg></div>
+              <div class="sb-float-label" aria-hidden="true"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"></path><path d="m22 10-7.5 7.5L13 16"></path></svg><span id="sb-floating-caption"></span></div>
+            </div></div>
+          </div>
+          <figcaption class="sb-source"><span>Screenshot:</span><a id="sb-source-link" href="https://chromewebstore.google.com/detail/sprintbrain/khdpimdpkgmmaimpbfjgglnpaemmopoo" target="_blank" rel="noopener">SprintBrain · Chrome Web Store <span aria-hidden="true">↗</span></a></figcaption>
+        </figure>
       </div>
-
-      <!-- Extension popup: right, mid depth -->
-      <div class="plat-device plat-device--popup">
-        <div class="pp-head">
-          <div class="pp-logo">S</div>
-          <span class="pp-label">SprintBrain</span>
+      <div id="sb-security-detail">
+        <div class="sb-security-features">
+          <article class="sb-security-item"><h4><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg><span>EU data residency</span></h4><p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster. They never leave it.</p></article>
+          <article class="sb-security-item"><h4><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg><span>Row-level security</span></h4><p>RLS is active on every table. A row you can't read is refused by Postgres, not merely hidden by the UI.</p></article>
+          <article class="sb-security-item"><h4><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="1"></circle><rect x="3" y="10" width="18" height="12" rx="2"></rect><path d="M7 10V7a5 5 0 0 1 10 0v3"></path></svg><span>Per-user authentication</span></h4><p>Dashboard, extension, and mobile each authenticate as you with your own token, never a shared key.</p></article>
+          <article class="sb-security-item"><h4><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><span>GDPR-aligned handling</span></h4><p>Documented collection, retention, and deletion, with a published privacy policy, terms, and cookie policy.</p></article>
         </div>
-        <div class="pp-body">
-          <div class="pp-row pp-active"><span class="pp-trigger">::quote</span><span class="pp-lang">EN</span></div>
-          <div class="pp-row"><span class="pp-trigger">::greet</span><span class="pp-name">Greeting</span></div>
-          <div class="pp-row"><span class="pp-trigger">::price3</span><span class="pp-name">Quote</span></div>
-          <div class="pp-row"><span class="pp-trigger">::followup</span><span class="pp-name">Email</span></div>
-          <div class="pp-row"><span class="pp-trigger">::thankyou</span><span class="pp-name">Reply</span></div>
-        </div>
+        <div class="sb-trust"><span>EU-region database</span><span>RLS on every table</span><span>Per-user tokens on all three surfaces</span><span>Encrypted in transit</span></div>
       </div>
-
-      <!-- Mobile phone: left, front -->
-      <div class="plat-device plat-device--mobile">
-        <div class="pm-notch"><div class="pm-pill"></div></div>
-        <div class="pm-hero"><span class="pm-brand">SprintBrain</span></div>
-        <div class="pm-body">
-          <div class="pm-row"><span class="pm-swatch" style="background:#EEF2FF"></span><span class="pm-stripe" style="width:36px"></span></div>
-          <div class="pm-row"><span class="pm-swatch" style="background:#FFF7ED"></span><span class="pm-stripe" style="width:28px"></span></div>
-          <div class="pm-row"><span class="pm-swatch" style="background:#F0FDF4"></span><span class="pm-stripe" style="width:42px"></span></div>
-          <div class="pm-row"><span class="pm-swatch" style="background:#EEF2FF"></span><span class="pm-stripe" style="width:32px"></span></div>
-          <div class="pm-row"><span class="pm-swatch" style="background:#F5F3FF"></span><span class="pm-stripe" style="width:24px"></span></div>
-        </div>
-      </div>
-
     </div>
-
-    <!-- Feature cards with JS 3D tilt -->
-    <div class="plat-cards">
-
-      <div class="plat-card">
-        <div class="plat-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
-        </div>
-        <h3>Chrome Extension</h3>
-        <p>One-click install from the Chrome Web Store. The popup puts every snippet at your fingertips while you type, in Gmail, Slack, Notion, your CRM, anywhere.</p>
-        <span class="plat-pill">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-          Ready to install
-        </span>
-      </div>
-
-      <div class="plat-card">
-        <div class="plat-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </div>
-        <h3>Web Dashboard</h3>
-        <p>Manage your full library from any browser. Create folders, write snippets with live formulas, share folders with your team, review analytics, and configure Notion sync. Nothing to install.</p>
-        <span class="plat-pill">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-          Lives in your browser
-        </span>
-      </div>
-
-      <div class="plat-card">
-        <div class="plat-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-        </div>
-        <h3>Mobile Website</h3>
-        <p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>
-        <span class="plat-pill">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-          No download required
-        </span>
-      </div>
-
-    </div>
-
-    <p class="plat-note">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</p>
-
+    <footer class="sb-footer">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</footer>
+    <span class="sb-sr-only" id="sb-announcement" aria-live="polite"></span>
   </div>
 </section>
 
@@ -1693,64 +1625,6 @@ LeibTour Team</div>
   </div>
 </section>
 
-<section class="sec">
-  <div class="sec-inner">
-
-    <div class="sec-head">
-      <div class="sec-eyebrow">Security</div>
-      <h2>Built for scale and security</h2>
-      <p>SprintBrain scales with your team without loosening what protects your data. Access is enforced by the database itself, not just the interface, whether you're a "team" of one or an org of hundreds.</p>
-      <div class="sec-ctas">
-        <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Get started · it's free</a>
-        <a href="/legal/privacy-policy.html" class="btn btn-ghost">Learn more</a>
-      </div>
-    </div>
-
-    <div class="sec-grid">
-
-      <article class="sec-card">
-        <div class="sec-icon" aria-hidden="true">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        </div>
-        <h3>EU data residency</h3>
-        <p>Your snippets, prompts, and formulas live in an EU-region Postgres cluster. They never leave it.</p>
-      </article>
-
-      <article class="sec-card">
-        <div class="sec-icon" aria-hidden="true">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
-        </div>
-        <h3>Row-level security</h3>
-        <p>RLS is active on every table. A row you can't read is refused by Postgres, not merely hidden by the UI.</p>
-      </article>
-
-      <article class="sec-card">
-        <div class="sec-icon" aria-hidden="true">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <h3>Per-user authentication</h3>
-        <p>Dashboard, extension, and mobile each authenticate as you with your own token, never a shared key.</p>
-      </article>
-
-      <article class="sec-card">
-        <div class="sec-icon" aria-hidden="true">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-        </div>
-        <h3>GDPR-aligned handling</h3>
-        <p>Documented collection, retention, and deletion, with a published privacy policy, terms, and cookie policy.</p>
-      </article>
-
-    </div>
-
-    <p class="sec-strip">
-      <span>EU-region database</span>
-      <span>RLS on every table</span>
-      <span>Per-user tokens on all three surfaces</span>
-      <span>Encrypted in transit</span>
-    </p>
-
-  </div>
-</section>
 
 <section class="foot-statement context-finale">
   <div class="foot-statement-inner">
@@ -2037,22 +1911,132 @@ LeibTour Team</div>
   });
 })();
 
+/* Progressive enhancement: one screenshot stage, all original copy in HTML. */
 (function(){
-  var cards=document.querySelectorAll('.plat-card');
-  cards.forEach(function(card){
-    card.addEventListener('mousemove',function(e){
-      var r=card.getBoundingClientRect();
-      var dx=(e.clientX-r.left-r.width/2)/(r.width/2);
-      var dy=(e.clientY-r.top-r.height/2)/(r.height/2);
-      card.style.transition='transform .05s ease';
-      card.style.transform='perspective(800px) rotateY('+dx*8+'deg) rotateX('+(-dy*6)+'deg) translateZ(8px)';
+  var root=document.getElementById('platforms');
+  if(!root)return;
+  var tabList=root.querySelector('.sb-tabs');
+  var tabs=Array.from(tabList.querySelectorAll('[role="tab"]'));
+  var panel=root.querySelector('#sb-platform-panel');
+  var copies=Array.from(root.querySelectorAll('.sb-copy'));
+  var images=Array.from(root.querySelectorAll('.sb-frame img'));
+  var stage=root.querySelector('.sb-stage');
+  var frame=root.querySelector('.sb-frame');
+  var float=root.querySelector('.sb-float');
+  var assembly=root.querySelector('.sb-assembly');
+  var mobileScene=root.querySelector('.sb-mobile-scene');
+  var motionButton=root.querySelector('.sb-motion');
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  var paused=false;
+  var inView=false;
+  var pendingFrame=0;
+
+  function resetTilt(){
+    cancelAnimationFrame(pendingFrame);
+    root.style.setProperty('--sb-tilt-x','0deg');
+    root.style.setProperty('--sb-tilt-y','0deg');
+  }
+
+  function updateMotion(){
+    var enabled=!paused&&!reduced.matches;
+    root.dataset.motion=enabled?'on':'off';
+    motionButton.setAttribute('aria-pressed',String(!enabled));
+    motionButton.setAttribute('aria-label',enabled?motionButton.dataset.pauseLabel:motionButton.dataset.resumeLabel);
+    motionButton.disabled=reduced.matches;
+    var running=enabled&&inView&&!document.hidden;
+    root.style.setProperty('--sb-animation-state',running?'running':'paused');
+    float.style.animationPlayState=running?'running':'paused';
+    if(!enabled||!inView||document.hidden)resetTilt();
+  }
+
+  function selectTab(key,announce){
+    var activeTab=tabs.find(function(tab){return tab.dataset.key===key;});
+    if(!activeTab)return;
+    root.dataset.tab=key;
+    mobileScene.hidden=key!=='mobile';
+    mobileScene.classList.remove('sb-shot-enter');
+    assembly.hidden=key==='mobile';
+    tabs.forEach(function(tab){
+      var active=tab===activeTab;
+      tab.setAttribute('aria-selected',String(active));
+      tab.tabIndex=active?0:-1;
     });
-    card.addEventListener('mouseleave',function(){
-      card.style.transition='transform .6s cubic-bezier(.23,1,.32,1),box-shadow .3s ease,border-color .3s ease';
-      card.style.transform='';
+    var activeCopy;
+    copies.forEach(function(copy){
+      copy.hidden=copy.dataset.platform!==key;
+      copy.classList.remove('sb-panel-enter');
+      if(!copy.hidden)activeCopy=copy;
+    });
+    var activeImage;
+    images.forEach(function(image){
+      image.hidden=image.dataset.platform!==key;
+      image.classList.remove('sb-shot-enter');
+      if(!image.hidden)activeImage=image;
+    });
+    frame.style.aspectRatio=activeImage.dataset.aspect;
+    var link=root.querySelector('#sb-source-link');
+    link.href=activeImage.dataset.source;
+    link.textContent=activeImage.dataset.sourceLabel+' ↗';
+    root.querySelector('#sb-security-detail').hidden=key!=='security';
+    var badge=activeCopy.querySelector('.sb-badge span');
+    root.querySelector('#sb-floating-caption').textContent=badge?badge.textContent:root.querySelector('.sb-trust span:last-child').textContent;
+    panel.setAttribute('aria-labelledby',activeTab.id);
+    resetTilt();
+    if(announce){
+      root.querySelector('#sb-announcement').textContent=activeCopy.querySelector('h3').textContent;
+      if(!paused&&!reduced.matches&&inView&&!document.hidden){
+        activeCopy.classList.add('sb-panel-enter');
+        (key==='mobile'?mobileScene:activeImage).classList.add('sb-shot-enter');
+      }
+    }
+    updateMotion();
+  }
+
+  tabs.forEach(function(tab,index){
+    tab.addEventListener('click',function(){selectTab(tab.dataset.key,true);});
+    tab.addEventListener('keydown',function(event){
+      var next=index;
+      if(event.key==='ArrowRight')next=(index+1)%tabs.length;
+      else if(event.key==='ArrowLeft')next=(index+tabs.length-1)%tabs.length;
+      else if(event.key==='Home')next=0;
+      else if(event.key==='End')next=tabs.length-1;
+      else return;
+      event.preventDefault();
+      selectTab(tabs[next].dataset.key,true);
+      tabs[next].focus();
+    });
+    function preload(){
+      images.find(function(image){return image.dataset.platform===tab.dataset.key;}).loading='eager';
+    }
+    tab.addEventListener('pointerenter',preload,{once:true});
+    tab.addEventListener('focus',preload,{once:true});
+  });
+  motionButton.addEventListener('click',function(){paused=!paused;updateMotion();});
+  stage.addEventListener('pointermove',function(event){
+    if(paused||reduced.matches||event.pointerType==='touch'||!inView||document.hidden)return;
+    var bounds=stage.getBoundingClientRect();
+    var x=(event.clientX-bounds.left)/bounds.width-.5;
+    var y=(event.clientY-bounds.top)/bounds.height-.5;
+    cancelAnimationFrame(pendingFrame);
+    pendingFrame=requestAnimationFrame(function(){
+      root.style.setProperty('--sb-tilt-x',(-y*7)+'deg');
+      root.style.setProperty('--sb-tilt-y',(x*10)+'deg');
     });
   });
+  stage.addEventListener('pointerleave',resetTilt);
+  reduced.addEventListener('change',updateMotion);
+  document.addEventListener('visibilitychange',updateMotion);
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(entries){inView=entries[0].isIntersecting;updateMotion();},{threshold:.05}).observe(stage);
+  }else{inView=true;}
+  panel.setAttribute('role','tabpanel');
+  panel.tabIndex=0;
+  tabList.hidden=false;
+  motionButton.hidden=false;
+  selectTab('chrome-extension',false);
+  updateMotion();
 })();
+
 
 /* Hero demo: types a trigger, expands it, moves to the next app. The product
    selling itself above the fold. Static markup is the no-JS fallback. */
@@ -2201,7 +2185,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.42.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.49.2';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

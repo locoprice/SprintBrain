@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, Check, ChevronDown, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Clock, Eye, Loader2, Sparkles, Trash2, X, Zap } from 'lucide-react';
+import { HistoryPanel, type HistoryEntry } from '@/features/history/HistoryPanel';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
 import { usePromptStore } from '@/stores/promptStore';
@@ -299,7 +300,12 @@ export function PromptBlockEditor() {
   const prompts = usePromptStore((s) => s.prompts);
   const folders = usePromptStore((s) => s.folders);
   const addPrompt = usePromptStore((s) => s.addPrompt);
-  const editPrompt = usePromptStore((s) => s.editPrompt);
+  const editPromptWithVersion = usePromptStore((s) => s.editPromptWithVersion);
+  const versions = usePromptStore((s) => s.versions);
+  const versionsLoading = usePromptStore((s) => s.versionsLoading);
+  const loadPromptVersions = usePromptStore((s) => s.loadPromptVersions);
+  const restorePromptVersion = usePromptStore((s) => s.restorePromptVersion);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const setPromptLabels = useLabelStore((s) => s.setPromptLabels);
   const removePrompt = usePromptStore((s) => s.removePrompt);
 
@@ -578,7 +584,9 @@ export function PromptBlockEditor() {
 
     try {
       if (mode === 'edit' && editingPrompt) {
-        await editPrompt(editingPrompt.id, payload);
+        // The editor's save records what the prompt said (HISTORY-001), which
+        // a pin or a folder move deliberately does not.
+        await editPromptWithVersion(editingPrompt.id, payload);
         await setPromptLabels(editingPrompt.id, labelIds);
         showToast('Changes saved');
         closeEdit();
@@ -593,6 +601,34 @@ export function PromptBlockEditor() {
       setSubmitError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
+    }
+  }
+
+  const historyEntries = useMemo<HistoryEntry[]>(
+    () =>
+      versions.map((version) => ({
+        id: version.id,
+        versionNumber: version.version_number,
+        editorDisplay: version.editor_display,
+        createdAt: version.created_at,
+        // The assembled text is what a reader compares: the blocks are how it
+        // was built, and a diff of their JSON reads as machinery, not writing.
+        body: version.content,
+        note: version.edit_note,
+      })),
+    [versions],
+  );
+
+  async function handleRestoreVersion(entry: HistoryEntry) {
+    const version = versions.find((candidate) => candidate.id === entry.id);
+    if (!editingPrompt || !version) return;
+    try {
+      await restorePromptVersion(editingPrompt.id, version);
+      showToast(`Restored to v${version.version_number} — saved as the latest version.`);
+      setHistoryOpen(false);
+      closeEdit();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to restore version.', 'error');
     }
   }
 
@@ -916,6 +952,19 @@ export function PromptBlockEditor() {
             </button>
           )}
           <div className="flex-1" />
+          {mode === 'edit' && editingPrompt && (
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryOpen(true);
+                void loadPromptVersions(editingPrompt.id);
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#34343C] px-3 text-sm font-medium text-[#8A8A95] transition-colors hover:border-[#48484F] hover:text-[#C0C0C8]"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              History
+            </button>
+          )}
           {mode === 'edit' && (
             <button
               type="button"
@@ -938,6 +987,16 @@ export function PromptBlockEditor() {
           </button>
         </div>
       </div>
+
+      <HistoryPanel
+        open={historyOpen}
+        subject={editingPrompt?.name ?? null}
+        noun="prompt"
+        entries={historyEntries}
+        loading={versionsLoading}
+        onClose={() => setHistoryOpen(false)}
+        onRestore={handleRestoreVersion}
+      />
     </div>
   );
 }

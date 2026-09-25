@@ -167,6 +167,30 @@ for (const [rel, label, typeMarker, nameMarker] of MENU_RENDERERS) {
 }
 console.log('OK Menu renders every option on all ' + MENU_RENDERERS.length + ' fill-form surfaces');
 
+// ── A BOX CAPTION IS DRAWN ON EVERY FILL SURFACE ────────────────────
+// {formtext: ...; label=Add: first number} names a box. It is read by the engine
+// (checked above against the phone), carried by the shared view model as
+// field.label, and then it has to be DRAWN, on each surface that builds a fill
+// form. A surface that forgot would show the Calculator as a column of bare
+// numbers again. Same source-assertion approach as the menu and picker checks:
+// the markup sits inside large DOM-bound render functions.
+const LABEL_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay', 'cfg.label ? '],
+  ['extension/popup/popup.js', 'popup detail', 'f.label?'],
+  ['app/public/mobile/index.html', 'mobile companion', 'fld.label?'],
+  ['app/src/features/snippets/SnippetPreview.tsx', 'dashboard editor preview', 'field.label ||'],
+];
+for (const [rel, label, marker] of LABEL_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  if (!src.includes(marker)) {
+    fail(rel + ' (' + label + ') no longer draws a box caption.\n' +
+      '  A box declared with label=... must show that caption above it on every\n' +
+      '  surface, or a Calculator snippet reads as a column of bare numbers.\n' +
+      '  Expected to find: ' + marker);
+  }
+}
+console.log('OK Box captions drawn on all ' + LABEL_RENDERERS.length + ' fill-form surfaces');
+
 // ── A DATE FILLS AS A CALENDAR, A TIME AS A CLOCK ───────────────────
 // The format an author picks decides how the value READS. What they type it
 // into is decided here, and it must never be a text box: a date typed by hand
@@ -354,10 +378,11 @@ console.log('OK Form menu writer passed all ' + mwok + ' cases');
 // either moves, this gate fails loudly rather than silently passing.
 const MOBILE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'public', 'mobile', 'index.html'), 'utf8');
-// The start marker sits at the date helpers rather than at the gender ones:
-// sbFormatDateValue calls sbParseUserDate and sbFormatDate, so a slice that
-// began below them would define a function that throws the moment it runs.
-const SLICE_START = 'function _sbPad(';
+// The start marker sits at the formula function list, just above the date
+// helpers: sbFormatDateValue calls sbParseUserDate and sbFormatDate, and
+// sbEvalFormula reads FUNS, so a slice that began below either would define a
+// function that throws the moment it runs.
+const SLICE_START = 'var FUNS = {';
 const SLICE_END = 'function extractFields(';
 const sliceFrom = MOBILE_SRC.indexOf(SLICE_START);
 const sliceTo = MOBILE_SRC.indexOf(SLICE_END);
@@ -377,6 +402,55 @@ for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormToke
                   'sbFieldContext', 'sbTokenFieldKey', 'sbFormatDateValue', 'sbDateCfg']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
+
+// ── FORMULA PARITY ──────────────────────────────────────────────────
+// The phone works a {= } formula out with its own evaluator. Each case is an
+// expression the dashboard's formula builder writes, or an edge it has to
+// survive; both sides must give the expected answer. null prints nothing.
+if (typeof mobile.sbEvalFormula !== 'function') fail('mobile/index.html no longer defines sbEvalFormula');
+const formulaCases = [
+  ['NUM_1 + NUM_2 + NUM_3', { NUM_1: '5', NUM_2: '10', NUM_3: '15' }, 30],
+  ['NUM_1 - NUM_2 - NUM_3', { NUM_1: '100', NUM_2: '25', NUM_3: '5' }, 70],
+  ['NUM_1 - NUM_2', { NUM_1: '10', NUM_2: '25' }, -15],
+  ['NUM_1 * NUM_2', { NUM_1: '4', NUM_2: '2.5' }, 10],
+  ['NUM_1 / NUM_2 / NUM_3', { NUM_1: '100', NUM_2: '4', NUM_3: '5' }, 5],
+  ['NUM_1 / NUM_2', { NUM_1: '100', NUM_2: '0' }, null],
+  ['avg(NUM_1, NUM_2, NUM_3)', { NUM_1: '100', NUM_2: '25', NUM_3: '5' }, 43.33],
+  ['NUM_1 * NUM_2 / 100', { NUM_1: '200', NUM_2: '15' }, 30],
+  ['(NUM_2 - NUM_1) / NUM_1 * 100', { NUM_1: '100', NUM_2: '80' }, -20],
+  ['(NUM_2 - NUM_1) / NUM_1 * 100', { NUM_1: '0', NUM_2: '80' }, null],
+  ['round(NUM_1)', { NUM_1: '2.4' }, 2],
+  ['round(NUM_1, 1)', { NUM_1: '2.456' }, 2.5],
+  ['round(NUM_1, 0)', { NUM_1: '2.5' }, 3],
+  ['round(NUM_1, -2)', { NUM_1: '1234' }, 1200],
+  ['round(avg(NUM_1, NUM_2), 1)', { NUM_1: '1', NUM_2: '2.26' }, 1.6],
+  // A negative value inside a subtraction, typed without brackets.
+  ['NUM_1-NUM_2', { NUM_1: '10', NUM_2: '-5' }, 15],
+  ['NUM_1 + NUM_2', { NUM_1: '1.200,50', NUM_2: '1' }, 1201.5],
+  ['NUM_1 + NUM_2', { NUM_1: '', NUM_2: '3' }, 3],
+  ['NUM_1 + NUM_2', { NUM_1: 'abc', NUM_2: '3' }, null],
+  // What "Adjust a price" writes.
+  ['YOUR_PRICE * (100 - 1.5) / 100', { YOUR_PRICE: '100' }, 98.5],
+  ['YOUR_PRICE * (100 + 3) / 100', { YOUR_PRICE: '1.200,50' }, 1236.52],
+  ['YOUR_PRICE * (100 - BANK_DISCOUNT) / 100', { YOUR_PRICE: '100', BANK_DISCOUNT: 1.5 }, 98.5],
+  ['YOUR_PRICE * BANK_DISCOUNT / 100', { YOUR_PRICE: '100', BANK_DISCOUNT: 1.5 }, 1.5],
+  ['round((LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100)', { LIST_PRICE: '150', YOUR_PRICE: '100' }, 33],
+  ['(LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100', { LIST_PRICE: '', YOUR_PRICE: '100' }, null],
+];
+let fxOk = 0;
+for (const [expr, vals, want] of formulaCases) {
+  const gotE = engine.evalFormula(expr, Object.assign({}, vals));
+  const gotM = mobile.sbEvalFormula(expr, Object.assign({}, vals));
+  if (gotE !== want) {
+    fail('formula ' + expr + ' ' + JSON.stringify(vals) + ' -> engine ' + gotE + ', expected ' + want);
+  }
+  if (gotM !== gotE) {
+    fail('formula drift for ' + expr + ' ' + JSON.stringify(vals) +
+      '\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+  }
+  fxOk++;
+}
+console.log('OK Formula parity (engine = mobile) passed all ' + fxOk + ' cases');
 
 // Key order is walk order on both sides, but canonicalise anyway so a parity
 // failure always means a real difference in what the two surfaces would render.
@@ -405,6 +479,13 @@ const fieldCfgCases = [
   '{formmenu: A,B}',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
+  // BOX CAPTION: label= names a box in the fill form. Free text, so it can hold
+  // a colon and spaces; it reads on a number and on a text box, sits beside a
+  // default, and an empty one is no caption at all.
+  '{formtext: name=NUM_1; type=number; label=Add: first number}',
+  '{formtext: name=NUM_1; type=number; default=5; label=Percent of: amount}',
+  '{formtext: name=GUEST; label=Guest name}',
+  '{formtext: name=GUEST; label=}',
   // NAME FIELD: format=name on a text field. Any other format on a text field,
   // and a name format on a number, is a typo that leaves the field as it was.
   '{formtext: name=GUEST; format=name}',

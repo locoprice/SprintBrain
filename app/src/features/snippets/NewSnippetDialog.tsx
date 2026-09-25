@@ -34,6 +34,8 @@ import {
   LabelSuggestions,
 } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
+import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
+import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
@@ -179,7 +181,7 @@ const SIDEBAR_LABEL = 'text-[10px] font-semibold text-ink-muted uppercase tracki
 const FIELDS_HINT =
   'A field is a blank you fill in when the snippet expands. Insert one from a group below and it becomes a box in the fill form. Open a group to see what it does.';
 
-// The other two groups answer the same question about themselves, in the same
+// The other three groups answer the same question about themselves, in the same
 // three beats: what the thing is, what it does to the message, and where to
 // look next. Each opens with the line that used to sit under the heading in
 // the rail itself — the rail is 260px wide and every line spent explaining it
@@ -187,8 +189,10 @@ const FIELDS_HINT =
 // column stays a column of things you can click.
 const ACTIONS_HINT =
   'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
+const MATH_HINT =
+  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open Formula below to see what it does.';
 const LOGIC_HINT =
-  'Worked out on its own. A total, a line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
+  'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
@@ -250,23 +254,18 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
-// What the Formula toggle writes. A and B are deliberately meaningless: the
-// author replaces them with their own field names, and a placeholder that
-// looked like a real name would invite leaving it there.
-const FORMULA_TOKEN = '{=A - B}';
-
-// The parts of a formula, in the order the author meets them. There is no
-// builder dialog behind this one — the token lands in the body ready to edit —
-// so this list is the only place the rail can say what an expression may hold.
-// Everything here is the engine's own vocabulary (extension/formula-engine.js:
-// FUNS, safeEval, evalFormula), not a superset of it.
+// What the two formula windows do, in the words the buttons use. The last entry
+// is the engine's own vocabulary (extension/formula-engine.js: FUNS, safeEval),
+// for anything the windows do not write.
 const FORMULA_FIELDS: { label: string; hint: string }[] = [
-  { label: 'Fields',
-    hint: 'Refer to a field by its name. Number fields are the ones a formula can always read, since a text field may hold anything.' },
-  { label: 'Operators',
-    hint: '+, -, * and / with brackets, plus round(), floor(), ceil(), abs(), min() and max(). The answer is rounded to two decimals.' },
-  { label: 'Result',
-    hint: 'Prints where the token sits. A field holding something that is not a number prints nothing at all, rather than a wrong total.' },
+  { label: 'Price line',
+    hint: 'One line of a quote from a price: minus a discount, plus a fee, a deposit, or what the client saves. Adds the price box if the snippet has none.' },
+  { label: 'Calculator',
+    hint: 'Add, subtract, multiply, divide, average or percentages on numbers filled in when the snippet expands. Prints 100 - 25 - 5 = 70.' },
+  { label: 'Remove',
+    hint: 'Both windows show how many formulas the snippet has. Manage lists them, each with Remove and Undo.' },
+  { label: 'By hand',
+    hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
 ];
 
 // A > 0 is the safest opening condition to hand someone: it is true of any
@@ -435,6 +434,15 @@ export function NewSnippetDialog() {
   const [numberFieldOpen, setNumberFieldOpen] = useState(false);
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
+  // Which formula window is open: a line of a quote from a price, or a calculator.
+  const [formulaWindow, setFormulaWindow] = useState<'price' | 'calculator' | null>(null);
+
+  // Read from the field itself: which saved percentages a window offers, and
+  // whether it sits inside a condition, depend on exactly where the answer lands.
+  function openFormulaWindow(which: 'price' | 'calculator') {
+    if (contentRef.current) setCaret(contentRef.current.selectionStart);
+    setFormulaWindow(which);
+  }
 
   // Auto-suggestions: derived from snippet name + trigger. Suggestions from
   // matching keyword rules that haven't been added yet are shown as one-click chips.
@@ -1292,6 +1300,69 @@ export function NewSnippetDialog() {
               </Toggle>
             </div>
 
+            {/* Math */}
+            <div className="p-4 border-b border-line">
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Math</p>
+                <Tooltip
+                  label={MATH_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
+                >
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
+              </div>
+              {/* Formula, Condition and Greeting read as the field toggles above
+                  them read: what the token is, what it may contain, then the
+                  button that writes it. Each replaces a chip that carried its
+                  whole explanation in a hover title, which no one hovers before
+                  clicking, and these needed the explanation most, since a
+                  condition and a formula are the only tokens that can silently
+                  print nothing. */}
+              <Toggle
+                label="Formula"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      disabled={saving}
+                      onClick={() => openFormulaWindow('price')}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Price line
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      disabled={saving}
+                      onClick={() => openFormulaWindow('calculator')}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Calculator
+                    </Button>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Works out a number from prices or figures filled in when the snippet
+                  expands, so nobody does the arithmetic by hand. Two buttons, each one
+                  complete on its own.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {FORMULA_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Toggle>
+            </div>
+
             {/* Logic */}
             <div className="flex-1 p-4">
               <div className="flex items-center gap-1.5">
@@ -1304,49 +1375,9 @@ export function NewSnippetDialog() {
                   <Info className="h-3 w-3" aria-hidden />
                 </Tooltip>
               </div>
-              {/* The three read as the field toggles above them read: what the
-                  token is, what it may contain, then the button that writes it.
-                  Each replaces a chip that carried its whole explanation in a
-                  hover title, which no one hovers before clicking — and these
-                  three needed the explanation most, since a condition and a
-                  formula are the only tokens that can silently print nothing. */}
-              <Toggle
-                label="Formula"
-                className="mb-2.5 mt-2.5"
-                footer={
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={saving}
-                    onClick={() => insertAtCursor(FORMULA_TOKEN)}
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Insert formula
-                  </Button>
-                }
-              >
-                <p className="text-[11px] text-ink-subtle leading-tight">
-                  Works out a number from the fields around it and prints the answer, so
-                  nobody does the arithmetic by hand.{' '}
-                  <code className="font-mono text-primary/80">{'{=LIST_PRICE - DISCOUNT}'}</code>{' '}
-                  reads both fields as they are filled and writes the result. Nothing is
-                  asked of the person filling the form: a formula is worked out, never
-                  typed in.
-                </p>
-                <dl className="mt-2 flex flex-col gap-1.5">
-                  {FORMULA_FIELDS.map((f) => (
-                    <div key={f.label}>
-                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
-                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </Toggle>
-
               <Toggle
                 label="Condition"
-                className="mb-2.5"
+                className="mb-2.5 mt-2.5"
                 footer={
                   <Button
                     type="button"
@@ -1823,6 +1854,24 @@ export function NewSnippetDialog() {
               open={actionButtonOpen}
               onOpenChange={setActionButtonOpen}
               onInsert={insertAtCursor}
+            />
+
+            <FormPriceLineDialog
+              open={formulaWindow === 'price'}
+              onOpenChange={(open) => setFormulaWindow(open ? 'price' : null)}
+              body={form.content}
+              caret={caret}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
+            />
+
+            <FormCalculatorDialog
+              open={formulaWindow === 'calculator'}
+              onOpenChange={(open) => setFormulaWindow(open ? 'calculator' : null)}
+              body={form.content}
+              caret={caret}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
             />
 
             <FormDateRangeDialog

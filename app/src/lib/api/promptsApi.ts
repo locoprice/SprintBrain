@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Prompt, PromptBlock, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
+import type { Prompt, PromptBlock, PromptVersion, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
 
 export interface PromptsApi {
@@ -13,9 +13,39 @@ export interface PromptsApi {
   markUsed(id: string): Promise<{ usage_count: number; last_used_at: string }>;
   /** Push prompt to the team Notion DB via Edge Function; writes notion_page_id back. */
   pushToNotion(id: string): Promise<{ notion_page_id: string }>;
+
+  /** Every saved version of one prompt, newest first (HISTORY-001). */
+  listVersions(promptId: string): Promise<PromptVersion[]>;
+  /**
+   * Updates the prompt and records what it said, in one transaction. This is
+   * the editor's save path; small patches like pinning stay on `updatePrompt`
+   * and are deliberately not versioned. Returns the new version number.
+   */
+  saveWithVersion(
+    promptId: string,
+    values: PromptFormValues,
+    editNote?: string,
+  ): Promise<number>;
+  /**
+   * Saves an older version's text back as the newest version. `current` is the
+   * prompt as it stands, whose settings the restore leaves alone.
+   */
+  restoreVersion(promptId: string, version: PromptVersion, current: Prompt): Promise<number>;
 }
 
 const EDGE_FN_PROMPT_PUSH = 'notion-prompt-push';
+
+const VERSION_SELECT =
+  'id, prompt_id, version_number, editor_id, editor_display, name, content, blocks, ' +
+  'edit_note, created_at';
+
+/** Same derivation as revisionsApi, so every history names an author the same way. */
+async function currentEditorDisplay(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) throw new Error('Not authenticated');
+  return (user.user_metadata?.['display_name'] as string | undefined) ?? user.email ?? user.id;
+}
 
 type DbPrompt = {
   id: string;
@@ -207,5 +237,62 @@ export const promptsApi: PromptsApi = {
       throw new Error('notion-prompt-push returned unexpected response');
     }
     return { notion_page_id: data.notion_page_id };
+  },
+
+  async listVersions(promptId) {
+    const { data, error } = await supabase
+      .from('prompt_versions')
+      .select(VERSION_SELECT)
+      .eq('prompt_id', promptId)
+      .order('version_number', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as unknown as PromptVersion[];
+  },
+
+  async saveWithVersion(promptId, values, editNote) {
+    const shortcut = values.shortcut?.trim() ?? '';
+    const { data, error } = await supabase.rpc('save_prompt_with_version', {
+      p_prompt_id: promptId,
+      p_name: values.name,
+      p_content: values.content,
+      p_blocks: values.blocks ?? null,
+      p_shortcut: shortcut,
+      p_strategy_type: values.strategy_type ?? null,
+      p_thinking_mode: values.thinking_mode ?? null,
+      p_preferred_model: values.preferred_model ?? null,
+      p_complexity_level: values.complexity_level ?? null,
+      p_intent_category: values.intent_category ?? null,
+      p_output_type: values.output_type ?? null,
+      p_ask_user_questions: values.ask_user_questions ?? false,
+      p_folder_id: values.folder_id ?? null,
+      p_editor_display: await currentEditorDisplay(),
+      p_edit_note: editNote ?? null,
+    });
+    if (error) throw error;
+    return data as number;
+  },
+
+  async restoreVersion(promptId, version, current) {
+    // Everything except the name, the text and the blocks belongs to the prompt
+    // as it stands today: the strategy, the shortcut, the folder. A restore
+    // returns the words, not the settings around them.
+    return promptsApi.saveWithVersion(
+      promptId,
+      {
+        name: version.name,
+        content: version.content,
+        blocks: version.blocks,
+        shortcut: current.shortcut ?? '',
+        strategy_type: current.strategy_type,
+        thinking_mode: current.thinking_mode,
+        preferred_model: current.preferred_model,
+        complexity_level: current.complexity_level,
+        intent_category: current.intent_category,
+        output_type: current.output_type,
+        ask_user_questions: current.ask_user_questions,
+        folder_id: current.folder_id,
+      },
+      `restored from v${version.version_number}`,
+    );
   },
 };

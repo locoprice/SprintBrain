@@ -45,7 +45,7 @@ import {
 } from './supabase.ts';
 
 const SERVER_NAME = 'sprintbrain-memory';
-const SERVER_VERSION = '3.42.0';
+const SERVER_VERSION = '3.49.2';
 
 /** Budget before any step has been entered. Replaced by the step's own budget on the first transition. */
 const DEFAULT_BUDGET = 4000;
@@ -368,8 +368,17 @@ server.registerTool(
     }
 
     if (id === null) {
+      // Two different causes, and the earlier wording named only the second.
+      // A reader told "issue a new token" concludes none exists, and stops,
+      // when the likelier cause is this process holding the token it started
+      // with. The env is read once at startup, so editing the client config
+      // changes nothing until the server is restarted. Say the recoverable
+      // cause first.
       return text(
-        'Could not save: this token cannot write. Tokens are read-only unless the write scope was asked for when it was issued. Issue a new one and put it in the MCP client config.',
+        'Could not save: the token this server started with does not carry the write scope.\n' +
+          'If a write-scoped token was configured recently, this process is still running with the previous one. ' +
+          'The token is read from the environment once at startup, so restart the MCP client (quit it fully, not just a new conversation) and try again.\n' +
+          'If no write-scoped token has been issued yet, services/mcp-memory/README.md has the one SQL call that mints one.',
       );
     }
 

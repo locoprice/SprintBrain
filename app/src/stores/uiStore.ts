@@ -4,6 +4,12 @@ import { applyTheme, getStoredTheme, type ThemePreference } from '@/lib/theme';
 // Cross-cutting UI state. Kept separate from feature stores to avoid coupling
 // the snippet panel state with global modals or theme toggles in the future.
 
+/** The one button a toast can carry, such as Undo. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface UiStore {
   // Create-snippet dialog (triggered by the header "New snippet" button)
   newSnippetOpen: boolean;
@@ -50,9 +56,10 @@ interface UiStore {
   openOnboarding: () => void;
   closeOnboarding: () => void;
 
-  // Transient toast notification (auto-dismissed by the Toast component)
-  toast: { message: string; type: 'success' | 'error' } | null;
-  showToast: (message: string, type?: 'success' | 'error') => void;
+  // Transient toast notification (auto-dismissed by the Toast component).
+  // `action` adds one button, such as Undo, and keeps the toast up longer.
+  toast: { message: string; type: 'success' | 'error'; action?: ToastAction } | null;
+  showToast: (message: string, type?: 'success' | 'error', action?: ToastAction) => void;
   clearToast: () => void;
 
   // Theme preference — persisted to localStorage, applied to <html data-theme>
@@ -188,7 +195,7 @@ export const useUiStore = create<UiStore>((set) => ({
   closeOnboarding: () => set({ onboardingOpen: false }),
 
   toast: null,
-  showToast: (message, type = 'success') => set({ toast: { message, type } }),
+  showToast: (message, type = 'success', action) => set({ toast: { message, type, action } }),
   clearToast: () => set({ toast: null }),
 
   theme: getStoredTheme(),

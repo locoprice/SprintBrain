@@ -1533,7 +1533,10 @@ function showOverlay(targetEl, snip, scLen, done) {
     // otherwise noise: an unnamed menu's key is a hash like MENU_1yvog3p.
     var pre  = cfg.before ? '<span class="sb-ctx">'+xesc(cfg.before)+'</span>' : '';
     var post = cfg.after  ? '<span class="sb-ctx">'+xesc(cfg.after)+'</span>'  : '';
-    var lbl  = (pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>';
+    // A caption the author gave the box wins; otherwise only a box with no prose
+    // around it falls back to its key.
+    var lbl  = cfg.label ? '<label class="sb-lbl">'+xesc(cfg.label)+'</label>'
+      : ((pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>');
     fhtml += '<div class="sb-field">' + lbl + (blockControl
       ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
         (post ? '<div class="sb-ctxline">'+post+'</div>' : '')

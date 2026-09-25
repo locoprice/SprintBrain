@@ -27,7 +27,10 @@
 // dictionary (Querido, Estimado, Caro, Cher…) written directly before a name
 // field agrees with that name — "Querido {NOMBRE}" prints "Querida Lucía".
 //
-// Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max()
+// Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max(),
+//   avg(): the mean of its arguments
+//   round(X, N): N decimals like a spreadsheet's ROUND; a negative N rounds to
+//     tens, hundreds. Every answer still prints with at most two decimals.
 //   datespan(A, B, "inclusive"|"between")  — how long a range lasts, or
 //     nothing at all when a date is missing or the end precedes the start
 //   datetimediff(A, B, "calendar")  — whole days apart on a calendar, DST-safe
@@ -41,7 +44,7 @@
   'use strict';
 
   // ── WHITELISTED FUNCTION NAMES ──────────────────────────────────
-  var FUNS = { round:1, floor:1, ceil:1, abs:1, min:1, max:1, datetimediff:1 };
+  var FUNS = { round:1, floor:1, ceil:1, abs:1, min:1, max:1, avg:1, datetimediff:1 };
 
   // ── DATE/TIME HELPERS ───────────────────────────────────────────
   function _pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -598,6 +601,18 @@
     return /^[A-Za-z_][A-Za-z0-9_]*$/.test(f) ? f : '';
   }
 
+  // round(X, N): N decimals, a fraction of N is dropped, and a negative N rounds
+  // to tens and hundreds. Clamped to ±10 so a typo cannot overflow Math.pow.
+  // MIRRORED in app/public/mobile/index.html (sbRoundTo).
+  function _roundTo(x, n) {
+    if (!isFinite(n)) return NaN;
+    var d = n < 0 ? Math.ceil(n) : Math.floor(n);
+    if (d > 10) d = 10;
+    if (d < -10) d = -10;
+    var p = Math.pow(10, d);
+    return Math.round(x * p) / p;
+  }
+
   // ── SAFE MATH EVALUATOR ─────────────────────────────────────────
   // Recursive descent — no eval(), no Function(). CSP-safe.
   function safeEval(expr) {
@@ -627,13 +642,20 @@
     function parseFactor() {
       if (str[pos] === '-') { pos++; return -parseFactor(); }
       if (str[pos] === '+') { pos++; return parseFactor(); }
-      var fnMatch = str.slice(pos).match(/^(round|floor|ceil|abs|min|max)\(/);
+      var fnMatch = str.slice(pos).match(/^(round|floor|ceil|abs|min|max|avg)\(/);
       if (fnMatch) {
         var fn = fnMatch[1];
         pos += fn.length + 1;
         var args = parseArgs();
         if (str[pos] === ')') pos++;
-        if (fn === 'round') return Math.round(args[0]);
+        // The second argument used to be read and dropped, so round(X, 1)
+        // printed a whole number with no sign anything was wrong.
+        if (fn === 'round') return args.length > 1 ? _roundTo(args[0], args[1]) : Math.round(args[0]);
+        if (fn === 'avg') {
+          var sum = 0;
+          for (var ai = 0; ai < args.length; ai++) sum += args[ai];
+          return sum / args.length;
+        }
         if (fn === 'floor') return Math.floor(args[0]);
         if (fn === 'ceil')  return Math.ceil(args[0]);
         if (fn === 'abs')   return Math.abs(args[0]);
@@ -1926,10 +1948,23 @@
   // every other respect, so a surface that cannot read the format still draws
   // the same box and prints the value as typed. Any other format on a text
   // field is a typo and reads as plain text, the same way an unknown `type` does.
+  // `label=Add: first number` names the box in the fill form. It is a caption
+  // and nothing else: drawn above the box on every surface that fills a snippet
+  // in, never printed, and read by nothing but the renderers. A release from
+  // before it existed ignores the attribute, so the field still fills in.
+  //
+  // MIRRORED in app/public/mobile/index.html (sbLabelAttr).
+  function _labelAttr(attrSrc) {
+    var m = /(?:^|;)\s*label\s*=\s*([^;]+)/i.exec(attrSrc);
+    return m ? m[1].replace(/^\s+|\s+$/g, '') : '';
+  }
+
   function _textCfg(attrSrc, defVal) {
     var out = { type: 'text', 'default': defVal };
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
     if (fmtM && fmtM[1].toLowerCase() === 'name') out.format = 'name';
+    var label = _labelAttr(attrSrc);
+    if (label) out.label = label;
     return out;
   }
 
@@ -1953,6 +1988,8 @@
       var cur = curM ? curM[1].toUpperCase() : '';
       out.currency = Object.prototype.hasOwnProperty.call(CURRENCIES, cur) ? cur : DEFAULT_CURRENCY;
     }
+    var label = _labelAttr(attrSrc);
+    if (label) out.label = label;
     return out;
   }
 
@@ -1984,6 +2021,11 @@
       }
     }
     if (value !== '') out += '; default=' + value;
+    // The caption goes last: it is free text, and everything else is a fixed word.
+    // `;`, braces and line breaks would end the token or split it, so they go.
+    var label = String(c.label === undefined ? '' : c.label)
+      .replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+    if (label !== '') out += '; label=' + label;
     return out + '}';
   }
 

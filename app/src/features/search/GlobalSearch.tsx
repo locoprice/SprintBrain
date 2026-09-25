@@ -33,14 +33,14 @@ import { cn } from '@/lib/utils';
 const SECTION_LABEL: Record<SearchKind, string> = {
   snippet: 'Snippets only',
   prompt: 'Prompts only',
-  memory: 'Memory only',
+  memory: 'Brains only',
 };
 
 const TYPE_CHIPS: Array<{ value: 'all' | SearchKind; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'snippet', label: 'Snippets' },
   { value: 'prompt', label: 'Prompts' },
-  { value: 'memory', label: 'Memory' },
+  { value: 'memory', label: 'Brains' },
 ];
 
 function ScopeButton({
@@ -70,7 +70,7 @@ function ScopeButton({
 const GROUPS = [
   { key: 'snippets', label: 'Snippets', icon: Type },
   { key: 'prompts', label: 'Prompts', icon: Sparkles },
-  { key: 'memory', label: 'Memory', icon: Brain },
+  { key: 'memory', label: 'Brains', icon: Brain },
 ] as const;
 
 export function GlobalSearch() {

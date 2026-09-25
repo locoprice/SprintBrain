@@ -1,5 +1,5 @@
 interface LoadingBlockProps {
-  /** What is being fetched, lowercase: "snippets", "prompts", "your spaces". */
+  /** What is being fetched, lowercase: "snippets", "prompts", "your Brains". */
   what: string;
 }
 

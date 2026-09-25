@@ -2526,7 +2526,7 @@ function sbCheckAlive(){
 }
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
-var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,datetimediff:1};
+var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,avg:1,datetimediff:1};
 
 /* ── DATE/TIME HELPERS ─────────────────────────── */
 function _sbPad(n){ return (n<10?'0':'')+n; }
@@ -3188,10 +3188,19 @@ function sbEmitField(key,value,fmtMap){
    a text field in every other respect. Any other format on a text field is a
    typo and reads as plain text. MIRRORED from _textCfg in
    extension/formula-engine.js. */
+/* A caption for the box in the fill form (label=Add: first number). Drawn above
+   the box, never printed. Mirrors _labelAttr in the engine. */
+function sbLabelAttr(attrSrc){
+  var m=/(?:^|;)\s*label\s*=\s*([^;]+)/i.exec(attrSrc);
+  return m?m[1].replace(/^\s+|\s+$/g,''):'';
+}
+
 function sbTextCfg(attrSrc,defVal){
   var out={type:'text',default:defVal};
   var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
   if(fmtM&&fmtM[1].toLowerCase()==='name')out.format='name';
+  var label=sbLabelAttr(attrSrc);
+  if(label)out.label=label;
   return out;
 }
 
@@ -3209,6 +3218,8 @@ function sbNumberOrTextCfg(attrSrc,defVal){
     var cur=curM?curM[1].toUpperCase():'';
     out.currency=Object.prototype.hasOwnProperty.call(SB_CURRENCIES,cur)?cur:SB_DEFAULT_CURRENCY;
   }
+  var label=sbLabelAttr(attrSrc);
+  if(label)out.label=label;
   return out;
 }
 
@@ -3627,6 +3638,59 @@ function sbFieldContext(body){
   return out;
 }
 
+/* What each formula function becomes when the expression runs. round and avg
+   are ours rather than Math's: Math.round drops a second argument, and Math
+   has no mean. */
+var SB_MATH_FNS={round:'sbRound',floor:'Math.floor',ceil:'Math.ceil',abs:'Math.abs',
+  min:'Math.min',max:'Math.max',avg:'sbAvg'};
+function mathReplace(s){
+  return s.replace(/\b(round|floor|ceil|abs|min|max|avg)\(/g,function(m,f){return SB_MATH_FNS[f]+'(';});
+}
+/* round(X, N) like a spreadsheet's ROUND. Mirrors _roundTo in the engine. */
+function sbRoundTo(x,n){
+  if(!isFinite(n))return NaN;
+  var d=n<0?Math.ceil(n):Math.floor(n);
+  if(d>10)d=10;
+  if(d<-10)d=-10;
+  var p=Math.pow(10,d);
+  return Math.round(x*p)/p;
+}
+function sbRound(x,n){return arguments.length>1?sbRoundTo(x,n):Math.round(x);}
+function sbAvg(){
+  var sum=0;
+  for(var i=0;i<arguments.length;i++)sum+=arguments[i];
+  return sum/arguments.length;
+}
+/* A {= } formula's answer, or null when there is none to print. Mirrors
+   evalFormula in the engine, and scripts/check-snippets.js holds the two to the
+   same answers. */
+function sbEvalFormula(expr,vals){
+  /* An impossible span makes the whole formula unanswerable: a missing date,
+     or an end before its start, prints nothing rather than a confident wrong
+     number. */
+  var span=sbResolveDateSpan(expr,vals);
+  if(!span.ok)return null;
+  var ex=sbResolveDatetimeDiff(span.expr,vals);
+  /* sbToNumber returns null for text, so an unreadable input refuses to answer
+     instead of inventing a total. A negative value goes in brackets: 10 - -5
+     written without them is not an expression. */
+  var unreadable=false;
+  var s=ex.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(n){
+    if(FUNS[n])return n;
+    var v=sbToNumber(vals[n]);
+    if(v===null){unreadable=true;return '0';}
+    return v<0?'('+v+')':String(v);
+  });
+  if(unreadable)return null;
+  var stripped=s.replace(/round|floor|ceil|abs|min|max|avg|datetimediff/g,'');
+  if(!/^[0-9+\-*/().\s,]+$/.test(stripped))return null;
+  try{
+    var r=Function('"use strict";return('+mathReplace(s)+')')();
+    /* isFinite, not isNaN: dividing by 0 printed the word Infinity here. */
+    return (typeof r==='number'&&isFinite(r))?Math.round(r*100)/100:null;
+  }catch(e){return null;}
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
@@ -3644,7 +3708,7 @@ function evalCond(cond,vals){
     var c=cond.replace(/"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_]*)/g,
       function(match,id){
         if(!id)return match;
-        if(FUNS[id])return id;
+        if(FUNS[id])return SB_MATH_FNS[id]||id;
         var v=vals[id];
         if(v===undefined||v==='')return '0';
         var n=parseFloat(v);
@@ -3654,12 +3718,6 @@ function evalCond(cond,vals){
     c=c.replace(/([^!<>=])=([^=])/g,'$1==$2');
     return !!Function('"use strict";return('+c+')')();
   }catch(e){return false;}
-}
-
-function mathReplace(s){
-  return s.replace(/round\(/g,'Math.round(').replace(/floor\(/g,'Math.floor(')
-           .replace(/ceil\(/g,'Math.ceil(').replace(/abs\(/g,'Math.abs(')
-           .replace(/min\(/g,'Math.min(').replace(/max\(/g,'Math.max(');
 }
 
 function resolveBody(body,vals,opts){
@@ -3690,48 +3748,17 @@ function resolveBody(body,vals,opts){
         if(veq>-1){
           var vn=vd.slice(0,veq).replace(/^\s+|\s+$/g,'');
           var ve=vd.slice(veq+1).replace(/^\s+|\s+$/g,'');
-          var vs=ve.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(m){
-            if(FUNS[m])return m;
-            var mv=sbToNumber(vals[m]);
-            return mv===null?'0':String(mv);
-          });
-          vs=mathReplace(vs);
-          try{
-            var vr=Function('"use strict";return('+vs+')')();
-            vals[vn]=(typeof vr==='number'&&!isNaN(vr))?Math.round(vr*100)/100:0;
-          }catch(e){vals[vn]=0;}
+          /* Same evaluator as {= }, as in the engine: a value that cannot be
+             worked out stores 0. */
+          var vr=sbEvalFormula(ve,vals);
+          vals[vn]=vr===null?0:vr;
         }
         i=cl+1;continue;
       }
 
       /* {=expr} */
       if(tok.charAt(0)==='='){
-        /* An impossible span makes the whole formula unanswerable: a missing
-           date, or an end before its start, prints nothing rather than a
-           confident wrong number. Mirrors evalFormula in the engine. */
-        var span=sbResolveDateSpan(tok.slice(1),vals);
-        if(!span.ok){i=cl+1;continue;}
-        var ex=sbResolveDatetimeDiff(span.expr,vals);
-        /* Was parseFloat, which read "1.200,50" as 1.2 and turned "€1.200"
-           into 0 with no error at all — the same defect the engine closed, which
-           had been left live here. sbToNumber returns null for text, and an
-           unreadable input now refuses to answer instead of inventing a total. */
-        var unreadable=false;
-        var s=ex.replace(/[A-Za-z_][A-Za-z0-9_]*/g,function(n){
-          if(FUNS[n])return n;
-          var v=sbToNumber(vals[n]);
-          if(v===null){unreadable=true;return '0';}
-          return String(v);
-        });
-        if(unreadable){out+='';i=cl+1;continue;}
-        var stripped=s.replace(/round|floor|ceil|abs|min|max|datetimediff/g,'');
-        var fv=null;
-        if(/^[0-9+\-*/().\s,]+$/.test(stripped)){
-          try{
-            var r=Function('"use strict";return('+mathReplace(s)+')')();
-            fv=isNaN(r)?null:Math.round(r*100)/100;
-          }catch(e){}
-        }
+        var fv=sbEvalFormula(tok.slice(1),vals);
         out+=fv!==null?String(fv):'';
         i=cl+1;continue;
       }
@@ -3808,7 +3835,11 @@ function resolveBody(body,vals,opts){
       i=cl+1;
     }else{out+=body[i++];}
   }
-  return out;
+  /* The author's **bold** and [yellow]…[/yellow] markers never reach the
+     message. Mirrors the end of resolveBody in the engine: without it the phone
+     copied the asterisks into the text. */
+  return out.replace(/\*\*([^*]+)\*\*/g,'$1')
+            .replace(/\[(blue|yellow|red)\]([\s\S]*?)\[\/(?:blue|yellow|red)\]/g,'$2');
 }
 
 /* ── FILL-FORM ENGINE ADAPTER ───────────────────────────────────────
@@ -5071,7 +5102,7 @@ function renderDetail(snip,keepVals){
          label survives only for a field with no prose around it to describe it. */
       var pre=fld.before?'<span class="field-ctx">'+esc(fld.before)+'</span>':'';
       var post=fld.after?'<span class="field-ctx">'+esc(fld.after)+'</span>':'';
-      var head=(pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>';
+      var head=fld.label?'<div class="field-lbl">'+esc(fld.label)+'</div>':((pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>');
       return '<div class="field-row">'+head+(blockControl
         ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
           (post?'<div class="field-ctxline">'+post+'</div>':'')

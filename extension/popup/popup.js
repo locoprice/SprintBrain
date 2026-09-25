@@ -1936,7 +1936,9 @@ function renderDetailHtml(s){
         // is otherwise noise: an unnamed menu's key is a hash.
         var pre=f.before?'<span class="d-ctx">'+esc(f.before)+'</span>':'';
         var post=f.after?'<span class="d-ctx">'+esc(f.after)+'</span>':'';
-        var lbl=(pre||post)?'':'<label>'+esc(label)+'</label>';
+        // A caption the author gave the box wins; otherwise only a box with no
+        // prose around it falls back to its key.
+        var lbl=f.label?'<label>'+esc(f.label)+'</label>':((pre||post)?'':'<label>'+esc(label)+'</label>');
         form+='<div class="d-frow">'+lbl+(f.block
           ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
             (post?'<div class="d-ctxline">'+post+'</div>':'')
@@ -2878,7 +2880,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
             if (!spaces || !spaces.length) {
               selEl.style.display = 'none';
               saveEl.disabled = true;
-              note('Create a memory space in the dashboard first.');
+              note('Create a Brain in the dashboard first.');
               return;
             }
             selEl.innerHTML = '';
@@ -2891,7 +2893,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
           })
           .catch(function() {
             saveEl.disabled = true;
-            note('Could not load your spaces.', true);
+            note('Could not load your Brains.', true);
           });
 
         saveEl.addEventListener('click', function() {
@@ -2947,7 +2949,7 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
             }
             saveEl.textContent = 'Saved';
             var detail = payloads.length > 1 ? ' as ' + payloads.length + ' items' : '';
-            note('Saved to memory' + detail +
+            note('Saved to Brain' + detail +
                  (packed.forced ? '. ' + packed.forced + ' long message(s) were split mid-paragraph.' : '.'));
           });
         });

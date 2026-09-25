@@ -515,7 +515,7 @@
       menu.className = 'menu panel';
 
       if (searching) {
-        menu.innerHTML = '<div class="loading">Looking through your memory…</div>';
+        menu.innerHTML = '<div class="loading">Looking through your Brains…</div>';
         wrap.appendChild(menu);
         pill.setAttribute('data-active', '1');
         placeMenu();
@@ -532,7 +532,7 @@
       // reachable however short the panel has been clamped.
       html += '<div class="plist">';
       if (!results.length) {
-        html += '<div class="empty">Nothing in your memory matches what you are writing.' +
+        html += '<div class="empty">Nothing in your Brains matches what you are writing.' +
                 '<br>Save something first, or keep typing and refresh.</div>';
       } else {
         // A browse, not a match. Say so rather than letting a list of recent

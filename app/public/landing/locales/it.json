@@ -247,21 +247,6 @@
       "count": 1
     },
     {
-      "find": "<span class=\"pp-name\">Greeting</span>",
-      "replace": "<span class=\"pp-name\">Saluto</span>",
-      "count": 1
-    },
-    {
-      "find": "<span class=\"pp-name\">Quote</span>",
-      "replace": "<span class=\"pp-name\">Preventivo</span>",
-      "count": 1
-    },
-    {
-      "find": "<span class=\"pp-name\">Reply</span>",
-      "replace": "<span class=\"pp-name\">Risposta</span>",
-      "count": 1
-    },
-    {
       "find": "<span class=\"fs-share-name\">Booking quotes</span>",
       "replace": "<span class=\"fs-share-name\">Preventivi</span>",
       "count": 1
@@ -332,18 +317,18 @@
       "count": 3
     },
     {
-      "find": "      No app to download\n",
-      "replace": "      Nessuna app da scaricare\n",
+      "find": "<div class=\"sb-eyebrow\">No app to download</div>",
+      "replace": "<div class=\"sb-eyebrow\">Nessuna app da scaricare</div>",
       "count": 1
     },
     {
-      "find": "<h2 class=\"plat-title\">One account.<br><span>Three surfaces.</span></h2>",
-      "replace": "<h2 class=\"plat-title\">Un solo account.<br><span>Tre tecnologie diverse.</span></h2>",
+      "find": "<h2 id=\"sb-platforms-heading\">One account. <span>Three surfaces.</span></h2>",
+      "replace": "<h2 id=\"sb-platforms-heading\">Un solo account. <span>Tre tecnologie diverse.</span></h2>",
       "count": 1
     },
     {
-      "find": "<p class=\"plat-sub\">SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once. Your snippets and formulas are everywhere, instantly.</p>",
-      "replace": "<p class=\"plat-sub\">SprintBrain arriva come estensione Chrome, dashboard web e sito mobile. Accedi una volta sola. I tuoi snippet e le tue formule sono ovunque, all'istante.</p>",
+      "find": "<p>SprintBrain ships as a Chrome extension, a web dashboard, and a mobile website. Sign in once. Your snippets and formulas are everywhere, instantly.</p>",
+      "replace": "<p>SprintBrain arriva come estensione Chrome, dashboard web e sito mobile. Accedi una volta sola. I tuoi snippet e le tue formule sono ovunque, all'istante.</p>",
       "count": 1
     },
     {
@@ -357,8 +342,8 @@
       "count": 1
     },
     {
-      "find": "          Ready to install\n",
-      "replace": "          Pronta da installare\n",
+      "find": "<span>Ready to install</span>",
+      "replace": "<span>Pronta da installare</span>",
       "count": 1
     },
     {
@@ -372,8 +357,8 @@
       "count": 1
     },
     {
-      "find": "          Lives in your browser\n",
-      "replace": "          Vive nel tuo browser\n",
+      "find": "<span>Lives in your browser</span>",
+      "replace": "<span>Vive nel tuo browser</span>",
       "count": 1
     },
     {
@@ -387,13 +372,13 @@
       "count": 1
     },
     {
-      "find": "          No download required\n",
-      "replace": "          Nessun download richiesto\n",
-      "count": 1
+      "find": "<span>No download required</span>",
+      "replace": "<span>Nessun download richiesto</span>",
+      "count": 2
     },
     {
-      "find": "<p class=\"plat-note\">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</p>",
-      "replace": "<p class=\"plat-note\">Un account &nbsp;·&nbsp; Tre superfici &nbsp;·&nbsp; Sempre sincronizzati</p>",
+      "find": "<footer class=\"sb-footer\">One account &nbsp;·&nbsp; Three surfaces &nbsp;·&nbsp; Always in sync</footer>",
+      "replace": "<footer class=\"sb-footer\">Un account &nbsp;·&nbsp; Tre superfici &nbsp;·&nbsp; Sempre sincronizzati</footer>",
       "count": 1
     },
     {
@@ -447,13 +432,13 @@
       "count": 1
     },
     {
-      "find": "<div class=\"sec-eyebrow\">Security</div>",
-      "replace": "<div class=\"sec-eyebrow\">Sicurezza</div>",
+      "find": "<span>Security</span>",
+      "replace": "<span>Sicurezza</span>",
       "count": 1
     },
     {
-      "find": "<h2>Built for scale and security</h2>",
-      "replace": "<h2>Costruito per scalare e per proteggere</h2>",
+      "find": "<h3>Built for scale and security</h3>",
+      "replace": "<h3>Costruito per scalare e per proteggere</h3>",
       "count": 1
     },
     {
@@ -462,18 +447,18 @@
       "count": 1
     },
     {
-      "find": "class=\"btn btn-primary\">Get started · it's free</a>",
-      "replace": "class=\"btn btn-primary\">Inizia ora · è gratis</a>",
+      "find": "class=\"sb-primary\" href=\"https://app.sprintbrain.com/signup\">Get started · it's free</a>",
+      "replace": "class=\"sb-primary\" href=\"https://app.sprintbrain.com/signup\">Inizia ora · è gratis</a>",
       "count": 1
     },
     {
-      "find": "class=\"btn btn-ghost\">Learn more</a>",
-      "replace": "class=\"btn btn-ghost\">Scopri di più</a>",
+      "find": "href=\"/legal/privacy-policy.html\">Learn more</a>",
+      "replace": "href=\"/legal/privacy-policy.html\">Scopri di più</a>",
       "count": 1
     },
     {
-      "find": "<h3>EU data residency</h3>",
-      "replace": "<h3>Dati residenti in UE</h3>",
+      "find": "<span>EU data residency</span>",
+      "replace": "<span>Dati residenti in UE</span>",
       "count": 1
     },
     {
@@ -487,8 +472,8 @@
       "count": 1
     },
     {
-      "find": "<h3>Per-user authentication</h3>",
-      "replace": "<h3>Autenticazione per utente</h3>",
+      "find": "<span>Per-user authentication</span>",
+      "replace": "<span>Autenticazione per utente</span>",
       "count": 1
     },
     {
@@ -497,8 +482,8 @@
       "count": 1
     },
     {
-      "find": "<h3>GDPR-aligned handling</h3>",
-      "replace": "<h3>Gestione allineata al GDPR</h3>",
+      "find": "<span>GDPR-aligned handling</span>",
+      "replace": "<span>Gestione allineata al GDPR</span>",
       "count": 1
     },
     {
@@ -682,8 +667,8 @@
       "count": 1
     },
     {
-      "find": "<h3>Row-level security</h3>",
-      "replace": "<h3>Sicurezza a livello di riga</h3>",
+      "find": "<span>Row-level security</span>",
+      "replace": "<span>Sicurezza a livello di riga</span>",
       "count": 1
     },
     {
@@ -702,8 +687,8 @@
       "count": 1
     },
     {
-      "find": "content=\"One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.\"",
-      "replace": "content=\"Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.\"",
+      "find": "content=\"One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.\"",
+      "replace": "content=\"Un unico spazio per i tuoi Snippet, Prompt e Brains. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.\"",
       "count": 1
     },
     {
@@ -717,8 +702,8 @@
       "count": 1
     },
     {
-      "find": ">One place for your Snippets, Prompts and Memory. Built to give every AI the context it needs to work better.<",
-      "replace": ">Un unico spazio per i tuoi Snippet, Prompt e Memory. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.<",
+      "find": ">One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.<",
+      "replace": ">Un unico spazio per i tuoi Snippet, Prompt e Brains. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.<",
       "count": 1
     },
     {
@@ -939,6 +924,81 @@
     {
       "find": ">Portable context<",
       "replace": ">Contesto portabile<",
+      "count": 1
+    },
+    {
+      "find": "<span>Chrome Extension</span>",
+      "replace": "<span>Estensione Chrome</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>Web Dashboard</span>",
+      "replace": "<span>Dashboard web</span>",
+      "count": 1
+    },
+    {
+      "find": "<span>Mobile Website</span>",
+      "replace": "<span>Sito mobile</span>",
+      "count": 1
+    },
+    {
+      "find": "Explore SprintBrain",
+      "replace": "Esplora SprintBrain",
+      "count": 1
+    },
+    {
+      "find": "Interactive screenshot with depth and perspective",
+      "replace": "Schermata interattiva con profondità e prospettiva",
+      "count": 1
+    },
+    {
+      "find": "Pause animation",
+      "replace": "Metti in pausa l'animazione",
+      "count": 2
+    },
+    {
+      "find": "Resume animation",
+      "replace": "Riprendi l'animazione",
+      "count": 1
+    },
+    {
+      "find": "Screenshot:",
+      "replace": "Schermata:",
+      "count": 1
+    },
+    {
+      "find": "sprintbrain.com · Security",
+      "replace": "sprintbrain.com · Sicurezza",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain extension and snippet picker, cropped from the official Chrome Web Store screenshot",
+      "replace": "Estensione SprintBrain e selettore di snippet, ritagliati dalla schermata ufficiale del Chrome Web Store",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain web dashboard prompt library, cropped from the official Chrome Web Store screenshot",
+      "replace": "Libreria di prompt della dashboard web SprintBrain, ritagliata dalla schermata ufficiale del Chrome Web Store",
+      "count": 1
+    },
+    {
+      "find": "The four security features captured directly from the live SprintBrain website",
+      "replace": "Le quattro funzionalità di sicurezza acquisite direttamente dal sito SprintBrain",
+      "count": 1
+    },
+    {
+      "find": "<span>Always in sync</span>",
+      "replace": "<span>Sempre sincronizzati</span>",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain mobile snippet form with language selection and copy preview",
+      "replace": "Modulo snippet mobile di SprintBrain con selezione della lingua e anteprima da copiare",
+      "count": 2
+    },
+    {
+      "find": "data-source-label=\"SprintBrain · Mobile Website\"",
+      "replace": "data-source-label=\"SprintBrain · Sito mobile\"",
       "count": 1
     }
   ]

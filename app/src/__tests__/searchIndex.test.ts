@@ -109,6 +109,7 @@ function item(id: string, name: string, overrides: Partial<MemoryItem> = {}): Me
     pinned: false,
     priority: 0,
     content_hash: 'hash',
+    source_id: null,
     created_at: '2026-09-01T00:00:00Z',
     updated_at: '2026-09-01T00:00:00Z',
     deleted_at: null,

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SpaceDialog } from '@/features/memory/SpaceDialog';
 import { SpaceIcon } from '@/features/memory/spaceIcon';
+import { TrashPanel, type TrashPanelRow } from '@/features/memory/TrashPanel';
 import { useMemoryStore } from '@/stores/memoryStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { normalizeQuery, scoreSpace } from '@/lib/searchIndex';
@@ -21,6 +22,17 @@ import type { MemorySpace } from '@/types/database';
 //
 // No All / Mine / Shared tabs. Sharing does not exist yet, so a "Shared with me"
 // tab would be a permanently empty promise. It arrives with the feature.
+//
+// Trashed Brains leave the grid and wait in the trash panel, the same panel a
+// Brain uses for its own trash, where they can be restored or deleted for good.
+
+function describeItems(count: number): string {
+  return count === 0 ? 'Empty' : `${count} item${count === 1 ? '' : 's'}`;
+}
+
+function describeBrains(count: number): string {
+  return `${count} Brain${count === 1 ? '' : 's'}`;
+}
 
 function SpaceCard({
   space,
@@ -58,7 +70,7 @@ function SpaceCard({
                 icon={<Trash2 className="h-3.5 w-3.5" />}
                 label="Move to trash"
                 disabled={space.is_default}
-                title={space.is_default ? 'The default space cannot be trashed' : undefined}
+                title={space.is_default ? 'The default Brain cannot be trashed' : undefined}
                 danger
                 onClick={() => {
                   close();
@@ -80,7 +92,7 @@ function SpaceCard({
           ) : null}
         </span>
         <span className="text-xs text-ink-muted">
-          {items === 0 ? 'Empty' : `${items} item${items === 1 ? '' : 's'}`}
+          {describeItems(items)}
           {tokens > 0 ? ` · ${tokens.toLocaleString()} tokens` : ''}
         </span>
         {space.description ? (
@@ -105,9 +117,13 @@ export function MemoryPage() {
   const createSpace = useMemoryStore((s) => s.createSpace);
   const renameSpace = useMemoryStore((s) => s.renameSpace);
   const trashSpace = useMemoryStore((s) => s.trashSpace);
+  const trashedSpaces = useMemoryStore((s) => s.trashedSpaces);
+  const restoreSpace = useMemoryStore((s) => s.restoreSpace);
+  const deleteSpaceForever = useMemoryStore((s) => s.deleteSpaceForever);
   const showToast = useUiStore((s) => s.showToast);
 
   const [dialogTarget, setDialogTarget] = useState<'new' | MemorySpace | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   // The one search bar in the header owns the text (SEARCH-001).
   const query = useSearchStore((s) => s.query);
 
@@ -121,25 +137,84 @@ export function MemoryPage() {
     return spaces.filter((space) => scoreSpace(space, needle) > 0);
   }, [spaces, query]);
 
-  async function onTrash(space: MemorySpace) {
+  const trashPanelRows = useMemo<TrashPanelRow[]>(
+    () =>
+      trashedSpaces.map((space) => ({
+        id: space.id,
+        name: space.name,
+        icon: <SpaceIcon icon={space.ico} className="h-4 w-4" />,
+        tag: 'Brain',
+        detail: describeItems(totals.get(space.id)?.items ?? 0),
+        deletedAt: space.deleted_at ?? space.updated_at,
+      })),
+    [trashedSpaces, totals],
+  );
+
+  function reportFailure(err: unknown, fallback: string) {
+    showToast(err instanceof Error ? err.message : fallback, 'error');
+  }
+
+  function restoreBrain(space: MemorySpace) {
+    restoreSpace(space.id).then(
+      () => showToast(`"${space.name}" restored.`),
+      (err: unknown) => reportFailure(err, 'Could not restore that Brain.'),
+    );
+  }
+
+  /** The card leaves the grid at once; the toast offers the way back. */
+  function trashBrain(space: MemorySpace) {
+    trashSpace(space.id).then(
+      () =>
+        showToast(`"${space.name}" moved to trash.`, 'success', {
+          label: 'Undo',
+          onClick: () => restoreBrain(space),
+        }),
+      (err: unknown) => reportFailure(err, 'Could not trash that Brain.'),
+    );
+  }
+
+  function restoreTrashed(id: string) {
+    const space = trashedSpaces.find((candidate) => candidate.id === id);
+    if (space) restoreBrain(space);
+  }
+
+  async function deleteTrashed(id: string) {
+    const space = trashedSpaces.find((candidate) => candidate.id === id);
+    if (!space) return;
     try {
-      await trashSpace(space.id);
-      showToast(`"${space.name}" moved to trash.`);
+      await deleteSpaceForever(id);
+      showToast(`"${space.name}" deleted permanently.`);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not trash that space.', 'error');
+      reportFailure(err, 'Could not delete that Brain permanently.');
     }
+  }
+
+  // One Brain at a time: each is its own files-first delete. The first failure
+  // stops the run, so what is left in the trash is exactly what was not deleted.
+  async function emptyTrash() {
+    for (const space of [...trashedSpaces]) {
+      try {
+        await deleteSpaceForever(space.id);
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : 'it could not be deleted.';
+        showToast(`Emptying stopped at "${space.name}": ${reason}`, 'error');
+        return;
+      }
+    }
+    showToast('Trash emptied.');
+    setTrashOpen(false);
   }
 
   return (
     <div>
       <PageHeader
-        title="Memory"
+        title="Brains"
         tag="context assets"
         description="Facts, notes and documents your assistant can read."
         action={
           <Button onClick={() => setDialogTarget('new')}>
             <Plus className="h-4 w-4" />
-            New space
+            New Brain
           </Button>
         }
       />
@@ -150,30 +225,38 @@ export function MemoryPage() {
         </PageBanner>
       ) : null}
 
-      <div className="mb-5 flex items-center gap-3">
-        {/* Held back until the first load finishes: "0 spaces" beside a spinner
+      <div className="mb-5 flex items-center justify-between gap-3">
+        {/* Held back until the first load finishes: "0 Brains" beside a spinner
             reads as an answer, and it is not one yet. */}
         <span className="text-xs text-ink-subtle">
-          {loaded ? `${spaces.length} space${spaces.length === 1 ? '' : 's'}` : ''}
+          {loaded ? describeBrains(spaces.length) : ''}
         </span>
+        <button
+          type="button"
+          onClick={() => setTrashOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-card px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-alt"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {trashedSpaces.length > 0 ? `Trash (${trashedSpaces.length})` : 'Trash'}
+        </button>
       </div>
 
       {loading && spaces.length === 0 ? (
-        <LoadingBlock what="your spaces" />
+        <LoadingBlock what="your Brains" />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Brain}
-          title={spaces.length === 0 ? 'No spaces yet' : 'Nothing matches'}
+          title={spaces.length === 0 ? 'No Brains yet' : 'Nothing matches'}
           description={
             spaces.length === 0
-              ? 'A space holds the facts one kind of work needs. Create one and add your first note.'
+              ? 'A Brain holds the facts one kind of work needs. Create one and add your first note.'
               : 'Try a different search.'
           }
           action={
             spaces.length === 0 ? (
               <Button onClick={() => setDialogTarget('new')}>
                 <Plus className="h-4 w-4" />
-                New space
+                New Brain
               </Button>
             ) : null
           }
@@ -189,7 +272,7 @@ export function MemoryPage() {
                 items={total?.items ?? 0}
                 tokens={total?.tokens ?? 0}
                 onRename={() => setDialogTarget(space)}
-                onTrash={() => void onTrash(space)}
+                onTrash={() => trashBrain(space)}
               />
             );
           })}
@@ -201,6 +284,19 @@ export function MemoryPage() {
         onClose={() => setDialogTarget(null)}
         onCreate={createSpace}
         onRename={renameSpace}
+      />
+
+      <TrashPanel
+        open={trashOpen}
+        subject="Brains"
+        description="Restore a Brain to bring it back with everything in it. Deleting one removes its items and files for good."
+        emptyHint="Brains you delete wait here, with everything in them, until you empty the trash."
+        rows={trashPanelRows}
+        summary={`${describeBrains(trashedSpaces.length)} and everything in them`}
+        onClose={() => setTrashOpen(false)}
+        onRestore={restoreTrashed}
+        onDelete={deleteTrashed}
+        onEmpty={emptyTrash}
       />
     </div>
   );
