@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type { ActivationKey, NotionSyncState, Profile } from '@/types/database';
 import { DEFAULT_TRIGGER_CONFIG } from '@/lib/triggerUtils';
 import { clampMonths } from '@/lib/inactivity';
@@ -147,7 +148,7 @@ async function uploadUserImage(
   if (invalid) throw new Error(invalid);
 
   const { data: cur, error: getErr } = await supabase.auth.getUser();
-  if (getErr) throw getErr;
+  if (getErr) throw toApiError(getErr);
   if (!cur.user) throw new Error('Not authenticated');
 
   // Timestamped per-user key — a replacement gets a fresh URL, so no
@@ -156,7 +157,7 @@ async function uploadUserImage(
   const { error: uploadErr } = await supabase.storage
     .from(bucket)
     .upload(path, file, { contentType: file.type, cacheControl: '3600' });
-  if (uploadErr) throw uploadErr;
+  if (uploadErr) throw toApiError(uploadErr);
 
   const prevUrl = pickHttpsUrl(cur.user.user_metadata, metaKey);
   const { publicUrl } = supabase.storage.from(bucket).getPublicUrl(path).data;
@@ -168,7 +169,7 @@ async function uploadUserImage(
   if (error || !data.user) {
     // The pointer never landed — drop the fresh object instead of orphaning it.
     void supabase.storage.from(bucket).remove([path]);
-    throw error ?? new Error('Update returned no user');
+    throw toApiError(error ?? new Error('Update returned no user'));
   }
 
   // Best-effort cleanup of the replaced object; a leftover is harmless.
@@ -186,7 +187,7 @@ async function removeUserImage(
   chosenKey?: string,
 ): Promise<Profile> {
   const { data: cur, error: getErr } = await supabase.auth.getUser();
-  if (getErr) throw getErr;
+  if (getErr) throw toApiError(getErr);
   if (!cur.user) throw new Error('Not authenticated');
 
   const prevUrl = pickHttpsUrl(cur.user.user_metadata, metaKey);
@@ -198,7 +199,7 @@ async function removeUserImage(
   // An empty choice means "no photo, on purpose", so Google does not put one back.
   if (chosenKey) next[chosenKey] = '';
   const { data, error } = await supabase.auth.updateUser({ data: next });
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Update returned no user');
 
   const prevPath = prevUrl ? objectPathFromPublicUrl(prevUrl, bucket) : null;
@@ -211,7 +212,7 @@ async function removeUserImage(
 export const settingsApi: SettingsApi = {
   async getProfile() {
     const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data.user) throw new Error('Not authenticated');
     return userToProfile(data.user);
   },
@@ -227,12 +228,12 @@ export const settingsApi: SettingsApi = {
       { email: trimmed },
       { emailRedirectTo: redirectTo },
     );
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
   async updateProfile(patch) {
     const { data: cur, error: getErr } = await supabase.auth.getUser();
-    if (getErr) throw getErr;
+    if (getErr) throw toApiError(getErr);
     if (!cur.user) throw new Error('Not authenticated');
 
     // Merge into existing user_metadata so unrelated keys (e.g. set by other
@@ -253,7 +254,7 @@ export const settingsApi: SettingsApi = {
     if (patch.inactivity_months !== undefined) next['inactivity_months'] = clampMonths(patch.inactivity_months);
 
     const { data, error } = await supabase.auth.updateUser({ data: next });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data.user) throw new Error('Update returned no user');
     return userToProfile(data.user);
   },
@@ -276,7 +277,7 @@ export const settingsApi: SettingsApi = {
 
   async getNotionSync() {
     const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) throw userErr;
+    if (userErr) throw toApiError(userErr);
     if (!userData.user) throw new Error('Not authenticated');
 
     const meta = userData.user.user_metadata ?? {};
@@ -291,7 +292,7 @@ export const settingsApi: SettingsApi = {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) throw toApiError(error);
 
     return {
       database_id,
@@ -304,7 +305,7 @@ export const settingsApi: SettingsApi = {
 
   async updateNotionSettings(patch) {
     const { data: cur, error: getErr } = await supabase.auth.getUser();
-    if (getErr) throw getErr;
+    if (getErr) throw toApiError(getErr);
     if (!cur.user) throw new Error('Not authenticated');
 
     const next: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };
@@ -312,7 +313,7 @@ export const settingsApi: SettingsApi = {
     if (patch.db_id !== undefined) next['notion_db_id'] = patch.db_id.trim();
 
     const { error } = await supabase.auth.updateUser({ data: next });
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
 };

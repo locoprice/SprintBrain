@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import { buildLabelAssignments, normalizeLabelName } from '@/lib/labelUtils';
 import type { Label, LabelColor } from '@/types/database';
 
@@ -67,7 +68,7 @@ function dbLabelToLabel(row: DbLabel): Label {
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -79,12 +80,13 @@ async function currentUserId(): Promise<string> {
  */
 function labelWriteError(error: { code?: string; message: string }, name?: string): Error {
   if (error.code === '23505') {
-    return new Error(
+    return toApiError(
+      error,
       name ? `"${name}" already exists` : 'A label with that name already exists',
     );
   }
-  if (error.code === '23514') return new Error('Label name is required');
-  return new Error(error.message);
+  if (error.code === '23514') return toApiError(error, 'Label name is required');
+  return toApiError(error);
 }
 
 export const labelsApi: LabelsApi = {
@@ -93,7 +95,7 @@ export const labelsApi: LabelsApi = {
       .from('labels')
       .select(LABEL_SELECT)
       .order('name', { ascending: true });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbLabel[]).map(dbLabelToLabel);
   },
 
@@ -102,8 +104,8 @@ export const labelsApi: LabelsApi = {
       supabase.from('snippet_labels').select('snippet_id, label_id'),
       supabase.from('prompt_labels').select('prompt_id, label_id'),
     ]);
-    if (snippetRes.error) throw snippetRes.error;
-    if (promptRes.error) throw promptRes.error;
+    if (snippetRes.error) throw toApiError(snippetRes.error);
+    if (promptRes.error) throw toApiError(promptRes.error);
 
     const snippetRows = (snippetRes.data ?? []) as { snippet_id: string; label_id: string }[];
     const promptRows = (promptRes.data ?? []) as { prompt_id: string; label_id: string }[];
@@ -150,7 +152,7 @@ export const labelsApi: LabelsApi = {
 
   async deleteLabel(id) {
     const { data, error } = await supabase.from('labels').delete().eq('id', id).select('id');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data || data.length === 0) {
       throw new Error('That label no longer exists.');
     }
@@ -185,7 +187,7 @@ async function replaceAssignments(
   const { error: deleteError } = await (desired.length > 0
     ? prune.not('label_id', 'in', `(${desired.join(',')})`)
     : prune);
-  if (deleteError) throw deleteError;
+  if (deleteError) throw toApiError(deleteError);
 
   if (desired.length === 0) return;
 
@@ -193,5 +195,5 @@ async function replaceAssignments(
     desired.map((labelId) => ({ [assetColumn]: assetId, label_id: labelId, user_id: userId })),
     { onConflict: `${assetColumn},label_id`, ignoreDuplicates: true },
   );
-  if (insertError) throw insertError;
+  if (insertError) throw toApiError(insertError);
 }

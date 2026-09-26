@@ -56,4 +56,19 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  {
+    // supabase-js returns a failed query's error as a plain object, and the
+    // screens read `.message` only from a real Error. Throwing the object as it
+    // came is how a rejected save ended up as a bare "Save failed".
+    files: ['src/lib/api/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ThrowStatement > :matches(Identifier, MemberExpression, LogicalExpression)',
+          message: 'Throw errors through toApiError(error) so a screen can read them (lib/api/apiError.ts).',
+        },
+      ],
+    },
+  },
 );

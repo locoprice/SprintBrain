@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type {
   ActivityData,
   ActivityDay,
@@ -31,7 +32,7 @@ type EventRow = { shortcut: string; created_at: string };
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -232,7 +233,7 @@ export const analyticsApi: AnalyticsApi = {
       .from('snippets')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);
-    if (totalRes.error) throw totalRes.error;
+    if (totalRes.error) throw toApiError(totalRes.error);
 
     const fromIso = new Date(Date.now() - WINDOW_DAYS * 86400_000).toISOString();
     const eventsRes = await supabase
@@ -240,7 +241,7 @@ export const analyticsApi: AnalyticsApi = {
       .select('shortcut, created_at')
       .eq('user_id', userId)
       .gte('created_at', fromIso);
-    if (eventsRes.error) throw eventsRes.error;
+    if (eventsRes.error) throw toApiError(eventsRes.error);
 
     return aggregate((eventsRes.data ?? []) as EventRow[], totalRes.count ?? 0);
   },
@@ -270,9 +271,9 @@ export const analyticsApi: AnalyticsApi = {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
     ]);
-    if (eventsRes.error) throw eventsRes.error;
-    if (snippetsRes.error) throw snippetsRes.error;
-    if (foldersRes.error) throw foldersRes.error;
+    if (eventsRes.error) throw toApiError(eventsRes.error);
+    if (snippetsRes.error) throw toApiError(snippetsRes.error);
+    if (foldersRes.error) throw toApiError(foldersRes.error);
 
     const events = (eventsRes.data ?? []) as Array<EventRow & { snippet_id: string | null }>;
     const grid = buildActivity(events);

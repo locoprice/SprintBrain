@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import {
   buildTeamCoverPath,
   COVER_MAX_BYTES,
@@ -87,7 +88,7 @@ export const orgApi: OrgApi = {
       .select('role, organizations(id, name, slug, cover)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
-    if (error) throw error;
+    if (error) throw toApiError(error);
 
     const out: OrganizationSummary[] = [];
     for (const row of (data ?? []) as MembershipRow[]) {
@@ -111,7 +112,7 @@ export const orgApi: OrgApi = {
     const { data, error } = await supabase.rpc('create_team', { p_name: trimmed });
     // The RPC raises human-readable messages (empty name, name too long,
     // already in a team) — surface them as written rather than remapping.
-    if (error) throw new Error(error.message);
+    if (error) throw toApiError(error);
     if (typeof data !== 'string') throw new Error('Could not create the team. Try again.');
     // The caller is the only member, so the summary is fully determined here:
     // no round-trip needed to learn a role we just assigned.
@@ -120,7 +121,7 @@ export const orgApi: OrgApi = {
 
   async listMembers(orgId) {
     const { data, error } = await supabase.rpc('org_member_directory', { p_org: orgId });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as DirectoryRow[]).map((r) => ({
       user_id: r.user_id,
       email: r.email,
@@ -135,7 +136,7 @@ export const orgApi: OrgApi = {
       .update({ cover })
       .eq('id', orgId)
       .select('id');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     // RLS (org_update, admin-only) matches 0 rows for non-admins — make that explicit.
     if (!data || data.length === 0) {
       throw new Error('Only a team admin can change the cover.');
@@ -166,7 +167,7 @@ export const orgApi: OrgApi = {
     const { error: uploadErr } = await supabase.storage
       .from(TEAM_COVER_BUCKET)
       .upload(path, prepared, { contentType: prepared.type, cacheControl: '3600' });
-    if (uploadErr) throw uploadErr;
+    if (uploadErr) throw toApiError(uploadErr);
 
     const { publicUrl } = supabase.storage.from(TEAM_COVER_BUCKET).getPublicUrl(path).data;
 
@@ -176,7 +177,7 @@ export const orgApi: OrgApi = {
     } catch (err) {
       // The pointer never landed (e.g. not an admin) — drop the orphaned object.
       void supabase.storage.from(TEAM_COVER_BUCKET).remove([path]);
-      throw err;
+      throw toApiError(err);
     }
     return publicUrl;
   },
