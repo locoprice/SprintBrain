@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  NOT_PERSON_WORDS,
+  PERSON_NAME_STEMS,
+  PERSON_NAME_WORDS,
   buildFormTextToken,
+  isPersonNameKey,
   isValidFieldName,
   nextTextName,
   sanitizeTextDefault,
@@ -37,6 +41,10 @@ interface FormulaEngine {
     vals: Record<string, unknown>,
     opts?: { lang?: string },
   ) => string;
+  sbIsPersonNameKey: (key: string) => boolean;
+  PERSON_NAME_WORDS: Record<string, number>;
+  PERSON_NAME_STEMS: string[];
+  NOT_PERSON_WORDS: Record<string, number>;
 }
 
 const engine = loadHelper<FormulaEngine>(
@@ -124,6 +132,84 @@ describe('formTextToken: a person name through the shipping engine', () => {
     const plain = buildFormTextToken({ name: 'GUEST', default: '' });
     expect(engine.resolveBody(`Hey ${plain}!`, { GUEST: 'giovanni rossi' }, { lang: 'EN' })).toBe(
       'Hey giovanni rossi!',
+    );
+  });
+});
+
+// Every field name in the production library, in the shape it was written, plus
+// the ones the rule exists to turn down. Kept in step with PERSON_KEYS in
+// scripts/check-snippets.js, which holds the phone to the same answers.
+const PERSON_KEYS = [
+  'guest_name', 'guestname', 'Guestname', 'GuestName', 'NAME', 'nombrecliente',
+  'nomecliente', 'Nomecliente', 'nomeospite', 'first_name', 'lastName', 'full_name',
+  'surname', 'cognome', 'nominativo', 'nom', 'prenom', 'prénom', 'nom_client',
+  'apellidos', 'name2', 'nomeCompleto', 'clientName', 'nickname',
+];
+const NOT_PERSON_KEYS = [
+  'Nombre_Provedor', 'nombreproveedor', 'Cliente', 'Modello', 'MarcaModello', 'CHECKIN',
+  'RATE_PLAN', 'RatePlan', 'Paymentterms', 'DATE_1', 'TIME_1', 'NUM_1', 'TEXT_1', 'G',
+  'price', 'linkpreventivo', 'communication', 'saluti', 'username', 'user_name',
+  'UserName', 'filename', 'hostname', 'company_name', 'CompanyName', 'nome_azienda',
+  'nomeazienda', 'nombre_empresa', 'product_name', 'brand_name', 'model_name',
+  'nom_entreprise', 'name_date', '',
+];
+
+describe('isPersonNameKey: the editor and the engine read a field name the same way', () => {
+  it('keeps the same word lists as the engine', () => {
+    expect([...PERSON_NAME_WORDS].sort()).toEqual(Object.keys(engine.PERSON_NAME_WORDS).sort());
+    expect([...PERSON_NAME_STEMS].sort()).toEqual([...engine.PERSON_NAME_STEMS].sort());
+    expect([...NOT_PERSON_WORDS].sort()).toEqual(Object.keys(engine.NOT_PERSON_WORDS).sort());
+  });
+
+  it.each(PERSON_KEYS)('reads %s as a person name', (key) => {
+    expect(isPersonNameKey(key)).toBe(true);
+    expect(engine.sbIsPersonNameKey(key)).toBe(true);
+  });
+
+  it.each(NOT_PERSON_KEYS)('reads %s as something else', (key) => {
+    expect(isPersonNameKey(key)).toBe(false);
+    expect(engine.sbIsPersonNameKey(key)).toBe(false);
+  });
+});
+
+describe('formTextToken: a field whose name says it holds a person name', () => {
+  it('writes format=name when switched on, even where the name alone would do', () => {
+    // A release from before automatic names still reads the attribute.
+    expect(buildFormTextToken({ name: 'nome_ospite', default: '', personName: true })).toBe(
+      '{formtext: name=nome_ospite; format=name}',
+    );
+  });
+
+  it('writes format=plain when the author switches it off', () => {
+    expect(buildFormTextToken({ name: 'nome_ospite', default: '', personName: false })).toBe(
+      '{formtext: name=nome_ospite; format=plain}',
+    );
+    // Off on a field nobody would read as a name needs no attribute at all.
+    expect(buildFormTextToken({ name: 'CITY', default: '', personName: false })).toBe(
+      '{formtext: name=CITY}',
+    );
+  });
+
+  it('leaves the choice to the engine when nobody made one', () => {
+    expect(buildFormTextToken({ name: 'nome_ospite', default: '' })).toBe(
+      '{formtext: name=nome_ospite}',
+    );
+  });
+
+  it('prints capitals with no attribute, and as typed with format=plain', () => {
+    const auto = buildFormTextToken({ name: 'nome_ospite', default: '' });
+    const off = buildFormTextToken({ name: 'nome_ospite', default: '', personName: false });
+    expect(engine.resolveBody(`Ciao ${auto}!`, { nome_ospite: 'mario rossi' }, { lang: 'IT' })).toBe(
+      'Ciao Mario Rossi!',
+    );
+    expect(engine.resolveBody(`Ciao ${off}!`, { nome_ospite: 'mario rossi' }, { lang: 'IT' })).toBe(
+      'Ciao mario rossi!',
+    );
+  });
+
+  it('capitalizes a bare {guest_name}, which cannot carry an attribute', () => {
+    expect(engine.resolveBody('Hi {guest_name}!', { guest_name: 'francesco' }, { lang: 'EN' })).toBe(
+      'Hi Francesco!',
     );
   });
 });

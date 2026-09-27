@@ -14,7 +14,7 @@ One line of text, like a name or a reference.
 
 - **Name**: what the box is called in the form. It starts as `TEXT_1`, and you can type your own.
 - **Default** (optional): text the box starts with, so only the unusual answer needs typing.
-- **Person name**: capitalises a typed name in the snippet's language. `giovanni rossi` prints as `Giovanni Rossi`. The default prints as written.
+- **Person name**: capitalises a typed name in the snippet's language. `giovanni rossi` prints as `Giovanni Rossi`. The default prints as written. It turns on by itself when the field's name includes name, nome, nombre or nom, like `CLIENT_NAME` or `nomecliente`, but not for the name of a company, product or file. Switch it off to print exactly what was typed.
 
 ## Number
 
@@ -92,6 +92,7 @@ You can also type fields straight into the body:
 | Text | `{formtext: name=CLIENT}` |
 | Text with a default | `{formtext: name=CLIENT; default=Team}` |
 | Person name | `{formtext: name=CLIENT; format=name}` |
+| Name printed exactly as typed | `{formtext: name=CLIENT_NAME; format=plain}` |
 | Number | `{formtext: name=QTY; type=number}` |
 | Price in dollars | `{formtext: name=PRICE; type=number; format=currency; currency=USD}` |
 | Date | `{formdate: name=DATE_1; format=DD/MM/YYYY}` |

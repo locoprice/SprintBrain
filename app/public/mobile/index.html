@@ -3166,10 +3166,20 @@ function sbFieldFormatMap(body,override,lang){
       if(!dfmt)continue;
       if(!out)out={};
       out[k]={kind:'date',format:dfmt};
-    }else if(f.type==='text'&&f.format==='name'){
+    }else if(f.type==='text'&&(f.format==='name'||(!f.format&&sbIsPersonNameKey(k)))){
       if(!out)out={};
       out[k]={kind:'name',lang:lang||'',dflt:f.default||''};
     }
+  }
+  /* A plain {guest_name} declares no settings, so sbBodyFieldCfg never lists it,
+     and it has no default. It is still a box somebody types a person's name
+     into. Walks the tokens with sbTokenFieldKey, the rule extractFields uses. */
+  var re=/\{([^}]+)\}/g,m;
+  while((m=re.exec(body))!==null){
+    var bk=sbTokenFieldKey(m[1].replace(/^\s+|\s+$/g,''));
+    if(!bk||Object.prototype.hasOwnProperty.call(cfg,bk)||!sbIsPersonNameKey(bk))continue;
+    if(!out)out={};
+    out[bk]={kind:'name',lang:lang||'',dflt:''};
   }
   return out;
 }
@@ -3184,9 +3194,10 @@ function sbEmitField(key,value,fmtMap){
                         :sbFormatNumber(value,f.format,f.currency);
 }
 
-/* A text field that holds a person's name says so with `format=name`. It stays
-   a text field in every other respect. Any other format on a text field is a
-   typo and reads as plain text. MIRRORED from _textCfg in
+/* A text field that holds a person's name says so with `format=name`, or by its
+   own name (sbIsPersonNameKey); `format=plain` says print it as typed anyway.
+   It stays a text field in every other respect. Any other format on a text
+   field is a typo and reads as no format. MIRRORED from _textCfg in
    extension/formula-engine.js. */
 /* A caption for the box in the fill form (label=Add: first number). Drawn above
    the box, never printed. Mirrors _labelAttr in the engine. */
@@ -3198,7 +3209,8 @@ function sbLabelAttr(attrSrc){
 function sbTextCfg(attrSrc,defVal){
   var out={type:'text',default:defVal};
   var fmtM=/(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
-  if(fmtM&&fmtM[1].toLowerCase()==='name')out.format='name';
+  var fmt=fmtM?fmtM[1].toLowerCase():'';
+  if(fmt==='name'||fmt==='plain')out.format=fmt;
   var label=sbLabelAttr(attrSrc);
   if(label)out.label=label;
   return out;
@@ -3422,6 +3434,42 @@ function sbFormatPersonName(value,lang){
     named=true;
   }
   return parts.join('');
+}
+/* True when a field's own name says it holds a person's name (guest_name, nome,
+   nombre, guestname, nomecliente), so what is typed prints with a name's
+   capitals without format=name. Never when a word names something else
+   (company, product, file, user, supplier). MIRRORED from sbIsPersonNameKey in
+   extension/formula-engine.js, which explains the rule. */
+var SB_PERSON_NAME_WORDS=sbWordSet(
+  'name names firstname lastname fullname surname nickname '+
+  'nome nomi cognome nominativo nombre nombres apellido apellidos nom prenom');
+var SB_PERSON_NAME_STEMS=['name','nome','nombre'];
+var SB_NOT_PERSON_WORDS=sbWordSet(
+  'user file host domain company business brand product model provider supplier vendor '+
+  'utente azienda ditta societa prodotto marca modello fornitore dominio '+
+  'usuario archivo empresa compania producto modelo proveedor provedor '+
+  'utilisateur fichier societe entreprise produit marque modele fournisseur domaine '+
+  'date time datetime');
+function sbIsPersonNameKey(key){
+  var spaced=String(key===null||key===undefined?'':key).replace(/([a-z0-9])([A-Z])/g,'$1 $2');
+  var words=sbStripAccents(spaced.toLowerCase()).split(/[^a-z]+/),found=false;
+  for(var i=0;i<words.length;i++){
+    var w=words[i];
+    if(!w)continue;
+    if(sbIn(SB_NOT_PERSON_WORDS,w))return false;
+    if(sbIn(SB_PERSON_NAME_WORDS,w)){found=true;continue;}
+    for(var j=0;j<SB_PERSON_NAME_STEMS.length;j++){
+      var stem=SB_PERSON_NAME_STEMS[j],rest=null;
+      if(w.length<=stem.length)continue;
+      if(w.slice(0,stem.length)===stem)rest=w.slice(stem.length);
+      else if(w.slice(w.length-stem.length)===stem)rest=w.slice(0,w.length-stem.length);
+      if(rest===null)continue;
+      if(sbIn(SB_NOT_PERSON_WORDS,rest))return false;
+      found=true;
+      break;
+    }
+  }
+  return found;
 }
 function sbCasePrevWord(str,off){
   var m=SB_PREV_WORD_RE.exec(str.slice(Math.max(0,off-40),off));
