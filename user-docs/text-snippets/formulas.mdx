@@ -1,0 +1,105 @@
+---
+title: "Formulas and conditions"
+sidebarTitle: "Formulas"
+description: "Work out prices, totals and percentages while a snippet expands, and show text only when it applies."
+---
+
+Formulas work out numbers from the fields you fill in, so nobody reaches for a calculator. Conditions show a piece of text only when it applies. Both live in the panel on the left of the snippet editor: formulas under **Math**, conditions and greetings under **Logic**.
+
+## Price line
+
+A **Price line** works out one line of a quote from a price. Click **Build the line**, then choose what to work out:
+
+| Choice | Example |
+|---|---|
+| Minus a percentage | a discount: 1.5% off 100 is 98.5 |
+| Plus a percentage | a fee or a markup: 3% on 100 is 103 |
+| A percentage of it | a deposit: 30% of 100 is 30 |
+| What the client saves | original price 150, your price 100: 50 |
+| Saving as a percentage | original price 150, your price 100: 33% |
+
+- Type the percentage, or **Use a saved one**: a rate the snippet already has, such as `DISCOUNT`, so several lines share it.
+- Choose how many decimals the answer keeps: 0, 1 or 2.
+- The line reads a price box that's already in the snippet. If there's none, the window adds one at the cursor.
+
+Only the answer is printed, with no working next to it.
+
+## Calculator
+
+A **Calculator** works out a number from figures you fill in, and prints the working, like `100 - 25 - 5 = 70`. Click **Build the calculation** and choose:
+
+| Choice | Example |
+|---|---|
+| Add | 100 + 25 + 5 = 130 |
+| Subtract | 100 - 25 - 5 = 70 |
+| Multiply | 4 × 2.5 = 10 |
+| Divide | 100 / 4 = 25 |
+| Average | (100 + 25 + 5) / 3 = 43.33 |
+| Percent of | 200 × 15% = 30 |
+| Percent change | 100 → 80 = -20% |
+
+- It takes 2 to 10 numbers. Each box is named in the form, like **Add: first number**. The name isn't printed.
+- Dividing by 0, or a percent change from 0, prints no answer instead of a wrong one.
+
+## Remove a formula
+
+The Price line and Calculator windows show how many formulas the snippet has. **Manage** lists them, each with **Remove** and **Undo**.
+
+## Conditions
+
+**Condition** inserts `{if:A > 0}text{endif}`. Replace `A > 0` with what has to be true and `text` with what prints when it is.
+
+- Numbers compare with `>`, `<`, `>=`, `<=`, `==` and `!=`.
+- Text compares with `=` or `!=` against a value in quotes: `PLAN = "annual"`.
+- `{elseif: ...}` adds another case and `{else}` covers the rest. The first true branch prints, and the others don't.
+- The first `{endif}` closes the block, so a condition can't sit inside another one.
+
+```text
+{if: TOTAL > 500}Delivery is free.{else}Delivery costs 15.{endif}
+```
+
+<Warning>
+  The phone page doesn't support `{elseif: ...}` or `{else}` yet. For snippets you insert from your phone, use separate `{if: ...}` blocks.
+</Warning>
+
+## Greeting
+
+**Greeting** inserts `{greeting}`, which prints Good morning, Good afternoon, Good evening or Good night from the clock where the snippet expands. Morning starts at 5, afternoon at 12, evening at 18 and night at 22.
+
+- It follows the snippet's language: English, Italian, Spanish or French. Force one with `{greeting: lang=ES}`.
+- Replace a wording with your own: `{greeting: morning=Hi there}`.
+
+## Writing formulas by hand
+
+Type `{=` and `}` around any calculation: `{=PRICE * QTY}`.
+
+- Use `+`, `-`, `*`, `/` and brackets, with the names of your number fields.
+- Functions: `round(X, 2)`, `avg()`, `min()`, `max()`, `abs()`, `floor()` and `ceil()`.
+- Answers keep up to two decimals.
+- A field that doesn't hold a number makes the formula print nothing, not a wrong total.
+
+### Days between two dates
+
+- `datetimediff(DATE_1, DATE_2, "calendar")` counts whole days between two date fields.
+- `datespan(DATE_1, DATE_2, "inclusive")` counts both ends. With `"between"` it counts the days in between. It prints nothing when a date is missing or the end comes first.
+
+## Dates that fill themselves in
+
+`{time: DD/MM/YYYY}` prints today's date. The **Automatic** button in the Fields group writes these for you. See [Fields](/text-snippets/dynamic-fields#automatic-date).
+
+| Code | Prints |
+|---|---|
+| `YYYY` / `YY` | 2026 / 26 |
+| `MMMM` / `MMM` / `MM` | September / Sep / 09 |
+| `DD` / `D` | 04 / 4 |
+| `dddd` / `ddd` | Friday / Fri |
+| `HH` / `H` | 14 (24-hour) |
+| `hh` / `h` | 02 (12-hour) |
+| `mm` / `ss` | minutes / seconds |
+| `A` / `a` | PM / pm |
+
+Month and day names print in English. Add `shift=` to move the date, like `{time: DD/MM/YYYY; shift=+3D}` or `{time: DD/MM/YYYY; shift=next monday}`, and `at=09:00` to fix the time.
+
+## Upper and lower case
+
+Wrap text in `{case: upper}` and `{/case}` to change its case after it expands. The other options are `lower`, `title` and `sentence`. Fields inside it are filled in first, then cased.

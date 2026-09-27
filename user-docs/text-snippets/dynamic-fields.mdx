@@ -1,0 +1,103 @@
+---
+title: "Fields"
+sidebarTitle: "Fields"
+description: "Fields are blanks you fill in each time you insert a snippet: text, names, numbers, prices, dates, times, ranges, choices and buttons."
+---
+
+A field is a blank in the body. When you insert the snippet, each field becomes a box in a small form. You fill the boxes in, press <kbd>Enter</kbd>, and the finished text goes in.
+
+Add fields from the **Fields** group in the panel on the left of the editor. Each one opens a small window that writes the field at the cursor, so you never have to type the code yourself.
+
+## Text
+
+One line of text, like a name or a reference.
+
+- **Name**: what the box is called in the form. It starts as `TEXT_1`, and you can type your own.
+- **Default** (optional): text the box starts with, so only the unusual answer needs typing.
+- **Person name**: capitalises a typed name in the snippet's language. `giovanni rossi` prints as `Giovanni Rossi`. The default prints as written.
+
+## Number
+
+A quantity: a price, a count, a duration. A number field always holds a number, so formulas can use it.
+
+- **Format**: **Plain** prints the number as typed. **Currency** adds the symbol and two decimals. **Percent** adds `%`.
+- **Currency**: EUR (€), USD ($), GBP (£), CHF, CAD (CA$), AUD (A$) or JPY (¥, no decimals).
+- **Default** (optional). A blank default opens empty, which is not the same as 0.
+
+People can type `1.200,50` or `1,200.50`. Both read as the same number.
+
+<Warning>
+  Phone numbers, order references and postcodes are not numbers. They lose a leading zero and can't hold `+` or spaces. Use a Text field for them.
+</Warning>
+
+## Date and time
+
+Pick a format, then click **Date** or **Time**.
+
+| Format | Prints |
+|---|---|
+| Day / Month / Year | 04/09/2026 |
+| Month / Day / Year | 09/04/2026 |
+| Day / Month / Weekday | 04/09/Friday |
+| 24-hour | 14:30 |
+| 12-hour (AM/PM) | 02:30 PM |
+
+Date boxes open on today. While filling, you can change the format, jump to a day or set a time, for that insert only.
+
+For two dates, click **Date** twice: the second one arrives as `DATE_2`.
+
+## Automatic date
+
+**Automatic** writes a date that works itself out when the snippet expands. Nobody fills it in.
+
+- **Which day**: **Today**, **Count forward** (days, weeks, months, years, hours or minutes, or backwards), or **A named day**: Tomorrow, Yesterday, Next Monday to Next Sunday, Start or End of this month, Start or End of next month.
+- **What time**: switch on **Print a time as well** to print a fixed time, the same one every time. Minutes go in steps of five.
+
+The window shows how the date prints today before you insert it.
+
+## Date range
+
+**Range** writes two dates and how long the span between them is.
+
+- **The dates**: add two new date boxes, or use two dates already in the body.
+- **What to print**: **Days between the two dates** (1 to 3 September is 2), **Counting both dates** (3), or **Both**.
+- Type the word that follows each number yourself, in your own language.
+
+The end date can't be set before the start date. You can add a time to both dates. It doesn't change the count.
+
+## Choice
+
+**Choice** builds a list of options to pick from while filling.
+
+- **Values**: the options. Tick one to have it selected from the start. Drag the handles to reorder them.
+- **Selection**: **Single Choice** shows round buttons, **Multiple Choice** shows tick boxes.
+- **Name** (optional): only needed if the body repeats the choice somewhere else.
+
+To change a list later, put the cursor inside it and click **Edit this menu**.
+
+## Button
+
+A **Button** changes numbers while you fill the form, like a "10% off" button. It never appears in the message.
+
+- **Label**: the text on the button. Left blank, it reads **Run**.
+- **What it does**: each line sets one field, for example `PRICE` = `PRICE * 0.9`. Later lines use the results of earlier ones.
+- **Spacing**: whether the button removes the space around it, so it leaves no blank line behind.
+
+## Writing fields by hand
+
+You can also type fields straight into the body:
+
+| Field | Example |
+|---|---|
+| Text | `{formtext: name=CLIENT}` |
+| Text with a default | `{formtext: name=CLIENT; default=Team}` |
+| Person name | `{formtext: name=CLIENT; format=name}` |
+| Number | `{formtext: name=QTY; type=number}` |
+| Price in dollars | `{formtext: name=PRICE; type=number; format=currency; currency=USD}` |
+| Date | `{formdate: name=DATE_1; format=DD/MM/YYYY}` |
+| Time | `{formdate: name=TIME_1; type=time; format=hh:mm A}` |
+| Choice | `{formmenu: Basic,Plus,Pro; name=PLAN; default=Plus}` |
+| Choice, several answers | `{formmenu: Email,Phone,Chat; name=CHANNEL; multiple=yes}` |
+| Button | `{button label="10% off"}PRICE = PRICE * 0.9{/button}` |
+
+To repeat a field's answer elsewhere in the body, write its name in braces, like `{CLIENT}`.

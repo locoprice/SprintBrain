@@ -1,0 +1,39 @@
+---
+title: "Import and export"
+sidebarTitle: "Import and export"
+description: "Save your snippets to a JSON file, or bring snippets in from a SprintBrain or Text Blaze export."
+---
+
+## Export
+
+On the Snippets page, click **Export**. SprintBrain downloads `sprintbrain-snippets-` followed by today's date, as a `.json` file.
+
+The file holds every snippet you can see, with its name, trigger, body in every language, folder name and pin.
+
+## Import
+
+<Steps>
+  <Step title="Click Import">
+    On the Snippets page, click **Import** and choose a `.json` file.
+  </Step>
+  <Step title="Read the result">
+    A message at the top of the page says how many snippets came in, and how many were skipped.
+  </Step>
+</Steps>
+
+SprintBrain reads three kinds of file:
+
+- A SprintBrain export.
+- A Text Blaze export.
+- A plain list of snippets, each with a name, a trigger (or `shortcut`) and a body (or `snippet`, `content`, `text`).
+
+What happens on the way in:
+
+- A snippet with no name, no trigger or no body is skipped.
+- Triggers are cleaned: a leading `/`, `::` or `;;` is removed and characters a trigger can't hold become `_`.
+- Languages other than EN, IT, ES, FR and Multi become EN.
+- Imported snippets arrive without a folder. Importing the same file twice adds the snippets twice.
+
+## Coming from Text Blaze
+
+Text Blaze fields and conditions keep working: `{formtext: ...}`, `{formdate: ...}`, `{formmenu: ...}`, `{time: ...}`, `{if: ...}`, `{elseif: ...}` and `{else}`. See [Fields](/text-snippets/dynamic-fields) and [Formulas](/text-snippets/formulas).

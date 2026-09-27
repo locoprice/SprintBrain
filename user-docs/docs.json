@@ -1,0 +1,102 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "SprintBrain",
+  "theme": "almond",
+  "colors": {
+    "primary": "#1b4fd8",
+    "light": "#959595",
+    "dark": "#202020"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "https://media.brand.dev/795bdf5a-f43f-4f1e-8f95-727171d9fc14.png",
+    "dark": "https://media.brand.dev/795bdf5a-f43f-4f1e-8f95-727171d9fc14.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Open Dashboard",
+      "href": "https://app.sprintbrain.com"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "install-extension"
+            ]
+          },
+          {
+            "group": "Snippets",
+            "pages": [
+              "text-snippets/overview",
+              "text-snippets/insert",
+              "text-snippets/create-and-organize",
+              "text-snippets/dynamic-fields",
+              "text-snippets/formulas",
+              "text-snippets/multilanguage",
+              "text-snippets/version-history",
+              "text-snippets/import-export"
+            ]
+          },
+          {
+            "group": "Prompts",
+            "pages": [
+              "prompts/overview",
+              "prompts/create-prompts",
+              "prompts/quality-score",
+              "prompts/filters-and-shortcuts"
+            ]
+          },
+          {
+            "group": "Brains",
+            "pages": [
+              "brains/overview"
+            ]
+          },
+          {
+            "group": "Team",
+            "pages": [
+              "team/sharing-and-permissions",
+              "team/workspace"
+            ]
+          },
+          {
+            "group": "Apps and integrations",
+            "pages": [
+              "apps/mobile",
+              "integrations/supported-sites",
+              "integrations/notion-sync"
+            ]
+          },
+          {
+            "group": "Account and settings",
+            "pages": [
+              "settings/account",
+              "settings/triggers",
+              "settings/security",
+              "settings/analytics"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/snippets/:slug*",
+      "destination": "/text-snippets/:slug*"
+    },
+    {
+      "source": "/team/version-history",
+      "destination": "/text-snippets/version-history"
+    }
+  ],
+  "description": "Documentation for SprintBrain: snippets, prompts and Brains you use in any text field, alone or with your team."
+}

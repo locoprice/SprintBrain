@@ -1,0 +1,43 @@
+---
+title: "Quality score"
+sidebarTitle: "Quality score"
+description: "SprintBrain scores each prompt out of 10, shows what's missing, and fixes most gaps in one click."
+---
+
+The prompt editor scores the prompt out of 10 while you write:
+
+- **8 or more**: Excellent.
+- **5 to 7.9**: Good.
+- **Below 5**: Needs improvement.
+
+Open the score to see each check, why it passed or not, and an example of what would pass.
+
+## What it checks
+
+| Check | Passes when |
+|---|---|
+| Role defined | The Role block is on and filled in. |
+| Clear objective | The Objective block states the task. It counts the most. |
+| Context provided | The Context block has background. |
+| Constraints defined | The Constraints block sets limits. |
+| Examples included | The Examples block shows sample input and output. |
+| Audience specified | The prompt names who the answer is for. |
+| Self-check requested | The prompt asks the AI to check its work or flag doubts. |
+| Output format set | An output type is chosen. |
+| Strategy selected | A strategy is chosen. |
+| Sufficient depth | The whole prompt is detailed enough to be clear. |
+| Model selected | A preferred AI model is set. |
+
+A check can pass in part, for example a block that's on but thin.
+
+## Fix it in one click
+
+A check that doesn't pass shows a button with the fix, such as **Enable** a block, **Name the audience**, **Add self-check** or **Apply One-shot**. Click it and SprintBrain makes the change for you.
+
+## Compare with your library
+
+When you have enough prompts, the score also says how this one compares, for example "Stronger than 68% of your 12 prompts".
+
+<Note>
+  The score measures structure, not results. A prompt you've tested on real work may beat a higher-scoring one.
+</Note>
