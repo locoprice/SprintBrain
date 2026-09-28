@@ -473,15 +473,13 @@ export interface PriceAdjustConfig {
 }
 
 /**
- * The fields a price can be read from: number boxes first, then text boxes,
- * which older snippets use for prices and a formula reads just the same.
- * Menus, dates and times hold no amount.
+ * The fields a price can be read from: number boxes only. A text box holds
+ * whatever was typed, often a link or a name, and offering it made "Original
+ * price" open on a link box, so the saving divided by a URL and printed
+ * nothing. A price that has no number box yet gets a new one from the picker.
  */
 export function priceFieldNames(fields: readonly { key: string; type: string }[]): string[] {
-  return [
-    ...fields.filter((f) => f.type === 'number'),
-    ...fields.filter((f) => f.type === 'text'),
-  ].map((f) => f.key);
+  return fields.filter((f) => f.type === 'number').map((f) => f.key);
 }
 
 /** A typed percentage as a number, or null when it is not one. */

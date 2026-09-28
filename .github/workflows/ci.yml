@@ -68,11 +68,24 @@ jobs:
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 
+      - name: User docs house rules
+        run: node scripts/check-docs.js
+
+      # The same checks Mintlify runs before it publishes docs.sprintbrain.com.
+      # A failed publish keeps the old site live without telling anyone, so it
+      # has to fail here instead. Pinned so a CLI release cannot change the verdict.
+      - name: User docs build and links
+        working-directory: user-docs
+        run: |
+          npx --yes mint@4.2.940 validate
+          npx --yes mint@4.2.940 broken-links
+
       - name: File structure check
         run: |
           test -f extension/manifest.json
           test -f app/index.html
           test -f app/package.json
+          test -f user-docs/docs.json
 
       - name: CI Passed
         run: echo "SprintBrain CI OK"

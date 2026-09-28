@@ -987,21 +987,27 @@ function handleMatch(el, snip, scLen) {
   processing = true;
   scLen = _fieldTriggerSpan(el, scLen);
   var fieldSnapshot = captureFieldState(el, scLen);
+  var vars = parsePlaceholders(snip.body);
+  if (vars.length > 0) {
+    // The fill-in box takes focus, and with it the selection deleteChars sets
+    // over the trigger: the snippet then had nowhere to land and the trigger
+    // stayed in the field. Leave the trigger alone until the box closes, then
+    // select it again from the caret offset read here, as the field overlay does.
+    var caretCO = _isCEEl(el) ? _ceCaretCharOffset(_ceHost(el)) : -1;
+    injectDynamicModal(vars, function(varMap) {
+      var modSnip = {};
+      for (var k in snip) modSnip[k] = snip[k];
+      modSnip.body = interpolateSnippet(snip.body, varMap);
+      var proceed = function() { _proceedInsert(el, modSnip, fieldSnapshot, scLen); };
+      if (_ceRestoreTriggerRange(el, caretCO, scLen)) proceed();
+      else deleteChars(el, scLen, proceed);
+    }, function() {
+      processing = false;
+    });
+    return;
+  }
   deleteChars(el, scLen, function() {
-    var vars = parsePlaceholders(snip.body);
-    if (vars.length > 0) {
-      injectDynamicModal(vars, function(varMap) {
-        var newBody = interpolateSnippet(snip.body, varMap);
-        var modSnip = {};
-        for (var k in snip) modSnip[k] = snip[k];
-        modSnip.body = newBody;
-        _proceedInsert(el, modSnip, fieldSnapshot, scLen);
-      }, function() {
-        processing = false;
-      });
-    } else {
-      _proceedInsert(el, snip, fieldSnapshot, scLen);
-    }
+    _proceedInsert(el, snip, fieldSnapshot, scLen);
   });
 }
 
@@ -1017,12 +1023,9 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
       // atomically replaces the trigger with the snippet. The celebration is then
       // purely informational; onConfirm only logs. onUndo deletes the inserted
       // region (see restoreFieldState) so the field returns to its pre-trigger state.
+      var startCO = _ceCaretCharOffset(_ceHost(el), true);
       insertText(el, text);
-      fieldSnapshot.syncInserted = true;
-      // Capture the inserted region for Undo: caret char-offset (end of snippet)
-      // and the snippet's visible length, measured the instant insertion finished.
-      fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-      fieldSnapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
+      _markSyncInserted(fieldSnapshot, el, startCO, text);
       showCelebration(
         text,
         function onConfirm() {           // timer expired or user clicked OK
@@ -1260,17 +1263,53 @@ function _ceLineInsert(text) {
   }
 }
 
+// Lexical (WhatsApp Web) marks its root with data-lexical-editor="true". The
+// attribute is readable from a content script, unlike the editor instance the
+// page keeps on the element.
+function _isLexicalHost(host) {
+  return !!(host && host.getAttribute && host.getAttribute('data-lexical-editor') === 'true');
+}
+
+// Deletes the selected text, the trigger deleteChars selected, ahead of a paste.
+//
+// execCommand does it through the browser's own editing, and Lexical keeps that
+// edit only when it changes a text node it already has. When the trigger is a
+// whole text node (the start of a message, a new line, right after bold text)
+// the browser removes the node and Lexical puts the trigger back: a one-line
+// snippet then did not expand at all, and a longer one was pasted after the
+// trigger ("::multiLine one"). So Lexical is handed the deletion through its
+// own input model, a beforeinput carrying the selection as its target range,
+// which it claims and applies itself. An editor that does not claim it gets
+// the execCommand as before.
+function _ceDeleteSelection(host) {
+  if (_isLexicalHost(host)) {
+    try {
+      var sel = window.getSelection();
+      var r = (sel && sel.rangeCount) ? sel.getRangeAt(0) : null;
+      if (r && !r.collapsed) {
+        var claimed = !host.dispatchEvent(new InputEvent('beforeinput', {
+          inputType: 'insertText', data: '', bubbles: true, cancelable: true, composed: true,
+          targetRanges: [new StaticRange({
+            startContainer: r.startContainer, startOffset: r.startOffset,
+            endContainer: r.endContainer, endOffset: r.endOffset
+          })]
+        }));
+        if (claimed) return;
+      }
+    } catch(e) {}
+  }
+  try { document.execCommand('insertText', false, ''); } catch(e) {}
+}
+
 // Lexical (WhatsApp Web) keeps its own input model. It accepts
 // execCommand('insertLineBreak') — returning true — and then inserts nothing,
 // so the fallbacks above never fire and a multi-paragraph snippet lands as one
 // dense block. It does honour a text/plain paste, which it converts into real
 // line breaks. Returns true only when the editor claimed the paste.
 //
-// The trigger is consumed first, with execCommand: that fires a real
-// beforeinput carrying target ranges, so the editor deletes exactly the
-// selection deleteChars set across the trigger. A paste event carries no target
-// ranges — Lexical pastes at its own cached caret and leaves the trigger text
-// in the field ("...reserva ♡::neob").
+// The trigger is removed first (_ceDeleteSelection). A paste event carries no
+// target ranges: Lexical pastes at its own cached caret and would leave the
+// trigger text in the field ("...reserva ♡::neob").
 function _cePasteInsert(el, text) {
   var host = _ceHost(el);
   if (!host || typeof DataTransfer !== 'function' || typeof ClipboardEvent !== 'function') return false;
@@ -1281,7 +1320,7 @@ function _cePasteInsert(el, text) {
     dt.setData('text/plain', text);
   } catch(e) { return false; }
 
-  try { document.execCommand('insertText', false, ''); } catch(e) {}
+  _ceDeleteSelection(host);
 
   var claimed;
   try {
@@ -1329,10 +1368,11 @@ function insertText(el, text) {
       // causing execCommand('insertText') to insert at start-of-field while
       // the trigger text survives. deleteChars already focused the editable
       // when needed; trust it.
-      // The first execCommand('insertText') replaces the (possibly non-
-      // collapsed) selection with line[0] in one beforeinput insertText event,
-      // which Lexical handles atomically. After that the cursor is collapsed
-      // at the end of inserted text; subsequent line-break + line pairs append.
+      // Lexical takes every body as a paste, one line or many: its editor undoes
+      // a native insert over a trigger that is a whole text node (see
+      // _ceDeleteSelection). Elsewhere a multi-line body tries the paste first,
+      // and the line-by-line path's first execCommand('insertText') replaces the
+      // selection deleteChars set over the trigger.
       // Use !activeElement.contains(el) rather than !el.contains(activeElement):
       // el may be an inner span while activeElement is the outer contenteditable
       // div (WhatsApp Web / Lexical). The old check had the containment test
@@ -1342,7 +1382,7 @@ function insertText(el, text) {
       if (document.activeElement !== el && !document.activeElement.contains(el)) {
         try { el.focus(); } catch(_) {}
       }
-      if (text.indexOf('\n') > -1 && _cePasteInsert(el, text)) return;
+      if ((text.indexOf('\n') > -1 || _isLexicalHost(_ceHost(el))) && _cePasteInsert(el, text)) return;
       _ceLineInsert(text);
       return;
     }
@@ -1891,14 +1931,14 @@ function doInsert(targetEl, snip) {
   var isCE = targetEl.isContentEditable || (targetEl.getAttribute &&
     (targetEl.getAttribute('contenteditable') === 'true' || targetEl.getAttribute('contenteditable') === ''));
 
-  // Celebrate after a synchronous CE insert. Capture the inserted region so the
-  // Undo button can delete it — same mechanism as the no-field CE path in
-  // _proceedInsert (see restoreFieldState).
-  function celebrateSyncCE() {
+  // Insert over the live CE selection, then celebrate. Capture the inserted
+  // region so the Undo button can delete it: same mechanism as the no-field CE
+  // path in _proceedInsert (see restoreFieldState).
+  function insertSyncCE() {
+    var startCO = _ceCaretCharOffset(_ceHost(targetEl), true);
+    insertText(targetEl, text);
     var snapshot = captureFieldState(targetEl, overlayTriggerLen);
-    snapshot.syncInserted  = true;
-    snapshot.endCharOffset = _ceCaretCharOffset(_ceHost(targetEl));
-    snapshot.visibleLen    = String(text).replace(/[\r\n]/g, '').length;
+    _markSyncInserted(snapshot, targetEl, startCO, text);
     showCelebration(
       text,
       function onConfirm() { logEvent(snip, fillCount); },
@@ -1919,19 +1959,14 @@ function doInsert(targetEl, snip) {
     // found nothing and the trigger stayed in the field. deleteChars remains the
     // fallback for editors whose DOM offsets we could not read.
     if (_ceRestoreTriggerRange(targetEl, overlayCaretCO, overlayTriggerLen)) {
-      insertText(targetEl, text);
-      celebrateSyncCE();
+      insertSyncCE();
     } else {
-      deleteChars(targetEl, overlayTriggerLen, function() {
-        insertText(targetEl, text);
-        celebrateSyncCE();
-      });
+      deleteChars(targetEl, overlayTriggerLen, insertSyncCE);
     }
   } else if (isCE) {
     // CE with no captured trigger (context-menu / selection-suggest): nothing to
     // strip, so insert at the live caret now and celebrate with Undo.
-    insertText(targetEl, text);
-    celebrateSyncCE();
+    insertSyncCE();
   } else {
     // Textarea/input: the trigger was already stripped before the overlay opened.
     // Defer insertion to confirm so Undo can simply skip it — identical to the
@@ -2009,52 +2044,64 @@ function launchConfetti() {
 
 // ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
 // Character offset of the current caret within `host`, counting only text-node
-// characters (block boundaries contribute nothing) — the same unit insertText's
-// visible length uses. Returns -1 if the caret isn't inside the host.
-function _ceCaretCharOffset(host) {
+// characters (block boundaries contribute nothing), the same unit insertText's
+// visible length uses. `fromStart` reads where a selection starts instead of
+// where it ends. Returns -1 if the caret isn't inside the host.
+function _ceCaretCharOffset(host, fromStart) {
   try {
     var sel = window.getSelection();
     if (!sel || !sel.rangeCount || !host) return -1;
     var r = sel.getRangeAt(0);
-    if (host !== r.endContainer && !host.contains(r.endContainer)) return -1;
+    var node = fromStart ? r.startContainer : r.endContainer;
+    var offset = fromStart ? r.startOffset : r.endOffset;
+    if (host !== node && !host.contains(node)) return -1;
     var pre = document.createRange();
     pre.selectNodeContents(host);
-    pre.setEnd(r.endContainer, r.endOffset);
+    pre.setEnd(node, offset);
     return pre.toString().length;
   } catch(_) { return -1; }
 }
 
 // Inverse of _ceCaretCharOffset: resolve a text-character offset within `host`
-// to a concrete {node, offset} DOM position.
-function _ceCharOffsetToPoint(host, target) {
+// to a concrete {node, offset} DOM position. An offset that falls between two
+// text nodes resolves to the end of the first. `atStart` asks for the start of
+// the second instead, for the start of a range: otherwise the range also takes
+// whatever sits between them, and a snippet typed at the start of a new line
+// replaced, or on Undo removed, the line break in front of it.
+function _ceCharOffsetToPoint(host, target, atStart) {
   var tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
-  var acc = 0, node;
+  var acc = 0, node, last = null;
   while ((node = tw.nextNode())) {
     var len = node.nodeValue.length;
-    if (acc + len >= target) return { node: node, offset: Math.max(0, target - acc) };
+    if (acc + len > target || (acc + len === target && !atStart)) {
+      return { node: node, offset: Math.max(0, target - acc) };
+    }
     acc += len;
+    last = node;
   }
+  if (last && acc === target) return { node: last, offset: last.nodeValue.length };
   return { node: host, offset: host.childNodes ? host.childNodes.length : 0 };
 }
 
 // Re-select the N characters ending at a caret offset captured earlier, so the
-// next insertText replaces them. Used when the live selection can no longer be
-// trusted because a modal held focus in between (the field overlay). Returns
-// false when the offset is unusable, leaving the caller its live-selection path.
+// next insertText replaces them (N = 0 just puts the caret back). Used when the
+// live selection can no longer be trusted because a modal held focus in between
+// (the field overlay, the {{name}} fill-in box). Returns false when the offset
+// is unusable, leaving the caller its live-selection path.
 function _ceRestoreTriggerRange(el, caretCO, n) {
   try {
-    if (typeof caretCO !== 'number' || caretCO < n || n <= 0) return false;
+    if (typeof caretCO !== 'number' || n < 0 || caretCO < n) return false;
     var host = _ceHost(el);
     if (!host) return false;
     if (document.activeElement !== el && !document.activeElement.contains(el)) {
       try { el.focus(); } catch(_) {}
     }
-    var sp = _ceCharOffsetToPoint(host, caretCO - n);
+    var sp = _ceCharOffsetToPoint(host, caretCO - n, n > 0);
     var ep = _ceCharOffsetToPoint(host, caretCO);
     var r = document.createRange();
     r.setStart(sp.node, sp.offset);
     r.setEnd(ep.node, ep.offset);
-    if (r.collapsed || r.toString().length !== n) return false;
+    if ((n > 0 && r.collapsed) || r.toString().length !== n) return false;
     var sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(r);
@@ -2066,6 +2113,22 @@ function captureFieldState(el, triggerLen) {
   var isCE = el.isContentEditable || (el.getAttribute && (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''));
   if (isCE) return { type: 'ce', el: el, triggerLen: triggerLen || 0 };
   return { type: 'value', el: el, triggerLen: triggerLen || 0 };
+}
+
+// Records the region a contenteditable insertion just wrote, for Undo: its
+// visible length and the character offset where it ends. `startCO` is where the
+// insertion began, read before insertText. Lexical writes a pasted body a
+// moment after insertText returns, so there the live caret still sits in front
+// of the snippet and Undo would delete the text before it; the end is counted
+// from the start instead. Every other editor has written it already, and its
+// live caret stays the truth.
+function _markSyncInserted(snapshot, el, startCO, text) {
+  var host = _ceHost(el);
+  snapshot.syncInserted = true;
+  snapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
+  snapshot.endCharOffset = (_isLexicalHost(host) && startCO >= 0)
+    ? startCO + snapshot.visibleLen
+    : _ceCaretCharOffset(host);
 }
 
 function restoreFieldState(snapshot) {
@@ -2099,11 +2162,21 @@ function restoreFieldState(snapshot) {
         if (hostU && endCO >= 0 && vlen > 0) {
           try {
             var startCO = Math.max(0, endCO - vlen);
-            var sp = _ceCharOffsetToPoint(hostU, startCO);
+            var sp = _ceCharOffsetToPoint(hostU, startCO, true);
             var ep = _ceCharOffsetToPoint(hostU, endCO);
             var delR = document.createRange();
             delR.setStart(sp.node, sp.offset);
             delR.setEnd(ep.node, ep.offset);
+            if (_isLexicalHost(hostU)) {
+              // Lexical puts back the nodes a Range deletion removes (its line
+              // breaks), so a multi-line snippet only half came out. Hand it the
+              // deletion through its own input model, as the trigger is.
+              var selL = window.getSelection();
+              selL.removeAllRanges();
+              selL.addRange(delR);
+              _ceDeleteSelection(hostU);
+              return;
+            }
             delR.deleteContents();
             try {
               var caretR = document.createRange();
@@ -2559,10 +2632,9 @@ function selectTriggerItem(idx) {
           (el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '')));
         if (_isCE2) {
           // Same sync-insert fix as _proceedInsert: insert while selection is live.
+          var startCO = _ceCaretCharOffset(_ceHost(el), true);
           insertText(el, text);
-          fieldSnapshot.syncInserted = true;
-          fieldSnapshot.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-          fieldSnapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
+          _markSyncInserted(fieldSnapshot, el, startCO, text);
           showCelebration(
             text,
             function onConfirm() {     // timer expired or user clicked OK
@@ -2659,6 +2731,7 @@ function handleTriggerPickerKey(e) {
     // pass through so the user isn't trapped when their query matches nothing.
     if (count > 0) {
       e.preventDefault();
+      e.stopPropagation();   // kept from the page's editor, as for an armed match
       selectTriggerItem(triggerPickerIdx);
       return true;
     }
@@ -3059,7 +3132,12 @@ function handleSelSuggestKey(e) {
     return true;
   }
   if (e.key === 'Enter' || e.key === 'Tab') {
-    if (count > 0) { e.preventDefault(); selectSuggestionItem(selSuggestIdx); return true; }
+    if (count > 0) {
+      e.preventDefault();
+      e.stopPropagation();   // kept from the page's editor, as for an armed match
+      selectSuggestionItem(selSuggestIdx);
+      return true;
+    }
     closeSelSuggest();
     return false;
   }
@@ -3186,7 +3264,11 @@ document.addEventListener('keydown', function(e) {
   // have actually landed in the field.
   if (armedMatch) {
     if (e.key === 'Tab' || e.key === 'Enter') {
+      // preventDefault alone still lets the page's own key handlers run, and
+      // Lexical (WhatsApp Web) acts on Enter regardless of it: it added a blank
+      // line under the snippet. Stop the key here, before it reaches the editor.
       e.preventDefault();
+      e.stopPropagation();
       _fireArmed(0);
       return;
     }
@@ -3435,11 +3517,18 @@ chrome.runtime.onMessage.addListener(function(msg) {
   var vars = parsePlaceholders(snip.body);
   if (vars.length > 0) {
     processing = true;
+    // The fill-in box takes focus, and the caret with it. Read where the caret,
+    // or the selection the snippet replaces, sits now and put it back before
+    // inserting, as handleMatch does for a typed trigger.
+    var host = _isCEEl(el) ? _ceHost(el) : null;
+    var endCO = host ? _ceCaretCharOffset(host) : -1;
+    var startCO = host ? _ceCaretCharOffset(host, true) : -1;
     injectDynamicModal(vars, function(varMap) {
       var newBody = interpolateSnippet(snip.body, varMap);
       var modSnip = {};
       for (var k in snip) modSnip[k] = snip[k];
       modSnip.body = newBody;
+      if (startCO >= 0) _ceRestoreTriggerRange(el, endCO, endCO - startCO);
       _proceedContextInsert(el, modSnip);
     }, function() {
       processing = false;
@@ -3462,10 +3551,9 @@ function _proceedContextInsert(el, snip) {
       // the trigger paths' CE sync-insert (see _proceedInsert): capture the inserted
       // region so restoreFieldState can Range-delete it. onUndo skips logEvent.
       var snapCE = captureFieldState(el, 0);
+      var startCO = _ceCaretCharOffset(_ceHost(el), true);
       insertText(el, text);
-      snapCE.syncInserted  = true;
-      snapCE.endCharOffset = _ceCaretCharOffset(_ceHost(el));
-      snapCE.visibleLen    = String(text).replace(/[\r\n]/g, '').length;
+      _markSyncInserted(snapCE, el, startCO, text);
       showCelebration(
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },

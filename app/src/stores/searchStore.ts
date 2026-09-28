@@ -22,10 +22,7 @@ import type { SearchKind } from '@/lib/searchIndex';
 /** Matches the pause the per-page search fields used, so the feel is unchanged. */
 const DEBOUNCE_MS = 300;
 
-/** How wide the results panel looks. Typing always filters the page in view. */
-export type SearchScope = 'everywhere' | 'section';
-
-/** Which type the panel lists. `all` keeps every group. */
+/** Which type the panel lists. `all` keeps every group. Typing always filters the page in view. */
 export type SearchTypeFilter = 'all' | SearchKind;
 
 interface SearchStore {
@@ -35,9 +32,7 @@ interface SearchStore {
   query: string;
   /** The aggregated, cross-type results panel. */
   paletteOpen: boolean;
-  /** What the panel covers. Everywhere by default: the panel exists to look wide. */
-  scope: SearchScope;
-  /** The panel's type filter. Only bites while the scope is everywhere. */
+  /** The panel's type filter. All by default: the panel exists to look wide. */
   typeFilter: SearchTypeFilter;
 
   /** Type a character. Schedules the commit to `query`. */
@@ -46,7 +41,6 @@ interface SearchStore {
   commit: () => void;
   /** Empty both fields. The "Clear filters" actions and section changes use this. */
   clear: () => void;
-  setScope: (scope: SearchScope) => void;
   setTypeFilter: (filter: SearchTypeFilter) => void;
   openPalette: () => void;
   closePalette: () => void;
@@ -68,7 +62,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   input: '',
   query: '',
   paletteOpen: false,
-  scope: 'everywhere',
   typeFilter: 'all',
 
   setInput: (next) => {
@@ -91,8 +84,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     // would silently hide results from the next search.
     set({ input: '', query: '', typeFilter: 'all' });
   },
-
-  setScope: (scope) => set({ scope }),
 
   setTypeFilter: (typeFilter) => set({ typeFilter }),
 

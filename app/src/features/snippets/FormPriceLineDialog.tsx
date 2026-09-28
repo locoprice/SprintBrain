@@ -203,11 +203,16 @@ export function FormPriceLineDialog({
   const valid = isValidPriceAdjust(cfg) && !boxNameTaken && !otherNameTaken && !rateNameTaken;
   const answerToken = buildPriceAdjustToken(cfg);
   // New boxes go where the cursor is, one per line, and the answer on the line
-  // below them, so the author types the words around each.
-  const newBoxes = [...(creatingBox ? [boxName] : []), ...(creatingOther ? [otherBoxName] : [])];
+  // below them, so the author types the words around each. Each carries its part
+  // in the line as a caption, so the fill window says which box is the original
+  // price: typed the other way round, a saving prints -100% instead of 50%.
+  const newBoxes = [
+    ...(creatingBox ? [{ name: boxName, label: spec.priceLabel }] : []),
+    ...(creatingOther ? [{ name: otherBoxName, label: spec.otherLabel }] : []),
+  ];
   const token = [
-    ...newBoxes.map((name) =>
-      buildFormNumberToken({ name, format: 'plain', currency: DEFAULT_CURRENCY, default: '' }),
+    ...newBoxes.map(({ name, label }) =>
+      buildFormNumberToken({ name, format: 'plain', currency: DEFAULT_CURRENCY, default: '', label }),
     ),
     answerToken,
   ].join('\n');

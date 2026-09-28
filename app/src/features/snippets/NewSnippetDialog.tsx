@@ -190,7 +190,7 @@ const FIELDS_HINT =
 const ACTIONS_HINT =
   'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
 const MATH_HINT =
-  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open Formula below to see what it does.';
+  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open one below to see what it does.';
 const LOGIC_HINT =
   'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
 
@@ -254,18 +254,50 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
 ];
 
-// What the two formula windows do, in the words the buttons use. The last entry
-// is the engine's own vocabulary (extension/formula-engine.js: FUNS, safeEval),
-// for anything the windows do not write.
-const FORMULA_FIELDS: { label: string; hint: string }[] = [
-  { label: 'Price line',
-    hint: 'One line of a quote from a price: minus a discount, plus a fee, a deposit, or what the client saves. Adds the price box if the snippet has none.' },
-  { label: 'Calculator',
-    hint: 'Add, subtract, multiply, divide, average or percentages on numbers filled in when the snippet expands. Prints 100 - 25 - 5 = 70.' },
-  { label: 'Remove',
-    hint: 'Both windows show how many formulas the snippet has. Manage lists them, each with Remove and Undo.' },
-  { label: 'By hand',
-    hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
+// Every formula window reads its snippet's formulas the same way, so each
+// toggle explains it the same way.
+const FORMULA_REMOVE = {
+  label: 'Remove',
+  hint: 'The window shows how many formulas the snippet has. Manage lists them, each with Remove and Undo.',
+};
+
+// The Math section: one toggle per formula, each with its own window, the way
+// the field toggles above read. A new formula is one entry here. The last
+// entry's By hand is the engine's own vocabulary (extension/formula-engine.js:
+// FUNS, safeEval), for anything no window writes.
+const MATH_FORMULAS: readonly {
+  window: 'price' | 'calculator';
+  label: string;
+  description: string;
+  action: string;
+  fields: { label: string; hint: string }[];
+}[] = [
+  {
+    window: 'price',
+    label: 'Price line',
+    description:
+      'One line of a quote worked out from a price, so nobody does the arithmetic by hand. Adds the price box if the snippet has none.',
+    action: 'Build the line',
+    fields: [
+      { label: 'Works out',
+        hint: 'Minus a discount, plus a fee, a deposit, what the client saves, or the saving in %.' },
+      FORMULA_REMOVE,
+    ],
+  },
+  {
+    window: 'calculator',
+    label: 'Calculator',
+    description:
+      'Works out a number from figures filled in when the snippet expands, and prints the working: 100 - 25 - 5 = 70.',
+    action: 'Build the calculation',
+    fields: [
+      { label: 'Works out',
+        hint: 'Add, subtract, multiply, divide, average, percent of, or percent change.' },
+      FORMULA_REMOVE,
+      { label: 'By hand',
+        hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
+    ],
+  },
 ];
 
 // A > 0 is the safest opening condition to hand someone: it is true of any
@@ -1312,55 +1344,42 @@ export function NewSnippetDialog() {
                   <Info className="h-3 w-3" aria-hidden />
                 </Tooltip>
               </div>
-              {/* Formula, Condition and Greeting read as the field toggles above
-                  them read: what the token is, what it may contain, then the
-                  button that writes it. Each replaces a chip that carried its
+              {/* Each formula, Condition and Greeting read as the field toggles
+                  above them read: what the token is, what it may contain, then
+                  the button that writes it. Each replaces a chip that carried its
                   whole explanation in a hover title, which no one hovers before
                   clicking, and these needed the explanation most, since a
                   condition and a formula are the only tokens that can silently
                   print nothing. */}
-              <Toggle
-                label="Formula"
-                className="mb-2.5 mt-2.5"
-                footer={
-                  <div className="flex gap-2">
+              {MATH_FORMULAS.map((formula, i) => (
+                <Toggle
+                  key={formula.window}
+                  label={formula.label}
+                  className={cn('mb-2.5', i === 0 && 'mt-2.5')}
+                  footer={
                     <Button
                       type="button"
                       size="sm"
                       variant="primary"
                       disabled={saving}
-                      onClick={() => openFormulaWindow('price')}
+                      onClick={() => openFormulaWindow(formula.window)}
                     >
                       <Plus className="mr-1 h-3 w-3" />
-                      Price line
+                      {formula.action}
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="primary"
-                      disabled={saving}
-                      onClick={() => openFormulaWindow('calculator')}
-                    >
-                      <Plus className="mr-1 h-3 w-3" />
-                      Calculator
-                    </Button>
-                  </div>
-                }
-              >
-                <p className="text-[11px] text-ink-subtle leading-tight">
-                  Works out a number from prices or figures filled in when the snippet
-                  expands, so nobody does the arithmetic by hand. Two buttons, each one
-                  complete on its own.
-                </p>
-                <dl className="mt-2 flex flex-col gap-1.5">
-                  {FORMULA_FIELDS.map((f) => (
-                    <div key={f.label}>
-                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
-                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </Toggle>
+                  }
+                >
+                  <p className="text-[11px] text-ink-subtle leading-tight">{formula.description}</p>
+                  <dl className="mt-2 flex flex-col gap-1.5">
+                    {formula.fields.map((f) => (
+                      <div key={f.label}>
+                        <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                        <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </Toggle>
+              ))}
             </div>
 
             {/* Logic */}

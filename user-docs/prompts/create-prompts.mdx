@@ -1,0 +1,53 @@
+---
+title: "Write a prompt"
+sidebarTitle: "Write a prompt"
+description: "Build a prompt from blocks, give it a shortcut, and choose whether the AI asks questions or works one step at a time."
+---
+
+On the Prompts page, click **New prompt**. The editor opens on the right. To change a prompt later, click its card.
+
+## Name and shortcut
+
+- **Prompt name**: how the prompt appears in lists and menus.
+- **Shortcut** (optional): letters, numbers, `-` and `_`. With the shortcut `followup`, typing `"""followup` in any text field inserts the prompt at once. Leave it empty to reach the prompt from the menu only.
+
+## Blocks
+
+A prompt is built from up to five blocks. Switch on the ones the task needs:
+
+| Block | What it's for |
+|---|---|
+| **Role** | Who the AI is, like "You are a senior software engineer". |
+| **Objective** | The task, stated clearly. |
+| **Context** | Background the AI needs. |
+| **Examples** | Sample input and output to copy. |
+| **Constraints** | What the AI must not do, or must stay within. |
+
+Role and Objective start switched on. On a new prompt, **Load example** fills the blocks with a sample to start from.
+
+## Ask User Questions
+
+On by default. The AI asks you clarifying questions before it does the task: one at a time, no more than five, and it asks you to confirm before it gives the final result. Switch it off to skip the questions.
+
+This setting is saved with the prompt.
+
+## Interactive Steps
+
+Off by default. The AI first lists the steps it plans to take, then works one step at a time and waits for your answer before the next.
+
+This setting isn't saved with the prompt. It applies to every prompt you copy, and is kept per browser: the dashboard and the phone page share it in the same browser. The Chrome extension has its own **Interactive Steps** switch in the popup's Prompts tab, for prompts you copy or insert with the extension.
+
+## Details
+
+- **Strategy**: CoT, ToT, Few-shot, One-shot, RAG or Agentic.
+- **Intent**: Writing, Coding, Support, SEO, Analysis, Planning, Research or Teaching.
+- **Output type**: JSON, Markdown, SOP or Plain.
+- **Folder** and **Labels**.
+
+While you write, SprintBrain may suggest a strategy and intent, with how sure it is. Click **Apply** to accept them.
+
+## Save and history
+
+Click **Create prompt**, or **Save changes** on a prompt you're editing. Every save is kept: click **History** to see earlier versions and restore one.
+
+A [quality score](/prompts/quality-score) sits in the editor and updates as you type.

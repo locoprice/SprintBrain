@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type { Folder } from '@/types/database';
 import type { FolderFormValues } from '@/types/schemas';
 
@@ -61,7 +62,7 @@ function normalizeDescription(value: string | null | undefined): string | null {
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -72,7 +73,7 @@ export const foldersApi: FoldersApi = {
       .from('folders')
       .select(FOLDER_SELECT)
       .order('sort_order', { ascending: true });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []).map(dbFolderToFolder);
   },
 
@@ -92,7 +93,7 @@ export const foldersApi: FoldersApi = {
       })
       .select(FOLDER_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbFolderToFolder(data as DbFolder);
   },
 
@@ -113,7 +114,7 @@ export const foldersApi: FoldersApi = {
       .eq('user_id', userId)
       .select(FOLDER_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbFolderToFolder(data as DbFolder);
   },
 
@@ -126,20 +127,20 @@ export const foldersApi: FoldersApi = {
       .update({ folder_id: null })
       .eq('folder_id', id)
       .eq('user_id', userId);
-    if (snipErr) throw snipErr;
+    if (snipErr) throw toApiError(snipErr);
 
     const { error: promptErr } = await supabase
       .from('prompts')
       .update({ folder_id: null })
       .eq('folder_id', id)
       .eq('user_id', userId);
-    if (promptErr) throw promptErr;
+    if (promptErr) throw toApiError(promptErr);
 
     const { error } = await supabase
       .from('folders')
       .delete()
       .eq('id', id)
       .eq('user_id', userId);
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 };

@@ -492,6 +492,12 @@ const fieldCfgCases = [
   '{formtext: name=GUEST; FORMAT=Name; default=huésped}',
   '{formtext: name=GUEST; format=nome}',
   '{formtext: name=N; type=number; format=name}',
+  // format=plain is the author switching off the capitals a field called nome
+  // gets on its own. Both parsers must record it, or the phone re-cases a field
+  // the author asked to leave alone.
+  '{formtext: name=nome; format=plain}',
+  '{formtext: name=guest_name; FORMAT=Plain; default=cliente}',
+  '{formtext: name=guest_name}',
   '{formdate: name=CHECKIN; default=2026-08-06}',
   // NUMBER FIELD — the type and format ride on {formtext:} rather than a token
   // of their own, so both parsers must read the same attributes off the same
@@ -696,8 +702,54 @@ console.log('OK Date formatting parity passed all ' + dok + ' cases');
 // language, from word lists the phone keeps its own copy of. A list edited on
 // one side only would print a guest's name, a day or a title differently on the
 // phone, so every case below runs through both copies in all five languages.
-for (const fn of ['sbFormatPersonName', 'sbApplyCaseMode']) {
+for (const fn of ['sbFormatPersonName', 'sbApplyCaseMode', 'sbIsPersonNameKey']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+
+// A field's own name decides whether what is typed into it is a person's name.
+// Every field name in the production library is here, in the shape it was
+// written, plus the ones the rule exists to turn down: the name of a login, a
+// file, a firm, a product or a supplier. The two lists must stay in step with
+// PERSON_KEYS in app/src/__tests__/formTextField.test.ts.
+const PERSON_KEYS = [
+  'guest_name', 'guestname', 'Guestname', 'GuestName', 'NAME', 'nombrecliente',
+  'nomecliente', 'Nomecliente', 'nomeospite', 'first_name', 'lastName', 'full_name',
+  'surname', 'cognome', 'nominativo', 'nom', 'prenom', 'prénom', 'nom_client',
+  'apellidos', 'name2', 'nomeCompleto', 'clientName', 'nickname',
+];
+const NOT_PERSON_KEYS = [
+  'Nombre_Provedor', 'nombreproveedor', 'Cliente', 'Modello', 'MarcaModello', 'CHECKIN',
+  'RATE_PLAN', 'RatePlan', 'Paymentterms', 'DATE_1', 'TIME_1', 'NUM_1', 'TEXT_1', 'G',
+  'price', 'linkpreventivo', 'communication', 'saluti', 'username', 'user_name',
+  'UserName', 'filename', 'hostname', 'company_name', 'CompanyName', 'nome_azienda',
+  'nomeazienda', 'nombre_empresa', 'product_name', 'brand_name', 'model_name',
+  'nom_entreprise', 'name_date', '',
+];
+// The word lists themselves, so a word added on one side only fails here even
+// when no key above happens to use it.
+for (const [label, eng, mob] of [
+  ['person-name words', Object.keys(engine.PERSON_NAME_WORDS), Object.keys(mobile.SB_PERSON_NAME_WORDS)],
+  ['glued stems', engine.PERSON_NAME_STEMS.slice(), mobile.SB_PERSON_NAME_STEMS.slice()],
+  ['not-a-person words', Object.keys(engine.NOT_PERSON_WORDS), Object.keys(mobile.SB_NOT_PERSON_WORDS)],
+]) {
+  if (eng.sort().join(' ') !== mob.sort().join(' ')) {
+    fail('the ' + label + ' lists have drifted\n  engine: ' + eng.join(' ') + '\n  mobile: ' + mob.join(' '));
+  }
+}
+let kok = 0;
+for (const [keys, want] of [[PERSON_KEYS, true], [NOT_PERSON_KEYS, false]]) {
+  for (const key of keys) {
+    const gotE = engine.sbIsPersonNameKey(key);
+    const gotM = mobile.sbIsPersonNameKey(key);
+    if (gotE !== want) {
+      fail('sbIsPersonNameKey(' + JSON.stringify(key) + ') -> ' + gotE + ', expected ' + want);
+    }
+    if (gotM !== gotE) {
+      fail('person-name key drift for ' + JSON.stringify(key) +
+        '\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+    }
+    kok++;
+  }
 }
 const NAME_LANGS = ['EN', 'IT', 'ES', 'FR', ''];
 const NAME_VALUES = [
@@ -805,7 +857,45 @@ if (engine.resolveBody(nameField, { G: 'sr. pérez' }, { lang: 'ES' }) !== 'Esti
 if (engine.resolveBody('Hey {formtext: name=G}!', { G: 'giovanni' }, { lang: 'EN' }) !== 'Hey giovanni!') {
   fail('a text field without format=name is being re-cased');
 }
-console.log('OK Name field + {case:} language parity passed all ' + nok + ' cases');
+
+// A field whose own name says it holds a person's name prints one without the
+// attribute: 28 production snippets use a bare {guest_name}, which cannot carry
+// format=name at all. The author's format=plain still wins, and so does a
+// default they wrote.
+const AUTO_NAME_OUTPUT = [
+  ['{greeting} {guest_name}, thanks', { guest_name: 'francesco' }, 'EN', /^\S.* Francesco, thanks$/],
+  ['Ciao {formtext: name=nomecliente}!', { nomecliente: 'mario rossi' }, 'IT', /^Ciao Mario Rossi!$/],
+  ['Hola {nombre}', { nombre: 'maría de la cruz' }, 'ES', /^Hola María de la Cruz$/],
+  ['{formtext: name=guest_name; format=plain} {guest_name}', { guest_name: 'francesco' }, 'IT',
+    /^francesco francesco$/],
+  ['{formtext: name=Nombre_Provedor}', { Nombre_Provedor: 'autos garcia sl' }, 'ES', /^autos garcia sl$/],
+  ['Estimado {formtext: name=nombre; default=cliente}', { nombre: 'cliente' }, 'ES', /^Estimado cliente$/],
+  ['Hi {username}', { username: 'vpirozzi88' }, 'EN', /^Hi vpirozzi88$/],
+];
+for (const [body, vals, lang, want] of AUTO_NAME_OUTPUT) {
+  const got = engine.resolveBody(body, vals, { lang });
+  if (!want.test(got)) {
+    fail('automatic name capitals: ' + JSON.stringify([body, vals, lang]) + ' -> ' +
+      JSON.stringify(got) + ', expected ' + want);
+  }
+}
+// The phone decides the same fields from the same body.
+const AUTO_NAME_MAPS = [
+  ['{guest_name}', { guest_name: { kind: 'name', lang: 'IT', dflt: '' } }],
+  ['{formtext: name=guest_name; default=ospite} {guest_name}',
+    { guest_name: { kind: 'name', lang: 'IT', dflt: 'ospite' } }],
+  ['{formtext: name=nome; format=plain} {nome}', null],
+  ['{Nombre_Provedor} {G} {formmenu: A,B; name=nome}', null],
+];
+for (const [body, want] of AUTO_NAME_MAPS) {
+  const got = JSON.stringify(mobile.sbFieldFormatMap(body, null, 'IT'));
+  if (got !== JSON.stringify(want)) {
+    fail('mobile sbFieldFormatMap(' + JSON.stringify(body) + ') -> ' + got +
+      ', expected ' + JSON.stringify(want));
+  }
+}
+console.log('OK Name field + {case:} language parity passed all ' + nok + ' cases, ' +
+  kok + ' person-name keys');
 
 // ── SHIFT + ANCHORED TIME PARITY ────────────────────────────────────
 // A {time:} token decides which DAY a message is talking about. The phone and

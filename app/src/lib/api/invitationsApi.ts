@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type {
   InviteResult,
   OrgInvitation,
@@ -92,13 +93,13 @@ export const invitationsApi: InvitationsApi = {
 
   async listForOrg(orgId) {
     const { data, error } = await supabase.rpc('org_invitations', { p_org: orgId });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as OrgInvitation[];
   },
 
   async listMine() {
     const { data, error } = await supabase.rpc('my_pending_invitations');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as PendingInvitation[];
   },
 
@@ -106,7 +107,7 @@ export const invitationsApi: InvitationsApi = {
     const { data, error } = await supabase.rpc('accept_org_invitation', {
       p_invitation: invitationId,
     });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data as string;
   },
 
@@ -114,7 +115,7 @@ export const invitationsApi: InvitationsApi = {
     const { error } = await supabase.rpc('decline_org_invitation', {
       p_invitation: invitationId,
     });
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
   async revoke(invitationId) {
@@ -125,7 +126,7 @@ export const invitationsApi: InvitationsApi = {
       .update({ status: 'revoked' })
       .eq('id', invitationId)
       .select('id');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data || data.length === 0) {
       throw new Error('Only a team admin or manager can withdraw an invitation.');
     }

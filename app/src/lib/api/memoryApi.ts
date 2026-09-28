@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import { buildChunkItems } from '@/lib/documentImport';
 import { DocumentTextError, extractDocumentText } from '@/lib/documentText';
 import { loadMemoryChunk } from '@/lib/memoryChunk';
@@ -256,7 +257,7 @@ async function hashText(text: string): Promise<string> {
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -287,15 +288,18 @@ function memoryWriteError(
 ): Error {
   if (error.code === '23505') {
     const subject = name ? `"${name}"` : 'That name';
-    return action === 'restore'
-      ? new Error(
-          `${subject} was taken while this was in the trash. Rename the one that is in use, then restore again.`,
-        )
-      : new Error(`${subject} already exists. Names have to be unique.`);
+    return toApiError(
+      error,
+      action === 'restore'
+        ? `${subject} was taken while this was in the trash. Rename the one that is in use, then restore again.`
+        : `${subject} already exists. Names have to be unique.`,
+    );
   }
-  if (error.code === '23514') return new Error('That does not fit: check the name, the body length and the item kind.');
-  if (error.code === '42501') return new Error('You do not have access to that Brain.');
-  return new Error(error.message);
+  if (error.code === '23514') {
+    return toApiError(error, 'That does not fit: check the name, the body length and the item kind.');
+  }
+  if (error.code === '42501') return toApiError(error, 'You do not have access to that Brain.');
+  return toApiError(error);
 }
 
 /**
@@ -322,7 +326,7 @@ export const memoryApi: MemoryApi = {
     const { data, error } = await query
       .order('is_default', { ascending: false })
       .order('name', { ascending: true });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbSpace[]).map(dbSpaceToSpace);
   },
 
@@ -333,7 +337,7 @@ export const memoryApi: MemoryApi = {
       .from('memory_shards')
       .select('space_id, token_estimate')
       .is('deleted_at', null);
-    if (error) throw error;
+    if (error) throw toApiError(error);
 
     const totals = new Map<string, MemorySpaceTotals>();
     for (const row of (data ?? []) as { space_id: string; token_estimate: number }[]) {
@@ -381,7 +385,7 @@ export const memoryApi: MemoryApi = {
       .from('memory_spaces')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) throw toApiError(error);
   },
 
   async restoreSpace(id, name) {
@@ -421,7 +425,7 @@ export const memoryApi: MemoryApi = {
     const { data, error } = await query
       .order('pinned', { ascending: false })
       .order('updated_at', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbItem[]).map(dbItemToItem);
   },
 
@@ -434,7 +438,7 @@ export const memoryApi: MemoryApi = {
       .select(ITEM_SELECT)
       .is('deleted_at', null)
       .order('updated_at', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbItem[]).map(dbItemToItem);
   },
 
@@ -463,7 +467,7 @@ export const memoryApi: MemoryApi = {
       .from('memory_shards')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) throw toApiError(error);
   },
 
   async restoreItem(id, name) {
@@ -483,7 +487,7 @@ export const memoryApi: MemoryApi = {
       .select(VERSION_SELECT)
       .eq('shard_id', itemId)
       .order('version_number', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as unknown as MemoryVersion[];
   },
 
@@ -515,7 +519,7 @@ export const memoryApi: MemoryApi = {
     let query = supabase.from('memory_documents').select(DOCUMENT_SELECT).eq('space_id', spaceId);
     if (!includeTrashed) query = query.is('deleted_at', null);
     const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbDocument[]).map(dbDocumentToDocument);
   },
 
@@ -567,7 +571,7 @@ export const memoryApi: MemoryApi = {
 
   async trashDocument(id) {
     const { error } = await supabase.rpc('memory_trash_document', { p_document_id: id });
-    if (error) throw new Error(error.message);
+    if (error) throw toApiError(error);
   },
 
   async restoreDocument(id) {
@@ -582,7 +586,7 @@ export const memoryApi: MemoryApi = {
     const { data, error } = await supabase.storage
       .from(DOCUMENT_BUCKET)
       .createSignedUrl(storagePath, 600);
-    if (error) throw new Error(error.message);
+    if (error) throw toApiError(error);
     return data.signedUrl;
   },
 

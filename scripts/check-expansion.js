@@ -44,6 +44,8 @@ const LIBRARY = [
   { id: 'form',  shortcut: 'form',  title: 'JOT FORM',  lang: 'ES', body: 'FORM BODY' },
   { id: 'forms', shortcut: 'forms', title: 'JOT FORMS', lang: 'ES', body: 'FORMS BODY' },
   { id: 'time',  shortcut: 'time',  title: 'TIME',      lang: 'EN', body: 'TIME BODY' },
+  // A {{name}} body opens the fill-in box before anything is inserted.
+  { id: 'greet', shortcut: 'greet', title: 'GREET',     lang: 'EN', body: 'Hello {{name}}' },
 ];
 
 // ── minimal host: only what content.js touches while loading ────────
@@ -130,10 +132,16 @@ sandbox._proceedInsert = function (el, snip) {
 };
 sandbox.injectLangModal = function () { fail('unexpected language modal in a single-variant fixture'); };
 
+// Whether the last key() was kept from the page. A key the extension consumes
+// must not reach the page's own editor: Lexical (WhatsApp Web) acts on Enter
+// even when it is prevented, and added a blank line under the snippet.
+let stopped = false;
+
 function key(k) {
   let prevented = false;
+  stopped = false;
   onKeyDown({ key: k, target: target, ctrlKey: false, metaKey: false,
-              preventDefault: () => { prevented = true; }, stopPropagation: noop });
+              preventDefault: () => { prevented = true; }, stopPropagation: () => { stopped = true; } });
   if (!prevented && k.length === 1) setField(target.value + k);
   return prevented;
 }
@@ -188,13 +196,19 @@ const cases = [
   { name: 'Enter confirms instead of sending the raw trigger',
     run: async () => {
       await typeText('::time', FAST);
-      if (!key('Enter')) fail('Enter was not consumed while a match was armed — the raw trigger would be sent');
+      if (!key('Enter')) fail('Enter was not consumed while a match was armed: the raw trigger would be sent');
+      if (!stopped) fail('Enter confirmed the match but still reached the page\'s editor');
       await wait(120);
     },
     expect: { id: 'time', span: 6, result: '<time>' } },
 
   { name: 'Tab confirms an armed match',
-    run: async () => { await typeText('::time', FAST); key('Tab'); await wait(120); },
+    run: async () => {
+      await typeText('::time', FAST);
+      key('Tab');
+      if (!stopped) fail('Tab confirmed the match but still reached the page\'s editor');
+      await wait(120);
+    },
     expect: { id: 'time', span: 6, result: '<time>' } },
 
   // Unique-prefix expansion — the operator should not have to type a shortcut
@@ -265,6 +279,57 @@ function runSpanCases() {
   }
 }
 
+// Enter on the open suggestion menu picks the highlighted snippet and, like
+// Enter on an armed match, must not reach the page's editor as well.
+async function runPickerEnterCase() {
+  await reset();
+  // The menu path celebrates directly; the card's DOM is not modelled here.
+  sandbox.showCelebration = noop;
+  await typeText('::ti', 260);   // slow enough for the menu to open
+  if (!sandbox.triggerPickerEl) fail('picker case: the suggestion menu did not open for "::ti"');
+  if (!key('Enter')) fail('picker case: Enter on the open menu was not consumed');
+  if (!stopped) fail('picker case: Enter picked from the menu but still reached the page\'s editor');
+  await wait(60);
+  if (!fired || fired.span !== 4 || fired.result !== '') {
+    fail('picker case: Enter on the menu -> ' + JSON.stringify(fired) + ', expected the 4-character "::ti" removed');
+  }
+  return 1;
+}
+
+// A {{name}} body opens the fill-in box first. The box takes focus, and on a
+// contenteditable the selection over the trigger goes with it, so the trigger
+// must stay put until the box closes: removed with the insert on confirm, left
+// alone on cancel. Removing it before the box opened left the snippet nowhere
+// to land and the trigger in the message.
+async function runPlaceholderCases() {
+  let box = null;
+  sandbox.injectDynamicModal = function (vars, onConfirm, onCancel) {
+    box = { vars: vars, onConfirm: onConfirm, onCancel: onCancel };
+  };
+
+  await reset();
+  await typeText('::greet', FAST);
+  await wait(SETTLE);
+  if (!box) fail('placeholder case: the fill-in box did not open for "::greet"');
+  if (fired) fail('placeholder case: the trigger was removed before the fill-in box closed');
+  box.onConfirm({ name: 'Sam' });
+  await wait(60);
+  if (!fired || fired.id !== 'greet' || fired.span !== 7 || fired.result !== '<greet>') {
+    fail('placeholder case: after the box closed -> ' + JSON.stringify(fired) +
+      ', expected greet with the 7-character trigger removed');
+  }
+
+  box = null;
+  await reset();
+  await typeText('::greet', FAST);
+  await wait(SETTLE);
+  if (!box) fail('placeholder case: the fill-in box did not open for "::greet" (cancel)');
+  box.onCancel();
+  if (fired) fail('placeholder case: cancelling the fill-in box removed the trigger');
+  if (sandbox.processing) fail('placeholder case: cancelling left the expansion locked');
+  return 2;
+}
+
 (async () => {
   for (const c of cases) {
     await reset();
@@ -297,5 +362,6 @@ function runSpanCases() {
       '  Confirming from the suggestion menu would clip the wrong characters and\n' +
       '  leave part of the trigger in the message.');
   }
-  console.log('OK Trigger expansion passed all ' + (cases.length + spanCases.length + 1) + ' cases');
+  const extra = (await runPickerEnterCase()) + (await runPlaceholderCases());
+  console.log('OK Trigger expansion passed all ' + (cases.length + spanCases.length + 1 + extra) + ' cases');
 })();

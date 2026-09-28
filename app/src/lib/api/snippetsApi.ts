@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import { foldersApi } from '@/lib/api/foldersApi';
 import { validateTemplate } from '@/lib/statusSignals';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
@@ -147,7 +148,7 @@ function dbSnippetToSnippetRow(
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -164,7 +165,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
     .select('lang')
     .eq('id', id)
     .single();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   return normalizeLang((data as { lang: string | null } | null)?.lang);
 }
 
@@ -306,7 +307,7 @@ export const snippetsApi: SnippetsApi = {
       fetchUsageCounts(),
       fetchLastUsed(),
     ]);
-    if (listRes.error) throw listRes.error;
+    if (listRes.error) throw toApiError(listRes.error);
     return ((listRes.data ?? []) as unknown as DbSnippetJoined[]).map((row) =>
       dbSnippetToSnippetRow(row, usageCounts, lastUsed),
     );
@@ -320,7 +321,7 @@ export const snippetsApi: SnippetsApi = {
       .insert(insert)
       .select(SNIPPET_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
@@ -335,7 +336,7 @@ export const snippetsApi: SnippetsApi = {
       .from('snippets')
       .insert(rows)
       .select(SNIPPET_SELECT);
-    if (error) throw error;
+    if (error) throw toApiError(error);
     // Arrow, not a bare reference: `.map` passes the index as the second
     // argument, which would land in `usageCounts`. Freshly created rows have no
     // expansions yet, so 0 is correct here.
@@ -378,7 +379,7 @@ export const snippetsApi: SnippetsApi = {
       .eq('id', id)
       .select(SNIPPET_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
@@ -392,7 +393,7 @@ export const snippetsApi: SnippetsApi = {
       .delete()
       .eq('id', id)
       .select('id');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data || data.length === 0) {
       throw new Error(
         "You don't have permission to delete this snippet, or it no longer exists.",
@@ -421,7 +422,7 @@ export const snippetsApi: SnippetsApi = {
       .update({ pinned })
       .in('id', list)
       .select(SNIPPET_SELECT);
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbSnippetJoined[]).map((r) => dbSnippetToSnippetRow(r));
   },
 
@@ -432,7 +433,7 @@ export const snippetsApi: SnippetsApi = {
       .eq('id', id)
       .select(SNIPPET_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
@@ -446,7 +447,7 @@ export const snippetsApi: SnippetsApi = {
       .select(SNIPPET_SELECT)
       .eq('id', id)
       .single();
-    if (readErr) throw readErr;
+    if (readErr) throw toApiError(readErr);
     const source = src as unknown as DbSnippetJoined;
     const now = new Date().toISOString();
     const insert = {
@@ -479,7 +480,7 @@ export const snippetsApi: SnippetsApi = {
       .insert(insert)
       .select(SNIPPET_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbSnippetToSnippetRow(data as unknown as DbSnippetJoined);
   },
 
@@ -492,7 +493,7 @@ export const snippetsApi: SnippetsApi = {
       ok: boolean;
       notion_page_id: string;
     }>(EDGE_FN_SHARE, { body: { snippet_id: id } });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data?.ok || !data.notion_page_id) {
       throw new Error('notion-snippet-push returned unexpected response');
     }
@@ -506,7 +507,7 @@ export const snippetsApi: SnippetsApi = {
       .from('snippets')
       .update({ folder_id: folderId, updated_at: new Date().toISOString() })
       .in('id', ids);
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
   // Delete multiple snippets in one request.
@@ -520,7 +521,7 @@ export const snippetsApi: SnippetsApi = {
       .delete()
       .in('id', ids)
       .select('id');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data || data.length === 0) {
       throw new Error(
         "You don't have permission to delete the selected snippets.",

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type { Prompt, PromptBlock, PromptVersion, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
 
@@ -114,7 +115,7 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -128,7 +129,7 @@ export const promptsApi: PromptsApi = {
       .from('prompts')
       .select(PROMPT_SELECT)
       .order('updated_at', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as unknown as DbPrompt[]).map(dbPromptToPrompt);
   },
 
@@ -155,7 +156,7 @@ export const promptsApi: PromptsApi = {
       })
       .select(PROMPT_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
@@ -184,7 +185,7 @@ export const promptsApi: PromptsApi = {
       .eq('user_id', userId)
       .select(PROMPT_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
@@ -195,7 +196,7 @@ export const promptsApi: PromptsApi = {
       .delete()
       .eq('id', id)
       .eq('user_id', userId);
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
   async setPinned(id, pinned) {
@@ -207,7 +208,7 @@ export const promptsApi: PromptsApi = {
       .eq('user_id', userId)
       .select(PROMPT_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return dbPromptToPrompt(data as unknown as DbPrompt);
   },
 
@@ -222,7 +223,7 @@ export const promptsApi: PromptsApi = {
       .rpc('increment_prompt_usage', { p_prompt_id: id })
       .select('id, usage_count, last_used_at')
       .maybeSingle<{ id: string; usage_count: number; last_used_at: string }>();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data) throw new Error('Prompt not found, or you do not have access to it');
     return { usage_count: data.usage_count, last_used_at: data.last_used_at };
   },
@@ -232,7 +233,7 @@ export const promptsApi: PromptsApi = {
       ok: boolean;
       notion_page_id: string;
     }>(EDGE_FN_PROMPT_PUSH, { body: { prompt_id: id } });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     if (!data?.ok || !data.notion_page_id) {
       throw new Error('notion-prompt-push returned unexpected response');
     }
@@ -245,7 +246,7 @@ export const promptsApi: PromptsApi = {
       .select(VERSION_SELECT)
       .eq('prompt_id', promptId)
       .order('version_number', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as unknown as PromptVersion[];
   },
 
@@ -268,7 +269,7 @@ export const promptsApi: PromptsApi = {
       p_editor_display: await currentEditorDisplay(),
       p_edit_note: editNote ?? null,
     });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data as number;
   },
 

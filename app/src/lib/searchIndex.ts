@@ -71,9 +71,7 @@ export function normalizeQuery(raw: string): string {
  * Which of the three a route belongs to, or null on a page that holds none of
  * them (analytics, team, settings).
  *
- * One rule, read by the bar to word its placeholder and by the panel to scope
- * results to "this section". A second copy would let the two disagree about
- * where the user is.
+ * Read by the bar to word its placeholder.
  */
 export function sectionForPath(pathname: string): SearchKind | null {
   if (pathname === '/') return 'snippet';
@@ -82,7 +80,7 @@ export function sectionForPath(pathname: string): SearchKind | null {
   return null;
 }
 
-/** The space being viewed, for scoping memory results to it. Null elsewhere. */
+/** The space being viewed, for the bar's placeholder. Null elsewhere. */
 export function spaceForPath(pathname: string): string | null {
   const match = /^\/memory\/([^/]+)/.exec(pathname);
   return match ? (match[1] ?? null) : null;

@@ -10,6 +10,7 @@ import {
   FORMULA_OPERATIONS,
   formulasInBody,
   getFormulaOperation,
+  getPriceAdjustment,
   isValidFormula,
   isValidPriceAdjust,
   MAX_OPERANDS,
@@ -27,11 +28,17 @@ import {
 // The dashboard writes the block and the shipping engine resolves it, so the
 // round trip runs against the REAL engine: a formula that looks right in the
 // editor and prints 0 on the page is exactly the defect this builder replaces.
-function loadHelper<T>(path: string): T {
+type Requirer = (id: string) => unknown;
+
+function loadHelper<T>(path: string, req: Requirer = () => ({})): T {
   const src = readFileSync(path, 'utf8');
   const mod = { exports: {} as unknown };
-  const run = new Function('module', 'exports', src) as (m: typeof mod, e: unknown) => void;
-  run(mod, mod.exports);
+  const run = new Function('module', 'exports', 'require', src) as (
+    m: typeof mod,
+    e: unknown,
+    r: Requirer,
+  ) => void;
+  run(mod, mod.exports, req);
   return mod.exports as T;
 }
 
@@ -46,6 +53,18 @@ interface FormulaEngine {
 const engine = loadHelper<FormulaEngine>(
   resolve(process.cwd(), '..', 'extension', 'formula-engine.js'),
 );
+
+// The Price line reads a body's boxes through the shared fill-form decider, so
+// the price tests read them the same way. It asks for the engine by a path that
+// resolves from its own folder, so it is handed the one already loaded.
+const fillFormApi = loadHelper<{
+  fillForm: (body: string, values: Record<string, string>, opts: Record<string, unknown>) => {
+    fields: { key: string; type: string }[];
+  };
+}>(resolve(process.cwd(), '..', 'extension', 'shared', 'fill-form.js'), (id) => {
+  if (id === '../formula-engine.js') return engine;
+  throw new Error(`fill-form.js asked for an unexpected module: ${id}`);
+});
 
 /** Builds the block for `values.length` numbers and expands it with them. */
 function run(operation: FormulaOperation, values: string[], decimals: FormulaDecimals = 2): string {
@@ -328,13 +347,14 @@ describe('formulaToken: adjust a price', () => {
     expect(freeName('DISCOUNT', ['discount', 'DISCOUNT_2'])).toBe('DISCOUNT_3');
   });
 
-  it('offers number boxes first, then text boxes, and never menus or dates', () => {
+  it('offers number boxes only, never text boxes, menus or dates', () => {
     expect(priceFieldNames([
       { key: 'NOTE', type: 'text' },
       { key: 'WHEN', type: 'date' },
       { key: 'PRICE', type: 'number' },
       { key: 'PLAN', type: 'dd' },
-    ])).toEqual(['PRICE', 'NOTE']);
+      { key: 'OTHER_PRICE', type: 'number' },
+    ])).toEqual(['PRICE', 'OTHER_PRICE']);
   });
 
   it('each change gives the answer its hint promises', () => {
@@ -359,6 +379,50 @@ describe('formulaToken: adjust a price', () => {
     expect(engine.resolveBody(line, { PRICE: '100', OTHER_PRICE: '200' })).toBe('100 50%');
     // A price above the original is a negative saving, which stays visible.
     expect(engine.resolveBody(line, { PRICE: '200', OTHER_PRICE: '100' })).toBe('-100 -100%');
+  });
+
+  // The quote that found the bug: two link boxes above one number box. The
+  // list offered the links as prices, so "Original price" opened on a link and
+  // the saving divided by a URL.
+  const linkQuote =
+    'Request: {formtext: name=linkpreventivo}\n' +
+    'Portfolio: {formtext: name=linkportfolio}\n' +
+    'Date: {formdate: name=DATE_1; format=DD/MM/YYYY}\n' +
+    'Plan: {formmenu: A,B; name=Plan; default=A}\n' +
+    '{formtext: name=price; type=number}\n';
+  const links = {
+    linkpreventivo: 'https://example.com/quote/48213',
+    linkportfolio: 'https://example.com/portfolio/7',
+  };
+  // What the Price line inserts for a saving when the original needs a box.
+  const originalBox = buildFormNumberToken({
+    name: 'OTHER_PRICE', format: 'plain', currency: 'EUR', default: '',
+    label: getPriceAdjustment('savingPercent').otherLabel,
+  });
+
+  it('never offers a link box as a price, so Original price starts on a new box', () => {
+    const fields = fillFormApi.fillForm(linkQuote, {}, {}).fields;
+    expect(fields.map((f) => f.key)).toEqual(expect.arrayContaining(['linkpreventivo', 'linkportfolio', 'price']));
+    // Your price takes the one number box. Nothing is left for the original,
+    // so the window adds a box for it instead of wiring in a link.
+    expect(priceFieldNames(fields)).toEqual(['price']);
+    const withOriginal = fillFormApi.fillForm(`${linkQuote}${originalBox}`, {}, {}).fields;
+    expect(priceFieldNames(withOriginal)).toEqual(['price', 'OTHER_PRICE']);
+    // The fill window names the new box, so 200 is not typed into Your price.
+    expect(engine.buildFormFieldCfg(originalBox).OTHER_PRICE?.label).toBe('Original price');
+  });
+
+  it('prints exactly 50% for 100 against 200, with links typed in the boxes beside it', () => {
+    const line = (decimals: FormulaDecimals) =>
+      buildPriceAdjustToken({ ...base, adjustment: 'savingPercent', price: 'price', other: 'OTHER_PRICE', decimals });
+    const vals = { ...links, price: '100', OTHER_PRICE: '200' };
+    for (const decimals of [0, 1, 2] as FormulaDecimals[]) {
+      const out = engine.resolveBody(`${linkQuote}${originalBox}\nSaving: ${line(decimals)}`, vals);
+      expect(out.split('\n').pop(), `${decimals} decimals`).toBe('Saving: 50%');
+    }
+    // The line the old list wired, against the link: a URL is no price, so nothing prints.
+    const wired = buildPriceAdjustToken({ ...base, adjustment: 'savingPercent', price: 'price', other: 'linkpreventivo', decimals: 0 });
+    expect(engine.resolveBody(wired, { ...links, price: '100' })).toBe('');
   });
 
   it('gives the two price choices the same labels, so the order is never a guess', () => {

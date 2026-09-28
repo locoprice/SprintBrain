@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 
 // Security surface: active sessions, per-session revocation, session liveness
 // (heartbeat) and login activity. Sessions live in GoTrue's auth.sessions and
@@ -50,7 +51,7 @@ export const securityApi = {
   /** Active sessions for the signed-in user, current session first. */
   async listSessions(): Promise<DeviceSession[]> {
     const { data, error } = await supabase.rpc('list_user_sessions');
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as SessionRow[]).map((row) => ({
       id: row.id,
       createdAt: row.created_at,
@@ -71,7 +72,7 @@ export const securityApi = {
     const { data, error } = await supabase.rpc('revoke_session', {
       p_session_id: sessionId,
     });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data === true;
   },
 
@@ -83,7 +84,7 @@ export const securityApi = {
       .eq('event', 'login')
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as ActivityRow[]).map((row) => ({
       id: row.id,
       method: row.method,
@@ -117,7 +118,7 @@ export const securityApi = {
    */
   async setPassword(password: string): Promise<void> {
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
+    if (error) throw toApiError(error);
   },
 
   /**

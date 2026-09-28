@@ -919,10 +919,21 @@
         if (!dfmt) continue;
         if (!out) out = {};
         out[k] = { kind: 'date', format: dfmt };
-      } else if (f.type === 'text' && f.format === 'name') {
+      } else if (f.type === 'text' &&
+                 (f.format === 'name' || (!f.format && sbIsPersonNameKey(k)))) {
         if (!out) out = {};
         out[k] = { kind: 'name', lang: lang || '', dflt: f['default'] || '' };
       }
+    }
+    // A plain {guest_name} declares no settings, so buildFormFieldCfg never
+    // lists it, and it has no default. It is still a box somebody types a
+    // person's name into.
+    var keys = extractFields(body);
+    for (var b = 0; b < keys.length; b++) {
+      var bk = keys[b];
+      if (Object.prototype.hasOwnProperty.call(cfg, bk) || !sbIsPersonNameKey(bk)) continue;
+      if (!out) out = {};
+      out[bk] = { kind: 'name', lang: lang || '', dflt: '' };
     }
     return out;
   }
@@ -1523,6 +1534,63 @@
     return parts.join('');
   }
 
+  // ── A FIELD THAT HOLDS A PERSON'S NAME ─────────────────────────
+  // What someone types into a field called guest_name, nome or nombre is a
+  // person's name, so it prints with a name's capitals without the author
+  // having to say so: "francesco" becomes "Francesco". The field's own name is
+  // the signal, the way fill-form.js reads CHECKIN_DATE as a date. What was
+  // typed cannot be: "rosa", "may" and "mark" are names and words alike.
+  //
+  // The key splits into words at anything that is not a letter and where a
+  // lowercase letter meets a capital (GuestName, Nombre_Provedor). A word
+  // counts when it is a name word, or when name, nome or nombre is glued to
+  // its start or end (guestname, nomecliente). Any word naming something other
+  // than a person rules the field out: a company, a product or a file has a
+  // name too, and "acme srl" must not print as "Acme Srl".
+  //
+  // The author decides either way on any field: format=name turns the capitals
+  // on, format=plain turns them off.
+  //
+  // MIRRORED in app/public/mobile/index.html (sbIsPersonNameKey) and in
+  // app/src/lib/formTextToken.ts (isPersonNameKey), which shows the editor's
+  // Person name switch already on. scripts/check-snippets.js and
+  // formTextField.test.ts hold all three to the same answers.
+  var PERSON_NAME_WORDS = _sbWordSet(
+    'name names firstname lastname fullname surname nickname ' +
+    'nome nomi cognome nominativo nombre nombres apellido apellidos nom prenom');
+  var PERSON_NAME_STEMS = ['name', 'nome', 'nombre'];
+  var NOT_PERSON_WORDS = _sbWordSet(
+    'user file host domain company business brand product model provider supplier vendor ' +
+    'utente azienda ditta societa prodotto marca modello fornitore dominio ' +
+    'usuario archivo empresa compania producto modelo proveedor provedor ' +
+    'utilisateur fichier societe entreprise produit marque modele fournisseur domaine ' +
+    'date time datetime');
+
+  function sbIsPersonNameKey(key) {
+    var spaced = String(key === null || key === undefined ? '' : key)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+    var words = sbStripAccents(spaced.toLowerCase()).split(/[^a-z]+/);
+    var found = false;
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      if (!w) continue;
+      if (_sbIn(NOT_PERSON_WORDS, w)) return false;
+      if (_sbIn(PERSON_NAME_WORDS, w)) { found = true; continue; }
+      for (var j = 0; j < PERSON_NAME_STEMS.length; j++) {
+        var stem = PERSON_NAME_STEMS[j], rest = null;
+        if (w.length <= stem.length) continue;
+        if (w.slice(0, stem.length) === stem) rest = w.slice(stem.length);
+        else if (w.slice(w.length - stem.length) === stem) rest = w.slice(0, w.length - stem.length);
+        if (rest === null) continue;
+        // username, companyname, nomeazienda: the name of a login or a firm.
+        if (_sbIn(NOT_PERSON_WORDS, rest)) return false;
+        found = true;
+        break;
+      }
+    }
+    return found;
+  }
+
   // The word right before `off` when only spaces sit between the two, else ''.
   function _casePrevWord(s, off) {
     var m = _SB_PREV_WORD_RE.exec(s.slice(Math.max(0, off - 40), off));
@@ -1944,10 +2012,13 @@
 
   // A text field that holds a person's name says so with `format=name`, and
   // what is typed into it prints with a name's capitals: "giovanni rossi"
-  // becomes "Giovanni Rossi" (see sbFormatPersonName). It stays a text field in
-  // every other respect, so a surface that cannot read the format still draws
-  // the same box and prints the value as typed. Any other format on a text
-  // field is a typo and reads as plain text, the same way an unknown `type` does.
+  // becomes "Giovanni Rossi" (see sbFormatPersonName). A field whose own name
+  // says it holds one (guest_name, nome) needs no attribute at all (see
+  // sbIsPersonNameKey), so `format=plain` is how an author says no: print it
+  // exactly as typed. It stays a text field in every other respect, so a
+  // surface that cannot read the format still draws the same box and prints
+  // the value as typed. Any other format on a text field is a typo and reads
+  // as no format at all, the same way an unknown `type` does.
   // `label=Add: first number` names the box in the fill form. It is a caption
   // and nothing else: drawn above the box on every surface that fills a snippet
   // in, never printed, and read by nothing but the renderers. A release from
@@ -1962,7 +2033,8 @@
   function _textCfg(attrSrc, defVal) {
     var out = { type: 'text', 'default': defVal };
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
-    if (fmtM && fmtM[1].toLowerCase() === 'name') out.format = 'name';
+    var fmt = fmtM ? fmtM[1].toLowerCase() : '';
+    if (fmt === 'name' || fmt === 'plain') out.format = fmt;
     var label = _labelAttr(attrSrc);
     if (label) out.label = label;
     return out;
@@ -2395,6 +2467,10 @@
     sbGreetingText:    sbGreetingText,
     sbParseTimeToken:  sbParseTimeToken,
     sbFormatPersonName: sbFormatPersonName,
+    sbIsPersonNameKey: sbIsPersonNameKey,
+    PERSON_NAME_WORDS: PERSON_NAME_WORDS,
+    PERSON_NAME_STEMS: PERSON_NAME_STEMS,
+    NOT_PERSON_WORDS:  NOT_PERSON_WORDS,
     sbApplyCaseMode:   _applyCaseMode
   };
 

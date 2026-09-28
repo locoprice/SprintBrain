@@ -1,0 +1,42 @@
+---
+title: "Languages"
+sidebarTitle: "Languages"
+description: "Keep English, Italian, Spanish and French versions of one snippet under one trigger, and pick the language when you insert it."
+---
+
+One snippet can hold a body for each language. They share the name, the trigger and the folder.
+
+## Add a language
+
+<Steps>
+  <Step title="Open the snippet">
+    Click its row on the Snippets page.
+  </Step>
+  <Step title="Pick the language">
+    Above **Body**, click **EN**, **IT**, **ES** or **FR**. A dot marks the languages that already have text.
+  </Step>
+  <Step title="Write that version">
+    Type the body for that language. The other languages keep their own text.
+  </Step>
+  <Step title="Save">
+    Click **Save changes**.
+  </Step>
+</Steps>
+
+- **Multi** holds one body that mixes languages. It gets no language check.
+- **Clear** removes the language on screen. The snippet is saved without it.
+- If the text doesn't read like the language you picked, the editor says so and won't save until you fix the text or pick the right language.
+
+## Insert a language
+
+When a snippet has more than one language, SprintBrain asks you to **Choose a language to insert**.
+
+- In the right-click menu, the snippet opens a submenu with one entry per language.
+- To pick one language for you each time, set **Default Language** in the extension popup's settings.
+- The snippet list can be filtered by language.
+
+## Words that follow the reader
+
+- `{greeting}` prints Good morning, Buongiorno, Buenos días or Bonjour to match the snippet's language and the time of day. See [Formulas](/text-snippets/formulas#greeting).
+- A **Person name** field capitalises a name the way the snippet's language does. See [Fields](/text-snippets/dynamic-fields#text).
+- Some greeting words agree with the name typed after them. In Spanish, `Querido` followed by a name field prints `Querida Lucía` when the name is Lucía. This works for common words like Querido, Estimado, Caro and Cher.

@@ -168,6 +168,11 @@ app/
 - Snippet, folder, and prompt forms are wired to Supabase via Zod-validated stores with optimistic updates (SNIPPETS-CRUD-001, PROMPTS-001).
 - Analytics-related controls remain disabled placeholders pending `ANALYTICS-001`. Disabled controls must include `title` explaining why.
 
+### 4.10 Errors
+- Every `throw` in `src/lib/api` goes through `toApiError(error)` (`lib/api/apiError.ts`), and ESLint enforces it. supabase-js returns a failed query's error as a plain object, and the screens read `.message` only from a real `Error`, so a bare `throw error` shows the generic fallback ("Save failed") instead of the reason.
+- `toApiError` rewords the failures Postgres words itself (duplicate, invalid format, permission and similar), keeps the text of messages our SQL functions raise on purpose, keeps `code` and `serverMessage` on the error, and logs the server's text with `console.error`. Real Errors (sign-in, storage) pass through untouched.
+- A sentence for one known case goes in as the second argument, as `labelWriteError` and `memoryWriteError` do: `toApiError(error, 'That name is taken.')`.
+
 ---
 
 ## 5. Build & deploy

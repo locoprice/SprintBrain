@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 // through (trigger match, overlay insert, picker, prompt shortcut), so pinning
 // it here covers all of them.
 //
-// Two regressions are pinned, both found in July 2026:
+// Three regressions are pinned, two found in July 2026 and one in September:
 //
 // 1. Windows line endings. The body was split on '\n' alone, so every line kept
 //    a trailing '\r'. The CR rode into the message as an invisible character,
@@ -23,6 +23,14 @@ import { resolve } from 'node:path';
 //    paste, so multi-line bodies are offered to the editor as a paste first,
 //    with the per-line path kept for every editor that doesn't claim it.
 //
+// 3. Lexical again. It keeps a native edit only when the edit changes a text
+//    node it already has. A trigger that is a whole text node (the start of a
+//    message, a new line, right after bold text) was removed by the browser as
+//    a node and Lexical put it back: a one-line snippet did not expand at all,
+//    and a longer one landed after the trigger. On a Lexical host the trigger
+//    now goes through a beforeinput the editor claims, and every body, one line
+//    or many, is offered as a paste.
+//
 // content.js is a content script (top-level chrome.* calls), so it cannot be
 // imported. Slice the real shipping functions out of the source instead and run
 // them against a recording document — the same "evaluate the real source"
@@ -34,9 +42,18 @@ interface PasteRecord {
   type: string;
   text: string;
 }
+interface InputRecord {
+  type: string;
+  inputType: string;
+  data: string | null;
+  ranges: unknown[];
+}
 interface Recorded {
   cmds: Array<{ cmd: string; value: string | null }>;
   pastes: PasteRecord[];
+  inputs: InputRecord[];
+  // every command and event, in the order the browser was asked for them
+  order: string[];
   inserted: string;
 }
 interface Options {
@@ -47,6 +64,20 @@ interface Options {
   // the editor claims the paste but writes nothing (hostile / untrusted-event
   // rejection) — the probe must then fall back to the per-line path
   swallowsPaste?: boolean;
+  // the host is a Lexical root (data-lexical-editor="true"), as in WhatsApp Web
+  lexical?: boolean;
+  // the editor claims the beforeinput that removes the trigger; false models a
+  // build that ignores it
+  claimsDeletion?: boolean;
+  // nothing is selected: a right-click insert at a bare caret
+  collapsed?: boolean;
+}
+interface DispatchedEvent {
+  type: string;
+  inputType?: string;
+  data?: string | null;
+  targetRanges?: Array<{ init: unknown }>;
+  clipboardData?: { getData: (t: string) => string };
 }
 
 function sliceFunction(src: string, signature: string): string {
@@ -66,6 +97,8 @@ const source = readFileSync(
 );
 const fnSource = [
   'function _ceHost(el) {',
+  'function _isLexicalHost(host) {',
+  'function _ceDeleteSelection(host) {',
   'function _ceLineInsert(text) {',
   'function _cePasteInsert(el, text) {',
   'function insertText(el, text) {',
@@ -74,11 +107,20 @@ const fnSource = [
   .join('\n');
 
 // Runs the real insertText against a stub editor and records everything it asked
-// the browser to do: execCommand calls and paste events.
+// the browser to do: execCommand calls, beforeinput events and paste events.
 function run(text: string, opts: Options = {}): Recorded {
-  const { contentEditable = true, claimsPaste = false, swallowsPaste = false } = opts;
+  const {
+    contentEditable = true,
+    claimsPaste = false,
+    swallowsPaste = false,
+    lexical = false,
+    claimsDeletion = true,
+    collapsed = false,
+  } = opts;
   const cmds: Recorded['cmds'] = [];
   const pastes: PasteRecord[] = [];
+  const inputs: InputRecord[] = [];
+  const order: string[] = [];
   // Text the probe will see. A claimed, non-swallowed paste means the editor
   // wrote the body; a swallowed one leaves the field as it was.
   let fieldText = '';
@@ -86,16 +128,31 @@ function run(text: string, opts: Options = {}): Recorded {
   const el = {
     isContentEditable: contentEditable,
     tagName: contentEditable ? 'DIV' : 'TEXTAREA',
-    getAttribute: (name: string) => (name === 'contenteditable' && contentEditable ? 'true' : null),
+    getAttribute: (name: string) => {
+      if (name === 'contenteditable') return contentEditable ? 'true' : null;
+      if (name === 'data-lexical-editor') return lexical ? 'true' : null;
+      return null;
+    },
     parentElement: null,
     focus: () => {},
     get textContent() {
       return fieldText;
     },
-    dispatchEvent: (ev: { type: string; clipboardData: { getData: (t: string) => string } }) => {
-      pastes.push({ type: ev.type, text: ev.clipboardData.getData('text/plain') });
-      if (!claimsPaste) return true; // not prevented — editor ignored it
-      if (!swallowsPaste) fieldText += ev.clipboardData.getData('text/plain');
+    dispatchEvent: (ev: DispatchedEvent) => {
+      order.push(ev.type);
+      if (ev.type === 'beforeinput') {
+        inputs.push({
+          type: ev.type,
+          inputType: ev.inputType ?? '',
+          data: ev.data ?? null,
+          ranges: (ev.targetRanges ?? []).map((r) => r.init),
+        });
+        return !claimsDeletion; // false: preventDefault, the editor claimed it
+      }
+      const pasted = ev.clipboardData ? ev.clipboardData.getData('text/plain') : '';
+      pastes.push({ type: ev.type, text: pasted });
+      if (!claimsPaste) return true; // not prevented: the editor ignored it
+      if (!swallowsPaste) fieldText += pasted;
       return false; // preventDefault → the editor claimed it
     },
   };
@@ -103,10 +160,42 @@ function run(text: string, opts: Options = {}): Recorded {
   const doc = {
     activeElement: el,
     execCommand: (cmd: string, _ui: boolean, value: string | null) => {
+      order.push('execCommand:' + cmd);
       cmds.push({ cmd, value: value ?? null });
       return true; // Lexical's lie: reports success for commands it drops
     },
   };
+
+  // The selection deleteChars set over the trigger (or a bare caret).
+  const range = {
+    collapsed,
+    startContainer: 'trigger-start',
+    startOffset: 0,
+    endContainer: 'trigger-end',
+    endOffset: 6,
+  };
+  const win = { getSelection: () => ({ rangeCount: 1, getRangeAt: () => range }) };
+  class StubStaticRange {
+    init: unknown;
+    constructor(init: unknown) {
+      this.init = init;
+    }
+  }
+  class StubInputEvent {
+    type: string;
+    inputType: string;
+    data: string | null;
+    targetRanges: StubStaticRange[];
+    constructor(
+      type: string,
+      init: { inputType: string; data: string | null; targetRanges: StubStaticRange[] },
+    ) {
+      this.type = type;
+      this.inputType = init.inputType;
+      this.data = init.data;
+      this.targetRanges = init.targetRanges;
+    }
+  }
 
   class StubDataTransfer {
     private data: Record<string, string> = {};
@@ -136,12 +225,31 @@ function run(text: string, opts: Options = {}): Recorded {
     'DataTransfer',
     'ClipboardEvent',
     '_shouldAutoCap',
+    'window',
+    'InputEvent',
+    'StaticRange',
     `${fnSource}\nreturn insertText;`,
-  ) as (d: unknown, dt: unknown, ce: unknown, cap: () => boolean) => InsertText;
+  ) as (
+    d: unknown,
+    dt: unknown,
+    ce: unknown,
+    cap: () => boolean,
+    w: unknown,
+    ie: unknown,
+    sr: unknown,
+  ) => InsertText;
 
-  factory(doc, StubDataTransfer, StubClipboardEvent, () => false)(el, text);
+  factory(
+    doc,
+    StubDataTransfer,
+    StubClipboardEvent,
+    () => false,
+    win,
+    StubInputEvent,
+    StubStaticRange,
+  )(el, text);
 
-  return { cmds, pastes, inserted: textOf(cmds) };
+  return { cmds, pastes, inputs, order, inserted: textOf(cmds) };
 }
 
 // The text a recorded command sequence actually writes into the field.
@@ -198,23 +306,23 @@ describe('snippet expansion — line-break fidelity', () => {
   });
 });
 
-describe('snippet expansion — editors that own their input model (Lexical)', () => {
+describe('snippet expansion: editors that claim a paste', () => {
   it('offers a multi-line body as a text/plain paste', () => {
     const { pastes } = run(LF, { claimsPaste: true });
     expect(pastes).toEqual([{ type: 'paste', text: LF }]);
   });
 
   it('consumes the trigger before pasting, so no shortcut fragment survives', () => {
-    // A paste event carries no target ranges: Lexical would paste at its own
-    // cached caret and leave "::neob" in the field. The empty insertText fires a
-    // real beforeinput over the selection deleteChars set, removing it first.
+    // A paste event carries no target ranges: the editor would paste at its own
+    // cached caret and leave "::neob" in the field. Outside Lexical, an empty
+    // execCommand('insertText') over the selection deleteChars set removes it.
     const { cmds } = run(LF, { claimsPaste: true });
     expect(cmds[0]).toEqual({ cmd: 'insertText', value: '' });
-    // and nothing else — the paste carried the body
+    // and nothing else: the paste carried the body
     expect(cmds).toHaveLength(1);
   });
 
-  it('never routes a single-line body through a paste', () => {
+  it('keeps a single-line body off the paste route outside Lexical', () => {
     const { pastes, cmds } = run('Todo confirmado', { claimsPaste: true });
     expect(pastes).toEqual([]);
     expect(cmds).toEqual([{ cmd: 'insertText', value: 'Todo confirmado' }]);
@@ -241,5 +349,86 @@ describe('snippet expansion — editors that own their input model (Lexical)', (
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('snippet expansion: Lexical (WhatsApp Web)', () => {
+  const lexical = { lexical: true, claimsPaste: true };
+  const TRIGGER = { startContainer: 'trigger-start', startOffset: 0, endContainer: 'trigger-end', endOffset: 6 };
+
+  it('offers a single-line body as a paste too', () => {
+    const { pastes, cmds } = run('Todo confirmado', lexical);
+    expect(pastes).toEqual([{ type: 'paste', text: 'Todo confirmado' }]);
+    expect(cmds).toEqual([]);
+  });
+
+  it('removes the trigger through a beforeinput the editor claims, then pastes', () => {
+    for (const body of ['Todo confirmado', LF]) {
+      const { inputs, order } = run(body, lexical);
+      expect(inputs).toEqual([
+        { type: 'beforeinput', inputType: 'insertText', data: '', ranges: [TRIGGER] },
+      ]);
+      // No native edit: Lexical undoes one over a whole text node.
+      expect(order).toEqual(['beforeinput', 'paste']);
+    }
+  });
+
+  it('falls back to execCommand when the editor does not claim the removal', () => {
+    const { inputs, order } = run(LF, { ...lexical, claimsDeletion: false });
+    expect(inputs).toHaveLength(1);
+    expect(order).toEqual(['beforeinput', 'execCommand:insertText', 'paste']);
+  });
+
+  it('has nothing to remove at a bare caret (right-click insert)', () => {
+    const { inputs, pastes } = run('Todo confirmado', { ...lexical, collapsed: true });
+    expect(inputs).toEqual([]);
+    expect(pastes).toEqual([{ type: 'paste', text: 'Todo confirmado' }]);
+  });
+
+  it('falls back to per-line insertion when the editor ignores the paste', () => {
+    const { inserted } = run('Todo confirmado', { lexical: true, claimsPaste: false });
+    expect(inserted).toBe('Todo confirmado');
+  });
+});
+
+describe('snippet expansion: a trigger at the start of a new line', () => {
+  // A trigger typed after a line break sits in its own text node, after the
+  // <br>. Its start offset falls exactly between two text nodes, and resolving
+  // it to the end of the first made the range take the <br> as well: the
+  // form-field window and the fill-in box replaced the line break, and Undo
+  // removed it.
+  type Point = { node: unknown; offset: number };
+  const toPoint = new Function(
+    'document',
+    'NodeFilter',
+    `${sliceFunction(source, 'function _ceCharOffsetToPoint(')}\nreturn _ceCharOffsetToPoint;`,
+  )(
+    {
+      createTreeWalker: (root: { childNodes: unknown[] }) => {
+        let i = -1;
+        return { nextNode: () => root.childNodes[++i] ?? null };
+      },
+    },
+    { SHOW_TEXT: 4 },
+  ) as (host: unknown, target: number, atStart?: boolean) => Point;
+
+  const nodes = [{ nodeValue: 'Line A' }, { nodeValue: '::fld' }];
+  const host = { childNodes: nodes };
+
+  it('starts a range at the text after the boundary', () => {
+    expect(toPoint(host, 6, true)).toEqual({ node: nodes[1], offset: 0 });
+  });
+
+  it('still ends a range at the text before the boundary', () => {
+    expect(toPoint(host, 6)).toEqual({ node: nodes[0], offset: 6 });
+  });
+
+  it('resolves an offset inside a text node the same either way', () => {
+    expect(toPoint(host, 8, true)).toEqual({ node: nodes[1], offset: 2 });
+    expect(toPoint(host, 8)).toEqual({ node: nodes[1], offset: 2 });
+  });
+
+  it('keeps a start at the very end on the last text node', () => {
+    expect(toPoint(host, 11, true)).toEqual({ node: nodes[1], offset: 5 });
   });
 });

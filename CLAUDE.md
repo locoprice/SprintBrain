@@ -6,6 +6,7 @@
 > **Lean-context policy** — this file holds only always-on guardrails. Reference material is read on demand when a task needs it:
 > - 🎨 **Design tokens, palette & UI rules** → `docs/DESIGN_SYSTEM.md` — **MANDATORY read before ANY UI / CSS / component / token change.** It is the single source of truth for visual decisions.
 > - 🏗️ **Monorepo map, CI/build, testing standards** → `docs/ENGINEERING_REFERENCE.md`.
+> - 📘 **User docs: page map, publishing, local preview** → `docs/USER_DOCS.md`.
 
 ---
 
@@ -178,6 +179,26 @@ Marketing copy still carries the brand voice and is read by prospects and invest
 
 ---
 
+## 📘 User Docs: docs.sprintbrain.com (Non-Negotiable)
+**The user manual is published from this repository, and it moves with the product.** The pages live in `user-docs/`. Mintlify's GitHub app republishes docs.sprintbrain.com by itself on every push to `main`, so the manual goes live with the release it describes. The repository is the only source: never edit the docs in Mintlify's web editor.
+
+### 1. Every user-visible change updates the manual in the same task
+A new feature; a changed control, wording, default or setting; a removed option: the page that describes it changes in the same commit. "The request did not mention the docs" is not a scope boundary. `docs/USER_DOCS.md` maps each part of the product to its page, and gets a new row whenever a page is added.
+
+- Write from the shipped code, never from memory, older pages or the store listing.
+- A change users cannot see (refactor, tests, CI) needs no docs change. Say so in the summary.
+
+### 2. What goes into `user-docs/`
+- Every `.md` or `.mdx` file in the folder is published, even one missing from the menu. Internal notes live in `docs/`.
+- Never create `user-docs/snippets/`. Mintlify reserves that folder name for reusable text blocks and never turns its files into pages: every /snippets/... address was a 404 until 2026-09. Snippet pages live in `user-docs/text-snippets/`, and `docs.json` redirects the old addresses.
+- English only. The tone, writing-style and 🌍 Industry-Neutral rules apply.
+- Document only what works. A control that does nothing, or a feature whose server function is not deployed, stays out until it works.
+
+### 3. Gates
+`node scripts/check-docs.js`, then from `user-docs/`: `npx mint@4.2.940 validate` and `npx mint@4.2.940 broken-links`. CI runs all three. A failed publish keeps the old site live without telling anyone, so these are the only warning.
+
+---
+
 ## 🛠️ Engineering Workflow
 Senior-engineer method — **Explore → Plan → Implement → Verify** (never collapse Explore into Implement), surgical edits, read-before-edit, investigate-before-referencing. Full definition: engineer's global `~/.claude/CLAUDE.md`.
 
@@ -201,6 +222,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Shipping a snippet capability that the editor can write but the expansion surfaces cannot use: the in-page overlay, the popup detail modal, the live preview and mobile (see ⚡ Authoring and Expansion Parity).
 - Deferring mobile to a later version, or calling a snippet change done while `app/public/mobile/index.html` still lacks it (see 📱 Mobile).
 - Translating the dashboard, extension popup or mobile interface — the translation authorisation covers the landing page only. See 🌐 Landing Translations.
+- Shipping a user-visible change without its page in `user-docs/`, or editing the manual anywhere but this repository (see 📘 User Docs).
 
 ---
 
@@ -219,6 +241,7 @@ Senior-engineer method — **Explore → Plan → Implement → Verify** (never 
 - Carry every snippet change through to expansion in the same task, deciding it once in `extension/shared/fill-form.js` and drawing it on all four fill surfaces (see ⚡ Authoring and Expansion Parity). Verify it by expanding a snippet, not by reading the diff.
 - Ship every snippet change to `app/public/mobile/index.html` in the same task and verify it at phone width (see 📱 Mobile). Mobile is used daily; it is never the surface that waits for a later version.
 - Keep every shipped field, formula, example and suggestion industry-neutral (🌍).
+- Update `user-docs/` in the same task as every user-visible change, and keep the page map in `docs/USER_DOCS.md` current (see 📘 User Docs).
 
 ---
 
@@ -256,6 +279,7 @@ Every implementation summary must include:
 **Verification:** lint / typecheck / build — PASS / FAIL / N/A · manual test — PASS / FAIL
 **Regression check:** Result PASS / FAIL · Impacted scope [modules / routes / components / APIs]
 **Expansion check** (snippet changes only): overlay / popup / live preview / mobile: each opened and exercised, or the reason it does not apply.
+**Docs check:** the `user-docs/` pages updated, or why none needed to change.
 
 ---
 
@@ -280,6 +304,7 @@ At the end of every **successfully completed** task, prepare a push to `develop`
 1. **Verification gates pass.**
    - `app/`: `npm run lint`, `npm run typecheck`, `npm run build` all green.
    - extension: `node --check` on every changed `.js`, plus `node scripts/check-version.js`, `node scripts/check-snippets.js`, `node scripts/check-expansion.js` and `node scripts/check-memory-parity.js` green.
+   - docs: `node scripts/check-docs.js` green; when `user-docs/` changed, `mint validate` and `mint broken-links` green too.
 2. **Version bumped** in `extension/manifest.json` **and** `app/package.json`, kept in parity.
 3. **Genuine task completion** — never mid-task, never on a failed or abandoned attempt.
 

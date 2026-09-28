@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type { SnippetBodies, SnippetRevision } from '@/types/database';
 
 // Live Supabase reads + writes for snippet revision history.
@@ -91,7 +92,7 @@ export const revisionsApi: RevisionsApi = {
       )
       .eq('snippet_id', snippetId)
       .order('version_number', { ascending: false });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return ((data ?? []) as DbRevision[]).map(dbRevisionToRevision);
   },
 
@@ -118,7 +119,7 @@ export const revisionsApi: RevisionsApi = {
       p_editor_display: editorDisplay,
       p_edit_note: editNote ?? null,
     });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data as number;
   },
 };

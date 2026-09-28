@@ -10,7 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { buildFormTextToken, isValidFieldName } from '@/lib/formTextToken';
+import { buildFormTextToken, isPersonNameKey, isValidFieldName } from '@/lib/formTextToken';
 
 const HINT = 'text-[11px] text-ink-subtle mt-1.5';
 const SECTION_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
@@ -40,17 +40,20 @@ export function FormTextDialog({
 }: FormTextDialogProps) {
   const [name, setName] = useState('');
   const [defaultValue, setDefaultValue] = useState('');
-  const [personName, setPersonName] = useState(false);
+  // null until the author touches the switch: it follows the field name, the
+  // way the engine does, so naming a field nome_ospite turns it on by itself.
+  const [personChoice, setPersonChoice] = useState<boolean | null>(null);
+  const personName = personChoice ?? isPersonNameKey(name);
 
   const nameRef = useRef<HTMLInputElement | null>(null);
 
-  // Every opening starts from a clean field — a half-built one carried over
+  // Every opening starts from a clean field: a half-built one carried over
   // from a cancelled insert would silently ship into the next snippet.
   useEffect(() => {
     if (!open) return;
     setName(suggestedName);
     setDefaultValue('');
-    setPersonName(false);
+    setPersonChoice(null);
   }, [open, suggestedName]);
 
   const nameValid = isValidFieldName(name);
@@ -154,11 +157,12 @@ export function FormTextDialog({
               <label htmlFor="form-text-person" className="text-xs font-medium text-ink-muted">
                 Person name
               </label>
-              <Switch id="form-text-person" checked={personName} onChange={setPersonName} />
+              <Switch id="form-text-person" checked={personName} onChange={setPersonChoice} />
             </div>
             <p className={HINT}>
               Adds capitals in the snippet&apos;s language: giovanni rossi prints as Giovanni
-              Rossi, signor rossi as signor Rossi. The default prints as written.
+              Rossi, signor rossi as signor Rossi. The default prints as written. Turns on by
+              itself when the field&apos;s name includes name, nome, nombre or nom.
             </p>
           </div>
 

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toApiError } from '@/lib/api/apiError';
 import type { FolderPermission, PermissionLevel, PrincipalType } from '@/types/database';
 
 // Folder permission service (Phase B). Grant/revoke folder-level View/Edit/Owner
@@ -44,7 +45,7 @@ export interface PermissionsApi {
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) throw toApiError(error);
   if (!data.user) throw new Error('Not authenticated');
   return data.user.id;
 }
@@ -61,7 +62,7 @@ async function ensureFolderInOrg(folderId: string, orgId: string, userId: string
     .eq('id', folderId)
     .eq('user_id', userId)
     .is('organization_id', null);
-  if (folderErr) throw folderErr;
+  if (folderErr) throw toApiError(folderErr);
 
   const { error: snipErr } = await supabase
     .from('snippets')
@@ -69,7 +70,7 @@ async function ensureFolderInOrg(folderId: string, orgId: string, userId: string
     .eq('folder_id', folderId)
     .eq('user_id', userId)
     .is('organization_id', null);
-  if (snipErr) throw snipErr;
+  if (snipErr) throw toApiError(snipErr);
 
   const { error: promptErr } = await supabase
     .from('prompts')
@@ -77,7 +78,7 @@ async function ensureFolderInOrg(folderId: string, orgId: string, userId: string
     .eq('folder_id', folderId)
     .eq('user_id', userId)
     .is('organization_id', null);
-  if (promptErr) throw promptErr;
+  if (promptErr) throw toApiError(promptErr);
 }
 
 /**
@@ -101,14 +102,14 @@ async function unshareFolderIfLastGrant(folderId: string): Promise<void> {
     .from('folder_permissions')
     .select('id', { count: 'exact', head: true })
     .eq('folder_id', folderId);
-  if (countErr) throw countErr;
+  if (countErr) throw toApiError(countErr);
   if ((count ?? 0) > 0) return;
 
   const { error } = await supabase
     .from('folders')
     .update({ organization_id: null })
     .eq('id', folderId);
-  if (error) throw error;
+  if (error) throw toApiError(error);
 }
 
 export const permissionsApi: PermissionsApi = {
@@ -118,7 +119,7 @@ export const permissionsApi: PermissionsApi = {
       .select(GRANT_SELECT)
       .eq('folder_id', folderId)
       .order('created_at', { ascending: true });
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as FolderPermission[];
   },
 
@@ -126,7 +127,7 @@ export const permissionsApi: PermissionsApi = {
     const { data, error } = await supabase
       .from('folder_permissions')
       .select(GRANT_SELECT);
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return (data ?? []) as FolderPermission[];
   },
 
@@ -148,7 +149,7 @@ export const permissionsApi: PermissionsApi = {
       )
       .select(GRANT_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data as FolderPermission;
   },
 
@@ -159,7 +160,7 @@ export const permissionsApi: PermissionsApi = {
       .eq('id', grantId)
       .select(GRANT_SELECT)
       .single();
-    if (error) throw error;
+    if (error) throw toApiError(error);
     return data as FolderPermission;
   },
 
@@ -171,10 +172,10 @@ export const permissionsApi: PermissionsApi = {
       .select('folder_id')
       .eq('id', grantId)
       .maybeSingle();
-    if (readErr) throw readErr;
+    if (readErr) throw toApiError(readErr);
 
     const { error } = await supabase.from('folder_permissions').delete().eq('id', grantId);
-    if (error) throw error;
+    if (error) throw toApiError(error);
 
     if (grant !== null) await unshareFolderIfLastGrant(grant.folder_id);
   },

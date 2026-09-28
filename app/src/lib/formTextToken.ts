@@ -31,8 +31,78 @@ export interface FormTextConfig {
    * then prints with a name's capitals in the snippet's language:
    * "giovanni rossi" becomes "Giovanni Rossi", "signor rossi" stays
    * "signor Rossi" in Italian. The default prints exactly as written.
+   *
+   * `false` on a field whose own name already says it holds a person's name
+   * (see `isPersonNameKey`) is written as `format=plain`, the only way to stop
+   * the engine adding the capitals by itself. Left out, the engine decides.
    */
   personName?: boolean;
+}
+
+// What a field's own name says about it. MIRRORED from sbIsPersonNameKey in
+// extension/formula-engine.js, which explains the rule: the editor needs the
+// same answer to show the Person name switch already on for guest_name or
+// nomecliente. formTextField.test.ts compares these lists with the engine's.
+export const PERSON_NAME_WORDS: readonly string[] = [
+  'name', 'names', 'firstname', 'lastname', 'fullname', 'surname', 'nickname',
+  'nome', 'nomi', 'cognome', 'nominativo', 'nombre', 'nombres', 'apellido', 'apellidos',
+  'nom', 'prenom',
+];
+export const PERSON_NAME_STEMS: readonly string[] = ['name', 'nome', 'nombre'];
+export const NOT_PERSON_WORDS: readonly string[] = [
+  'user', 'file', 'host', 'domain', 'company', 'business', 'brand', 'product', 'model',
+  'provider', 'supplier', 'vendor',
+  'utente', 'azienda', 'ditta', 'societa', 'prodotto', 'marca', 'modello', 'fornitore', 'dominio',
+  'usuario', 'archivo', 'empresa', 'compania', 'producto', 'modelo', 'proveedor', 'provedor',
+  'utilisateur', 'fichier', 'societe', 'entreprise', 'produit', 'marque', 'modele', 'fournisseur',
+  'domaine',
+  'date', 'time', 'datetime',
+];
+
+const PERSON_WORD_SET = new Set(PERSON_NAME_WORDS);
+const NOT_PERSON_SET = new Set(NOT_PERSON_WORDS);
+
+/** The engine's sbStripAccents, letter for letter. */
+function stripAccents(s: string): string {
+  return s
+    .replace(/[àáâãäå]/g, 'a')
+    .replace(/[èéêë]/g, 'e')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/ñ/g, 'n');
+}
+
+/**
+ * True when a field's own name says it holds a person's name (guest_name,
+ * nome, nombre, guestname, nomecliente), so what is typed into it prints with
+ * a name's capitals without `format=name`. Never when a word names something
+ * else: nome_azienda, username, product_name, Nombre_Provedor.
+ */
+export function isPersonNameKey(key: string): boolean {
+  const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  const words = stripAccents(spaced.toLowerCase()).split(/[^a-z]+/);
+  let found = false;
+  for (const word of words) {
+    if (!word) continue;
+    if (NOT_PERSON_SET.has(word)) return false;
+    if (PERSON_WORD_SET.has(word)) {
+      found = true;
+      continue;
+    }
+    for (const stem of PERSON_NAME_STEMS) {
+      if (word.length <= stem.length) continue;
+      let rest: string | null = null;
+      if (word.startsWith(stem)) rest = word.slice(stem.length);
+      else if (word.endsWith(stem)) rest = word.slice(0, word.length - stem.length);
+      if (rest === null) continue;
+      if (NOT_PERSON_SET.has(rest)) return false;
+      found = true;
+      break;
+    }
+  }
+  return found;
 }
 
 /**
@@ -64,8 +134,13 @@ export function sanitizeTextDefault(raw: string): string {
 
 export function buildFormTextToken(cfg: FormTextConfig): string {
   const value = sanitizeTextDefault(cfg.default);
-  const head = `{formtext: name=${sanitizeTextName(cfg.name)}`;
-  const out = cfg.personName ? `${head}; format=name` : head;
+  const name = sanitizeTextName(cfg.name);
+  const head = `{formtext: name=${name}`;
+  // Switched on, the attribute is always written, even where the name alone
+  // would do: a release from before automatic names still reads format=name.
+  let out = head;
+  if (cfg.personName === true) out = `${head}; format=name`;
+  else if (cfg.personName === false && isPersonNameKey(name)) out = `${head}; format=plain`;
   return `${value === '' ? out : `${out}; default=${value}`}}`;
 }
 

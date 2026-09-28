@@ -1,0 +1,52 @@
+---
+title: "Notion sync"
+sidebarTitle: "Notion sync"
+description: "Write snippets in a Notion database and have SprintBrain bring them into your library."
+---
+
+Notion sync is optional. It's for teams who write or review their wording in a Notion database.
+
+<Note>
+  Notion sync is separate from team sharing. Sharing happens inside SprintBrain and reaches teammates at once. Notion sync brings snippets in from your own Notion database. See [Sharing and permissions](/team/sharing-and-permissions).
+</Note>
+
+## Connect your database
+
+<Steps>
+  <Step title="Create a Notion integration">
+    In Notion, create an internal integration at [notion.so/my-integrations](https://www.notion.so/my-integrations) and copy its secret. Then open your database in Notion and give that integration access to it.
+  </Step>
+  <Step title="Open Settings">
+    In the SprintBrain dashboard, open **Settings**, then the **Notion sync** tab.
+  </Step>
+  <Step title="Paste your details">
+    Paste the secret into **Notion API key**, and your database's ID into **Notion database ID**. The ID is the long code in the database's link, before the `?`.
+  </Step>
+  <Step title="Save">
+    Click **Save credentials**. The extension picks them up by itself: you don't enter them twice.
+  </Step>
+</Steps>
+
+The status line shows **Connected**, **Not configured** or **Sync error**, and when the last sync ran.
+
+## How your database must look
+
+SprintBrain reads these columns. The names have to match exactly:
+
+| Column | Notion type | Holds |
+|---|---|---|
+| `Nome Snippet` | Title | The snippet's name. |
+| `Shortcut` | Text | The trigger, like `quote`. |
+| `Body EN`, `Body IT`, `Body ES`, `Body MULTI` | Text | The body in each language. |
+| `Categoria` | Select | The folder. |
+
+A row without a name or a shortcut is skipped. A database with a single `Body` column also works, for one language.
+
+<Warning>
+  There is no French column, so French bodies don't sync with Notion.
+</Warning>
+
+## When it syncs
+
+- The Chrome extension checks your database every five minutes in the background.
+- It checks again each time you open the SprintBrain popup, and saves new and changed rows as snippets in your library.
