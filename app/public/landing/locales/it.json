@@ -882,23 +882,8 @@
       "count": 1
     },
     {
-      "find": ">Experience SprintBrain<",
-      "replace": ">Scopri SprintBrain<",
-      "count": 1
-    },
-    {
       "find": ">Give your AI the context it needs.<",
       "replace": ">Dai alla tua AI il contesto di cui ha bisogno.<",
-      "count": 1
-    },
-    {
-      "find": ">Start building your personal AI context system today.<",
-      "replace": ">Inizia oggi a costruire il tuo sistema personale di contesto per l’AI.<",
-      "count": 1
-    },
-    {
-      "find": ">Your context. Every AI. One direction.<",
-      "replace": ">Il tuo contesto. Ogni AI. Una direzione.<",
       "count": 1
     },
     {
@@ -999,6 +984,168 @@
     {
       "find": "data-source-label=\"SprintBrain · Mobile Website\"",
       "replace": "data-source-label=\"SprintBrain · Sito mobile\"",
+      "count": 1
+    },
+    {
+      "find": "Free tier + pay-per-use",
+      "replace": "Soglia gratuita + consumo",
+      "count": 1
+    },
+    {
+      "find": "100% free through 2026",
+      "replace": "100% gratuito fino a fine 2026",
+      "count": 1
+    },
+    {
+      "find": "Advanced prompt engineering. Built around your usage.",
+      "replace": "Prompt engineering avanzato. In base al tuo utilizzo.",
+      "count": 1
+    },
+    {
+      "find": "Advanced prompt engineering. Yours, for free.",
+      "replace": "Prompt engineering avanzato. Per te, gratis.",
+      "count": 1
+    },
+    {
+      "find": "Build, refine and reuse your best prompts with SprintBrain. A free usage allowance comes first, with consumption-based pricing beyond it.",
+      "replace": "Crea, perfeziona e riutilizza i tuoi migliori prompt con SprintBrain. Una soglia di utilizzo gratuita, poi una tariffazione a consumo.",
+      "count": 1
+    },
+    {
+      "find": "A premium prompt engineering resource to build, refine and reuse your best prompts. Get full access, free of charge, through the end of 2026.",
+      "replace": "Una risorsa premium di prompt engineering per creare, perfezionare e riutilizzare i tuoi migliori prompt. Accesso completo e gratuito fino alla fine del 2026.",
+      "count": 1
+    },
+    {
+      "find": "Get started with SprintBrain →",
+      "replace": "Inizia con SprintBrain →",
+      "count": 1
+    },
+    {
+      "find": "Start creating prompts for free →",
+      "replace": "Inizia a creare prompt gratis →",
+      "count": 1
+    },
+    {
+      "find": "The 2026 free-access period has ended",
+      "replace": "Il periodo di accesso gratuito del 2026 è terminato",
+      "count": 1
+    },
+    {
+      "find": "Your free-access window ends in",
+      "replace": "L'accesso gratuito termina tra",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Days",
+      "replace": "class=\"pa-unit-label\">Giorni",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Hours",
+      "replace": "class=\"pa-unit-label\">Ore",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Minutes",
+      "replace": "class=\"pa-unit-label\">Minuti",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Seconds",
+      "replace": "class=\"pa-unit-label\">Secondi",
+      "count": 1
+    },
+    {
+      "find": "December 31, 2026 · 23:59:59",
+      "replace": "31 dicembre 2026 · 23:59:59",
+      "count": 1
+    },
+    {
+      "find": "Italian time · Europe/Rome (CET)",
+      "replace": "Ora italiana · Europe/Rome (CET)",
+      "count": 1
+    },
+    {
+      "find": "Enable JavaScript to see the live countdown. The deadline above remains valid.",
+      "replace": "Attiva JavaScript per vedere il conto alla rovescia. La scadenza indicata resta valida.",
+      "count": 1
+    },
+    {
+      "find": "What changes on January 1, 2027?",
+      "replace": "Cosa cambia dal 1° gennaio 2027?",
+      "count": 1
+    },
+    {
+      "find": "From January 1, 2027, the pricing model includes a free usage allowance, with pay-per-use pricing beyond the defined limit.",
+      "replace": "Dal 1° gennaio 2027, il modello tariffario prevede una soglia di utilizzo gratuita e una tariffazione a consumo oltre il limite definito.",
+      "count": 1
+    },
+    {
+      "find": "Starting January 1, 2027, a <strong>pay-per-use model</strong> will take effect. Usage will remain free up to a defined limit; beyond that, consumption-based pricing will apply.",
+      "replace": "Dal 1° gennaio 2027 entrerà in vigore un <strong>modello a consumo (pay-per-use)</strong>. L’utilizzo resterà gratuito fino a una soglia definita; oltre tale limite si applicherà una tariffazione basata sul consumo.",
+      "count": 1
+    },
+    {
+      "find": "Thresholds and rates will be announced before activation.",
+      "replace": "Soglie e tariffe saranno comunicate prima dell'attivazione.",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"pricing/\" class=\"nav-link\">Pricing</a>",
+      "replace": "<a href=\"pricing/\" class=\"nav-link\">Prezzo</a>",
+      "count": 2
+    },
+    {
+      "find": "<a href=\"pricing/\">Pricing</a>",
+      "replace": "<a href=\"pricing/\">Prezzo</a>",
+      "count": 1
+    }
+  ],
+  "pricingEntries": [
+    {
+      "find": "Pricing · Coming soon — SprintBrain",
+      "replace": "Prezzo · Coming soon — SprintBrain",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain pricing is coming soon. No subscription. Genuine pay per use. Lifetime credit.",
+      "replace": "Il prezzo di SprintBrain sarà disponibile a breve. Nessun abbonamento. Solo pagamento a consumo. Credito senza scadenza.",
+      "count": 1
+    },
+    {
+      "find": "Skip to content",
+      "replace": "Vai al contenuto",
+      "count": 1
+    },
+    {
+      "find": ">Pricing<",
+      "replace": ">Prezzo<",
+      "count": 1
+    },
+    {
+      "find": "Our pricing principles",
+      "replace": "I principi del nostro prezzo",
+      "count": 1
+    },
+    {
+      "find": "No monthly / yearly subscription. No pathetic marketing.",
+      "replace": "Nessun abbonamento mensile / annuale. Nessun marketing patetico.",
+      "count": 1
+    },
+    {
+      "find": "Only genuine pay per use.",
+      "replace": "Solo autentico pagamento a consumo.",
+      "count": 1
+    },
+    {
+      "find": "Lifetime credit.",
+      "replace": "Credito senza scadenza.",
+      "count": 1
+    },
+    {
+      "find": "Revenue invested in top Developers and Ai coding model",
+      "replace": "Ricavi investiti nei migliori sviluppatori e modelli AI per il coding",
       "count": 1
     }
   ]
