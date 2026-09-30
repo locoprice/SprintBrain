@@ -145,6 +145,7 @@ function pricingShell(home, lang) {
       return `href="${href}" hreflang="${code}"`;
     }));
   return {
+    PRICING_ARTWORK: rootPrefix + 'assets/pricing/lifetime-credit-v1.jpg',
     SITE_HEADER: header,
     SITE_FOOTER: rebase(footer),
     SITE_CONTACT: sharedPart(home, 'contact'),

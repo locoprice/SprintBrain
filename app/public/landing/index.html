@@ -1690,13 +1690,13 @@ LeibTour Team</div>
     <section id="prompt-access" aria-labelledby="pa-title">
       <div class="pa-card">
         <div class="pa-copy">
-          <span class="pa-badge" data-pa-expired="Free tier + pay-per-use">100% free through 2026</span>
-          <h2 id="pa-title" data-pa-expired="Advanced prompt engineering. Built around your usage.">Advanced prompt engineering. Yours, for free.</h2>
-          <p class="pa-intro" data-pa-expired="Build, refine and reuse your best prompts with SprintBrain. A free usage allowance comes first, with consumption-based pricing beyond it.">A premium prompt engineering resource to build, refine and reuse your best prompts. Get full access, free of charge, through the end of 2026.</p>
-          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Get started with SprintBrain →">Start creating prompts for free →</a>
+          <span class="pa-badge" data-pa-expired="Free tier + pay-per-use">Join by the end of 2026</span>
+          <h2 id="pa-title" data-pa-expired="Advanced prompt engineering. Built around your usage.">SprintBrain, free for life.</h2>
+          <p class="pa-intro" data-pa-expired="Users who signed up or downloaded SprintBrain by December 31, 2026 keep the app free for life. New users receive a free usage allowance, with pay-per-use pricing beyond it.">Advanced prompt engineering, with lifetime free access. All existing users and anyone who signs up or downloads SprintBrain by December 31, 2026 will keep the app free for life.</p>
+          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Get started with SprintBrain →">Create your free lifetime account →</a>
         </div>
         <div class="pa-clock">
-          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="The 2026 free-access period has ended">Your free-access window ends in</p>
+          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="The lifetime free offer has ended">Claim lifetime free access within</p>
           <div class="pa-digits" role="timer" aria-labelledby="pa-clock-label" aria-live="off">
             <div class="pa-unit"><span class="pa-number" data-pa-unit="days">--</span><span class="pa-unit-label">Days</span></div>
             <div class="pa-unit"><span class="pa-number" data-pa-unit="hours">--</span><span class="pa-unit-label">Hours</span></div>
@@ -1709,7 +1709,7 @@ LeibTour Team</div>
         <div class="pa-policy">
           <h3>What changes on January 1, 2027?</h3>
           <div>
-            <p data-pa-expired="From January 1, 2027, the pricing model includes a free usage allowance, with pay-per-use pricing beyond the defined limit.">Starting January 1, 2027, a <strong>pay-per-use model</strong> will take effect. Usage will remain free up to a defined limit; beyond that, consumption-based pricing will apply.</p>
+            <p data-pa-expired="Lifetime free access remains unchanged for users who joined or downloaded SprintBrain by the end of 2026. Pay-per-use pricing beyond the free allowance applies only to new users joining from January 1, 2027."><strong>Your lifetime free access stays free.</strong> Only new users joining from January 1, 2027 will have a free usage allowance followed by pay-per-use pricing beyond the defined limit.</p>
             <p class="pa-terms"><strong>Thresholds and rates will be announced before activation.</strong></p>
           </div>
         </div>
@@ -2321,7 +2321,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

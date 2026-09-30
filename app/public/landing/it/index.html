@@ -1690,13 +1690,13 @@ Team LeibTour</div>
     <section id="prompt-access" aria-labelledby="pa-title">
       <div class="pa-card">
         <div class="pa-copy">
-          <span class="pa-badge" data-pa-expired="Soglia gratuita + consumo">100% gratuito fino a fine 2026</span>
-          <h2 id="pa-title" data-pa-expired="Prompt engineering avanzato. In base al tuo utilizzo.">Prompt engineering avanzato. Per te, gratis.</h2>
-          <p class="pa-intro" data-pa-expired="Crea, perfeziona e riutilizza i tuoi migliori prompt con SprintBrain. Una soglia di utilizzo gratuita, poi una tariffazione a consumo.">Una risorsa premium di prompt engineering per creare, perfezionare e riutilizzare i tuoi migliori prompt. Accesso completo e gratuito fino alla fine del 2026.</p>
-          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Inizia con SprintBrain →">Inizia a creare prompt gratis →</a>
+          <span class="pa-badge" data-pa-expired="Soglia gratuita + consumo">Iscriviti entro fine 2026</span>
+          <h2 id="pa-title" data-pa-expired="Prompt engineering avanzato. In base al tuo utilizzo.">SprintBrain, gratis a vita.</h2>
+          <p class="pa-intro" data-pa-expired="Chi si è iscritto o ha scaricato SprintBrain entro il 31 dicembre 2026 mantiene l’app gratuita a vita. Per i nuovi utenti è prevista una soglia di utilizzo gratuita, poi una tariffazione a consumo.">Prompt engineering avanzato, con accesso gratuito a vita. Tutti gli utenti già iscritti e chi si iscrive o scarica SprintBrain entro il 31 dicembre 2026 avranno l’app gratuita per sempre.</p>
+          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Inizia con SprintBrain →">Crea il tuo account gratis a vita →</a>
         </div>
         <div class="pa-clock">
-          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="Il periodo di accesso gratuito del 2026 è terminato">L'accesso gratuito termina tra</p>
+          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="L’offerta di accesso gratuito a vita è terminata">Ottieni l’accesso gratuito a vita entro</p>
           <div class="pa-digits" role="timer" aria-labelledby="pa-clock-label" aria-live="off">
             <div class="pa-unit"><span class="pa-number" data-pa-unit="days">--</span><span class="pa-unit-label">Giorni</span></div>
             <div class="pa-unit"><span class="pa-number" data-pa-unit="hours">--</span><span class="pa-unit-label">Ore</span></div>
@@ -1709,7 +1709,7 @@ Team LeibTour</div>
         <div class="pa-policy">
           <h3>Cosa cambia dal 1° gennaio 2027?</h3>
           <div>
-            <p data-pa-expired="Dal 1° gennaio 2027, il modello tariffario prevede una soglia di utilizzo gratuita e una tariffazione a consumo oltre il limite definito.">Dal 1° gennaio 2027 entrerà in vigore un <strong>modello a consumo (pay-per-use)</strong>. L’utilizzo resterà gratuito fino a una soglia definita; oltre tale limite si applicherà una tariffazione basata sul consumo.</p>
+            <p data-pa-expired="L’accesso gratuito a vita resta invariato per chi si è iscritto o ha scaricato SprintBrain entro fine 2026. La tariffazione a consumo oltre la soglia gratuita riguarda solo i nuovi utenti dal 1° gennaio 2027."><strong>Il tuo accesso gratuito a vita resta gratuito.</strong> Solo per i nuovi utenti che aderiranno dal 1° gennaio 2027 sarà prevista una soglia di utilizzo gratuita, con tariffazione a consumo oltre il limite definito.</p>
             <p class="pa-terms"><strong>Soglie e tariffe saranno comunicate prima dell'attivazione.</strong></p>
           </div>
         </div>
@@ -2321,7 +2321,7 @@ Team LeibTour</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

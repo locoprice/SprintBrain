@@ -977,8 +977,8 @@
       "count": 1
     },
     {
-      "find": "100% free through 2026",
-      "replace": "100 % gratis hasta finales de 2026",
+      "find": "Join by the end of 2026",
+      "replace": "Regístrate antes de que termine 2026",
       "count": 1
     },
     {
@@ -987,18 +987,18 @@
       "count": 1
     },
     {
-      "find": "Advanced prompt engineering. Yours, for free.",
-      "replace": "Prompt engineering avanzado. Para ti, gratis.",
+      "find": "SprintBrain, free for life.",
+      "replace": "SprintBrain, gratis de por vida.",
       "count": 1
     },
     {
-      "find": "Build, refine and reuse your best prompts with SprintBrain. A free usage allowance comes first, with consumption-based pricing beyond it.",
-      "replace": "Crea, perfecciona y reutiliza tus mejores prompts con SprintBrain. Una cuota de uso gratuita y, al superarla, precios según el consumo.",
+      "find": "Users who signed up or downloaded SprintBrain by December 31, 2026 keep the app free for life. New users receive a free usage allowance, with pay-per-use pricing beyond it.",
+      "replace": "Quienes se registraron o descargaron SprintBrain hasta el 31 de diciembre de 2026 mantienen la aplicación gratis de por vida. Los nuevos usuarios disponen de un límite de uso gratuito y, después, pago por uso.",
       "count": 1
     },
     {
-      "find": "A premium prompt engineering resource to build, refine and reuse your best prompts. Get full access, free of charge, through the end of 2026.",
-      "replace": "Una herramienta premium de prompt engineering para crear, perfeccionar y reutilizar tus mejores prompts. Acceso completo y gratuito hasta finales de 2026.",
+      "find": "Advanced prompt engineering, with lifetime free access. All existing users and anyone who signs up or downloads SprintBrain by December 31, 2026 will keep the app free for life.",
+      "replace": "Prompt engineering avanzado, con acceso gratuito de por vida. Todos los usuarios ya registrados y quienes se registren o descarguen SprintBrain hasta el 31 de diciembre de 2026 tendrán la aplicación gratis para siempre.",
       "count": 1
     },
     {
@@ -1007,18 +1007,18 @@
       "count": 1
     },
     {
-      "find": "Start creating prompts for free →",
-      "replace": "Empieza a crear prompts gratis →",
+      "find": "Create your free lifetime account →",
+      "replace": "Crea tu cuenta gratis de por vida →",
       "count": 1
     },
     {
-      "find": "The 2026 free-access period has ended",
-      "replace": "El periodo de acceso gratuito de 2026 ha finalizado",
+      "find": "The lifetime free offer has ended",
+      "replace": "La oferta de acceso gratuito de por vida ha terminado",
       "count": 1
     },
     {
-      "find": "Your free-access window ends in",
-      "replace": "El acceso gratuito termina en",
+      "find": "Claim lifetime free access within",
+      "replace": "Consigue acceso gratuito de por vida en",
       "count": 1
     },
     {
@@ -1062,13 +1062,13 @@
       "count": 1
     },
     {
-      "find": "From January 1, 2027, the pricing model includes a free usage allowance, with pay-per-use pricing beyond the defined limit.",
-      "replace": "Desde el 1 de enero de 2027, el modelo incluye una cuota de uso gratuita y precios por consumo al superar el límite definido.",
+      "find": "Lifetime free access remains unchanged for users who joined or downloaded SprintBrain by the end of 2026. Pay-per-use pricing beyond the free allowance applies only to new users joining from January 1, 2027.",
+      "replace": "El acceso gratuito de por vida no cambia para quienes se registraron o descargaron SprintBrain hasta finales de 2026. El pago por uso por encima del límite gratuito solo se aplica a los nuevos usuarios desde el 1 de enero de 2027.",
       "count": 1
     },
     {
-      "find": "Starting January 1, 2027, a <strong>pay-per-use model</strong> will take effect. Usage will remain free up to a defined limit; beyond that, consumption-based pricing will apply.",
-      "replace": "A partir del 1 de enero de 2027 entrará en vigor un <strong>modelo de pago por uso</strong>. El uso seguirá siendo gratuito hasta un límite definido; a partir de ahí se aplicarán tarifas según el consumo.",
+      "find": "<strong>Your lifetime free access stays free.</strong> Only new users joining from January 1, 2027 will have a free usage allowance followed by pay-per-use pricing beyond the defined limit.",
+      "replace": "<strong>Tu acceso gratuito de por vida seguirá siendo gratuito.</strong> Solo los nuevos usuarios que se unan a partir del 1 de enero de 2027 tendrán un límite de uso gratuito y pago por uso a partir de ese límite.",
       "count": 1
     },
     {

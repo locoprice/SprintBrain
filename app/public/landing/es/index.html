@@ -1690,13 +1690,13 @@ Equipo LeibTour</div>
     <section id="prompt-access" aria-labelledby="pa-title">
       <div class="pa-card">
         <div class="pa-copy">
-          <span class="pa-badge" data-pa-expired="Cuota gratuita + pago por uso">100 % gratis hasta finales de 2026</span>
-          <h2 id="pa-title" data-pa-expired="Prompt engineering avanzado. Según tu uso.">Prompt engineering avanzado. Para ti, gratis.</h2>
-          <p class="pa-intro" data-pa-expired="Crea, perfecciona y reutiliza tus mejores prompts con SprintBrain. Una cuota de uso gratuita y, al superarla, precios según el consumo.">Una herramienta premium de prompt engineering para crear, perfeccionar y reutilizar tus mejores prompts. Acceso completo y gratuito hasta finales de 2026.</p>
-          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Empieza con SprintBrain →">Empieza a crear prompts gratis →</a>
+          <span class="pa-badge" data-pa-expired="Cuota gratuita + pago por uso">Regístrate antes de que termine 2026</span>
+          <h2 id="pa-title" data-pa-expired="Prompt engineering avanzado. Según tu uso.">SprintBrain, gratis de por vida.</h2>
+          <p class="pa-intro" data-pa-expired="Quienes se registraron o descargaron SprintBrain hasta el 31 de diciembre de 2026 mantienen la aplicación gratis de por vida. Los nuevos usuarios disponen de un límite de uso gratuito y, después, pago por uso.">Prompt engineering avanzado, con acceso gratuito de por vida. Todos los usuarios ya registrados y quienes se registren o descarguen SprintBrain hasta el 31 de diciembre de 2026 tendrán la aplicación gratis para siempre.</p>
+          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Empieza con SprintBrain →">Crea tu cuenta gratis de por vida →</a>
         </div>
         <div class="pa-clock">
-          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="El periodo de acceso gratuito de 2026 ha finalizado">El acceso gratuito termina en</p>
+          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="La oferta de acceso gratuito de por vida ha terminado">Consigue acceso gratuito de por vida en</p>
           <div class="pa-digits" role="timer" aria-labelledby="pa-clock-label" aria-live="off">
             <div class="pa-unit"><span class="pa-number" data-pa-unit="days">--</span><span class="pa-unit-label">Días</span></div>
             <div class="pa-unit"><span class="pa-number" data-pa-unit="hours">--</span><span class="pa-unit-label">Horas</span></div>
@@ -1709,7 +1709,7 @@ Equipo LeibTour</div>
         <div class="pa-policy">
           <h3>¿Qué cambia el 1 de enero de 2027?</h3>
           <div>
-            <p data-pa-expired="Desde el 1 de enero de 2027, el modelo incluye una cuota de uso gratuita y precios por consumo al superar el límite definido.">A partir del 1 de enero de 2027 entrará en vigor un <strong>modelo de pago por uso</strong>. El uso seguirá siendo gratuito hasta un límite definido; a partir de ahí se aplicarán tarifas según el consumo.</p>
+            <p data-pa-expired="El acceso gratuito de por vida no cambia para quienes se registraron o descargaron SprintBrain hasta finales de 2026. El pago por uso por encima del límite gratuito solo se aplica a los nuevos usuarios desde el 1 de enero de 2027."><strong>Tu acceso gratuito de por vida seguirá siendo gratuito.</strong> Solo los nuevos usuarios que se unan a partir del 1 de enero de 2027 tendrán un límite de uso gratuito y pago por uso a partir de ese límite.</p>
             <p class="pa-terms"><strong>Los límites y las tarifas se comunicarán antes de la activación.</strong></p>
           </div>
         </div>
@@ -2321,7 +2321,7 @@ Equipo LeibTour</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.0';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.51.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.
