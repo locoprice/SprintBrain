@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { fillFormApi, formulaEngine, loadFillFormEngine } from '@/lib/fillFormEngine';
 import { isValidFieldName, nextNumberName } from '@/lib/formNumberToken';
 import {
@@ -18,10 +16,13 @@ import {
   type FormulaOperation,
 } from '@/lib/formulaToken';
 import {
+  BoxNames,
   ChoiceCards,
-  ERROR,
+  ExampleBox,
+  ExampleResult,
   FormulaDialogFrame,
   HINT,
+  InsertsBox,
   listAnd,
   MoreOptions,
   RoundingControl,
@@ -241,75 +242,24 @@ export function FormCalculatorDialog({
 
       {/* ── What it prints ── */}
       {example && (
-        <div className="rounded-[10px] border border-primary/25 bg-primary-light px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
-            Example
-          </p>
-          <p className="mt-1 text-xs text-ink">
-            With {listAnd(example.values)} filled in, the line prints{' '}
-            <span className="font-mono font-semibold text-primary">{example.printed}</span>
-          </p>
-        </div>
+        <ExampleBox>
+          With {listAnd(example.values)} filled in, the line prints{' '}
+          <ExampleResult>{example.printed}</ExampleResult>
+        </ExampleBox>
       )}
 
       <MoreOptions>
         <RoundingControl value={decimals} onChange={setDecimals} />
-        <div>
-          <span className={SECTION_LABEL}>Box names</span>
-          <div className="flex flex-col gap-2">
-            {names.map((name, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-xs text-ink-subtle">
-                  {spec.roles?.[i] ?? `Number ${i + 1}`}
-                </span>
-                <Input
-                  value={name}
-                  aria-label={`${spec.roles?.[i] ?? `Number ${i + 1}`} box name`}
-                  // Stripped as typed, not rejected after: a space failing
-                  // validation with no visible cause is worse.
-                  onChange={(e) => {
-                    const next = e.target.value.replace(/[^A-Za-z0-9_]/g, '');
-                    setNames((prev) => prev.map((n, j) => (j === i ? next : n)));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleInsert();
-                    }
-                  }}
-                  className={cn(
-                    'h-10 rounded-[10px] font-mono',
-                    !isValidFieldName(name) && 'border-danger focus:border-danger focus:ring-danger/20',
-                  )}
-                />
-              </div>
-            ))}
-          </div>
-          {duplicate ? (
-            <p className={ERROR}>Each box needs its own name, or two boxes fill as one.</p>
-          ) : !namesValid ? (
-            <p className={ERROR}>
-              Letters, numbers and underscore, starting with a letter. For example NUM_1.
-            </p>
-          ) : (
-            <p className={HINT}>
-              Only needed if a formula you type by hand reads these boxes. A box left empty counts as 0.
-            </p>
-          )}
-        </div>
+        <BoxNames
+          labels={names.map((_, i) => spec.roles?.[i] ?? `Number ${i + 1}`)}
+          names={names}
+          onChange={(i, next) => setNames((prev) => prev.map((n, j) => (j === i ? next : n)))}
+          onEnter={handleInsert}
+        />
       </MoreOptions>
 
       {/* ── What lands in the body ── */}
-      {valid && (
-        <div className="rounded-[10px] border border-line bg-bg-alt px-3 py-2.5">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
-            Inserts
-          </p>
-          <code className="block break-all font-mono text-[11px] leading-relaxed text-ink-muted">
-            {token}
-          </code>
-        </div>
-      )}
+      {valid && <InsertsBox token={token} />}
     </FormulaDialogFrame>
   );
 }

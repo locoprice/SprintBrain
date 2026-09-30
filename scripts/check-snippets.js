@@ -436,6 +436,15 @@ const formulaCases = [
   ['YOUR_PRICE * BANK_DISCOUNT / 100', { YOUR_PRICE: '100', BANK_DISCOUNT: 1.5 }, 1.5],
   ['round((LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100)', { LIST_PRICE: '150', YOUR_PRICE: '100' }, 33],
   ['(LIST_PRICE - YOUR_PRICE) / LIST_PRICE * 100', { LIST_PRICE: '', YOUR_PRICE: '100' }, null],
+  // What the Simple interest and Compound interest windows write.
+  ['PRINCIPAL * RATE / 100 * YEARS', { PRINCIPAL: '1000', RATE: '5', YEARS: '3' }, 150],
+  ['PRINCIPAL + PRINCIPAL * RATE / 100 * YEARS', { PRINCIPAL: '1000', RATE: '5', YEARS: '3' }, 1150],
+  ['PRINCIPAL * pow(1 + RATE / 100 / PER_YEAR, PER_YEAR * YEARS)',
+    { PRINCIPAL: '1000', RATE: '5', PER_YEAR: '12', YEARS: '3' }, 1161.47],
+  ['PRINCIPAL * pow(1 + RATE / 100 / PER_YEAR, PER_YEAR * YEARS) - PRINCIPAL',
+    { PRINCIPAL: '1000', RATE: '5', PER_YEAR: '1', YEARS: '3' }, 157.63],
+  ['pow(NUM_1, NUM_2)', { NUM_1: '2', NUM_2: '0.5' }, 1.41],
+  ['pow(NUM_1, NUM_2)', { NUM_1: '-8', NUM_2: '0.5' }, null],
 ];
 let fxOk = 0;
 for (const [expr, vals, want] of formulaCases) {

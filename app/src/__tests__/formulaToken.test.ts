@@ -4,7 +4,11 @@ import { resolve } from 'node:path';
 import { buildFormNumberToken } from '@/lib/formNumberToken';
 import {
   buildFormulaToken,
+  buildInterestToken,
   buildPriceAdjustToken,
+  INTEREST_SPECS,
+  interestNames,
+  isValidInterest,
   describeFormula,
   boxLabel,
   FORMULA_OPERATIONS,
@@ -545,6 +549,156 @@ describe('formulaToken: formulas already in a body', () => {
 
   it('finds nothing in a body without formulas', () => {
     expect(formulasInBody('Hello {formtext: name=A; type=number}')).toEqual([]);
+  });
+});
+
+describe('formulaToken: simple and compound interest', () => {
+  const SIMPLE = ['PRINCIPAL', 'RATE', 'YEARS'];
+  const COMPOUND = ['PRINCIPAL', 'RATE', 'YEARS', 'PER_YEAR'];
+  const simple = (decimals: FormulaDecimals = 2) => buildInterestToken({ kind: 'simple', names: SIMPLE, decimals });
+  const compound = (decimals: FormulaDecimals = 2) => buildInterestToken({ kind: 'compound', names: COMPOUND, decimals });
+  const vals = (p: string, r: string, t: string, n = '12') => ({ PRINCIPAL: p, RATE: r, YEARS: t, PER_YEAR: n });
+
+  it('writes the boxes, the working and the guarded answers', () => {
+    expect(simple()).toBe(
+      '{formtext: name=PRINCIPAL; type=number; label=Simple interest: principal} × ' +
+        '{formtext: name=RATE; type=number; label=Simple interest: rate % a year}% × ' +
+        '{formtext: name=YEARS; type=number; label=Simple interest: years} = ' +
+        '{if: min(PRINCIPAL, RATE, YEARS) > 0}{=PRINCIPAL * RATE / 100 * YEARS} ' +
+        '({PRINCIPAL} + {=PRINCIPAL * RATE / 100 * YEARS} = {=PRINCIPAL + PRINCIPAL * RATE / 100 * YEARS}){endif}',
+    );
+    expect(compound()).toBe(
+      '{formtext: name=PRINCIPAL; type=number; label=Compound interest: principal} × (1 + ' +
+        '{formtext: name=RATE; type=number; label=Compound interest: rate % a year}% / ' +
+        '{formtext: name=PER_YEAR; type=number; default=12; label=Compound interest: times a year})^({PER_YEAR} × ' +
+        '{formtext: name=YEARS; type=number; label=Compound interest: years}) = ' +
+        '{if: min(PRINCIPAL, RATE, YEARS, PER_YEAR) > 0}{=PRINCIPAL * pow(1 + RATE / 100 / PER_YEAR, PER_YEAR * YEARS)} ' +
+        '(+{=PRINCIPAL * pow(1 + RATE / 100 / PER_YEAR, PER_YEAR * YEARS) - PRINCIPAL}){endif}',
+    );
+  });
+
+  it('prints the working, the interest and the total', () => {
+    expect(engine.resolveBody(simple(), vals('1000', '5', '3'))).toBe('1000 × 5% × 3 = 150 (1000 + 150 = 1150)');
+    expect(engine.resolveBody(simple(), vals('2500', '3.5', '2'))).toBe('2500 × 3.5% × 2 = 175 (2500 + 175 = 2675)');
+  });
+
+  it('prints the working, the final amount and the interest earned', () => {
+    expect(engine.resolveBody(compound(), vals('1000', '5', '3'))).toBe(
+      '1000 × (1 + 5% / 12)^(12 × 3) = 1161.47 (+161.47)',
+    );
+    expect(engine.resolveBody(compound(), vals('1000', '5', '3', '1'))).toBe(
+      '1000 × (1 + 5% / 1)^(1 × 3) = 1157.63 (+157.63)',
+    );
+  });
+
+  it('prints no answer for an empty, zero or negative box', () => {
+    expect(engine.resolveBody(simple(), vals('1000', '', '3'))).toBe('1000 × % × 3 = ');
+    expect(engine.resolveBody(simple(), vals('1000', '5', '0'))).toBe('1000 × 5% × 0 = ');
+    expect(engine.resolveBody(simple(), vals('-1000', '5', '3'))).toBe('-1000 × 5% × 3 = ');
+    // An empty times a year would divide by 0.
+    expect(engine.resolveBody(compound(), vals('1000', '5', '3', ''))).toBe('1000 × (1 + 5% / )^( × 3) = ');
+  });
+
+  it('keeps the decimals asked for, with the one-argument round() only', () => {
+    expect(simple(0)).toContain('{=round(PRINCIPAL * RATE / 100 * YEARS)}');
+    expect(engine.resolveBody(compound(0), vals('1000', '5', '3'))).toBe(
+      '1000 × (1 + 5% / 12)^(12 × 3) = 1161 (+161)',
+    );
+    expect(engine.resolveBody(compound(1), vals('1000', '5', '3'))).toBe(
+      '1000 × (1 + 5% / 12)^(12 × 3) = 1161.5 (+161.5)',
+    );
+    for (const token of [simple(0), simple(1), compound(0), compound(1)]) {
+      expect(token).not.toMatch(/round\([^()]*(\([^()]*\)[^()]*)*,/);
+    }
+  });
+
+  it('only compound interest needs pow(), which older extensions do not read', () => {
+    for (const d of [0, 1, 2] as FormulaDecimals[]) {
+      expect(simple(d)).not.toMatch(/pow\(/);
+      expect(compound(d)).toMatch(/pow\(/);
+    }
+  });
+
+  it('writes no guard of its own inside a condition', () => {
+    const inside = buildInterestToken({ kind: 'simple', names: SIMPLE, decimals: 2, inCondition: true });
+    expect(inside).not.toContain('{if:');
+    expect(inside).not.toContain('{endif}');
+  });
+
+  it('fills in as number boxes, named after the calculation, times a year starting on 12', () => {
+    const cfg = engine.buildFormFieldCfg(compound()) as Record<string, { type: string; label?: string; default?: string }>;
+    expect(Object.keys(cfg)).toEqual(['PRINCIPAL', 'RATE', 'PER_YEAR', 'YEARS']);
+    for (const name of COMPOUND) expect(cfg[name]?.type).toBe('number');
+    expect(cfg.PER_YEAR).toMatchObject({ default: '12', label: 'Compound interest: times a year' });
+    expect(cfg.YEARS?.label).toBe('Compound interest: years');
+    // The shared decider every fill surface draws from sees the same four boxes.
+    expect(fillFormApi.fillForm(simple(), {}, {}).fields.map((f) => [f.key, f.type])).toEqual([
+      ['PRINCIPAL', 'number'],
+      ['RATE', 'number'],
+      ['YEARS', 'number'],
+    ]);
+  });
+
+  it('hands out names the body does not use yet', () => {
+    expect(interestNames('', 'compound')).toEqual(COMPOUND);
+    expect(interestNames('{formtext: name=PRINCIPAL; type=number} {=RATE * 2}', 'simple')).toEqual([
+      'PRINCIPAL_2',
+      'RATE_2',
+      'YEARS',
+    ]);
+    // A word in the text is not a name.
+    expect(interestNames('The principal rate for years', 'simple')).toEqual(SIMPLE);
+  });
+
+  it('refuses the wrong number of boxes, bad names and repeats', () => {
+    expect(isValidInterest({ kind: 'simple', names: SIMPLE, decimals: 2 })).toBe(true);
+    expect(isValidInterest({ kind: 'compound', names: SIMPLE, decimals: 2 })).toBe(false);
+    expect(isValidInterest({ kind: 'simple', names: ['A', '1B', 'C'], decimals: 2 })).toBe(false);
+    expect(isValidInterest({ kind: 'simple', names: ['A', 'a', 'C'], decimals: 2 })).toBe(false);
+    expect(INTEREST_SPECS.compound.roles).toHaveLength(COMPOUND.length);
+  });
+
+  describe('in the formula list', () => {
+    const remove = (body: string, index: number) => {
+      const f = formulasInBody(body)[index]!;
+      return body.slice(0, f.removeStart) + body.slice(f.removeEnd);
+    };
+
+    it('lists each block as one formula, in body order among the others', () => {
+      const calc = buildFormulaToken({ operation: 'add', names: ['NUM_1', 'NUM_2'], decimals: 2 });
+      const body = `Loan: ${simple()}\nSum: ${calc}\nSavings: ${buildInterestToken({
+        kind: 'compound', names: ['P2', 'R2', 'T2', 'N2'], decimals: 2,
+      })}`;
+      expect(formulasInBody(body).map((f) => [f.context, f.description])).toEqual([
+        ['Loan:', 'Simple interest: PRINCIPAL at RATE% for YEARS'],
+        ['Sum:', 'Add NUM_1, NUM_2'],
+        ['Savings:', 'Compound interest: P2 at R2% for T2, N2 times a year'],
+      ]);
+    });
+
+    it('shows no line for two blocks side by side with no words around them', () => {
+      const body = `${compound()}${buildInterestToken({ kind: 'simple', names: ['P2', 'R2', 'T2'], decimals: 2 })}`;
+      expect(formulasInBody(body).map((f) => f.context)).toEqual(['', '']);
+    });
+
+    it('removes a block whole: its boxes, its working, its guard and its answers', () => {
+      expect(remove(`Loan: ${simple()}\nThanks`, 0)).toBe('Loan: \nThanks');
+      expect(remove(`Savings: ${compound(0)}\nThanks`, 0)).toBe('Savings: \nThanks');
+    });
+
+    it('keeps the boxes when another formula still reads one of them', () => {
+      const body = `${simple()}\nMonthly: {=PRINCIPAL / 12}`;
+      const after = remove(body, 0);
+      expect(after).toBe(`${simple().slice(0, simple().indexOf(' = ') + 3)}\nMonthly: {=PRINCIPAL / 12}`);
+      expect(formulasInBody(after).map((f) => f.description)).toEqual(['Formula: PRINCIPAL / 12']);
+    });
+
+    it('leaves the condition around a block written inside one', () => {
+      const inside = buildInterestToken({ kind: 'simple', names: SIMPLE, decimals: 2, inCondition: true });
+      const body = `{if: SHOW > 0}${inside}{endif}`;
+      expect(formulasInBody(body)).toHaveLength(1);
+      expect(remove(body, 0)).toBe('{if: SHOW > 0}{endif}');
+    });
   });
 });
 

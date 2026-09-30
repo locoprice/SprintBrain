@@ -2526,7 +2526,7 @@ function sbCheckAlive(){
 }
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
-var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,avg:1,datetimediff:1};
+var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,avg:1,pow:1,datetimediff:1};
 
 /* ── DATE/TIME HELPERS ─────────────────────────── */
 function _sbPad(n){ return (n<10?'0':'')+n; }
@@ -3690,9 +3690,9 @@ function sbFieldContext(body){
    are ours rather than Math's: Math.round drops a second argument, and Math
    has no mean. */
 var SB_MATH_FNS={round:'sbRound',floor:'Math.floor',ceil:'Math.ceil',abs:'Math.abs',
-  min:'Math.min',max:'Math.max',avg:'sbAvg'};
+  min:'Math.min',max:'Math.max',avg:'sbAvg',pow:'Math.pow'};
 function mathReplace(s){
-  return s.replace(/\b(round|floor|ceil|abs|min|max|avg)\(/g,function(m,f){return SB_MATH_FNS[f]+'(';});
+  return s.replace(/\b(round|floor|ceil|abs|min|max|avg|pow)\(/g,function(m,f){return SB_MATH_FNS[f]+'(';});
 }
 /* round(X, N) like a spreadsheet's ROUND. Mirrors _roundTo in the engine. */
 function sbRoundTo(x,n){
@@ -3730,7 +3730,7 @@ function sbEvalFormula(expr,vals){
     return v<0?'('+v+')':String(v);
   });
   if(unreadable)return null;
-  var stripped=s.replace(/round|floor|ceil|abs|min|max|avg|datetimediff/g,'');
+  var stripped=s.replace(/round|floor|ceil|abs|min|max|avg|pow|datetimediff/g,'');
   if(!/^[0-9+\-*/().\s,]+$/.test(stripped))return null;
   try{
     var r=Function('"use strict";return('+mathReplace(s)+')')();

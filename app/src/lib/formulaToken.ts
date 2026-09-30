@@ -529,6 +529,120 @@ export function buildPriceAdjustToken(cfg: PriceAdjustConfig): string {
   return rateToken + (spec.guard && !cfg.inCondition ? `{if: ${spec.guard(cfg.price, cfg.other)}}${answer}{endif}` : answer);
 }
 
+// ── INTEREST ────────────────────────────────────────────────────────
+// Simple and compound interest, each a Math toggle with its own window. Like a
+// Calculator block, the window writes the number boxes and the working, then
+// the answers, so the fill form asks for every number:
+//
+//   1000 × 5% × 3 = 150 (1000 + 150 = 1150)
+//   1000 × (1 + 5% / 12)^(12 × 3) = 1161.47 (+161.47)
+//
+// Signs, never words, so the line reads the same in any language. The answers
+// sit behind `min(...) > 0`: an empty, zero or negative box prints no answer
+// rather than a wrong one (an empty "times a year" would divide by 0).
+//
+// Compound interest calls pow(), which only the engine from v3.52.0 knows. An
+// older extension prints the working and no answer until it updates.
+
+export type InterestKind = 'simple' | 'compound';
+
+export interface InterestSpec {
+  id: InterestKind;
+  label: string;
+  /** What each box is, in the order `InterestConfig.names` holds them. */
+  roles: readonly string[];
+  /** What each box is called unless the author renames it. */
+  baseNames: readonly string[];
+  /** What each box opens on in the fill form. */
+  defaults: readonly string[];
+  /** What the example fills the boxes with. */
+  sample: readonly string[];
+}
+
+export const INTEREST_SPECS: Record<InterestKind, InterestSpec> = {
+  simple: {
+    id: 'simple',
+    label: 'Simple interest',
+    roles: ['Principal', 'Rate % a year', 'Years'],
+    baseNames: ['PRINCIPAL', 'RATE', 'YEARS'],
+    defaults: ['', '', ''],
+    sample: ['1000', '5', '3'],
+  },
+  compound: {
+    id: 'compound',
+    label: 'Compound interest',
+    roles: ['Principal', 'Rate % a year', 'Years', 'Times a year'],
+    baseNames: ['PRINCIPAL', 'RATE', 'YEARS', 'PER_YEAR'],
+    // Monthly is the most common, and 12 in the box says so without a word.
+    defaults: ['', '', '', '12'],
+    sample: ['1000', '5', '3', '12'],
+  },
+};
+
+export interface InterestConfig {
+  kind: InterestKind;
+  /** Principal, rate, years and, for compound, times a year. */
+  names: string[];
+  decimals: FormulaDecimals;
+  /** As in `FormulaConfig`: the answers land inside an `{if:}` already. */
+  inCondition?: boolean;
+}
+
+/** The names a body's tokens already use, so new boxes never take one. */
+function namesInTokens(body: string): string[] {
+  const out: string[] = [];
+  for (const token of body.match(/\{[^}]*\}/g) ?? []) {
+    out.push(...(token.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []));
+  }
+  return out;
+}
+
+/** Free box names for an interest block: PRINCIPAL, RATE, YEARS, or PRINCIPAL_2 and on. */
+export function interestNames(body: string, kind: InterestKind): string[] {
+  const taken = namesInTokens(body);
+  return INTEREST_SPECS[kind].baseNames.map((base) => {
+    const name = freeName(base, taken);
+    taken.push(name);
+    return name;
+  });
+}
+
+export function isValidInterest(cfg: InterestConfig): boolean {
+  const { names } = cfg;
+  if (names.length !== INTEREST_SPECS[cfg.kind].roles.length) return false;
+  if (!names.every(isValidFieldName)) return false;
+  return !hasDuplicateNames(names);
+}
+
+/** Writes the block: the boxes, the working, then ` = ` and the answers. */
+export function buildInterestToken(cfg: InterestConfig): string {
+  const spec = INTEREST_SPECS[cfg.kind];
+  const box = (i: number) =>
+    buildFormNumberToken({
+      name: cfg.names[i] ?? '',
+      format: 'plain',
+      currency: DEFAULT_CURRENCY,
+      default: spec.defaults[i] ?? '',
+      label: `${spec.label}: ${(spec.roles[i] ?? '').toLowerCase()}`,
+    });
+  const answer = (expr: string) => `{=${withRounding(expr, cfg.decimals)}}`;
+  const [p = '', r = '', t = '', n = ''] = cfg.names;
+
+  let working: string;
+  let result: string;
+  if (cfg.kind === 'simple') {
+    const interest = `${p} * ${r} / 100 * ${t}`;
+    working = `${box(0)} × ${box(1)}% × ${box(2)}`;
+    result = `${answer(interest)} ({${p}} + ${answer(interest)} = ${answer(`${p} + ${interest}`)})`;
+  } else {
+    const amount = `${p} * pow(1 + ${r} / 100 / ${n}, ${n} * ${t})`;
+    working = `${box(0)} × (1 + ${box(1)}% / ${box(3)})^({${n}} × ${box(2)})`;
+    result = `${answer(amount)} (+${answer(`${amount} - ${p}`)})`;
+  }
+  const guarded = cfg.inCondition ? result : `{if: min(${cfg.names.join(', ')}) > 0}${result}{endif}`;
+  return `${working} = ${guarded}`;
+}
+
 // ── FORMULAS ALREADY IN A BODY ──────────────────────────────────────
 // What the builder lists under "In this snippet", each with the range a Remove
 // button deletes. A formula is removed whole, as it was inserted: its guard,
@@ -609,8 +723,11 @@ function lineContext(body: string, from: number, to: number): string {
       .replace(/\[\/?(?:blue|yellow|red)\]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
-  const before = clean(body.slice(lineStart, from));
-  const text = before !== '' ? before : clean(body.slice(to, lineEnd));
+  // Signs left over from another formula's working on the same line, such as
+  // `× % × =`, say nothing about which line this is.
+  const words = (s: string) => (/\p{L}/u.test(s) ? s : '');
+  const before = words(clean(body.slice(lineStart, from)));
+  const text = before !== '' ? before : words(clean(body.slice(to, lineEnd)));
   return text.length > 40 ? `${text.slice(0, 40).trim()}…` : text;
 }
 
@@ -621,14 +738,80 @@ function usedElsewhere(body: string, name: string, start: number, end: number): 
   return re.test(rest);
 }
 
+// An interest block as `buildInterestToken` writes it. Its answers are listed
+// as one formula, since they were inserted as one and only make sense together.
+const BOX = String.raw`\{formtext:[^}]*\}`;
+const REF = String.raw`\{[A-Za-z_][A-Za-z0-9_]*\}`;
+const ANS = String.raw`\{=[^}]*\}`;
+const GUARD = String.raw`(\{if:[^}]*\})?`;
+const INTEREST_BLOCKS: readonly { kind: InterestKind; re: RegExp }[] = [
+  {
+    kind: 'simple',
+    re: new RegExp(`${BOX} × ${BOX}% × ${BOX} = ${GUARD}(${ANS} \\(${REF} \\+ ${ANS} = ${ANS}\\))(\\{endif\\})?`, 'g'),
+  },
+  {
+    kind: 'compound',
+    re: new RegExp(`${BOX} × \\(1 \\+ ${BOX}% / ${BOX}\\)\\^\\(${REF} × ${BOX}\\) = ${GUARD}(${ANS} \\(\\+${ANS}\\))(\\{endif\\})?`, 'g'),
+  },
+];
+
+interface InterestBlock {
+  /** The whole block, working included. */
+  start: number;
+  end: number;
+  entry: FormulaInBody;
+}
+
+function interestBlocks(body: string): InterestBlock[] {
+  const out: InterestBlock[] = [];
+  for (const { kind, re } of INTEREST_BLOCKS) {
+    const all = new RegExp(re.source, 'g');
+    let m: RegExpExecArray | null;
+    while ((m = all.exec(body)) !== null) {
+      const guard = m[1];
+      const endif = m[3];
+      // An `{if:}` opened here and not closed here is not one the window wrote.
+      if (guard !== undefined && endif === undefined) continue;
+      const start = m.index;
+      // Without its own guard, an `{endif}` straight after belongs to the
+      // condition around the block, and stays.
+      const end = start + m[0].length - (guard === undefined && endif !== undefined ? endif.length : 0);
+      const answersAt = start + m[0].indexOf(m[2] ?? '', m[0].indexOf(' = '));
+      const names = [...m[0].matchAll(/name=([A-Za-z_][A-Za-z0-9_]*)/g)].map((b) => b[1] ?? '');
+      const [p, r, t, n] = kind === 'simple' ? names : [names[0], names[1], names[3], names[2]];
+      const description = kind === 'simple'
+        ? `Simple interest: ${p} at ${r}% for ${t}`
+        : `Compound interest: ${p} at ${r}% for ${t}, ${n} times a year`;
+      // The boxes go with the block, unless another formula reads one of them.
+      // Then only the answers go, the way a Calculator block keeps shared boxes.
+      const ownsBoxes = names.every((b) => !usedElsewhere(body, b, start, end));
+      const removeStart = ownsBoxes ? start : answersAt - (guard?.length ?? 0);
+      out.push({
+        start,
+        end,
+        entry: {
+          at: answersAt,
+          removeStart,
+          removeEnd: end,
+          context: lineContext(body, start, end),
+          description,
+        },
+      });
+    }
+  }
+  return out;
+}
+
 export function formulasInBody(body: string): FormulaInBody[] {
   const rates = ratesInBody(body);
-  const out: FormulaInBody[] = [];
+  const blocks = interestBlocks(body);
+  const out: FormulaInBody[] = blocks.map((b) => b.entry);
   const re = new RegExp(ANSWER_TOKEN.source, 'g');
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
     const expr = m[1] ?? '';
     const at = m.index;
+    if (blocks.some((b) => at >= b.start && at < b.end)) continue;
     let start = at;
     let end = at + m[0].length;
 
@@ -668,5 +851,5 @@ export function formulasInBody(body: string): FormulaInBody[] {
       description: describeFormula(expr, rates),
     });
   }
-  return out;
+  return out.sort((a, b) => a.at - b.at);
 }
