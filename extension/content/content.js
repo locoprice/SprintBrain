@@ -2044,9 +2044,10 @@ function launchConfetti() {
 
 // ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
 // Character offset of the current caret within `host`, counting only text-node
-// characters (block boundaries contribute nothing), the same unit insertText's
-// visible length uses. `fromStart` reads where a selection starts instead of
-// where it ends. Returns -1 if the caret isn't inside the host.
+// characters: block boundaries and <br> contribute nothing, a line break that
+// landed as a "\n" character (white-space: pre-wrap) counts as one. `fromStart`
+// reads where a selection starts instead of where it ends. Returns -1 if the
+// caret isn't inside the host.
 function _ceCaretCharOffset(host, fromStart) {
   try {
     var sel = window.getSelection();
@@ -2116,19 +2117,34 @@ function captureFieldState(el, triggerLen) {
 }
 
 // Records the region a contenteditable insertion just wrote, for Undo: its
-// visible length and the character offset where it ends. `startCO` is where the
-// insertion began, read before insertText. Lexical writes a pasted body a
-// moment after insertText returns, so there the live caret still sits in front
-// of the snippet and Undo would delete the text before it; the end is counted
-// from the start instead. Every other editor has written it already, and its
-// live caret stays the truth.
+// length and the character offset where it ends, both in _ceCaretCharOffset's
+// unit. `startCO` is where the insertion began, read before insertText. Lexical
+// writes a pasted body a moment after insertText returns, so there the live
+// caret still sits in front of the snippet and Undo would delete the text
+// before it; the end is counted from the start instead. Every other editor has
+// written it already, and its live caret stays the truth. A line break counts
+// in the length only where it landed as a "\n" character (a field styled
+// white-space: pre-wrap): counting none left the start of a multi-line snippet
+// behind there, and counting all would take text in front of the snippet
+// wherever a break landed as a <br>, as Lexical's do.
 function _markSyncInserted(snapshot, el, startCO, text) {
   var host = _ceHost(el);
   snapshot.syncInserted = true;
   snapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
-  snapshot.endCharOffset = (_isLexicalHost(host) && startCO >= 0)
-    ? startCO + snapshot.visibleLen
-    : _ceCaretCharOffset(host);
+  if (_isLexicalHost(host) && startCO >= 0) {
+    snapshot.endCharOffset = startCO + snapshot.visibleLen;
+    return;
+  }
+  snapshot.endCharOffset = _ceCaretCharOffset(host);
+  // Walk back from the caret over the snippet, last line first, and count each
+  // line break that landed as a character.
+  var before = snapshot.endCharOffset > 0 ? host.textContent.slice(0, snapshot.endCharOffset) : '';
+  var lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  var at = before.length - lines[lines.length - 1].length;
+  for (var i = lines.length - 2; i >= 0; i--) {
+    if (before.charAt(at - 1) === '\n') { snapshot.visibleLen++; at--; }
+    at -= lines[i].length;
+  }
 }
 
 function restoreFieldState(snapshot) {

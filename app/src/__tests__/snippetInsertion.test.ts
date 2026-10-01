@@ -432,3 +432,83 @@ describe('snippet expansion: a trigger at the start of a new line', () => {
     expect(toPoint(host, 11, true)).toEqual({ node: nodes[1], offset: 5 });
   });
 });
+
+describe('Undo after a contenteditable insert', () => {
+  // Undo deletes [endCharOffset - visibleLen, endCharOffset), counted in text
+  // characters from the start of the field. A field styled white-space:
+  // pre-wrap takes each line break as a "\n" character, and those offsets count
+  // it: a length read off the text alone left one character of the snippet
+  // behind per line break ("Hi ::multi" undid to "Hi Li").
+  interface Marked {
+    syncInserted?: boolean;
+    visibleLen?: number;
+    endCharOffset?: number;
+  }
+  type Mark = (snapshot: Marked, el: unknown, startCO: number, text: string) => void;
+  const markWith = new Function(
+    '_ceCaretCharOffset',
+    [
+      sliceFunction(source, 'function _ceHost(el) {'),
+      sliceFunction(source, 'function _isLexicalHost(host) {'),
+      sliceFunction(source, 'function _markSyncInserted('),
+      'return _markSyncInserted;',
+    ].join('\n'),
+  ) as (caretCharOffset: () => number) => Mark;
+
+  // field: the field's text once insertText has returned. caret: where its live
+  // caret stands then. startCO: where the insert began.
+  function mark(
+    opts: { field: string; caret: number; startCO?: number; lexical?: boolean },
+    text: string,
+  ): Marked {
+    const el = {
+      getAttribute: (name: string) => {
+        if (name === 'contenteditable') return 'true';
+        if (name === 'data-lexical-editor') return opts.lexical ? 'true' : null;
+        return null;
+      },
+      parentElement: null,
+      textContent: opts.field,
+    };
+    const snapshot: Marked = {};
+    markWith(() => opts.caret)(snapshot, el, opts.startCO ?? 3, text);
+    return snapshot;
+  }
+  const region = (s: Marked) => [(s.endCharOffset ?? 0) - (s.visibleLen ?? 0), s.endCharOffset];
+
+  const BODY = 'Line one\n\nLine two'; // 16 characters of text, 2 line breaks
+
+  it('covers the line breaks a pre-wrap field wrote as characters', () => {
+    // "Hi " and then the body with its two "\n": the caret ends at 3 + 18.
+    expect(region(mark({ field: 'Hi Line one\n\nLine two', caret: 21 }, BODY))).toEqual([3, 21]);
+  });
+
+  it('reads nothing after the caret', () => {
+    const field = 'Hi Line one\n\nLine two\nand the rest';
+    expect(region(mark({ field, caret: 21 }, BODY))).toEqual([3, 21]);
+  });
+
+  it('covers a field that wrote its line breaks as <br>', () => {
+    // A <br> is no character: the field's text runs the lines together.
+    expect(region(mark({ field: 'Hi Line oneLine two', caret: 19 }, BODY))).toEqual([3, 19]);
+  });
+
+  it('follows the caret to wherever the snippet landed', () => {
+    // The trigger sat at 6, after "Line A", and the snippet went in at the
+    // start of the field: Undo takes the snippet, not the text after 6.
+    const field = 'Line oneLine twoLine A';
+    expect(region(mark({ field, caret: 16, startCO: 6 }, BODY))).toEqual([0, 16]);
+  });
+
+  it('counts from the start on Lexical, whose paste has not landed yet', () => {
+    expect(region(mark({ field: 'Hi ', caret: 3, lexical: true }, BODY))).toEqual([3, 19]);
+  });
+
+  it('falls back to the text when the caret is not in the field', () => {
+    expect(mark({ field: 'Hi Line one\n\nLine two', caret: -1 }, BODY)).toEqual({
+      syncInserted: true,
+      visibleLen: 16,
+      endCharOffset: -1,
+    });
+  });
+});
