@@ -53,9 +53,9 @@ SprintBrain has three primary content types:
 
 1. **Snippets**
 2. **Prompts**
-3. **Memory**
+3. **Memory**, named **Brains** in everything users read (one space is a Brain)
 
-Never introduce alternative names for these three without explicit approval.
+Never introduce alternative names for these three without explicit approval. The interface never says "Memory": the dashboard, extension, phone, manual and landing all say Brains. "Memory" is the name inside the code only.
 
 **Current real coverage — verify before claiming parity:**
 
@@ -63,9 +63,9 @@ Never introduce alternative names for these three without explicit approval.
 |---|---|---|---|
 | Snippets | ✅ | ✅ | ✅ |
 | Prompts | ✅ | ✅ | ✅ |
-| Memory | ✅ | ✅ | ❌ absent |
+| Memory (Brains) | ✅ | ✅ | ✅ use only (v3.53.0) |
 
-Memory is **not** present on mobile, by standing decision (root `CLAUDE.md`, 📱 Mobile). When a memory task lands, say plainly which surfaces got it and which did not.
+Memory on mobile is for **using** Brains: list, open, read, copy or share an item or the whole Brain, and add text. Managing Brains (create, rename, trash, edit items, upload, history) stays on the dashboard, by standing decision (root `CLAUDE.md`, 📱 Mobile). When a memory task lands, say plainly which surfaces got it and which did not.
 
 `Sprintbrain.html`, the old vanilla dashboard, was retired in v3.36.0. It is not a surface.
 
@@ -193,6 +193,8 @@ Mobile's numeric heuristic — a field whose name mentions a price or a count ge
 | `extension/shared/tooltip.js` | `scripts/sync-tooltip.js` | `SB_TOOLTIP:BEGIN/END` |
 | `extension/shared/snippet-stats.js` | `scripts/sync-snippet-stats.js` | `SB_SNIPPET_STATS:BEGIN/END` |
 | `extension/shared/fill-form.js` | `scripts/sync-fill-form.js` | `SB_FILL_FORM:BEGIN/END` |
+| `extension/shared/memory-pack.js` | `scripts/sync-memory-pack.js` | `SB_MEMORY_PACK:BEGIN/END` |
+| `extension/shared/interactive-steps.js` | `scripts/check-interactive-steps.js --write` | `SB_INTERACTIVE_STEPS:BEGIN/END` |
 
 Never hand-edit inside a generated block — regenerate from the source module. Each generator has a `--check` mode for CI.
 
@@ -211,7 +213,7 @@ Working memory attaches only what the step needs.
 
 **`security_invoker = true` on that view is the point, not a detail.** A view defaults to its owner's rights, which would bypass the RLS underneath and hand every caller everyone's rows. With it set, each source table's own policy applies to whoever is querying — authorization is **composed**, not unified: snippets keep the folder ACL, memory keeps personal ownership, no third authorization model appears. Never change this without re-verifying under real identities.
 
-Engine parity: `extension/shared/memory-pack.js` ↔ `app/src/lib/memory/engine.ts`, gated by `scripts/check-memory-parity.js`.
+Engine parity: `extension/shared/memory-pack.js` ↔ `app/src/lib/memory/engine.ts`, gated by `scripts/check-memory-parity.js`. The phone carries a generated copy of `memory-pack.js` for the Add text token count and the text "Copy whole Brain" hands out (`scripts/sync-memory-pack.js`).
 
 Reference: `docs/MEMORY_ARCHITECTURE_REVIEW.md`, `docs/MEMORY_002_PLAN.md`.
 
@@ -313,6 +315,7 @@ node scripts/check-storage.js          # storage residency
 node scripts/sync-tooltip.js --check   # tooltip parity
 node scripts/sync-snippet-stats.js --check
 node scripts/check-memory-parity.js    # working memory parity
+node scripts/sync-memory-pack.js --check   # phone memory pack + its use
 node scripts/check-memory-chunk.js     # memory chunk + chat capture
 node scripts/build-landing-i18n.js --check   # landing translation parity
 ```

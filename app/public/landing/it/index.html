@@ -1399,7 +1399,7 @@ Team LeibTour</div>
         <h3 class="fs-card-title">La tua libreria, su qualsiasi telefono.</h3>
         <p class="fs-card-body">
           Sfoglia, cerca e copia da <b>iOS</b> e <b>Android</b> nel browser. Senza computer,
-          senza download. Fissa in alto quello che usi ogni giorno, compila i campi di uno snippet e copia il testo finito.
+          senza download. Fissa in alto quello che usi ogni giorno, compila i campi di uno snippet, copia il testo finito e aggiungi note ai tuoi Brains quando sei in giro.
         </p>
         <button class="fs-cta" type="button" aria-label="Scopri di più su mobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -1504,7 +1504,7 @@ Team LeibTour</div>
           <div class="sb-copy" data-platform="mobile">
             <div class="sb-index" aria-hidden="true"><span>03 / 04</span><span class="sb-index-line"></span></div>
             <h3>Sito mobile</h3>
-            <p>Sfoglia, cerca e copia snippet su iOS o Android, direttamente da Safari o Chrome. Nessun download, nessuno app store. Apri un URL e sei dentro.</p>
+            <p>Sfoglia, cerca e copia snippet, prompt e Brains su iOS o Android, direttamente da Safari o Chrome. Nessun download, nessun app store. Apri un URL e sei dentro.</p>
             <div class="sb-badge"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg><span>Nessun download richiesto</span></div>
           </div>
           <div class="sb-copy" data-platform="security">
@@ -1862,7 +1862,7 @@ Team LeibTour</div>
     {
       tag:'06 · Mobile',
       title:'La tua libreria, su qualsiasi telefono.',
-      body:'Apri <code>app.sprintbrain.com/mobile</code> in <b>Safari o Chrome</b> su qualsiasi dispositivo iOS o Android. Nessun download, nessuno app store. Sfoglia, cerca e copia con un tap qualsiasi snippet dalla stessa libreria.',
+      body:'Apri <code>app.sprintbrain.com/mobile</code> in <b>Safari o Chrome</b> su qualsiasi dispositivo iOS o Android. Nessun download, nessun app store. Sfoglia, cerca e copia con un tap qualsiasi snippet, prompt o Brain dalla stessa libreria.',
       detail:'<strong>Pensata per una mano sola</strong>Aggiungila alla schermata home per aprirla all\'istante. Fissa in alto gli snippet che usi ogni giorno, passa da una variante di lingua all\'altra nella pagina di dettaglio, compila i campi e copia il testo finito direttamente negli appunti.'
     },
     {
@@ -2321,7 +2321,7 @@ Team LeibTour</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.52.2';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.53.0';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.

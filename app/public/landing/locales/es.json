@@ -192,8 +192,8 @@
       "count": 1
     },
     {
-      "find": "          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,\n          no download. Pin what you use daily, fill a snippet's fields, and copy the finished text.",
-      "replace": "          Explora, busca y copia desde <b>iOS</b> y <b>Android</b> en el navegador. Sin portátil,\n          sin descargas. Fija arriba lo que usas cada día, rellena los campos de un snippet y copia el texto final.",
+      "find": "          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,\n          no download. Pin what you use daily, fill a snippet's fields, copy the finished text, and add notes to your Brains on the go.",
+      "replace": "          Explora, busca y copia desde <b>iOS</b> y <b>Android</b> en el navegador. Sin portátil,\n          sin descargas. Fija arriba lo que usas cada día, rellena los campos de un snippet, copia el texto final y añade notas a tus Brains sobre la marcha.",
       "count": 1
     },
     {
@@ -352,8 +352,8 @@
       "count": 1
     },
     {
-      "find": "<p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>",
-      "replace": "<p>Explora, busca y copia snippets en iOS o Android, directamente desde Safari o Chrome. Sin descargas, sin app store. Abre una URL y ya estás dentro.</p>",
+      "find": "<p>Browse, search, and copy snippets, prompts and Brains on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>",
+      "replace": "<p>Explora, busca y copia snippets, prompts y Brains en iOS o Android, directamente desde Safari o Chrome. Sin descargas, sin app store. Abre una URL y ya estás dentro.</p>",
       "count": 1
     },
     {
@@ -577,8 +577,8 @@
       "count": 1
     },
     {
-      "find": "body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet from the same library.'",
-      "replace": "body:'Abre <code>app.sprintbrain.com/mobile</code> en <b>Safari o Chrome</b> en cualquier dispositivo iOS o Android. Sin descargas, sin app store. Explora, busca y copia con un toque cualquier snippet de la misma biblioteca.'",
+      "find": "body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet, prompt or Brain from the same library.'",
+      "replace": "body:'Abre <code>app.sprintbrain.com/mobile</code> en <b>Safari o Chrome</b> en cualquier dispositivo iOS o Android. Sin descargas, sin app store. Explora, busca y copia con un toque cualquier snippet, prompt o Brain de la misma biblioteca.'",
       "count": 1
     },
     {

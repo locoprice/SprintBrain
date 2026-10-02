@@ -43,10 +43,10 @@ CI runs all three on every push to `develop`.
 | Prompt editor, blocks, Ask User Questions, Interactive Steps, details, history | `app/src/features/prompts/PromptBlockEditor.tsx`, `app/src/lib/promptUtils.ts`, `app/src/lib/interactiveSteps.ts`, `extension/shared/interactive-steps.js` | `prompts/create-prompts` |
 | Prompt score | `app/src/lib/usePromptEvaluator.ts`, `PromptEfficiencyWidget.tsx` | `prompts/quality-score` |
 | Prompt list, filters, cards, the `"""` menu | `app/src/routes/PromptsPage.tsx`, `PromptFilters.tsx`, `PromptCard.tsx`, `content.js` prompt picker | `prompts/overview`, `prompts/filters-and-shortcuts` |
-| Brains: items, uploads, trash, history, Context button, save selection, save chat | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js` | `brains/overview` |
+| Brains: items, uploads, trash, history, Context button, save selection, save chat, phone | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `app/public/mobile/index.html` | `brains/overview` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
-| Phone page | `app/public/mobile/index.html` | `apps/mobile` |
+| Phone page, including its Memory page | `app/public/mobile/index.html` | `apps/mobile` |
 | Where the extension runs | `content.js` field detection | `integrations/supported-sites` |
 | Notion sync | `NotionSyncPanel.tsx`, `extension/services/notion-sync/notion-sync.js` | `integrations/notion-sync` |
 | Account, branding, unused months | `app/src/features/settings/{AccountPanel,BrandingPanel,InactivityPanel}.tsx` | `settings/account` |
