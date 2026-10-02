@@ -98,13 +98,23 @@ const source = readFileSync(
 const fnSource = [
   'function _ceHost(el) {',
   'function _isLexicalHost(host) {',
-  'function _ceDeleteSelection(host) {',
+  'function _ceCaretCharOffset(host, fromStart) {',
+  'function _ceWaitFor(test, ms, cb) {',
+  'function _ceSendDelete(host, range) {',
+  'function _ceRetryDelete(host, startCO, endCO, gone, end) {',
+  'function _ceDeleteSelection(host, done) {',
   'function _ceLineInsert(text) {',
   'function _cePasteInsert(el, text) {',
+  'function _cePasteLand(el, host, dt, text) {',
   'function insertText(el, text) {',
 ]
   .map((sig) => sliceFunction(source, sig))
   .join('\n');
+// The verify and settle windows the confirmed delete reads are plain top-level
+// vars in content.js, so they are lifted out the same way. This recording stub
+// has no real selection offsets, so the confirmation steps aside here and the
+// paste stays synchronous; the check itself is pinned by scripts/check-expansion.js.
+const lexicalTimings = (source.match(/^var LEXICAL_[A-Z_]+ = \d+;/gm) ?? []).join('\n');
 
 // Runs the real insertText against a stub editor and records everything it asked
 // the browser to do: execCommand calls, beforeinput events and paste events.
@@ -228,7 +238,7 @@ function run(text: string, opts: Options = {}): Recorded {
     'window',
     'InputEvent',
     'StaticRange',
-    `${fnSource}\nreturn insertText;`,
+    `${lexicalTimings}\n${fnSource}\nreturn insertText;`,
   ) as (
     d: unknown,
     dt: unknown,
