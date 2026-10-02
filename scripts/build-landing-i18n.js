@@ -63,12 +63,12 @@ function listLocales() {
     .sort();
 }
 
-function hreflangBlock(langs) {
-  const lines = [`<link rel="alternate" hreflang="en" href="${CANONICAL}">`];
+function hreflangBlock(langs, page = '') {
+  const lines = [`<link rel="alternate" hreflang="en" href="${CANONICAL}${page}">`];
   for (const lang of langs) {
-    lines.push(`<link rel="alternate" hreflang="${lang}" href="${CANONICAL}${lang}/">`);
+    lines.push(`<link rel="alternate" hreflang="${lang}" href="${CANONICAL}${lang}/${page}">`);
   }
-  lines.push(`<link rel="alternate" hreflang="x-default" href="${CANONICAL}">`);
+  lines.push(`<link rel="alternate" hreflang="x-default" href="${CANONICAL}${page}">`);
   return lines.join('\n');
 }
 
@@ -108,13 +108,89 @@ function translate(html, locale, lang) {
   return out;
 }
 
-function withHreflang(html, langs) {
-  const block = hreflangBlock(langs);
+function withHreflang(html, langs, page = '') {
+  const block = hreflangBlock(langs, page);
   const stripped = html.replace(HREFLANG_RUN, '');
   const marker = '<link rel="icon" type="image/png" sizes="128x128"';
   const at = stripped.indexOf(marker);
   if (at === -1) throw new Error('could not find the icon links to anchor hreflang to');
   return stripped.slice(0, at) + block + '\n' + stripped.slice(at);
+}
+
+// Reuse the homepage shell after translation so navigation, contact and footer
+// copy have one source of truth. Missing/duplicate markers fail the parity check.
+function sharedPart(html, name) {
+  const pattern = new RegExp('(?:/\\*|<!--|//) SHARED:' + name + ':BEGIN[^\\n]*\\n([\\s\\S]*?)\\n(?:/\\*|<!--|//) SHARED:' + name + ':END', 'g');
+  const matches = Array.from(html.matchAll(pattern));
+  if (matches.length !== 1) throw new Error(`Expected one shared ${name} fragment`);
+  return matches[0][1].trim();
+}
+
+function pricingShell(home, lang) {
+  const rootPrefix = lang === 'en' ? '../' : '../../';
+  const currentDir = lang === 'en' ? 'pricing' : `${lang}/pricing`;
+  const rebase = html => html.replace(/src="([^"]+)"/g, (match, src) =>
+    /^(?:https?:|data:|\/)/.test(src) ? match : `src="../${src}"`)
+    .replaceAll('href="/"', 'href="../"')
+    .replaceAll('href="#features"', 'href="../#features"')
+    .replaceAll('href="pricing/"', 'href="./"')
+    .replaceAll('href="/legal/', `href="${rootPrefix}legal/`);
+  let header = rebase(sharedPart(home, 'header'));
+  header = header.replaceAll('href="./" class="nav-link"', 'href="./" class="nav-link" aria-current="page"');
+  let footer = sharedPart(home, 'footer');
+  footer = footer.replace(/<nav class="foot-lang"[\s\S]*?<\/nav>/, block =>
+    block.replace(/href="[^"]*" hreflang="([^"]+)"/g, (_, code) => {
+      const target = code === 'en' ? 'pricing' : `${code}/pricing`;
+      const href = (path.posix.relative(currentDir, target) || '.') + '/';
+      return `href="${href}" hreflang="${code}"`;
+    }));
+  return {
+    PRICING_ARTWORK: rootPrefix + 'assets/pricing/lifetime-credit-v1.jpg',
+    SITE_HEADER: header,
+    SITE_FOOTER: rebase(footer),
+    SITE_CONTACT: sharedPart(home, 'contact'),
+    SITE_CSS: ['base-css', 'hero-css', 'footer-css', 'contact-css', 'mobile-nav-css']
+      .map(name => sharedPart(home, name)).join('\n\n') +
+      '\n@media(max-width:640px){\n' + sharedPart(home, 'mobile-hero-css') + '\n' + sharedPart(home, 'mobile-footer-css') + '\n}',
+    SITE_JS: sharedPart(home, 'controls-js') + '\n\n' + sharedPart(home, 'footer-js'),
+  };
+}
+
+function buildPricing(langs, check) {
+  const template = withHreflang(readText(path.join(ROOT, 'scripts', 'templates', 'pricing.html')), langs, 'pricing/');
+  const homeSource = readText(SOURCE);
+  let failed = false;
+  for (const lang of ['en', ...langs]) {
+    let html = template;
+    let home = homeSource;
+    if (lang !== 'en') {
+      const locale = JSON.parse(fs.readFileSync(path.join(LOCALES, `${lang}.json`), 'utf8'));
+      if (!Array.isArray(locale.pricingEntries)) throw new Error(`[${lang}] missing pricing translations`);
+      html = translate(template, { entries: locale.pricingEntries }, lang)
+        .replace('href="../icon128.png"', 'href="../../icon128.png"')
+        .replace(`<link rel="canonical" href="${CANONICAL}pricing/">`,
+          `<link rel="canonical" href="${CANONICAL}${lang}/pricing/">`);
+      home = translate(homeSource, locale, lang);
+    }
+    const fragments = pricingShell(home, lang);
+    for (const [name, content] of Object.entries(fragments)) {
+      const marker = `{{${name}}}`;
+      if (html.split(marker).length !== 2) throw new Error(`Expected one ${marker} in pricing template`);
+      html = html.replace(marker, () => content);
+    }
+    const target = path.join(LANDING, lang === 'en' ? '' : lang, 'pricing', 'index.html');
+    if (fs.existsSync(target) && readText(target) === html) {
+      console.log(`OK   ${rel(target)} in sync`);
+    } else if (check) {
+      console.error(`X    ${rel(target)} has drifted -> run: node scripts/build-landing-i18n.js`);
+      failed = true;
+    } else {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, html);
+      console.log(`SYNC ${rel(target)} written`);
+    }
+  }
+  return failed;
 }
 
 function main() {
@@ -167,7 +243,8 @@ function main() {
     console.log(`SYNC ${rel(target)} written`);
   }
 
-  if (failed) process.exit(1);
+  const pricingFailed = buildPricing(langs, check);
+  if (failed || pricingFailed) process.exit(1);
 }
 
 try {

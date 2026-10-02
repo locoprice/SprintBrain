@@ -41,9 +41,24 @@ A **Calculator** works out a number from figures you fill in, and prints the wor
 - It takes 2 to 10 numbers. Each box is named in the form, like **Add: first number**. The name isn't printed.
 - Dividing by 0, or a percent change from 0, prints no answer instead of a wrong one.
 
+## Interest
+
+**Interest** has two buttons, **Simple interest** and **Compound interest**. Each adds its number boxes and prints the working with the answers:
+
+| Button | Boxes | Prints |
+|---|---|---|
+| Simple interest | principal, rate % a year, years | `1000 × 5% × 3 = 150 (1000 + 150 = 1150)` |
+| Compound interest | principal, rate % a year, years, times a year | `1000 × (1 + 5% / 12)^(12 × 3) = 1161.47 (+161.47)` |
+
+- Simple interest prints the interest, then the total with the principal.
+- Compound interest prints the final amount, then the interest earned.
+- **Times a year** starts on 12, which is monthly. Type 1 for yearly, 4 for quarterly or 365 for daily.
+- An empty, zero or negative box prints no answer instead of a wrong one.
+- Compound interest needs extension version 3.52.0 or later. An older one prints the working without the answer.
+
 ## Remove a formula
 
-The Price line and Calculator windows show how many formulas the snippet has. **Manage** lists them, each with **Remove** and **Undo**.
+The formula windows show how many formulas the snippet has. **Manage** lists them, each with **Remove** and **Undo**.
 
 ## Conditions
 
@@ -74,7 +89,7 @@ The Price line and Calculator windows show how many formulas the snippet has. **
 Type `{=` and `}` around any calculation: `{=PRICE * QTY}`.
 
 - Use `+`, `-`, `*`, `/` and brackets, with the names of your number fields.
-- Functions: `round(X, 2)`, `avg()`, `min()`, `max()`, `abs()`, `floor()` and `ceil()`.
+- Functions: `round(X, 2)`, `avg()`, `min()`, `max()`, `abs()`, `floor()`, `ceil()` and `pow(X, N)` (X to the power N).
 - Answers keep up to two decimals.
 - A field that doesn't hold a number makes the formula print nothing, not a wrong total.
 

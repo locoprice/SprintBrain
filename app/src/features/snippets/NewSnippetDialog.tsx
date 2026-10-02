@@ -36,6 +36,7 @@ import {
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
 import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
+import { FormInterestDialog } from '@/features/snippets/FormInterestDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
 import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
@@ -261,23 +262,23 @@ const FORMULA_REMOVE = {
   hint: 'The window shows how many formulas the snippet has. Manage lists them, each with Remove and Undo.',
 };
 
-// The Math section: one toggle per formula, each with its own window, the way
-// the field toggles above read. A new formula is one entry here. The last
-// entry's By hand is the engine's own vocabulary (extension/formula-engine.js:
-// FUNS, safeEval), for anything no window writes.
+// The Math section: one toggle per formula, each button opening its own window,
+// the way the field toggles above read. A new formula is one entry here. The
+// Calculator's By hand is the engine's own vocabulary
+// (extension/formula-engine.js: FUNS, safeEval), for anything no window writes.
+type FormulaWindow = 'price' | 'calculator' | 'simple' | 'compound';
+
 const MATH_FORMULAS: readonly {
-  window: 'price' | 'calculator';
   label: string;
   description: string;
-  action: string;
+  actions: readonly { window: FormulaWindow; label: string }[];
   fields: { label: string; hint: string }[];
 }[] = [
   {
-    window: 'price',
     label: 'Price line',
     description:
       'One line of a quote worked out from a price, so nobody does the arithmetic by hand. Adds the price box if the snippet has none.',
-    action: 'Build the line',
+    actions: [{ window: 'price', label: 'Build the line' }],
     fields: [
       { label: 'Works out',
         hint: 'Minus a discount, plus a fee, a deposit, what the client saves, or the saving in %.' },
@@ -285,17 +286,32 @@ const MATH_FORMULAS: readonly {
     ],
   },
   {
-    window: 'calculator',
     label: 'Calculator',
     description:
       'Works out a number from figures filled in when the snippet expands, and prints the working: 100 - 25 - 5 = 70.',
-    action: 'Build the calculation',
+    actions: [{ window: 'calculator', label: 'Build the calculation' }],
     fields: [
       { label: 'Works out',
         hint: 'Add, subtract, multiply, divide, average, percent of, or percent change.' },
       FORMULA_REMOVE,
       { label: 'By hand',
-        hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor() and ceil().' },
+        hint: 'Type {= } yourself for anything else: + - * / with brackets, round(X, 2), avg(), min(), max(), abs(), floor(), ceil() and pow(X, N).' },
+    ],
+  },
+  {
+    label: 'Interest',
+    description:
+      'Interest on a principal at a yearly rate, from numbers filled in when the snippet expands. Prints the working and the answers.',
+    actions: [
+      { window: 'simple', label: 'Simple interest' },
+      { window: 'compound', label: 'Compound interest' },
+    ],
+    fields: [
+      { label: 'Simple',
+        hint: 'The interest and the total: 1000 × 5% × 3 = 150 (1000 + 150 = 1150).' },
+      { label: 'Compound',
+        hint: 'The final amount and the interest earned, added 12 times a year unless changed: 1000 × (1 + 5% / 12)^(12 × 3) = 1161.47 (+161.47).' },
+      FORMULA_REMOVE,
     ],
   },
 ];
@@ -467,11 +483,11 @@ export function NewSnippetDialog() {
   // Action-button builder — writes a {button}…{/button} token at the cursor.
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
   // Which formula window is open: a line of a quote from a price, or a calculator.
-  const [formulaWindow, setFormulaWindow] = useState<'price' | 'calculator' | null>(null);
+  const [formulaWindow, setFormulaWindow] = useState<FormulaWindow | null>(null);
 
   // Read from the field itself: which saved percentages a window offers, and
   // whether it sits inside a condition, depend on exactly where the answer lands.
-  function openFormulaWindow(which: 'price' | 'calculator') {
+  function openFormulaWindow(which: FormulaWindow) {
     if (contentRef.current) setCaret(contentRef.current.selectionStart);
     setFormulaWindow(which);
   }
@@ -1353,20 +1369,25 @@ export function NewSnippetDialog() {
                   print nothing. */}
               {MATH_FORMULAS.map((formula, i) => (
                 <Toggle
-                  key={formula.window}
+                  key={formula.label}
                   label={formula.label}
                   className={cn('mb-2.5', i === 0 && 'mt-2.5')}
                   footer={
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="primary"
-                      disabled={saving}
-                      onClick={() => openFormulaWindow(formula.window)}
-                    >
-                      <Plus className="mr-1 h-3 w-3" />
-                      {formula.action}
-                    </Button>
+                    <div className="flex flex-col items-start gap-2">
+                      {formula.actions.map((action) => (
+                        <Button
+                          key={action.window}
+                          type="button"
+                          size="sm"
+                          variant="primary"
+                          disabled={saving}
+                          onClick={() => openFormulaWindow(action.window)}
+                        >
+                          <Plus className="mr-1 h-3 w-3" />
+                          {action.label}
+                        </Button>
+                      ))}
+                    </div>
                   }
                 >
                   <p className="text-[11px] text-ink-subtle leading-tight">{formula.description}</p>
@@ -1892,6 +1913,19 @@ export function NewSnippetDialog() {
               onInsert={insertAtCursor}
               onReplace={replaceRange}
             />
+
+            {(['simple', 'compound'] as const).map((kind) => (
+              <FormInterestDialog
+                key={kind}
+                kind={kind}
+                open={formulaWindow === kind}
+                onOpenChange={(open) => setFormulaWindow(open ? kind : null)}
+                body={form.content}
+                caret={caret}
+                onInsert={insertAtCursor}
+                onReplace={replaceRange}
+              />
+            ))}
 
             <FormDateRangeDialog
               open={dateRangeOpen}

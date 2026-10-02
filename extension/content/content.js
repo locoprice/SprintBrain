@@ -1281,31 +1281,103 @@ function _isLexicalHost(host) {
 // own input model, a beforeinput carrying the selection as its target range,
 // which it claims and applies itself. An editor that does not claim it gets
 // the execCommand as before.
-function _ceDeleteSelection(host) {
+//
+// "Claimed" does not mean "deleted". WhatsApp's editor claims the event and
+// removes nothing when it is asked while its own focus handling has not caught
+// up, which is exactly when a chooser, a fill-in form or the Undo card has just
+// closed: focus sat on that button, and this runs inside its click. The snippet
+// was then pasted in front of a trigger that never left ("::followupCiao!..."),
+// or Undo did nothing. So the text is checked a moment later, and a delete that
+// was ignored is sent again once the editor has settled (_ceRetryDelete).
+// `done` runs once the field has been dealt with, and only then may a paste go in.
+var LEXICAL_VERIFY_MS = 60;   // an applied delete reaches the DOM in about 20ms
+var LEXICAL_SETTLE_MS = 80;   // what the editor needs after a refocus before it honours one
+
+// cb(true) as soon as test() holds, cb(false) if it still does not after `ms`.
+function _ceWaitFor(test, ms, cb) {
+  var t0 = Date.now();
+  (function poll() {
+    if (test()) { cb(true); return; }
+    if (Date.now() - t0 >= ms) { cb(false); return; }
+    setTimeout(poll, 4);
+  })();
+}
+
+function _ceSendDelete(host, range) {
+  return !host.dispatchEvent(new InputEvent('beforeinput', {
+    inputType: 'insertText', data: '', bubbles: true, cancelable: true, composed: true,
+    targetRanges: [new StaticRange({
+      startContainer: range.startContainer, startOffset: range.startOffset,
+      endContainer: range.endContainer, endOffset: range.endOffset
+    })]
+  }));
+}
+
+// The editor claimed the delete and did nothing. Refocus it, give it time to
+// settle, put the selection back from its character offsets (a refocus resets
+// the DOM selection) and ask again, once.
+function _ceRetryDelete(host, startCO, endCO, gone, end) {
+  try { host.focus(); } catch(e) { console.error('[Sprintbrain] could not refocus the editor', e); }
+  setTimeout(function() {
+    try {
+      var sp = _ceCharOffsetToPoint(host, startCO, true);
+      var ep = _ceCharOffsetToPoint(host, endCO);
+      var rr = document.createRange();
+      rr.setStart(sp.node, sp.offset);
+      rr.setEnd(ep.node, ep.offset);
+      // The field changed while the editor settled: do not delete what is there now.
+      if (rr.toString() !== gone) { end(); return; }
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(rr);
+      var before = host.textContent;
+      _ceSendDelete(host, rr);
+      _ceWaitFor(function() { return host.textContent !== before; }, LEXICAL_VERIFY_MS * 2, function(applied) {
+        if (!applied) console.error('[Sprintbrain] the editor ignored the delete twice; the trigger may still be in the field');
+        end();
+      });
+    } catch(e) {
+      console.error('[Sprintbrain] retrying the delete failed', e);
+      end();
+    }
+  }, LEXICAL_SETTLE_MS);
+}
+
+function _ceDeleteSelection(host, done) {
+  var ended = false;
+  var end = function() { if (!ended) { ended = true; if (done) done(); } };
   if (_isLexicalHost(host)) {
     try {
       var sel = window.getSelection();
       var r = (sel && sel.rangeCount) ? sel.getRangeAt(0) : null;
       if (r && !r.collapsed) {
-        var claimed = !host.dispatchEvent(new InputEvent('beforeinput', {
-          inputType: 'insertText', data: '', bubbles: true, cancelable: true, composed: true,
-          targetRanges: [new StaticRange({
-            startContainer: r.startContainer, startOffset: r.startOffset,
-            endContainer: r.endContainer, endOffset: r.endOffset
-          })]
-        }));
-        if (claimed) return;
+        var gone = r.toString();
+        var before = host.textContent;
+        var startCO = _ceCaretCharOffset(host, true);
+        var endCO = _ceCaretCharOffset(host);
+        if (_ceSendDelete(host, r)) {
+          // No text in the range (only line breaks), or no offsets to put it
+          // back from: there is nothing to check the delete against.
+          if (!gone || startCO < 0 || endCO < 0) { end(); return; }
+          _ceWaitFor(function() { return host.textContent !== before; }, LEXICAL_VERIFY_MS, function(applied) {
+            if (applied) { end(); return; }
+            _ceRetryDelete(host, startCO, endCO, gone, end);
+          });
+          return;
+        }
       }
-    } catch(e) {}
+    } catch(e) { console.error('[Sprintbrain] the editor delete failed, using the browser edit', e); }
   }
   try { document.execCommand('insertText', false, ''); } catch(e) {}
+  end();
 }
 
 // Lexical (WhatsApp Web) keeps its own input model. It accepts
 // execCommand('insertLineBreak') — returning true — and then inserts nothing,
 // so the fallbacks above never fire and a multi-paragraph snippet lands as one
 // dense block. It does honour a text/plain paste, which it converts into real
-// line breaks. Returns true only when the editor claimed the paste.
+// line breaks. Returns true when the paste is taken: on Lexical it goes in once
+// the trigger delete is confirmed, so the return only says it is on its way.
 //
 // The trigger is removed first (_ceDeleteSelection). A paste event carries no
 // target ranges: Lexical pastes at its own cached caret and would leave the
@@ -1320,8 +1392,22 @@ function _cePasteInsert(el, text) {
     dt.setData('text/plain', text);
   } catch(e) { return false; }
 
+  if (_isLexicalHost(host)) {
+    // The paste waits for the delete to be confirmed (see _ceDeleteSelection),
+    // which can take a moment. Lexical takes every body as a paste, so there is
+    // no other route to report back: an unclaimed paste falls to the per-line path.
+    _ceDeleteSelection(host, function() {
+      if (!_cePasteLand(el, host, dt, text)) _ceLineInsert(text);
+    });
+    return true;
+  }
   _ceDeleteSelection(host);
+  return _cePasteLand(el, host, dt, text);
+}
 
+// Sends the paste and checks that the body landed. Returns false when the editor
+// did not claim it.
+function _cePasteLand(el, host, dt, text) {
   var claimed;
   try {
     claimed = !host.dispatchEvent(new ClipboardEvent('paste', {
@@ -2044,9 +2130,10 @@ function launchConfetti() {
 
 // ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
 // Character offset of the current caret within `host`, counting only text-node
-// characters (block boundaries contribute nothing), the same unit insertText's
-// visible length uses. `fromStart` reads where a selection starts instead of
-// where it ends. Returns -1 if the caret isn't inside the host.
+// characters: block boundaries and <br> contribute nothing, a line break that
+// landed as a "\n" character (white-space: pre-wrap) counts as one. `fromStart`
+// reads where a selection starts instead of where it ends. Returns -1 if the
+// caret isn't inside the host.
 function _ceCaretCharOffset(host, fromStart) {
   try {
     var sel = window.getSelection();
@@ -2116,19 +2203,34 @@ function captureFieldState(el, triggerLen) {
 }
 
 // Records the region a contenteditable insertion just wrote, for Undo: its
-// visible length and the character offset where it ends. `startCO` is where the
-// insertion began, read before insertText. Lexical writes a pasted body a
-// moment after insertText returns, so there the live caret still sits in front
-// of the snippet and Undo would delete the text before it; the end is counted
-// from the start instead. Every other editor has written it already, and its
-// live caret stays the truth.
+// length and the character offset where it ends, both in _ceCaretCharOffset's
+// unit. `startCO` is where the insertion began, read before insertText. Lexical
+// writes a pasted body a moment after insertText returns, so there the live
+// caret still sits in front of the snippet and Undo would delete the text
+// before it; the end is counted from the start instead. Every other editor has
+// written it already, and its live caret stays the truth. A line break counts
+// in the length only where it landed as a "\n" character (a field styled
+// white-space: pre-wrap): counting none left the start of a multi-line snippet
+// behind there, and counting all would take text in front of the snippet
+// wherever a break landed as a <br>, as Lexical's do.
 function _markSyncInserted(snapshot, el, startCO, text) {
   var host = _ceHost(el);
   snapshot.syncInserted = true;
   snapshot.visibleLen = String(text).replace(/[\r\n]/g, '').length;
-  snapshot.endCharOffset = (_isLexicalHost(host) && startCO >= 0)
-    ? startCO + snapshot.visibleLen
-    : _ceCaretCharOffset(host);
+  if (_isLexicalHost(host) && startCO >= 0) {
+    snapshot.endCharOffset = startCO + snapshot.visibleLen;
+    return;
+  }
+  snapshot.endCharOffset = _ceCaretCharOffset(host);
+  // Walk back from the caret over the snippet, last line first, and count each
+  // line break that landed as a character.
+  var before = snapshot.endCharOffset > 0 ? host.textContent.slice(0, snapshot.endCharOffset) : '';
+  var lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  var at = before.length - lines[lines.length - 1].length;
+  for (var i = lines.length - 2; i >= 0; i--) {
+    if (before.charAt(at - 1) === '\n') { snapshot.visibleLen++; at--; }
+    at -= lines[i].length;
+  }
 }
 
 function restoreFieldState(snapshot) {

@@ -36,17 +36,17 @@ CI runs all three on every push to `develop`.
 | Typing triggers, the menu, fill form, right-click, selection suggestions, Undo, capitalization | `extension/content/content.js`, `extension/background/background.js`, `extension/shared/fill-form.js` | `text-snippets/insert` |
 | Snippet editor, folders, labels, list, bulk actions, unused notice | `app/src/features/snippets/`, `app/src/features/org/`, `app/src/features/labels/` | `text-snippets/create-and-organize` |
 | Field builders: Text, Number, Date/Time, Automatic, Range, Choice, Button | `app/src/features/snippets/Form*Dialog.tsx`, `app/src/lib/form*Token.ts`, `extension/formula-engine.js` | `text-snippets/dynamic-fields` |
-| Math (Price line, Calculator), Condition, Greeting, `{time:}`, `{case:}`, functions | `FormPriceLineDialog.tsx`, `FormCalculatorDialog.tsx`, `app/src/lib/formulaToken.ts`, `extension/formula-engine.js` | `text-snippets/formulas` |
+| Math (Price line, Calculator, Interest), Condition, Greeting, `{time:}`, `{case:}`, functions | `FormPriceLineDialog.tsx`, `FormCalculatorDialog.tsx`, `FormInterestDialog.tsx`, `app/src/lib/formulaToken.ts`, `extension/formula-engine.js` | `text-snippets/formulas` |
 | Languages, language check, language picker, greeting and gendered words | `NewSnippetDialog.tsx`, `content.js` (language modal), `formula-engine.js` | `text-snippets/multilanguage` |
 | Version history | `VersionHistoryPanel.tsx` | `text-snippets/version-history` |
 | Import and export | `app/src/lib/snippetIo.ts`, `ImportExportButtons.tsx` | `text-snippets/import-export` |
 | Prompt editor, blocks, Ask User Questions, Interactive Steps, details, history | `app/src/features/prompts/PromptBlockEditor.tsx`, `app/src/lib/promptUtils.ts`, `app/src/lib/interactiveSteps.ts`, `extension/shared/interactive-steps.js` | `prompts/create-prompts` |
 | Prompt score | `app/src/lib/usePromptEvaluator.ts`, `PromptEfficiencyWidget.tsx` | `prompts/quality-score` |
 | Prompt list, filters, cards, the `"""` menu | `app/src/routes/PromptsPage.tsx`, `PromptFilters.tsx`, `PromptCard.tsx`, `content.js` prompt picker | `prompts/overview`, `prompts/filters-and-shortcuts` |
-| Brains: items, uploads, trash, history, Context button, save selection, save chat | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js` | `brains/overview` |
+| Brains: items, uploads, trash, history, Context button, save selection, save chat, phone (Save to Brain) | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `extension/shared/memory-chunk.js`, `app/public/mobile/index.html` | `brains/overview` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
-| Phone page | `app/public/mobile/index.html` | `apps/mobile` |
+| Phone page, including its Brains page, Paste & save, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
 | Where the extension runs | `content.js` field detection | `integrations/supported-sites` |
 | Notion sync | `NotionSyncPanel.tsx`, `extension/services/notion-sync/notion-sync.js` | `integrations/notion-sync` |
 | Account, branding, unused months | `app/src/features/settings/{AccountPanel,BrandingPanel,InactivityPanel}.tsx` | `settings/account` |

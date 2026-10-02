@@ -129,6 +129,22 @@
       note.style.color = isError ? '#DC2626' : '#A1A1AA';
     }
 
+    // Why the Brain was offered, or that none fits: the line the phone shows
+    // under its Brain list, from the same rule (SBMemoryChunk.suggestBrain).
+    var why = el('div', 'font-size:11px;line-height:1.45;color:#71717A;margin:-6px 0 12px;display:none');
+
+    function setWhy(message) {
+      why.textContent = message || '';
+      why.style.display = message ? '' : 'none';
+    }
+
+    // A Brain chosen by hand is never moved, even by an answer still on its way.
+    var picked = false;
+    select.addEventListener('change', function () {
+      picked = true;
+      setWhy('');
+    });
+
     var row     = el('div', 'display:flex;gap:8px');
     var cancel  = button('Cancel', false);
     var save    = button('Save', true);
@@ -137,6 +153,7 @@
     row.appendChild(save);
 
     card.appendChild(select);
+    card.appendChild(why);
     card.appendChild(row);
     card.appendChild(note);
 
@@ -149,8 +166,8 @@
       var spaces = (res && res.rows) || [];
       if (err || !spaces.length) {
         select.style.display = 'none';
-        // Covers both causes: supaFetch answers [] for a failed request as well
-        // as for an account with no spaces yet.
+        // Covers both causes: the Brains could not be loaded, or the account
+        // has none yet.
         setNote('No Brains available. Open the dashboard and check you are signed in.', true);
         return;
       }
@@ -161,6 +178,20 @@
         select.appendChild(opt);
       });
       save.disabled = false;
+
+      // The Brain the words suggest (the page's title, then the selection),
+      // else the last one a capture went to, else the default: the phone's
+      // rule, from the same module.
+      var chunker = root.SBMemoryChunk;
+      if (!chunker) return;
+      var hint = chunker.suggestBrain(flatten(doc.title) + '\n\n' + text, spaces, (res && res.items) || []);
+      chunker.loadLastBrain(function (last) {
+        // Chosen by hand, or already saving: the Brain is settled.
+        if (picked || save.disabled) return;
+        var id = chunker.pickBrain(hint, last, spaces);
+        if (id) select.value = id;
+        setWhy(hint.note);
+      });
     });
 
     save.addEventListener('click', function () {
@@ -175,24 +206,19 @@
       var parts  = packed.chunks;
       if (!parts.length) { setNote('Nothing to save.', true); return; }
 
-      // Same naming rule as the chat capture: names are unique per user among
-      // live rows, so the timestamp is what makes saving the same page twice an
-      // addition rather than an error.
-      var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      var base  = title.slice(0, 40);
+      // Named and summarised by the rule every capture shares (the chat
+      // capture and the phone's Save to Brain use it too): the page title,
+      // then the moment of the save, which keeps names unique.
+      var when = new Date();
       // A data: URL carries the whole document in location.href. Provenance is
       // worth keeping; a megabyte of it inside a jsonb column is not.
       var source = location.href.slice(0, 2048);
 
       var payloads = parts.map(function (body, i) {
-        var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
         return {
           p_shard_id: null,
-          p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
-          // An excerpt, not a description of one. This column is what the
-          // picker lists and what knowledge_search ranks on, so the clipping's
-          // own words find it again; "saved from example.com" would not.
-          p_summary: flatten(body).slice(0, 280),
+          p_name: chunker.captureName(title, when, i + 1, parts.length),
+          p_summary: chunker.captureSummary(body),
           p_body: body,
           p_editor_display: 'Extension',
           p_space_id: spaceId,
@@ -205,6 +231,7 @@
         };
       });
 
+      chunker.saveLastBrain(spaceId);
       save.disabled = true;
       save.textContent = 'Saving…';
       setNote('');

@@ -2873,28 +2873,54 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
         metaEl.textContent = meta.host + ' · ' + meta.turns.length + ' messages';
         metaEl.title = meta.title;
 
-        supaFetch('memory_spaces', 'GET', null,
-                  'select=id,name&deleted_at=is.null&order=is_default.desc,name.asc')
-          .then(function(r) { return r && r.ok ? r.json() : []; })
-          .then(function(spaces) {
-            if (!spaces || !spaces.length) {
-              selEl.style.display = 'none';
-              saveEl.disabled = true;
-              note('Create a Brain in the dashboard first.');
-              return;
-            }
-            selEl.innerHTML = '';
-            for (var i = 0; i < spaces.length; i++) {
-              var opt = document.createElement('option');
-              opt.value = spaces[i].id;
-              opt.textContent = spaces[i].name;
-              selEl.appendChild(opt);
-            }
-          })
-          .catch(function() {
+        // A Brain chosen by hand is never moved, even by an answer still on
+        // its way.
+        var picked = false;
+        selEl.addEventListener('change', function() {
+          picked = true;
+          note('');
+        });
+
+        // The Brains, with each one's description and every item's name and
+        // summary: the list Save to Brain offers too, and the words the Brain
+        // suggestion reads. Both capture paths ask the background for it.
+        chrome.runtime.sendMessage({ type: 'memory_spaces' }, function(res) {
+          if (chrome.runtime.lastError || !res || !res.ok) {
             saveEl.disabled = true;
             note('Could not load your Brains.', true);
+            return;
+          }
+          var spaces = res.rows || [];
+          if (!spaces.length) {
+            selEl.style.display = 'none';
+            saveEl.disabled = true;
+            note('Create a Brain in the dashboard first.');
+            return;
+          }
+          selEl.innerHTML = '';
+          for (var i = 0; i < spaces.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = spaces[i].id;
+            opt.textContent = spaces[i].name;
+            selEl.appendChild(opt);
+          }
+
+          // The Brain the conversation's words suggest (its title, then what
+          // was said, without the speakers' names), else the last one a
+          // capture went to, else the default: the rule Save to Brain and the
+          // phone follow, from the same module.
+          var chunker = window.SBMemoryChunk;
+          if (!chunker) return;
+          var said = meta.turns.map(function(turn) { return turn.text; }).join('\n\n');
+          var hint = chunker.suggestBrain(meta.title + '\n\n' + said, spaces, res.items || []);
+          chunker.loadLastBrain(function(last) {
+            // Chosen by hand, or already saving: the Brain is settled.
+            if (picked || saveEl.disabled) return;
+            var id = chunker.pickBrain(hint, last, spaces);
+            if (id) selEl.value = id;
+            note(hint.note);
           });
+        });
 
         saveEl.addEventListener('click', function() {
           if (saveEl.disabled) return;
@@ -2909,17 +2935,17 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
           if (!parts.length) { note('Nothing to save.', true); return; }
 
           // Names are unique per user among live rows, so a bare title collides
-          // the second time the same chat is saved. The timestamp is what keeps
-          // re-saving a conversation an append rather than an error.
-          var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-          var base  = meta.title.slice(0, 40);
+          // the second time the same chat is saved. The moment of the save, in
+          // the rule every capture shares, keeps re-saving a conversation an
+          // append rather than an error.
+          var when = new Date();
+          chunker.saveLastBrain(spaceId);
 
           var payloads = [];
           for (var i = 0; i < parts.length; i++) {
-            var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
             payloads.push({
               p_shard_id: null,
-              p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
+              p_name: chunker.captureName(meta.title, when, i + 1, parts.length),
               p_summary: (meta.host + ' conversation, ' + meta.turns.length + ' messages').slice(0, 280),
               p_body: parts[i],
               p_editor_display: 'Extension',

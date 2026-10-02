@@ -8,6 +8,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="SprintBrain">
 <meta name="theme-color" content="#1B4FD8">
+<!-- Installed from the browser menu, the page becomes an app, and on Android
+     that app is listed in every Share menu: the manifest's share_target opens
+     /mobile/?title=…&text=…&url=…, which lands in Save to Brain. Its scope is
+     the whole site, so signing in never leaves the app's window. -->
+<link rel="manifest" href="/mobile/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/mobile/apple-touch-icon.png">
 <title>SprintBrain</title>
 <style>
 /* ── DESIGN SYSTEM v1.1 — canonical tokens (mirrors harmonized-final.html) ── */
@@ -17,6 +23,7 @@
   --primary:#1B4FD8;--primary-dk:#1440B0;--primary-lt:#EEF2FF;--primary-grad:#4F7FE8;
   --text:#1C1C1E;--text2:#6E6E73;--text3:#8E8E93;
   --border:#E5E5EA;--success:#34C759;--danger:#E74C3C;
+  --warn-deep:#D97706;--warn-bg:#FFFBEB;
   --r:16px;--r-card:18px;--r-btn:14px;--r-in:10px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --shadow-md:0 8px 24px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.04);
@@ -276,20 +283,6 @@ body{
 /* The label takes the surface's own colour, so it flips to white with it. */
 .mqa-lbl{font-size:12.5px;font-weight:700;color:inherit;text-align:center;
   letter-spacing:-.2px;line-height:1;white-space:nowrap}
-/* Second line on a key that is not live yet. */
-.mqa-sub{display:block;font-size:8.5px;font-weight:600;letter-spacing:.3px;
-  line-height:1;margin-top:3px;opacity:.6;text-transform:uppercase}
-/* Coming soon: same extruded key, drained of colour so nobody taps it twice. */
-.mqa-tile.is-soon{cursor:default}
-.mqa-tile.is-soon:active{transform:none;opacity:1}
-.mqa-tile.is-soon .mqa-ico{
-  background:linear-gradient(158deg,#FFFFFF 0%,#F2F2F7 100%);
-  color:var(--text3);border-color:rgba(0,0,0,.06);
-  box-shadow:0 2px 5px rgba(0,0,0,.06),
-    0 1px 0 rgba(255,255,255,.95) inset,
-    0 -3px 6px rgba(0,0,0,.04) inset
-}
-.mqa-tile.is-soon .mqa-ico svg{filter:none}
 /* Pushed / active (current page): the key presses IN, solid azure, white face. */
 .mqa-tile.on .mqa-ico{
   background:linear-gradient(158deg,var(--primary-grad) 0%,var(--primary-dk) 100%);
@@ -514,7 +507,9 @@ body{
 }
 
 /* ── DETAIL VIEW ─────────────────────────────── */
-#view-detail .hdr{
+/* A Brain item opens in the same detail page as a snippet: same header, same
+   body, same copy footer. */
+#view-detail .hdr,#view-memitem .hdr{
   background:var(--primary);color:#fff;
   padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));
   display:flex;align-items:center;gap:8px;flex-shrink:0;
@@ -531,9 +526,9 @@ body{
   display:flex;align-items:center;gap:4px}
 .det-folder.sb-hide{display:none}
 .det-folder-ico{font-size:12px;line-height:1}
-#det-title{font-size:16px;font-weight:700;letter-spacing:-.3px;
+#det-title,#mi-title{font-size:16px;font-weight:700;letter-spacing:-.3px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#det-lang{margin-left:8px;flex-shrink:0;
+#det-lang,#mi-kind{margin-left:8px;flex-shrink:0;
   background:rgba(255,255,255,.22);color:#fff;
   padding:3px 7px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.3px}
 
@@ -645,22 +640,24 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 
 .prev-card{background:var(--card);border-radius:var(--r);
   padding:16px;box-shadow:var(--shadow-sm)}
-#prev-text{font-size:14px;line-height:1.65;color:var(--text);
+#prev-text,.mi-text{font-size:14px;line-height:1.65;color:var(--text);
   white-space:pre-wrap;word-break:break-word;max-height:240px;
   overflow-y:auto;font-family:inherit}
+/* A Brain item is read here, not previewed, so it runs its full length. */
+.mi-text{max-height:none;overflow:visible}
 
 /* Copy footer — sticky with safe-area inset */
 .copy-foot{position:fixed;bottom:0;left:0;right:0;
   padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom));
   background:rgba(242,242,247,.92);backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);z-index:40}
-#copy-btn{width:100%;background:var(--primary);color:#fff;border:none;
+#copy-btn,#mi-copy{width:100%;background:var(--primary);color:#fff;border:none;
   border-radius:var(--r-btn);padding:16px;font-size:17px;font-weight:700;
   cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;
   transition:background .2s,transform .1s;display:flex;
   align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px}
-#copy-btn:active{transform:scale(.97)}
-#copy-btn.ok{background:var(--success)}
+#copy-btn:active,#mi-copy:active{transform:scale(.97)}
+#copy-btn.ok,#mi-copy.ok{background:var(--success)}
 
 /* ── BOTTOM SHEET ────────────────────────────── */
 .sb-hidden{display:none !important}
@@ -760,13 +757,14 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   -webkit-tap-highlight-color:transparent;min-height:44px
 }
 .sb-modal-header button:active{background:rgba(255,255,255,.15)}
-#sb-modal-cancel{font-size:20px;line-height:1}
+#sb-modal-cancel,#sb-mem-cancel,#sb-cap-cancel{font-size:20px;line-height:1}
 .sb-modal-title{
   flex:1;font-size:16px;font-weight:700;text-align:center;letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
-#sb-modal-save{font-weight:700}
+#sb-modal-save,#sb-mem-save,#sb-cap-save{font-weight:700}
 #sb-modal-save.saved{color:#A7F0BA;background:rgba(255,255,255,.1)}
+#sb-mem-save:disabled,#sb-cap-save:disabled{opacity:.55}
 .sb-modal-body{
   flex:1;display:flex;flex-direction:column;
   overflow-y:auto;padding:16px;gap:14px
@@ -782,6 +780,19 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 }
 .sb-modal-body input:focus,
 .sb-modal-body textarea:focus{border-color:var(--primary)}
+/* A picked value, styled as the inputs around it, with the chevron the fill
+   form's menus carry. */
+.sb-modal-body select{
+  width:100%;padding:14px 38px 14px 14px;font-size:16px;font-weight:600;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-in);color:var(--text);
+  font-family:inherit;outline:none;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;background-size:16px 16px;
+  transition:border-color .15s
+}
+.sb-modal-body select:focus{border-color:var(--primary)}
 .sb-modal-body textarea{
   flex:1;min-height:200px;resize:none;line-height:1.5
 }
@@ -797,6 +808,24 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   font-size:12px;font-weight:700;color:var(--text2);
   text-transform:uppercase;letter-spacing:.4px;padding:0 2px
 }
+/* Name beside Kind, the dashboard editor's first row. */
+.sb-field-split{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:10px}
+/* A label with a live count on its right, as the dashboard editor's Body. */
+.sb-field-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sb-field-count{font-family:var(--mono);font-size:11px;color:var(--text3);
+  font-variant-numeric:tabular-nums;padding:0 2px}
+.sb-field-count.over{color:var(--danger)}
+.sb-modal-body .psteps{margin:0}
+/* The switch row keeps the Prompts page's native checkbox: the boxed look
+   above is for typed fields only. */
+.sb-modal-body .psteps input[type=checkbox]{
+  width:18px;height:18px;padding:0;border:none;border-radius:0;background:none;
+  -webkit-appearance:checkbox;appearance:auto;accent-color:var(--primary)}
+/* Add text opens on its fields; the error line takes room only when it speaks. */
+#sb-mem-err:empty,#sb-cap-err:empty{display:none}
+/* Save to Brain: why this Brain is offered, and what saving will make. */
+.sb-cap-note{font-size:13px;color:var(--text2);line-height:1.45;padding:0 2px}
+.sb-cap-note:empty{display:none}
 
 /* Folder row inside Edit modal */
 .sb-field-row{
@@ -891,9 +920,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 #sb-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── PROMPTS VIEW ─────────────────────────────── */
-#prompt-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+/* The Memory page is built from the same pieces: page body, list, cards. */
+#prompt-body,#mem-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding-bottom:calc(110px + env(safe-area-inset-bottom))}
-#prompt-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
+#prompt-list,#mem-list{padding:6px 16px 24px;display:flex;flex-direction:column;gap:10px}
 /* Interactive Steps row above the list: a prompt card's surface with the fill
    form's checkbox, and the whole row is the tap target. */
 .psteps{margin:10px 16px 0;padding:14px;display:flex;align-items:center;gap:12px;
@@ -942,8 +972,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .share-folder{background:var(--primary-lt);color:var(--primary)}
 .share-team{background:#F0FDF4;color:#15803D}
 
-/* ── PROMPTS: fixed gradient hero (mirrors snippets home) ── */
-#view-prompts .mhero{flex-shrink:0}
+/* ── PROMPTS + MEMORY: fixed gradient hero (mirrors snippets home) ── */
+#view-prompts .mhero,#view-memory .mhero{flex-shrink:0}
 
 /* ── SEARCH: clear button + prompt result counter (home and prompts) ── */
 .psearch-wrap{position:relative}
@@ -993,11 +1023,45 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 }
 .empty-sug-chip:active{transform:scale(.96)}
 
-/* ── PROMPTS: 2-column grid on medium devices ── */
+/* ── PROMPTS + MEMORY: 2-column grid on medium devices ── */
 @media (min-width:600px){
-  #prompt-list{display:grid;grid-template-columns:repeat(2,1fr);
+  #prompt-list,#mem-list{display:grid;grid-template-columns:repeat(2,1fr);
     align-items:start;gap:12px}
 }
+
+/* ── MEMORY: the open Brain's header ── */
+/* It sits in the selected-folder header's slot and carries its type; what it
+   adds is what a Brain is for: its size, and the two things done with it. */
+.mbrain-stats{margin-top:6px;font-size:12px;font-weight:600;color:var(--text3);
+  font-variant-numeric:tabular-nums}
+.mbrain-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.mbrain-act{
+  display:flex;align-items:center;justify-content:center;gap:7px;min-height:46px;
+  padding:10px 8px;border-radius:var(--r-btn);
+  background:var(--card);color:var(--primary);border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);font-family:inherit;font-size:14px;font-weight:700;
+  letter-spacing:-.2px;white-space:nowrap;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:transform .1s,background .15s
+}
+.mbrain-act:active{transform:scale(.97)}
+.mbrain-act.is-primary{background:var(--primary);color:#fff;border-color:transparent}
+/* Paste & save takes a row of its own, under the Brain's two actions. */
+.mbrain-act.is-wide{grid-column:1/-1}
+/* On All Brains it is the only action, with nothing above it to space from. */
+.fhead>.mbrain-acts:first-child{margin-top:4px}
+.mbrain-act[disabled]{opacity:.45;cursor:default}
+.mbrain-act[disabled]:active{transform:none}
+.mbrain-act svg,.mbrain-warn svg{width:17px;height:17px;flex-shrink:0;
+  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Said before the tap, not only after it: some AI apps cut a long paste. */
+.mbrain-warn{display:flex;align-items:flex-start;gap:8px;margin-top:10px;
+  padding:10px 12px;border-radius:var(--r-in);
+  background:var(--warn-bg);color:var(--warn-deep);
+  font-size:12.5px;font-weight:600;line-height:1.45}
+.mbrain-warn svg{width:16px;height:16px;margin-top:1px}
+/* Second line of an empty state: what to do about it. */
+.empty .empty-hint{margin-top:6px;font-size:13px;color:var(--text3)}
+.empty .spinner{margin:0 auto 14px}
 
 /* ── ANALYTICS VIEW ──────────────────────────────── */
 #view-analytics{overflow-y:auto;-webkit-overflow-scrolling:touch;
@@ -1109,7 +1173,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div class="mhello">
       <div>
         <div class="mgreet">Welcome</div>
-        <div class="mname" id="hero-name">SprintBrain</div>
+        <div class="mname">SprintBrain</div>
       </div>
       <div class="mstatbig">
         <span id="cnt">0</span>
@@ -1127,14 +1191,9 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
 
-  <!-- Floating quick-action grid (overlaps hero) -->
-  <div class="mqa">
-    <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
-      <button class="mqa-tile on" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="true"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
-      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
-    </div>
-  </div>
+  <!-- Floating quick-action grid (overlaps hero). One bar for every page,
+       written once by mountQuickActions(). -->
+  <div class="mqa" data-mqa></div>
 
   <!-- All snippets section -->
   <div class="msec"><span class="msec-t">All snippets</span><span class="msec-a" id="snip-meta" hidden></span></div>
@@ -1229,7 +1288,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div class="mhello">
       <div>
         <div class="mgreet">Welcome</div>
-        <div class="mname" id="prompts-hero-name">SprintBrain</div>
+        <div class="mname">SprintBrain</div>
       </div>
       <div class="mstatbig">
         <span id="prompts-count">0</span>
@@ -1246,14 +1305,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       </div>
     </div>
   </div>
-  <!-- Quick-action bar (mirrors home; Prompts tile stays pushed on this page) -->
-  <div class="mqa">
-    <div class="mqa-grid">
-      <button class="mqa-tile" type="button" data-qa="prompts" aria-label="Prompts"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg><span class="mqa-lbl">Prompts</span></span></button>
-      <button class="mqa-tile" type="button" data-qa="snippets" aria-label="Snippets" aria-pressed="false"><span class="mqa-ico"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="mqa-lbl">Snippets</span></span></button>
-      <button class="mqa-tile is-soon" type="button" data-qa="memory" aria-label="Memory, coming soon" disabled><span class="mqa-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><span class="mqa-lbl">Memory<span class="mqa-sub">Coming Soon</span></span></span></button>
-    </div>
-  </div>
+  <!-- Quick-action bar (same bar as home; Prompts tile stays pushed on this page) -->
+  <div class="mqa" data-mqa></div>
   <div id="prompt-body">
     <!-- Interactive Steps: device setting, decided by the SB_INTERACTIVE_STEPS block. -->
     <label class="psteps" for="psteps-on">
@@ -1281,6 +1334,92 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       </div>
       <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
     </div>
+  </div>
+</div>
+
+<!-- MEMORY VIEW: the Brains list, and one Brain's contents when it is open.
+     Same shell as the prompts page; the Brain header takes the slot the
+     selected-folder header has on the snippets page. -->
+<div id="view-memory" class="view">
+  <div class="mhero">
+    <div class="mhello">
+      <div>
+        <div class="mgreet">Welcome</div>
+        <div class="mname">SprintBrain</div>
+      </div>
+      <div class="mstatbig">
+        <span id="memory-count">0</span>
+        <span class="mstatbig-unit" id="memory-count-unit">Brains</span>
+      </div>
+    </div>
+
+    <!-- Search rides on the hero, directly under the greeting. -->
+    <div class="search-bar">
+      <div class="psearch-wrap" id="mem-srch-wrap">
+        <input id="mem-srch" type="search" placeholder="Search Brains…"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <button type="button" id="mem-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
+      </div>
+    </div>
+  </div>
+  <!-- Quick-action bar (same bar as home; Brains tile stays pushed on this page) -->
+  <div class="mqa" data-mqa></div>
+  <div id="mem-body">
+    <div class="fhead" id="mem-head" hidden></div>
+    <div class="msec"><span class="msec-t" id="mem-sec-t">All Brains</span><span class="msec-a" id="mem-meta" hidden></span></div>
+    <div id="mem-list"></div>
+
+    <!-- Page footer -->
+    <div class="mpage-footer">
+      <div class="mpage-footer-row">
+        <div class="mpage-footer-brand sb-hidden">
+          <span class="mpage-footer-logo-chip sb-hidden"><img class="mpage-footer-logo" alt="Company logo" draggable="false"></span>
+          <span class="mpage-footer-company"></span>
+        </div>
+        <div class="mpage-footer-badge">
+          <span class="mpage-footer-dot" aria-hidden="true"></span>
+          <span class="mpage-footer-ver">{{APP_VERSION}}</span>
+        </div>
+      </div>
+      <span class="mpage-footer-date">Updated {{RELEASE_MONTH}}</span>
+    </div>
+  </div>
+</div>
+
+<!-- BRAIN ITEM: read one item, then copy it. The snippet detail page's frame. -->
+<div id="view-memitem" class="view">
+  <div class="hdr">
+    <button class="back-btn" id="mi-back" type="button">
+      <svg width="9" height="16" viewBox="0 0 9 16" fill="none">
+        <path d="M8 1L1 8L8 15" stroke="white" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="det-title-wrap">
+      <span id="mi-title"></span>
+      <span class="det-folder">
+        <span id="mi-brain-ico" class="det-folder-ico"></span>
+        <span id="mi-brain-name"></span>
+      </span>
+    </div>
+    <span id="mi-kind"></span>
+  </div>
+  <div class="det-body">
+    <div id="mi-summary-sec">
+      <div class="sec-lbl">Summary</div>
+      <div class="prev-card"><div class="mi-text" id="mi-summary"></div></div>
+    </div>
+    <div>
+      <div class="sec-lbl">Body</div>
+      <div class="prev-card"><div class="mi-text" id="mi-body"></div></div>
+    </div>
+  </div>
+  <div class="copy-foot">
+    <button id="mi-copy" type="button">
+      <span id="mi-cico">📋</span>
+      <span id="mi-clbl">Copy to clipboard</span>
+    </button>
   </div>
 </div>
 
@@ -1436,6 +1575,31 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   </div>
 </div>
 
+<!-- MEMORY BOTTOM SHEET (3-dot menu on a Brain or on one of its items) -->
+<div id="sb-mem-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-mem-sheet-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-mem-sheet-title"></div>
+    <ul class="sb-sheet-actions" data-mem-for="brain">
+      <li data-maction="open" data-action="use"><span class="sb-sheet-act-i">▶</span> Open</li>
+      <li data-maction="copy-brain"><span class="sb-sheet-act-i">📋</span> Copy whole Brain</li>
+      <li data-maction="share-brain"><span class="sb-sheet-act-i">📤</span> Share…</li>
+      <li data-maction="add"><span class="sb-sheet-act-i">✏️</span> Add text</li>
+      <li data-maction="paste"><span class="sb-sheet-act-i">📥</span> Paste &amp; save</li>
+      <li data-maction="brain-info"><span class="sb-sheet-act-i">ℹ️</span> Brain info</li>
+    </ul>
+    <ul class="sb-sheet-actions" data-mem-for="item">
+      <li data-maction="use" data-action="use"><span class="sb-sheet-act-i">▶</span> Use now</li>
+      <li data-maction="copy"><span class="sb-sheet-act-i">📋</span> Copy text</li>
+      <li data-maction="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
+      <li data-maction="info"><span class="sb-sheet-act-i">ℹ️</span> Item info</li>
+    </ul>
+  </div>
+</div>
+
 <!-- EDIT MODAL -->
 <div id="sb-edit-modal" class="sb-edit-modal sb-hidden" role="dialog" aria-modal="true" aria-labelledby="sb-modal-title-text">
   <div class="sb-modal-header">
@@ -1465,6 +1629,79 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <label for="sb-edit-body" class="sb-field-label">Content</label>
       <textarea id="sb-edit-body" placeholder="Snippet body…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
     </div>
+  </div>
+</div>
+
+<!-- ADD TEXT MODAL: one new item in a Brain. The dashboard editor's fields,
+     its limits and its words, in the edit modal's frame. -->
+<div id="sb-mem-modal" class="sb-edit-modal sb-hidden" role="dialog" aria-modal="true" aria-labelledby="sb-mem-modal-title">
+  <div class="sb-modal-header">
+    <button id="sb-mem-cancel" type="button" aria-label="Cancel">✕</button>
+    <span class="sb-modal-title" id="sb-mem-modal-title">Add text</span>
+    <button id="sb-mem-save" type="button">Add item</button>
+  </div>
+  <div class="sb-modal-body">
+    <div class="sb-modal-err" id="sb-mem-err" role="alert"></div>
+    <div class="sb-field-group">
+      <label for="sb-mem-brain" class="sb-field-label">Brain</label>
+      <select id="sb-mem-brain"></select>
+    </div>
+    <div class="sb-field-split">
+      <div class="sb-field-group">
+        <label for="sb-mem-name" class="sb-field-label">Name</label>
+        <input type="text" id="sb-mem-name" maxlength="64" placeholder="house-style" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="sb-field-group">
+        <label for="sb-mem-kind" class="sb-field-label">Kind</label>
+        <select id="sb-mem-kind"></select>
+      </div>
+    </div>
+    <div class="sb-field-group">
+      <label for="sb-mem-summary" class="sb-field-label">Summary (one line)</label>
+      <input type="text" id="sb-mem-summary" maxlength="280" placeholder="How output should be written" autocomplete="off">
+    </div>
+    <div class="sb-field-group sb-field-group-grow">
+      <div class="sb-field-head">
+        <label for="sb-mem-body" class="sb-field-label">Body</label>
+        <span class="sb-field-count" id="sb-mem-count" aria-live="polite"></span>
+      </div>
+      <textarea id="sb-mem-body" placeholder="Short sentences. No filler."></textarea>
+    </div>
+    <label class="psteps" for="sb-mem-pinned">
+      <span class="psteps-txt">
+        <span class="psteps-t">Always attached</span>
+        <span class="psteps-d">Goes into every context you add, like your house style.</span>
+      </span>
+      <input type="checkbox" id="sb-mem-pinned">
+    </label>
+  </div>
+</div>
+
+<!-- SAVE TO BRAIN: text or a link shared from another app, or pasted, saved
+     into a Brain. The extension's Save to Brain in the edit modal's frame:
+     the text, where it came from, and the Brain it goes to. Its name is made
+     for it, by the rule every capture shares. -->
+<div id="sb-cap-modal" class="sb-edit-modal sb-hidden" role="dialog" aria-modal="true" aria-labelledby="sb-cap-modal-title">
+  <div class="sb-modal-header">
+    <button id="sb-cap-cancel" type="button" aria-label="Cancel">✕</button>
+    <span class="sb-modal-title" id="sb-cap-modal-title">Save to Brain</span>
+    <button id="sb-cap-save" type="button">Save</button>
+  </div>
+  <div class="sb-modal-body">
+    <div class="sb-modal-err" id="sb-cap-err" role="alert"></div>
+    <div class="sb-field-group">
+      <label for="sb-cap-brain" class="sb-field-label">Brain</label>
+      <select id="sb-cap-brain"></select>
+      <div class="sb-cap-note" id="sb-cap-why" aria-live="polite"></div>
+    </div>
+    <div class="sb-field-group sb-field-group-grow">
+      <div class="sb-field-head">
+        <label for="sb-cap-text" class="sb-field-label">Text</label>
+        <span class="sb-field-count" id="sb-cap-count" aria-live="polite"></span>
+      </div>
+      <textarea id="sb-cap-text" placeholder="Paste or type what to save"></textarea>
+    </div>
+    <div class="sb-cap-note" id="sb-cap-note" aria-live="polite"></div>
   </div>
 </div>
 
@@ -2328,6 +2565,1057 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 }(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
 </script>
 <!-- SB_FILL_FORM:END -->
+<!-- SB_MEMORY_PACK:BEGIN (generated from extension/shared/memory-pack.js by scripts/sync-memory-pack.js, do not edit) -->
+<script>
+// WORKING-MEMORY PACK — the extension's copy of the shard selection rule.
+//
+// ⚠ SECOND IMPLEMENTATION, ON PURPOSE. The authority is
+// app/src/lib/memory/engine.ts. The extension has no build step and cannot
+// import TypeScript, so the ranking and budget rule is written twice: once
+// there for the dashboard and the MCP server, once here for content.js. This is
+// the same trade already accepted for the formula engine and the mobile
+// resolver.
+//
+// What stops the two drifting is `node scripts/check-memory-parity.js`, a
+// commit gate that runs BOTH implementations over the same fixtures and fails
+// if a single pack differs. Change the rule in one file and that gate tells you
+// about the other. Never change one without the other.
+//
+// This file implements a strict SUBSET. The engine is stateful because an agent
+// session attaches and detaches over many turns, with LRU eviction and manual
+// pins that survive a step change. The extension is one-shot: the user picks a
+// step, gets a pack, and the picker closes. So there is no eviction here, and
+// none is needed — filling an empty budget top-down never evicts anything.
+(function (root) {
+  'use strict';
+
+  // Must equal CHARS_PER_TOKEN in app/src/lib/memory/engine.ts AND the
+  // token_estimate generated column in the MEMORY-001 migration.
+  var CHARS_PER_TOKEN = 4;
+
+  function estimateTokens(text) {
+    return Math.ceil(String(text == null ? '' : text).length / CHARS_PER_TOKEN);
+  }
+
+  // Relevance of a shard to a step, or null when the step does not want it.
+  // Pinned shards are eligible everywhere. Everything else needs at least one
+  // of the step's labels, and scores the sum of those labels' weights.
+  function scoreShard(shard, step) {
+    if (shard.pinned) return Infinity;
+
+    var wanted = {};
+    var labels = (step && step.labels) || [];
+    for (var i = 0; i < labels.length; i++) {
+      wanted[labels[i].labelId] = labels[i].weight;
+    }
+
+    var score = 0;
+    var matched = false;
+    var ids = shard.labelIds || [];
+    for (var j = 0; j < ids.length; j++) {
+      var w = wanted[ids[j]];
+      if (w === undefined) continue;
+      matched = true;
+      score += w;
+    }
+
+    return matched ? score : null;
+  }
+
+  // Best first. Deterministic all the way down (score, priority, name, id) so
+  // the same library and step always produce the same pack.
+  function rankForStep(shards, step) {
+    var scored = [];
+    for (var i = 0; i < shards.length; i++) {
+      var s = scoreShard(shards[i], step);
+      if (s !== null) scored.push({ shard: shards[i], score: s });
+    }
+
+    scored.sort(function (a, b) {
+      if (a.score !== b.score) return b.score - a.score;
+      if (a.shard.priority !== b.shard.priority) return b.shard.priority - a.shard.priority;
+      var byName = String(a.shard.name).localeCompare(String(b.shard.name));
+      if (byName !== 0) return byName;
+      return String(a.shard.id).localeCompare(String(b.shard.id));
+    });
+
+    var out = [];
+    for (var k = 0; k < scored.length; k++) out.push(scored[k].shard);
+    return out;
+  }
+
+  // Walk the ranking and take what fits. A shard that does not fit is skipped
+  // rather than ending the loop, so a small one ranked below a large one still
+  // gets in. Pinned shards bypass the check entirely: dropping a fact the user
+  // marked always-on would be a worse failure than reporting the overrun, which
+  // is what `overBudget` is for.
+  function fillBudget(ranked, budget) {
+    var taken = [];
+    var skipped = [];
+    var used = 0;
+
+    for (var i = 0; i < ranked.length; i++) {
+      var shard = ranked[i];
+      if (shard.pinned) {
+        taken.push(shard);
+        used += shard.tokens;
+        continue;
+      }
+      if (used + shard.tokens <= budget) {
+        taken.push(shard);
+        used += shard.tokens;
+      } else {
+        skipped.push(shard);
+      }
+    }
+
+    return { shards: taken, skipped: skipped, usedTokens: used, budget: budget, overBudget: used > budget };
+  }
+
+  /** Rank then fill. The whole selection, in one call. */
+  function packForStep(shards, step) {
+    return fillBudget(rankForStep(shards, step), step.tokenBudget);
+  }
+
+  // The text that actually goes into the composer. Plain and visible on
+  // purpose: the user can read exactly what is being sent, edit it, and delete
+  // it. Nothing is hidden and nothing is rewritten at send time.
+  function formatContextBlock(pack, stepName) {
+    if (!pack || !pack.shards.length) return '';
+    var lines = ['Context (' + stepName + '):', ''];
+    for (var i = 0; i < pack.shards.length; i++) {
+      lines.push('## ' + pack.shards[i].name);
+      lines.push(pack.shards[i].body);
+      lines.push('');
+    }
+    lines.push('---');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  // ── THE INJECTED BLOCK (MEMORY-002 I1) ────────────────────────────────────
+  //
+  // Presentation, not selection, so this has no twin in engine.ts and is not
+  // parity-gated. The MCP surface renders the same package as structured data;
+  // only a composer needs it as text.
+  //
+  // The markers are unusual characters on purpose. Remove finds the block by
+  // them and strips exactly that range, so it can never eat the user's own
+  // words, and a stray "##" in their draft is not mistaken for ours.
+  var BLOCK_OPEN = '⟦ SprintBrain context';
+  var BLOCK_CLOSE = '⟧ end ⟧';
+
+  /** Render a ContextPackage as the text that goes above the draft. */
+  function formatInjectedBlock(pack) {
+    if (!pack || !pack.items.length) return '';
+    var lines = [BLOCK_OPEN + ' · ' + pack.items.length + ' item' +
+                 (pack.items.length === 1 ? '' : 's') + ' ⟧', ''];
+    for (var i = 0; i < pack.items.length; i++) {
+      lines.push('## ' + pack.items[i].name);
+      lines.push(pack.items[i].text);
+      lines.push('');
+    }
+    lines.push(BLOCK_CLOSE);
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  /** True when this text already carries an injected block. */
+  function hasInjectedBlock(text) {
+    return String(text == null ? '' : text).indexOf(BLOCK_OPEN) !== -1;
+  }
+
+  /**
+   * Remove the injected block, leaving everything else byte-identical.
+   *
+   * Returns the original string untouched when there is no block, or when the
+   * markers are malformed: half-deleting someone's message because a marker got
+   * edited is far worse than leaving the block in place for them to select.
+   */
+  function stripInjectedBlock(text) {
+    var s = String(text == null ? '' : text);
+    var start = s.indexOf(BLOCK_OPEN);
+    if (start === -1) return s;
+    var end = s.indexOf(BLOCK_CLOSE, start);
+    if (end === -1) return s;
+
+    var after = end + BLOCK_CLOSE.length;
+    // Eat the blank line the block leaves behind, so removing it twice in a row
+    // does not accumulate whitespace above the draft.
+    while (after < s.length && (s.charAt(after) === '\n' || s.charAt(after) === '\r')) after++;
+    return s.slice(0, start) + s.slice(after);
+  }
+
+  /**
+   * A knowledge_search row folded into a ContextCandidate.
+   *
+   * `body` and `contentHash` are empty here, and that is the whole point of the
+   * index/body split: search returns summaries so listing a library never costs
+   * the library. `tokens` is the real cost from the database, so the panel can
+   * show and budget an item it has not fetched.
+   *
+   * Bodies arrive at insert, for the handful of ids the user actually accepted,
+   * and buildContext runs on THOSE. Deduplication therefore happens with real
+   * text rather than on a hash the search does not return: two identical bodies
+   * score 1.0 on similarity, comfortably over the near-duplicate threshold, so
+   * the near pass catches exact duplicates too. The hash is only ever a cheaper
+   * fast path, and its absence costs correctness nothing.
+   */
+  function candidateFromSearchRow(row) {
+    return {
+      id: row.source_id,
+      kind: row.kind,
+      name: row.title,
+      summary: row.summary || '',
+      body: '',
+      tokens: typeof row.tokens === 'number' ? row.tokens : 0,
+      pinned: false,
+      rank: typeof row.rank === 'number' ? row.rank : 0,
+      contentHash: ''
+    };
+  }
+
+  // Rows as PostgREST returns them, folded into the shape the rule expects.
+  function shardFromRow(row) {
+    var ids = [];
+    var links = row.memory_shard_labels || [];
+    for (var i = 0; i < links.length; i++) {
+      if (links[i] && links[i].label_id) ids.push(links[i].label_id);
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      summary: row.summary || '',
+      body: row.body || '',
+      tokens: typeof row.token_estimate === 'number' ? row.token_estimate : estimateTokens(row.body),
+      labelIds: ids,
+      pinned: !!row.pinned,
+      priority: typeof row.priority === 'number' ? row.priority : 0
+    };
+  }
+
+  function stepFromRow(row) {
+    var labels = [];
+    var links = row.memory_step_labels || [];
+    for (var i = 0; i < links.length; i++) {
+      if (links[i] && links[i].label_id) {
+        labels.push({ labelId: links[i].label_id, weight: typeof links[i].weight === 'number' ? links[i].weight : 1 });
+      }
+    }
+    return {
+      key: row.key,
+      name: row.name,
+      tokenBudget: typeof row.token_budget === 'number' ? row.token_budget : 4000,
+      labels: labels
+    };
+  }
+
+  // ── CONTEXT BUILDING (MEMORY-002 P3) ──────────────────────────────────────
+  //
+  // The twin of buildContext in app/src/lib/memory/engine.ts. Same four passes,
+  // same order, same tiebreaks. `node scripts/check-memory-parity.js` runs both
+  // over identical candidates and fails if a single package differs.
+  //
+  // This is the half the injection panel calls: the user is mid-sentence, the
+  // draft is the query, and this decides what actually goes in the box.
+
+  // The floor for fusion ranks: a result ranked 15th by a single arm under
+  // 1/(60+rank). knowledge_search no longer fuses; it gates its own results and
+  // scores them 8 and up, so this never drops one of them. See engine.ts.
+  var DEFAULT_MIN_RANK = 1 / 75;
+  var NEAR_DUPLICATE_THRESHOLD = 0.85;
+
+  // Not an attempt to reproduce pg_trgm. The only agreement that matters is
+  // with engine.ts, and the gate proves that on every commit.
+  function trigrams(text) {
+    var normalised = String(text == null ? '' : text)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/^\s+|\s+$/g, '');
+    if (!normalised) return [];
+    var padded = '  ' + normalised + ' ';
+    var out = [];
+    for (var i = 0; i + 3 <= padded.length; i++) out.push(padded.slice(i, i + 3));
+    return out;
+  }
+
+  /**
+   * Jaccard overlap of two strings' trigram sets, 0 to 1.
+   *
+   * A string with no trigrams shares nothing with anything, including another
+   * string with no trigrams. Two empty bodies are not the same fact, they are
+   * two facts whose bodies failed to arrive, and scoring them 1.0 made the near
+   * pass collapse an entire package into whichever item happened to rank first.
+   */
+  function textSimilarity(a, b) {
+    var left = {};
+    var right = {};
+    var leftSize = 0;
+    var rightSize = 0;
+    var grams = trigrams(a);
+    var i;
+
+    for (i = 0; i < grams.length; i++) {
+      if (!left[grams[i]]) { left[grams[i]] = true; leftSize++; }
+    }
+    grams = trigrams(b);
+    for (i = 0; i < grams.length; i++) {
+      if (!right[grams[i]]) { right[grams[i]] = true; rightSize++; }
+    }
+
+    if (leftSize === 0 || rightSize === 0) return 0;
+
+    var shared = 0;
+    for (var gram in left) {
+      if (Object.prototype.hasOwnProperty.call(left, gram) && right[gram]) shared++;
+    }
+
+    var union = leftSize + rightSize - shared;
+    return union === 0 ? 0 : shared / union;
+  }
+
+  // Pinned first, then relevance, then stable. The name and id tiebreaks are
+  // what make the same draft produce the same context twice.
+  function orderCandidates(candidates) {
+    var copy = candidates.slice();
+    copy.sort(function (a, b) {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (a.rank !== b.rank) return b.rank - a.rank;
+      var byName = String(a.name).localeCompare(String(b.name));
+      if (byName !== 0) return byName;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return copy;
+  }
+
+  /**
+   * Build the context package for a draft. Four passes, and the order is the
+   * rule: floor, order, dedupe, fill.
+   */
+  function buildContext(request) {
+    var budget = request.budget;
+    var minRank = request.minRank === undefined ? DEFAULT_MIN_RANK : request.minRank;
+    var nearThreshold =
+      request.nearThreshold === undefined ? NEAR_DUPLICATE_THRESHOLD : request.nearThreshold;
+    var dedupe = request.dedupe !== false;
+    var candidates = request.candidates || [];
+
+    var dropped = [];
+    var deduped = [];
+    var i, j;
+
+    // 1. Floor. All-zero ranks mean no query ran, so there is no relevance to
+    // be below. Pinned is never filtered by relevance.
+    var searched = false;
+    for (i = 0; i < candidates.length; i++) {
+      if (candidates[i].rank > 0) { searched = true; break; }
+    }
+
+    var relevant = [];
+    for (i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      // A body that never arrived has nothing to contribute. Dropping it here,
+      // before dedupe, is what keeps a failed fetch visible: the alternative is
+      // a heading with a blank underneath it, which is what the user pastes
+      // into a model without noticing. Reported, never silent.
+      if (!c.body || !String(c.body).trim()) {
+        dropped.push({ id: c.id, name: c.name, reason: 'no-body' });
+        continue;
+      }
+      if (searched && !c.pinned && c.rank < minRank) {
+        dropped.push({ id: c.id, name: c.name, reason: 'below-floor' });
+        continue;
+      }
+      relevant.push(c);
+    }
+
+    // 2. Order.
+    var ordered = orderCandidates(relevant);
+
+    // 3. Dedupe. First occurrence wins, which after ordering is the best-ranked.
+    var kept = [];
+    if (dedupe) {
+      var seenHashes = {};
+      for (i = 0; i < ordered.length; i++) {
+        var cand = ordered[i];
+        var exact = cand.contentHash ? seenHashes[cand.contentHash] : null;
+        if (exact) {
+          deduped.push({ id: cand.id, name: cand.name, mergedInto: exact.id, reason: 'exact' });
+          continue;
+        }
+
+        var near = null;
+        for (j = 0; j < kept.length; j++) {
+          if (textSimilarity(cand.body, kept[j].body) >= nearThreshold) { near = kept[j]; break; }
+        }
+        if (near) {
+          deduped.push({ id: cand.id, name: cand.name, mergedInto: near.id, reason: 'near' });
+          continue;
+        }
+
+        if (cand.contentHash) seenHashes[cand.contentHash] = cand;
+        kept.push(cand);
+      }
+    } else {
+      for (i = 0; i < ordered.length; i++) kept.push(ordered[i]);
+    }
+
+    // 4. Fill. A candidate that does not fit is skipped, not terminal.
+    var items = [];
+    var used = 0;
+
+    for (i = 0; i < kept.length; i++) {
+      var k = kept[i];
+
+      if (k.pinned) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.body, tokens: k.tokens, compressed: false });
+        used += k.tokens;
+        continue;
+      }
+
+      if (used + k.tokens <= budget) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.body, tokens: k.tokens, compressed: false });
+        used += k.tokens;
+        continue;
+      }
+
+      // The body does not fit; a summary that does keeps the fact rather than
+      // losing it, marked so the reader knows it is the short version.
+      var summaryTokens = estimateTokens(k.summary);
+      if (k.summary && used + summaryTokens <= budget) {
+        items.push({ id: k.id, kind: k.kind, name: k.name, text: k.summary, tokens: summaryTokens, compressed: true });
+        used += summaryTokens;
+        continue;
+      }
+
+      dropped.push({ id: k.id, name: k.name, reason: 'budget' });
+    }
+
+    // Source counts in first-appearance order, so the header reads the way the
+    // list does.
+    var sources = [];
+    for (i = 0; i < items.length; i++) {
+      var found = null;
+      for (j = 0; j < sources.length; j++) {
+        if (sources[j].kind === items[i].kind) { found = sources[j]; break; }
+      }
+      if (found) found.count++;
+      else sources.push({ kind: items[i].kind, count: 1 });
+    }
+
+    return {
+      items: items,
+      usedTokens: used,
+      budget: budget,
+      dropped: dropped,
+      deduped: deduped,
+      sources: sources,
+      overBudget: used > budget
+    };
+  }
+
+  /**
+   * Collapse candidates that are the same fact, before anything is shown.
+   *
+   * The twin of clusterCandidates in engine.ts, under the same parity gate. A
+   * translated snippet arrives as one row per language and the near-duplicate
+   * pass cannot see that they are one fact, so without this the panel offers a
+   * four-language fact four times. `groupKey` comes from the caller (for
+   * snippets, the rule expansion already uses); the member chosen is the
+   * earliest preferred language, and it carries the group's best rank because
+   * that rank belongs to the fact. See engine.ts for the reasoning.
+   */
+  function clusterCandidates(candidates, preferredLangs) {
+    var prefs = preferredLangs || [];
+    var list = candidates || [];
+    var order = [];
+    var groups = {};
+    var i, j;
+
+    for (i = 0; i < list.length; i++) {
+      var c = list[i];
+      var key = c.groupKey ? 'group:' + c.groupKey : 'row:' + c.kind + ':' + c.id;
+      if (Object.prototype.hasOwnProperty.call(groups, key)) {
+        groups[key].push(c);
+      } else {
+        groups[key] = [c];
+        order.push(key);
+      }
+    }
+
+    function preference(lang) {
+      var index = lang === undefined ? -1 : prefs.indexOf(lang);
+      return index === -1 ? prefs.length : index;
+    }
+
+    var clusters = [];
+    for (i = 0; i < order.length; i++) {
+      var members = orderCandidates(groups[order[i]]);
+      var best = members[0];
+      if (!best) continue;
+
+      var chosen = best;
+      var bestRank = best.rank;
+      for (j = 0; j < members.length; j++) {
+        if (members[j].rank > bestRank) bestRank = members[j].rank;
+        if (preference(members[j].lang) < preference(chosen.lang)) chosen = members[j];
+      }
+
+      var copy = {};
+      for (var field in chosen) {
+        if (Object.prototype.hasOwnProperty.call(chosen, field)) copy[field] = chosen[field];
+      }
+      copy.rank = bestRank;
+      clusters.push({ candidate: copy, members: members });
+    }
+    return clusters;
+  }
+
+  /**
+   * The body a fetched snippet row carries for one language.
+   *
+   * Not parity-gated: this is how a row is read, not how candidates are chosen,
+   * so it has no twin in engine.ts. The precedence is the one expansion uses in
+   * content.js (_findLangVariants): a row's own body answers for its own
+   * language, and its `bodies` map fills in the languages it holds inside.
+   * scripts/check-lang-variants.js holds the two to the same answer.
+   *
+   * Falls back to the row's own body when the language is gone, which only
+   * happens when the local library is older than the database. Something in the
+   * wrong language is more use to the reader than an item dropped as unloadable.
+   */
+  function bodyForLang(row, lang) {
+    if (!row) return '';
+    var own = row.body == null ? '' : String(row.body);
+    var wanted = String(lang == null ? '' : lang).toUpperCase();
+    if (!wanted || String(row.lang == null ? '' : row.lang).toUpperCase() === wanted) {
+      if (own.trim()) return own;
+    }
+    var map = row.bodies;
+    if (wanted && map && typeof map === 'object') {
+      var text = map[wanted];
+      if (typeof text === 'string' && text.trim()) return text;
+    }
+    return own;
+  }
+
+  var API = {
+    CHARS_PER_TOKEN: CHARS_PER_TOKEN,
+    DEFAULT_MIN_RANK: DEFAULT_MIN_RANK,
+    NEAR_DUPLICATE_THRESHOLD: NEAR_DUPLICATE_THRESHOLD,
+    estimateTokens: estimateTokens,
+    scoreShard: scoreShard,
+    rankForStep: rankForStep,
+    fillBudget: fillBudget,
+    packForStep: packForStep,
+    formatContextBlock: formatContextBlock,
+    textSimilarity: textSimilarity,
+    buildContext: buildContext,
+    clusterCandidates: clusterCandidates,
+    bodyForLang: bodyForLang,
+    formatInjectedBlock: formatInjectedBlock,
+    hasInjectedBlock: hasInjectedBlock,
+    stripInjectedBlock: stripInjectedBlock,
+    candidateFromSearchRow: candidateFromSearchRow,
+    shardFromRow: shardFromRow,
+    stepFromRow: stepFromRow
+  };
+
+  // UMD: browser globals, CommonJS (the node gate), AMD.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = API;
+  } else if (typeof define === 'function' && define.amd) {
+    define(function () { return API; });
+  } else {
+    root.SBMemoryPack = API;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
+</script>
+<!-- SB_MEMORY_PACK:END -->
+<!-- SB_MEMORY_CHUNK:BEGIN (generated from extension/shared/memory-chunk.js by scripts/sync-memory-chunk.js, do not edit) -->
+<script>
+// MEMORY CHUNKER — splits long text into shard-sized pieces, names the pieces a
+// capture saves (captureName, captureSummary) and suggests the Brain a capture
+// belongs in (suggestBrain), at the end of the file.
+//
+// The database caps memory_shards.body at 20,000 characters, and the cap is
+// deliberate: anything larger is a document, not a fact, and no token budget
+// survives attaching one. Capturing a chat transcript is the first thing that
+// routinely exceeds it, so this is where the splitting rule lives.
+//
+// SHARED ON PURPOSE. Document upload (MEMORY-002 S3) has the identical problem
+// and must reuse this rather than write a second splitter, or the two will
+// disagree about where a boundary falls and the same file will chunk
+// differently depending on how it arrived.
+//
+// The rule, in order of preference:
+//   1. Never split inside a turn. A half-sentence attributed to the wrong
+//      speaker is worse than an extra chunk.
+//   2. A turn that is itself over the cap is split on paragraph, then line,
+//      then hard character count. That last case is a genuine loss of
+//      structure, so it is reported rather than done silently.
+//   3. Pack greedily up to the cap. Fewer, fuller chunks beat many small ones,
+//      because every chunk costs a name, a summary and an index entry.
+(function (root) {
+  'use strict';
+
+  // Must stay at or below the memory_shards_body_length CHECK in
+  // services/supabase/migrations/20260822000000_working_memory.sql. Held a
+  // little under so a joining separator can never push a chunk over.
+  var MAX_BODY = 19800;
+
+  var SEPARATOR = '\n\n';
+
+  /** Split one oversized string on the largest boundary that fits. */
+  function splitOversized(text, limit, forced) {
+    var out = [];
+    var rest = String(text == null ? '' : text);
+
+    while (rest.length > limit) {
+      // Prefer a paragraph break, then a line break, then give up and cut.
+      var cut = rest.lastIndexOf('\n\n', limit);
+      if (cut < limit * 0.5) cut = rest.lastIndexOf('\n', limit);
+      if (cut < limit * 0.5) {
+        cut = limit;
+        forced.count += 1;
+      }
+      out.push(rest.slice(0, cut));
+      rest = rest.slice(cut).replace(/^\n+/, '');
+    }
+    if (rest.length) out.push(rest);
+    return out;
+  }
+
+  /**
+   * Pack an array of blocks into chunks no larger than `limit`.
+   *
+   * Returns { chunks: string[], forced: number } where `forced` counts the
+   * times a block had to be cut mid-paragraph because no boundary existed.
+   * A caller that cares about fidelity can surface that.
+   */
+  function chunkBlocks(blocks, limit) {
+    var max = typeof limit === 'number' && limit > 0 ? limit : MAX_BODY;
+    var forced = { count: 0 };
+    var chunks = [];
+    var current = '';
+
+    function flush() {
+      if (current.length) chunks.push(current);
+      current = '';
+    }
+
+    for (var i = 0; i < blocks.length; i++) {
+      var block = String(blocks[i] == null ? '' : blocks[i]).trim();
+      if (!block) continue;
+
+      if (block.length > max) {
+        // This single block does not fit on its own. Emit what is buffered,
+        // then break the block down before continuing.
+        flush();
+        var pieces = splitOversized(block, max, forced);
+        for (var p = 0; p < pieces.length; p++) chunks.push(pieces[p]);
+        continue;
+      }
+
+      var candidate = current ? current + SEPARATOR + block : block;
+      if (candidate.length > max) {
+        flush();
+        current = block;
+      } else {
+        current = candidate;
+      }
+    }
+    flush();
+
+    return { chunks: chunks, forced: forced.count };
+  }
+
+  /** Convenience for plain text with no turn structure (S3 documents). */
+  function chunkText(text, limit) {
+    var max = typeof limit === 'number' && limit > 0 ? limit : MAX_BODY;
+    var body = String(text == null ? '' : text);
+    if (body.length <= max) return { chunks: body.trim() ? [body.trim()] : [], forced: 0 };
+    return chunkBlocks(body.split(/\n{2,}/), max);
+  }
+
+  // ── What a capture is called ────────────────────────────────────────────
+  // Three paths save captured text into a Brain: the extension's Save to Brain
+  // (a highlighted selection), its chat capture (a whole conversation) and the
+  // phone's Save to Brain (text shared from another app, or pasted). They name
+  // what they save the same way, here, so a Brain reads the same whichever one
+  // filled it. Uploaded files are named by the dashboard instead
+  // (app/src/lib/documentImport.ts): a file has a name of its own, a capture
+  // only has a source and a moment.
+
+  // The memory_shards name and summary CHECKs.
+  var NAME_MAX = 64;
+  var SUMMARY_MAX = 280;
+  // The most of a name the source's title may take. The rest is the moment of
+  // the save, which is what tells two saves from the same page apart.
+  var TITLE_MAX = 40;
+
+  /** One line of plain text. */
+  function flatten(text) {
+    return String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+  }
+
+  function pad(n) {
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  /**
+   * "Pasta at home · 2026-10-02 14:30:05", then " (2/3)" when the text was
+   * split. Names are unique per account among live rows, so the moment, to the
+   * second and on the saver's own clock, is what makes saving from the same
+   * page twice an addition rather than an error. The moment and the part are
+   * never what gets cut: the title is shortened to make room for them.
+   */
+  function captureName(title, when, part, parts) {
+    var d = when instanceof Date && !isNaN(when.getTime()) ? when : new Date();
+    var tail = ' · ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+      (parts > 1 ? ' (' + part + '/' + parts + ')' : '');
+    var head = flatten(title).slice(0, Math.min(TITLE_MAX, NAME_MAX - tail.length)).trim();
+    return (head || 'Untitled') + tail;
+  }
+
+  /**
+   * An excerpt, not a description of one. The summary column is what the
+   * picker lists and what knowledge_search ranks on, so the clipping's own
+   * words find it again; "saved from example.com" would not.
+   */
+  function captureSummary(text) {
+    return flatten(text).slice(0, SUMMARY_MAX);
+  }
+
+  // ── Where a capture goes ────────────────────────────────────────────────
+  // Before a capture is saved, the Brain it most likely belongs in is offered
+  // first. Words only, worked out on the device: nothing is sent anywhere and
+  // nothing is learned. A Brain is known by its name, its description and the
+  // names and summaries of what it already holds, and a capture is offered the
+  // Brain whose words it shares most, each shared word counting for more the
+  // fewer Brains use it. Bodies are left out on purpose: the extension would
+  // have to download every one of them, and every app has to reach the same
+  // answer from the same words.
+  //
+  // What it cannot do: tell that an Italian recipe belongs in an empty Brain
+  // called Cooking, because the two share no word. A description, or a few
+  // items, give it the words.
+
+  // Words that say nothing about what a text is about, in the four languages
+  // SprintBrain writes in, folded (lower case, no accents). Words shorter than
+  // WORD_MIN are dropped before this list is read.
+  var STOPWORDS = (function () {
+    var set = {};
+    (
+      // English
+      'the and for are but not you your yours our ours his her hers its they them their theirs this ' +
+      'that these those with from into onto over under about above after before again then than there ' +
+      'here when where which who whom whose what why how all any both each few more most other some ' +
+      'such only own same very can will just should would could have has had having was were been ' +
+      'being does did doing done get got also out off per via yet may might must shall let like need ' +
+      'use used using make made want way well much many every still even back down upon while because ' +
+      'until within without through between during against among across along around etc dont cant ' +
+      'wont ive youre theyre thats anywhere else elsewhere somewhere everywhere ' +
+      // Italian
+      'che chi cui del della delle dei degli dello dal dalla dalle dai dagli dallo nel nella nelle nei ' +
+      'negli nello sul sulla sulle sui sugli sullo alla alle agli allo con per tra fra una uno gli non ' +
+      'come anche piu sono sei siamo siete era erano essere avere hanno abbiamo questo questa questi ' +
+      'queste quello quella quelli quelle molto poco tutto tutti tutte ogni dove quando perche cosa ' +
+      'mio mia miei mie tuo tua tuoi tue suo sua suoi sue nostro nostra nostri nostre vostro vostra ' +
+      'loro stato stata fare fatto puoi puo ancora gia solo ecco poi quindi oppure cioe lei lui noi ' +
+      'voi ciao grazie ' +
+      // Spanish
+      'que los las por para unos unas pero mas este estos estas ese esa esos esas eso esto aquel sus ' +
+      'son fue ser estar han hay muy todo todos toda todas cuando donde porque sin sobre entre tambien ' +
+      'nos les mis tus nuestro nuestra vuestro ella ellos ellas usted ustedes desde hasta cada otro ' +
+      'otra otros otras puede pueden tiene tienen hacer hace hola gracias ' +
+      // French
+      'les des une pour avec qui dans sur par est sont pas plus mais ces cet cette ses son leur leurs ' +
+      'nous vous ils elle elles aux tout tous toute toutes comme sans sous aussi bien fait faire etre ' +
+      'avoir ont etait peut notre votre nos vos mes tes quand dont donc alors encore deja tres merci ' +
+      'bonjour ' +
+      // Numbers, greetings, small talk and time, in all four: they say when and
+      // to whom, never what about.
+      'one two three four five six seven eight nine ten uno due tre quattro cinque sette otto nove ' +
+      'dieci dos tres cuatro cinco seis siete ocho nueve diez deux trois quatre cinq six sept huit ' +
+      'neuf dix hello dear thanks thank please regards best kind hey message messages email mail see ' +
+      'next last first new good great sure okay yes yeah thing things something anything nothing ' +
+      'everything messaggio messaggi prossimo prossima ultimo ultima primo prima nuovo nuova buono ' +
+      'bene cose mensaje mensajes correo proximo proxima primero primera nuevo nueva bueno bien cosas ' +
+      'courriel prochain prochaine dernier derniere premier premiere nouveau nouvelle bon bonne chose ' +
+      'choses today tomorrow yesterday day days week weeks month months year years time oggi domani ' +
+      'ieri giorno giorni settimana mese anno anni volta hoy manana ayer dia dias semana mes ano anos ' +
+      'vez jour jours semaine mois annee fois aujourdhui demain hier ' +
+      // The parts of a link that every link has.
+      'http https www com org net html htm php amp utm ref'
+    ).split(' ').forEach(function (word) { if (word) set[word] = true; });
+    return set;
+  }());
+
+  var WORD_MIN = 3;            // letters a word needs to count
+  var WORD_MAX = 30;           // longer runs are ids, codes and links, not words
+  var READ_MAX = 20000;        // how much of a capture is read
+  var NAME_WEIGHT = 3;         // a word of the Brain's own name counts this much,
+  var DESCRIPTION_WEIGHT = 2;  // one of its description this much, an item 1
+  var MARGIN = 1.5;            // how far ahead of the next Brain the best must be
+  var SHOWN = 3;               // words the note names
+
+  // Built at run time, as letter classes are: an engine without them keeps the
+  // Latin split below instead of failing to load the whole module.
+  var WORD_SPLIT = (function () {
+    try {
+      return new RegExp('[^\\p{L}\\p{N}]+', 'u');
+    } catch (e) {
+      return /[^0-9a-zÀ-ɏ]+/;
+    }
+  }());
+
+  /** Lower case without accents: "Ricétta" and "ricetta" are one word. */
+  function fold(word) {
+    return word.normalize ? word.normalize('NFD').replace(/[̀-ͯ]/g, '') : word;
+  }
+
+  /**
+   * One form for a word's family, crude on purpose: a plural s, then -ing or
+   * -ed, then the vowels Italian, Spanish and French end words on. So recipe
+   * and recipes, ricetta and ricette, receta and recetas, cook, cooked and
+   * cooking each meet on one form. It joins some words it should not (pasta
+   * and past); the rarity weighting keeps that from mattering.
+   */
+  function stem(word) {
+    var w = word;
+    if (w.length > 3 && w.charAt(w.length - 1) === 's' && w.charAt(w.length - 2) !== 's') w = w.slice(0, -1);
+    if (w.length > 5 && w.slice(-3) === 'ing') w = w.slice(0, -3);
+    else if (w.length > 4 && w.slice(-2) === 'ed') w = w.slice(0, -2);
+    while (w.length > 4 && /[aeiou]$/.test(w)) w = w.slice(0, -1);
+    return w;
+  }
+
+  /**
+   * The words of a text, by stem: how often each appears, the first way it
+   * was written (for the note), and the order they first appear in.
+   */
+  function wordsOf(text, max) {
+    var out = { count: {}, shown: {}, order: [] };
+    var parts = String(text == null ? '' : text).slice(0, max).toLowerCase().split(WORD_SPLIT);
+    for (var i = 0; i < parts.length; i++) {
+      var raw = parts[i];
+      if (raw.length < WORD_MIN || raw.length > WORD_MAX || /^\d+$/.test(raw)) continue;
+      var folded = fold(raw);
+      if (STOPWORDS[folded]) continue;
+      var key = stem(folded);
+      if (key.length < WORD_MIN) continue;
+      if (!out.count[key]) {
+        out.count[key] = 0;
+        out.shown[key] = raw;
+        out.order.push(key);
+      }
+      out.count[key] += 1;
+    }
+    return out;
+  }
+
+  /**
+   * The Brain a capture most likely belongs in.
+   *
+   *   text    all that is known of the capture: its title, then its text
+   *   brains  [{id, name, description}], in the order the Brain list shows
+   *           them, which also breaks ties
+   *   items   [{space_id, name, summary}]; items of Brains not in the list
+   *           are ignored
+   *
+   * Returns {id, words, note}. id is the Brain to offer, or null; words are
+   * what it was judged on, as they are written in the text; note is the line
+   * shown under the Brain list: why this Brain, that two fit equally, or that
+   * none fits. With fewer than two Brains, or too few words to judge, note is
+   * empty: there is nothing to say.
+   *
+   * A Brain qualifies on two shared words, or on one that is part of its
+   * name, its description or an item's name. One word from a summary is too
+   * thin: "message" or "price" would send texts to whichever Brain happened to
+   * use it once.
+   */
+  function suggestBrain(text, brains, items) {
+    var list = Array.isArray(brains) ? brains : [];
+    var none = { id: null, words: [], note: '' };
+    if (list.length < 2) return none;
+    var said = wordsOf(text, READ_MAX);
+    if (said.order.length < 2) return none;
+
+    var profiles = [];
+    var byId = {};
+    list.forEach(function (brain) {
+      var profile = { id: brain.id, name: String(brain.name || ''), weight: {}, strong: {} };
+      [[brain.name, NAME_WEIGHT], [brain.description, DESCRIPTION_WEIGHT]].forEach(function (pair) {
+        wordsOf(pair[0], READ_MAX).order.forEach(function (key) {
+          profile.weight[key] = (profile.weight[key] || 0) + pair[1];
+          profile.strong[key] = true;
+        });
+      });
+      profiles.push(profile);
+      byId[brain.id] = profile;
+    });
+    (Array.isArray(items) ? items : []).forEach(function (item) {
+      var profile = byId[item.space_id];
+      if (!profile) return;
+      // Each item is one vote per word, however often it repeats the word.
+      var named = wordsOf(item.name, READ_MAX).order;
+      var seen = {};
+      named.forEach(function (key) { profile.strong[key] = true; });
+      named.concat(wordsOf(item.summary, READ_MAX).order).forEach(function (key) {
+        if (seen[key]) return;
+        seen[key] = true;
+        profile.weight[key] = (profile.weight[key] || 0) + 1;
+      });
+    });
+
+    // How many Brains use each word: the fewer, the more it says.
+    var used = {};
+    profiles.forEach(function (profile) {
+      Object.keys(profile.weight).forEach(function (key) { used[key] = (used[key] || 0) + 1; });
+    });
+
+    var scored = profiles.map(function (profile, index) {
+      var score = 0;
+      var hits = [];
+      said.order.forEach(function (key) {
+        var weight = profile.weight[key];
+        // A word every Brain uses cannot tell them apart.
+        if (!weight || used[key] === profiles.length) return;
+        var part = Math.log(1 + profiles.length / used[key]) *
+          (1 + Math.log(weight)) * (1 + Math.log(said.count[key]));
+        score += part;
+        hits.push({ key: key, part: part });
+      });
+      var qualifies = hits.length >= 2 || (hits.length === 1 && profile.strong[hits[0].key] === true);
+      return { profile: profile, score: qualifies ? score : 0, hits: hits, index: index };
+    }).sort(function (a, b) {
+      return b.score - a.score || a.index - b.index;
+    });
+
+    var best = scored[0];
+    var next = scored[1];
+    if (!(best.score > 0)) return { id: null, words: [], note: 'No Brain fits this yet.' };
+    if (next.score > 0 && best.score < next.score * MARGIN) {
+      return { id: null, words: [], note: 'Could fit ' + best.profile.name + ' or ' + next.profile.name + '.' };
+    }
+    var words = best.hits.slice().sort(function (a, b) {
+      return b.part - a.part;
+    }).slice(0, SHOWN).map(function (hit) {
+      return said.shown[hit.key];
+    });
+    var listed = words.length > 1 ? words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1] : words[0];
+    return { id: best.profile.id, words: words, note: 'Suggested because it mentions ' + listed + '.' };
+  }
+
+  // The last Brain a capture went to belongs to the device, not the account.
+  // The extension keeps it in chrome.storage.local (never sync: nothing the
+  // extension stores roams), the phone in localStorage, under one key, the
+  // way Interactive Steps keeps its setting.
+  var LAST_BRAIN_KEY = 'sb_capture_brain';
+
+  // The extension's own storage, or null on a web page. A page on the
+  // dashboard's site sees chrome.runtime (the extension talks to it) but never
+  // chrome.storage.
+  function extensionStorage() {
+    var c = root.chrome;
+    if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
+    return c.storage.local;
+  }
+
+  /** cb(id or null) once the last Brain used is known. */
+  function loadLastBrain(cb) {
+    var store = extensionStorage();
+    if (store) {
+      try {
+        store.get(LAST_BRAIN_KEY, function (d) {
+          var id = !root.chrome.runtime.lastError && d ? d[LAST_BRAIN_KEY] : null;
+          cb(typeof id === 'string' && id ? id : null);
+        });
+      } catch (e) {
+        // A page left open across an extension reload has lost its context.
+        // The capture opens on the default Brain instead.
+        cb(null);
+      }
+      return;
+    }
+    var id = null;
+    try {
+      id = root.localStorage.getItem(LAST_BRAIN_KEY);
+    } catch (e) {
+      console.error('Save to Brain: could not read the last Brain used on this device:', e);
+    }
+    cb(id || null);
+  }
+
+  /** Keeps the Brain a capture just went to. */
+  function saveLastBrain(id) {
+    var store = extensionStorage();
+    if (store) {
+      var patch = {};
+      patch[LAST_BRAIN_KEY] = id;
+      try {
+        store.set(patch, function () {
+          if (root.chrome.runtime.lastError) {
+            console.error('Save to Brain: could not keep the last Brain used:', root.chrome.runtime.lastError.message);
+          }
+        });
+      } catch (e) {
+        console.error('Save to Brain: could not keep the last Brain used:', e && e.message);
+      }
+      return;
+    }
+    try {
+      root.localStorage.setItem(LAST_BRAIN_KEY, id);
+    } catch (e) {
+      console.error('Save to Brain: could not keep the last Brain used on this device:', e);
+    }
+  }
+
+  /**
+   * The Brain selected when a capture opens: the one suggestBrain offered,
+   * else the last one a capture went to, else the first in the list, which
+   * every list shows to be the default Brain. An id no longer in the list (a
+   * Brain trashed since) is passed over.
+   */
+  function pickBrain(suggestion, lastId, brains) {
+    var list = Array.isArray(brains) ? brains : [];
+    function listed(id) {
+      if (!id) return false;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    if (suggestion && listed(suggestion.id)) return suggestion.id;
+    if (listed(lastId)) return lastId;
+    return list.length ? list[0].id : null;
+  }
+
+  var API = {
+    MAX_BODY: MAX_BODY,
+    chunkBlocks: chunkBlocks,
+    chunkText: chunkText,
+    captureName: captureName,
+    captureSummary: captureSummary,
+    suggestBrain: suggestBrain,
+    pickBrain: pickBrain,
+    loadLastBrain: loadLastBrain,
+    saveLastBrain: saveLastBrain,
+    LAST_BRAIN_KEY: LAST_BRAIN_KEY
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = API;
+  } else {
+    root.SBMemoryChunk = API;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
+</script>
+<!-- SB_MEMORY_CHUNK:END -->
 <!-- SB_INTERACTIVE_STEPS:BEGIN (generated from extension/shared/interactive-steps.js by scripts/check-interactive-steps.js --write, do not edit) -->
 <script>
 // interactive-steps.js: the "Interactive Steps" prompt setting, decided once.
@@ -2506,6 +3794,7 @@ function handle401(r){
 }
 function logout(){
   try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+  capSignOut();
   redirectToLogin();
 }
 /* Server-side session liveness — the dashboard's Settings → Security can
@@ -2526,7 +3815,7 @@ function sbCheckAlive(){
 }
 
 /* ── FORMULA ENGINE ─────────────────────────────── */
-var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,avg:1,datetimediff:1};
+var FUNS = {round:1,floor:1,ceil:1,abs:1,min:1,max:1,avg:1,pow:1,datetimediff:1};
 
 /* ── DATE/TIME HELPERS ─────────────────────────── */
 function _sbPad(n){ return (n<10?'0':'')+n; }
@@ -3690,9 +4979,9 @@ function sbFieldContext(body){
    are ours rather than Math's: Math.round drops a second argument, and Math
    has no mean. */
 var SB_MATH_FNS={round:'sbRound',floor:'Math.floor',ceil:'Math.ceil',abs:'Math.abs',
-  min:'Math.min',max:'Math.max',avg:'sbAvg'};
+  min:'Math.min',max:'Math.max',avg:'sbAvg',pow:'Math.pow'};
 function mathReplace(s){
-  return s.replace(/\b(round|floor|ceil|abs|min|max|avg)\(/g,function(m,f){return SB_MATH_FNS[f]+'(';});
+  return s.replace(/\b(round|floor|ceil|abs|min|max|avg|pow)\(/g,function(m,f){return SB_MATH_FNS[f]+'(';});
 }
 /* round(X, N) like a spreadsheet's ROUND. Mirrors _roundTo in the engine. */
 function sbRoundTo(x,n){
@@ -3730,7 +5019,7 @@ function sbEvalFormula(expr,vals){
     return v<0?'('+v+')':String(v);
   });
   if(unreadable)return null;
-  var stripped=s.replace(/round|floor|ceil|abs|min|max|avg|datetimediff/g,'');
+  var stripped=s.replace(/round|floor|ceil|abs|min|max|avg|pow|datetimediff/g,'');
   if(!/^[0-9+\-*/().\s,]+$/.test(stripped))return null;
   try{
     var r=Function('"use strict";return('+mathReplace(s)+')')();
@@ -4127,17 +5416,26 @@ function loadSnips(){
       localStorage.setItem('sb_mob_uid',USER_ID);
     }catch(e){}
     if(curView==='analytics'){renderFolderChips();renderList();renderAnalytics();}
-    else{showList();renderFolderChips();renderList();}
+    else{if(!otherPageActive())showList();renderFolderChips();renderList();}
   })
   .catch(function(){
     if(!allSnips.length){
       if(curView==='analytics')renderAnalytics();
-      else{showList();renderFolderChips();renderList();}
+      else{if(!otherPageActive())showList();renderFolderChips();renderList();}
     }
   });
 }
 
 /* ── VIEWS ──────────────────────────────────────── */
+/* True while Prompts or Memory is the page in view. Snippets that arrive from
+   the network then refresh their list behind it instead of taking the screen
+   back, which used to leave two pages showing at once, one under the other. */
+function otherPageActive(){
+  return ['view-prompts','view-memory','view-memitem'].some(function(id){
+    var v=document.getElementById(id);
+    return !!(v&&v.classList.contains('active'));
+  });
+}
 function showList(){
   curView='list';
   setActiveQuickAction('snippets');
@@ -4146,6 +5444,9 @@ function showList(){
   document.getElementById('view-list').classList.add('active');
   document.getElementById('view-detail').classList.remove('active');
   document.getElementById('view-analytics').classList.remove('active');
+  document.getElementById('view-prompts').classList.remove('active');
+  document.getElementById('view-memory').classList.remove('active');
+  document.getElementById('view-memitem').classList.remove('active');
   document.querySelectorAll('.mtab-item').forEach(function(x){x.classList.remove('on');x.removeAttribute('aria-current');});
   var homeBtn=document.querySelector('.mtab-item[aria-label="Home"]');
   if(homeBtn){homeBtn.classList.add('on');homeBtn.setAttribute('aria-current','page');}
@@ -4169,6 +5470,8 @@ function showAnalyticsView(){
   document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').classList.remove('active');
   document.getElementById('view-prompts').classList.remove('active');
+  document.getElementById('view-memory').classList.remove('active');
+  document.getElementById('view-memitem').classList.remove('active');
   document.getElementById('view-analytics').classList.add('active');
   document.querySelectorAll('.mtab-item').forEach(function(x){
     x.classList.remove('on');x.removeAttribute('aria-current');
@@ -4668,8 +5971,10 @@ function showPrompts(){
   history.pushState({prompts:true},'');
   document.getElementById('view-list').classList.remove('active');
   document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-memory').classList.remove('active');
   document.getElementById('view-prompts').classList.add('active');
   setActiveQuickAction('prompts');
+  syncFilterHeader();
   if(!allPrompts.length)loadPrompts();
   else renderPromptList();
 }
@@ -4679,11 +5984,1038 @@ function hidePrompts(){
   document.getElementById('view-list').classList.add('active');
   setActiveQuickAction('snippets');
 }
-// Snippets tile → the snippets home. From the Prompts page it mirrors the back
-// button; from anywhere else it just shows the list (its tile pushes via showList).
+// Snippets tile → the snippets home. From the Prompts or Memory page it mirrors
+// the back button; from anywhere else it just shows the list (its tile pushes
+// via showList).
 function showSnippetsHome(){
   if(document.getElementById('view-prompts').classList.contains('active')){ hidePrompts(); return; }
+  if(document.getElementById('view-memory').classList.contains('active')){ hideMemory(); return; }
   showList();
+}
+
+/* ── MEMORY ─────────────────────────────────────── */
+/* Brains on the phone: open one, read what is in it, copy or share an item or
+   the whole Brain, and add text to it. Making, renaming and trashing Brains,
+   editing items and uploading files stay on the dashboard, the same line the
+   phone draws for folders. Reads go through the same RLS as the dashboard and
+   the one write through the same save function (memory_save_shard). */
+var allBrains=[], allMemItems=[];
+/* Lower-cased names of every live item, Brain in the trash or not: the name is
+   unique per account among live rows (memory_shards_user_name_ci_uniq). */
+var memTakenNames={};
+var memLoaded=false, memLoading=false, memFailed=false;
+/* A reload asked for while one is in flight runs after it, so an item saved
+   meanwhile is never missing from the list the first read brings back. */
+var memReloadQueued=false;
+var curBrain=null;          // id of the Brain on screen; null lists the Brains
+var curMemItem=null;        // the item open in the reader
+var memSearch='', curMemKind='ALL';
+var MEM_PAGE=1000;          // a full page means there may be more rows
+var MEM_SPACE_SELECT='id,name,description,ico,is_default,created_at,updated_at';
+var MEM_ITEM_SELECT='id,space_id,name,summary,body,kind,token_estimate,pinned,source_id,created_at,updated_at';
+/* memory_shards_body_length, as the dashboard editor mirrors it. The name (64)
+   and summary (280) limits ride on the Add text inputs' maxlength. */
+var MEM_BODY_MAX=20000;
+var MEM_KIND_LABEL={fact:'Fact',note:'Note',document:'Document',conversation:'Conversation'};
+var MEM_KINDS=['fact','note','document','conversation'];
+/* Document pieces come from an upload, so Add text does not offer that kind. */
+var MEM_AUTHORABLE_KINDS=['fact','note','conversation'];
+/* A Brain over this is longer than anything SprintBrain itself puts into a
+   chat: 4000 tokens is the largest Context budget the extension uses
+   (claude.ai, extension/content/memory-picker.js) and the MCP server's
+   default. Past it, a pasted Brain is worth a warning. */
+var MEM_LONG_TOKENS=4000;
+/* Emoji break the fixed-height rows a name is drawn in on every surface, so
+   they are dropped as typed, the set app/src/lib/nameText.ts drops. Built at
+   run time: a browser without Unicode property escapes keeps the name as typed
+   rather than failing to parse the whole page. */
+var MEM_NAME_EMOJI=(function(){
+  try{
+    return new RegExp('[\\p{Extended_Pictographic}\\p{Emoji_Presentation}\\p{Regional_Indicator}'
+      +'\\p{Emoji_Modifier}\\u{FE0F}\\u{20E3}\\u{200D}]','gu');
+  }catch(e){return null;}
+})();
+/* Brain icons: memory_spaces.ico stores a keyword, drawn with the dashboard's
+   Lucide glyphs (app/src/features/memory/spaceIcon.tsx). An unknown key falls
+   back to the brain, as it does there. */
+var SPACE_ICON_SVGS={
+  brain:'<svg viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>',
+  book:'<svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>',
+  'file-text':_FOLDER_SVGS['file-text'],
+  briefcase:'<svg viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>',
+  flask:'<svg viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>',
+  wrench:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  gavel:'<svg viewBox="0 0 24 24"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>',
+  stethoscope:'<svg viewBox="0 0 24 24"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>'
+};
+var MEM_COPY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+var MEM_PLUS_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+var MEM_PASTE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>';
+var MEM_WARN_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+
+function spaceIcon(ico){
+  return Object.prototype.hasOwnProperty.call(SPACE_ICON_SVGS,ico)?SPACE_ICON_SVGS[ico]:SPACE_ICON_SVGS.brain;
+}
+function memCleanName(v){
+  var s=String(v==null?'':v);
+  return MEM_NAME_EMOJI?s.replace(MEM_NAME_EMOJI,''):s;
+}
+function memPlural(n,one,many){return n+' '+(n===1?one:many);}
+/* The dashboard's words for a Brain's size: "Empty", "1 item", "12 items". */
+function memDescribeItems(n){return n===0?'Empty':memPlural(n,'item','items');}
+function memTokensLabel(n){
+  n=Number(n)||0;
+  return n.toLocaleString()+' '+(n===1?'token':'tokens');
+}
+/* Default Brain first, then by name. Matches the dashboard index. */
+function memBySpaceOrder(a,b){
+  if(!!a.is_default!==!!b.is_default)return a.is_default?-1:1;
+  return String(a.name||'').localeCompare(String(b.name||''));
+}
+/* Always attached first, then most recently touched. Matches the server order. */
+function memByItemOrder(a,b){
+  if(!!a.pinned!==!!b.pinned)return a.pinned?-1:1;
+  return String(b.updated_at||'').localeCompare(String(a.updated_at||''));
+}
+function memBrainById(id){
+  for(var i=0;i<allBrains.length;i++){if(allBrains[i].id===id)return allBrains[i];}
+  return null;
+}
+function memItemById(id){
+  for(var i=0;i<allMemItems.length;i++){if(allMemItems[i].id===id)return allMemItems[i];}
+  return null;
+}
+function memItemsOf(bid){
+  return allMemItems.filter(function(it){return it.space_id===bid;});
+}
+function memTokensOf(items){
+  return items.reduce(function(t,it){return t+(Number(it.token_estimate)||0);},0);
+}
+function memDefaultBrain(){
+  for(var i=0;i<allBrains.length;i++){if(allBrains[i].is_default)return allBrains[i];}
+  return allBrains[0]||null;
+}
+function memKindOk(it){return curMemKind==='ALL'||it.kind===curMemKind;}
+/* Search reads what the dashboard's reads: an item's name, summary, body and
+   the name of its Brain; a Brain's name and description. */
+function memMatchesItem(it,q){
+  if(!q)return true;
+  var b=memBrainById(it.space_id);
+  return [it.name,it.summary,it.body,b&&b.name].some(function(f){
+    return String(f||'').toLowerCase().indexOf(q)>-1;
+  });
+}
+function memMatchesBrain(b,q){
+  return [b.name,b.description].some(function(f){
+    return String(f||'').toLowerCase().indexOf(q)>-1;
+  });
+}
+
+/* Every live row of a memory table, a page at a time: an uploaded file alone
+   can become hundreds of items, and a read that stopped at the server's row
+   cap would drop the rest without a word. */
+function memFetchAll(table,select,order){
+  var rows=[];
+  function page(offset){
+    return fetch(SUPA+'/rest/v1/'+table+'?select='+select+'&deleted_at=is.null&order='+order
+        +'&limit='+MEM_PAGE+'&offset='+offset,{headers:authHeaders()})
+      .then(function(r){
+        if(handle401(r))throw new Error('signed out');
+        if(!r.ok)throw new Error(table+' answered HTTP '+r.status);
+        return r.json();
+      })
+      .then(function(data){
+        if(!Array.isArray(data))throw new Error(table+' did not answer with a list');
+        rows=rows.concat(data);
+        return data.length===MEM_PAGE?page(offset+MEM_PAGE):rows;
+      });
+  }
+  return page(0);
+}
+function loadMemory(){
+  if(memLoading){memReloadQueued=true;return;}
+  memLoading=true;memFailed=false;
+  renderMemory();
+  if(capOpen())capFillBrains();
+  Promise.all([
+    memFetchAll('memory_spaces',MEM_SPACE_SELECT,'is_default.desc,name.asc'),
+    memFetchAll('memory_shards',MEM_ITEM_SELECT,'pinned.desc,updated_at.desc')
+  ]).then(function(res){
+    allBrains=res[0].slice().sort(memBySpaceOrder);
+    var live={};
+    allBrains.forEach(function(b){live[b.id]=true;});
+    memTakenNames={};
+    res[1].forEach(function(it){memTakenNames[String(it.name||'').trim().toLowerCase()]=true;});
+    // Items of a Brain in the trash are in the trash with it: the dashboard
+    // lists neither, and neither does the phone.
+    allMemItems=res[1].filter(function(it){return live[it.space_id];}).sort(memByItemOrder);
+    if(curBrain&&!live[curBrain])curBrain=null;
+    memLoaded=true;
+  }).catch(function(e){
+    memFailed=true;
+    console.error('[SprintBrain] Could not load your Brains:',e);
+    // A refresh that fails keeps what is on screen, and says so.
+    if(memLoaded)showToast('Could not refresh your Brains');
+  }).then(function(){
+    memLoading=false;
+    if(memReloadQueued){memReloadQueued=false;loadMemory();return;}
+    renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+    if(capOpen())capFillBrains();
+  });
+}
+
+/* ── Memory: the page ── */
+function memBrainCardHtml(b){
+  var items=memItemsOf(b.id), tok=memTokensOf(items);
+  return '<div class="prompt-card" data-bid="'+esc(b.id)+'" role="button" tabindex="0">'
+    +'<div class="prompt-icon">'+spaceIcon(b.ico)+'</div>'
+    +'<div class="prompt-info">'
+      +'<div class="prompt-name">'+esc(b.name)+'</div>'
+      +(b.description?'<div class="prompt-preview">'+esc(b.description)+'</div>':'')
+      +'<div class="prompt-meta">'
+        +'<span class="pintent">'+esc(memDescribeItems(items.length))+'</span>'
+        +(tok?'<span class="prompt-out">'+esc(memTokensLabel(tok))+'</span>':'')
+        +(b.is_default?'<span class="pintent">default</span>':'')
+      +'</div>'
+      +'<div class="prompt-foot"><span class="prompt-when">Updated '+esc(timeAgo(b.updated_at))+'</span></div>'
+    +'</div>'
+    +'<button type="button" class="prompt-menu" data-mem-menu="brain" data-id="'+esc(b.id)+'" aria-label="More actions">⋮</button>'
+  +'</div>';
+}
+/* withBrain names the item's Brain on the card: only where items from several
+   Brains share one list. */
+function memItemCardHtml(it,withBrain){
+  var b=withBrain?memBrainById(it.space_id):null;
+  var text=String(it.summary||'').trim()||String(it.body||'').replace(/\s+/g,' ').trim();
+  var preview=text.slice(0,120)+(text.length>120?'…':'');
+  return '<div class="prompt-card'+(it.pinned?' is-pinned':'')+'" data-mid="'+esc(it.id)+'" role="button" tabindex="0">'
+    +'<div class="prompt-icon">'+_FOLDER_SVGS['file-text']+'</div>'
+    +'<div class="prompt-info">'
+      +'<div class="prompt-name">'+esc(it.name)+'</div>'
+      +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
+      +'<div class="prompt-meta">'
+        +'<span class="pintent">'+esc(MEM_KIND_LABEL[it.kind]||it.kind||'')+'</span>'
+        +'<span class="prompt-out">'+esc(memTokensLabel(it.token_estimate))+'</span>'
+        +(b?'<span class="fbadge"><span class="fbadge-ico">'+spaceIcon(b.ico)+'</span>'+esc(b.name)+'</span>':'')
+      +'</div>'
+      +'<div class="prompt-foot"><span class="prompt-when">Updated '+esc(timeAgo(it.updated_at))+'</span></div>'
+    +'</div>'
+    +(it.pinned?'<span class="prompt-pin-flag" role="img" aria-label="Always attached" title="Always attached">'+PIN_SVG+'</span>':'')
+    +'<button type="button" class="prompt-menu" data-mem-menu="item" data-id="'+esc(it.id)+'" aria-label="More actions">⋮</button>'
+  +'</div>';
+}
+function memEmptyHtml(emo,title,hint){
+  return '<div class="empty"><div class="emo">'+emo+'</div><p>'+esc(title)+'</p>'
+    +(hint?'<p class="empty-hint">'+esc(hint)+'</p>':'')+'</div>';
+}
+/* Paste & save, in one place on All Brains and in every open Brain. */
+function memPasteActHtml(){
+  return '<button type="button" class="mbrain-act is-wide" data-mem-act="paste">'
+    +MEM_PASTE_SVG+'<span>Paste &amp; save</span></button>';
+}
+/* The open Brain's header, in the selected-folder header's slot: the way back,
+   the Brain, its size, and what is done with it. On All Brains the slot holds
+   Paste & save alone, once there is a Brain to save into. */
+function renderMemHead(brain){
+  var el=document.getElementById('mem-head');
+  if(!brain){
+    if(memLoaded&&allBrains.length){
+      el.innerHTML='<div class="mbrain-acts">'+memPasteActHtml()+'</div>';
+      el.hidden=false;
+    }else{el.hidden=true;el.innerHTML='';}
+    return;
+  }
+  var items=memItemsOf(brain.id), tok=memTokensOf(items);
+  el.innerHTML='<div class="fhead-crumbs">'
+      +'<button type="button" class="fhead-crumb" data-mem-home>All Brains</button>'
+      +'<span class="fhead-sep"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>'
+    +'</div>'
+    +'<div class="fhead-name">'+esc(brain.name)+'</div>'
+    +(brain.description?'<div class="fhead-desc">'+esc(brain.description)+'</div>':'')
+    +'<div class="mbrain-stats">'+esc(memDescribeItems(items.length)+(tok?' · '+memTokensLabel(tok):''))+'</div>'
+    +'<div class="mbrain-acts">'
+      +'<button type="button" class="mbrain-act is-primary" data-mem-act="copy"'+(items.length?'':' disabled')+'>'
+        +MEM_COPY_SVG+'<span>Copy whole Brain</span></button>'
+      +'<button type="button" class="mbrain-act" data-mem-act="add">'+MEM_PLUS_SVG+'<span>Add text</span></button>'
+      +memPasteActHtml()
+    +'</div>'
+    +(tok>MEM_LONG_TOKENS
+      ?'<div class="mbrain-warn" role="note">'+MEM_WARN_SVG
+        +'<span>Long Brain. Some AI apps cut a paste this size, so check what arrives.</span></div>'
+      :'');
+  el.hidden=false;
+}
+function renderMemory(){
+  var list=document.getElementById('mem-list');
+  var n=allBrains.length;
+  document.getElementById('memory-count').textContent=String(n);
+  document.getElementById('memory-count-unit').textContent=n===1?'Brain':'Brains';
+  var brain=curBrain?memBrainById(curBrain):null;
+  renderMemHead(brain);
+  document.getElementById('mem-sec-t').textContent=brain?'Contents':'All Brains';
+  var meta=document.getElementById('mem-meta');
+  meta.hidden=true;
+  if(!memLoaded){
+    list.innerHTML=memFailed
+      ?memEmptyHtml('😕','Could not load your Brains','')
+      :'<div class="empty"><div class="spinner"></div><p>Loading your Brains…</p></div>';
+    return;
+  }
+  if(!n){
+    list.innerHTML=memEmptyHtml('🧠','No Brains yet','Create one in the dashboard and it shows up here.');
+    return;
+  }
+  var q=memSearch.trim().toLowerCase();
+  var narrowed=!!q||curMemKind!=='ALL';
+  if(brain){
+    var all=memItemsOf(brain.id);
+    var items=all.filter(function(it){return memKindOk(it)&&memMatchesItem(it,q);});
+    if(narrowed){meta.textContent=items.length+' of '+all.length;meta.hidden=false;}
+    list.innerHTML=!all.length
+      ?memEmptyHtml('📝','Nothing in here yet','Tap Add text to write the first item.')
+      :!items.length
+        ?memEmptyHtml('🔍','Nothing matches','Try a different search or filter.')
+        :items.map(function(it){return memItemCardHtml(it,false);}).join('');
+    return;
+  }
+  if(!narrowed){
+    list.innerHTML=allBrains.map(memBrainCardHtml).join('');
+    return;
+  }
+  // Searching or filtering from the Brains list reaches into every Brain. A
+  // kind is a kind of item, so it lists items only.
+  var brains=(q&&curMemKind==='ALL')?allBrains.filter(function(b){return memMatchesBrain(b,q);}):[];
+  var hits=allMemItems.filter(function(it){return memKindOk(it)&&memMatchesItem(it,q);});
+  meta.textContent=(brains.length?memPlural(brains.length,'Brain','Brains')+' · ':'')
+    +memPlural(hits.length,'item','items');
+  meta.hidden=false;
+  list.innerHTML=(!brains.length&&!hits.length)
+    ?memEmptyHtml('🔍','Nothing matches','Try a different search or filter.')
+    :brains.map(memBrainCardHtml).join('')+hits.map(function(it){return memItemCardHtml(it,true);}).join('');
+}
+
+/* ── Memory: moving around ── */
+function showMemory(){
+  if(document.getElementById('view-memory').classList.contains('active'))return;
+  history.pushState({memory:true},'');
+  curBrain=null;
+  document.getElementById('view-list').classList.remove('active');
+  document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-prompts').classList.remove('active');
+  document.getElementById('view-memory').classList.add('active');
+  setActiveQuickAction('memory');
+  syncFilterHeader();
+  if(!memLoaded)loadMemory();
+  else renderMemory();
+}
+function hideMemory(){
+  closeMemSheet(true);
+  document.getElementById('view-memitem').classList.remove('active');
+  document.body.classList.remove('sb-detail-view');
+  document.getElementById('view-memory').classList.remove('active');
+  document.getElementById('view-list').classList.add('active');
+  setActiveQuickAction('snippets');
+  syncFilterHeader();
+}
+function openBrain(id){
+  if(!memBrainById(id))return;
+  history.pushState({memBrain:id},'');
+  curBrain=id;
+  renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+  document.getElementById('mem-body').scrollTop=0;
+  window.scrollTo(0,0);
+}
+function closeBrain(){
+  curBrain=null;
+  renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+}
+/* The way back from a Brain or an item. When the step has its own history
+   entry, going back through the browser keeps the phone's back button in step
+   with the one on screen. */
+function memBack(key,close){
+  if(history.state&&history.state[key])history.back();
+  else close();
+}
+function openMemItem(id){
+  var it=memItemById(id);
+  if(!it)return;
+  var b=memBrainById(it.space_id);
+  history.pushState({memItem:id},'');
+  curMemItem=it;
+  document.getElementById('mi-title').textContent=it.name||'Item';
+  document.getElementById('mi-brain-ico').innerHTML=b?spaceIcon(b.ico):'';
+  document.getElementById('mi-brain-name').textContent=b?b.name:'';
+  document.getElementById('mi-kind').textContent=MEM_KIND_LABEL[it.kind]||it.kind||'';
+  var summary=String(it.summary||'').trim();
+  document.getElementById('mi-summary-sec').hidden=!summary;
+  document.getElementById('mi-summary').textContent=summary;
+  document.getElementById('mi-body').textContent=it.body||'';
+  document.getElementById('view-memory').classList.remove('active');
+  document.getElementById('view-memitem').classList.add('active');
+  document.body.classList.add('sb-detail-view');
+  window.scrollTo(0,0);
+}
+function closeMemItem(){
+  curMemItem=null;
+  document.getElementById('view-memitem').classList.remove('active');
+  document.body.classList.remove('sb-detail-view');
+  document.getElementById('view-memory').classList.add('active');
+}
+
+/* ── Memory: copy and share ── */
+/* What an AI chat receives: the block the extension's Context button inserts,
+   built by the same module (extension/shared/memory-pack.js). */
+function memBrainBlock(b){
+  return SBMemoryPack.formatInjectedBlock({items:memItemsOf(b.id).map(function(it){
+    return {name:it.name,text:it.body||''};
+  })});
+}
+function memItemBlock(it){
+  return SBMemoryPack.formatInjectedBlock({items:[{name:it.name,text:it.body||''}]});
+}
+function memCopyFailed(){showToast('Could not copy. Try Share instead');}
+function copyBrain(b){
+  var items=memItemsOf(b.id);
+  if(!items.length){showToast('This Brain is empty');return;}
+  var long=memTokensOf(items)>MEM_LONG_TOKENS;
+  copyText(memBrainBlock(b),function(){
+    showToast(long?'Copied ✓ Long Brain: check the paste':'Brain copied ✓');
+  },memCopyFailed);
+}
+function shareBrain(b){
+  closeMemSheet();
+  if(!memItemsOf(b.id).length){showToast('This Brain is empty');return;}
+  var text=memBrainBlock(b);
+  if(navigator.share){
+    navigator.share({title:b.name||'Brain',text:text}).catch(function(){});
+  }else{
+    copyText(text,function(){showToast('Brain copied ✓ (sharing not supported)');},memCopyFailed);
+  }
+}
+function shareMemItem(it){
+  closeMemSheet();
+  if(navigator.share){
+    navigator.share({title:it.name||'Item',text:it.body||''}).catch(function(){});
+  }else{
+    copyText(it.body||'',function(){showToast('Copied ✓ (sharing not supported)');},memCopyFailed);
+  }
+}
+/* Read-only details, in the info sheet snippets and prompts use. */
+function openMemItemInfo(it){
+  var b=memBrainById(it.space_id);
+  showInfoSheet(it.name||'Item',[
+    ['Brain', b?b.name:'—'],
+    ['Kind', MEM_KIND_LABEL[it.kind]||it.kind||'—'],
+    ['Always attached', it.pinned?'Yes':'No'],
+    ['Tokens', (Number(it.token_estimate)||0).toLocaleString()],
+    ['Characters', String((it.body||'').length)],
+    ['Updated', it.updated_at?timeAgo(it.updated_at):'—'],
+    ['Created', it.created_at?timeAgo(it.created_at):'—'],
+    ['ID', it.id]
+  ]);
+}
+function openBrainInfo(b){
+  var items=memItemsOf(b.id);
+  showInfoSheet(b.name||'Brain',[
+    ['Items', String(items.length)],
+    ['Tokens', memTokensOf(items).toLocaleString()],
+    ['Default', b.is_default?'Yes':'No'],
+    ['Updated', b.updated_at?timeAgo(b.updated_at):'—'],
+    ['Created', b.created_at?timeAgo(b.created_at):'—'],
+    ['ID', b.id]
+  ]);
+}
+
+/* ── Memory: the ⋮ sheet ── */
+var memSheetTarget=null;    // {type:'brain'|'item', id}
+/* See _promptSheetTimer: reopening during the slide-out must cancel the clear. */
+var _memSheetTimer=null;
+function openMemSheet(type,id){
+  var obj=type==='brain'?memBrainById(id):memItemById(id);
+  if(!obj)return;
+  clearTimeout(_memSheetTimer);
+  memSheetTarget={type:type,id:id};
+  var sh=document.getElementById('sb-mem-sheet');
+  document.getElementById('sb-mem-sheet-title').textContent=obj.name||(type==='brain'?'Brain':'Item');
+  sh.querySelectorAll('[data-mem-for]').forEach(function(ul){
+    ul.hidden=ul.getAttribute('data-mem-for')!==type;
+  });
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+}
+/* now=true skips the slide-out, for when the page under it is going away. */
+function closeMemSheet(now){
+  var sh=document.getElementById('sb-mem-sheet');
+  if(!sh)return;
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  clearTimeout(_memSheetTimer);
+  if(now){sh.classList.add('sb-hidden');memSheetTarget=null;return;}
+  _memSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');memSheetTarget=null;},300);
+}
+(function(){
+  var sheet=document.getElementById('sb-mem-sheet');
+  sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',function(){closeMemSheet();});
+  setupSheetDrag(sheet,function(){closeMemSheet();});
+  sheet.addEventListener('click',function(e){
+    var li=e.target.closest('li[data-maction]');
+    if(!li||!memSheetTarget)return;
+    var act=li.getAttribute('data-maction');
+    var t=memSheetTarget;
+    if(t.type==='brain'){
+      var b=memBrainById(t.id);
+      if(!b){closeMemSheet();return;}
+      if(act==='open'){closeMemSheet();openBrain(b.id);}
+      else if(act==='copy-brain'){copyBrain(b);closeMemSheet();}
+      else if(act==='share-brain'){shareBrain(b);}
+      else if(act==='add'){closeMemSheet();setTimeout(function(){openMemAdd(b.id);},320);}
+      else if(act==='paste'){pasteCapture(b.id);closeMemSheet();}
+      else if(act==='brain-info'){closeMemSheet();setTimeout(function(){openBrainInfo(b);},320);}
+      return;
+    }
+    var it=memItemById(t.id);
+    if(!it){closeMemSheet();return;}
+    if(act==='use'){
+      copyText(memItemBlock(it),function(){showToast('Copied for your AI chat ✓');},memCopyFailed);
+      closeMemSheet();
+    }else if(act==='copy'){
+      copyText(it.body||'',function(){showToast('Copied ✓');},memCopyFailed);
+      closeMemSheet();
+    }else if(act==='share'){shareMemItem(it);}
+    else if(act==='info'){closeMemSheet();setTimeout(function(){openMemItemInfo(it);},320);}
+  });
+})();
+
+/* ── Memory: wiring for the page and the reader ── */
+function syncMemClear(){
+  var wrap=document.getElementById('mem-srch-wrap');
+  var input=document.getElementById('mem-srch');
+  if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+}
+(function(){
+  var mst;
+  var input=document.getElementById('mem-srch');
+  input.addEventListener('input',function(){
+    clearTimeout(mst);
+    var v=this.value;
+    syncMemClear();
+    mst=setTimeout(function(){memSearch=v;renderMemory();refreshOpenFilterPanel();},150);
+  });
+  document.getElementById('mem-srch-clear').addEventListener('click',function(){
+    input.value='';memSearch='';
+    syncMemClear();renderMemory();refreshOpenFilterPanel();input.focus();
+  });
+
+  function activate(card){
+    var bid=card.getAttribute('data-bid');
+    if(bid){openBrain(bid);return;}
+    var mid=card.getAttribute('data-mid');
+    if(mid)openMemItem(mid);
+  }
+  var body=document.getElementById('mem-body');
+  body.addEventListener('click',function(e){
+    var menu=e.target.closest('[data-mem-menu]');
+    if(menu){
+      e.stopPropagation();
+      openMemSheet(menu.getAttribute('data-mem-menu'),menu.getAttribute('data-id'));
+      return;
+    }
+    if(e.target.closest('[data-mem-home]')){memBack('memBrain',closeBrain);return;}
+    var act=e.target.closest('[data-mem-act]');
+    if(act){
+      if(act.disabled)return;
+      var what=act.getAttribute('data-mem-act');
+      // Read on this tap: a phone hands over its clipboard only to the tap
+      // that asked for it.
+      if(what==='paste'){pasteCapture(curBrain);return;}
+      var b=memBrainById(curBrain);
+      if(!b)return;
+      if(what==='copy')copyBrain(b);
+      else openMemAdd(b.id);
+      return;
+    }
+    var card=e.target.closest('[data-bid],[data-mid]');
+    if(card)activate(card);
+  });
+  body.addEventListener('keydown',function(e){
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    var card=e.target.closest('[data-bid],[data-mid]');
+    if(!card||e.target!==card)return;
+    e.preventDefault();
+    activate(card);
+  });
+
+  document.getElementById('mi-back').addEventListener('click',function(){memBack('memItem',closeMemItem);});
+  document.getElementById('mi-copy').addEventListener('click',function(){
+    if(!curMemItem)return;
+    var btn=this;
+    copyText(curMemItem.body||'',function(){
+      btn.classList.add('ok');
+      document.getElementById('mi-cico').textContent='✓';
+      document.getElementById('mi-clbl').textContent='Copied!';
+      setTimeout(function(){
+        btn.classList.remove('ok');
+        document.getElementById('mi-cico').textContent='📋';
+        document.getElementById('mi-clbl').textContent='Copy to clipboard';
+      },2000);
+    },memCopyFailed);
+  });
+})();
+
+/* ── Memory: Add text ── */
+/* One new item, written on the phone with the dashboard editor's fields. */
+var memAddSaving=false;
+/* Set when the modal is being closed on purpose, so the history step it pops
+   does not ask about discarding. */
+var memAddLeaving=false;
+function memAddOpen(){return !document.getElementById('sb-mem-modal').classList.contains('sb-hidden');}
+function memAddDirty(){
+  return !!(document.getElementById('sb-mem-name').value.trim()
+    ||document.getElementById('sb-mem-summary').value.trim()
+    ||document.getElementById('sb-mem-body').value.trim()
+    ||document.getElementById('sb-mem-pinned').checked);
+}
+function memAddError(msg){
+  var err=document.getElementById('sb-mem-err');
+  err.textContent=msg||'';
+  if(msg)err.scrollIntoView({block:'nearest'});
+}
+/* The token count and length under Body, from the shared estimate. */
+function memAddCount(){
+  var body=document.getElementById('sb-mem-body').value;
+  var el=document.getElementById('sb-mem-count');
+  el.textContent=SBMemoryPack.estimateTokens(body)+' tokens · '+body.length+'/'+MEM_BODY_MAX;
+  el.classList.toggle('over',body.length>MEM_BODY_MAX);
+}
+function openMemAdd(bid){
+  if(!allBrains.length)return;
+  var brainSel=document.getElementById('sb-mem-brain');
+  var target=memBrainById(bid)||memDefaultBrain();
+  brainSel.innerHTML=allBrains.map(function(b){
+    return '<option value="'+esc(b.id)+'"'+(target&&b.id===target.id?' selected':'')+'>'+esc(b.name)+'</option>';
+  }).join('');
+  document.getElementById('sb-mem-kind').innerHTML=MEM_AUTHORABLE_KINDS.map(function(k){
+    return '<option value="'+k+'">'+esc(MEM_KIND_LABEL[k])+'</option>';
+  }).join('');
+  document.getElementById('sb-mem-name').value='';
+  document.getElementById('sb-mem-summary').value='';
+  document.getElementById('sb-mem-body').value='';
+  document.getElementById('sb-mem-pinned').checked=false;
+  memAddError('');
+  memAddCount();
+  var save=document.getElementById('sb-mem-save');
+  save.disabled=false;save.textContent='Add item';
+  memAddSaving=false;memAddLeaving=false;
+  history.pushState({memAdd:true},'');
+  document.getElementById('sb-mem-modal').classList.remove('sb-hidden');
+  document.getElementById('sb-mem-name').focus();
+}
+function closeMemAddNow(){
+  document.getElementById('sb-mem-modal').classList.add('sb-hidden');
+  memAddSaving=false;
+}
+/* Closes on purpose: through the history step the modal pushed, so the phone's
+   back button and the ✕ never disagree about what is open. */
+function leaveMemAdd(){
+  memAddLeaving=true;
+  if(history.state&&history.state.memAdd)history.back();
+  else{memAddLeaving=false;closeMemAddNow();}
+}
+/* The dashboard's sentences for what the database refuses (memoryWriteError). */
+function memSaveError(data,name){
+  var code=data&&data.code;
+  if(code==='23505')return '"'+name+'" already exists. Names have to be unique.';
+  if(code==='23514')return 'That does not fit: check the name, the body length and the item kind.';
+  if(code==='42501')return 'You do not have access to that Brain.';
+  return (data&&data.message)?String(data.message):'Could not save this item.';
+}
+/* One memory_save_shard call, the write every surface goes through: the row,
+   its first version and the audit entry, in one transaction. Resolves to ''
+   once saved, else to the sentence that says why not. */
+function memSaveShard(payload){
+  return fetch(SUPA+'/rest/v1/rpc/memory_save_shard',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(handle401(r))return 'Signed out. Sign in again to save.';
+    return r.json().catch(function(){return null;}).then(function(data){
+      if(r.ok)return '';
+      console.error('[SprintBrain] A save to a Brain was refused:',r.status,data);
+      return memSaveError(data,payload.p_name);
+    });
+  },function(e){
+    // Nothing came back at all: the request never reached SprintBrain.
+    console.error('[SprintBrain] A save to a Brain could not be sent:',e);
+    return 'Could not reach SprintBrain. Check your connection and try again.';
+  });
+}
+function memEditorDisplay(){
+  var u=SESSION&&SESSION.user;
+  var meta=(u&&u.user_metadata)||{};
+  return (typeof meta.display_name==='string'&&meta.display_name.trim())||(u&&u.email)||(u&&u.id)||'';
+}
+function saveMemAdd(){
+  if(memAddSaving)return;
+  var bid=document.getElementById('sb-mem-brain').value;
+  var name=memCleanName(document.getElementById('sb-mem-name').value).trim();
+  var summary=document.getElementById('sb-mem-summary').value.trim();
+  var body=document.getElementById('sb-mem-body').value;
+  var kind=document.getElementById('sb-mem-kind').value;
+  var pinned=document.getElementById('sb-mem-pinned').checked;
+  var brain=memBrainById(bid);
+  if(!brain){memAddError('Pick a Brain.');return;}
+  if(!name){memAddError('Give it a name.');document.getElementById('sb-mem-name').focus();return;}
+  if(!body.trim()){memAddError('Write the body.');document.getElementById('sb-mem-body').focus();return;}
+  if(body.length>MEM_BODY_MAX){
+    memAddError('Over the limit by '+(body.length-MEM_BODY_MAX)+' characters. Something this long is a document: '
+      +'split it into separate items so a budget can still hold one.');
+    return;
+  }
+  if(memTakenNames[name.toLowerCase()]){memAddError('"'+name+'" already exists. Names have to be unique.');return;}
+  memAddError('');
+  memAddSaving=true;
+  var save=document.getElementById('sb-mem-save');
+  save.disabled=true;save.textContent='Saving…';
+  memSaveShard({
+    p_shard_id:null, p_name:name, p_summary:summary, p_body:body,
+    p_editor_display:memEditorDisplay(), p_space_id:brain.id, p_kind:kind,
+    p_metadata:{}, p_pinned:pinned, p_priority:0, p_edit_note:null, p_surface:'mobile'
+  }).then(function(refused){
+    if(refused){
+      memAddSaving=false;
+      save.disabled=false;save.textContent='Add item';
+      memAddError(refused);
+      return;
+    }
+    memTakenNames[name.toLowerCase()]=true;
+    leaveMemAdd();
+    showToast('Item added ✓');
+    loadMemory();
+  });
+}
+(function(){
+  document.getElementById('sb-mem-name').addEventListener('input',function(){
+    var clean=memCleanName(this.value);
+    if(clean!==this.value)this.value=clean;
+  });
+  document.getElementById('sb-mem-body').addEventListener('input',memAddCount);
+  document.getElementById('sb-mem-save').addEventListener('click',function(e){
+    e.stopPropagation();
+    saveMemAdd();
+  });
+  document.getElementById('sb-mem-cancel').addEventListener('click',function(e){
+    e.stopPropagation();
+    if(memAddSaving)return;
+    if(memAddDirty()&&!confirm('Discard changes?'))return;
+    leaveMemAdd();
+  });
+})();
+
+/* ── Memory: Save to Brain ── */
+/* Text or a link from somewhere else, saved into a Brain: shared from another
+   app (Android's Share menu, an iPhone Shortcut, any link to /mobile/?text=…)
+   or pasted with Paste & save. It is saved the way the extension's Save to
+   Brain saves a selection: cut, named and summarised by the shared module
+   (SB_MEMORY_CHUNK), one item per piece. */
+var CAPTURE_KEY='sb_mob_capture';
+/* Long enough to sign in and come back; short enough that a share nobody
+   finished does not greet a visit days later. */
+var CAPTURE_TTL=60*60*1000;
+var capPending=null;      // a share this page load received
+var capSource=null;       // {title,url,host} of the text being saved
+var capInitial='';        // the text as it arrived, to tell an edit from none
+var capWantBrain=null;    // the Brain the capture started in, if any
+var capBatch=null;        // the pieces of a save that stopped part way
+var capBrainTouched=false;// the Brain was picked by hand: never moved again
+var capSuggestTimer=null;
+var capSaving=false, capLeaving=false;
+
+/* The first web address in a text, without the punctuation a sentence puts
+   after it. */
+function capFirstUrl(text){
+  var m=String(text||'').match(/https?:\/\/[^\s<>"]+/i);
+  return m?m[0].replace(/[).,;:!?'\]]+$/,''):'';
+}
+function capHost(url){
+  try{return new URL(url).hostname;}catch(e){return '';}
+}
+/* What a share hands over, as one capture. Android puts a page's address in
+   url, many apps put it inside text instead, and a Shortcut sends text alone.
+   The text is what gets saved; a bare link brings its page title along, so
+   the item says what it points to. */
+function capFromShare(title,text,url){
+  title=String(title||'').trim();text=String(text||'').trim();url=String(url||'').trim();
+  if(!url)url=capFirstUrl(text);
+  var lines=[];
+  if(text)lines.push(text);
+  else if(title&&title!==url)lines.push(title);
+  if(url&&lines.join('\n').indexOf(url)===-1)lines.push(url);
+  return {title:title,url:url,host:url?capHost(url):'',text:lines.join('\n\n')};
+}
+/* Where the text on screen came from: the share's own source, else the first
+   link in what was pasted or typed. */
+function capSourceFor(text){
+  var src=capSource||{};
+  if(src.url)return src;
+  var url=capFirstUrl(text);
+  return {title:src.title||'',url:url,host:url?capHost(url):''};
+}
+/* What a capture is named after: the page's title, else the site when the
+   text is only its link, else the text's own first words. */
+function capTitle(src,text){
+  if(src.title)return src.title;
+  var flat=String(text||'').replace(/\s+/g,' ').trim();
+  var onlyLink=!!flat&&!/\s/.test(flat)&&capFirstUrl(flat)===src.url;
+  if(src.host&&(!flat||onlyLink))return src.host;
+  return flat;
+}
+/* The items one capture becomes. Pinned by scripts/sync-memory-chunk.js: the
+   cut, the names and the summaries all come from the shared module. */
+function capturePayloads(text,brainId,src){
+  var packed=SBMemoryChunk.chunkText(text);
+  var parts=packed.chunks, when=new Date(), title=capTitle(src,text);
+  return parts.map(function(body,i){
+    var meta={part:i+1,parts:parts.length};
+    if(src.url){meta.source_url=src.url.slice(0,2048);meta.host=src.host;}
+    return {
+      p_shard_id:null,
+      p_name:SBMemoryChunk.captureName(title,when,i+1,parts.length),
+      p_summary:SBMemoryChunk.captureSummary(body),
+      p_body:body,
+      p_editor_display:memEditorDisplay(),
+      p_space_id:brainId,
+      p_kind:'note',
+      p_metadata:meta,
+      p_pinned:false, p_priority:0, p_edit_note:null, p_surface:'mobile'
+    };
+  });
+}
+
+function capOpen(){return !document.getElementById('sb-cap-modal').classList.contains('sb-hidden');}
+function capDirty(){return document.getElementById('sb-cap-text').value!==capInitial;}
+function capError(msg){
+  var err=document.getElementById('sb-cap-err');
+  err.textContent=msg||'';
+  if(msg)err.scrollIntoView({block:'nearest'});
+}
+/* Beside the label: the source and the size, the extension's "host · N
+   words". Under the box: what saving will make, when it is more than one
+   item. */
+function capCount(){
+  var text=document.getElementById('sb-cap-text').value;
+  var flat=text.replace(/\s+/g,' ').trim();
+  var src=capSourceFor(text);
+  var words=flat?flat.split(' ').length:0;
+  document.getElementById('sb-cap-count').textContent=
+    [src.host,words.toLocaleString()+' '+(words===1?'word':'words')].filter(Boolean).join(' · ');
+  var note='';
+  if(text.length>SBMemoryChunk.MAX_BODY){
+    var packed=SBMemoryChunk.chunkText(text);
+    if(packed.chunks.length>1){
+      note='Long text: it is saved as '+packed.chunks.length+' items.'
+        +(packed.forced?' Where no paragraph break fits, it is cut mid-paragraph.':'');
+    }
+  }
+  document.getElementById('sb-cap-note').textContent=note;
+}
+/* The Brain list, once the Brains are in. Which one is selected is
+   capPickBrain's to say. */
+var capBrainsMissing=false;
+function capFillBrains(){
+  var sel=document.getElementById('sb-cap-brain');
+  var save=document.getElementById('sb-cap-save');
+  if(!memLoaded||!allBrains.length){
+    var why=!memLoaded&&!memFailed?'Loading your Brains…':memFailed?'Could not load your Brains':'No Brains yet';
+    sel.innerHTML='<option value="">'+esc(why)+'</option>';
+    sel.disabled=true;save.disabled=true;
+    var msg=memFailed?'Could not load your Brains. Check your connection, then close this and try again.'
+      :memLoaded?'No Brains yet. Create one in the dashboard, then save here.':'';
+    if(msg){capBrainsMissing=true;capError(msg);}
+    else if(capBrainsMissing){capBrainsMissing=false;capError('');}
+    return;
+  }
+  var kept=sel.value;
+  sel.innerHTML=allBrains.map(function(b){
+    return '<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';
+  }).join('');
+  if(memBrainById(kept))sel.value=kept;
+  sel.disabled=false;save.disabled=capSaving;
+  if(capBrainsMissing){capBrainsMissing=false;capError('');}
+  capPickBrain();
+}
+/* The words decide, through the shared module, as they do in the extension:
+   the share's title, when there is one, then the text on screen. */
+function capSuggest(){
+  var title=capSource&&capSource.title?capSource.title:'';
+  return SBMemoryChunk.suggestBrain(title+'\n\n'+document.getElementById('sb-cap-text').value,allBrains,allMemItems);
+}
+/* The Brain selected, and the line under the list that says why. A Brain
+   picked by hand stays, and so does the one the capture started in; else the
+   shared rule: the one the words suggest, else the last one a capture went
+   to, else the default. Pinned by scripts/sync-memory-chunk.js. */
+function capPickBrain(){
+  var sel=document.getElementById('sb-cap-brain');
+  var why=document.getElementById('sb-cap-why');
+  // Once Save is tapped the Brain is settled, even for a suggestion that was
+  // still waiting on the last keystroke.
+  if(capSaving||!memLoaded||!allBrains.length)return;
+  if(capBrainTouched&&memBrainById(sel.value)){why.textContent='';return;}
+  if(memBrainById(capWantBrain)){sel.value=capWantBrain;why.textContent='';return;}
+  var hint=capSuggest();
+  SBMemoryChunk.loadLastBrain(function(last){
+    var target=SBMemoryChunk.pickBrain(hint,last,allBrains);
+    if(target)sel.value=target;
+    why.textContent=hint.note;
+  });
+}
+/* Opens on a capture ({title,url,host,text}); bid is the Brain it started in. */
+function openCapture(src,bid,placeholder){
+  capSource=src;capInitial=src.text||'';capWantBrain=bid||null;
+  capBatch=null;capSaving=false;capLeaving=false;capBrainsMissing=false;capBrainTouched=false;
+  clearTimeout(capSuggestTimer);
+  document.getElementById('sb-cap-why').textContent='';
+  var ta=document.getElementById('sb-cap-text');
+  ta.value=capInitial;
+  ta.placeholder=placeholder||'Paste or type what to save';
+  document.getElementById('sb-cap-brain').innerHTML='';
+  document.getElementById('sb-cap-save').textContent='Save';
+  capError('');
+  if(!memLoaded&&!memLoading)loadMemory();
+  capFillBrains();
+  capCount();
+  history.pushState({memCap:true},'');
+  document.getElementById('sb-cap-modal').classList.remove('sb-hidden');
+  if(!capInitial)ta.focus();
+}
+/* Paste & save: the clipboard's text, read on the tap that asked for it. A
+   phone that will not hand it over (permission refused, or no way to read a
+   clipboard at all) still gets the form, with the box ready for a paste. */
+function pasteCapture(bid){
+  var clip=navigator.clipboard;
+  var manual='Press and hold here, then tap Paste';
+  if(!clip||!clip.readText){openCapture(capFromShare('','',''),bid,manual);return;}
+  clip.readText().then(function(t){
+    if(!String(t||'').trim()){showToast('Nothing to paste. Copy some text or a link first');return;}
+    openCapture(capFromShare('',t,''),bid);
+  },function(){
+    openCapture(capFromShare('','',''),bid,manual);
+  });
+}
+function capForget(){
+  try{localStorage.removeItem(CAPTURE_KEY);}catch(e){}
+}
+/* Signing out leaves nothing of a capture behind for the next person. */
+function capSignOut(){
+  capForget();
+  try{localStorage.removeItem(SBMemoryChunk.LAST_BRAIN_KEY);}catch(e){}
+}
+function closeCaptureNow(){
+  clearTimeout(capSuggestTimer);
+  document.getElementById('sb-cap-modal').classList.add('sb-hidden');
+  capSaving=false;capSource=null;capInitial='';capBatch=null;
+  // Saved or set aside, the share is finished: it does not come back.
+  capForget();
+}
+/* Closes on purpose, through the history step the form pushed, so the phone's
+   back button and the ✕ never disagree about what is open. */
+function leaveCapture(){
+  capLeaving=true;
+  if(history.state&&history.state.memCap)history.back();
+  else{capLeaving=false;closeCaptureNow();}
+}
+function saveCapture(){
+  if(capSaving)return;
+  var text=document.getElementById('sb-cap-text').value;
+  var brain=memBrainById(document.getElementById('sb-cap-brain').value);
+  if(!brain){capError('Pick a Brain.');return;}
+  if(!text.trim()){
+    capError('Nothing to save yet. Paste or type the text first.');
+    document.getElementById('sb-cap-text').focus();
+    return;
+  }
+  // A save that stopped part way picks up where it stopped, so the pieces
+  // already saved are not saved twice. Change the text or the Brain and it
+  // starts over.
+  clearTimeout(capSuggestTimer);
+  var key=brain.id+'\n'+text;
+  if(!capBatch||capBatch.key!==key)capBatch={key:key,items:capturePayloads(text,brain.id,capSourceFor(text)),done:0};
+  var batch=capBatch, items=batch.items;
+  capError('');
+  capSaving=true;
+  var save=document.getElementById('sb-cap-save');
+  save.disabled=true;save.textContent='Saving…';
+  SBMemoryChunk.saveLastBrain(brain.id);
+  (function next(){
+    if(batch.done>=items.length){
+      items.forEach(function(p){memTakenNames[p.p_name.toLowerCase()]=true;});
+      leaveCapture();
+      showToast(items.length>1?'Saved to Brain as '+items.length+' items ✓':'Saved to Brain ✓');
+      loadMemory();
+      return;
+    }
+    memSaveShard(items[batch.done]).then(function(refused){
+      if(refused){
+        capSaving=false;
+        save.disabled=false;save.textContent='Save';
+        capError(batch.done?'Saved '+batch.done+' of '+items.length+', then stopped. '+refused
+          +' Tap Save to save the rest.':refused);
+        return;
+      }
+      batch.done+=1;
+      next();
+    });
+  })();
+}
+(function(){
+  document.getElementById('sb-cap-text').addEventListener('input',function(){
+    capCount();
+    // The suggestion follows the text while the Brain is still the app's
+    // choice, a moment after typing stops.
+    clearTimeout(capSuggestTimer);
+    capSuggestTimer=setTimeout(capPickBrain,250);
+  });
+  document.getElementById('sb-cap-brain').addEventListener('change',function(){
+    capBrainTouched=true;
+    document.getElementById('sb-cap-why').textContent='';
+  });
+  document.getElementById('sb-cap-save').addEventListener('click',function(e){
+    e.stopPropagation();
+    saveCapture();
+  });
+  document.getElementById('sb-cap-cancel').addEventListener('click',function(e){
+    e.stopPropagation();
+    if(capSaving)return;
+    if(capDirty()&&!confirm('Discard changes?'))return;
+    leaveCapture();
+  });
+})();
+/* A share arrives as /mobile/?title=…&text=…&url=…. It is kept before the
+   sign-in check, which may send the phone to /login and back, and taken off
+   the address so a reload does not offer it twice. */
+(function(){
+  var q;
+  try{q=new URLSearchParams(location.search);}catch(e){return;}
+  var title=q.get('title')||'', text=q.get('text')||'', url=q.get('url')||'';
+  if(!(title.trim()||text.trim()||url.trim()))return;
+  capPending={title:title,text:text,url:url,at:Date.now()};
+  try{localStorage.setItem(CAPTURE_KEY,JSON.stringify(capPending));}catch(e){}
+  try{history.replaceState(history.state,'',location.pathname+location.hash);}catch(e){}
+})();
+/* After sign-in: the share this load received, or one kept across a trip to
+   /login. Opens on the Brains page, so closing the form lands among Brains. */
+function captureResume(){
+  var c=capPending;
+  if(!c){try{c=JSON.parse(localStorage.getItem(CAPTURE_KEY)||'null');}catch(e){c=null;}}
+  capPending=null;
+  if(!c||typeof c!=='object')return;
+  if(!(Date.now()-Number(c.at)<CAPTURE_TTL)){capForget();return;}
+  var src=capFromShare(c.title,c.text,c.url);
+  if(!src.text){capForget();return;}
+  showMemory();
+  openCapture(src);
 }
 
 /* Selected-folder header: tappable ancestor trail, the folder name, and its
@@ -5400,12 +7732,17 @@ document.getElementById('copy-btn').addEventListener('click',function(){
   }else{fbCopy(text,onOk);}
 });
 
-function fbCopy(text,cb){
+/* onFail, when given, hears about a copy the browser refused, so the screen can
+   say so instead of looking idle. */
+function fbCopy(text,cb,onFail){
   var ta=document.createElement('textarea');
   ta.value=text;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';
   document.body.appendChild(ta);ta.focus();ta.select();
-  try{if(document.execCommand('copy'))cb();}catch(e){}
+  var ok=false;
+  try{ok=document.execCommand('copy');}catch(e){ok=false;}
   document.body.removeChild(ta);
+  if(ok)cb();
+  else if(onFail)onFail();
 }
 
 /* ── LANG TABS ──────────────────────────────────── */
@@ -5504,14 +7841,44 @@ document.getElementById('back-btn').addEventListener('click',function(){
   }
 });
 window.addEventListener('popstate',function(){
+  // Add text and Save to Brain each sit on their own history step. Going back
+  // closes them, after asking when there is text to lose; staying puts the
+  // step back.
+  if(memAddOpen()){
+    if(memAddLeaving){memAddLeaving=false;closeMemAddNow();return;}
+    if(memAddSaving||(memAddDirty()&&!confirm('Discard changes?'))){
+      history.pushState({memAdd:true},'');
+      return;
+    }
+    closeMemAddNow();
+    return;
+  }
+  if(capOpen()){
+    if(capLeaving){capLeaving=false;closeCaptureNow();return;}
+    if(capSaving||(capDirty()&&!confirm('Discard changes?'))){
+      history.pushState({memCap:true},'');
+      return;
+    }
+    closeCaptureNow();
+    return;
+  }
   var pSheet=document.getElementById('sb-prompt-sheet');
   if(pSheet&&!pSheet.classList.contains('sb-hidden')){
     closePromptSheet();
+  }
+  var mSheet=document.getElementById('sb-mem-sheet');
+  if(mSheet&&!mSheet.classList.contains('sb-hidden')){
+    closeMemSheet();
   }
   if(document.getElementById('view-detail').classList.contains('active')){
     document.getElementById('back-btn').click();
   }else if(document.getElementById('view-prompts').classList.contains('active')){
     hidePrompts();
+  }else if(document.getElementById('view-memitem').classList.contains('active')){
+    closeMemItem();
+  }else if(document.getElementById('view-memory').classList.contains('active')){
+    if(curBrain)closeBrain();
+    else hideMemory();
   }
 });
 
@@ -5628,11 +7995,11 @@ function showToast(msg){
   _toastTimer=setTimeout(function(){el.classList.remove('show');},1800);
 }
 
-function copyText(t,cb){
+function copyText(t,cb,onFail){
   cb=cb||function(){};
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(cb).catch(function(){fbCopy(t,cb);});
-  }else{fbCopy(t,cb);}
+    navigator.clipboard.writeText(t).then(cb).catch(function(){fbCopy(t,cb,onFail);});
+  }else{fbCopy(t,cb,onFail);}
 }
 
 /* ANALYTICS-001 parity with the extension: fire-and-forget usage event on
@@ -6061,8 +8428,27 @@ document.getElementById('sb-modal-save').addEventListener('click',function(e){
 });
 
 /* ── QUICK ACTIONS ──────────────────────────────── */
+/* One bar, written once and mounted on every page that has a [data-mqa] slot,
+   so the three pages cannot drift apart. Prompts · Snippets · Brains act as a
+   segmented page switch: the current page's tile stays pushed. The third
+   section is called Brains wherever someone reads it, as on the dashboard;
+   "memory" is only its name inside the code. */
+var QUICK_ACTIONS=[
+  {qa:'prompts',label:'Prompts',svg:'<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg>'},
+  {qa:'snippets',label:'Snippets',svg:_FOLDER_SVGS['file-text']},
+  {qa:'memory',label:'Brains',svg:SPACE_ICON_SVGS.brain}
+];
+function mountQuickActions(){
+  var html='<div class="mqa-grid">'+QUICK_ACTIONS.map(function(t){
+    return '<button class="mqa-tile" type="button" data-qa="'+t.qa+'" aria-label="'+t.label+'" aria-pressed="false">'
+      +'<span class="mqa-ico">'+t.svg+'<span class="mqa-lbl">'+t.label+'</span></span></button>';
+  }).join('')+'</div>';
+  document.querySelectorAll('[data-mqa]').forEach(function(slot){slot.innerHTML=html;});
+}
+mountQuickActions();
 document.querySelectorAll('[data-qa="prompts"]').forEach(function(b){ b.addEventListener('click',showPrompts); });
 document.querySelectorAll('[data-qa="snippets"]').forEach(function(b){ b.addEventListener('click',showSnippetsHome); });
+document.querySelectorAll('[data-qa="memory"]').forEach(function(b){ b.addEventListener('click',showMemory); });
 (function(){
   var pst;
   var input=document.getElementById('prompt-srch');
@@ -6311,7 +8697,10 @@ var FILTER_FACETS={
             {key:'languages',title:'Languages',move:'ltabs'},
             {key:'labels',title:'Labels',render:renderLabelFacet}],
   prompts:[{key:'labels',title:'Labels',render:renderLabelFacet},
-           {key:'category',title:'Category',render:renderCategoryFacet}]
+           {key:'category',title:'Category',render:renderCategoryFacet}],
+  // Memory items carry no labels, and Brains are the list itself, so the kind
+  // of item is what narrows this page.
+  memory:[{key:'kind',title:'Kind',render:renderMemKindFacet}]
 };
 function renderLabelFacet(host){
   if(!allLabels.length){
@@ -6392,23 +8781,64 @@ function renderCategoryFacet(host){
     renderPromptList();refreshOpenFilterPanel();syncFilterHeader();
   });
 }
+/* Memory's facet: the kind of item, counted over what the search leaves in the
+   open Brain, or in every Brain from the list. Counts follow the label facet:
+   they say what picking a kind would give. */
+function renderMemKindFacet(host){
+  var q=memSearch.trim().toLowerCase();
+  var pool=(curBrain?memItemsOf(curBrain):allMemItems).filter(function(it){return memMatchesItem(it,q);});
+  if(!pool.length&&curMemKind==='ALL'){
+    host.innerHTML='<div class="mfacet-empty">'+(memLoaded?'No items to filter here yet.':'Loading your Brains…')+'</div>';
+    return;
+  }
+  var counts={};
+  pool.forEach(function(it){counts[it.kind]=(counts[it.kind]||0)+1;});
+  var html='<div class="mlabels">'
+    +'<button type="button" class="mlabel-pill'+(curMemKind==='ALL'?' on':'')+'" data-kind="ALL">'
+    +'<span>All</span><span class="mlabel-cnt">'+pool.length+'</span></button>';
+  MEM_KINDS.forEach(function(k){
+    var c=counts[k]||0, on=curMemKind===k;
+    if(!c&&!on)return;
+    html+='<button type="button" class="mlabel-pill'+(on?' on':'')+'" data-kind="'+k+'">'
+      +'<span>'+esc(MEM_KIND_LABEL[k])+'</span><span class="mlabel-cnt">'+c+'</span></button>';
+  });
+  host.innerHTML=html+'</div>';
+  host.addEventListener('click',function(e){
+    var b=e.target.closest('[data-kind]');
+    if(!b)return;
+    curMemKind=b.getAttribute('data-kind');
+    renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+  });
+}
 /* Redraw the list the user is actually looking at. The label facet is shared
    by both surfaces, so it cannot assume the snippet one. */
 function renderCurrentSurface(){
-  if(curSurface()==='prompts')renderPromptList();
+  var surface=curSurface();
+  if(surface==='prompts')renderPromptList();
+  else if(surface==='memory')renderMemory();
   else renderList();
 }
+/* Each open panel is repainted for its own page. A panel left open on a page
+   no longer in view keeps that page's facets rather than taking this one's. */
 function refreshOpenFilterPanel(){
-  var panel=document.querySelector('.mfilters-panel.open');
-  if(panel)renderFilterPanel(panel,curSurface());
+  document.querySelectorAll('.mfilters-panel.open').forEach(function(panel){
+    var hero=panel.closest('.mhero');
+    if(hero)renderFilterPanel(panel,heroSurface(hero));
+  });
 }
 function heroSurface(hero){
   var view=hero.closest('.view');
-  return (view&&view.id==='view-prompts')?'prompts':'snippets';
+  if(view&&view.id==='view-prompts')return 'prompts';
+  if(view&&view.id==='view-memory')return 'memory';
+  return 'snippets';
 }
 function curSurface(){
   var pv=document.getElementById('view-prompts');
-  return (pv&&pv.classList.contains('active'))?'prompts':'snippets';
+  if(pv&&pv.classList.contains('active'))return 'prompts';
+  var mv=document.getElementById('view-memory');
+  var mi=document.getElementById('view-memitem');
+  if((mv&&mv.classList.contains('active'))||(mi&&mi.classList.contains('active')))return 'memory';
+  return 'snippets';
 }
 /* How many filters are on for a surface. Drives the badge, the footer summary
    and whether Clear all is live. */
@@ -6419,11 +8849,20 @@ function activeFilterCount(surface){
     if(curLang!=='ALL')n++;
   }
   if(surface==='prompts'&&curCategory!=='ALL')n++;
+  // Memory has no labels: its one filter is the kind of item.
+  if(surface==='memory')return curMemKind!=='ALL'?1:0;
   // Each picked label is its own choice, so each counts.
   n+=curLabels.length;
   return n;
 }
 function clearAllFilters(){
+  // Memory's only filter is its own: the labels the other two pages share
+  // are not shown there, so they are not cleared from there either.
+  if(curSurface()==='memory'){
+    curMemKind='ALL';
+    renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+    return;
+  }
   curLabels=[];curLabelMode='any';
   if(curSurface()==='prompts'){
     curCategory='ALL';
@@ -6485,14 +8924,18 @@ function renderFilterPanel(panel,surface){
 /* Reflect filter state on every strip: the badge is what stops an active
    filter from being invisible behind a shut panel. */
 function syncFilterHeader(){
-  var n=activeFilterCount(curSurface());
-  document.querySelectorAll('.mfilters-count').forEach(function(b){
-    b.textContent=String(n);
-    b.classList.toggle('sb-hidden',n===0);
-  });
-  document.querySelectorAll('.mfilters-clear').forEach(function(b){b.disabled=n===0;});
-  document.querySelectorAll('.mfilters-sum').forEach(function(el){
-    el.textContent=n?(n+' filter'+(n===1?'':'s')+' on'):'No filters on';
+  // Each strip counts its own page's filters, so a page never shows another
+  // page's number when you switch to it.
+  document.querySelectorAll('.mhero').forEach(function(hero){
+    var n=activeFilterCount(heroSurface(hero));
+    hero.querySelectorAll('.mfilters-count').forEach(function(b){
+      b.textContent=String(n);
+      b.classList.toggle('sb-hidden',n===0);
+    });
+    hero.querySelectorAll('.mfilters-clear').forEach(function(b){b.disabled=n===0;});
+    hero.querySelectorAll('.mfilters-sum').forEach(function(el){
+      el.textContent=n?(n+' filter'+(n===1?'':'s')+' on'):'No filters on';
+    });
   });
 }
 function mountFilterHeader(){
@@ -6556,6 +8999,8 @@ document.querySelector('.mtab').addEventListener('click',function(e){
       x.classList.toggle('on',x.getAttribute('data-l')==='ALL');
     });
     document.getElementById('view-prompts').classList.remove('active');
+    document.getElementById('view-memory').classList.remove('active');
+    document.getElementById('view-memitem').classList.remove('active');
     document.getElementById('view-list').classList.add('active');
     renderFolderChips();renderList();syncFilterHeader();
     var vl=document.getElementById('view-list');
@@ -6565,6 +9010,14 @@ document.querySelector('.mtab').addEventListener('click',function(e){
     btn.setAttribute('aria-current','page');
     setActiveQuickAction('snippets');
   }else if(lbl==='Search'){
+    // The search of the page in view: Prompts and Memory keep their own.
+    var own={prompts:'prompt-srch',memory:'mem-srch'}[curSurface()];
+    if(own&&curView==='list'){
+      var field=document.getElementById(own);
+      field.scrollIntoView({behavior:'smooth',block:'center'});
+      setTimeout(function(){field.focus();},300);
+      return;
+    }
     if(curView!=='list'){
       curView='list';
       document.getElementById('view-analytics').classList.remove('active');
@@ -6791,8 +9244,8 @@ function applyHeroName(){
     if(first)first=first.charAt(0).toUpperCase()+first.slice(1);
   }
   if(first){
-    var hn=document.getElementById('hero-name'); if(hn)hn.textContent=first;
-    var phn=document.getElementById('prompts-hero-name'); if(phn)phn.textContent=first;
+    // Every page's hero carries the same greeting and name.
+    document.querySelectorAll('.mname').forEach(function(n){n.textContent=first;});
   }
   var h=new Date().getHours();
   var greet=h>=5&&h<12?'Good morning,'
@@ -6836,6 +9289,7 @@ function applyCompanyBrand(){
 }
 if(requireAuth()){
   applyHeroName();applyCompanyBrand();loadSnips();sbCheckAlive();
+  captureResume();
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible')sbCheckAlive();
   });

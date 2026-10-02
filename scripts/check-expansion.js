@@ -330,6 +330,145 @@ async function runPlaceholderCases() {
   return 2;
 }
 
+// WhatsApp Web's editor (Lexical) claims a delete request and removes nothing
+// when it is asked before its own focus handling has caught up: right after a
+// chooser, a fill-in form or the Undo card closed, because the request runs
+// inside that button's click. The snippet was then pasted in front of a trigger
+// that never left. So the delete is checked and sent again once the editor has
+// settled, and the paste only goes in after that.
+//
+// The editor is modelled by a one-text-node stand-in that claims every delete
+// and applies it a few ms later, but only once it is "settled": at once for a
+// healthy editor, only after a refocus for one that just lost focus.
+async function runLexicalDeleteCases() {
+  const TRIG = '::followup';
+  const doc = sandbox.document;
+  let selection = null;
+  const makeRange = (node) => ({
+    startContainer: node, startOffset: 0, endContainer: node, endOffset: 0,
+    get collapsed() { return this.startContainer === this.endContainer && this.startOffset === this.endOffset; },
+    setStart(n, o) { this.startContainer = n; this.startOffset = o; },
+    setEnd(n, o) { this.endContainer = n; this.endOffset = o; },
+    selectNodeContents(h) { this.startContainer = h.textNode; this.startOffset = 0; this.endContainer = h.textNode; this.endOffset = h.textNode.nodeValue.length; },
+    toString() { return String(this.startContainer.nodeValue || '').slice(this.startOffset, this.endOffset); },
+  });
+  const saved = { createRange: doc.createRange, createTreeWalker: doc.createTreeWalker, execCommand: doc.execCommand };
+  const savedGlobals = ['NodeFilter', 'StaticRange', 'InputEvent', 'ClipboardEvent', 'DataTransfer', 'getSelection', 'console']
+    .map((k) => [k, sandbox[k]]);
+  let errors = 0, execCalls = 0;
+  sandbox.NodeFilter = { SHOW_TEXT: 4 };
+  sandbox.StaticRange = function (init) { Object.assign(this, init); };
+  sandbox.InputEvent = function (type, init) { this.type = type; Object.assign(this, init); };
+  sandbox.ClipboardEvent = function (type, init) { this.type = type; Object.assign(this, init); };
+  sandbox.DataTransfer = function () { const d = {}; this.setData = (k, v) => { d[k] = v; }; this.getData = (k) => d[k]; };
+  sandbox.getSelection = () => selection;
+  sandbox.console = Object.assign({}, console, { error: () => { errors++; } });
+  doc.createRange = () => makeRange(selection && selection.owner);
+  doc.createTreeWalker = (h) => { let done = false; return { nextNode: () => (done ? null : ((done = true), h.textNode)) }; };
+  doc.execCommand = () => { execCalls++; return false; };
+
+  // behaviour: 'healthy' honours every delete; 'afterFocusLoss' ignores them
+  // until the editor has been refocused and left to settle; 'never' ignores all.
+  function field(behaviour, lexical) {
+    const textNode = { nodeType: 3, nodeValue: 'Hi ' + TRIG };
+    // The editor's model changes at once; the DOM follows a few ms later. A paste
+    // therefore sees the deletion even though textContent has not changed yet.
+    const s = { settled: behaviour === 'healthy', focusCalls: 0, deletes: 0, pastedOver: null, pastes: 0, model: 'Hi ' + TRIG };
+    const reconcile = () => setTimeout(() => { textNode.nodeValue = s.model; }, 5);
+    const host = {
+      nodeType: 1, textNode,
+      get textContent() { return textNode.nodeValue; },
+      getAttribute: (n) => (n === 'contenteditable' || (lexical && n === 'data-lexical-editor') ? 'true' : null),
+      contains: () => true,
+      focus() { s.focusCalls++; if (behaviour === 'afterFocusLoss') setTimeout(() => { s.settled = true; }, 60); },
+      dispatchEvent(ev) {
+        if (ev.type === 'beforeinput') {
+          s.deletes++;
+          const tr = ev.targetRanges[0];
+          if (s.settled) {
+            s.model = s.model.slice(0, tr.startOffset) + s.model.slice(tr.endOffset);
+            reconcile();
+          }
+          return false;   // claimed, applied or not
+        }
+        if (ev.type === 'paste') {
+          s.pastes++;
+          s.pastedOver = s.model;   // what the field held when the body went in
+          s.model += ev.clipboardData.getData('text/plain');
+          reconcile();
+          return false;
+        }
+        return true;
+      },
+    };
+    // The trigger is selected, as deleteChars leaves it.
+    selection = {
+      owner: textNode, rangeCount: 1,
+      getRangeAt() { return this.range; },
+      removeAllRanges() { this.rangeCount = 0; }, addRange(r) { this.range = r; this.rangeCount = 1; },
+    };
+    selection.range = makeRange(textNode);
+    selection.range.setStart(textNode, 3);
+    selection.range.setEnd(textNode, 3 + TRIG.length);
+    return { host, s, textNode };
+  }
+
+  try {
+    let n = 0;
+
+    let f = field('healthy', true);
+    sandbox._cePasteInsert(f.host, 'BODY');
+    await wait(250);
+    if (f.s.pastedOver !== 'Hi ' || f.s.model !== 'Hi BODY') {
+      fail('lexical case: a healthy editor -> pasted over ' + JSON.stringify(f.s.pastedOver) +
+        ', field ' + JSON.stringify(f.s.model) + ', expected the trigger gone before the body and "Hi BODY"');
+    }
+    if (f.s.deletes !== 1 || f.s.focusCalls !== 0) {
+      fail('lexical case: a healthy editor was asked ' + f.s.deletes + ' times and refocused ' + f.s.focusCalls +
+        ' times, expected one delete and no refocus');
+    }
+    n++;
+
+    f = field('afterFocusLoss', true);
+    sandbox._cePasteInsert(f.host, 'BODY');
+    await wait(450);
+    if (f.s.pastedOver !== 'Hi ') {
+      fail('lexical case: the editor ignored the first delete -> the body was pasted over ' + JSON.stringify(f.s.pastedOver) +
+        ', expected the trigger gone first.\n' +
+        '  A claimed delete is not a delete: the snippet lands in front of a trigger that never left.');
+    }
+    if (f.s.model !== 'Hi BODY' || f.s.deletes !== 2 || f.s.focusCalls !== 1) {
+      fail('lexical case: after a focus loss -> field ' + JSON.stringify(f.s.model) + ', ' + f.s.deletes +
+        ' deletes, ' + f.s.focusCalls + ' refocuses; expected "Hi BODY", 2 deletes, 1 refocus');
+    }
+    n++;
+
+    f = field('never', true);
+    sandbox._cePasteInsert(f.host, 'BODY');
+    await wait(700);
+    if (f.s.pastes !== 1 || f.s.deletes !== 2) {
+      fail('lexical case: an editor that never deletes -> ' + f.s.pastes + ' pastes, ' + f.s.deletes +
+        ' deletes; expected the body still to go in once after one retry, never hung');
+    }
+    if (errors < 1) fail('lexical case: an editor that ignored the delete twice was not reported');
+    n++;
+
+    // Every other editor keeps the browser edit and a synchronous paste.
+    execCalls = 0;
+    f = field('healthy', false);
+    sandbox._cePasteInsert(f.host, 'BODY');
+    if (f.s.pastes !== 1 || execCalls !== 1 || f.s.deletes !== 0) {
+      fail('lexical case: a plain contenteditable -> ' + f.s.pastes + ' pastes, ' + execCalls + ' execCommand edits, ' +
+        f.s.deletes + ' editor deletes; expected the browser edit and a paste, all before it returns');
+    }
+    n++;
+    return n;
+  } finally {
+    Object.assign(doc, saved);
+    savedGlobals.forEach(([k, v]) => { sandbox[k] = v; });
+  }
+}
+
 (async () => {
   for (const c of cases) {
     await reset();
@@ -362,6 +501,6 @@ async function runPlaceholderCases() {
       '  Confirming from the suggestion menu would clip the wrong characters and\n' +
       '  leave part of the trigger in the message.');
   }
-  const extra = (await runPickerEnterCase()) + (await runPlaceholderCases());
+  const extra = (await runPickerEnterCase()) + (await runPlaceholderCases()) + (await runLexicalDeleteCases());
   console.log('OK Trigger expansion passed all ' + (cases.length + spanCases.length + 1 + extra) + ' cases');
 })();

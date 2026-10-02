@@ -11,13 +11,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { VERTICAL } = require('./vertical-words');
 
 const ROOT = path.join(__dirname, '..', 'user-docs');
 const PAGE_EXT = /\.mdx?$/;
 const LONG_DASH = /[–—]/;
-// Hospitality words the product must not ship (root CLAUDE.md, Industry-Neutral).
-// "stay" is left out on purpose: as a verb it is ordinary English.
-const VERTICAL = /\b(guests?|bookings?|reservations?|check-?ins?|check-?outs?|hotels?|nights)\b/i;
 
 const problems = [];
 const fail = (msg) => problems.push(msg);

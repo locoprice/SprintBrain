@@ -59,6 +59,12 @@ jobs:
       - name: Working memory parity check
         run: node scripts/check-memory-parity.js
 
+      - name: Phone memory pack parity check
+        run: node scripts/sync-memory-pack.js --check
+
+      - name: Phone memory chunk parity check
+        run: node scripts/sync-memory-chunk.js --check
+
       - name: Memory chunk + chat capture check
         run: node scripts/check-memory-chunk.js
 
@@ -67,6 +73,9 @@ jobs:
 
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
+
+      - name: Industry-neutral wording check
+        run: node scripts/check-industry-neutral.js
 
       - name: User docs house rules
         run: node scripts/check-docs.js

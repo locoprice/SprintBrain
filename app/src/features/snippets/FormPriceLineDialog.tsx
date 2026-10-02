@@ -21,8 +21,11 @@ import {
 import {
   ChoiceCards,
   ERROR,
+  ExampleBox,
+  ExampleResult,
   FormulaDialogFrame,
   HINT,
+  InsertsBox,
   MoreOptions,
   NameInput,
   NEW_BOX,
@@ -427,16 +430,11 @@ export function FormPriceLineDialog({
 
           {/* ── What it prints ── */}
           {example !== '' && (
-            <div className="rounded-[10px] border border-primary/25 bg-primary-light px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
-                Example
-              </p>
-              <p className="mt-1 text-xs text-ink">
-                With {priceName} at {samplePrice}
-                {spec.needsOther ? ` and ${otherName} at ${sampleOther}` : ''}, the line prints{' '}
-                <span className="font-mono font-semibold text-primary">{example}</span>
-              </p>
-            </div>
+            <ExampleBox>
+              With {priceName} at {samplePrice}
+              {spec.needsOther ? ` and ${otherName} at ${sampleOther}` : ''}, the line prints{' '}
+              <ExampleResult>{example}</ExampleResult>
+            </ExampleBox>
           )}
 
           <MoreOptions>
@@ -478,16 +476,7 @@ export function FormPriceLineDialog({
           </MoreOptions>
 
           {/* ── What lands in the body ── */}
-          {valid && (
-            <div className="rounded-[10px] border border-line bg-bg-alt px-3 py-2.5">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
-                Inserts
-              </p>
-              <code className="block break-all font-mono text-[11px] leading-relaxed text-ink-muted">
-                {token}
-              </code>
-            </div>
-          )}
+          {valid && <InsertsBox token={token} />}
         </>
       )}
     </FormulaDialogFrame>

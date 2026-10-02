@@ -29,6 +29,7 @@
 //
 // Math: +, -, *, /, parentheses, round(), floor(), ceil(), abs(), min(), max(),
 //   avg(): the mean of its arguments
+//   pow(X, N): X to the power N, which compound interest needs
 //   round(X, N): N decimals like a spreadsheet's ROUND; a negative N rounds to
 //     tens, hundreds. Every answer still prints with at most two decimals.
 //   datespan(A, B, "inclusive"|"between")  — how long a range lasts, or
@@ -44,7 +45,7 @@
   'use strict';
 
   // ── WHITELISTED FUNCTION NAMES ──────────────────────────────────
-  var FUNS = { round:1, floor:1, ceil:1, abs:1, min:1, max:1, avg:1, datetimediff:1 };
+  var FUNS = { round:1, floor:1, ceil:1, abs:1, min:1, max:1, avg:1, pow:1, datetimediff:1 };
 
   // ── DATE/TIME HELPERS ───────────────────────────────────────────
   function _pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -642,7 +643,7 @@
     function parseFactor() {
       if (str[pos] === '-') { pos++; return -parseFactor(); }
       if (str[pos] === '+') { pos++; return parseFactor(); }
-      var fnMatch = str.slice(pos).match(/^(round|floor|ceil|abs|min|max|avg)\(/);
+      var fnMatch = str.slice(pos).match(/^(round|floor|ceil|abs|min|max|avg|pow)\(/);
       if (fnMatch) {
         var fn = fnMatch[1];
         pos += fn.length + 1;
@@ -661,6 +662,7 @@
         if (fn === 'abs')   return Math.abs(args[0]);
         if (fn === 'min')   return Math.min.apply(null, args);
         if (fn === 'max')   return Math.max.apply(null, args);
+        if (fn === 'pow')   return Math.pow(args[0], args[1]);
       }
       if (str[pos] === '(') {
         pos++;

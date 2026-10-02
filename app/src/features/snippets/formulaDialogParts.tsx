@@ -12,11 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { cn } from '@/lib/utils';
 import { isValidFieldName } from '@/lib/formNumberToken';
-import { formulasInBody, type FormulaDecimals } from '@/lib/formulaToken';
+import { formulasInBody, hasDuplicateNames, type FormulaDecimals } from '@/lib/formulaToken';
 
-// The pieces the Price line and Calculator windows share, so the two look and
-// behave as one: same frame, same list of formulas already in the snippet, same
-// choice cards, same name fields.
+// The pieces the formula windows (Price line, Calculator, the two interest
+// windows) share, so they look and behave as one: same frame, same list of
+// formulas already in the snippet, same choice cards, same name fields.
 
 export const HINT = 'text-[11px] text-ink-subtle mt-1.5';
 export const ERROR = 'mt-1.5 text-[11px] text-danger';
@@ -154,6 +154,99 @@ export function NameInput({
         </p>
       ) : (
         <p className={HINT}>{hint}</p>
+      )}
+    </div>
+  );
+}
+
+/** What the line prints for sample numbers. `children` is the sentence. */
+export function ExampleBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-[10px] border border-primary/25 bg-primary-light px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
+        Example
+      </p>
+      <p className="mt-1 text-xs text-ink">{children}</p>
+    </div>
+  );
+}
+
+/** The printed answer inside an `ExampleBox` sentence. */
+export function ExampleResult({ children }: { children: ReactNode }) {
+  return <span className="font-mono font-semibold text-primary">{children}</span>;
+}
+
+/** Exactly what lands in the body. */
+export function InsertsBox({ token }: { token: string }) {
+  return (
+    <div className="rounded-[10px] border border-line bg-bg-alt px-3 py-2.5">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
+        Inserts
+      </p>
+      <code className="block break-all font-mono text-[11px] leading-relaxed text-ink-muted">
+        {token}
+      </code>
+    </div>
+  );
+}
+
+/**
+ * The names of the boxes a window adds, one row each, under More options. Only
+ * needed when a formula typed by hand reads one of them.
+ */
+export function BoxNames({
+  labels,
+  names,
+  onChange,
+  onEnter,
+  labelWidth = 'w-16',
+}: {
+  /** What each box is, beside its name. */
+  labels: readonly string[];
+  names: readonly string[];
+  onChange: (index: number, next: string) => void;
+  onEnter: () => void;
+  labelWidth?: string;
+}) {
+  const duplicate = hasDuplicateNames([...names]);
+  const namesValid = names.every(isValidFieldName);
+  return (
+    <div>
+      <span className={SECTION_LABEL}>Box names</span>
+      <div className="flex flex-col gap-2">
+        {names.map((name, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className={cn(labelWidth, 'shrink-0 text-xs text-ink-subtle')}>{labels[i]}</span>
+            <Input
+              value={name}
+              aria-label={`${labels[i]} box name`}
+              // Stripped as typed, not rejected after: a space failing
+              // validation with no visible cause is worse.
+              onChange={(e) => onChange(i, e.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  onEnter();
+                }
+              }}
+              className={cn(
+                'h-10 rounded-[10px] font-mono',
+                !isValidFieldName(name) && 'border-danger focus:border-danger focus:ring-danger/20',
+              )}
+            />
+          </div>
+        ))}
+      </div>
+      {duplicate ? (
+        <p className={ERROR}>Each box needs its own name, or two boxes fill as one.</p>
+      ) : !namesValid ? (
+        <p className={ERROR}>
+          Letters, numbers and underscore, starting with a letter. For example NUM_1.
+        </p>
+      ) : (
+        <p className={HINT}>
+          Only needed if a formula you type by hand reads these boxes. A box left empty counts as 0.
+        </p>
       )}
     </div>
   );

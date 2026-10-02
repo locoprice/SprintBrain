@@ -35,6 +35,8 @@
 ## 🔺 Tripartite Parity: Snippets, Prompts, Memory (Non-Negotiable)
 **Snippets, Prompts and Memory are one product in three shapes.** The shell is identical, the contents are not. A user who learns one section must already know how to drive the other two: same page, same menus, same styling, same words. What differs between them is only what each one *is* (see 2). Any other difference is a defect, not a feature.
 
+**Its name is Brain.** Everything a person reads calls the third section **Brains**, and one space **a Brain**: dashboard, extension, phone, manual and landing alike. Never label it "Memory" in the interface. "Memory" stays only as the name inside the code (`memory_*` tables, the `/memory` route, `memory-pack.js`) and in these engineering notes. (The owners' naming, recorded 2026-10-02.)
+
 ### 1. Feature parity is automatic, not optional
 Any change requested for one of the three is a change to all three. This includes new features, settings, options, filters, sort orders, bulk actions, keyboard shortcuts, empty states, loading and error states, confirmations, toasts, search behaviour, and every fix that alters behaviour a user can see.
 
@@ -48,7 +50,7 @@ Parity governs the interface, never the nature of each section. These difference
 
 - **The organising model.** Snippets organise into **folders** (a rail plus a breadcrumb), prompts filter by those same folders as chips, memory organises into its own **spaces**. Never push spaces onto snippets or prompts, and never push folders onto memory.
 - **Capabilities that only make sense for one content type.** Snippet form-field dialogs, trigger and expansion settings, version history, language variants, prompt block editing, memory shards and steps. These belong where they belong.
-- **What a surface deliberately does not carry.** Prompts are read-only on the extension; mobile carries no management UI and no memory section (see 📱 Mobile: what a snippet *is and does* is fully synchronised there, what *organises* snippets is not). Standing decisions, not drift.
+- **What a surface deliberately does not carry.** Prompts are read-only on the extension; mobile carries no management UI, and its Brains section reads, copies and adds text without managing Brains (see 📱 Mobile: what a snippet *is and does* is fully synchronised there, what *organises* snippets and Brains is not). Standing decisions, not drift.
 
 Everything else is shared: if a capability is generic (search, filter, sort, select, rename, duplicate, delete, share, export, an item menu), it belongs in all three.
 
@@ -68,7 +70,7 @@ A component built for one section is the same component in the other two: same s
 
 - Add a menu to snippets and you add the identical menu, with identical items, order, icons, wording pattern, spacing and open/close behaviour, to prompts and memory. Items that do not apply to a section are omitted, never restyled.
 - Same trigger gesture, same placement, same animation, same keyboard handling, same disabled and empty conditions.
-- Wording follows the same pattern with only the noun changed (`New snippet` / `New prompt` / `New memory`).
+- Wording follows the same pattern with only the noun changed (`New snippet` / `New prompt` / `New Brain`).
 - **Build shared, not copied.** Extract the component or the helper and use it in all three. Duplicated markup is already banned (🚫 Forbidden) and is how drift starts.
 
 ### 5. Every surface, every copy
@@ -133,13 +135,18 @@ Mobile is verified at phone width, not by trusting the desktop. It cannot be rea
 ### Synchronised: everything a snippet is and does
 Field kinds, body tokens, attributes, defaults, formatting, the fill form and every control in it, expansion output, search, filters, sort, labels, folder assignment, wording, empty and error states. If it changes what a snippet is or how it is used, mobile gets it in the same task. Never "mobile next version".
 
-### Still deliberately absent (unchanged, and not a gap)
-Mobile is a **quick-access companion, not a management surface**. It has no folder rename or delete, no full CRUD management UI, and no memory section. Those are standing decisions, not backlog. Do not build them, and do not propose "closing the parity gap" on them. If one is genuinely needed, ask Valentina first.
+### Synchronised: using a Brain (since v3.53.0)
+The Brains page lists Brains, opens one, reads its items, copies or shares an item or the whole Brain, and adds text to a Brain. Anything that changes what an item is, what a Brain hands an AI, the item fields Add text writes, or their limits and wording, reaches mobile in the same task, under the same rule as snippets. The text "Copy whole Brain" and "Use now" hand out comes from `extension/shared/memory-pack.js` (`formatInjectedBlock`), the block the extension's Context button inserts.
 
-The line: **what a snippet is and does is synchronised; what organises snippets stays on the dashboard.**
+Since v3.54.0 the phone also **saves into a Brain** what comes from elsewhere: text or a link shared from another app (Android's Share menu once the page is installed, through `app/public/mobile/manifest.webmanifest`; an iPhone Shortcut opening `/mobile/?text=…`), or pasted with **Paste & save**. It is the extension's Save to Brain in the phone's frame, and the two stay one feature: where text is cut, what each piece is called and what its summary says come from `extension/shared/memory-chunk.js` (`chunkText`, `captureName`, `captureSummary`), which the extension's Save to Brain and chat capture use too. Since v3.55.0 so does which Brain is offered first: `suggestBrain` reads the words of the capture against each Brain's name, description and item names and summaries, on the device and nowhere else, and `pickBrain` with `loadLastBrain` / `saveLastBrain` falls back to the last Brain used, then the default. A change to how a capture is cut, named, summarised or routed is made there, once, and reaches every capture path in the same task.
+
+### Still deliberately absent (unchanged, and not a gap)
+Mobile is a **quick-access companion, not a management surface**. It has no folder rename or delete, no full CRUD management UI, and no Brain management: creating, renaming and trashing Brains, editing or deleting items, uploading files, history and trash stay on the dashboard. Those are standing decisions, not backlog. Do not build them, and do not propose "closing the parity gap" on them. If one is genuinely needed, ask Valentina first. (The Brains section itself was opened on 2026-10-02, approved for reading, copying and adding text.)
+
+The line: **what a snippet is and does, and using a Brain, are synchronised; what organises snippets and Brains stays on the dashboard.**
 
 ### Why it drifts, and how not to let it
-Mobile is a single self-contained file that cannot load `extension/`. It carries a **generated copy** of the shared fill-form module (`node scripts/sync-fill-form.js`, gated by `scripts/check-fill-form.js`) and **its own parser and resolver**, mirrored by hand from `extension/formula-engine.js` and pinned by `scripts/check-snippets.js`. So an engine change that alters output has to be ported there deliberately. Regenerate the block, port the parser change, write the markup, then look at it on a phone-width screen.
+Mobile is a single self-contained file that cannot load `extension/`. It carries **generated copies** of the shared fill-form module (`node scripts/sync-fill-form.js`, gated by `scripts/check-fill-form.js`) of the memory pack (`node scripts/sync-memory-pack.js`, whose `--check` also pins that the token count and the Brain copy go through it) and of the memory chunker (`node scripts/sync-memory-chunk.js`, whose `--check` also pins that Save to Brain cuts, names, summarises and picks its Brain through it), and **its own parser and resolver**, mirrored by hand from `extension/formula-engine.js` and pinned by `scripts/check-snippets.js`. So an engine change that alters output has to be ported there deliberately. Regenerate the block, port the parser change, write the markup, then look at it on a phone-width screen.
 
 Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRLF and stage a whole-file rewrite. Check `git diff --numstat` before committing.
 

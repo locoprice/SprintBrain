@@ -14,6 +14,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="/icon48.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icon16.png">
 <style>
+/* SHARED:base-css:BEGIN */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#FAFAFA;--bg-alt:#F2F2F7;--card:#fff;
@@ -68,9 +69,10 @@ img,svg{display:block;max-width:100%}
 .nav-link{padding:8px 14px;font-size:14px;font-weight:500;color:var(--text2);
   white-space:nowrap;border-radius:var(--r-btn);transition:color .15s,background .15s}
 .nav-link:hover{color:var(--text);background:var(--bg-alt)}
+.nav-link[aria-current="page"]{color:var(--primary);background:var(--primary-lt)}
 /* The GitHub star is the most expendable nav item, so it's first to go
-   when the bar gets tight below ~900px. */
-@media(max-width:900px){
+   when the bar gets tight below ~1100px. */
+@media(max-width:1100px){
   .nav-links .btn-github{display:none}
 }
 
@@ -96,9 +98,9 @@ img,svg{display:block;max-width:100%}
 .nav-account-item-primary{color:var(--primary)}
 .nav-account-item-primary svg{color:var(--primary)}
 
-/* MOBILE MENU (hamburger + full-screen drawer). Hidden above 640px, where
+/* MOBILE MENU (hamburger + full-screen drawer). Hidden above 1000px, where
    .nav-account carries the same destinations in a compact popover instead.
-   Rules that size and open the drawer live in the 640px media query below;
+   Rules that size and open the drawer live in the 1000px media query below;
    these two just keep both controls out of the way until then. */
 .nav-burger{display:none;align-items:center;justify-content:center;
   width:38px;height:38px;border-radius:var(--r-btn);flex-shrink:0;
@@ -125,7 +127,9 @@ img,svg{display:block;max-width:100%}
 .btn-github:hover{background:var(--bg-alt);border-color:#D1D1D6;transform:translateY(-1px)}
 .btn-github:active{transform:translateY(0)}
 .btn-github svg{flex-shrink:0}
+/* SHARED:base-css:END */
 
+/* SHARED:hero-css:BEGIN */
 /* HERO */
 .hero{
   padding:54px 24px 72px;position:relative;overflow:hidden;
@@ -160,6 +164,8 @@ img,svg{display:block;max-width:100%}
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   animation:heroSheen 9s ease-in-out infinite}
 @keyframes heroSheen{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+/* SHARED:hero-css:END */
+
 .hero p{font-size:clamp(17px,2vw,20px);color:var(--text2);
   max-width:620px;margin:0 auto 12px;line-height:1.55}
 .hero p.hero-slogan{
@@ -243,6 +249,7 @@ img,svg{display:block;max-width:100%}
 .context-copy strong{color:var(--text)}
 .context-copy p{font-size:18px;color:var(--text2);max-width:620px;margin-left:auto;margin-right:auto}
 .foot-statement.context-finale h2{font-size:clamp(32px,4.5vw,48px)}
+.foot-statement.context-finale .context-finale-title{font-size:clamp(20px,3vw,32px);font-weight:600}
 .context-finale h3{color:var(--card);font-size:clamp(20px,3vw,32px);font-weight:600;margin-top:24px}
 .context-finale p{font-size:18px;color:var(--border);margin-top:24px}
 
@@ -419,6 +426,7 @@ img,svg{display:block;max-width:100%}
   font-weight:400;
   letter-spacing:0}
 
+/* SHARED:footer-css:BEGIN */
 /* FOOTER */
 footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
 .foot-support{max-width:var(--max);margin:0 auto 30px;padding-bottom:30px;
@@ -433,9 +441,9 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 .foot-logo-nvidia{height:40px}
 .foot-logo-google{height:42px}
 .foot-inner{max-width:var(--max);margin:0 auto;display:flex;
-  flex-direction:row;justify-content:space-between;align-items:center;gap:16px}
+  flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px}
 .foot-brand{display:flex;align-items:center;gap:10px;font-size:14px;color:#AEAEB2}
-.foot-links{display:flex;gap:20px;font-size:13.5px;color:#C7C7CC}
+.foot-links{display:flex;flex-wrap:wrap;gap:20px;font-size:13.5px;color:#C7C7CC}
 .foot-links a{color:#C7C7CC}
 .foot-links a:hover{color:#fff}
 /* LANGUAGE PICKER
@@ -450,11 +458,15 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 .foot-lang a{color:#8E8E93;transition:color .15s}
 .foot-lang a:hover{color:#fff}
 .foot-lang-current{color:#fff;font-weight:600}
+/* SHARED:footer-css:END */
 
 @media (max-width:640px){
+/* SHARED:mobile-hero-css:BEGIN */
   .hero{padding:56px 20px 52px}
   .hero::before{background-size:44px 44px}
   .hero h1{letter-spacing:-.028em}
+/* SHARED:mobile-hero-css:END */
+
   .hero p.hero-slogan{text-align:left;margin-left:0;margin-right:0;max-width:none}
   .hero-ctas{flex-direction:column;align-items:center;gap:16px}
   .hero-ctas .btn-primary{width:100%;justify-content:center;height:52px;font-size:16px}
@@ -466,39 +478,12 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .hero-ctas .btn-ghost:hover{background:transparent;transform:none;color:var(--text)}
   .hero-proof{gap:12px}
   .section{padding:64px 20px}
-  .nav-inner{padding:12px 16px;gap:12px}
-  .nav-link,.nav-links .btn-primary svg{display:none}
-  .nav-account{display:none}
-  .nav-burger{display:inline-flex}
-  .nav-drawer{
-    display:flex;flex-direction:column;
-    position:fixed;inset:0;z-index:100;
-    background:var(--card);padding:14px 16px 20px;
-    overflow-y:auto;-webkit-overflow-scrolling:touch;
-    opacity:0;visibility:hidden;transform:translateY(-10px);
-    transition:opacity .2s ease,transform .2s ease,visibility .2s ease}
-  .nav-drawer.nav-drawer-open{opacity:1;visibility:visible;transform:translateY(0)}
-  body.nav-drawer-locked{overflow:hidden}
-  .nav-drawer-head{display:flex;align-items:center;justify-content:space-between;
-    padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
-  .nav-drawer-close{display:grid;place-items:center;
-    width:38px;height:38px;border-radius:var(--r-btn);
-    background:transparent;border:1px solid var(--border);color:var(--text2);
-    cursor:pointer;transition:background .15s,color .15s}
-  .nav-drawer-close:hover{background:var(--bg-alt);color:var(--text)}
-  .nav-drawer-links{display:flex;flex-direction:column;padding:4px 0}
-  .nav-drawer-links>a{display:flex;align-items:center;gap:12px;
-    padding:16px 4px;font-size:17px;font-weight:600;color:var(--text);
-    border-bottom:1px solid var(--border)}
-  .nav-drawer-links>a:last-child{border-bottom:none}
-  .nav-drawer-links>a svg{color:var(--text3);flex-shrink:0}
-  .nav-drawer-links>a:hover{background:var(--bg-alt)}
-  .nav-drawer-ctas{display:flex;gap:10px;margin-top:auto;padding-top:20px}
-  .nav-drawer-ctas .btn{flex:1;padding:13px 16px}
+
   .demo-body{padding:22px 18px 24px}
   .demo{margin-top:0;box-shadow:0 12px 34px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06)}
   .demo-output{min-height:150px;font-size:14px}
   .demo-url{margin-left:8px;font-size:11px}
+/* SHARED:mobile-footer-css:BEGIN */
   footer{padding:28px 20px}
   .foot-support{margin-bottom:22px;padding-bottom:22px;gap:16px}
   .foot-logos{gap:18px 30px}
@@ -508,6 +493,8 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .foot-inner{flex-direction:column;gap:14px}
   .foot-brand{flex-wrap:wrap;gap:4px 6px;font-size:12px}
   .foot-links{flex-wrap:wrap;gap:6px 14px;font-size:12px}
+/* SHARED:mobile-footer-css:END */
+
 }
 
 /* ── FEATURES v2: dark editorial grid ──────────────────── */
@@ -770,9 +757,6 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 #platforms[data-tab="mobile"] .sb-stage{aspect-ratio:1.2}
 #platforms[data-tab="mobile"] .sb-stage:before,#platforms[data-tab="mobile"] .sb-orbit{display:none}
 #platforms[data-tab="mobile"] .sb-motion{background:#ffffffd9;border-color:#fff;color:var(--sb-blue)}
-#platforms .sb-mobile-heading{position:absolute;left:6%;right:15%;top:7%;display:flex;align-items:center;gap:10px;font:500 clamp(7px,1.5cqi,11px)/1.3 var(--sb-mono,monospace);letter-spacing:.15em;color:#5c7094;z-index:2}
-#platforms .sb-mobile-heading-rule{height:1px;background:#c4d1eb;flex:1;margin:0 3%}
-#platforms .sb-mobile-signal{width:5px;height:5px;border-radius:50%;background:var(--sb-blue);box-shadow:0 0 10px #1b4fd833}
 #platforms .sb-mobile-depth{position:absolute;inset:0;transform:rotateX(var(--sb-tilt-x)) rotateY(var(--sb-tilt-y));transition:transform .7s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d}
 #platforms .sb-mobile-blueprint{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #platforms .sb-mobile-phone{position:absolute;left:43%;top:16.8%;width:23%;height:57%;transform:translateY(0) rotateZ(-5deg);transform-style:preserve-3d;animation:sb-mobile-device 9s cubic-bezier(.45,0,.55,1) infinite;animation-play-state:var(--sb-animation-state,paused)}
@@ -857,6 +841,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .fm-dialog{padding:28px 24px 24px}
   .fm-title{font-size:22px}}
 
+/* SHARED:contact-css:BEGIN */
 /* ── CONTACT MODAL ───────────────────────────────────────
    Deliberately light, unlike the dark .fm-* feature modals above: it frames a
    JotForm embed, which renders on its own white ground, and a dark frame
@@ -899,6 +884,7 @@ body.cm-locked{overflow:hidden}
 @media(max-width:600px){
   .cm-backdrop{padding:12px}
   .cm-frame{height:min(88vh,620px)}}
+/* SHARED:contact-css:END */
 
 /* ── PARTNER SPOTLIGHT ─────────────────────────────────────── */
 .ps{
@@ -944,6 +930,8 @@ body.cm-locked{overflow:hidden}
 .ps-card:hover::after{opacity:1}
 .ps-logo-wrap{height:40px;display:flex;align-items:center;margin-bottom:24px}
 .ps-logo-wrap img{height:34px;width:auto;display:block}
+.ps-logo-link{display:inline-flex;align-items:center;min-height:44px;border-radius:6px}
+.ps-logo-link:focus-visible{outline:3px solid var(--primary);outline-offset:5px}
 .ps-badge{
   display:inline-flex;align-items:center;gap:6px;
   background:var(--primary-lt);color:var(--primary);
@@ -983,10 +971,72 @@ body.cm-locked{overflow:hidden}
   .ps-grid{grid-template-columns:1fr;gap:16px}
   .ps-card{padding:28px 24px 26px}
   .ps-head{margin-bottom:44px}}
+
+/* Free-access campaign integrated into the dark closing section. */
+#prompt-access{margin:48px auto 40px;padding:40px 0 0;max-width:var(--max);border-top:1px solid #2b2d33;scroll-margin-top:90px;text-align:left;color:#f6f7fa}
+#prompt-access .pa-card{display:grid;grid-template-columns:1.1fr 1fr;gap:36px 48px;align-items:center;background:transparent}
+#prompt-access .pa-copy,#prompt-access .pa-clock{min-width:0}
+#prompt-access .pa-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;background:#1b4fd81f;border:1px solid #34446e;border-radius:var(--r-pill);color:#a9c0ff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#prompt-access .pa-badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+#prompt-access h2{font-size:clamp(28px,3.1vw,38px);line-height:1.13;letter-spacing:-1.1px;margin:18px 0 14px;max-width:490px;color:#f6f7fa}
+#prompt-access .pa-intro{font-size:16px;line-height:1.7;color:#b9bdc8;max-width:460px;margin:0}
+#prompt-access .pa-cta{margin-top:24px;white-space:normal;text-align:center}
+#prompt-access .pa-cta:focus-visible{outline:3px solid #a9c0ff;outline-offset:4px}
+#prompt-access .pa-clock-label{font-size:13px;font-weight:600;color:#a9c0ff;margin:0 0 16px}
+#prompt-access .pa-digits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#prompt-access .pa-unit{min-width:0;padding:20px 4px 16px;text-align:center;background:#191b22;border:1px solid #303542;border-radius:14px}
+#prompt-access .pa-number{display:block;font-variant-numeric:tabular-nums;font-size:clamp(28px,3.5vw,44px);font-weight:600;line-height:1.1;letter-spacing:-1.4px;color:#f6f7fa}
+#prompt-access .pa-unit-label{display:block;margin-top:9px;font-size:11px;font-weight:500;color:#b9bdc8}
+#prompt-access .pa-date{font-size:12px;color:#a9aeba;line-height:1.7;margin-top:15px}
+#prompt-access .pa-policy{grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr;gap:16px 32px;padding-top:26px;border-top:1px solid #2b2d33;font-size:14px;line-height:1.7}
+#prompt-access .pa-policy h3{font-size:15px;font-weight:650;color:#f6f7fa;margin:0}
+#prompt-access .pa-policy p{color:#b9bdc8;font-size:14px;line-height:1.7;margin:0}
+#prompt-access .pa-policy strong{font-weight:600;color:#f6f7fa}
+#prompt-access .pa-policy .pa-terms{margin-top:8px}
+#prompt-access noscript{display:block;font-size:12px;color:#a9aeba;margin-top:12px}
+@media(max-width:800px){#prompt-access .pa-card{grid-template-columns:1fr;gap:30px}#prompt-access .pa-clock{max-width:480px;width:100%}#prompt-access .pa-policy{grid-template-columns:1fr;gap:8px}}
+@media(max-width:440px){#prompt-access{margin-top:32px;padding-top:32px}#prompt-access .pa-digits{gap:6px}#prompt-access .pa-unit{padding:16px 2px 12px;border-radius:10px}#prompt-access .pa-number{font-size:28px}#prompt-access .pa-unit-label{font-size:10px}#prompt-access .pa-cta{width:100%}}
+
+/* SHARED:mobile-nav-css:BEGIN */
+/* Use the existing mobile menu before the expanded navigation becomes crowded. */
+@media(max-width:1000px){
+  .nav-inner{padding:12px 16px;gap:12px}
+  .nav-link,.nav-links .btn-primary svg{display:none}
+  .nav-account{display:none}
+  .nav-burger{display:inline-flex}
+  .nav-drawer{
+    display:flex;flex-direction:column;
+    position:fixed;inset:0;z-index:100;
+    background:var(--card);padding:14px 16px 20px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    opacity:0;visibility:hidden;transform:translateY(-10px);
+    transition:opacity .2s ease,transform .2s ease,visibility .2s ease}
+  .nav-drawer.nav-drawer-open{opacity:1;visibility:visible;transform:translateY(0)}
+  body.nav-drawer-locked{overflow:hidden}
+  .nav-drawer-head{display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+  .nav-drawer-close{display:grid;place-items:center;
+    width:38px;height:38px;border-radius:var(--r-btn);
+    background:transparent;border:1px solid var(--border);color:var(--text2);
+    cursor:pointer;transition:background .15s,color .15s}
+  .nav-drawer-close:hover{background:var(--bg-alt);color:var(--text)}
+  .nav-drawer-links{display:flex;flex-direction:column;padding:4px 0}
+  .nav-drawer-links>a{display:flex;align-items:center;gap:12px;
+    padding:16px 4px;font-size:17px;font-weight:600;color:var(--text);
+    border-bottom:1px solid var(--border)}
+  .nav-drawer-links>a:last-child{border-bottom:none}
+  .nav-drawer-links>a svg{color:var(--text3);flex-shrink:0}
+  .nav-drawer-links>a:hover{background:var(--bg-alt)}
+  .nav-drawer-ctas{display:flex;gap:10px;margin-top:auto;padding-top:20px}
+  .nav-drawer-ctas .btn{flex:1;padding:13px 16px}
+}
+/* SHARED:mobile-nav-css:END */
+
 </style>
 </head>
 <body>
 
+<!-- SHARED:header:BEGIN -->
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="brand">
@@ -995,6 +1045,7 @@ body.cm-locked{overflow:hidden}
     </a>
     <div class="nav-links">
       <a href="#features" class="nav-link">Features</a>
+      <a href="pricing/" class="nav-link">Pricing</a>
       <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
       <a href="mailto:sprintbrainapp@gmail.com" class="nav-link" id="nav-contact-open">Contact us</a>
       <a href="https://github.com/locoprice/SprintBrain" class="btn btn-github btn-sm" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star on GitHub</a>
@@ -1022,7 +1073,7 @@ body.cm-locked{overflow:hidden}
   </div>
 </nav>
 
-<!-- Mobile drawer (≤640px only). Deliberately a sibling of <nav>, not nested
+<!-- Mobile drawer (≤1000px only). Deliberately a sibling of <nav>, not nested
      inside it: .nav sets backdrop-filter for its frosted sticky bar, and
      like `filter`, that makes .nav the containing block for any
      position:fixed descendant — inset:0 would then fill .nav's own ~62px
@@ -1045,6 +1096,7 @@ body.cm-locked{overflow:hidden}
   </div>
   <div class="nav-drawer-links">
     <a href="#features" class="nav-link">Features</a>
+      <a href="pricing/" class="nav-link">Pricing</a>
     <a href="https://app.sprintbrain.com/mobile/" class="nav-link">Mobile</a>
     <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Star on GitHub</a>
     <a href="https://app.sprintbrain.com/login">
@@ -1057,6 +1109,7 @@ body.cm-locked{overflow:hidden}
     <a href="https://app.sprintbrain.com/signup" class="btn btn-ghost"><span>Sign up</span></a>
   </div>
 </div>
+<!-- SHARED:header:END -->
 
 <section class="hero">
   <div class="hero-inner">
@@ -1346,7 +1399,7 @@ LeibTour Team</div>
         <h3 class="fs-card-title">Your library, on any phone.</h3>
         <p class="fs-card-body">
           Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,
-          no download. Pin what you use daily, fill a snippet's fields, and copy the finished text.
+          no download. Pin what you use daily, fill a snippet's fields, copy the finished text, and add notes to your Brains on the go.
         </p>
         <button class="fs-cta" type="button" aria-label="Learn more about mobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -1451,7 +1504,7 @@ LeibTour Team</div>
           <div class="sb-copy" data-platform="mobile">
             <div class="sb-index" aria-hidden="true"><span>03 / 04</span><span class="sb-index-line"></span></div>
             <h3>Mobile Website</h3>
-            <p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>
+            <p>Browse, search, and copy snippets, prompts and Brains on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>
             <div class="sb-badge"><svg width="20" height="20" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg><span>No download required</span></div>
           </div>
           <div class="sb-copy" data-platform="security">
@@ -1466,7 +1519,6 @@ LeibTour Team</div>
             <div class="sb-orbit" aria-hidden="true"></div>
             <button class="sb-motion" type="button" aria-label="Pause animation" aria-pressed="false" data-pause-label="Pause animation" data-resume-label="Resume animation" hidden><svg width="20" height="20" aria-hidden="true" focusable="false" class="sb-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="3" width="5" height="18" rx="1"></rect><rect x="5" y="3" width="5" height="18" rx="1"></rect></svg><svg width="20" height="20" aria-hidden="true" focusable="false" class="sb-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg></button>
             <div class="sb-mobile-scene" hidden>
-              <div class="sb-mobile-heading" aria-hidden="true"><span class="sb-mobile-signal"></span><span>SPRINTBRAIN</span><span class="sb-mobile-heading-rule"></span><span>03 / 04</span></div>
               <div class="sb-mobile-depth">
                 <svg class="sb-mobile-blueprint" viewBox="0 0 720 600" fill="none" aria-hidden="true" focusable="false">
                   <defs>
@@ -1573,7 +1625,9 @@ LeibTour Team</div>
       <!-- LeibTour -->
       <article class="ps-card">
         <div class="ps-logo-wrap">
-          <img src="leibtour-logo.png" alt="LeibTour">
+          <a class="ps-logo-link" href="https://leibtour.com" target="_blank" rel="noopener">
+            <img src="leibtour-logo.png" alt="LeibTour">
+          </a>
         </div>
         <div class="ps-badge">
           <span class="ps-badge-dot" aria-hidden="true"></span>
@@ -1598,7 +1652,9 @@ LeibTour Team</div>
       <!-- Locoprice -->
       <article class="ps-card">
         <div class="ps-logo-wrap">
-          <img src="locoprice-logo.png" alt="Locoprice">
+          <a class="ps-logo-link" href="https://locoprice.com" target="_blank" rel="noopener">
+            <img src="locoprice-logo.png" alt="Locoprice">
+          </a>
         </div>
         <div class="ps-badge">
           <span class="ps-badge-dot" aria-hidden="true"></span>
@@ -1628,14 +1684,42 @@ LeibTour Team</div>
 
 <section class="foot-statement context-finale">
   <div class="foot-statement-inner">
-    <h2>Experience SprintBrain</h2>
-    <h3>Give your AI the context it needs.</h3>
+    <h2 class="context-finale-title">Give your AI the context it needs.</h2>
     <div class="sec-ctas"><a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Try SprintBrain Free →</a></div>
-    <p>Start building your personal AI context system today.</p>
-    <p><strong>SprintBrain</strong><br><em>Your context. Every AI. One direction.</em></p>
+
+    <section id="prompt-access" aria-labelledby="pa-title">
+      <div class="pa-card">
+        <div class="pa-copy">
+          <span class="pa-badge" data-pa-expired="Free tier + pay-per-use">Join by the end of 2026</span>
+          <h2 id="pa-title" data-pa-expired="Advanced prompt engineering. Built around your usage.">SprintBrain, free for life.</h2>
+          <p class="pa-intro" data-pa-expired="Users who signed up or downloaded SprintBrain by December 31, 2026 keep the app free for life. New users receive a free usage allowance, with pay-per-use pricing beyond it.">Advanced prompt engineering, with lifetime free access. All existing users and anyone who signs up or downloads SprintBrain by December 31, 2026 will keep the app free for life.</p>
+          <a class="btn btn-primary pa-cta" href="https://app.sprintbrain.com/signup" data-pa-expired="Get started with SprintBrain →">Create your free lifetime account →</a>
+        </div>
+        <div class="pa-clock">
+          <p class="pa-clock-label" id="pa-clock-label" role="status" data-pa-expired="The lifetime free offer has ended">Claim lifetime free access within</p>
+          <div class="pa-digits" role="timer" aria-labelledby="pa-clock-label" aria-live="off">
+            <div class="pa-unit"><span class="pa-number" data-pa-unit="days">--</span><span class="pa-unit-label">Days</span></div>
+            <div class="pa-unit"><span class="pa-number" data-pa-unit="hours">--</span><span class="pa-unit-label">Hours</span></div>
+            <div class="pa-unit"><span class="pa-number" data-pa-unit="minutes">--</span><span class="pa-unit-label">Minutes</span></div>
+            <div class="pa-unit"><span class="pa-number" data-pa-unit="seconds">--</span><span class="pa-unit-label">Seconds</span></div>
+          </div>
+          <p class="pa-date"><time datetime="2026-12-31T23:59:59+01:00">December 31, 2026 · 23:59:59</time><br><span>Italian time · Europe/Rome (CET)</span></p>
+          <noscript>Enable JavaScript to see the live countdown. The deadline above remains valid.</noscript>
+        </div>
+        <div class="pa-policy">
+          <h3>What changes on January 1, 2027?</h3>
+          <div>
+            <p data-pa-expired="Lifetime free access remains unchanged for users who joined or downloaded SprintBrain by the end of 2026. Pay-per-use pricing beyond the free allowance applies only to new users joining from January 1, 2027."><strong>Your lifetime free access stays free.</strong> Only new users joining from January 1, 2027 will have a free usage allowance followed by pay-per-use pricing beyond the defined limit.</p>
+            <p class="pa-terms"><strong>Thresholds and rates will be announced before activation.</strong></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 </section>
 
+<!-- SHARED:footer:BEGIN -->
 <footer>
   <div class="foot-support">
     <span class="foot-support-label">Supported by</span>
@@ -1652,6 +1736,7 @@ LeibTour Team</div>
   </nav>
   <div class="foot-inner">
     <div class="foot-links">
+      <a href="pricing/">Pricing</a>
       <a href="https://app.sprintbrain.com/mobile/">Mobile</a>
       <a href="https://github.com/locoprice/SprintBrain" target="_blank" rel="noopener">GitHub</a>
       <a href="mailto:sprintbrainapp@gmail.com" id="contact-open">Support</a>
@@ -1665,7 +1750,7 @@ LeibTour Team</div>
     </div>
   </div>
 </footer>
-
+<!-- SHARED:footer:END -->
 
 <!-- Feature modal -->
 <div class="fm-backdrop" id="fm-backdrop" role="dialog" aria-modal="true" aria-labelledby="fm-title" aria-hidden="true">
@@ -1684,6 +1769,7 @@ LeibTour Team</div>
      accessible name in JS from the control that opened it (see the contact
      modal IIFE), and the embed supplies its own heading, so adding the form
      needed no new copy for the translated pages. -->
+<!-- SHARED:contact:BEGIN -->
 <div class="cm-backdrop" id="cm-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="cm-dialog">
     <button type="button" class="cm-close" id="cm-close" aria-label="Close">
@@ -1692,6 +1778,53 @@ LeibTour Team</div>
     <iframe class="cm-frame" id="cm-frame" loading="lazy" allow="geolocation; microphone; camera; fullscreen"></iframe>
   </div>
 </div>
+<!-- SHARED:contact:END -->
+
+<script id="prompt-access-countdown">
+(function () {
+  var root = document.getElementById('prompt-access');
+  if (!root) return;
+  // Rome is UTC+01:00 at this fixed winter deadline, irrespective of visitor timezone.
+  var deadline = Date.parse('2026-12-31T23:59:59+01:00');
+  var policyStart = Date.parse('2027-01-01T00:00:00+01:00');
+  var units = ['days', 'hours', 'minutes', 'seconds'].map(function (name) {
+    return root.querySelector('[data-pa-unit="' + name + '"]');
+  });
+  var copy = Array.from(root.querySelectorAll('[data-pa-expired]')).map(function (node) {
+    return {node: node, active: Array.from(node.childNodes).map(function (child) { return child.cloneNode(true); })};
+  });
+  var previousState;
+  var timeout;
+  function render() {
+    var now = Date.now();
+    var total = Math.max(0, Math.ceil((deadline - now) / 1000));
+    var values = [Math.floor(total / 86400), Math.floor(total / 3600) % 24, Math.floor(total / 60) % 60, total % 60];
+    units.forEach(function (node, index) {
+      var value = String(values[index]).padStart(2, '0');
+      if (node.textContent !== value) node.textContent = value;
+    });
+    var expired = now >= policyStart;
+    if (expired !== previousState) {
+      copy.forEach(function (item) {
+        if (expired) item.node.textContent = item.node.dataset.paExpired;
+        else if (previousState !== undefined) item.node.replaceChildren.apply(item.node, item.active.map(function (child) { return child.cloneNode(true); }));
+      });
+      root.dataset.expired = String(expired);
+      previousState = expired;
+    }
+    return expired;
+  }
+  function tick() {
+    clearTimeout(timeout);
+    var expired = render();
+    if (!expired && !document.hidden) timeout = setTimeout(tick, 1000 - Date.now() % 1000);
+  }
+  document.addEventListener('visibilitychange', tick);
+  window.addEventListener('pageshow', tick);
+  window.addEventListener('pagehide', function () { clearTimeout(timeout); });
+  tick();
+})();
+</script>
 
 <script>
 (function(){
@@ -1729,7 +1862,7 @@ LeibTour Team</div>
     {
       tag:'06 · Mobile',
       title:'Your library, on any phone.',
-      body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet from the same library.',
+      body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet, prompt or Brain from the same library.',
       detail:'<strong>Built for one hand</strong>Add it to your home screen for instant launch. Pin the snippets you use daily to the top, switch between language variants on the detail page, fill any fields, and copy the finished text straight to your clipboard.'
     },
     {
@@ -1785,6 +1918,7 @@ LeibTour Team</div>
   });
 })();
 
+// SHARED:controls-js:BEGIN
 (function(){
   var trigger=document.getElementById('nav-account-trigger');
   var menu=document.getElementById('nav-account-menu');
@@ -1857,7 +1991,7 @@ LeibTour Team</div>
     if(e.key==='Escape'&&isOpen()){closeDrawer();burger.focus();}
   });
   window.addEventListener('resize',function(){
-    if(isOpen()&&window.innerWidth>640)closeDrawer();
+    if(isOpen()&&window.innerWidth>1000)closeDrawer();
   });
 })();
 
@@ -1910,6 +2044,7 @@ LeibTour Team</div>
     if(e.key==='Escape'&&isOpen()){closeModal();if(opener)opener.focus();}
   });
 })();
+// SHARED:controls-js:END
 
 /* Progressive enhancement: one screenshot stage, all original copy in HTML. */
 (function(){
@@ -2174,6 +2309,7 @@ LeibTour Team</div>
   }
 })();
 
+// SHARED:footer-js:BEGIN
 (function(){
   var yearEl=document.getElementById('foot-year');
   if(yearEl)yearEl.textContent=String(new Date().getFullYear());
@@ -2185,7 +2321,7 @@ LeibTour Team</div>
   var eyebrow=document.querySelector('.hero-eyebrow');
   var eyebrowText=eyebrow?eyebrow.textContent:'';
   var versionMatch=eyebrowText.indexOf('{{')>-1?null:eyebrowText.match(/v\d+[\d.]*/);
-  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.50.1';
+  var FALLBACK_VERSION=versionMatch?versionMatch[0]:'v3.55.1';
   // Heal the hero badge on unstamped serves (sprintbrain.com is build-less), same as the footer below.
   if(eyebrow&&eyebrowText.indexOf('{{')>-1)eyebrow.textContent=eyebrowText.replace('{{EXT_VERSION}}',FALLBACK_VERSION);
   // Month: always current date. Production has the stamped release month; previews show today.
@@ -2195,6 +2331,8 @@ LeibTour Team</div>
   var updEl=document.getElementById('foot-updated');
   if(updEl&&updEl.textContent.indexOf('{{')>-1)updEl.textContent=' · Updated '+FALLBACK_MONTH;
 })();
+// SHARED:footer-js:END
+
 </script>
 <!-- SB_TOOLTIP:BEGIN (generated from extension/shared/tooltip.js by scripts/sync-tooltip.js, do not edit) -->
 <script>

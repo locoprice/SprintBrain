@@ -192,8 +192,8 @@
       "count": 1
     },
     {
-      "find": "          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,\n          no download. Pin what you use daily, fill a snippet's fields, and copy the finished text.",
-      "replace": "          Explora, busca y copia desde <b>iOS</b> y <b>Android</b> en el navegador. Sin portátil,\n          sin descargas. Fija arriba lo que usas cada día, rellena los campos de un snippet y copia el texto final.",
+      "find": "          Browse, search, and copy from <b>iOS</b> and <b>Android</b> in the browser. No laptop,\n          no download. Pin what you use daily, fill a snippet's fields, copy the finished text, and add notes to your Brains on the go.",
+      "replace": "          Explora, busca y copia desde <b>iOS</b> y <b>Android</b> en el navegador. Sin portátil,\n          sin descargas. Fija arriba lo que usas cada día, rellena los campos de un snippet, copia el texto final y añade notas a tus Brains sobre la marcha.",
       "count": 1
     },
     {
@@ -352,8 +352,8 @@
       "count": 1
     },
     {
-      "find": "<p>Browse, search, and copy snippets on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>",
-      "replace": "<p>Explora, busca y copia snippets en iOS o Android, directamente desde Safari o Chrome. Sin descargas, sin app store. Abre una URL y ya estás dentro.</p>",
+      "find": "<p>Browse, search, and copy snippets, prompts and Brains on iOS or Android, straight from Safari or Chrome. No download, no app store. Just open a URL and you're in.</p>",
+      "replace": "<p>Explora, busca y copia snippets, prompts y Brains en iOS o Android, directamente desde Safari o Chrome. Sin descargas, sin app store. Abre una URL y ya estás dentro.</p>",
       "count": 1
     },
     {
@@ -577,8 +577,8 @@
       "count": 1
     },
     {
-      "find": "body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet from the same library.'",
-      "replace": "body:'Abre <code>app.sprintbrain.com/mobile</code> en <b>Safari o Chrome</b> en cualquier dispositivo iOS o Android. Sin descargas, sin app store. Explora, busca y copia con un toque cualquier snippet de la misma biblioteca.'",
+      "find": "body:'Open <code>app.sprintbrain.com/mobile</code> in <b>Safari or Chrome</b> on any iOS or Android device. No download, no app store. Browse, search, and one-tap copy any snippet, prompt or Brain from the same library.'",
+      "replace": "body:'Abre <code>app.sprintbrain.com/mobile</code> en <b>Safari o Chrome</b> en cualquier dispositivo iOS o Android. Sin descargas, sin app store. Explora, busca y copia con un toque cualquier snippet, prompt o Brain de la misma biblioteca.'",
       "count": 1
     },
     {
@@ -867,23 +867,8 @@
       "count": 1
     },
     {
-      "find": ">Experience SprintBrain<",
-      "replace": ">Descubre SprintBrain<",
-      "count": 1
-    },
-    {
       "find": ">Give your AI the context it needs.<",
       "replace": ">Dale a tu IA el contexto que necesita.<",
-      "count": 1
-    },
-    {
-      "find": ">Start building your personal AI context system today.<",
-      "replace": ">Empieza hoy a crear tu sistema personal de contexto para IA.<",
-      "count": 1
-    },
-    {
-      "find": ">Your context. Every AI. One direction.<",
-      "replace": ">Tu contexto. Cada IA. Una dirección.<",
       "count": 1
     },
     {
@@ -984,6 +969,168 @@
     {
       "find": "data-source-label=\"SprintBrain · Mobile Website\"",
       "replace": "data-source-label=\"SprintBrain · Sitio móvil\"",
+      "count": 1
+    },
+    {
+      "find": "Free tier + pay-per-use",
+      "replace": "Cuota gratuita + pago por uso",
+      "count": 1
+    },
+    {
+      "find": "Join by the end of 2026",
+      "replace": "Regístrate antes de que termine 2026",
+      "count": 1
+    },
+    {
+      "find": "Advanced prompt engineering. Built around your usage.",
+      "replace": "Prompt engineering avanzado. Según tu uso.",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain, free for life.",
+      "replace": "SprintBrain, gratis de por vida.",
+      "count": 1
+    },
+    {
+      "find": "Users who signed up or downloaded SprintBrain by December 31, 2026 keep the app free for life. New users receive a free usage allowance, with pay-per-use pricing beyond it.",
+      "replace": "Quienes se registraron o descargaron SprintBrain hasta el 31 de diciembre de 2026 mantienen la aplicación gratis de por vida. Los nuevos usuarios disponen de un límite de uso gratuito y, después, pago por uso.",
+      "count": 1
+    },
+    {
+      "find": "Advanced prompt engineering, with lifetime free access. All existing users and anyone who signs up or downloads SprintBrain by December 31, 2026 will keep the app free for life.",
+      "replace": "Prompt engineering avanzado, con acceso gratuito de por vida. Todos los usuarios ya registrados y quienes se registren o descarguen SprintBrain hasta el 31 de diciembre de 2026 tendrán la aplicación gratis para siempre.",
+      "count": 1
+    },
+    {
+      "find": "Get started with SprintBrain →",
+      "replace": "Empieza con SprintBrain →",
+      "count": 1
+    },
+    {
+      "find": "Create your free lifetime account →",
+      "replace": "Crea tu cuenta gratis de por vida →",
+      "count": 1
+    },
+    {
+      "find": "The lifetime free offer has ended",
+      "replace": "La oferta de acceso gratuito de por vida ha terminado",
+      "count": 1
+    },
+    {
+      "find": "Claim lifetime free access within",
+      "replace": "Consigue acceso gratuito de por vida en",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Days",
+      "replace": "class=\"pa-unit-label\">Días",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Hours",
+      "replace": "class=\"pa-unit-label\">Horas",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Minutes",
+      "replace": "class=\"pa-unit-label\">Minutos",
+      "count": 1
+    },
+    {
+      "find": "class=\"pa-unit-label\">Seconds",
+      "replace": "class=\"pa-unit-label\">Segundos",
+      "count": 1
+    },
+    {
+      "find": "December 31, 2026 · 23:59:59",
+      "replace": "31 de diciembre de 2026 · 23:59:59",
+      "count": 1
+    },
+    {
+      "find": "Italian time · Europe/Rome (CET)",
+      "replace": "Hora italiana · Europe/Rome (CET)",
+      "count": 1
+    },
+    {
+      "find": "Enable JavaScript to see the live countdown. The deadline above remains valid.",
+      "replace": "Activa JavaScript para ver la cuenta atrás. La fecha indicada sigue siendo válida.",
+      "count": 1
+    },
+    {
+      "find": "What changes on January 1, 2027?",
+      "replace": "¿Qué cambia el 1 de enero de 2027?",
+      "count": 1
+    },
+    {
+      "find": "Lifetime free access remains unchanged for users who joined or downloaded SprintBrain by the end of 2026. Pay-per-use pricing beyond the free allowance applies only to new users joining from January 1, 2027.",
+      "replace": "El acceso gratuito de por vida no cambia para quienes se registraron o descargaron SprintBrain hasta finales de 2026. El pago por uso por encima del límite gratuito solo se aplica a los nuevos usuarios desde el 1 de enero de 2027.",
+      "count": 1
+    },
+    {
+      "find": "<strong>Your lifetime free access stays free.</strong> Only new users joining from January 1, 2027 will have a free usage allowance followed by pay-per-use pricing beyond the defined limit.",
+      "replace": "<strong>Tu acceso gratuito de por vida seguirá siendo gratuito.</strong> Solo los nuevos usuarios que se unan a partir del 1 de enero de 2027 tendrán un límite de uso gratuito y pago por uso a partir de ese límite.",
+      "count": 1
+    },
+    {
+      "find": "Thresholds and rates will be announced before activation.",
+      "replace": "Los límites y las tarifas se comunicarán antes de la activación.",
+      "count": 1
+    },
+    {
+      "find": "<a href=\"pricing/\" class=\"nav-link\">Pricing</a>",
+      "replace": "<a href=\"pricing/\" class=\"nav-link\">Precio</a>",
+      "count": 2
+    },
+    {
+      "find": "<a href=\"pricing/\">Pricing</a>",
+      "replace": "<a href=\"pricing/\">Precio</a>",
+      "count": 1
+    }
+  ],
+  "pricingEntries": [
+    {
+      "find": "Pricing · Coming soon — SprintBrain",
+      "replace": "Precio · Coming soon — SprintBrain",
+      "count": 1
+    },
+    {
+      "find": "SprintBrain pricing is coming soon. No subscription. Genuine pay per use. Lifetime credit.",
+      "replace": "El precio de SprintBrain estará disponible pronto. Sin suscripciones. Solo pago por uso. Crédito sin caducidad.",
+      "count": 1
+    },
+    {
+      "find": "Skip to content",
+      "replace": "Ir al contenido",
+      "count": 1
+    },
+    {
+      "find": ">Pricing<",
+      "replace": ">Precio<",
+      "count": 1
+    },
+    {
+      "find": "Our pricing principles",
+      "replace": "Nuestros principios de precios",
+      "count": 1
+    },
+    {
+      "find": "No monthly / yearly subscription. No pathetic marketing.",
+      "replace": "Sin suscripciones mensuales / anuales. Sin marketing patético.",
+      "count": 1
+    },
+    {
+      "find": "Only genuine pay per use.",
+      "replace": "Solo auténtico pago por uso.",
+      "count": 1
+    },
+    {
+      "find": "Lifetime credit.",
+      "replace": "Crédito sin caducidad.",
+      "count": 1
+    },
+    {
+      "find": "Revenue invested in top Developers and Ai coding model",
+      "replace": "Ingresos invertidos en los mejores desarrolladores y modelos de IA para programar",
       "count": 1
     }
   ]
