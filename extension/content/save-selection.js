@@ -175,24 +175,19 @@
       var parts  = packed.chunks;
       if (!parts.length) { setNote('Nothing to save.', true); return; }
 
-      // Same naming rule as the chat capture: names are unique per user among
-      // live rows, so the timestamp is what makes saving the same page twice an
-      // addition rather than an error.
-      var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      var base  = title.slice(0, 40);
+      // Named and summarised by the rule every capture shares (the chat
+      // capture and the phone's Save to Brain use it too): the page title,
+      // then the moment of the save, which keeps names unique.
+      var when = new Date();
       // A data: URL carries the whole document in location.href. Provenance is
       // worth keeping; a megabyte of it inside a jsonb column is not.
       var source = location.href.slice(0, 2048);
 
       var payloads = parts.map(function (body, i) {
-        var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
         return {
           p_shard_id: null,
-          p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
-          // An excerpt, not a description of one. This column is what the
-          // picker lists and what knowledge_search ranks on, so the clipping's
-          // own words find it again; "saved from example.com" would not.
-          p_summary: flatten(body).slice(0, 280),
+          p_name: chunker.captureName(title, when, i + 1, parts.length),
+          p_summary: chunker.captureSummary(body),
           p_body: body,
           p_editor_display: 'Extension',
           p_space_id: spaceId,

@@ -8,6 +8,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="SprintBrain">
 <meta name="theme-color" content="#1B4FD8">
+<!-- Installed from the browser menu, the page becomes an app, and on Android
+     that app is listed in every Share menu: the manifest's share_target opens
+     /mobile/?title=…&text=…&url=…, which lands in Save to Brain. Its scope is
+     the whole site, so signing in never leaves the app's window. -->
+<link rel="manifest" href="/mobile/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/mobile/apple-touch-icon.png">
 <title>SprintBrain</title>
 <style>
 /* ── DESIGN SYSTEM v1.1 — canonical tokens (mirrors harmonized-final.html) ── */
@@ -751,14 +757,14 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   -webkit-tap-highlight-color:transparent;min-height:44px
 }
 .sb-modal-header button:active{background:rgba(255,255,255,.15)}
-#sb-modal-cancel,#sb-mem-cancel{font-size:20px;line-height:1}
+#sb-modal-cancel,#sb-mem-cancel,#sb-cap-cancel{font-size:20px;line-height:1}
 .sb-modal-title{
   flex:1;font-size:16px;font-weight:700;text-align:center;letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
-#sb-modal-save,#sb-mem-save{font-weight:700}
+#sb-modal-save,#sb-mem-save,#sb-cap-save{font-weight:700}
 #sb-modal-save.saved{color:#A7F0BA;background:rgba(255,255,255,.1)}
-#sb-mem-save:disabled{opacity:.55}
+#sb-mem-save:disabled,#sb-cap-save:disabled{opacity:.55}
 .sb-modal-body{
   flex:1;display:flex;flex-direction:column;
   overflow-y:auto;padding:16px;gap:14px
@@ -816,7 +822,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   width:18px;height:18px;padding:0;border:none;border-radius:0;background:none;
   -webkit-appearance:checkbox;appearance:auto;accent-color:var(--primary)}
 /* Add text opens on its fields; the error line takes room only when it speaks. */
-#sb-mem-err:empty{display:none}
+#sb-mem-err:empty,#sb-cap-err:empty{display:none}
+/* Save to Brain: where the text came from, and what saving it will make. */
+.sb-cap-note{font-size:13px;color:var(--text2);line-height:1.45;padding:0 2px}
+.sb-cap-note:empty{display:none}
 
 /* Folder row inside Edit modal */
 .sb-field-row{
@@ -1036,6 +1045,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 }
 .mbrain-act:active{transform:scale(.97)}
 .mbrain-act.is-primary{background:var(--primary);color:#fff;border-color:transparent}
+/* Paste & save takes a row of its own, under the Brain's two actions. */
+.mbrain-act.is-wide{grid-column:1/-1}
+/* On All Brains it is the only action, with nothing above it to space from. */
+.fhead>.mbrain-acts:first-child{margin-top:4px}
 .mbrain-act[disabled]{opacity:.45;cursor:default}
 .mbrain-act[disabled]:active{transform:none}
 .mbrain-act svg,.mbrain-warn svg{width:17px;height:17px;flex-shrink:0;
@@ -1575,6 +1588,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <li data-maction="copy-brain"><span class="sb-sheet-act-i">📋</span> Copy whole Brain</li>
       <li data-maction="share-brain"><span class="sb-sheet-act-i">📤</span> Share…</li>
       <li data-maction="add"><span class="sb-sheet-act-i">✏️</span> Add text</li>
+      <li data-maction="paste"><span class="sb-sheet-act-i">📥</span> Paste &amp; save</li>
       <li data-maction="brain-info"><span class="sb-sheet-act-i">ℹ️</span> Brain info</li>
     </ul>
     <ul class="sb-sheet-actions" data-mem-for="item">
@@ -1660,6 +1674,33 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       </span>
       <input type="checkbox" id="sb-mem-pinned">
     </label>
+  </div>
+</div>
+
+<!-- SAVE TO BRAIN: text or a link shared from another app, or pasted, saved
+     into a Brain. The extension's Save to Brain in the edit modal's frame:
+     the text, where it came from, and the Brain it goes to. Its name is made
+     for it, by the rule every capture shares. -->
+<div id="sb-cap-modal" class="sb-edit-modal sb-hidden" role="dialog" aria-modal="true" aria-labelledby="sb-cap-modal-title">
+  <div class="sb-modal-header">
+    <button id="sb-cap-cancel" type="button" aria-label="Cancel">✕</button>
+    <span class="sb-modal-title" id="sb-cap-modal-title">Save to Brain</span>
+    <button id="sb-cap-save" type="button">Save</button>
+  </div>
+  <div class="sb-modal-body">
+    <div class="sb-modal-err" id="sb-cap-err" role="alert"></div>
+    <div class="sb-field-group">
+      <label for="sb-cap-brain" class="sb-field-label">Brain</label>
+      <select id="sb-cap-brain"></select>
+    </div>
+    <div class="sb-field-group sb-field-group-grow">
+      <div class="sb-field-head">
+        <label for="sb-cap-text" class="sb-field-label">Text</label>
+        <span class="sb-field-count" id="sb-cap-count" aria-live="polite"></span>
+      </div>
+      <textarea id="sb-cap-text" placeholder="Paste or type what to save"></textarea>
+    </div>
+    <div class="sb-cap-note" id="sb-cap-note" aria-live="polite"></div>
   </div>
 </div>
 
@@ -3091,6 +3132,178 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 }(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
 </script>
 <!-- SB_MEMORY_PACK:END -->
+<!-- SB_MEMORY_CHUNK:BEGIN (generated from extension/shared/memory-chunk.js by scripts/sync-memory-chunk.js, do not edit) -->
+<script>
+// MEMORY CHUNKER — splits long text into shard-sized pieces, and names the
+// pieces a capture saves (captureName, captureSummary, at the end of the file).
+//
+// The database caps memory_shards.body at 20,000 characters, and the cap is
+// deliberate: anything larger is a document, not a fact, and no token budget
+// survives attaching one. Capturing a chat transcript is the first thing that
+// routinely exceeds it, so this is where the splitting rule lives.
+//
+// SHARED ON PURPOSE. Document upload (MEMORY-002 S3) has the identical problem
+// and must reuse this rather than write a second splitter, or the two will
+// disagree about where a boundary falls and the same file will chunk
+// differently depending on how it arrived.
+//
+// The rule, in order of preference:
+//   1. Never split inside a turn. A half-sentence attributed to the wrong
+//      speaker is worse than an extra chunk.
+//   2. A turn that is itself over the cap is split on paragraph, then line,
+//      then hard character count. That last case is a genuine loss of
+//      structure, so it is reported rather than done silently.
+//   3. Pack greedily up to the cap. Fewer, fuller chunks beat many small ones,
+//      because every chunk costs a name, a summary and an index entry.
+(function (root) {
+  'use strict';
+
+  // Must stay at or below the memory_shards_body_length CHECK in
+  // services/supabase/migrations/20260822000000_working_memory.sql. Held a
+  // little under so a joining separator can never push a chunk over.
+  var MAX_BODY = 19800;
+
+  var SEPARATOR = '\n\n';
+
+  /** Split one oversized string on the largest boundary that fits. */
+  function splitOversized(text, limit, forced) {
+    var out = [];
+    var rest = String(text == null ? '' : text);
+
+    while (rest.length > limit) {
+      // Prefer a paragraph break, then a line break, then give up and cut.
+      var cut = rest.lastIndexOf('\n\n', limit);
+      if (cut < limit * 0.5) cut = rest.lastIndexOf('\n', limit);
+      if (cut < limit * 0.5) {
+        cut = limit;
+        forced.count += 1;
+      }
+      out.push(rest.slice(0, cut));
+      rest = rest.slice(cut).replace(/^\n+/, '');
+    }
+    if (rest.length) out.push(rest);
+    return out;
+  }
+
+  /**
+   * Pack an array of blocks into chunks no larger than `limit`.
+   *
+   * Returns { chunks: string[], forced: number } where `forced` counts the
+   * times a block had to be cut mid-paragraph because no boundary existed.
+   * A caller that cares about fidelity can surface that.
+   */
+  function chunkBlocks(blocks, limit) {
+    var max = typeof limit === 'number' && limit > 0 ? limit : MAX_BODY;
+    var forced = { count: 0 };
+    var chunks = [];
+    var current = '';
+
+    function flush() {
+      if (current.length) chunks.push(current);
+      current = '';
+    }
+
+    for (var i = 0; i < blocks.length; i++) {
+      var block = String(blocks[i] == null ? '' : blocks[i]).trim();
+      if (!block) continue;
+
+      if (block.length > max) {
+        // This single block does not fit on its own. Emit what is buffered,
+        // then break the block down before continuing.
+        flush();
+        var pieces = splitOversized(block, max, forced);
+        for (var p = 0; p < pieces.length; p++) chunks.push(pieces[p]);
+        continue;
+      }
+
+      var candidate = current ? current + SEPARATOR + block : block;
+      if (candidate.length > max) {
+        flush();
+        current = block;
+      } else {
+        current = candidate;
+      }
+    }
+    flush();
+
+    return { chunks: chunks, forced: forced.count };
+  }
+
+  /** Convenience for plain text with no turn structure (S3 documents). */
+  function chunkText(text, limit) {
+    var max = typeof limit === 'number' && limit > 0 ? limit : MAX_BODY;
+    var body = String(text == null ? '' : text);
+    if (body.length <= max) return { chunks: body.trim() ? [body.trim()] : [], forced: 0 };
+    return chunkBlocks(body.split(/\n{2,}/), max);
+  }
+
+  // ── What a capture is called ────────────────────────────────────────────
+  // Three paths save captured text into a Brain: the extension's Save to Brain
+  // (a highlighted selection), its chat capture (a whole conversation) and the
+  // phone's Save to Brain (text shared from another app, or pasted). They name
+  // what they save the same way, here, so a Brain reads the same whichever one
+  // filled it. Uploaded files are named by the dashboard instead
+  // (app/src/lib/documentImport.ts): a file has a name of its own, a capture
+  // only has a source and a moment.
+
+  // The memory_shards name and summary CHECKs.
+  var NAME_MAX = 64;
+  var SUMMARY_MAX = 280;
+  // The most of a name the source's title may take. The rest is the moment of
+  // the save, which is what tells two saves from the same page apart.
+  var TITLE_MAX = 40;
+
+  /** One line of plain text. */
+  function flatten(text) {
+    return String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+  }
+
+  function pad(n) {
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  /**
+   * "Pasta at home · 2026-10-02 14:30:05", then " (2/3)" when the text was
+   * split. Names are unique per account among live rows, so the moment, to the
+   * second and on the saver's own clock, is what makes saving from the same
+   * page twice an addition rather than an error. The moment and the part are
+   * never what gets cut: the title is shortened to make room for them.
+   */
+  function captureName(title, when, part, parts) {
+    var d = when instanceof Date && !isNaN(when.getTime()) ? when : new Date();
+    var tail = ' · ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+      (parts > 1 ? ' (' + part + '/' + parts + ')' : '');
+    var head = flatten(title).slice(0, Math.min(TITLE_MAX, NAME_MAX - tail.length)).trim();
+    return (head || 'Untitled') + tail;
+  }
+
+  /**
+   * An excerpt, not a description of one. The summary column is what the
+   * picker lists and what knowledge_search ranks on, so the clipping's own
+   * words find it again; "saved from example.com" would not.
+   */
+  function captureSummary(text) {
+    return flatten(text).slice(0, SUMMARY_MAX);
+  }
+
+  var API = {
+    MAX_BODY: MAX_BODY,
+    chunkBlocks: chunkBlocks,
+    chunkText: chunkText,
+    captureName: captureName,
+    captureSummary: captureSummary
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = API;
+  } else {
+    root.SBMemoryChunk = API;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this));
+</script>
+<!-- SB_MEMORY_CHUNK:END -->
 <!-- SB_INTERACTIVE_STEPS:BEGIN (generated from extension/shared/interactive-steps.js by scripts/check-interactive-steps.js --write, do not edit) -->
 <script>
 // interactive-steps.js: the "Interactive Steps" prompt setting, decided once.
@@ -3269,6 +3482,7 @@ function handle401(r){
 }
 function logout(){
   try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+  capSignOut();
   redirectToLogin();
 }
 /* Server-side session liveness — the dashboard's Settings → Security can
@@ -5524,6 +5738,7 @@ var SPACE_ICON_SVGS={
 };
 var MEM_COPY_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 var MEM_PLUS_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+var MEM_PASTE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>';
 var MEM_WARN_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
 
 function spaceIcon(ico){
@@ -5609,6 +5824,7 @@ function loadMemory(){
   if(memLoading){memReloadQueued=true;return;}
   memLoading=true;memFailed=false;
   renderMemory();
+  if(capOpen())capFillBrains();
   Promise.all([
     memFetchAll('memory_spaces',MEM_SPACE_SELECT,'is_default.desc,name.asc'),
     memFetchAll('memory_shards',MEM_ITEM_SELECT,'pinned.desc,updated_at.desc')
@@ -5632,6 +5848,7 @@ function loadMemory(){
     memLoading=false;
     if(memReloadQueued){memReloadQueued=false;loadMemory();return;}
     renderMemory();refreshOpenFilterPanel();syncFilterHeader();
+    if(capOpen())capFillBrains();
   });
 }
 
@@ -5679,11 +5896,23 @@ function memEmptyHtml(emo,title,hint){
   return '<div class="empty"><div class="emo">'+emo+'</div><p>'+esc(title)+'</p>'
     +(hint?'<p class="empty-hint">'+esc(hint)+'</p>':'')+'</div>';
 }
+/* Paste & save, in one place on All Brains and in every open Brain. */
+function memPasteActHtml(){
+  return '<button type="button" class="mbrain-act is-wide" data-mem-act="paste">'
+    +MEM_PASTE_SVG+'<span>Paste &amp; save</span></button>';
+}
 /* The open Brain's header, in the selected-folder header's slot: the way back,
-   the Brain, its size, and the two things done with it. */
+   the Brain, its size, and what is done with it. On All Brains the slot holds
+   Paste & save alone, once there is a Brain to save into. */
 function renderMemHead(brain){
   var el=document.getElementById('mem-head');
-  if(!brain){el.hidden=true;el.innerHTML='';return;}
+  if(!brain){
+    if(memLoaded&&allBrains.length){
+      el.innerHTML='<div class="mbrain-acts">'+memPasteActHtml()+'</div>';
+      el.hidden=false;
+    }else{el.hidden=true;el.innerHTML='';}
+    return;
+  }
   var items=memItemsOf(brain.id), tok=memTokensOf(items);
   el.innerHTML='<div class="fhead-crumbs">'
       +'<button type="button" class="fhead-crumb" data-mem-home>All Brains</button>'
@@ -5696,6 +5925,7 @@ function renderMemHead(brain){
       +'<button type="button" class="mbrain-act is-primary" data-mem-act="copy"'+(items.length?'':' disabled')+'>'
         +MEM_COPY_SVG+'<span>Copy whole Brain</span></button>'
       +'<button type="button" class="mbrain-act" data-mem-act="add">'+MEM_PLUS_SVG+'<span>Add text</span></button>'
+      +memPasteActHtml()
     +'</div>'
     +(tok>MEM_LONG_TOKENS
       ?'<div class="mbrain-warn" role="note">'+MEM_WARN_SVG
@@ -5929,6 +6159,7 @@ function closeMemSheet(now){
       else if(act==='copy-brain'){copyBrain(b);closeMemSheet();}
       else if(act==='share-brain'){shareBrain(b);}
       else if(act==='add'){closeMemSheet();setTimeout(function(){openMemAdd(b.id);},320);}
+      else if(act==='paste'){pasteCapture(b.id);closeMemSheet();}
       else if(act==='brain-info'){closeMemSheet();setTimeout(function(){openBrainInfo(b);},320);}
       return;
     }
@@ -5982,9 +6213,14 @@ function syncMemClear(){
     if(e.target.closest('[data-mem-home]')){memBack('memBrain',closeBrain);return;}
     var act=e.target.closest('[data-mem-act]');
     if(act){
+      if(act.disabled)return;
+      var what=act.getAttribute('data-mem-act');
+      // Read on this tap: a phone hands over its clipboard only to the tap
+      // that asked for it.
+      if(what==='paste'){pasteCapture(curBrain);return;}
       var b=memBrainById(curBrain);
-      if(!b||act.disabled)return;
-      if(act.getAttribute('data-mem-act')==='copy')copyBrain(b);
+      if(!b)return;
+      if(what==='copy')copyBrain(b);
       else openMemAdd(b.id);
       return;
     }
@@ -6017,8 +6253,7 @@ function syncMemClear(){
 })();
 
 /* ── Memory: Add text ── */
-/* One new item, through memory_save_shard like every other surface: the save
-   writes the row, its first version and the audit entry in one transaction. */
+/* One new item, written on the phone with the dashboard editor's fields. */
 var memAddSaving=false;
 /* Set when the modal is being closed on purpose, so the history step it pops
    does not ask about discarding. */
@@ -6084,6 +6319,27 @@ function memSaveError(data,name){
   if(code==='42501')return 'You do not have access to that Brain.';
   return (data&&data.message)?String(data.message):'Could not save this item.';
 }
+/* One memory_save_shard call, the write every surface goes through: the row,
+   its first version and the audit entry, in one transaction. Resolves to ''
+   once saved, else to the sentence that says why not. */
+function memSaveShard(payload){
+  return fetch(SUPA+'/rest/v1/rpc/memory_save_shard',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(handle401(r))return 'Signed out. Sign in again to save.';
+    return r.json().catch(function(){return null;}).then(function(data){
+      if(r.ok)return '';
+      console.error('[SprintBrain] A save to a Brain was refused:',r.status,data);
+      return memSaveError(data,payload.p_name);
+    });
+  },function(e){
+    // Nothing came back at all: the request never reached SprintBrain.
+    console.error('[SprintBrain] A save to a Brain could not be sent:',e);
+    return 'Could not reach SprintBrain. Check your connection and try again.';
+  });
+}
 function memEditorDisplay(){
   var u=SESSION&&SESSION.user;
   var meta=(u&&u.user_metadata)||{};
@@ -6111,38 +6367,21 @@ function saveMemAdd(){
   memAddSaving=true;
   var save=document.getElementById('sb-mem-save');
   save.disabled=true;save.textContent='Saving…';
-  fetch(SUPA+'/rest/v1/rpc/memory_save_shard',{
-    method:'POST',
-    headers:authHeaders({'Content-Type':'application/json'}),
-    body:JSON.stringify({
-      p_shard_id:null, p_name:name, p_summary:summary, p_body:body,
-      p_editor_display:memEditorDisplay(), p_space_id:brain.id, p_kind:kind,
-      p_metadata:{}, p_pinned:pinned, p_priority:0, p_edit_note:null, p_surface:'mobile'
-    })
-  }).then(function(r){
-    if(handle401(r))return {refused:'Signed out. Sign in again to save.'};
-    return r.json().catch(function(){return null;}).then(function(data){
-      if(r.ok)return {saved:true};
-      console.error('[SprintBrain] Add text was refused:',r.status,data);
-      return {refused:memSaveError(data,name)};
-    });
-  }).then(function(result){
-    if(result.refused){
+  memSaveShard({
+    p_shard_id:null, p_name:name, p_summary:summary, p_body:body,
+    p_editor_display:memEditorDisplay(), p_space_id:brain.id, p_kind:kind,
+    p_metadata:{}, p_pinned:pinned, p_priority:0, p_edit_note:null, p_surface:'mobile'
+  }).then(function(refused){
+    if(refused){
       memAddSaving=false;
       save.disabled=false;save.textContent='Add item';
-      memAddError(result.refused);
+      memAddError(refused);
       return;
     }
     memTakenNames[name.toLowerCase()]=true;
     leaveMemAdd();
     showToast('Item added ✓');
     loadMemory();
-  },function(e){
-    // Nothing came back at all: the request never reached SprintBrain.
-    console.error('[SprintBrain] Add text could not be sent:',e);
-    memAddSaving=false;
-    save.disabled=false;save.textContent='Add item';
-    memAddError('Could not reach SprintBrain. Check your connection and try again.');
   });
 }
 (function(){
@@ -6162,6 +6401,271 @@ function saveMemAdd(){
     leaveMemAdd();
   });
 })();
+
+/* ── Memory: Save to Brain ── */
+/* Text or a link from somewhere else, saved into a Brain: shared from another
+   app (Android's Share menu, an iPhone Shortcut, any link to /mobile/?text=…)
+   or pasted with Paste & save. It is saved the way the extension's Save to
+   Brain saves a selection: cut, named and summarised by the shared module
+   (SB_MEMORY_CHUNK), one item per piece. */
+var CAPTURE_KEY='sb_mob_capture';
+var CAPTURE_BRAIN_KEY='sb_mob_capture_brain';
+/* Long enough to sign in and come back; short enough that a share nobody
+   finished does not greet a visit days later. */
+var CAPTURE_TTL=60*60*1000;
+var capPending=null;      // a share this page load received
+var capSource=null;       // {title,url,host} of the text being saved
+var capInitial='';        // the text as it arrived, to tell an edit from none
+var capWantBrain=null;    // the Brain the capture started in, if any
+var capBatch=null;        // the pieces of a save that stopped part way
+var capSaving=false, capLeaving=false;
+
+/* The first web address in a text, without the punctuation a sentence puts
+   after it. */
+function capFirstUrl(text){
+  var m=String(text||'').match(/https?:\/\/[^\s<>"]+/i);
+  return m?m[0].replace(/[).,;:!?'\]]+$/,''):'';
+}
+function capHost(url){
+  try{return new URL(url).hostname;}catch(e){return '';}
+}
+/* What a share hands over, as one capture. Android puts a page's address in
+   url, many apps put it inside text instead, and a Shortcut sends text alone.
+   The text is what gets saved; a bare link brings its page title along, so
+   the item says what it points to. */
+function capFromShare(title,text,url){
+  title=String(title||'').trim();text=String(text||'').trim();url=String(url||'').trim();
+  if(!url)url=capFirstUrl(text);
+  var lines=[];
+  if(text)lines.push(text);
+  else if(title&&title!==url)lines.push(title);
+  if(url&&lines.join('\n').indexOf(url)===-1)lines.push(url);
+  return {title:title,url:url,host:url?capHost(url):'',text:lines.join('\n\n')};
+}
+/* Where the text on screen came from: the share's own source, else the first
+   link in what was pasted or typed. */
+function capSourceFor(text){
+  var src=capSource||{};
+  if(src.url)return src;
+  var url=capFirstUrl(text);
+  return {title:src.title||'',url:url,host:url?capHost(url):''};
+}
+/* What a capture is named after: the page's title, else the site when the
+   text is only its link, else the text's own first words. */
+function capTitle(src,text){
+  if(src.title)return src.title;
+  var flat=String(text||'').replace(/\s+/g,' ').trim();
+  var onlyLink=!!flat&&!/\s/.test(flat)&&capFirstUrl(flat)===src.url;
+  if(src.host&&(!flat||onlyLink))return src.host;
+  return flat;
+}
+/* The items one capture becomes. Pinned by scripts/sync-memory-chunk.js: the
+   cut, the names and the summaries all come from the shared module. */
+function capturePayloads(text,brainId,src){
+  var packed=SBMemoryChunk.chunkText(text);
+  var parts=packed.chunks, when=new Date(), title=capTitle(src,text);
+  return parts.map(function(body,i){
+    var meta={part:i+1,parts:parts.length};
+    if(src.url){meta.source_url=src.url.slice(0,2048);meta.host=src.host;}
+    return {
+      p_shard_id:null,
+      p_name:SBMemoryChunk.captureName(title,when,i+1,parts.length),
+      p_summary:SBMemoryChunk.captureSummary(body),
+      p_body:body,
+      p_editor_display:memEditorDisplay(),
+      p_space_id:brainId,
+      p_kind:'note',
+      p_metadata:meta,
+      p_pinned:false, p_priority:0, p_edit_note:null, p_surface:'mobile'
+    };
+  });
+}
+
+function capOpen(){return !document.getElementById('sb-cap-modal').classList.contains('sb-hidden');}
+function capDirty(){return document.getElementById('sb-cap-text').value!==capInitial;}
+function capError(msg){
+  var err=document.getElementById('sb-cap-err');
+  err.textContent=msg||'';
+  if(msg)err.scrollIntoView({block:'nearest'});
+}
+/* Beside the label: the source and the size, the extension's "host · N
+   words". Under the box: what saving will make, when it is more than one
+   item. */
+function capCount(){
+  var text=document.getElementById('sb-cap-text').value;
+  var flat=text.replace(/\s+/g,' ').trim();
+  var src=capSourceFor(text);
+  var words=flat?flat.split(' ').length:0;
+  document.getElementById('sb-cap-count').textContent=
+    [src.host,words.toLocaleString()+' '+(words===1?'word':'words')].filter(Boolean).join(' · ');
+  var note='';
+  if(text.length>SBMemoryChunk.MAX_BODY){
+    var packed=SBMemoryChunk.chunkText(text);
+    if(packed.chunks.length>1){
+      note='Long text: it is saved as '+packed.chunks.length+' items.'
+        +(packed.forced?' Where no paragraph break fits, it is cut mid-paragraph.':'');
+    }
+  }
+  document.getElementById('sb-cap-note').textContent=note;
+}
+/* The Brain list, once the Brains are in: the Brain chosen on screen, else
+   the one the capture started in, else the last one a capture went to, else
+   the default. */
+var capBrainsMissing=false;
+function capFillBrains(){
+  var sel=document.getElementById('sb-cap-brain');
+  var save=document.getElementById('sb-cap-save');
+  if(!memLoaded||!allBrains.length){
+    var why=!memLoaded&&!memFailed?'Loading your Brains…':memFailed?'Could not load your Brains':'No Brains yet';
+    sel.innerHTML='<option value="">'+esc(why)+'</option>';
+    sel.disabled=true;save.disabled=true;
+    var msg=memFailed?'Could not load your Brains. Check your connection, then close this and try again.'
+      :memLoaded?'No Brains yet. Create one in the dashboard, then save here.':'';
+    if(msg){capBrainsMissing=true;capError(msg);}
+    else if(capBrainsMissing){capBrainsMissing=false;capError('');}
+    return;
+  }
+  var last=null;
+  try{last=localStorage.getItem(CAPTURE_BRAIN_KEY);}catch(e){}
+  var target=memBrainById(sel.value)||memBrainById(capWantBrain)||memBrainById(last)||memDefaultBrain();
+  sel.innerHTML=allBrains.map(function(b){
+    return '<option value="'+esc(b.id)+'"'+(target&&b.id===target.id?' selected':'')+'>'+esc(b.name)+'</option>';
+  }).join('');
+  sel.disabled=false;save.disabled=capSaving;
+  if(capBrainsMissing){capBrainsMissing=false;capError('');}
+}
+/* Opens on a capture ({title,url,host,text}); bid is the Brain it started in. */
+function openCapture(src,bid,placeholder){
+  capSource=src;capInitial=src.text||'';capWantBrain=bid||null;
+  capBatch=null;capSaving=false;capLeaving=false;capBrainsMissing=false;
+  var ta=document.getElementById('sb-cap-text');
+  ta.value=capInitial;
+  ta.placeholder=placeholder||'Paste or type what to save';
+  document.getElementById('sb-cap-brain').innerHTML='';
+  document.getElementById('sb-cap-save').textContent='Save';
+  capError('');
+  if(!memLoaded&&!memLoading)loadMemory();
+  capFillBrains();
+  capCount();
+  history.pushState({memCap:true},'');
+  document.getElementById('sb-cap-modal').classList.remove('sb-hidden');
+  if(!capInitial)ta.focus();
+}
+/* Paste & save: the clipboard's text, read on the tap that asked for it. A
+   phone that will not hand it over (permission refused, or no way to read a
+   clipboard at all) still gets the form, with the box ready for a paste. */
+function pasteCapture(bid){
+  var clip=navigator.clipboard;
+  var manual='Press and hold here, then tap Paste';
+  if(!clip||!clip.readText){openCapture(capFromShare('','',''),bid,manual);return;}
+  clip.readText().then(function(t){
+    if(!String(t||'').trim()){showToast('Nothing to paste. Copy some text or a link first');return;}
+    openCapture(capFromShare('',t,''),bid);
+  },function(){
+    openCapture(capFromShare('','',''),bid,manual);
+  });
+}
+function capForget(){
+  try{localStorage.removeItem(CAPTURE_KEY);}catch(e){}
+}
+/* Signing out leaves nothing of a capture behind for the next person. */
+function capSignOut(){
+  capForget();
+  try{localStorage.removeItem(CAPTURE_BRAIN_KEY);}catch(e){}
+}
+function closeCaptureNow(){
+  document.getElementById('sb-cap-modal').classList.add('sb-hidden');
+  capSaving=false;capSource=null;capInitial='';capBatch=null;
+  // Saved or set aside, the share is finished: it does not come back.
+  capForget();
+}
+/* Closes on purpose, through the history step the form pushed, so the phone's
+   back button and the ✕ never disagree about what is open. */
+function leaveCapture(){
+  capLeaving=true;
+  if(history.state&&history.state.memCap)history.back();
+  else{capLeaving=false;closeCaptureNow();}
+}
+function saveCapture(){
+  if(capSaving)return;
+  var text=document.getElementById('sb-cap-text').value;
+  var brain=memBrainById(document.getElementById('sb-cap-brain').value);
+  if(!brain){capError('Pick a Brain.');return;}
+  if(!text.trim()){
+    capError('Nothing to save yet. Paste or type the text first.');
+    document.getElementById('sb-cap-text').focus();
+    return;
+  }
+  // A save that stopped part way picks up where it stopped, so the pieces
+  // already saved are not saved twice. Change the text or the Brain and it
+  // starts over.
+  var key=brain.id+'\n'+text;
+  if(!capBatch||capBatch.key!==key)capBatch={key:key,items:capturePayloads(text,brain.id,capSourceFor(text)),done:0};
+  var batch=capBatch, items=batch.items;
+  capError('');
+  capSaving=true;
+  var save=document.getElementById('sb-cap-save');
+  save.disabled=true;save.textContent='Saving…';
+  try{localStorage.setItem(CAPTURE_BRAIN_KEY,brain.id);}catch(e){}
+  (function next(){
+    if(batch.done>=items.length){
+      items.forEach(function(p){memTakenNames[p.p_name.toLowerCase()]=true;});
+      leaveCapture();
+      showToast(items.length>1?'Saved to Brain as '+items.length+' items ✓':'Saved to Brain ✓');
+      loadMemory();
+      return;
+    }
+    memSaveShard(items[batch.done]).then(function(refused){
+      if(refused){
+        capSaving=false;
+        save.disabled=false;save.textContent='Save';
+        capError(batch.done?'Saved '+batch.done+' of '+items.length+', then stopped. '+refused
+          +' Tap Save to save the rest.':refused);
+        return;
+      }
+      batch.done+=1;
+      next();
+    });
+  })();
+}
+(function(){
+  document.getElementById('sb-cap-text').addEventListener('input',capCount);
+  document.getElementById('sb-cap-save').addEventListener('click',function(e){
+    e.stopPropagation();
+    saveCapture();
+  });
+  document.getElementById('sb-cap-cancel').addEventListener('click',function(e){
+    e.stopPropagation();
+    if(capSaving)return;
+    if(capDirty()&&!confirm('Discard changes?'))return;
+    leaveCapture();
+  });
+})();
+/* A share arrives as /mobile/?title=…&text=…&url=…. It is kept before the
+   sign-in check, which may send the phone to /login and back, and taken off
+   the address so a reload does not offer it twice. */
+(function(){
+  var q;
+  try{q=new URLSearchParams(location.search);}catch(e){return;}
+  var title=q.get('title')||'', text=q.get('text')||'', url=q.get('url')||'';
+  if(!(title.trim()||text.trim()||url.trim()))return;
+  capPending={title:title,text:text,url:url,at:Date.now()};
+  try{localStorage.setItem(CAPTURE_KEY,JSON.stringify(capPending));}catch(e){}
+  try{history.replaceState(history.state,'',location.pathname+location.hash);}catch(e){}
+})();
+/* After sign-in: the share this load received, or one kept across a trip to
+   /login. Opens on the Brains page, so closing the form lands among Brains. */
+function captureResume(){
+  var c=capPending;
+  if(!c){try{c=JSON.parse(localStorage.getItem(CAPTURE_KEY)||'null');}catch(e){c=null;}}
+  capPending=null;
+  if(!c||typeof c!=='object')return;
+  if(!(Date.now()-Number(c.at)<CAPTURE_TTL)){capForget();return;}
+  var src=capFromShare(c.title,c.text,c.url);
+  if(!src.text){capForget();return;}
+  showMemory();
+  openCapture(src);
+}
 
 /* Selected-folder header: tappable ancestor trail, the folder name, and its
    description. Hidden on "All", and the trail is omitted for a root folder
@@ -6986,8 +7490,9 @@ document.getElementById('back-btn').addEventListener('click',function(){
   }
 });
 window.addEventListener('popstate',function(){
-  // Add text sits on its own history step. Going back closes it, after asking
-  // when there is text to lose; staying puts the step back.
+  // Add text and Save to Brain each sit on their own history step. Going back
+  // closes them, after asking when there is text to lose; staying puts the
+  // step back.
   if(memAddOpen()){
     if(memAddLeaving){memAddLeaving=false;closeMemAddNow();return;}
     if(memAddSaving||(memAddDirty()&&!confirm('Discard changes?'))){
@@ -6995,6 +7500,15 @@ window.addEventListener('popstate',function(){
       return;
     }
     closeMemAddNow();
+    return;
+  }
+  if(capOpen()){
+    if(capLeaving){capLeaving=false;closeCaptureNow();return;}
+    if(capSaving||(capDirty()&&!confirm('Discard changes?'))){
+      history.pushState({memCap:true},'');
+      return;
+    }
+    closeCaptureNow();
     return;
   }
   var pSheet=document.getElementById('sb-prompt-sheet');
@@ -8424,6 +8938,7 @@ function applyCompanyBrand(){
 }
 if(requireAuth()){
   applyHeroName();applyCompanyBrand();loadSnips();sbCheckAlive();
+  captureResume();
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible')sbCheckAlive();
   });

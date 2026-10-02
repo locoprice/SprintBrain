@@ -63,9 +63,9 @@ Never introduce alternative names for these three without explicit approval. The
 |---|---|---|---|
 | Snippets | ✅ | ✅ | ✅ |
 | Prompts | ✅ | ✅ | ✅ |
-| Memory (Brains) | ✅ | ✅ | ✅ use only (v3.53.0) |
+| Memory (Brains) | ✅ | ✅ | ✅ use and save into (v3.53.0, Save to Brain v3.54.0) |
 
-Memory on mobile is for **using** Brains: list, open, read, copy or share an item or the whole Brain, and add text. Managing Brains (create, rename, trash, edit items, upload, history) stays on the dashboard, by standing decision (root `CLAUDE.md`, 📱 Mobile). When a memory task lands, say plainly which surfaces got it and which did not.
+Memory on mobile is for **using** Brains: list, open, read, copy or share an item or the whole Brain, add text, and save text or links from other apps into one (Save to Brain: Android Share menu via `manifest.webmanifest`, iPhone Shortcut via `/mobile/?text=`, Paste & save). Managing Brains (create, rename, trash, edit items, upload, history) stays on the dashboard, by standing decision (root `CLAUDE.md`, 📱 Mobile). When a memory task lands, say plainly which surfaces got it and which did not.
 
 `Sprintbrain.html`, the old vanilla dashboard, was retired in v3.36.0. It is not a surface.
 
@@ -194,6 +194,7 @@ Mobile's numeric heuristic — a field whose name mentions a price or a count ge
 | `extension/shared/snippet-stats.js` | `scripts/sync-snippet-stats.js` | `SB_SNIPPET_STATS:BEGIN/END` |
 | `extension/shared/fill-form.js` | `scripts/sync-fill-form.js` | `SB_FILL_FORM:BEGIN/END` |
 | `extension/shared/memory-pack.js` | `scripts/sync-memory-pack.js` | `SB_MEMORY_PACK:BEGIN/END` |
+| `extension/shared/memory-chunk.js` | `scripts/sync-memory-chunk.js` | `SB_MEMORY_CHUNK:BEGIN/END` |
 | `extension/shared/interactive-steps.js` | `scripts/check-interactive-steps.js --write` | `SB_INTERACTIVE_STEPS:BEGIN/END` |
 
 Never hand-edit inside a generated block — regenerate from the source module. Each generator has a `--check` mode for CI.
@@ -214,6 +215,8 @@ Working memory attaches only what the step needs.
 **`security_invoker = true` on that view is the point, not a detail.** A view defaults to its owner's rights, which would bypass the RLS underneath and hand every caller everyone's rows. With it set, each source table's own policy applies to whoever is querying — authorization is **composed**, not unified: snippets keep the folder ACL, memory keeps personal ownership, no third authorization model appears. Never change this without re-verifying under real identities.
 
 Engine parity: `extension/shared/memory-pack.js` ↔ `app/src/lib/memory/engine.ts`, gated by `scripts/check-memory-parity.js`. The phone carries a generated copy of `memory-pack.js` for the Add text token count and the text "Copy whole Brain" hands out (`scripts/sync-memory-pack.js`).
+
+Captures (the extension's Save to Brain and chat capture, the phone's Save to Brain) are cut and named by one rule in `extension/shared/memory-chunk.js`: `chunkText` / `chunkBlocks`, `captureName` (title, then the saver's local time to the second, then the part; the title is cut, never the time or the part) and `captureSummary`. The phone carries a generated copy (`scripts/sync-memory-chunk.js`); `scripts/check-memory-chunk.js` pins the rule. Uploaded files are named by the dashboard instead (`app/src/lib/documentImport.ts`).
 
 Reference: `docs/MEMORY_ARCHITECTURE_REVIEW.md`, `docs/MEMORY_002_PLAN.md`.
 
@@ -316,6 +319,7 @@ node scripts/sync-tooltip.js --check   # tooltip parity
 node scripts/sync-snippet-stats.js --check
 node scripts/check-memory-parity.js    # working memory parity
 node scripts/sync-memory-pack.js --check   # phone memory pack + its use
+node scripts/sync-memory-chunk.js --check  # phone memory chunker + Save to Brain's use of it
 node scripts/check-memory-chunk.js     # memory chunk + chat capture
 node scripts/build-landing-i18n.js --check   # landing translation parity
 ```

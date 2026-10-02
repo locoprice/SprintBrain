@@ -111,6 +111,54 @@ check('chunkText handles plain prose for the document path', () => {
   for (const c of big.chunks) assert.ok(c.length <= MAX);
 });
 
+console.log('capture names (extension Save to Brain, chat capture, phone Save to Brain)');
+
+// Built from parts so the expectation holds on any machine's clock: the rule
+// writes the saver's local time, and so does this Date.
+const SAVED = new Date(2026, 9, 2, 14, 30, 5);
+const STAMP = '2026-10-02 14:30:05';
+
+check('a capture is named after its source, then the moment it was saved', () => {
+  assert.strictEqual(chunk.captureName('Pasta at home', SAVED, 1, 1), 'Pasta at home · ' + STAMP);
+});
+
+check('the title is cut, never the moment or the part', () => {
+  const title = 'A remarkably long page title that keeps going well past the room for it';
+  const one = chunk.captureName(title, SAVED, 1, 1);
+  assert.ok(one.length <= 64, 'name of ' + one.length + ' chars');
+  assert.ok(one.endsWith(' · ' + STAMP), one);
+  assert.strictEqual(one, title.slice(0, 40).trim() + ' · ' + STAMP);
+  for (const [part, parts] of [[3, 9], [12, 120], [999, 999]]) {
+    const name = chunk.captureName(title, SAVED, part, parts);
+    assert.ok(name.length <= 64, 'name of ' + name.length + ' chars: ' + name);
+    assert.ok(name.endsWith(' · ' + STAMP + ' (' + part + '/' + parts + ')'), name);
+  }
+});
+
+check('one piece carries no part number', () => {
+  assert.ok(!/\(1\/1\)/.test(chunk.captureName('Note', SAVED, 1, 1)));
+});
+
+check('saves a second apart get different names', () => {
+  const later = new Date(SAVED.getTime() + 1000);
+  assert.notStrictEqual(chunk.captureName('Same page', SAVED, 1, 1), chunk.captureName('Same page', later, 1, 1));
+});
+
+check('a title of only spaces, or none, still makes a name', () => {
+  assert.strictEqual(chunk.captureName('  \n ', SAVED, 1, 1), 'Untitled · ' + STAMP);
+  assert.strictEqual(chunk.captureName(null, SAVED, 1, 1), 'Untitled · ' + STAMP);
+});
+
+check('the title is read as one line', () => {
+  assert.strictEqual(chunk.captureName('Two\n  lines', SAVED, 1, 1), 'Two lines · ' + STAMP);
+});
+
+check('the summary is the text itself, on one line, within the column', () => {
+  assert.strictEqual(chunk.captureSummary('First line\n\n  second   line'), 'First line second line');
+  assert.strictEqual(chunk.captureSummary('w '.repeat(500)).length, 280);
+  assert.strictEqual(chunk.captureSummary(''), '');
+});
+
 console.log('chat-capture');
 
 check('only the two verified hosts are recognised', () => {

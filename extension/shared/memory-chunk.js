@@ -1,4 +1,5 @@
-// MEMORY CHUNKER — splits long text into shard-sized pieces.
+// MEMORY CHUNKER — splits long text into shard-sized pieces, and names the
+// pieces a capture saves (captureName, captureSummary, at the end of the file).
 //
 // The database caps memory_shards.body at 20,000 characters, and the cap is
 // deliberate: anything larger is a document, not a fact, and no token budget
@@ -100,10 +101,62 @@
     return chunkBlocks(body.split(/\n{2,}/), max);
   }
 
+  // ── What a capture is called ────────────────────────────────────────────
+  // Three paths save captured text into a Brain: the extension's Save to Brain
+  // (a highlighted selection), its chat capture (a whole conversation) and the
+  // phone's Save to Brain (text shared from another app, or pasted). They name
+  // what they save the same way, here, so a Brain reads the same whichever one
+  // filled it. Uploaded files are named by the dashboard instead
+  // (app/src/lib/documentImport.ts): a file has a name of its own, a capture
+  // only has a source and a moment.
+
+  // The memory_shards name and summary CHECKs.
+  var NAME_MAX = 64;
+  var SUMMARY_MAX = 280;
+  // The most of a name the source's title may take. The rest is the moment of
+  // the save, which is what tells two saves from the same page apart.
+  var TITLE_MAX = 40;
+
+  /** One line of plain text. */
+  function flatten(text) {
+    return String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+  }
+
+  function pad(n) {
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  /**
+   * "Pasta at home · 2026-10-02 14:30:05", then " (2/3)" when the text was
+   * split. Names are unique per account among live rows, so the moment, to the
+   * second and on the saver's own clock, is what makes saving from the same
+   * page twice an addition rather than an error. The moment and the part are
+   * never what gets cut: the title is shortened to make room for them.
+   */
+  function captureName(title, when, part, parts) {
+    var d = when instanceof Date && !isNaN(when.getTime()) ? when : new Date();
+    var tail = ' · ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+      (parts > 1 ? ' (' + part + '/' + parts + ')' : '');
+    var head = flatten(title).slice(0, Math.min(TITLE_MAX, NAME_MAX - tail.length)).trim();
+    return (head || 'Untitled') + tail;
+  }
+
+  /**
+   * An excerpt, not a description of one. The summary column is what the
+   * picker lists and what knowledge_search ranks on, so the clipping's own
+   * words find it again; "saved from example.com" would not.
+   */
+  function captureSummary(text) {
+    return flatten(text).slice(0, SUMMARY_MAX);
+  }
+
   var API = {
     MAX_BODY: MAX_BODY,
     chunkBlocks: chunkBlocks,
-    chunkText: chunkText
+    chunkText: chunkText,
+    captureName: captureName,
+    captureSummary: captureSummary
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -62,6 +62,9 @@ jobs:
       - name: Phone memory pack parity check
         run: node scripts/sync-memory-pack.js --check
 
+      - name: Phone memory chunk parity check
+        run: node scripts/sync-memory-chunk.js --check
+
       - name: Memory chunk + chat capture check
         run: node scripts/check-memory-chunk.js
 

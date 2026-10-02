@@ -2909,17 +2909,16 @@ var SB_DASHBOARD_LINK_URL = 'https://app.sprintbrain.com/extension-link';
           if (!parts.length) { note('Nothing to save.', true); return; }
 
           // Names are unique per user among live rows, so a bare title collides
-          // the second time the same chat is saved. The timestamp is what keeps
-          // re-saving a conversation an append rather than an error.
-          var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-          var base  = meta.title.slice(0, 40);
+          // the second time the same chat is saved. The moment of the save, in
+          // the rule every capture shares, keeps re-saving a conversation an
+          // append rather than an error.
+          var when = new Date();
 
           var payloads = [];
           for (var i = 0; i < parts.length; i++) {
-            var suffix = parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '';
             payloads.push({
               p_shard_id: null,
-              p_name: (base + ' · ' + stamp + suffix).slice(0, 64),
+              p_name: chunker.captureName(meta.title, when, i + 1, parts.length),
               p_summary: (meta.host + ' conversation, ' + meta.turns.length + ' messages').slice(0, 280),
               p_body: parts[i],
               p_editor_display: 'Extension',
