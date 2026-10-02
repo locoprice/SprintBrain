@@ -32,6 +32,42 @@ function _supaFetchWithHeaders(table, qs, headers, retried, resolve) {
   }).catch(function() { resolve([]); });
 }
 
+// Every row a query matches, a page at a time, or a rejection that says why.
+// supaFetch answers [] on any failure, which suits a list that may simply be
+// empty; it does not suit the Brain suggestion, which reads the whole library
+// and would offer the wrong Brain, confidently, from a page that never came.
+// Pages because the server stops a read at its row cap without a word.
+var PAGE_ROWS = 1000;
+function supaFetchAll(table, qs) {
+  return new Promise(function(resolve, reject) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { reject(new Error('not signed in')); return; }
+      var rows = [];
+      function page(offset, auth, retried) {
+        fetch(SUPA_URL + '/rest/v1/' + table + '?' + qs + '&limit=' + PAGE_ROWS + '&offset=' + offset, {
+          headers: { 'apikey': auth.apikey, 'Authorization': auth.Authorization }
+        }).then(function(r) {
+          if (r.status === 401 && !retried) {
+            sbRefreshToken(function(rerr, fresh) {
+              if (rerr || !fresh) { reject(new Error('not signed in')); return; }
+              page(offset, { apikey: SB_SUPA_ANON_KEY, Authorization: 'Bearer ' + fresh.access_token }, true);
+            });
+            return;
+          }
+          if (!r.ok) { reject(new Error(table + ' answered HTTP ' + r.status)); return; }
+          return r.json().then(function(data) {
+            if (!Array.isArray(data)) { reject(new Error(table + ' did not answer with a list')); return; }
+            rows = rows.concat(data);
+            if (data.length === PAGE_ROWS) page(offset + PAGE_ROWS, auth, false);
+            else resolve(rows);
+          });
+        }).catch(reject);
+      }
+      page(0, headers, false);
+    });
+  });
+}
+
 // ── ANALYTICS-001: log per-trigger events from content.js ─────────
 // Stamps user_id from the live session (overrides any payload value to prevent spoofing).
 function supaPost(table, body) {
@@ -250,18 +286,23 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     return true;
   }
 
-  // The save card asks for the spaces it offers. Same list and same order the
-  // popup's chat capture shows, so the two capture paths never disagree about
-  // which space is first.
+  // The Brains a capture can go to, with what the Brain suggestion reads:
+  // each Brain's description and every item's name and summary
+  // (SBMemoryChunk.suggestBrain). Save to Brain and the popup's chat capture
+  // both ask here, so they offer the same list in the same order and suggest
+  // from the same words the phone does.
   if (msg.type === 'memory_spaces') {
-    // supaFetch resolves to [] when the request fails, so an empty list here
-    // means "nothing to offer" without saying why. The card words its empty
-    // state to cover both.
-    supaFetch('memory_spaces',
-      'select=id,name&deleted_at=is.null&order=is_default.desc,name.asc')
-      .then(function(rows) {
-        try { sendResponse({ ok: true, rows: rows || [] }); } catch(e) {}
-      });
+    Promise.all([
+      supaFetchAll('memory_spaces',
+        'select=id,name,description&deleted_at=is.null&order=is_default.desc,name.asc,id.asc'),
+      supaFetchAll('memory_shards',
+        'select=space_id,name,summary&deleted_at=is.null&order=id.asc')
+    ]).then(function(res) {
+      try { sendResponse({ ok: true, rows: res[0], items: res[1] }); } catch(e) {}
+    }, function(err) {
+      console.error('[SprintBrain] Could not load the Brains to save into:', err && err.message);
+      try { sendResponse({ ok: false }); } catch(e) {}
+    });
     return true;
   }
 

@@ -6,13 +6,17 @@
 //   app/public/mobile/index.html   single-file app by design, cannot load
 //                                  extension/shared/memory-chunk.js at runtime
 //
-// The phone's Save to Brain reads three things from the module, the same three
-// the extension's Save to Brain uses, so a capture is cut and named one way
-// whichever device made it:
+// The phone's Save to Brain reads from the module what the extension's Save to
+// Brain reads, so a capture is cut, named and offered a Brain one way whichever
+// device made it:
 //
 //   chunkText       where text too long for one item is cut
 //   captureName     what each saved piece is called
 //   captureSummary  the excerpt its summary carries
+//   suggestBrain    which Brain the words suggest, and the line saying why
+//   pickBrain       which Brain is selected: suggested, last used, default
+//   loadLastBrain   the last Brain a capture went to on this device, and
+//   saveLastBrain   keeping it
 //
 // --check also fails if the phone stops reaching them through the module.
 
@@ -90,14 +94,16 @@ function structure() {
   const open = (before.match(/<script\b/g) || []).length - (before.match(/<\/script>/g) || []).length;
   if (open !== 0) problems.push('the block opens inside another <script>');
 
-  const decl = 'function capturePayloads(';
-  const body = fnSource(html, decl);
   [
-    ['SBMemoryChunk.chunkText(', 'long text is cut by the module'],
-    ['SBMemoryChunk.captureName(', 'saved pieces are named by the module'],
-    ['SBMemoryChunk.captureSummary(', 'their summaries come from the module'],
-  ].forEach(([call, what]) => {
-    if (body.indexOf(call) === -1) problems.push('Save to Brain: ' + what + ' (' + decl + '... must call ' + call + '...)');
+    ['function capturePayloads(', 'SBMemoryChunk.chunkText(', 'long text is cut by the module'],
+    ['function capturePayloads(', 'SBMemoryChunk.captureName(', 'saved pieces are named by the module'],
+    ['function capturePayloads(', 'SBMemoryChunk.captureSummary(', 'their summaries come from the module'],
+    ['function capSuggest(', 'SBMemoryChunk.suggestBrain(', 'the Brain the words suggest comes from the module'],
+    ['function capPickBrain(', 'SBMemoryChunk.pickBrain(', 'the Brain selected comes from the module'],
+    ['function capPickBrain(', 'SBMemoryChunk.loadLastBrain(', 'the last Brain used is read through the module'],
+    ['function saveCapture(', 'SBMemoryChunk.saveLastBrain(', 'the Brain saved to is kept through the module'],
+  ].forEach(([decl, call, what]) => {
+    if (fnSource(html, decl).indexOf(call) === -1) problems.push('Save to Brain: ' + what + ' (' + decl + '... must call ' + call + '...)');
   });
   return problems;
 }

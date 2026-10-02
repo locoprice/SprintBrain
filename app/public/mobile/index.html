@@ -823,7 +823,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
   -webkit-appearance:checkbox;appearance:auto;accent-color:var(--primary)}
 /* Add text opens on its fields; the error line takes room only when it speaks. */
 #sb-mem-err:empty,#sb-cap-err:empty{display:none}
-/* Save to Brain: where the text came from, and what saving it will make. */
+/* Save to Brain: why this Brain is offered, and what saving will make. */
 .sb-cap-note{font-size:13px;color:var(--text2);line-height:1.45;padding:0 2px}
 .sb-cap-note:empty{display:none}
 
@@ -1692,6 +1692,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div class="sb-field-group">
       <label for="sb-cap-brain" class="sb-field-label">Brain</label>
       <select id="sb-cap-brain"></select>
+      <div class="sb-cap-note" id="sb-cap-why" aria-live="polite"></div>
     </div>
     <div class="sb-field-group sb-field-group-grow">
       <div class="sb-field-head">
@@ -3134,8 +3135,9 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 <!-- SB_MEMORY_PACK:END -->
 <!-- SB_MEMORY_CHUNK:BEGIN (generated from extension/shared/memory-chunk.js by scripts/sync-memory-chunk.js, do not edit) -->
 <script>
-// MEMORY CHUNKER — splits long text into shard-sized pieces, and names the
-// pieces a capture saves (captureName, captureSummary, at the end of the file).
+// MEMORY CHUNKER — splits long text into shard-sized pieces, names the pieces a
+// capture saves (captureName, captureSummary) and suggests the Brain a capture
+// belongs in (suggestBrain), at the end of the file.
 //
 // The database caps memory_shards.body at 20,000 characters, and the cap is
 // deliberate: anything larger is a document, not a fact, and no token budget
@@ -3287,12 +3289,322 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     return flatten(text).slice(0, SUMMARY_MAX);
   }
 
+  // ── Where a capture goes ────────────────────────────────────────────────
+  // Before a capture is saved, the Brain it most likely belongs in is offered
+  // first. Words only, worked out on the device: nothing is sent anywhere and
+  // nothing is learned. A Brain is known by its name, its description and the
+  // names and summaries of what it already holds, and a capture is offered the
+  // Brain whose words it shares most, each shared word counting for more the
+  // fewer Brains use it. Bodies are left out on purpose: the extension would
+  // have to download every one of them, and every app has to reach the same
+  // answer from the same words.
+  //
+  // What it cannot do: tell that an Italian recipe belongs in an empty Brain
+  // called Cooking, because the two share no word. A description, or a few
+  // items, give it the words.
+
+  // Words that say nothing about what a text is about, in the four languages
+  // SprintBrain writes in, folded (lower case, no accents). Words shorter than
+  // WORD_MIN are dropped before this list is read.
+  var STOPWORDS = (function () {
+    var set = {};
+    (
+      // English
+      'the and for are but not you your yours our ours his her hers its they them their theirs this ' +
+      'that these those with from into onto over under about above after before again then than there ' +
+      'here when where which who whom whose what why how all any both each few more most other some ' +
+      'such only own same very can will just should would could have has had having was were been ' +
+      'being does did doing done get got also out off per via yet may might must shall let like need ' +
+      'use used using make made want way well much many every still even back down upon while because ' +
+      'until within without through between during against among across along around etc dont cant ' +
+      'wont ive youre theyre thats anywhere else elsewhere somewhere everywhere ' +
+      // Italian
+      'che chi cui del della delle dei degli dello dal dalla dalle dai dagli dallo nel nella nelle nei ' +
+      'negli nello sul sulla sulle sui sugli sullo alla alle agli allo con per tra fra una uno gli non ' +
+      'come anche piu sono sei siamo siete era erano essere avere hanno abbiamo questo questa questi ' +
+      'queste quello quella quelli quelle molto poco tutto tutti tutte ogni dove quando perche cosa ' +
+      'mio mia miei mie tuo tua tuoi tue suo sua suoi sue nostro nostra nostri nostre vostro vostra ' +
+      'loro stato stata fare fatto puoi puo ancora gia solo ecco poi quindi oppure cioe lei lui noi ' +
+      'voi ciao grazie ' +
+      // Spanish
+      'que los las por para unos unas pero mas este estos estas ese esa esos esas eso esto aquel sus ' +
+      'son fue ser estar han hay muy todo todos toda todas cuando donde porque sin sobre entre tambien ' +
+      'nos les mis tus nuestro nuestra vuestro ella ellos ellas usted ustedes desde hasta cada otro ' +
+      'otra otros otras puede pueden tiene tienen hacer hace hola gracias ' +
+      // French
+      'les des une pour avec qui dans sur par est sont pas plus mais ces cet cette ses son leur leurs ' +
+      'nous vous ils elle elles aux tout tous toute toutes comme sans sous aussi bien fait faire etre ' +
+      'avoir ont etait peut notre votre nos vos mes tes quand dont donc alors encore deja tres merci ' +
+      'bonjour ' +
+      // Numbers, greetings, small talk and time, in all four: they say when and
+      // to whom, never what about.
+      'one two three four five six seven eight nine ten uno due tre quattro cinque sette otto nove ' +
+      'dieci dos tres cuatro cinco seis siete ocho nueve diez deux trois quatre cinq six sept huit ' +
+      'neuf dix hello dear thanks thank please regards best kind hey message messages email mail see ' +
+      'next last first new good great sure okay yes yeah thing things something anything nothing ' +
+      'everything messaggio messaggi prossimo prossima ultimo ultima primo prima nuovo nuova buono ' +
+      'bene cose mensaje mensajes correo proximo proxima primero primera nuevo nueva bueno bien cosas ' +
+      'courriel prochain prochaine dernier derniere premier premiere nouveau nouvelle bon bonne chose ' +
+      'choses today tomorrow yesterday day days week weeks month months year years time oggi domani ' +
+      'ieri giorno giorni settimana mese anno anni volta hoy manana ayer dia dias semana mes ano anos ' +
+      'vez jour jours semaine mois annee fois aujourdhui demain hier ' +
+      // The parts of a link that every link has.
+      'http https www com org net html htm php amp utm ref'
+    ).split(' ').forEach(function (word) { if (word) set[word] = true; });
+    return set;
+  }());
+
+  var WORD_MIN = 3;            // letters a word needs to count
+  var WORD_MAX = 30;           // longer runs are ids, codes and links, not words
+  var READ_MAX = 20000;        // how much of a capture is read
+  var NAME_WEIGHT = 3;         // a word of the Brain's own name counts this much,
+  var DESCRIPTION_WEIGHT = 2;  // one of its description this much, an item 1
+  var MARGIN = 1.5;            // how far ahead of the next Brain the best must be
+  var SHOWN = 3;               // words the note names
+
+  // Built at run time, as letter classes are: an engine without them keeps the
+  // Latin split below instead of failing to load the whole module.
+  var WORD_SPLIT = (function () {
+    try {
+      return new RegExp('[^\\p{L}\\p{N}]+', 'u');
+    } catch (e) {
+      return /[^0-9a-zÀ-ɏ]+/;
+    }
+  }());
+
+  /** Lower case without accents: "Ricétta" and "ricetta" are one word. */
+  function fold(word) {
+    return word.normalize ? word.normalize('NFD').replace(/[̀-ͯ]/g, '') : word;
+  }
+
+  /**
+   * One form for a word's family, crude on purpose: a plural s, then -ing or
+   * -ed, then the vowels Italian, Spanish and French end words on. So recipe
+   * and recipes, ricetta and ricette, receta and recetas, cook, cooked and
+   * cooking each meet on one form. It joins some words it should not (pasta
+   * and past); the rarity weighting keeps that from mattering.
+   */
+  function stem(word) {
+    var w = word;
+    if (w.length > 3 && w.charAt(w.length - 1) === 's' && w.charAt(w.length - 2) !== 's') w = w.slice(0, -1);
+    if (w.length > 5 && w.slice(-3) === 'ing') w = w.slice(0, -3);
+    else if (w.length > 4 && w.slice(-2) === 'ed') w = w.slice(0, -2);
+    while (w.length > 4 && /[aeiou]$/.test(w)) w = w.slice(0, -1);
+    return w;
+  }
+
+  /**
+   * The words of a text, by stem: how often each appears, the first way it
+   * was written (for the note), and the order they first appear in.
+   */
+  function wordsOf(text, max) {
+    var out = { count: {}, shown: {}, order: [] };
+    var parts = String(text == null ? '' : text).slice(0, max).toLowerCase().split(WORD_SPLIT);
+    for (var i = 0; i < parts.length; i++) {
+      var raw = parts[i];
+      if (raw.length < WORD_MIN || raw.length > WORD_MAX || /^\d+$/.test(raw)) continue;
+      var folded = fold(raw);
+      if (STOPWORDS[folded]) continue;
+      var key = stem(folded);
+      if (key.length < WORD_MIN) continue;
+      if (!out.count[key]) {
+        out.count[key] = 0;
+        out.shown[key] = raw;
+        out.order.push(key);
+      }
+      out.count[key] += 1;
+    }
+    return out;
+  }
+
+  /**
+   * The Brain a capture most likely belongs in.
+   *
+   *   text    all that is known of the capture: its title, then its text
+   *   brains  [{id, name, description}], in the order the Brain list shows
+   *           them, which also breaks ties
+   *   items   [{space_id, name, summary}]; items of Brains not in the list
+   *           are ignored
+   *
+   * Returns {id, words, note}. id is the Brain to offer, or null; words are
+   * what it was judged on, as they are written in the text; note is the line
+   * shown under the Brain list: why this Brain, that two fit equally, or that
+   * none fits. With fewer than two Brains, or too few words to judge, note is
+   * empty: there is nothing to say.
+   *
+   * A Brain qualifies on two shared words, or on one that is part of its
+   * name, its description or an item's name. One word from a summary is too
+   * thin: "message" or "price" would send texts to whichever Brain happened to
+   * use it once.
+   */
+  function suggestBrain(text, brains, items) {
+    var list = Array.isArray(brains) ? brains : [];
+    var none = { id: null, words: [], note: '' };
+    if (list.length < 2) return none;
+    var said = wordsOf(text, READ_MAX);
+    if (said.order.length < 2) return none;
+
+    var profiles = [];
+    var byId = {};
+    list.forEach(function (brain) {
+      var profile = { id: brain.id, name: String(brain.name || ''), weight: {}, strong: {} };
+      [[brain.name, NAME_WEIGHT], [brain.description, DESCRIPTION_WEIGHT]].forEach(function (pair) {
+        wordsOf(pair[0], READ_MAX).order.forEach(function (key) {
+          profile.weight[key] = (profile.weight[key] || 0) + pair[1];
+          profile.strong[key] = true;
+        });
+      });
+      profiles.push(profile);
+      byId[brain.id] = profile;
+    });
+    (Array.isArray(items) ? items : []).forEach(function (item) {
+      var profile = byId[item.space_id];
+      if (!profile) return;
+      // Each item is one vote per word, however often it repeats the word.
+      var named = wordsOf(item.name, READ_MAX).order;
+      var seen = {};
+      named.forEach(function (key) { profile.strong[key] = true; });
+      named.concat(wordsOf(item.summary, READ_MAX).order).forEach(function (key) {
+        if (seen[key]) return;
+        seen[key] = true;
+        profile.weight[key] = (profile.weight[key] || 0) + 1;
+      });
+    });
+
+    // How many Brains use each word: the fewer, the more it says.
+    var used = {};
+    profiles.forEach(function (profile) {
+      Object.keys(profile.weight).forEach(function (key) { used[key] = (used[key] || 0) + 1; });
+    });
+
+    var scored = profiles.map(function (profile, index) {
+      var score = 0;
+      var hits = [];
+      said.order.forEach(function (key) {
+        var weight = profile.weight[key];
+        // A word every Brain uses cannot tell them apart.
+        if (!weight || used[key] === profiles.length) return;
+        var part = Math.log(1 + profiles.length / used[key]) *
+          (1 + Math.log(weight)) * (1 + Math.log(said.count[key]));
+        score += part;
+        hits.push({ key: key, part: part });
+      });
+      var qualifies = hits.length >= 2 || (hits.length === 1 && profile.strong[hits[0].key] === true);
+      return { profile: profile, score: qualifies ? score : 0, hits: hits, index: index };
+    }).sort(function (a, b) {
+      return b.score - a.score || a.index - b.index;
+    });
+
+    var best = scored[0];
+    var next = scored[1];
+    if (!(best.score > 0)) return { id: null, words: [], note: 'No Brain fits this yet.' };
+    if (next.score > 0 && best.score < next.score * MARGIN) {
+      return { id: null, words: [], note: 'Could fit ' + best.profile.name + ' or ' + next.profile.name + '.' };
+    }
+    var words = best.hits.slice().sort(function (a, b) {
+      return b.part - a.part;
+    }).slice(0, SHOWN).map(function (hit) {
+      return said.shown[hit.key];
+    });
+    var listed = words.length > 1 ? words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1] : words[0];
+    return { id: best.profile.id, words: words, note: 'Suggested because it mentions ' + listed + '.' };
+  }
+
+  // The last Brain a capture went to belongs to the device, not the account.
+  // The extension keeps it in chrome.storage.local (never sync: nothing the
+  // extension stores roams), the phone in localStorage, under one key, the
+  // way Interactive Steps keeps its setting.
+  var LAST_BRAIN_KEY = 'sb_capture_brain';
+
+  // The extension's own storage, or null on a web page. A page on the
+  // dashboard's site sees chrome.runtime (the extension talks to it) but never
+  // chrome.storage.
+  function extensionStorage() {
+    var c = root.chrome;
+    if (!c || !c.storage || !c.storage.local || !c.runtime) return null;
+    return c.storage.local;
+  }
+
+  /** cb(id or null) once the last Brain used is known. */
+  function loadLastBrain(cb) {
+    var store = extensionStorage();
+    if (store) {
+      try {
+        store.get(LAST_BRAIN_KEY, function (d) {
+          var id = !root.chrome.runtime.lastError && d ? d[LAST_BRAIN_KEY] : null;
+          cb(typeof id === 'string' && id ? id : null);
+        });
+      } catch (e) {
+        // A page left open across an extension reload has lost its context.
+        // The capture opens on the default Brain instead.
+        cb(null);
+      }
+      return;
+    }
+    var id = null;
+    try {
+      id = root.localStorage.getItem(LAST_BRAIN_KEY);
+    } catch (e) {
+      console.error('Save to Brain: could not read the last Brain used on this device:', e);
+    }
+    cb(id || null);
+  }
+
+  /** Keeps the Brain a capture just went to. */
+  function saveLastBrain(id) {
+    var store = extensionStorage();
+    if (store) {
+      var patch = {};
+      patch[LAST_BRAIN_KEY] = id;
+      try {
+        store.set(patch, function () {
+          if (root.chrome.runtime.lastError) {
+            console.error('Save to Brain: could not keep the last Brain used:', root.chrome.runtime.lastError.message);
+          }
+        });
+      } catch (e) {
+        console.error('Save to Brain: could not keep the last Brain used:', e && e.message);
+      }
+      return;
+    }
+    try {
+      root.localStorage.setItem(LAST_BRAIN_KEY, id);
+    } catch (e) {
+      console.error('Save to Brain: could not keep the last Brain used on this device:', e);
+    }
+  }
+
+  /**
+   * The Brain selected when a capture opens: the one suggestBrain offered,
+   * else the last one a capture went to, else the first in the list, which
+   * every list shows to be the default Brain. An id no longer in the list (a
+   * Brain trashed since) is passed over.
+   */
+  function pickBrain(suggestion, lastId, brains) {
+    var list = Array.isArray(brains) ? brains : [];
+    function listed(id) {
+      if (!id) return false;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    if (suggestion && listed(suggestion.id)) return suggestion.id;
+    if (listed(lastId)) return lastId;
+    return list.length ? list[0].id : null;
+  }
+
   var API = {
     MAX_BODY: MAX_BODY,
     chunkBlocks: chunkBlocks,
     chunkText: chunkText,
     captureName: captureName,
-    captureSummary: captureSummary
+    captureSummary: captureSummary,
+    suggestBrain: suggestBrain,
+    pickBrain: pickBrain,
+    loadLastBrain: loadLastBrain,
+    saveLastBrain: saveLastBrain,
+    LAST_BRAIN_KEY: LAST_BRAIN_KEY
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -6409,7 +6721,6 @@ function saveMemAdd(){
    Brain saves a selection: cut, named and summarised by the shared module
    (SB_MEMORY_CHUNK), one item per piece. */
 var CAPTURE_KEY='sb_mob_capture';
-var CAPTURE_BRAIN_KEY='sb_mob_capture_brain';
 /* Long enough to sign in and come back; short enough that a share nobody
    finished does not greet a visit days later. */
 var CAPTURE_TTL=60*60*1000;
@@ -6418,6 +6729,8 @@ var capSource=null;       // {title,url,host} of the text being saved
 var capInitial='';        // the text as it arrived, to tell an edit from none
 var capWantBrain=null;    // the Brain the capture started in, if any
 var capBatch=null;        // the pieces of a save that stopped part way
+var capBrainTouched=false;// the Brain was picked by hand: never moved again
+var capSuggestTimer=null;
 var capSaving=false, capLeaving=false;
 
 /* The first web address in a text, without the punctuation a sentence puts
@@ -6508,9 +6821,8 @@ function capCount(){
   }
   document.getElementById('sb-cap-note').textContent=note;
 }
-/* The Brain list, once the Brains are in: the Brain chosen on screen, else
-   the one the capture started in, else the last one a capture went to, else
-   the default. */
+/* The Brain list, once the Brains are in. Which one is selected is
+   capPickBrain's to say. */
 var capBrainsMissing=false;
 function capFillBrains(){
   var sel=document.getElementById('sb-cap-brain');
@@ -6525,19 +6837,46 @@ function capFillBrains(){
     else if(capBrainsMissing){capBrainsMissing=false;capError('');}
     return;
   }
-  var last=null;
-  try{last=localStorage.getItem(CAPTURE_BRAIN_KEY);}catch(e){}
-  var target=memBrainById(sel.value)||memBrainById(capWantBrain)||memBrainById(last)||memDefaultBrain();
+  var kept=sel.value;
   sel.innerHTML=allBrains.map(function(b){
-    return '<option value="'+esc(b.id)+'"'+(target&&b.id===target.id?' selected':'')+'>'+esc(b.name)+'</option>';
+    return '<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';
   }).join('');
+  if(memBrainById(kept))sel.value=kept;
   sel.disabled=false;save.disabled=capSaving;
   if(capBrainsMissing){capBrainsMissing=false;capError('');}
+  capPickBrain();
+}
+/* The words decide, through the shared module, as they do in the extension:
+   the share's title, when there is one, then the text on screen. */
+function capSuggest(){
+  var title=capSource&&capSource.title?capSource.title:'';
+  return SBMemoryChunk.suggestBrain(title+'\n\n'+document.getElementById('sb-cap-text').value,allBrains,allMemItems);
+}
+/* The Brain selected, and the line under the list that says why. A Brain
+   picked by hand stays, and so does the one the capture started in; else the
+   shared rule: the one the words suggest, else the last one a capture went
+   to, else the default. Pinned by scripts/sync-memory-chunk.js. */
+function capPickBrain(){
+  var sel=document.getElementById('sb-cap-brain');
+  var why=document.getElementById('sb-cap-why');
+  // Once Save is tapped the Brain is settled, even for a suggestion that was
+  // still waiting on the last keystroke.
+  if(capSaving||!memLoaded||!allBrains.length)return;
+  if(capBrainTouched&&memBrainById(sel.value)){why.textContent='';return;}
+  if(memBrainById(capWantBrain)){sel.value=capWantBrain;why.textContent='';return;}
+  var hint=capSuggest();
+  SBMemoryChunk.loadLastBrain(function(last){
+    var target=SBMemoryChunk.pickBrain(hint,last,allBrains);
+    if(target)sel.value=target;
+    why.textContent=hint.note;
+  });
 }
 /* Opens on a capture ({title,url,host,text}); bid is the Brain it started in. */
 function openCapture(src,bid,placeholder){
   capSource=src;capInitial=src.text||'';capWantBrain=bid||null;
-  capBatch=null;capSaving=false;capLeaving=false;capBrainsMissing=false;
+  capBatch=null;capSaving=false;capLeaving=false;capBrainsMissing=false;capBrainTouched=false;
+  clearTimeout(capSuggestTimer);
+  document.getElementById('sb-cap-why').textContent='';
   var ta=document.getElementById('sb-cap-text');
   ta.value=capInitial;
   ta.placeholder=placeholder||'Paste or type what to save';
@@ -6571,9 +6910,10 @@ function capForget(){
 /* Signing out leaves nothing of a capture behind for the next person. */
 function capSignOut(){
   capForget();
-  try{localStorage.removeItem(CAPTURE_BRAIN_KEY);}catch(e){}
+  try{localStorage.removeItem(SBMemoryChunk.LAST_BRAIN_KEY);}catch(e){}
 }
 function closeCaptureNow(){
+  clearTimeout(capSuggestTimer);
   document.getElementById('sb-cap-modal').classList.add('sb-hidden');
   capSaving=false;capSource=null;capInitial='';capBatch=null;
   // Saved or set aside, the share is finished: it does not come back.
@@ -6599,6 +6939,7 @@ function saveCapture(){
   // A save that stopped part way picks up where it stopped, so the pieces
   // already saved are not saved twice. Change the text or the Brain and it
   // starts over.
+  clearTimeout(capSuggestTimer);
   var key=brain.id+'\n'+text;
   if(!capBatch||capBatch.key!==key)capBatch={key:key,items:capturePayloads(text,brain.id,capSourceFor(text)),done:0};
   var batch=capBatch, items=batch.items;
@@ -6606,7 +6947,7 @@ function saveCapture(){
   capSaving=true;
   var save=document.getElementById('sb-cap-save');
   save.disabled=true;save.textContent='Saving…';
-  try{localStorage.setItem(CAPTURE_BRAIN_KEY,brain.id);}catch(e){}
+  SBMemoryChunk.saveLastBrain(brain.id);
   (function next(){
     if(batch.done>=items.length){
       items.forEach(function(p){memTakenNames[p.p_name.toLowerCase()]=true;});
@@ -6629,7 +6970,17 @@ function saveCapture(){
   })();
 }
 (function(){
-  document.getElementById('sb-cap-text').addEventListener('input',capCount);
+  document.getElementById('sb-cap-text').addEventListener('input',function(){
+    capCount();
+    // The suggestion follows the text while the Brain is still the app's
+    // choice, a moment after typing stops.
+    clearTimeout(capSuggestTimer);
+    capSuggestTimer=setTimeout(capPickBrain,250);
+  });
+  document.getElementById('sb-cap-brain').addEventListener('change',function(){
+    capBrainTouched=true;
+    document.getElementById('sb-cap-why').textContent='';
+  });
   document.getElementById('sb-cap-save').addEventListener('click',function(e){
     e.stopPropagation();
     saveCapture();

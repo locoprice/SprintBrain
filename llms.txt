@@ -16,7 +16,7 @@ Three surfaces exist. See Architecture & Parity below for exactly what stays in 
 |---|---|---|
 | Chrome extension | `extension/` | Primary expansion surface. Vanilla JS, MV3, no build step. |
 | Dashboard | `app/` (React) | The real home for CRUD, team/org sharing, analytics, settings. Desktop only (viewports under 1024px redirect to `/mobile/`). |
-| Mobile companion | `app/public/mobile/` | Used daily; fully synchronised on what a snippet *is and does* in the same task as every other surface. Brains can be read, copied, shared and added to there, and text or links from other apps saved into them (Save to Brain: Share menu, Shortcut, Paste & save). Only the management layer (folder rename/delete, full CRUD admin, managing Brains) is intentionally absent. |
+| Mobile companion | `app/public/mobile/` | Used daily; fully synchronised on what a snippet *is and does* in the same task as every other surface. Brains can be read, copied, shared and added to there, and text or links from other apps saved into them (Save to Brain: Share menu, Shortcut, Paste & save; the Brain is suggested from the words, as in the extension). Only the management layer (folder rename/delete, full CRUD admin, managing Brains) is intentionally absent. |
 
 The marketing site (`sprintbrain.com`) is a separate Netlify deploy rooted at `app/public/landing/`. English is the only language authored directly; Italian and Spanish copy is always human supplied (ask Valentina or Alessandro), never machine translated.
 

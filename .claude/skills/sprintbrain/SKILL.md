@@ -216,7 +216,7 @@ Working memory attaches only what the step needs.
 
 Engine parity: `extension/shared/memory-pack.js` ↔ `app/src/lib/memory/engine.ts`, gated by `scripts/check-memory-parity.js`. The phone carries a generated copy of `memory-pack.js` for the Add text token count and the text "Copy whole Brain" hands out (`scripts/sync-memory-pack.js`).
 
-Captures (the extension's Save to Brain and chat capture, the phone's Save to Brain) are cut and named by one rule in `extension/shared/memory-chunk.js`: `chunkText` / `chunkBlocks`, `captureName` (title, then the saver's local time to the second, then the part; the title is cut, never the time or the part) and `captureSummary`. The phone carries a generated copy (`scripts/sync-memory-chunk.js`); `scripts/check-memory-chunk.js` pins the rule. Uploaded files are named by the dashboard instead (`app/src/lib/documentImport.ts`).
+Captures (the extension's Save to Brain and chat capture, the phone's Save to Brain) are cut and named by one rule in `extension/shared/memory-chunk.js`: `chunkText` / `chunkBlocks`, `captureName` (title, then the saver's local time to the second, then the part; the title is cut, never the time or the part) and `captureSummary`. The same module decides which Brain a capture is offered (v3.55.0): `suggestBrain` matches words only, on the device, against each Brain's name, description and item names and summaries (bodies are never read, so the extension and the phone judge on the same words), names its reason in one line, and needs two shared words or one from a name or description; `pickBrain` falls back to the last Brain used (`loadLastBrain` / `saveLastBrain`, key `sb_capture_brain`: chrome.storage.local in the extension, localStorage on the phone), then the default. The extension's background answers `memory_spaces` with every Brain and every item's name and summary, paged, or `ok:false`. The phone carries a generated copy (`scripts/sync-memory-chunk.js`); `scripts/check-memory-chunk.js` pins the rule. Uploaded files are named by the dashboard instead (`app/src/lib/documentImport.ts`).
 
 Reference: `docs/MEMORY_ARCHITECTURE_REVIEW.md`, `docs/MEMORY_002_PLAN.md`.
 
@@ -319,7 +319,7 @@ node scripts/sync-tooltip.js --check   # tooltip parity
 node scripts/sync-snippet-stats.js --check
 node scripts/check-memory-parity.js    # working memory parity
 node scripts/sync-memory-pack.js --check   # phone memory pack + its use
-node scripts/sync-memory-chunk.js --check  # phone memory chunker + Save to Brain's use of it
+node scripts/sync-memory-chunk.js --check  # phone memory chunker + Save to Brain's use of it (cut, name, Brain)
 node scripts/check-memory-chunk.js     # memory chunk + chat capture
 node scripts/build-landing-i18n.js --check   # landing translation parity
 ```
