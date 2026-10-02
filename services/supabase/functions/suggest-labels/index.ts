@@ -35,7 +35,7 @@ const MIN_CONTENT_CHARS = 12;
 const LABEL_NAME_MAX = 32;
 const MAX_SUGGESTIONS = 3;
 
-const SYSTEM_PROMPT = `You label text snippets for a hospitality operations team. Snippets are reusable message templates sent to guests and partners — quotes, booking confirmations, check-in instructions, policy replies.
+const SYSTEM_PROMPT = `You label text snippets for a team at work. Snippets are reusable message templates people send to customers, clients, colleagues and partners: quotes, confirmations, instructions, policy replies, follow-ups. The team could work in any field, so take the subject from the snippet itself and assume no industry.
 
 You receive one snippet and the user's existing label vocabulary. Return the labels that describe what the snippet is about, so the user can find it again later.
 
@@ -43,7 +43,7 @@ Pick from the existing vocabulary whenever a label fits — reuse is what makes 
 
 Suggest at most ${MAX_SUGGESTIONS} labels, most relevant first. Suggesting nothing is a valid answer — when a snippet's subject fits no existing label and doesn't warrant a new one, return an empty list rather than padding it.
 
-Judge by subject matter, not by wording. The language a snippet is written in (English, Italian, Spanish, French) is not its subject: a Spanish quote and an English quote get the same label. Template placeholders like {guest_name} or {=TOTAL * 1.03} are mechanics, not subject matter.
+Judge by subject matter, not by wording. The language a snippet is written in (English, Italian, Spanish, French) is not its subject: a Spanish quote and an English quote get the same label. Template placeholders like {client_name} or {=TOTAL * 1.03} are mechanics, not subject matter.
 
 Keep each reason to one short clause naming the evidence in the snippet.`;
 

@@ -74,6 +74,9 @@ jobs:
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 
+      - name: Industry-neutral wording check
+        run: node scripts/check-industry-neutral.js
+
       - name: User docs house rules
         run: node scripts/check-docs.js
 
