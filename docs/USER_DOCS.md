@@ -46,7 +46,7 @@ CI runs all three on every push to `develop`.
 | Brains: items, uploads, trash, history, Context button, save selection, save chat, phone (Save to Brain) | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `extension/shared/memory-chunk.js`, `app/public/mobile/index.html` | `brains/overview` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
-| Phone page, including its Brains page, Paste & save, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
+| Phone page, including its Brains page, Paste & save, Share beside Copy, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
 | Where the extension runs | `content.js` field detection | `integrations/supported-sites` |
 | Notion sync | `NotionSyncPanel.tsx`, `extension/services/notion-sync/notion-sync.js` | `integrations/notion-sync` |
 | Account, branding, unused months | `app/src/features/settings/{AccountPanel,BrandingPanel,InactivityPanel}.tsx` | `settings/account` |
