@@ -573,7 +573,13 @@ body{
   text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .field-in{border:none;outline:none;font-size:16px;color:var(--text);
   background:transparent;width:100%;padding:0;font-family:inherit}
-.field-in::placeholder{color:#C7C7CC}
+/* What the person types is bold, in full ink, so it stands apart from the
+   snippet's own words around it, which stay grey and regular: filling the form
+   reads like writing into the gaps of the message. The placeholder stays light
+   and regular, so an empty box never looks filled. Same on all four fill
+   surfaces. */
+.field-in[type=text],.field-in[type=number]{font-weight:700}
+.field-in::placeholder{color:#C7C7CC;font-weight:400}
 .field-in[type=date],.field-in[type=time],.field-in[type=datetime-local]{
   color:#C2410C;font-weight:600}
 

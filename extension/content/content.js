@@ -770,6 +770,10 @@ function injectDynamicModal(variables, onConfirm, onCancel) {
     '.sb-field label{font-size:12px;font-weight:500;color:#444;text-transform:uppercase;letter-spacing:0.4px;}' +
     '.sb-field input{border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;outline:none;transition:border-color 0.15s;}' +
     '.sb-field input:focus{border-color:#5c6bc0;}' +
+    // What the person types is bold and in full ink; the hint stays regular,
+    // so an empty box never looks filled. Same on all four fill surfaces.
+    '.sb-field input{font-weight:700;color:#1a1a1a;}' +
+    '.sb-field input::placeholder{font-weight:400;}' +
     '.sb-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}' +
     '.sb-btn{padding:9px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity 0.15s;}' +
     '.sb-btn:hover{opacity:0.85;}' +
@@ -3514,6 +3518,12 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-ctxline{font-size:12px;color:#52525B;line-height:1.35;}' +
     '#sb-overlay .sb-inp{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:7px 10px;font-size:16px;color:#18181B;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;transition:border-color .15s,box-shadow .15s;}' +
     '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
+    // What the person types is bold and in full ink, so it stands apart from
+    // the snippet's own words around it, which stay grey and regular. The hint
+    // stays regular, so an empty box never looks filled. Same on all four fill
+    // surfaces.
+    '#sb-overlay .sb-inp[type=text],#sb-overlay .sb-inp[type=number]{font-weight:700;}' +
+    '#sb-overlay .sb-inp::placeholder{font-weight:400;}' +
     '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%231B4FD8"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
     // Adjust panel. A quiet link under the picker, not a button: it competes
