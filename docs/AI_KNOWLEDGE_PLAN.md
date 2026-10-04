@@ -51,6 +51,10 @@ Taken 2026-10-04:
 2. Sending the matching snippets and Brain items to Anthropic to compose an answer is acceptable; the team AI switch (P7) follows later.
 3. Team admins only approve content (P2).
 
+Taken 2026-10-04 for P3:
+4. A drafted snippet turns the details that change each time (names, dates, choices) into fill-in fields. Amounts and quantities stay as written until a number field exists (see the numeric gap in `CLAUDE.md`).
+5. Draft with AI lives in the dashboard only. The phone's Add text stays a quick capture.
+
 Still open: the embedding provider for P6 (not needed for P1 to P5).
 
 ## 5. P1 as built (v3.58.0)
