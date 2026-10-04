@@ -44,6 +44,7 @@ CI runs all three on every push to `develop`.
 | Prompt score | `app/src/lib/usePromptEvaluator.ts`, `PromptEfficiencyWidget.tsx` | `prompts/quality-score` |
 | Prompt list, filters, cards, the `"""` menu | `app/src/routes/PromptsPage.tsx`, `PromptFilters.tsx`, `PromptCard.tsx`, `content.js` prompt picker | `prompts/overview`, `prompts/filters-and-shortcuts` |
 | Brains: items, uploads, trash, history, Context button, save selection, save chat, phone (Save to Brain) | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `extension/shared/memory-chunk.js`, `app/public/mobile/index.html` | `brains/overview` |
+| Ask SprintBrain: answers from your snippets and Brains, sources, feedback, Settings > Answer feedback | `app/src/features/search/{GlobalSearch,AskAnswer}.tsx`, `app/src/features/settings/AnswerFeedbackPanel.tsx`, `app/src/lib/askKnowledge.ts`, `services/supabase/functions/ask-sprintbrain/`, `app/public/mobile/index.html` | `ask/overview`, `apps/mobile` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
 | Phone page, including its Brains page, Paste & save, Share beside Copy, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |

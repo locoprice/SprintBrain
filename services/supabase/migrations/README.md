@@ -46,6 +46,12 @@ These scripts are **not safe to apply until specific auth events happen**.
 
 > ⚠ The `memory_mcp_*` functions are granted to `anon`, which the security advisor flags as `anon_security_definer_function_executable`. That is intentional: an MCP server is headless and authenticates by presenting a token on every call. None of them accepts a user id, so there is no parameter to vary in order to read another account. Worth a second opinion before this reaches customers. `memory_mcp_save` joins them on the same terms, with one extra guard: a token is read-only unless `write` was asked for when it was issued, so an existing token cannot write no matter who holds it.
 
+## AI knowledge (AI-KNOWLEDGE P1)
+
+| File | Status | Notes |
+|---|---|---|
+| `20261004120000_knowledge_feedback.sql` | ✅ applied 2026-10-04 | Feedback on Ask SprintBrain answers. New table only, additive: no existing table, policy or function touched. Run by the owner in the SQL editor; a second step, `knowledge_feedback_least_privilege`, removed the DELETE / TRUNCATE / REFERENCES / TRIGGER rights Supabase's default privileges had granted `authenticated` (now folded into the file). Verified live under real identities in a rolled-back transaction: a member files under their own team only, another team sees nothing, the team admin sees and resolves it (recorded as resolver), nobody can rewrite or delete it, and `knowledge_search` returns the caller's own content. The `ask-sprintbrain` edge function is deployed (v2, `verify_jwt`), with `ANTHROPIC_API_KEY` set as a function secret. |
+
 ## How to run a deferred script
 
 1. Open https://supabase.com/dashboard/project/eyowustlbqujaimaxggt/sql/new
