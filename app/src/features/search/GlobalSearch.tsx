@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Search, Sparkles, Type } from 'lucide-react';
+import { Brain, MessageCircleQuestion, Search, Sparkles, Type } from 'lucide-react';
 import {
   labelNameLookup,
   searchAll,
@@ -15,6 +15,8 @@ import { useSearchStore } from '@/stores/searchStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
+import { ASK_QUESTION_MIN, type AskSource } from '@/lib/askKnowledge';
+import { AskAnswer } from '@/features/search/AskAnswer';
 
 // The aggregated half of the one search bar (SEARCH-001).
 //
@@ -74,6 +76,10 @@ export function GlobalSearch() {
   const navigate = useNavigate();
 
   const [activeIndex, setActiveIndex] = useState(0);
+  // The question being answered by Ask SprintBrain, or null while the panel
+  // lists search results. Frozen when asked, so editing the box afterwards
+  // returns to results rather than re-asking on every keystroke.
+  const [askFor, setAskFor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Everything the panel reads, fetched the first time it is opened. Each store
@@ -101,6 +107,7 @@ export function GlobalSearch() {
   useEffect(() => {
     if (open) {
       setActiveIndex(0);
+      setAskFor(null);
       // The bar in the header keeps its own focus ring; the panel takes over
       // typing while it is up.
       const id = setTimeout(() => inputRef.current?.focus(), 30);
@@ -111,6 +118,7 @@ export function GlobalSearch() {
 
   useEffect(() => {
     setActiveIndex(0);
+    setAskFor((asked) => (asked !== null && asked !== query.trim() ? null : asked));
   }, [query]);
 
   const results = useMemo(() => {
@@ -167,7 +175,32 @@ export function GlobalSearch() {
     }
   }
 
+  function openSource(source: AskSource) {
+    close();
+    if (source.kind === 'snippet') {
+      navigate('/');
+      openEditSnippet(source.id);
+    } else {
+      navigate(source.space_id ? `/memory/${source.space_id}` : '/memory');
+    }
+  }
+
+  const askText = input.trim();
+  const canAsk = askText.length >= ASK_QUESTION_MIN;
+
   function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (canAsk) setAskFor(askText);
+      return;
+    }
+    if (askFor !== null) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, flat.length - 1));
@@ -236,70 +269,95 @@ export function GlobalSearch() {
           ))}
         </div>
 
-        <div className="max-h-[360px] overflow-y-auto py-2">
-          {query.trim() === '' ? (
-            <p className="px-4 py-6 text-center text-sm text-ink-subtle">
-              Type to search across snippets, prompts and memory.
-            </p>
-          ) : shown.total === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-ink-subtle">
-              Nothing matches &ldquo;{query.trim()}&rdquo;.
-            </p>
-          ) : (
-            GROUPS.map(({ key, label, icon: Icon }) => {
-              const hits = shown[key];
-              if (hits.length === 0) return null;
-              return (
-                <div key={key} className="mb-1 last:mb-0">
-                  <div className="flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-                    <Icon className="h-3 w-3" />
-                    {label}
-                    <span className="font-normal normal-case tracking-normal">
-                      ({hits.length})
-                    </span>
-                  </div>
-                  {hits.map((hit) => {
-                    const index = cursor;
-                    cursor += 1;
-                    return (
-                      <button
-                        key={`${hit.kind}-${hit.id}`}
-                        type="button"
-                        onClick={() => select(hit)}
-                        onMouseEnter={() => setActiveIndex(index)}
-                        className={cn(
-                          'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                          index === activeIndex ? 'bg-primary-light' : 'hover:bg-bg-alt',
-                        )}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink">{hit.name}</p>
-                          {hit.detail ? (
-                            <p className="truncate text-xs text-ink-subtle">{hit.detail}</p>
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  })}
+        {askFor !== null ? (
+          <AskAnswer question={askFor} onBack={() => setAskFor(null)} onOpenSource={openSource} />
+        ) : (
+          <>
+            {canAsk ? (
+              <button
+                type="button"
+                onClick={() => setAskFor(askText)}
+                className="flex w-full items-center gap-3 border-b border-line px-4 py-2.5 text-left transition-colors hover:bg-bg-alt"
+              >
+                <MessageCircleQuestion className="h-4 w-4 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-ink">Ask SprintBrain</p>
+                  <p className="truncate text-xs text-ink-subtle">
+                    Answer &ldquo;{askText}&rdquo; from your snippets and Brains
+                  </p>
                 </div>
-              );
-            })
-          )}
-        </div>
+                <kbd className="shrink-0 rounded border border-line bg-bg-alt px-1 font-mono text-[11px] text-ink-subtle">
+                  ⌘↵
+                </kbd>
+              </button>
+            ) : null}
 
-        <div className="flex items-center gap-4 border-t border-line px-4 py-2">
-          <span className="flex items-center gap-1 text-[11px] text-ink-subtle">
-            <kbd className="rounded border border-line bg-bg-alt px-1 font-mono">↑↓</kbd>
-            navigate
-          </span>
-          <span className="flex items-center gap-1 text-[11px] text-ink-subtle">
-            <kbd className="rounded border border-line bg-bg-alt px-1 font-mono">↵</kbd>
-            open
-          </span>
-          <span className="ml-auto text-[11px] text-ink-subtle">
-            {shown.total} result{shown.total !== 1 ? 's' : ''}
-          </span>
-        </div>
+            <div className="max-h-[360px] overflow-y-auto py-2">
+              {query.trim() === '' ? (
+                <p className="px-4 py-6 text-center text-sm text-ink-subtle">
+                  Type to search across snippets, prompts and memory.
+                </p>
+              ) : shown.total === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-ink-subtle">
+                  Nothing matches &ldquo;{query.trim()}&rdquo;.
+                </p>
+              ) : (
+                GROUPS.map(({ key, label, icon: Icon }) => {
+                  const hits = shown[key];
+                  if (hits.length === 0) return null;
+                  return (
+                    <div key={key} className="mb-1 last:mb-0">
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+                        <Icon className="h-3 w-3" />
+                        {label}
+                        <span className="font-normal normal-case tracking-normal">
+                          ({hits.length})
+                        </span>
+                      </div>
+                      {hits.map((hit) => {
+                        const index = cursor;
+                        cursor += 1;
+                        return (
+                          <button
+                            key={`${hit.kind}-${hit.id}`}
+                            type="button"
+                            onClick={() => select(hit)}
+                            onMouseEnter={() => setActiveIndex(index)}
+                            className={cn(
+                              'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                              index === activeIndex ? 'bg-primary-light' : 'hover:bg-bg-alt',
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-ink">{hit.name}</p>
+                              {hit.detail ? (
+                                <p className="truncate text-xs text-ink-subtle">{hit.detail}</p>
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 border-t border-line px-4 py-2">
+              <span className="flex items-center gap-1 text-[11px] text-ink-subtle">
+                <kbd className="rounded border border-line bg-bg-alt px-1 font-mono">↑↓</kbd>
+                navigate
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-ink-subtle">
+                <kbd className="rounded border border-line bg-bg-alt px-1 font-mono">↵</kbd>
+                open
+              </span>
+              <span className="ml-auto text-[11px] text-ink-subtle">
+                {shown.total} result{shown.total !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

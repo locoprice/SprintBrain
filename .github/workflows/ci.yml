@@ -71,6 +71,9 @@ jobs:
       - name: Interactive Steps parity check
         run: node scripts/check-interactive-steps.js
 
+      - name: Ask SprintBrain parity check
+        run: node scripts/check-ask-knowledge.js
+
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 

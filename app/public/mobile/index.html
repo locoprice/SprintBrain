@@ -23,7 +23,7 @@
   --primary:#1B4FD8;--primary-dk:#1440B0;--primary-lt:#EEF2FF;--primary-grad:#4F7FE8;
   --text:#1C1C1E;--text2:#6E6E73;--text3:#8E8E93;
   --border:#E5E5EA;--success:#34C759;--danger:#E74C3C;
-  --warn-deep:#D97706;--warn-bg:#FFFBEB;
+  --warn-deep:#D97706;--warn-bg:#FFFBEB;--danger-bg:#FEF2F2;
   --r:16px;--r-card:18px;--r-btn:14px;--r-in:10px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --shadow-md:0 8px 24px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.04);
@@ -738,6 +738,67 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-info-row[data-copy]:active{background:var(--bg-alt)}
 .sb-info-mono{font-family:var(--mono);font-size:12px;color:var(--primary)}
 
+/* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1) ─────────────
+   The row under each search field, and the sheet that answers from the
+   reader's own snippets and Brains. Same states and words as the dashboard's
+   search panel (app/src/features/search/AskAnswer.tsx). */
+.ask-row{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;
+  padding:10px 14px;border:none;border-radius:var(--r-in);
+  background:rgba(255,255,255,.16);color:#fff;font:inherit;text-align:left;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:48px;
+  position:relative;z-index:1}
+.ask-row:active{background:rgba(255,255,255,.26)}
+.ask-row svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ask-row-t{min-width:0;flex:1}
+.ask-row-l{display:block;font-size:14px;font-weight:700}
+.ask-row-q{display:block;font-size:12.5px;font-weight:500;opacity:.85;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-body{padding:6px 20px 8px;max-height:72dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ask-q{font-size:15px;font-weight:700;color:var(--text);margin:4px 0 12px;word-break:break-word}
+.ask-wait{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:14px;padding:18px 0}
+.ask-wait .spinner{width:18px;height:18px;border-width:2px;flex-shrink:0}
+.ask-msg{font-size:14px;font-weight:600;color:var(--text);margin:6px 0}
+.ask-hint{font-size:13px;color:var(--text2);margin:4px 0 8px}
+.ask-err{font-size:14px;color:var(--danger);margin:8px 0}
+.ask-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;
+  background:var(--primary-lt);color:var(--primary);font-size:12px;font-weight:700}
+.ask-answer{font-size:15px;line-height:1.5;color:var(--text);white-space:pre-wrap;
+  word-break:break-word;margin:10px 0}
+.ask-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  padding:0 5px;border-radius:5px;border:none;background:var(--primary-lt);color:var(--primary);
+  font:inherit;font-size:11px;font-weight:700;flex-shrink:0}
+.ask-answer .ask-n{margin:0 2px;vertical-align:text-top;cursor:pointer}
+.ask-n.off{background:var(--bg-alt);color:var(--text2)}
+.ask-note{border-radius:var(--r-in);padding:10px 12px;font-size:13px;color:var(--text);margin:10px 0}
+.ask-note.warn{background:var(--warn-bg)}
+.ask-note.warn b{color:var(--warn-deep)}
+.ask-note.bad{background:var(--danger-bg)}
+.ask-note.bad b{color:var(--danger)}
+.ask-src-h{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;
+  letter-spacing:.5px;margin:16px 0 6px}
+.ask-src{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.ask-src li{display:flex;align-items:center;gap:10px;padding:10px 12px;min-height:48px;
+  border-top:1px solid var(--bg-alt);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ask-src li:first-child{border-top:none}
+.ask-src li:active{background:var(--bg-alt)}
+.ask-src-tx{flex:1;min-width:0}
+.ask-src-t{display:block;font-size:14px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-src-m{display:block;font-size:12px;color:var(--text2);margin-top:1px}
+.ask-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:var(--r-btn);
+  background:var(--primary);color:#fff;font:inherit;font-size:15px;font-weight:700;
+  min-height:48px;-webkit-tap-highlight-color:transparent}
+.ask-btn:active{background:var(--primary-dk)}
+.ask-btn.ghost{background:var(--bg-alt);color:var(--primary)}
+.ask-fb-h{font-size:13px;color:var(--text2);margin:16px 0 8px}
+.ask-fb{display:flex;flex-wrap:wrap;gap:8px}
+.ask-fb button{padding:8px 12px;min-height:36px;border-radius:999px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:600;
+  -webkit-tap-highlight-color:transparent}
+.ask-fb button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.ask-fb button:disabled:not(.on){opacity:.5}
+
 /* ── EDIT MODAL ──────────────────────────────── */
 .sb-edit-modal{
   position:fixed;inset:0;z-index:9999;
@@ -1188,6 +1249,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
 
@@ -1303,6 +1368,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="prompt-srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
   <!-- Quick-action bar (same bar as home; Prompts tile stays pushed on this page) -->
@@ -1360,6 +1429,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="mem-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="mem-srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
   <!-- Quick-action bar (same bar as home; Brains tile stays pushed on this page) -->
@@ -1597,6 +1670,19 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <li data-maction="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
       <li data-maction="info"><span class="sb-sheet-act-i">ℹ️</span> Item info</li>
     </ul>
+  </div>
+</div>
+
+<!-- ASK SPRINTBRAIN SHEET: an answer built only from the reader's own
+     snippets and Brains, with its sources and the feedback buttons. -->
+<div id="sb-ask-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-ask-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-ask-title">Ask SprintBrain</div>
+    <div class="ask-body" id="sb-ask-body" aria-live="polite"></div>
   </div>
 </div>
 
@@ -5885,6 +5971,7 @@ function syncPromptClear(){
   var wrap=document.getElementById('prompt-srch-wrap');
   var input=document.getElementById('prompt-srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('prompt-srch');
 }
 function promptCopy(p){
   var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
@@ -6493,6 +6580,7 @@ function syncMemClear(){
   var wrap=document.getElementById('mem-srch-wrap');
   var input=document.getElementById('mem-srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('mem-srch');
 }
 (function(){
   var mst;
@@ -7808,6 +7896,7 @@ function syncSnipClear(){
   var wrap=document.getElementById('srch-wrap');
   var input=document.getElementById('srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('srch');
 }
 var st;
 document.getElementById('srch').addEventListener('input',function(){
@@ -7985,6 +8074,251 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       setTimeout(function(){openSnippetInfo(s);},320);
     }
   });
+
+/* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1, docs/AI_KNOWLEDGE_PLAN.md) ──────────
+   Type a question in any of the three search fields and the row under it
+   asks the ask-sprintbrain function, which searches and reads as you and
+   answers only from your own snippets and Brains. Mirrors the dashboard's
+   search panel (app/src/features/search/AskAnswer.tsx): same states, words
+   and feedback. Feedback opens a review row in knowledge_feedback; it never
+   edits a snippet or a Brain. */
+/* Keep in step with ASK_VERDICTS in app/src/lib/askKnowledge.ts and the
+   knowledge_feedback verdict check: scripts/check-ask-knowledge.js. */
+var ASK_VERDICTS=[
+  {value:'useful',label:'Useful'},
+  {value:'incorrect',label:'Wrong'},
+  {value:'outdated',label:'Outdated'},
+  {value:'incomplete',label:'Incomplete'},
+  {value:'irrelevant',label:'Not relevant'},
+  {value:'conflicting',label:'Conflicts with policy'}
+];
+var ASK_MIN=3, ASK_MAX=1000;
+var ASK_ERRORS={
+  anthropic_not_configured:'Ask SprintBrain is not set up yet.',
+  anthropic_request_failed:'The answer service did not respond. Try again.',
+  anthropic_bad_output:'The answer came back unreadable. Try again.',
+  question_too_short:'Write a few more words.',
+  question_too_long:'Shorten the question to 1,000 characters or fewer.',
+  search_failed:'Could not search your SprintBrain. Try again.',
+  sources_read_failed:'Could not read the matching items. Try again.'
+};
+var ASK_FALLBACK='Could not reach Ask SprintBrain. Try again.';
+var askState=null, _askSeq=0, _askSheetTimer=null;
+
+function syncAskRow(inputId){
+  var input=document.getElementById(inputId);
+  var row=document.querySelector('.ask-row[data-ask-for="'+inputId+'"]');
+  if(!input||!row)return;
+  var q=input.value.trim();
+  row.classList.toggle('sb-hidden',q.length<ASK_MIN);
+  row.querySelector('.ask-row-q').textContent='Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains';
+}
+function askValid(b){
+  return !!b&&b.ok===true&&['answered','not_covered','no_sources'].indexOf(b.status)!==-1
+    &&typeof b.answer==='string'&&typeof b.missing==='string'&&typeof b.conflicts==='string'
+    &&Array.isArray(b.sources);
+}
+function askPlain(answer){
+  return String(answer||'').replace(/\s*\[S\d+\]/g,'').replace(/[ \t]+\n/g,'\n').trim();
+}
+function askSourceByRef(ref){
+  var src=askState&&askState.result?askState.result.sources:[];
+  for(var i=0;i<src.length;i++){if(src[i].ref===ref)return src[i];}
+  return null;
+}
+function askDate(iso){
+  if(!iso)return '';
+  var d=new Date(iso);
+  if(isNaN(d.getTime()))return '';
+  var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return 'Updated '+d.getDate()+' '+M[d.getMonth()]+' '+d.getFullYear();
+}
+/* The answer with citation markers drawn as buttons. A marker naming a source
+   that was not sent stays as plain text, as on the dashboard. */
+function askAnswerHtml(answer){
+  return esc(answer).replace(/\[(S\d+)\]/g,function(m,ref){
+    var s=askSourceByRef(ref);
+    if(!s)return m;
+    return '<button type="button" class="ask-n" data-ask-src="'+ref+'" aria-label="Source '+ref.slice(1)+': '+esc(s.title)+'">'+ref.slice(1)+'</button>';
+  });
+}
+function renderAsk(){
+  var body=document.getElementById('sb-ask-body');
+  if(!body||!askState)return;
+  var h='<div class="ask-q">'+esc(askState.question)+'</div>';
+  if(askState.loading){
+    body.innerHTML=h+'<div class="ask-wait" role="status"><div class="spinner"></div>Searching your snippets and Brains…</div>';
+    return;
+  }
+  if(askState.error){
+    body.innerHTML=h+'<div class="ask-err" role="alert">'+esc(askState.error)+'</div>'
+      +'<button type="button" class="ask-btn ghost" data-ask-act="retry">Try again</button>';
+    return;
+  }
+  var r=askState.result;
+  if(r.status==='no_sources'){
+    body.innerHTML=h+'<div class="ask-msg">Nothing in SprintBrain covers this yet.</div>'
+      +'<div class="ask-hint">Try other words, or save the answer as a snippet or a Brain item so the next person finds it.</div>';
+    return;
+  }
+  var answered=r.status==='answered';
+  if(answered){
+    h+='<span class="ask-badge">✓ From your SprintBrain</span>'
+      +'<div class="ask-answer">'+askAnswerHtml(r.answer)+'</div>';
+  }else{
+    h+='<div class="ask-msg">Your SprintBrain has related items, but none of them answers this.</div>';
+  }
+  if(r.missing)h+='<div class="ask-note warn"><b>Not in SprintBrain: </b>'+esc(r.missing)+'</div>';
+  if(r.conflicts)h+='<div class="ask-note bad"><b>Sources disagree: </b>'+esc(r.conflicts)+'</div>';
+  h+='<div class="ask-src-h">'+(answered?'Sources':'Related items')+'</div><ul class="ask-src">';
+  r.sources.forEach(function(s){
+    var meta=(s.kind==='snippet'?'Snippet':'Brain');
+    var d=askDate(s.updated_at);
+    h+='<li data-ask-src="'+esc(s.ref)+'">'
+      +(answered?'<span class="ask-n'+(s.used?'':' off')+'">'+esc(s.ref.slice(1))+'</span>':'')
+      +'<span class="ask-src-tx"><span class="ask-src-t">'+esc(s.title)+'</span>'
+      +'<span class="ask-src-m">'+meta+(d?' · '+d:'')+'</span></span></li>';
+  });
+  h+='</ul>';
+  if(answered)h+='<button type="button" class="ask-btn" data-ask-act="copy">Copy answer</button>';
+  h+='<div class="ask-fb-h">'+(askState.sent?'Feedback sent':'Was this right?')+'</div><div class="ask-fb">';
+  ASK_VERDICTS.forEach(function(v){
+    var on=askState.sent===v.value;
+    h+='<button type="button" data-ask-verdict="'+v.value+'" aria-pressed="'+on+'"'
+      +(on?' class="on"':'')+((askState.sent||askState.sending)?' disabled':'')+'>'+esc(v.label)+'</button>';
+  });
+  body.innerHTML=h+'</div>';
+}
+function runAsk(){
+  var seq=++_askSeq, q=askState.question;
+  askState.loading=true;askState.error=null;askState.result=null;askState.sent=null;
+  renderAsk();
+  fetch(SUPA+'/functions/v1/ask-sprintbrain',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify({question:q})
+  }).then(function(r){
+    if(handle401(r))return null;
+    return r.json().catch(function(){return {};}).then(function(b){return {ok:r.ok,b:b};});
+  }).then(function(res){
+    if(!res||seq!==_askSeq||!askState)return;
+    askState.loading=false;
+    if(res.ok&&askValid(res.b))askState.result=res.b;
+    else askState.error=ASK_ERRORS[res.b&&res.b.error]||ASK_FALLBACK;
+    renderAsk();
+  }).catch(function(){
+    if(seq!==_askSeq||!askState)return;
+    askState.loading=false;
+    askState.error='Can’t reach the server. Check your connection and try again.';
+    renderAsk();
+  });
+}
+function openAsk(question){
+  var q=String(question||'').trim().slice(0,ASK_MAX);
+  if(q.length<ASK_MIN)return;
+  clearTimeout(_askSheetTimer);
+  askState={question:q,loading:true,error:null,result:null,sent:null,sending:false};
+  var sh=document.getElementById('sb-ask-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+  document.getElementById('sb-ask-body').scrollTop=0;
+  runAsk();
+}
+function closeAsk(now){
+  var sh=document.getElementById('sb-ask-sheet');
+  if(!sh)return;
+  _askSeq++;
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  clearTimeout(_askSheetTimer);
+  if(now){sh.classList.add('sb-hidden');askState=null;return;}
+  _askSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');askState=null;},300);
+}
+/* The team the dashboard last had selected, so the team's admins see this
+   feedback. Same key as app/src/lib/activeOrg.ts; same origin, so readable
+   here. A stale id is refused by the database and the row is filed personal. */
+function askOrgId(){
+  try{return localStorage.getItem('sb_active_org_'+USER_ID)||null;}catch(e){return null;}
+}
+function askSendFeedback(verdict){
+  if(!askState||!askState.result||askState.sent||askState.sending)return;
+  var st=askState, r=st.result;
+  st.sending=true;renderAsk();
+  function post(org){
+    return fetch(SUPA+'/rest/v1/knowledge_feedback',{
+      method:'POST',
+      headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+      body:JSON.stringify({
+        question:st.question,
+        answer:String(r.answer||'').slice(0,8000),
+        verdict:verdict,
+        sources:r.sources.map(function(s){return {kind:s.kind,id:s.id,title:s.title,space_id:s.space_id||null,used:!!s.used};}),
+        organization_id:org
+      })
+    });
+  }
+  var org=askOrgId();
+  post(org).then(function(res){
+    if(handle401(res))return null;
+    if(!res.ok&&org)return post(null);
+    return res;
+  }).then(function(res){
+    if(!res)return;
+    st.sending=false;
+    if(!res.ok){showToast('Could not send feedback. Try again.');renderAsk();return;}
+    st.sent=verdict;
+    if(askState===st)renderAsk();
+    showToast(verdict==='useful'?'Thanks for the feedback':'Thanks. Sent for review');
+  }).catch(function(){
+    st.sending=false;
+    if(askState===st)renderAsk();
+    showToast('Could not send feedback. Try again.');
+  });
+}
+function askOpenSource(ref){
+  var s=askSourceByRef(ref);
+  if(!s)return;
+  closeAsk(true);
+  if(s.kind==='snippet'){
+    var snip=null;
+    for(var i=0;i<allSnips.length;i++){if(String(allSnips[i].id)===String(s.id)){snip=allSnips[i];break;}}
+    if(!snip){showToast('This snippet is not on this phone yet. Refresh and try again.');return;}
+    showSnippetsHome();
+    setTimeout(function(){
+      var grp=_groupIndex[groupKey(snip)];
+      openDetail(snip,grp&&grp.length>1?grp:[snip]);
+    },50);
+  }else{
+    showMemory();
+    if(s.space_id&&memBrainById(s.space_id))openBrain(s.space_id);
+  }
+}
+(function(){
+  var sheet=document.getElementById('sb-ask-sheet');
+  sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',function(){closeAsk();});
+  setupSheetDrag(sheet,function(){closeAsk();});
+  sheet.addEventListener('click',function(e){
+    var src=e.target.closest('[data-ask-src]');
+    if(src){askOpenSource(src.getAttribute('data-ask-src'));return;}
+    var v=e.target.closest('[data-ask-verdict]');
+    if(v){askSendFeedback(v.getAttribute('data-ask-verdict'));return;}
+    var act=e.target.closest('[data-ask-act]');
+    if(!act||!askState)return;
+    var a=act.getAttribute('data-ask-act');
+    if(a==='retry')runAsk();
+    else if(a==='copy'&&askState.result){
+      copyText(askPlain(askState.result.answer),function(){showToast('Answer copied ✓');},function(){showToast('Could not copy. Select the text and copy it instead.');});
+    }
+  });
+  document.querySelectorAll('.ask-row').forEach(function(row){
+    row.addEventListener('click',function(){
+      var input=document.getElementById(row.getAttribute('data-ask-for'));
+      if(input){input.blur();openAsk(input.value);}
+    });
+  });
+})();
 
 var _toastTimer=null;
 function showToast(msg){

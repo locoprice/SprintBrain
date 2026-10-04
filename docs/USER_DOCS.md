@@ -62,6 +62,7 @@ A new page gets a row here and an entry in the `docs.json` menu in the same chan
 These exist in the product but don't work for users, so the manual stays silent about them until they're fixed. When one is fixed, document it in the same task.
 
 - **Translate from EN** (snippet editor): the `translate-body` edge function is not deployed.
+- **Ask SprintBrain** (dashboard search panel, phone search fields, Settings > Answer feedback, v3.56.0): the `ask-sprintbrain` edge function is not deployed and the `knowledge_feedback` migration is not applied. When both are live, document it on a new page (`ask/overview`) and on `apps/mobile`.
 - **Notion button on prompt cards**: the `notion-prompt-push` edge function is not deployed.
 - **Push to Notion** (snippets): writes to one database set on the server, not to the account's own Notion.
 - **Triggers card**: the Shortcut prefix buttons and the Snippet key / Prompt key choices are saved but never read by the extension.
