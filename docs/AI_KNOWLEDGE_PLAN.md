@@ -1,6 +1,6 @@
 # AI Knowledge Layer — Gap Analysis and Phased Plan
 
-**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0**, not yet live: it needs the `knowledge_feedback` migration applied, the `ask-sprintbrain` edge function deployed and `ANTHROPIC_API_KEY` set as a function secret.
+**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
 **Principle:** retrieve before generating. SprintBrain stays the authoritative store; AI reads it, cites it, and never invents a company rule it cannot find.
 
 ---

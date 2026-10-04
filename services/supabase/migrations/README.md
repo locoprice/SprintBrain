@@ -50,7 +50,7 @@ These scripts are **not safe to apply until specific auth events happen**.
 
 | File | Status | Notes |
 |---|---|---|
-| `20261004120000_knowledge_feedback.sql` | ⏳ not applied | Feedback on Ask SprintBrain answers. New table only, additive: no existing table, policy or function touched. Deploy the `ask-sprintbrain` edge function alongside it. |
+| `20261004120000_knowledge_feedback.sql` | ✅ applied 2026-10-04 | Feedback on Ask SprintBrain answers. New table only, additive: no existing table, policy or function touched. Run by the owner in the SQL editor; a second step, `knowledge_feedback_least_privilege`, removed the DELETE / TRUNCATE / REFERENCES / TRIGGER rights Supabase's default privileges had granted `authenticated` (now folded into the file). Verified live under real identities in a rolled-back transaction: a member files under their own team only, another team sees nothing, the team admin sees and resolves it (recorded as resolver), nobody can rewrite or delete it, and `knowledge_search` returns the caller's own content. The `ask-sprintbrain` edge function is deployed (v2, `verify_jwt`), with `ANTHROPIC_API_KEY` set as a function secret. |
 
 ## How to run a deferred script
 

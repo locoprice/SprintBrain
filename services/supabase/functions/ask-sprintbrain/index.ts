@@ -24,7 +24,7 @@
 // (services/supabase/migrations/20260830000000_knowledge_index_view.sql).
 //
 // Environment secrets required (set via `supabase secrets set`):
-//   ANTHROPIC_API_KEY  — Anthropic API key (already set for suggest-labels)
+//   ANTHROPIC_API_KEY  — Anthropic API key (set as a project function secret)
 //   SUPABASE_URL       — injected automatically by the runtime
 //   SUPABASE_ANON_KEY  — injected automatically by the runtime
 
@@ -241,12 +241,14 @@ Deno.serve(async (req: Request) => {
   let raw: string;
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-opus-5',
+      model: 'claude-opus-5-5',
       // Thinking shares this budget with the answer, so it is sized well above
-      // what the JSON itself needs.
-      max_tokens: 4096,
+      // what the JSON itself needs. A reply cut off at the cap is not valid JSON
+      // and surfaces as anthropic_bad_output.
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       output_config: {
+        // Stated rather than relied on: medium is this model's default today.
         effort: 'medium',
         format: { type: 'json_schema', schema: OUTPUT_SCHEMA },
       },

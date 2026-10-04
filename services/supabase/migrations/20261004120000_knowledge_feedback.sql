@@ -129,5 +129,9 @@ create trigger knowledge_feedback_guard
 
 -- No delete policy: feedback is a record. It is closed, not erased; account
 -- deletion still removes it through the user_id cascade.
-revoke all on public.knowledge_feedback from public, anon;
+-- authenticated is revoked too, then given back only what the product uses:
+-- Supabase's default privileges otherwise grant it TRUNCATE, which RLS does
+-- not cover. (Production received this as a second step,
+-- knowledge_feedback_least_privilege, on 2026-10-04.)
+revoke all on public.knowledge_feedback from public, anon, authenticated;
 grant select, insert, update on public.knowledge_feedback to authenticated;
