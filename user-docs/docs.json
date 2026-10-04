@@ -61,9 +61,10 @@
             ]
           },
           {
-            "group": "Ask SprintBrain",
+            "group": "Ask and review",
             "pages": [
-              "ask/overview"
+              "ask/overview",
+              "review/overview"
             ]
           },
           {

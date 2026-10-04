@@ -12,6 +12,7 @@ import {
 } from '@/lib/askKnowledge';
 import { useOrgStore } from '@/stores/orgStore';
 import { useUiStore } from '@/stores/uiStore';
+import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 import { cn } from '@/lib/utils';
 
 // Ask SprintBrain inside the search panel (AI-KNOWLEDGE P1).
@@ -234,6 +235,7 @@ function AskResultView({ result, onOpenSource, onCopy, sentVerdict, sending, onF
                   ) : null}
                   <Icon className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
                   <span className="min-w-0 flex-1 truncate text-sm text-ink">{source.title}</span>
+                  <ReviewStatusBadge status={source.review_status} />
                   <span className="shrink-0 text-[11px] text-ink-subtle">
                     {source.kind === 'snippet' ? 'Snippet' : 'Brain'}
                     {sourceDate(source.updated_at) ? ` · ${sourceDate(source.updated_at)}` : ''}

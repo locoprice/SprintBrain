@@ -1040,7 +1040,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
           restoreFieldState(fieldSnapshot);
           processing = false;
         },
-        { inserted: true, target: el }
+        { inserted: true, target: el, warning: reviewWarning(snip) }
       );
     } else {
       // Non-CE (textarea / input): deleteChars already stripped the trigger.
@@ -1056,7 +1056,7 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
           restoreFieldState(fieldSnapshot);
           processing = false;
         },
-        { inserted: false, target: el }
+        { inserted: false, target: el, warning: reviewWarning(snip) }
       );
     }
   } else {
@@ -1692,6 +1692,7 @@ function showOverlay(targetEl, snip, scLen, done) {
       '<span class="sb-title">'+xesc(snip.title)+'</span>' +
       '<button class="sb-close">&#x2715;</button>' +
     '</div>' +
+    (reviewWarning(snip) ? '<div class="sb-revwarn" role="alert">' + xesc(reviewWarning(snip)) + '</div>' : '') +
     '<div class="sb-fields">'+fhtml+'</div>' +
     '<div class="sb-prev" id="sb-prev"></div>' +
     '<div class="sb-foot">' +
@@ -2035,7 +2036,7 @@ function doInsert(targetEl, snip) {
       text,
       function onConfirm() { logEvent(snip, fillCount); },
       function onUndo()    { restoreFieldState(snapshot); },
-      { inserted: true, target: targetEl }
+      { inserted: true, target: targetEl, warning: reviewWarning(snip) }
     );
   }
 
@@ -2069,7 +2070,7 @@ function doInsert(targetEl, snip) {
       text,
       function onConfirm() { insertText(targetEl, text); logEvent(snip, fillCount); },
       function onUndo()    { restoreFieldState(snapshot); },
-      { inserted: false, target: targetEl }
+      { inserted: false, target: targetEl, warning: reviewWarning(snip) }
     );
   }
 }
@@ -2325,12 +2326,28 @@ function _expansionSummary(text) {
     characters: characters, seconds: seconds, timeLabel: timeLabel };
 }
 
+// Review status (AI-KNOWLEDGE P2). Archived snippets never reach this script:
+// the worker and the popup leave them out of the expansion cache. A deprecated
+// one still expands, and the inserted-text card carries this line instead of
+// its usual description. Same words as the popup and the phone.
+function reviewWarning(snip) {
+  return snip && snip.review_status === 'deprecated'
+    ? 'This snippet is deprecated. Check it is still right before you send it.'
+    : '';
+}
+
+function _celEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function showCelebration(text, onConfirm, onUndo, options) {
   // Settle the previous card before capturing focus or installing a new timer.
   if (activeCelebrationClose) activeCelebrationClose();
   options = options || {};
   var inserted = options.inserted !== false;
   var canUndo = typeof onUndo === 'function';
+  // A deprecated snippet still expands; the card says so (AI-KNOWLEDGE P2).
+  var warning = typeof options.warning === 'string' ? options.warning : '';
   var summary = _expansionSummary(text);
   var returnFocus = options.target || document.activeElement;
   var savedStart = returnFocus && typeof returnFocus.selectionStart === 'number' ? returnFocus.selectionStart : null;
@@ -2367,7 +2384,9 @@ function showCelebration(text, onConfirm, onUndo, options) {
         '</svg></span>' +
         '<h2 id="sb-cel-title">' + (inserted ? 'Text inserted' : 'Ready to insert') + '</h2>' +
       '</div>' +
-      '<p id="sb-cel-description">' + (inserted ? 'Your text is ready in the current field.' : 'Your text is ready for the current field.') + '</p>' +
+      (warning
+        ? '<p id="sb-cel-description" class="sb-cel-warn" role="alert">' + _celEsc(warning) + '</p>'
+        : '<p id="sb-cel-description">' + (inserted ? 'Your text is ready in the current field.' : 'Your text is ready for the current field.') + '</p>') +
       '<div class="sb-cel-time">' +
         '<span class="sb-cel-label">' + (inserted ? 'Estimated time saved' : 'Estimated typing time') + '</span>' +
         '<strong id="sb-cel-time-value">' + summary.timeLabel + '</strong>' +
@@ -2612,7 +2631,12 @@ function _renderPickerItems(query) {
       : '';
     h += '<div class="sb-tp-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:14px;font-weight:500;color:#18181B;line-height:1.3;'
       + (i === 0 ? 'background:#EEF2FF;' : '') + '">'
-      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title) + '</span>' + sc
+      + '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + xesc(item.title) + '</span>'
+      // A deprecated item still works; the menu says so before it is picked.
+      + (item.review_status === 'deprecated'
+        ? '<span style="flex:none;padding:0 6px;border-radius:9999px;font-size:10px;font-weight:600;line-height:16px;color:var(--sb-warn);background:var(--sb-warn-bg);">Deprecated</span>'
+        : '')
+      + sc
       + '</div>';
   }
   if (!triggerPickerFiltered.length) {
@@ -2741,7 +2765,7 @@ function selectTriggerItem(idx) {
               restoreFieldState(fieldSnapshot);
               processing = false;
             },
-            { inserted: true, target: el }
+            { inserted: true, target: el, warning: reviewWarning(item) }
           );
         } else {
           // Non-CE: trigger already stripped; defer insertion to onConfirm.
@@ -2756,7 +2780,7 @@ function selectTriggerItem(idx) {
               restoreFieldState(fieldSnapshot);
               processing = false;
             },
-            { inserted: false, target: el }
+            { inserted: false, target: el, warning: reviewWarning(item) }
           );
         }
       } else {
@@ -3506,6 +3530,7 @@ document.addEventListener('input', function(e) {
     '#sb-celebrate .sb-cel-symbol{width:var(--sb-s-8);height:var(--sb-s-8);display:flex;align-items:center;justify-content:center;flex:none;color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-md);}' +
     '#sb-celebrate #sb-cel-title{font-size:var(--sb-fs-24);font-weight:600;letter-spacing:-.03em;line-height:1.25;}' +
     '#sb-celebrate #sb-cel-description{margin-top:var(--sb-s-2);color:var(--sb-ink-muted);font-size:var(--sb-fs-13);}' +
+    '#sb-celebrate #sb-cel-description.sb-cel-warn{color:var(--sb-warn);font-weight:600;}' +
     '#sb-celebrate .sb-cel-time{display:flex;flex-direction:column;gap:var(--sb-s-1);margin-top:var(--sb-s-6);padding:var(--sb-s-5) var(--sb-s-6);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-xl);}' +
     '#sb-celebrate .sb-cel-label{font-size:var(--sb-fs-12);font-weight:500;color:var(--sb-azure);}' +
     '#sb-celebrate #sb-cel-time-value{font-size:var(--sb-fs-32);font-weight:600;line-height:1.25;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--sb-azure);}' +
@@ -3533,6 +3558,7 @@ document.addEventListener('input', function(e) {
     // more fields than fit in 88vh. A short form shows no scrollbar at all.
     '#sb-overlay > *{flex:none;}' +
     '#sb-overlay .sb-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #E4E4E7;}' +
+    '#sb-overlay .sb-revwarn{padding:7px 14px;background:var(--sb-warn-bg);border-bottom:1px solid var(--sb-warn-bdr);color:var(--sb-warn);font-size:12px;font-weight:600;}' +
     '#sb-overlay .sb-logo{font-weight:700;font-size:13px;color:#1B4FD8;}' +
     '#sb-overlay .sb-title{font-size:11px;color:#52525B;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
     '#sb-overlay .sb-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:#A1A1AA;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}' +
@@ -3699,7 +3725,7 @@ function _proceedContextInsert(el, snip) {
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },
         function onUndo()    { restoreFieldState(snapCE); processing = false; },
-        { inserted: true, target: el }
+        { inserted: true, target: el, warning: reviewWarning(snip) }
       );
     } else if (isValueField) {
       // Textarea/input: the context menu inserts synchronously (no trigger to
@@ -3715,7 +3741,7 @@ function _proceedContextInsert(el, snip) {
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },
         function onUndo()    { restoreFieldState(snapVal); processing = false; },
-        { inserted: true, target: el }
+        { inserted: true, target: el, warning: reviewWarning(snip) }
       );
     } else {
       // No editable target: do not claim that text was inserted.

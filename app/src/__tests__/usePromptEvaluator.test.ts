@@ -304,6 +304,10 @@ describe('percentRank', () => {
 
 describe('promptToEvaluatorInput', () => {
   const baseRow: Prompt = {
+    organization_id: null,
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id: 'p1',
     user_id: 'u1',
     name: 'Test',
@@ -382,6 +386,10 @@ describe('promptToEvaluatorInput', () => {
 
 describe('selectBenchmarkCohort', () => {
   const row = (id: string, intent: IntentCategory | null): Prompt => ({
+    organization_id: null,
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id,
     user_id: 'u1',
     updated_by: 'u1',

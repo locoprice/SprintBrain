@@ -96,6 +96,10 @@ describe('isTopByUsage', () => {
 
 function row(over: Partial<SnippetRow> = {}): SnippetRow {
   return {
+    organization_id: null,
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id: 's1',
     user_id: 'u1',
     name: 'Quote',

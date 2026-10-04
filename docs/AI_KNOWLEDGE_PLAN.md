@@ -1,6 +1,6 @@
 # AI Knowledge Layer — Gap Analysis and Phased Plan
 
-**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
+**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0; P2 (review status) built in v3.59.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
 **Principle:** retrieve before generating. SprintBrain stays the authoritative store; AI reads it, cites it, and never invents a company rule it cannot find.
 
 ---
@@ -60,8 +60,26 @@ Still open: the embedding provider for P6 (not needed for P1 to P5).
 | Answer function: search as the caller, read sources as the caller, Claude answers from them only, citations checked, no sources means no model call | `services/supabase/functions/ask-sprintbrain/index.ts` |
 | Feedback table: verdict, question, answer, source snapshot, review status; author and team admins see it; only the status can change | `services/supabase/migrations/20261004120000_knowledge_feedback.sql` |
 | Dashboard: "Ask SprintBrain" row in the search panel (⌘↵), answer view, feedback buttons | `app/src/features/search/{GlobalSearch,AskAnswer}.tsx`, `app/src/lib/askKnowledge.ts`, `app/src/lib/api/askApi.ts` |
-| Dashboard review list | Settings > Answer feedback, `app/src/features/settings/AnswerFeedbackPanel.tsx` |
+| Dashboard review list | Review > Answer feedback (moved from Settings in v3.59.0), `app/src/features/review/AnswerFeedbackPanel.tsx` |
 | Phone: Ask row under the Snippets, Prompts and Brains search fields, answer sheet, feedback | `app/public/mobile/index.html` |
 | Gate | `scripts/check-ask-knowledge.js` (CI) |
 
 Not in P1: the Chrome extension (popup and in-page). Prompts are not searched as answer sources, by the standing knowledge-view rule (a prompt is an instruction, not knowledge); the Ask row still appears on the Prompts page so the three sections behave the same.
+
+## 6. P2 as built (v3.59.0)
+
+Owner decisions, 2026-10-04: existing content starts **approved** (no reviewer); a non-admin's edit of approved team content returns it to **under review**; **deprecated** works with a warning, **archived** stops working but stays in the dashboard.
+
+| Piece | Where |
+|---|---|
+| Status columns on snippets, prompts and Brain items, the guard trigger (approver = team admin for team rows, owner otherwise; reviewer stamped server-side; moving into a team counts as a change), archived left out of the knowledge view, the MCP server and search, MCP saves marked AI generated, search reports status | `services/supabase/migrations/20261005120000_review_status.sql` |
+| Statuses, words, approver rule (client mirror) | `app/src/lib/reviewStatus.ts`, `app/src/lib/useReviewApprover.ts` |
+| Badge in the three lists; status menu in the three editors | `app/src/components/shared/ReviewStatus{Badge,Menu}.tsx` |
+| Review page (Waiting for approval, Answer feedback) and its sidebar count | `app/src/routes/ReviewPage.tsx`, `app/src/features/review/`, `app/src/stores/reviewStore.ts` |
+| Ask: approved sources first, each labelled with its status | `services/supabase/functions/ask-sprintbrain/index.ts` |
+| Extension: archived left out of the expansion cache, popup, prompts and Context panel; deprecated warns on the inserted-text card, the fill form, the menu, the popup and the Context panel | `extension/background/background.js`, `extension/content/{content,memory-picker}.js`, `extension/popup/` |
+| Phone: archived hidden, badges, deprecated warning on open and copy | `app/public/mobile/index.html` |
+| Gate | `scripts/check-review-status.js` (CI) |
+
+Status is filtered on the Review page rather than in each section's toolbar: Brains has no filter bar, and the three sections keep identical toolbars. Older installed extensions keep expanding archived snippets until they update.
+

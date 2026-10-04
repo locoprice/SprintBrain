@@ -20,6 +20,8 @@ import { expandWithDescendants } from '@/lib/labelTree';
 import { useLabelStore } from '@/stores/labelStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { labelNameLookup, normalizeQuery, scorePrompt } from '@/lib/searchIndex';
+import { reviewApi } from '@/lib/api/reviewApi';
+import type { ReviewStatus } from '@/lib/reviewStatus';
 import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
 export interface PromptFilters {
@@ -86,6 +88,8 @@ interface PromptStore {
   removePrompt: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a prompt. Optimistic; rolls back on failure. */
   togglePin: (id: string) => Promise<void>;
+  /** Set the review status (AI-KNOWLEDGE P2). Same contract as the snippet store's. */
+  setReviewStatus: (id: string, status: ReviewStatus) => Promise<void>;
   markUsed: (id: string) => void;
   /** Create a folder and add it to the store. */
   addFolder: (payload: FolderFormValues) => Promise<Folder>;
@@ -274,6 +278,11 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
       set({ error: err instanceof Error ? err.message : 'Failed to delete folder' });
       throw err;
     }
+  },
+
+  setReviewStatus: async (id, status) => {
+    const stamp = await reviewApi.setStatus('prompt', id, status);
+    set((s) => ({ prompts: s.prompts.map((p) => (p.id === id ? { ...p, ...stamp } : p)) }));
   },
 
   togglePin: async (id) => {

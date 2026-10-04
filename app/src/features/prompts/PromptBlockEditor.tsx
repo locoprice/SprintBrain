@@ -20,6 +20,8 @@ import {
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
+import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import { useReviewApprover } from '@/lib/useReviewApprover';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -300,6 +302,8 @@ export function PromptBlockEditor() {
   const prompts = usePromptStore((s) => s.prompts);
   const folders = usePromptStore((s) => s.folders);
   const addPrompt = usePromptStore((s) => s.addPrompt);
+  const setReviewStatus = usePromptStore((s) => s.setReviewStatus);
+  const isApprover = useReviewApprover();
   const editPromptWithVersion = usePromptStore((s) => s.editPromptWithVersion);
   const versions = usePromptStore((s) => s.versions);
   const versionsLoading = usePromptStore((s) => s.versionsLoading);
@@ -354,9 +358,16 @@ export function PromptBlockEditor() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
 
-  // Sync form when prompt changes
+  // Sync form when a different prompt opens. Keyed on its id rather than the row
+  // object: a change made while the editor is open (the review status menu
+  // patches the row in the store) must not wipe text that is still unsaved.
+  const editingPromptRef = useRef(editingPrompt);
+  editingPromptRef.current = editingPrompt;
+  const editingPromptId = editingPrompt?.id ?? null;
+
   useEffect(() => {
     if (!isOpen) return;
+    const editingPrompt = editingPromptRef.current;
     setSubmitError(null);
     setNameError(null);
     setShortcutError(null);
@@ -400,7 +411,7 @@ export function PromptBlockEditor() {
       setLabelIds([]);
       setAskUserQuestions(true);
     }
-  }, [isOpen, editingPrompt]);
+  }, [isOpen, editingPromptId]);
 
   // Auto-classify when content changes
   const triggerClassify = useCallback((blocksSnapshot: PromptBlock[]) => {
@@ -693,6 +704,17 @@ export function PromptBlockEditor() {
               createdBy={editingPrompt.user_id}
               updatedBy={editingPrompt.updated_by}
               updatedAt={editingPrompt.updated_at}
+            />
+          )}
+          {mode === 'edit' && editingPrompt && (
+            <ReviewStatusMenu
+              tone="dark"
+              noun="prompt"
+              status={editingPrompt.review_status}
+              reviewedBy={editingPrompt.reviewed_by}
+              reviewedAt={editingPrompt.reviewed_at}
+              approver={isApprover(editingPrompt.organization_id, editingPrompt.user_id)}
+              onChange={(next) => setReviewStatus(editingPrompt.id, next)}
             />
           )}
           <button

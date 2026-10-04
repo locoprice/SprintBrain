@@ -7,6 +7,7 @@ import { MemoryPage } from '@/routes/MemoryPage';
 import { MemorySpacePage } from '@/routes/MemorySpacePage';
 import { TeamPage } from '@/routes/TeamPage';
 import { SettingsPage } from '@/routes/SettingsPage';
+import { ReviewPage } from '@/routes/ReviewPage';
 import { LoginPage } from '@/routes/LoginPage';
 import { SignupPage } from '@/routes/SignupPage';
 import { AuthCallback } from '@/routes/AuthCallback';
@@ -85,6 +86,7 @@ export function App() {
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/memory/:spaceId" element={<MemorySpacePage />} />
           <Route path="/team" element={<TeamPage />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
 

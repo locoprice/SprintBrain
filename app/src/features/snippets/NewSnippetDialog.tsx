@@ -28,6 +28,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
+import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import { useReviewApprover } from '@/lib/useReviewApprover';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
   LABEL_SUGGESTIONS_ENABLED,
@@ -397,6 +399,8 @@ export function NewSnippetDialog() {
   const addSnippet              = useSnippetStore((s) => s.addSnippet);
   const editSnippetWithRevision = useSnippetStore((s) => s.editSnippetWithRevision);
   const removeSnippet           = useSnippetStore((s) => s.removeSnippet);
+  const setReviewStatus         = useSnippetStore((s) => s.setReviewStatus);
+  const isApprover              = useReviewApprover();
   const setSnippetLabels        = useLabelStore((s) => s.setSnippetLabels);
 
   const openHistory = useUiStore((s) => s.openHistory);
@@ -522,8 +526,16 @@ export function NewSnippetDialog() {
   }, [form.alternative_queries, snippets, editingSnippet]);
 
   // Reset form whenever the dialog opens (either mode) or the edit target changes.
+  // The form is seeded once per open snippet, keyed on its id rather than the
+  // row object: a change made while the editor is open (the review status menu
+  // patches the row in the store) must not wipe text that is still unsaved.
+  const editingSnippetRef = useRef(editingSnippet);
+  editingSnippetRef.current = editingSnippet;
+  const editingSnippetId = editingSnippet?.id ?? null;
+
   useEffect(() => {
     if (!open) return;
+    const editingSnippet = editingSnippetRef.current;
     setErrors({});
     setSubmitError(null);
     setConfirmDelete(false);
@@ -558,7 +570,7 @@ export function NewSnippetDialog() {
       setForm(EMPTY_FORM);
       setLabelIds([]);
     }
-  }, [open, editingSnippet]);
+  }, [open, editingSnippetId]);
 
   // Check the body against its own flag while it is being written, so a wrong
   // language is caught in the sentence that caused it rather than sprung at
@@ -974,6 +986,16 @@ export function NewSnippetDialog() {
               createdBy={editingSnippet.user_id}
               updatedBy={editingSnippet.updated_by}
               updatedAt={editingSnippet.updated_at}
+            />
+          )}
+          {mode === 'edit' && editingSnippet && (
+            <ReviewStatusMenu
+              noun="snippet"
+              status={editingSnippet.review_status}
+              reviewedBy={editingSnippet.reviewed_by}
+              reviewedAt={editingSnippet.reviewed_at}
+              approver={isApprover(editingSnippet.organization_id, editingSnippet.user_id)}
+              onChange={(next) => setReviewStatus(editingSnippet.id, next)}
             />
           )}
 

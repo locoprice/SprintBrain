@@ -74,6 +74,9 @@ jobs:
       - name: Ask SprintBrain parity check
         run: node scripts/check-ask-knowledge.js
 
+      - name: Review status parity check
+        run: node scripts/check-review-status.js
+
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 

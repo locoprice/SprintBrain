@@ -24,6 +24,10 @@ const PROMPT_ID = 'prompt-lifecycle-001';
 const NOTION_PAGE_ID = 'notion-page-abc123';
 
 const BASE_PROMPT: Prompt = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: PROMPT_ID,
   user_id: 'user-001',
   name: 'Reservation Confirmation Template',

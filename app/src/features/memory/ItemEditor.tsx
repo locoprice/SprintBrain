@@ -14,6 +14,9 @@ import { estimateTokens } from '@/lib/memory/engine';
 import { sanitizeName } from '@/lib/nameText';
 import type { MemoryItem, MemoryItemKind } from '@/types/database';
 import type { SaveMemoryItemInput } from '@/lib/api/memoryApi';
+import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import { useReviewApprover } from '@/lib/useReviewApprover';
+import { useMemoryStore } from '@/stores/memoryStore';
 
 // Create or edit one memory item.
 //
@@ -52,6 +55,13 @@ interface ItemEditorProps {
 
 export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: ItemEditorProps) {
   const editing = target !== null && target !== 'new' ? target : null;
+  // The item as the store has it now: the status menu below changes the row
+  // while the editor is open, and the page handed in a copy from before.
+  const live = useMemoryStore((s) =>
+    editing ? (s.items.find((item) => item.id === editing.id) ?? editing) : null,
+  );
+  const setReviewStatus = useMemoryStore((s) => s.setReviewStatus);
+  const isApprover = useReviewApprover();
 
   const [name, setName] = useState('');
   const [summary, setSummary] = useState('');
@@ -112,6 +122,16 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
                 what is worth reading, so it earns its place more than the body does.
               </DialogDescription>
             </div>
+            {live ? (
+              <ReviewStatusMenu
+                noun="item"
+                status={live.review_status}
+                reviewedBy={live.reviewed_by}
+                reviewedAt={live.reviewed_at}
+                approver={isApprover(null, live.user_id)}
+                onChange={(next) => setReviewStatus(live.id, next)}
+              />
+            ) : null}
             {/* Only an existing item has anything behind it to look at. */}
             {editing && onOpenHistory ? (
               <button

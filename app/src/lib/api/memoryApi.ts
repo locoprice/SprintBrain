@@ -3,6 +3,7 @@ import { toApiError } from '@/lib/api/apiError';
 import { buildChunkItems } from '@/lib/documentImport';
 import { DocumentTextError, extractDocumentText } from '@/lib/documentText';
 import { loadMemoryChunk } from '@/lib/memoryChunk';
+import { toReviewStatus } from '@/lib/reviewStatus';
 import type {
   MemoryDocument,
   MemoryItem,
@@ -33,7 +34,8 @@ const SPACE_SELECT =
 
 const ITEM_SELECT =
   'id, user_id, space_id, name, summary, body, kind, metadata, token_estimate, ' +
-  'pinned, priority, content_hash, source_id, created_at, updated_at, deleted_at';
+  'pinned, priority, content_hash, source_id, created_at, updated_at, deleted_at, ' +
+  'review_status, reviewed_by, reviewed_at';
 
 const VERSION_SELECT =
   'id, shard_id, version_number, editor_id, editor_display, name, summary, body, ' +
@@ -170,6 +172,9 @@ type DbItem = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  review_status: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 };
 
 type DbDocument = {
@@ -224,6 +229,9 @@ function dbItemToItem(row: DbItem): MemoryItem {
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at,
+    review_status: toReviewStatus(row.review_status),
+    reviewed_by: row.reviewed_by ?? null,
+    reviewed_at: row.reviewed_at ?? null,
   };
 }
 

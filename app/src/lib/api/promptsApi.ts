@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { toApiError } from '@/lib/api/apiError';
 import type { Prompt, PromptBlock, PromptVersion, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
+import { toReviewStatus } from '@/lib/reviewStatus';
 
 export interface PromptsApi {
   listPrompts(): Promise<Prompt[]>;
@@ -72,6 +73,10 @@ type DbPrompt = {
   created_at: string | null;
   usage_count: number | null;
   is_malformed: boolean | null;
+  organization_id: string | null;
+  review_status: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 };
 
 const PROMPT_SELECT = [
@@ -83,6 +88,8 @@ const PROMPT_SELECT = [
   // never executed is measured from the day it was added (INACTIVE-001).
   'created_at',
   'usage_count', 'is_malformed',
+  // Review status (AI-KNOWLEDGE P2). organization_id decides who approves.
+  'organization_id', 'review_status', 'reviewed_by', 'reviewed_at',
 ].join(', ');
 
 function dbPromptToPrompt(row: DbPrompt): Prompt {
@@ -102,6 +109,10 @@ function dbPromptToPrompt(row: DbPrompt): Prompt {
     blocks: row.blocks ?? null,
     ask_user_questions: row.ask_user_questions ?? false,
     folder_id: row.folder_id ?? null,
+    organization_id: row.organization_id ?? null,
+    review_status: toReviewStatus(row.review_status),
+    reviewed_by: row.reviewed_by ?? null,
+    reviewed_at: row.reviewed_at ?? null,
     notion_page_id: row.notion_page_id ?? null,
     pinned: row.pinned ?? false,
     updated_at: row.updated_at,

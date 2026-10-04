@@ -46,6 +46,10 @@ const mockPromptSetPinned = vi.mocked(promptsApi.setPinned);
 const mockSnippetSetPinned = vi.mocked(snippetsApi.setPinned);
 
 const PROMPT: Prompt = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: 'p1',
   user_id: 'u1',
   name: 'Reply draft',
@@ -73,6 +77,10 @@ const PROMPT: Prompt = {
 
 function snippetRow(id: string, lang: SnippetRow['language']): SnippetRow {
   return {
+    organization_id: null,
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id,
     user_id: 'u1',
     name: `Greeting ${lang}`,

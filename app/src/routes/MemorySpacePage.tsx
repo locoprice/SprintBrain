@@ -32,6 +32,7 @@ import { normalizeQuery, scoreMemoryItem } from '@/lib/searchIndex';
 import { memoryApi } from '@/lib/api/memoryApi';
 import { ACCEPTED_EXTENSIONS, DocumentTextError } from '@/lib/documentText';
 import type { MemoryDocument, MemoryItem } from '@/types/database';
+import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 
 // One space and its items.
 //
@@ -154,7 +155,18 @@ function ItemCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Card className="flex flex-col gap-2 p-4">
+    <Card
+      className={cn(
+        'flex flex-col gap-2 p-4',
+        // Archived items dim, as archived snippets and prompts do.
+        item.review_status === 'archived' && 'opacity-50',
+      )}
+      title={
+        item.review_status === 'archived'
+          ? 'Archived — never added to an AI chat, and Ask SprintBrain ignores it'
+          : undefined
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-bg-alt text-ink-muted">
@@ -163,6 +175,7 @@ function ItemCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-ink">{item.name}</span>
+              <ReviewStatusBadge status={item.review_status} />
               {item.pinned ? (
                 <Pin className="h-3 w-3 shrink-0 fill-current text-primary" aria-label="Always attached" />
               ) : null}
