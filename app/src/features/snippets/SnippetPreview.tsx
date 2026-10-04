@@ -382,6 +382,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
     );
   }
 
+  const type = inputType(field);
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
@@ -390,7 +391,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
       <div className="flex flex-wrap items-center gap-1.5">
         {before}
         <input
-          type={inputType(field)}
+          type={type}
           {...(field.min ? { min: field.min } : {})}
           value={field.value}
           placeholder={label}
@@ -399,6 +400,12 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
           className={cn(
             'min-w-0 rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs text-ink transition-colors',
             'placeholder:text-ink-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+            // What the person types is bold and in full ink, so it stands apart
+            // from the snippet's own words around it, which stay muted and
+            // regular. The hint stays regular, so an empty box never looks
+            // filled. Same on all four fill surfaces; picked values (dates)
+            // keep their own look.
+            type === 'text' || type === 'number' ? 'font-bold placeholder:font-normal' : '',
             // A floor, not a width: long surrounding prose would otherwise
             // squeeze a flex-1 input down to a few characters. The row wraps,
             // so the prose gives way and takes the line above instead.

@@ -46,7 +46,7 @@ CI runs all three on every push to `develop`.
 | Brains: items, uploads, trash, history, Context button, save selection, save chat, phone (Save to Brain) | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `extension/shared/memory-chunk.js`, `app/public/mobile/index.html` | `brains/overview` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
-| Phone page, including its Brains page, Paste & save, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
+| Phone page, including its Brains page, Paste & save, Share beside Copy, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
 | Where the extension runs | `content.js` field detection | `integrations/supported-sites` |
 | Notion sync | `NotionSyncPanel.tsx`, `extension/services/notion-sync/notion-sync.js` | `integrations/notion-sync` |
 | Account, branding, unused months | `app/src/features/settings/{AccountPanel,BrandingPanel,InactivityPanel}.tsx` | `settings/account` |
@@ -62,7 +62,7 @@ A new page gets a row here and an entry in the `docs.json` menu in the same chan
 These exist in the product but don't work for users, so the manual stays silent about them until they're fixed. When one is fixed, document it in the same task.
 
 - **Translate from EN** (snippet editor): the `translate-body` edge function is not deployed.
-- **Ask SprintBrain** (dashboard search panel, phone search fields, Settings > Answer feedback, v3.56.0): the `ask-sprintbrain` edge function is not deployed and the `knowledge_feedback` migration is not applied. When both are live, document it on a new page (`ask/overview`) and on `apps/mobile`.
+- **Ask SprintBrain** (dashboard search panel, phone search fields, Settings > Answer feedback, v3.58.0): the `ask-sprintbrain` edge function is not deployed and the `knowledge_feedback` migration is not applied. When both are live, document it on a new page (`ask/overview`) and on `apps/mobile`.
 - **Notion button on prompt cards**: the `notion-prompt-push` edge function is not deployed.
 - **Push to Notion** (snippets): writes to one database set on the server, not to the account's own Notion.
 - **Triggers card**: the Shortcut prefix buttons and the Snippet key / Prompt key choices are saved but never read by the extension.

@@ -573,7 +573,13 @@ body{
   text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .field-in{border:none;outline:none;font-size:16px;color:var(--text);
   background:transparent;width:100%;padding:0;font-family:inherit}
-.field-in::placeholder{color:#C7C7CC}
+/* What the person types is bold, in full ink, so it stands apart from the
+   snippet's own words around it, which stay grey and regular: filling the form
+   reads like writing into the gaps of the message. The placeholder stays light
+   and regular, so an empty box never looks filled. Same on all four fill
+   surfaces. */
+.field-in[type=text],.field-in[type=number]{font-weight:700}
+.field-in::placeholder{color:#C7C7CC;font-weight:400}
 .field-in[type=date],.field-in[type=time],.field-in[type=datetime-local]{
   color:#C2410C;font-weight:600}
 
@@ -646,18 +652,21 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 /* A Brain item is read here, not previewed, so it runs its full length. */
 .mi-text{max-height:none;overflow:visible}
 
-/* Copy footer — sticky with safe-area inset */
-.copy-foot{position:fixed;bottom:0;left:0;right:0;
+/* Copy footer — sticky with safe-area inset. Share sits beside Copy where the
+   phone has a Share menu, and Copy takes the whole row where it has none. */
+.copy-foot{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;
   padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom));
   background:rgba(242,242,247,.92);backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);z-index:40}
-#copy-btn,#mi-copy{width:100%;background:var(--primary);color:#fff;border:none;
+.foot-btn{flex:1 1 0;min-width:0;background:var(--primary);color:#fff;
+  border:1px solid transparent;
   border-radius:var(--r-btn);padding:16px;font-size:17px;font-weight:700;
   cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;
   transition:background .2s,transform .1s;display:flex;
-  align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px}
-#copy-btn:active,#mi-copy:active{transform:scale(.97)}
-#copy-btn.ok,#mi-copy.ok{background:var(--success)}
+  align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px;white-space:nowrap}
+.foot-btn.is-share{background:var(--card);color:var(--primary);border-color:var(--border)}
+.foot-btn:active{transform:scale(.97)}
+.foot-btn.ok{background:var(--success);color:#fff;border-color:transparent}
 
 /* ── BOTTOM SHEET ────────────────────────────── */
 .sb-hidden{display:none !important}
@@ -1339,10 +1348,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
   <div class="copy-foot">
-    <button id="copy-btn">
-      <span id="cico">📋</span>
-      <span id="clbl">Copy to clipboard</span>
-    </button>
+    <button id="copy-btn" class="foot-btn" type="button"><span>📋</span><span>Copy</span></button>
+    <button id="share-btn" class="foot-btn is-share sb-hidden" type="button"><span>📤</span><span>Share</span></button>
   </div>
 </div>
 
@@ -1489,10 +1496,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
   <div class="copy-foot">
-    <button id="mi-copy" type="button">
-      <span id="mi-cico">📋</span>
-      <span id="mi-clbl">Copy to clipboard</span>
-    </button>
+    <button id="mi-copy" class="foot-btn" type="button"><span>📋</span><span>Copy</span></button>
+    <button id="mi-share" class="foot-btn is-share sb-hidden" type="button"><span>📤</span><span>Share</span></button>
   </div>
 </div>
 
@@ -6022,13 +6027,8 @@ function closePromptSheet(){
    there is one, fall back to the clipboard where there is not. */
 function sharePrompt(p){
   var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
-  promptMarkUsed(p);
   closePromptSheet();
-  if(navigator.share){
-    navigator.share({title:p.name||'Prompt',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Prompt copied ✓ (sharing not supported)');});
-  }
+  shareOut(p.name||'Prompt',text,function(){promptMarkUsed(p);});
 }
 /* Read-only prompt detail, the prompt half of the shared info sheet. */
 function openPromptInfo(p){
@@ -6472,20 +6472,11 @@ function copyBrain(b){
 function shareBrain(b){
   closeMemSheet();
   if(!memItemsOf(b.id).length){showToast('This Brain is empty');return;}
-  var text=memBrainBlock(b);
-  if(navigator.share){
-    navigator.share({title:b.name||'Brain',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Brain copied ✓ (sharing not supported)');},memCopyFailed);
-  }
+  shareOut(b.name||'Brain',memBrainBlock(b));
 }
 function shareMemItem(it){
   closeMemSheet();
-  if(navigator.share){
-    navigator.share({title:it.name||'Item',text:it.body||''}).catch(function(){});
-  }else{
-    copyText(it.body||'',function(){showToast('Copied ✓ (sharing not supported)');},memCopyFailed);
-  }
+  shareOut(it.name||'Item',it.body||'');
 }
 /* Read-only details, in the info sheet snippets and prompts use. */
 function openMemItemInfo(it){
@@ -6639,16 +6630,12 @@ function syncMemClear(){
   document.getElementById('mi-copy').addEventListener('click',function(){
     if(!curMemItem)return;
     var btn=this;
-    copyText(curMemItem.body||'',function(){
-      btn.classList.add('ok');
-      document.getElementById('mi-cico').textContent='✓';
-      document.getElementById('mi-clbl').textContent='Copied!';
-      setTimeout(function(){
-        btn.classList.remove('ok');
-        document.getElementById('mi-cico').textContent='📋';
-        document.getElementById('mi-clbl').textContent='Copy to clipboard';
-      },2000);
-    },memCopyFailed);
+    copyText(curMemItem.body||'',function(){flashFootBtn(btn,'Copied!');},memCopyFailed);
+  });
+  document.getElementById('mi-share').addEventListener('click',function(){
+    if(!curMemItem)return;
+    var btn=this;
+    shareOut(curMemItem.name||'Item',curMemItem.body||'',function(){flashFootBtn(btn,'Shared!');});
   });
 })();
 
@@ -7789,35 +7776,37 @@ function getFmts(){
   return f;
 }
 
-function updatePrev(){
-  if(!curSnip)return;
-  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()),
+/* The finished text on the snippet page: what the preview shows, and what
+   Copy and Share hand over. */
+function detailText(){
+  return resolveBody(curSnip.body||'',Object.assign({},getVals()),
     {lang:curSnip.lang,fmtOverride:getFmts()});
-  document.getElementById('prev-text').textContent=resolved;
 }
-
-/* ── COPY ───────────────────────────────────────── */
-document.getElementById('copy-btn').addEventListener('click',function(){
-  if(!curSnip)return;
-  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()),
-    {lang:curSnip.lang,fmtOverride:getFmts()});
+function detailFilled(){
   var raw=getRawVals(),filled=0;
   for(var k in raw){if(String(raw[k]).replace(/^\s+|\s+$/g,'')!=='')filled++;}
-  logSnipUse(curSnip,filled);
+  return filled;
+}
+
+function updatePrev(){
+  if(!curSnip)return;
+  document.getElementById('prev-text').textContent=detailText();
+}
+
+/* ── COPY & SHARE ───────────────────────────────── */
+document.getElementById('copy-btn').addEventListener('click',function(){
+  if(!curSnip)return;
   var btn=this;
-  function onOk(){
-    btn.classList.add('ok');
-    document.getElementById('cico').textContent='✓';
-    document.getElementById('clbl').textContent='Copied!';
-    setTimeout(function(){
-      btn.classList.remove('ok');
-      document.getElementById('cico').textContent='📋';
-      document.getElementById('clbl').textContent='Copy to clipboard';
-    },2000);
-  }
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(onOk).catch(function(){fbCopy(text,onOk);});
-  }else{fbCopy(text,onOk);}
+  logSnipUse(curSnip,detailFilled());
+  copyText(detailText(),function(){flashFootBtn(btn,'Copied!');});
+});
+document.getElementById('share-btn').addEventListener('click',function(){
+  if(!curSnip)return;
+  var btn=this,s=curSnip,filled=detailFilled();
+  shareOut(s.title||'Snippet',detailText(),function(){
+    logSnipUse(s,filled);
+    flashFootBtn(btn,'Shared!');
+  });
 });
 
 /* onFail, when given, hears about a copy the browser refused, so the screen can
@@ -8068,7 +8057,15 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       toggleSnippetPin(s);
       closeBottomSheet();
     }else if(act==='share'){
-      shareSnippet(s);
+      // A snippet with fields is filled in first, on its page, which has
+      // Share beside Copy. The rest leave as they are.
+      if(extractFields(s.body||'').length){
+        var fgrp=_groupIndex[groupKey(s)];
+        closeBottomSheet();
+        setTimeout(function(){openDetail(s,fgrp&&fgrp.length>1?fgrp:[s]);},320);
+      }else{
+        shareSnippet(s);
+      }
     }else if(act==='info'){
       closeBottomSheet();
       setTimeout(function(){openSnippetInfo(s);},320);
@@ -8336,6 +8333,60 @@ function copyText(t,cb,onFail){
   }else{fbCopy(t,cb,onFail);}
 }
 
+/* Hand finished text to the phone's Share menu: WhatsApp, Mail or an AI app
+   takes it as it is, with nothing left to paste. Snippets, prompts and Brains
+   all share through here. Where the phone has no Share menu the text is copied
+   instead, and the toast says so. onDone hears once the text has left, shared
+   or copied; closing the menu without picking an app is not a use. */
+var shareOpen=false;
+function shareOut(title,text,onDone){
+  function done(){if(onDone)onDone();}
+  if(!navigator.share){
+    copyText(text,function(){showToast('Copied ✓ (sharing not supported)');done();},
+      function(){showToast('Could not copy');});
+    return;
+  }
+  // A second tap while the menu is up would only be refused.
+  if(shareOpen)return;
+  shareOpen=true;
+  var opened;
+  try{opened=navigator.share({title:title,text:text});}
+  catch(e){opened=Promise.reject(e);}
+  Promise.resolve(opened).then(function(){shareOpen=false;done();},function(e){
+    shareOpen=false;
+    if(e&&e.name==='AbortError')return;
+    console.error('Share: the phone\'s Share menu did not open:', e);
+    showToast('Share did not open. Use Copy instead');
+  });
+}
+// Back from the app the text went to, Share answers again even if the phone
+// never said how the last share ended.
+document.addEventListener('visibilitychange',function(){if(!document.hidden)shareOpen=false;});
+
+/* The footer buttons answer on themselves: green, with a tick, for two
+   seconds. Each keeps its own label in the markup to come back to. */
+var footFlash={};
+function flashFootBtn(btn,said){
+  var ico=btn.firstElementChild,lbl=btn.lastElementChild;
+  if(!btn.hasAttribute('data-lbl')){
+    btn.setAttribute('data-ico',ico.textContent);
+    btn.setAttribute('data-lbl',lbl.textContent);
+  }
+  clearTimeout(footFlash[btn.id]);
+  btn.classList.add('ok');
+  ico.textContent='✓';
+  lbl.textContent=said;
+  footFlash[btn.id]=setTimeout(function(){
+    btn.classList.remove('ok');
+    ico.textContent=btn.getAttribute('data-ico');
+    lbl.textContent=btn.getAttribute('data-lbl');
+  },2000);
+}
+/* Share shows only where the phone has a Share menu to open. */
+document.querySelectorAll('.foot-btn.is-share').forEach(function(b){
+  b.classList.toggle('sb-hidden',!navigator.share);
+});
+
 /* ANALYTICS-001 parity with the extension: fire-and-forget usage event on
    copy/share (an event = snippet text left the app). The insert policy's
    WITH CHECK (auth.uid() = user_id) requires our own USER_ID. Also updates
@@ -8366,13 +8417,8 @@ function newId(){
    clipboard copy where the Web Share API is unavailable. */
 function shareSnippet(s){
   var text=resolveBody(s.body||'',{},{lang:s.lang});
-  logSnipUse(s,0);
   closeBottomSheet();
-  if(navigator.share){
-    navigator.share({title:s.title||'Snippet',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Copied ✓ — sharing not supported');});
-  }
+  shareOut(s.title||'Snippet',text,function(){logSnipUse(s,0);});
 }
 
 /* Read-only snippet detail. This is where the per-snippet metadata lives, so the

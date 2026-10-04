@@ -1,5 +1,5 @@
 // ── SPRINTBRAIN CONTENT SCRIPT v2.62.12 ───────────────────────────
-// Configurable dual triggers + confetti celebration + analytics event log
+// Configurable dual triggers + expansion summary + analytics event log
 // v2.29.0: lang-modal expansion fix — defer trigger deletion until after
 //          language pick (modal focus was wiping the CE selection set by
 //          deleteChars, leaving the literal ::shortcut in the field)
@@ -770,6 +770,10 @@ function injectDynamicModal(variables, onConfirm, onCancel) {
     '.sb-field label{font-size:12px;font-weight:500;color:#444;text-transform:uppercase;letter-spacing:0.4px;}' +
     '.sb-field input{border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;outline:none;transition:border-color 0.15s;}' +
     '.sb-field input:focus{border-color:#5c6bc0;}' +
+    // What the person types is bold and in full ink; the hint stays regular,
+    // so an empty box never looks filled. Same on all four fill surfaces.
+    '.sb-field input{font-weight:700;color:#1a1a1a;}' +
+    '.sb-field input::placeholder{font-weight:400;}' +
     '.sb-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}' +
     '.sb-btn{padding:9px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity 0.15s;}' +
     '.sb-btn:hover{opacity:0.85;}' +
@@ -1035,7 +1039,8 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
         function onUndo() {              // user clicked Undo
           restoreFieldState(fieldSnapshot);
           processing = false;
-        }
+        },
+        { inserted: true, target: el }
       );
     } else {
       // Non-CE (textarea / input): deleteChars already stripped the trigger.
@@ -1050,7 +1055,8 @@ function _proceedInsert(el, snip, fieldSnapshot, scLen) {
         function onUndo() {              // user clicked Undo — never insert
           restoreFieldState(fieldSnapshot);
           processing = false;
-        }
+        },
+        { inserted: false, target: el }
       );
     }
   } else {
@@ -2028,7 +2034,8 @@ function doInsert(targetEl, snip) {
     showCelebration(
       text,
       function onConfirm() { logEvent(snip, fillCount); },
-      function onUndo()    { restoreFieldState(snapshot); }
+      function onUndo()    { restoreFieldState(snapshot); },
+      { inserted: true, target: targetEl }
     );
   }
 
@@ -2061,7 +2068,8 @@ function doInsert(targetEl, snip) {
     showCelebration(
       text,
       function onConfirm() { insertText(targetEl, text); logEvent(snip, fillCount); },
-      function onUndo()    { restoreFieldState(snapshot); }
+      function onUndo()    { restoreFieldState(snapshot); },
+      { inserted: false, target: targetEl }
     );
   }
 }
@@ -2074,59 +2082,6 @@ function closeOverlay() {
 }
 
 function removeOverlay() { closeOverlay(); }
-
-// ── CONFETTI ───────────────────────────────────────────────────────
-var COLORS = ['#BA7517','#e8a650','#4a9eca','#d4736a','#3B6D11','#7c3aed','#0891b2','#f59e0b','#ec4899','#10b981'];
-
-function launchConfetti() {
-  var old = document.getElementById('sb-confetti');
-  if (old) old.remove();
-  var cv = document.createElement('canvas');
-  cv.id = 'sb-confetti';
-  cv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2147483645;';
-  cv.width  = window.innerWidth;
-  cv.height = window.innerHeight;
-  document.body.appendChild(cv);
-  var ctx = cv.getContext('2d');
-  var pp = [];
-  for (var i = 0; i < 150; i++) {
-    var a = Math.random() * Math.PI * 2;
-    var sp = 4 + Math.random() * 8;
-    pp.push({
-      x: cv.width/2 + (Math.random()-0.5)*300,
-      y: cv.height*0.35,
-      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 5,
-      w: 6+Math.random()*8, h: 4+Math.random()*5,
-      color: COLORS[Math.floor(Math.random()*COLORS.length)],
-      rot: Math.random()*360, rv: (Math.random()-0.5)*8,
-      alpha: 1, circle: Math.random()>0.5
-    });
-  }
-  var raf;
-  function draw() {
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    var alive = false;
-    for (var j = 0; j < pp.length; j++) {
-      var p = pp[j];
-      p.vy += 0.18; p.vx *= 0.99;
-      p.x += p.vx; p.y += p.vy;
-      p.rot += p.rv; p.alpha -= 0.009;
-      if (p.alpha > 0 && p.y < cv.height) alive = true;
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.alpha);
-      ctx.fillStyle = p.color;
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot * Math.PI/180);
-      if (p.circle) { ctx.beginPath(); ctx.arc(0,0,p.w/2,0,Math.PI*2); ctx.fill(); }
-      else { ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); }
-      ctx.restore();
-    }
-    if (alive) raf = requestAnimationFrame(draw);
-    else { ctx.clearRect(0,0,cv.width,cv.height); cv.remove(); }
-  }
-  draw();
-  setTimeout(function(){ if(cv.parentNode){ cancelAnimationFrame(raf); cv.remove(); } }, 5000);
-}
 
 // ── FIELD STATE SNAPSHOT (for Undo) ───────────────────────────────
 // Character offset of the current caret within `host`, counting only text-node
@@ -2351,138 +2306,177 @@ function restoreFieldState(snapshot) {
   } catch(e) {}
 }
 
-// ── CELEBRATION CARD ───────────────────────────────────────────────
-var MSGS = [
-  {e:'🎉',h:'Message ready!',s:'Your fingers thank you.'},
-  {e:'⚡',h:'Lightning fast!',s:'Zero typos, zero stress.'},
-  {e:'🚀',h:'Message launched!',s:'That took one keystroke.'},
-  {e:'🏆',h:'Champion move!',s:'TextBlaze who? You don\'t need them.'},
-  {e:'✨',h:'Perfectly crafted!',s:'Copy, switch, paste. Done.'},
-  {e:'⏱️',h:'Time saved!',s:'Spend it on something better.'},
-  {e:'💪',h:'Like a pro!',s:'Your customers will notice.'},
-  {e:'🎯',h:'Bullseye!',s:'Right message, right person, right now.'}
-];
+// ── EXPANSION SUMMARY ─────────────────────────────────────────────
+var activeCelebrationClose = null;
 
-function showCelebration(text, onConfirm, onUndo) {
-  ['sb-celebrate','sb-cel-bd'].forEach(function(id){ var e=document.getElementById(id); if(e)e.remove(); });
+function _expansionSummary(text) {
+  var body = String(text == null ? '' : text).replace(/\r\n?/g, '\n').trim();
+  var characters = Array.from(body).length;
+  // Keep the extension's existing typing assumption, shown explicitly in the UI.
+  // This is a length-based estimate, not measured personal typing speed.
+  var seconds = Math.round(characters / 3.3);
+  var timeLabel = seconds + ' sec';
+  if (seconds >= 3600) {
+    timeLabel = Math.floor(seconds / 3600) + ' hr ' + Math.floor((seconds % 3600) / 60) + ' min';
+  } else if (seconds >= 60) {
+    timeLabel = Math.floor(seconds / 60) + ' min ' + (seconds % 60) + ' sec';
+  }
+  return { words: body ? body.split(/\s+/).length : 0,
+    characters: characters, seconds: seconds, timeLabel: timeLabel };
+}
 
-  var secs     = Math.max(2, Math.round((text||'').trim().length / 3.3));
-  var words    = (text||'').trim().split(/\s+/).length;
-  var humanW   = Math.max(1, Math.round(words * 0.15));
-  var machineW = words - humanW;
-  var machPct  = Math.round(machineW / Math.max(words,1) * 100);
-  var humPct   = 100 - machPct;
-  var msg = MSGS[Math.floor(Math.random() * MSGS.length)];
+function showCelebration(text, onConfirm, onUndo, options) {
+  // Settle the previous card before capturing focus or installing a new timer.
+  if (activeCelebrationClose) activeCelebrationClose();
+  options = options || {};
+  var inserted = options.inserted !== false;
+  var canUndo = typeof onUndo === 'function';
+  var summary = _expansionSummary(text);
+  var returnFocus = options.target || document.activeElement;
+  var savedStart = returnFocus && typeof returnFocus.selectionStart === 'number' ? returnFocus.selectionStart : null;
+  var savedEnd = savedStart !== null ? returnFocus.selectionEnd : null;
+  var savedDirection = savedStart !== null ? returnFocus.selectionDirection : null;
+  var savedRange = null;
+  var selection = window.getSelection();
+  if (savedStart === null && selection && selection.rangeCount) {
+    savedRange = selection.getRangeAt(0).cloneRange();
+  }
 
   var bd = document.createElement('div');
   bd.id = 'sb-cel-bd';
-  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147483646;';
-
+  bd.setAttribute('aria-hidden', 'true');
   var card = document.createElement('div');
   card.id = 'sb-celebrate';
-  card.style.cssText =
-    'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);' +
-    'z-index:2147483647;width:320px;max-width:92vw;' +
-    'background:#fff;border-radius:20px;padding:26px 22px;text-align:center;' +
-    'box-shadow:0 24px 80px rgba(0,0,0,.22);' +
-    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-    'animation:sbCardIn .3s cubic-bezier(.34,1.56,.64,1) forwards;';
-
-  var canUndo    = typeof onUndo === 'function';
-  var undoRowHtml = canUndo
-    ? '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
-        '<button id="sb-cel-undo" style="flex-shrink:0;padding:5px 12px;background:transparent;border:1.5px solid #BED0FF;border-radius:7px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;font-family:inherit">&#8617; Undo</button>' +
-        '<div style="flex:1;height:3px;background:#E4E4E7;border-radius:99px;overflow:hidden">' +
-          '<div id="sb-cel-bar" style="height:100%;background:#1B4FD8;border-radius:99px;width:100%"></div>' +
-        '</div>' +
-        '<span id="sb-cel-cd" style="flex-shrink:0;font-size:10px;color:#A1A1AA;min-width:12px;text-align:right">5</span>' +
-      '</div>'
-    : '';
-
+  card.setAttribute('role', 'dialog');
+  card.setAttribute('aria-modal', 'true');
+  card.setAttribute('aria-labelledby', 'sb-cel-title');
+  card.setAttribute('aria-describedby', 'sb-cel-description');
+  card.setAttribute('tabindex', '-1');
+  var closeLabel = inserted ? 'Close summary' : 'Cancel insertion';
   card.innerHTML =
-    '<div style="font-size:46px;line-height:1;margin-bottom:9px">'+msg.e+'</div>'+
-    '<div style="font-size:19px;font-weight:700;color:#18181B;margin-bottom:5px">'+msg.h+'</div>'+
-    '<div style="font-size:12px;color:#52525B;margin-bottom:14px">'+msg.s+'</div>'+
-    '<div style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#EEF2FF,#E0EAFF);border:2px solid #BED0FF;border-radius:14px;padding:10px 20px;margin-bottom:14px">'+
-      '<span style="font-size:30px;font-weight:800;color:#1B4FD8">'+secs+'</span>'+
-      '<span><span style="font-size:12px;font-weight:700;color:#1B4FD8;display:block">seconds saved</span>'+
-      '<span style="font-size:10px;color:#A1A1AA;display:block">vs typing from scratch</span></span>'+
-    '</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:10px">'+
-      '<div style="flex:1;background:#EEF2FF;border:1.5px solid #BED0FF;border-radius:12px;padding:9px 6px;text-align:center">'+
-        '<div style="font-size:16px">🧑</div>'+
-        '<div style="font-size:8px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:.08em;margin:2px 0">Human</div>'+
-        '<div style="font-size:22px;font-weight:800;color:#1B4FD8">'+humanW+'</div>'+
-        '<div style="font-size:9px;color:#A1A1AA">words</div>'+
-      '</div>'+
-      '<div style="flex:1;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:12px;padding:9px 6px;text-align:center">'+
-        '<div style="font-size:16px">🤖</div>'+
-        '<div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin:2px 0">Machine</div>'+
-        '<div style="font-size:22px;font-weight:800;color:#7c3aed">'+machineW+'</div>'+
-        '<div style="font-size:9px;color:#A1A1AA">words</div>'+
-      '</div>'+
-    '</div>'+
-    '<div style="width:100%;height:6px;background:#F4F4F5;border-radius:20px;overflow:hidden;display:flex;margin-bottom:4px">'+
-      '<div style="width:'+humPct+'%;background:#1B4FD8;border-radius:20px 0 0 20px"></div>'+
-      '<div style="width:'+machPct+'%;background:#7c3aed"></div>'+
-    '</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:10px;color:#A1A1AA;margin-bottom:14px">'+
-      '<span>'+humPct+'% you</span><span>'+machPct+'% Sprintbrain \ud83e\udd16</span>'+
-    '</div>'+
-    '<button id="sb-cel-ok" style="padding:9px 20px;background:#1B4FD8;border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;width:100%">Paste it now! \ud83d\udccb</button>'+
-    undoRowHtml+
-    '<div id="sb-cel-skip" style="margin-top:8px;font-size:11px;color:#A1A1AA;cursor:pointer">dismiss</div>';
+    '<div class="sb-cel-header">' +
+      '<span class="sb-cel-brand">SprintBrain<span class="sb-cel-brand-detail"> / Text expansion</span></span>' +
+      '<button type="button" id="sb-cel-skip" class="sb-cel-close" aria-label="' + closeLabel + '">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>' +
+      '</button>' +
+    '</div>' +
+    '<div class="sb-cel-body">' +
+      '<div class="sb-cel-heading">' +
+        '<span class="sb-cel-symbol" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+          (inserted ? '<path d="m5 12 4 4L19 6"/>' : '<path d="M4 6h16M4 12h10M4 18h7M18 14v8M14 18h8"/>') +
+        '</svg></span>' +
+        '<h2 id="sb-cel-title">' + (inserted ? 'Text inserted' : 'Ready to insert') + '</h2>' +
+      '</div>' +
+      '<p id="sb-cel-description">' + (inserted ? 'Your text is ready in the current field.' : 'Your text is ready for the current field.') + '</p>' +
+      '<div class="sb-cel-time">' +
+        '<span class="sb-cel-label">' + (inserted ? 'Estimated time saved' : 'Estimated typing time') + '</span>' +
+        '<strong id="sb-cel-time-value">' + summary.timeLabel + '</strong>' +
+        '<span class="sb-cel-assumption">Based on typing 3.3 characters per second.</span>' +
+      '</div>' +
+      '<dl class="sb-cel-metrics">' +
+        '<div><dt>Words</dt><dd id="sb-cel-words">' + summary.words.toLocaleString('en-US') + '</dd></div>' +
+        '<div><dt>Characters</dt><dd id="sb-cel-characters">' + summary.characters.toLocaleString('en-US') + '</dd></div>' +
+      '</dl>' +
+    '</div>' +
+    '<div class="sb-cel-footer">' +
+      '<div class="sb-cel-actions">' +
+        (canUndo ? '<button type="button" id="sb-cel-undo" class="sb-cel-secondary">' + (inserted ? 'Undo insertion' : 'Cancel') + '</button>' : '') +
+        '<button type="button" id="sb-cel-ok" class="sb-cel-primary">' + (inserted ? 'Done' : 'Insert text') + '</button>' +
+      '</div>' +
+      '<div class="sb-cel-timer"><span id="sb-cel-cd">' + (inserted ? 'Closes' : 'Inserts') + ' in 5s</span><span>Esc to ' + (inserted ? 'close' : 'cancel') + '</span></div>' +
+      '<div class="sb-cel-track" aria-hidden="true"><div id="sb-cel-bar"></div></div>' +
+    '</div>';
 
   document.body.appendChild(bd);
   document.body.appendChild(card);
-
   var settled = false;
+  var paused = false;
   var autoCloseTimer;
   var countdownIv;
+  var barEl = card.querySelector('#sb-cel-bar');
+  var cdEl = card.querySelector('#sb-cel-cd');
 
-  function dismiss() {
+  function restoreFocus() {
+    if (!returnFocus || !returnFocus.isConnected || typeof returnFocus.focus !== 'function') return;
+    returnFocus.focus({ preventScroll: true });
+    if (savedStart !== null && typeof returnFocus.setSelectionRange === 'function') {
+      returnFocus.setSelectionRange(savedStart, savedEnd, savedDirection || 'none');
+    } else if (savedRange && savedRange.startContainer.isConnected && savedRange.endContainer.isConnected) {
+      var sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
+    }
+  }
+
+  function settle(callback) {
     if (settled) return;
     settled = true;
     clearTimeout(autoCloseTimer);
     clearInterval(countdownIv);
-    var c=document.getElementById('sb-celebrate'); if(c)c.remove();
-    var b=document.getElementById('sb-cel-bd');    if(b)b.remove();
+    document.removeEventListener('keydown', onKey, true);
+    document.removeEventListener('focusin', containFocus, true);
+    card.remove();
+    bd.remove();
+    if (activeCelebrationClose === close) activeCelebrationClose = null;
+    restoreFocus();
+    if (typeof callback === 'function') callback();
   }
 
-  function confirm() {
+  function confirm() { settle(onConfirm); }
+  function undo() { settle(onUndo); }
+  function close() { if (inserted || !canUndo) confirm(); else undo(); }
+  activeCelebrationClose = close;
+
+  function pause() {
+    if (settled || paused) return;
+    paused = true;
+    clearTimeout(autoCloseTimer);
+    clearInterval(countdownIv);
+    cdEl.textContent = inserted ? 'Auto-close paused' : 'Auto-insert paused';
+    barEl.parentNode.hidden = true;
+  }
+
+  function containFocus(event) {
+    if (!card.contains(event.target)) card.focus({ preventScroll: true });
+    else if (event.target !== card) pause();
+  }
+
+  function onKey(event) {
     if (settled) return;
-    dismiss();
-    if (typeof onConfirm === 'function') onConfirm();
+    // Host editors must not act on a key intended for this dialog.
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    pause();
+    if (event.key === 'Tab') {
+      var buttons = card.querySelectorAll('button');
+      var first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === card)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === card)) {
+        event.preventDefault(); first.focus();
+      }
+    }
   }
 
-  function undo() {
-    if (settled) return;
-    dismiss();
-    if (typeof onUndo === 'function') onUndo();
-  }
+  card.querySelector('#sb-cel-ok').addEventListener('click', confirm);
+  card.querySelector('#sb-cel-skip').addEventListener('click', close);
+  if (canUndo) card.querySelector('#sb-cel-undo').addEventListener('click', undo);
+  bd.addEventListener('click', close);
+  card.addEventListener('pointerenter', pause);
+  document.addEventListener('keydown', onKey, true);
+  document.addEventListener('focusin', containFocus, true);
+  card.focus({ preventScroll: true });
 
-  var okBtn   = document.getElementById('sb-cel-ok');
-  var skipBtn = document.getElementById('sb-cel-skip');
-  var undoBtn = document.getElementById('sb-cel-undo');
-  if (okBtn)   okBtn.addEventListener('click',  confirm);
-  if (skipBtn) skipBtn.addEventListener('click', confirm);
-  if (undoBtn) undoBtn.addEventListener('click', undo);
-  bd.addEventListener('click', confirm);
-
-  if (canUndo) {
-    var barEl = document.getElementById('sb-cel-bar');
-    var cdEl  = document.getElementById('sb-cel-cd');
-    var t0    = Date.now();
-    countdownIv = setInterval(function() {
-      var elapsed = Date.now() - t0;
-      var pct = Math.max(0, (1 - elapsed / 5000) * 100);
-      if (barEl) barEl.style.width = pct + '%';
-      if (cdEl)  cdEl.textContent  = Math.max(0, Math.ceil((5000 - elapsed) / 1000));
-    }, 100);
-  }
-
+  var started = Date.now();
+  countdownIv = setInterval(function() {
+    var remaining = Math.max(0, 5000 - (Date.now() - started));
+    barEl.style.transform = 'scaleX(' + remaining / 5000 + ')';
+    cdEl.textContent = (inserted ? 'Closes' : 'Inserts') + ' in ' + Math.ceil(remaining / 1000) + 's';
+  }, 100);
   autoCloseTimer = setTimeout(confirm, 5000);
-  launchConfetti();
 }
 
 // ── INLINE TRIGGER PICKER ──────────────────────────────────────────
@@ -2746,7 +2740,8 @@ function selectTriggerItem(idx) {
             function onUndo() {        // user clicked Undo
               restoreFieldState(fieldSnapshot);
               processing = false;
-            }
+            },
+            { inserted: true, target: el }
           );
         } else {
           // Non-CE: trigger already stripped; defer insertion to onConfirm.
@@ -2760,7 +2755,8 @@ function selectTriggerItem(idx) {
             function onUndo() {        // user clicked Undo — never insert
               restoreFieldState(fieldSnapshot);
               processing = false;
-            }
+            },
+            { inserted: false, target: el }
           );
         }
       } else {
@@ -3493,6 +3489,44 @@ document.addEventListener('input', function(e) {
   var s = document.createElement('style');
   s.id = 'sb-styles';
   s.textContent =
+    '#sb-cel-bd{position:fixed;inset:0;background:var(--sb-scrim);z-index:2147483646;}' +
+    '#sb-celebrate{all:initial;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2147483647;box-sizing:border-box;width:min(520px,calc(100vw - var(--sb-s-8)));max-height:calc(100dvh - var(--sb-s-8));overflow:auto;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-2xl);box-shadow:var(--sb-shadow-md);font-family:var(--sb-font);font-size:var(--sb-fs-13);color:var(--sb-ink);line-height:1.5;text-align:left;color-scheme:light;-webkit-font-smoothing:antialiased;animation:sbSummaryIn var(--sb-dur-base) var(--sb-ease);}' +
+    '#sb-celebrate,#sb-celebrate *{box-sizing:border-box;}' +
+    '#sb-celebrate h2,#sb-celebrate p,#sb-celebrate dl,#sb-celebrate dt,#sb-celebrate dd{margin:0;padding:0;font:inherit;color:inherit;}' +
+    '#sb-celebrate .sb-cel-header{display:flex;align-items:center;justify-content:space-between;gap:var(--sb-s-3);padding:var(--sb-s-3) var(--sb-s-8);border-bottom:1px solid var(--sb-line);}' +
+    '#sb-celebrate .sb-cel-brand{font-size:var(--sb-fs-12);font-weight:600;letter-spacing:-.01em;}' +
+    '#sb-celebrate .sb-cel-brand-detail{font-weight:400;color:var(--sb-ink-muted);}' +
+    '#sb-celebrate button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:var(--sb-s-10);font-family:inherit;font-size:var(--sb-fs-13);font-weight:600;line-height:1.3;cursor:pointer;touch-action:manipulation;border:1px solid transparent;border-radius:var(--sb-r-lg);padding:var(--sb-s-2) var(--sb-s-4);}' +
+    '#sb-celebrate button:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px;}' +
+    '#sb-celebrate .sb-cel-close{width:var(--sb-s-10);padding:0;color:var(--sb-ink-muted);flex:none;}' +
+    '#sb-celebrate .sb-cel-close:hover{background:var(--sb-bg-alt);color:var(--sb-ink);}' +
+    '#sb-celebrate svg{display:block;flex:none;}' +
+    '#sb-celebrate .sb-cel-body{padding:var(--sb-s-8);}' +
+    '#sb-celebrate .sb-cel-heading{display:flex;align-items:center;gap:var(--sb-s-3);}' +
+    '#sb-celebrate .sb-cel-symbol{width:var(--sb-s-8);height:var(--sb-s-8);display:flex;align-items:center;justify-content:center;flex:none;color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-md);}' +
+    '#sb-celebrate #sb-cel-title{font-size:var(--sb-fs-24);font-weight:600;letter-spacing:-.03em;line-height:1.25;}' +
+    '#sb-celebrate #sb-cel-description{margin-top:var(--sb-s-2);color:var(--sb-ink-muted);font-size:var(--sb-fs-13);}' +
+    '#sb-celebrate .sb-cel-time{display:flex;flex-direction:column;gap:var(--sb-s-1);margin-top:var(--sb-s-6);padding:var(--sb-s-5) var(--sb-s-6);background:var(--sb-azure-bg);border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-xl);}' +
+    '#sb-celebrate .sb-cel-label{font-size:var(--sb-fs-12);font-weight:500;color:var(--sb-azure);}' +
+    '#sb-celebrate #sb-cel-time-value{font-size:var(--sb-fs-32);font-weight:600;line-height:1.25;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--sb-azure);}' +
+    '#sb-celebrate .sb-cel-assumption{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);}' +
+    '#sb-celebrate .sb-cel-metrics{display:grid;grid-template-columns:1fr 1fr;margin-top:var(--sb-s-5);}' +
+    '#sb-celebrate .sb-cel-metrics>div+div{padding-left:var(--sb-s-6);border-left:1px solid var(--sb-line);}' +
+    '#sb-celebrate .sb-cel-metrics dt{font-size:var(--sb-fs-12);color:var(--sb-ink-muted);}' +
+    '#sb-celebrate .sb-cel-metrics dd{margin-top:var(--sb-s-1);font-size:var(--sb-fs-20);font-weight:600;line-height:1.3;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}' +
+    '#sb-celebrate .sb-cel-footer{padding:var(--sb-s-5) var(--sb-s-8);background:var(--sb-bg-alt);border-top:1px solid var(--sb-line);}' +
+    '#sb-celebrate .sb-cel-actions{display:flex;justify-content:flex-end;gap:var(--sb-s-3);}' +
+    '#sb-celebrate .sb-cel-secondary{margin-right:auto;background:var(--sb-bg);color:var(--sb-ink);border-color:var(--sb-line-2);}' +
+    '#sb-celebrate .sb-cel-secondary:hover{background:var(--sb-bg-muted);}' +
+    '#sb-celebrate .sb-cel-primary{min-width:calc(var(--sb-s-12) * 2);background:var(--sb-azure);color:var(--sb-bg);}' +
+    '#sb-celebrate .sb-cel-primary:hover{background:var(--sb-azure-dark);}' +
+    '#sb-celebrate .sb-cel-timer{display:flex;justify-content:space-between;gap:var(--sb-s-2);margin-top:var(--sb-s-3);font-size:var(--sb-fs-11);color:var(--sb-ink-muted);}' +
+    '#sb-celebrate .sb-cel-track{height:2px;margin-top:var(--sb-s-2);background:var(--sb-line);border-radius:var(--sb-r-pill);overflow:hidden;}' +
+    '#sb-celebrate #sb-cel-bar{height:100%;background:var(--sb-azure);transform-origin:left;}' +
+    '#sb-celebrate .sb-cel-track[hidden]{visibility:hidden;display:block;}' +
+    '@media(max-width:480px){#sb-celebrate .sb-cel-header{padding:var(--sb-s-3) var(--sb-s-6);}#sb-celebrate .sb-cel-body{padding:var(--sb-s-6);}#sb-celebrate .sb-cel-time{padding:var(--sb-s-4) var(--sb-s-5);}#sb-celebrate .sb-cel-footer{padding:var(--sb-s-4) var(--sb-s-6);}}' +
+    '@keyframes sbSummaryIn{from{opacity:0;transform:translate(-50%,-48%)}to{opacity:1;transform:translate(-50%,-50%)}}' +
+    '@media(prefers-reduced-motion:reduce){#sb-celebrate{animation:none;}#sb-celebrate .sb-cel-track{visibility:hidden;}}' +
     '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
     // Flex column: header, preview and footer keep their size; the
     // fields area is the only part that scrolls, and only when a snippet has
@@ -3514,6 +3548,12 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-ctxline{font-size:12px;color:#52525B;line-height:1.35;}' +
     '#sb-overlay .sb-inp{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:8px;padding:7px 10px;font-size:16px;color:#18181B;font-family:inherit;outline:none;width:100%;box-sizing:border-box;touch-action:manipulation;transition:border-color .15s,box-shadow .15s;}' +
     '#sb-overlay .sb-inp:focus{border-color:#1B4FD8;background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
+    // What the person types is bold and in full ink, so it stands apart from
+    // the snippet's own words around it, which stay grey and regular. The hint
+    // stays regular, so an empty box never looks filled. Same on all four fill
+    // surfaces.
+    '#sb-overlay .sb-inp[type=text],#sb-overlay .sb-inp[type=number]{font-weight:700;}' +
+    '#sb-overlay .sb-inp::placeholder{font-weight:400;}' +
     '#sb-overlay .sb-inp[type=date],#sb-overlay .sb-inp[type=time],#sb-overlay .sb-inp[type=datetime-local]{color:#1B4FD8;border-color:#BED0FF;background:#EEF2FF;}' +
     '#sb-overlay select.sb-inp{-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%231B4FD8"/></svg>\');background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;cursor:pointer;}' +
     // Adjust panel. A quiet link under the picker, not a button: it competes
@@ -3566,8 +3606,7 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-insert:hover{background:#1440B0;}' +
     '#sb-overlay .sb-tip{font-size:10px;color:#A1A1AA;}' +
     '#sb-trigger-picker .sb-tp-item,#sb-sel-suggest .sb-ss-item{touch-action:manipulation;border-radius:8px;transition:background .12s ease;}' +
-    '#sb-trigger-picker .sb-tp-item:hover,#sb-sel-suggest .sb-ss-item:hover{background:#F4F4F5;}' +
-    '@keyframes sbCardIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.75)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}';
+    '#sb-trigger-picker .sb-tp-item:hover,#sb-sel-suggest .sb-ss-item:hover{background:#F4F4F5;}';
   document.head.appendChild(s);
 })();
 
@@ -3659,7 +3698,8 @@ function _proceedContextInsert(el, snip) {
       showCelebration(
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },
-        function onUndo()    { restoreFieldState(snapCE); processing = false; }
+        function onUndo()    { restoreFieldState(snapCE); processing = false; },
+        { inserted: true, target: el }
       );
     } else if (isValueField) {
       // Textarea/input: the context menu inserts synchronously (no trigger to
@@ -3674,12 +3714,12 @@ function _proceedContextInsert(el, snip) {
       showCelebration(
         text,
         function onConfirm() { logEvent(snip, 0); processing = false; },
-        function onUndo()    { restoreFieldState(snapVal); processing = false; }
+        function onUndo()    { restoreFieldState(snapVal); processing = false; },
+        { inserted: true, target: el }
       );
     } else {
-      // No editable target — nothing meaningful was inserted; celebrate without Undo.
+      // No editable target: do not claim that text was inserted.
       if (el) insertText(el, text);
-      showCelebration(text);
       logEvent(snip, 0);
       processing = false;
     }

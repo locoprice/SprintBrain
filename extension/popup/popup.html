@@ -222,6 +222,12 @@ html,body{
 .d-frow>label{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
 .d-frow input,.d-frow select{width:100%;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
 .d-frow input:focus,.d-frow select:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow)}
+/* What the person types is bold and in full ink, so it stands apart from the
+   snippet's own words around it, which stay muted and regular. The hint stays
+   regular, so an empty box never looks filled. [data-fkey] keeps the Adjust
+   panel's own number box out of it. Same on all four fill surfaces. */
+.d-frow input[data-fkey][type=text],.d-frow input[data-fkey][type=number]{font-weight:700}
+.d-frow input::placeholder{font-weight:400}
 /* Inline sentence: the control sits inside the prose that surrounds it in the
    body. */
 .d-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
