@@ -4,6 +4,7 @@ import { foldersApi } from '@/lib/api/foldersApi';
 import { validateTemplate } from '@/lib/statusSignals';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
+import { toReviewStatus, type NewItemOptions } from '@/lib/reviewStatus';
 
 const EDGE_FN_SHARE = 'notion-snippet-push';
 
@@ -19,7 +20,8 @@ const EDGE_FN_SHARE = 'notion-snippet-push';
 export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;
   listSnippets(): Promise<SnippetRow[]>;
-  createSnippet(payload: SnippetFormValues): Promise<SnippetRow>;
+  /** `options.reviewStatus` starts the snippet waiting for a person (an AI draft). */
+  createSnippet(payload: SnippetFormValues, options?: NewItemOptions): Promise<SnippetRow>;
   /** Insert many snippets in a single round-trip (used by import). */
   createSnippetsBatch(items: SnippetFormValues[]): Promise<SnippetRow[]>;
   updateSnippet(id: string, patch: Partial<SnippetFormValues>): Promise<SnippetRow>;
@@ -66,6 +68,10 @@ type DbSnippetJoined = {
   is_malformed: boolean | null;
   alternative_queries: string[] | null;
   created_at: string | null;
+  organization_id: string | null;
+  review_status: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   folders: { name: string } | null;
 };
 
@@ -130,6 +136,10 @@ function dbSnippetToSnippetRow(
     formula: null,
     variables: row.field_cfg ?? {},
     folder_id: row.folder_id,
+    organization_id: row.organization_id ?? null,
+    review_status: toReviewStatus(row.review_status),
+    reviewed_by: row.reviewed_by ?? null,
+    reviewed_at: row.reviewed_at ?? null,
     language,
     lang_group_id: row.lang_group_id ?? null,
     notion_page_id: row.notion_page_id ?? null,
@@ -170,7 +180,7 @@ async function readLanguage(id: string): Promise<Snippet['language']> {
 }
 
 const SNIPPET_SELECT =
-  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, created_at, folders(name)';
+  'id, user_id, title, shortcut, body, bodies, lang, lang_group_id, folder_id, field_cfg, sort_order, updated_at, updated_by, notion_page_id, pinned, is_active, is_malformed, alternative_queries, created_at, organization_id, review_status, reviewed_by, reviewed_at, folders(name)';
 
 /**
  * Expansion counts per snippet, from the `snippet_usage_counts()` RPC.
@@ -313,9 +323,13 @@ export const snippetsApi: SnippetsApi = {
     );
   },
 
-  async createSnippet(payload) {
+  async createSnippet(payload, options) {
     const userId = await currentUserId();
-    const insert = buildSnippetInsert(payload, userId, new Date().toISOString(), Date.now());
+    const insert = {
+      ...buildSnippetInsert(payload, userId, new Date().toISOString(), Date.now()),
+      // Sent with the row, so the snippet is never approved in between.
+      ...(options?.reviewStatus ? { review_status: options.reviewStatus } : {}),
+    };
     const { data, error } = await supabase
       .from('snippets')
       .insert(insert)

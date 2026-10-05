@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LabelBadgeList } from '@/components/shared/LabelBadge';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
+import { cn } from '@/lib/utils';
 import type { Prompt } from '@/types/database';
 import { useUiStore } from '@/stores/uiStore';
 import { useLabelStore } from '@/stores/labelStore';
@@ -154,7 +156,17 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   return (
     <Card
       onClick={() => openEditPrompt(prompt.id)}
-      className="flex h-full cursor-pointer flex-col p-5 transition-all hover:border-primary/30 hover:shadow-md"
+      className={cn(
+        'flex h-full cursor-pointer flex-col p-5 transition-all hover:border-primary/30 hover:shadow-md',
+        // Archived prompts dim, as archived snippets do: they are kept to be
+        // restored, not to be used.
+        prompt.review_status === 'archived' && 'opacity-50',
+      )}
+      title={
+        prompt.review_status === 'archived'
+          ? 'Archived — does not appear in the extension or on the phone'
+          : undefined
+      }
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
@@ -163,6 +175,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
             <Brain className="h-4 w-4" />
           </div>
           <h3 className="truncate text-sm font-semibold text-ink">{prompt.name}</h3>
+          <ReviewStatusBadge status={prompt.review_status} />
           {status !== null && <StatusBadge status={status} detail={statusDetail} />}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

@@ -61,6 +61,14 @@
             ]
           },
           {
+            "group": "AI and review",
+            "pages": [
+              "ask/overview",
+              "draft/overview",
+              "review/overview"
+            ]
+          },
+          {
             "group": "Team",
             "pages": [
               "team/sharing-and-permissions",

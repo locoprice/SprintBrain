@@ -41,6 +41,10 @@ const FOLDER: Folder = {
 };
 
 const PROMPT_IN_FOLDER: Prompt = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: 'prompt-1',
   user_id: 'user-1',
   name: 'Confirmation',

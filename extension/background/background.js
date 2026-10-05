@@ -119,8 +119,10 @@ function memoryIndex() {
     // them to their owner, deliberately, so the dashboard can list a trash view;
     // filtering is each surface's job, and the memory_mcp_* functions do the
     // same for the MCP server.
+    // review_status=neq.archived: an archived item is kept to be restored, not
+    // to be added to a chat (AI-KNOWLEDGE P2).
     supaFetch('memory_shards',
-      'select=id,name,summary,token_estimate,pinned,priority,memory_shard_labels(label_id)&deleted_at=is.null')
+      'select=id,name,summary,token_estimate,pinned,priority,memory_shard_labels(label_id)&deleted_at=is.null&review_status=neq.archived')
   ]).then(function(res) {
     return { steps: res[0] || [], shards: res[1] || [] };
   });
@@ -198,11 +200,11 @@ function memoryBodies(items) {
   var jobs = [];
   if (shardIds.length) {
     jobs.push(supaFetch('memory_shards',
-      'select=id,body&deleted_at=is.null&id=in.(' + shardIds.join(',') + ')').then(tag('memory')));
+      'select=id,body&deleted_at=is.null&review_status=neq.archived&id=in.(' + shardIds.join(',') + ')').then(tag('memory')));
   }
   if (snippetIds.length) {
     jobs.push(supaFetch('snippets',
-      'select=id,lang,body,bodies&is_active=is.true&id=in.(' + inListQuoted(snippetIds) + ')').then(tag('snippet')));
+      'select=id,lang,body,bodies&is_active=is.true&review_status=neq.archived&id=in.(' + inListQuoted(snippetIds) + ')').then(tag('snippet')));
   }
   if (!jobs.length) return Promise.resolve([]);
 
@@ -379,8 +381,9 @@ function loadData() {
       // service worker had no body to cache, which is why a snippet edited on
       // the dashboard kept expanding its old text until the popup was opened.
       var snipQs = 'select=id,title,shortcut,alternative_queries,folder_id,lang,lang_group_id,sort_order,' +
-        'body,bodies,field_cfg,pinned' +
-        '&is_active=eq.true&order=sort_order';
+        'body,bodies,field_cfg,pinned,review_status' +
+        // Archived snippets never expand (AI-KNOWLEDGE P2), like disabled ones.
+        '&is_active=eq.true&review_status=neq.archived&order=sort_order';
       Promise.all([
         supaFetch('folders',  'select=*&order=sort_order'),
         supaFetch('rpc/accessible_snippets', snipQs),
@@ -867,6 +870,8 @@ function writeExpansionCache(rows) {
           sort_order: s.sort_order || 0,
           alternative_queries: Array.isArray(s.alternative_queries) ? s.alternative_queries : [],
           pinned: s.pinned || false,
+          // Read by content.js: a deprecated snippet expands with a warning.
+          review_status: s.review_status || 'approved',
           // The worker does not fetch usage, but the popup hydrates its list
           // from this same cache and reads s.stats.uses unguarded. Writing the
           // zeroed shape keeps that contract; DB.loadAll overwrites it with the

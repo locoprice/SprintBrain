@@ -13,6 +13,8 @@ import { matchesLabelFilter } from '@/lib/labelUtils';
 import { subtreeIds } from '@/lib/folderTree';
 import { snippetGroupKey } from '@/lib/snippetGrouping';
 import { expandWithDescendants } from '@/lib/labelTree';
+import { reviewApi } from '@/lib/api/reviewApi';
+import type { NewItemOptions, ReviewStatus } from '@/lib/reviewStatus';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -62,11 +64,18 @@ interface SnippetStore {
   bulkDeleteSnippets: (ids: string[]) => Promise<void>;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
-  addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
+  addSnippet: (payload: SnippetFormValues, options?: NewItemOptions) => Promise<SnippetRow>;
   editSnippet: (id: string, patch: Partial<SnippetFormValues>) => Promise<SnippetRow>;
   removeSnippet: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a snippet. Optimistic; rolls back on failure. */
   togglePin: (id: string) => Promise<void>;
+  /**
+   * Set the review status (AI-KNOWLEDGE P2) on the snippet and every language
+   * variant in its group, like pinning: a translated snippet is one item to
+   * approve. Rejects with the server's reason; nothing changes locally until
+   * the server has accepted it.
+   */
+  setReviewStatus: (id: string, status: ReviewStatus) => Promise<void>;
   /** Toggle the is_active flag on a snippet. Optimistic; rolls back on failure. */
   toggleActive: (id: string) => Promise<void>;
   /** Duplicate a snippet. Returns the new row. */
@@ -251,9 +260,9 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     }
   },
 
-  addSnippet: async (payload) => {
+  addSnippet: async (payload, options) => {
     try {
-      const row = await snippetsApi.createSnippet(payload);
+      const row = await snippetsApi.createSnippet(payload, options);
       // Ensure the folder_name is populated (the join returns it on insert, but
       // fall back to our local folders list if needed).
       const folder = get().folders.find((f) => f.id === row.folder_id);
@@ -311,6 +320,22 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
       set({ error: msg });
       throw err;
     }
+  },
+
+  setReviewStatus: async (id, status) => {
+    const all = get().snippets;
+    const target = all.find((s) => s.id === id);
+    if (!target) return;
+    const key = snippetGroupKey(target);
+    const groupIds = all.filter((s) => snippetGroupKey(s) === key).map((s) => s.id);
+    const stamps = await Promise.all(groupIds.map((gid) => reviewApi.setStatus('snippet', gid, status)));
+    const byId = new Map(groupIds.map((gid, i) => [gid, stamps[i]]));
+    set((s) => ({
+      snippets: s.snippets.map((sn) => {
+        const stamp = byId.get(sn.id);
+        return stamp ? { ...sn, ...stamp } : sn;
+      }),
+    }));
   },
 
   togglePin: async (id) => {

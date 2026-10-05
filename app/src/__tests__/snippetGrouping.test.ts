@@ -17,6 +17,10 @@ function snippet(
   langGroupId: string | null = null,
 ): SnippetRow {
   return {
+    organization_id: null,
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id,
     user_id: 'u1',
     name,

@@ -23,7 +23,7 @@
   --primary:#1B4FD8;--primary-dk:#1440B0;--primary-lt:#EEF2FF;--primary-grad:#4F7FE8;
   --text:#1C1C1E;--text2:#6E6E73;--text3:#8E8E93;
   --border:#E5E5EA;--success:#34C759;--danger:#E74C3C;
-  --warn-deep:#D97706;--warn-bg:#FFFBEB;
+  --warn-deep:#D97706;--warn-bg:#FFFBEB;--danger-bg:#FEF2F2;
   --r:16px;--r-card:18px;--r-btn:14px;--r-in:10px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --shadow-md:0 8px 24px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.04);
@@ -573,7 +573,13 @@ body{
   text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .field-in{border:none;outline:none;font-size:16px;color:var(--text);
   background:transparent;width:100%;padding:0;font-family:inherit}
-.field-in::placeholder{color:#C7C7CC}
+/* What the person types is bold, in full ink, so it stands apart from the
+   snippet's own words around it, which stay grey and regular: filling the form
+   reads like writing into the gaps of the message. The placeholder stays light
+   and regular, so an empty box never looks filled. Same on all four fill
+   surfaces. */
+.field-in[type=text],.field-in[type=number]{font-weight:700}
+.field-in::placeholder{color:#C7C7CC;font-weight:400}
 .field-in[type=date],.field-in[type=time],.field-in[type=datetime-local]{
   color:#C2410C;font-weight:600}
 
@@ -646,18 +652,21 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 /* A Brain item is read here, not previewed, so it runs its full length. */
 .mi-text{max-height:none;overflow:visible}
 
-/* Copy footer — sticky with safe-area inset */
-.copy-foot{position:fixed;bottom:0;left:0;right:0;
+/* Copy footer — sticky with safe-area inset. Share sits beside Copy where the
+   phone has a Share menu, and Copy takes the whole row where it has none. */
+.copy-foot{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;
   padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom));
   background:rgba(242,242,247,.92);backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);z-index:40}
-#copy-btn,#mi-copy{width:100%;background:var(--primary);color:#fff;border:none;
+.foot-btn{flex:1 1 0;min-width:0;background:var(--primary);color:#fff;
+  border:1px solid transparent;
   border-radius:var(--r-btn);padding:16px;font-size:17px;font-weight:700;
   cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;
   transition:background .2s,transform .1s;display:flex;
-  align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px}
-#copy-btn:active,#mi-copy:active{transform:scale(.97)}
-#copy-btn.ok,#mi-copy.ok{background:var(--success)}
+  align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px;white-space:nowrap}
+.foot-btn.is-share{background:var(--card);color:var(--primary);border-color:var(--border)}
+.foot-btn:active{transform:scale(.97)}
+.foot-btn.ok{background:var(--success);color:#fff;border-color:transparent}
 
 /* ── BOTTOM SHEET ────────────────────────────── */
 .sb-hidden{display:none !important}
@@ -737,6 +746,79 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-info-row[data-copy]{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .sb-info-row[data-copy]:active{background:var(--bg-alt)}
 .sb-info-mono{font-family:var(--mono);font-size:12px;color:var(--primary)}
+
+/* ── REVIEW STATUS (AI-KNOWLEDGE P2) ───────────────
+   A chip beside the name for anything not approved, and a warning line on a
+   deprecated item when it is opened. Same words as the dashboard and the
+   extension. Archived items never reach the phone. */
+.mrev{display:inline-flex;align-items:center;flex-shrink:0;padding:0 7px;
+  border-radius:999px;border:1px solid var(--border);background:var(--bg-alt);
+  color:var(--text2);font-size:11px;font-weight:700;line-height:18px;vertical-align:middle}
+.mrev.ai_generated,.mrev.under_review{background:var(--primary-lt);color:var(--primary);border-color:transparent}
+.mrev.deprecated{background:var(--warn-bg);color:var(--warn-deep);border-color:transparent}
+.mrevwarn{margin:0 0 12px;padding:10px 12px;border-radius:var(--r-in);background:var(--warn-bg);
+  color:var(--warn-deep);font-size:13px;font-weight:600}
+
+/* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1) ─────────────
+   The row under each search field, and the sheet that answers from the
+   reader's own snippets and Brains. Same states and words as the dashboard's
+   search panel (app/src/features/search/AskAnswer.tsx). */
+.ask-row{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;
+  padding:10px 14px;border:none;border-radius:var(--r-in);
+  background:rgba(255,255,255,.16);color:#fff;font:inherit;text-align:left;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:48px;
+  position:relative;z-index:1}
+.ask-row:active{background:rgba(255,255,255,.26)}
+.ask-row svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ask-row-t{min-width:0;flex:1}
+.ask-row-l{display:block;font-size:14px;font-weight:700}
+.ask-row-q{display:block;font-size:12.5px;font-weight:500;opacity:.85;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-body{padding:6px 20px 8px;max-height:72dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ask-q{font-size:15px;font-weight:700;color:var(--text);margin:4px 0 12px;word-break:break-word}
+.ask-wait{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:14px;padding:18px 0}
+.ask-wait .spinner{width:18px;height:18px;border-width:2px;flex-shrink:0}
+.ask-msg{font-size:14px;font-weight:600;color:var(--text);margin:6px 0}
+.ask-hint{font-size:13px;color:var(--text2);margin:4px 0 8px}
+.ask-err{font-size:14px;color:var(--danger);margin:8px 0}
+.ask-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;
+  background:var(--primary-lt);color:var(--primary);font-size:12px;font-weight:700}
+.ask-answer{font-size:15px;line-height:1.5;color:var(--text);white-space:pre-wrap;
+  word-break:break-word;margin:10px 0}
+.ask-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  padding:0 5px;border-radius:5px;border:none;background:var(--primary-lt);color:var(--primary);
+  font:inherit;font-size:11px;font-weight:700;flex-shrink:0}
+.ask-answer .ask-n{margin:0 2px;vertical-align:text-top;cursor:pointer}
+.ask-n.off{background:var(--bg-alt);color:var(--text2)}
+.ask-note{border-radius:var(--r-in);padding:10px 12px;font-size:13px;color:var(--text);margin:10px 0}
+.ask-note.warn{background:var(--warn-bg)}
+.ask-note.warn b{color:var(--warn-deep)}
+.ask-note.bad{background:var(--danger-bg)}
+.ask-note.bad b{color:var(--danger)}
+.ask-src-h{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;
+  letter-spacing:.5px;margin:16px 0 6px}
+.ask-src{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.ask-src li{display:flex;align-items:center;gap:10px;padding:10px 12px;min-height:48px;
+  border-top:1px solid var(--bg-alt);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ask-src li:first-child{border-top:none}
+.ask-src li:active{background:var(--bg-alt)}
+.ask-src-tx{flex:1;min-width:0}
+.ask-src-t{display:block;font-size:14px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-src-m{display:block;font-size:12px;color:var(--text2);margin-top:1px}
+.ask-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:var(--r-btn);
+  background:var(--primary);color:#fff;font:inherit;font-size:15px;font-weight:700;
+  min-height:48px;-webkit-tap-highlight-color:transparent}
+.ask-btn:active{background:var(--primary-dk)}
+.ask-btn.ghost{background:var(--bg-alt);color:var(--primary)}
+.ask-fb-h{font-size:13px;color:var(--text2);margin:16px 0 8px}
+.ask-fb{display:flex;flex-wrap:wrap;gap:8px}
+.ask-fb button{padding:8px 12px;min-height:36px;border-radius:999px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:600;
+  -webkit-tap-highlight-color:transparent}
+.ask-fb button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.ask-fb button:disabled:not(.on){opacity:.5}
 
 /* ── EDIT MODAL ──────────────────────────────── */
 .sb-edit-modal{
@@ -1188,6 +1270,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
 
@@ -1260,6 +1346,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <span id="det-lang" class="lbadge"></span>
   </div>
   <div class="det-body" id="det-body">
+    <div id="det-revwarn" class="mrevwarn sb-hidden" role="alert"></div>
     <div id="det-lang-section" class="sb-hide">
       <div class="sec-lbl">Language</div>
       <div class="lang-picker" id="det-lang-picker"></div>
@@ -1274,10 +1361,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
   <div class="copy-foot">
-    <button id="copy-btn">
-      <span id="cico">📋</span>
-      <span id="clbl">Copy to clipboard</span>
-    </button>
+    <button id="copy-btn" class="foot-btn" type="button"><span>📋</span><span>Copy</span></button>
+    <button id="share-btn" class="foot-btn is-share sb-hidden" type="button"><span>📤</span><span>Share</span></button>
   </div>
 </div>
 
@@ -1303,6 +1388,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="prompt-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="prompt-srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
   <!-- Quick-action bar (same bar as home; Prompts tile stays pushed on this page) -->
@@ -1360,6 +1449,10 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           autocomplete="off" autocorrect="off" spellcheck="false">
         <button type="button" id="mem-srch-clear" class="psearch-clear" aria-label="Clear search">✕</button>
       </div>
+        <button type="button" class="ask-row sb-hidden" data-ask-for="mem-srch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+        </button>
     </div>
   </div>
   <!-- Quick-action bar (same bar as home; Brains tile stays pushed on this page) -->
@@ -1406,6 +1499,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <span id="mi-kind"></span>
   </div>
   <div class="det-body">
+    <div id="mi-revwarn" class="mrevwarn sb-hidden" role="alert"></div>
     <div id="mi-summary-sec">
       <div class="sec-lbl">Summary</div>
       <div class="prev-card"><div class="mi-text" id="mi-summary"></div></div>
@@ -1416,10 +1510,8 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     </div>
   </div>
   <div class="copy-foot">
-    <button id="mi-copy" type="button">
-      <span id="mi-cico">📋</span>
-      <span id="mi-clbl">Copy to clipboard</span>
-    </button>
+    <button id="mi-copy" class="foot-btn" type="button"><span>📋</span><span>Copy</span></button>
+    <button id="mi-share" class="foot-btn is-share sb-hidden" type="button"><span>📤</span><span>Share</span></button>
   </div>
 </div>
 
@@ -1597,6 +1689,19 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       <li data-maction="share"><span class="sb-sheet-act-i">📤</span> Share…</li>
       <li data-maction="info"><span class="sb-sheet-act-i">ℹ️</span> Item info</li>
     </ul>
+  </div>
+</div>
+
+<!-- ASK SPRINTBRAIN SHEET: an answer built only from the reader's own
+     snippets and Brains, with its sources and the feedback buttons. -->
+<div id="sb-ask-sheet" class="sb-bottom-sheet sb-hidden" aria-hidden="true">
+  <div class="sb-sheet-backdrop"></div>
+  <div class="sb-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sb-ask-title">
+    <div class="sb-sheet-handle-area">
+      <div class="sb-sheet-handle"></div>
+    </div>
+    <div class="sb-sheet-title" id="sb-ask-title">Ask SprintBrain</div>
+    <div class="ask-body" id="sb-ask-body" aria-live="polite"></div>
   </div>
 </div>
 
@@ -5326,7 +5431,7 @@ var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pst
    round-trips every field (blocks, thinking_mode, etc.) without data loss. */
 var PROMPT_SELECT='id,name,content,type,strategy_type,thinking_mode,preferred_model,'
   +'complexity_level,intent_category,output_type,blocks,folder_id,'
-  +'organization_id,created_at,updated_at,last_used_at,pinned';
+  +'organization_id,created_at,updated_at,last_used_at,pinned,review_status';
 var FOLDER_SHARED_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
 /* ── LOAD ───────────────────────────────────────── */
@@ -5354,7 +5459,8 @@ function loadSnips(){
   // through accessible_snippets() (SECURITY DEFINER) — the same RPC the extension
   // popup uses — and folders rely on their own org-read RLS. No user_id filter:
   // that was hiding every team-shared asset (mobile showed personal-only).
-  var sFetch=fetch(SUPA+'/rest/v1/rpc/accessible_snippets?select=*&order=sort_order,title',{headers:authHeaders()})
+  // review_status=neq.archived: an archived snippet never expands (AI-KNOWLEDGE P2).
+  var sFetch=fetch(SUPA+'/rest/v1/rpc/accessible_snippets?select=*&review_status=neq.archived&order=sort_order,title',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();});
   var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.ok?r.json():[];})
@@ -5695,8 +5801,9 @@ function sharingBadge(item){
 function loadPrompts(){
   // No user_id filter — prompts RLS returns the user's own prompts plus any in a
   // folder shared with them (Phase B org branch), matching the extension popup.
+  // Archived prompts are kept to be restored on the dashboard, not offered here.
   var url=SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT
-    +'&order=updated_at.desc';
+    +'&review_status=neq.archived&order=updated_at.desc';
   fetch(url,{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();})
     .then(function(data){
@@ -5849,7 +5956,7 @@ function renderPromptList(){
       +'<div class="prompt-info">'
         +'<div class="prompt-name">'+esc(p.name)+'</div>'
         +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
-        +'<div class="prompt-meta">'+stratBadge+intentBadge+outBadge+share+'</div>'
+        +'<div class="prompt-meta">'+reviewChipHtml(p.review_status)+stratBadge+intentBadge+outBadge+share+'</div>'
         +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
       +'</div>'
       +(isPin?'<span class="prompt-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
@@ -5885,10 +5992,14 @@ function syncPromptClear(){
   var wrap=document.getElementById('prompt-srch-wrap');
   var input=document.getElementById('prompt-srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('prompt-srch');
 }
 function promptCopy(p){
   var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
-  copyText(text,function(){showToast(text!==(p.content||'')?'Prompt copied with Interactive Steps ✓':'Prompt copied ✓');});
+  copyText(text,function(){
+    var msg=text!==(p.content||'')?'Prompt copied with Interactive Steps ✓':'Prompt copied ✓';
+    showToast(p.review_status==='deprecated'?msg+' · Deprecated: check it is still right':msg);
+  });
   promptMarkUsed(p);
 }
 /* Mirrors desktop promptsApi.markUsed — fire-and-forget PATCH on the owner row. */
@@ -5935,13 +6046,8 @@ function closePromptSheet(){
    there is one, fall back to the clipboard where there is not. */
 function sharePrompt(p){
   var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
-  promptMarkUsed(p);
   closePromptSheet();
-  if(navigator.share){
-    navigator.share({title:p.name||'Prompt',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Prompt copied ✓ (sharing not supported)');});
-  }
+  shareOut(p.name||'Prompt',text,function(){promptMarkUsed(p);});
 }
 /* Read-only prompt detail, the prompt half of the shared info sheet. */
 function openPromptInfo(p){
@@ -6012,7 +6118,7 @@ var curMemItem=null;        // the item open in the reader
 var memSearch='', curMemKind='ALL';
 var MEM_PAGE=1000;          // a full page means there may be more rows
 var MEM_SPACE_SELECT='id,name,description,ico,is_default,created_at,updated_at';
-var MEM_ITEM_SELECT='id,space_id,name,summary,body,kind,token_estimate,pinned,source_id,created_at,updated_at';
+var MEM_ITEM_SELECT='id,space_id,name,summary,body,kind,token_estimate,pinned,source_id,created_at,updated_at,review_status';
 /* memory_shards_body_length, as the dashboard editor mirrors it. The name (64)
    and summary (280) limits ride on the Add text inputs' maxlength. */
 var MEM_BODY_MAX=20000;
@@ -6148,7 +6254,9 @@ function loadMemory(){
     res[1].forEach(function(it){memTakenNames[String(it.name||'').trim().toLowerCase()]=true;});
     // Items of a Brain in the trash are in the trash with it: the dashboard
     // lists neither, and neither does the phone.
-    allMemItems=res[1].filter(function(it){return live[it.space_id];}).sort(memByItemOrder);
+    // Archived items stay out of the phone (they are kept to be restored on the
+    // dashboard), but still count above: a name stays taken while archived.
+    allMemItems=res[1].filter(function(it){return live[it.space_id]&&it.review_status!=='archived';}).sort(memByItemOrder);
     if(curBrain&&!live[curBrain])curBrain=null;
     memLoaded=true;
   }).catch(function(e){
@@ -6193,7 +6301,7 @@ function memItemCardHtml(it,withBrain){
     +'<div class="prompt-info">'
       +'<div class="prompt-name">'+esc(it.name)+'</div>'
       +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
-      +'<div class="prompt-meta">'
+      +'<div class="prompt-meta">'+reviewChipHtml(it.review_status)
         +'<span class="pintent">'+esc(MEM_KIND_LABEL[it.kind]||it.kind||'')+'</span>'
         +'<span class="prompt-out">'+esc(memTokensLabel(it.token_estimate))+'</span>'
         +(b?'<span class="fbadge"><span class="fbadge-ico">'+spaceIcon(b.ico)+'</span>'+esc(b.name)+'</span>':'')
@@ -6343,6 +6451,7 @@ function openMemItem(id){
   history.pushState({memItem:id},'');
   curMemItem=it;
   document.getElementById('mi-title').textContent=it.name||'Item';
+  setReviewWarn('mi-revwarn',it.review_status,'item');
   document.getElementById('mi-brain-ico').innerHTML=b?spaceIcon(b.ico):'';
   document.getElementById('mi-brain-name').textContent=b?b.name:'';
   document.getElementById('mi-kind').textContent=MEM_KIND_LABEL[it.kind]||it.kind||'';
@@ -6385,20 +6494,11 @@ function copyBrain(b){
 function shareBrain(b){
   closeMemSheet();
   if(!memItemsOf(b.id).length){showToast('This Brain is empty');return;}
-  var text=memBrainBlock(b);
-  if(navigator.share){
-    navigator.share({title:b.name||'Brain',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Brain copied ✓ (sharing not supported)');},memCopyFailed);
-  }
+  shareOut(b.name||'Brain',memBrainBlock(b));
 }
 function shareMemItem(it){
   closeMemSheet();
-  if(navigator.share){
-    navigator.share({title:it.name||'Item',text:it.body||''}).catch(function(){});
-  }else{
-    copyText(it.body||'',function(){showToast('Copied ✓ (sharing not supported)');},memCopyFailed);
-  }
+  shareOut(it.name||'Item',it.body||'');
 }
 /* Read-only details, in the info sheet snippets and prompts use. */
 function openMemItemInfo(it){
@@ -6481,7 +6581,7 @@ function closeMemSheet(now){
       copyText(memItemBlock(it),function(){showToast('Copied for your AI chat ✓');},memCopyFailed);
       closeMemSheet();
     }else if(act==='copy'){
-      copyText(it.body||'',function(){showToast('Copied ✓');},memCopyFailed);
+      copyText(it.body||'',function(){showToast(reviewCopiedToast(it.review_status));},memCopyFailed);
       closeMemSheet();
     }else if(act==='share'){shareMemItem(it);}
     else if(act==='info'){closeMemSheet();setTimeout(function(){openMemItemInfo(it);},320);}
@@ -6493,6 +6593,7 @@ function syncMemClear(){
   var wrap=document.getElementById('mem-srch-wrap');
   var input=document.getElementById('mem-srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('mem-srch');
 }
 (function(){
   var mst;
@@ -6551,16 +6652,12 @@ function syncMemClear(){
   document.getElementById('mi-copy').addEventListener('click',function(){
     if(!curMemItem)return;
     var btn=this;
-    copyText(curMemItem.body||'',function(){
-      btn.classList.add('ok');
-      document.getElementById('mi-cico').textContent='✓';
-      document.getElementById('mi-clbl').textContent='Copied!';
-      setTimeout(function(){
-        btn.classList.remove('ok');
-        document.getElementById('mi-cico').textContent='📋';
-        document.getElementById('mi-clbl').textContent='Copy to clipboard';
-      },2000);
-    },memCopyFailed);
+    copyText(curMemItem.body||'',function(){flashFootBtn(btn,'Copied!');},memCopyFailed);
+  });
+  document.getElementById('mi-share').addEventListener('click',function(){
+    if(!curMemItem)return;
+    var btn=this;
+    shareOut(curMemItem.name||'Item',curMemItem.body||'',function(){flashFootBtn(btn,'Shared!');});
   });
 })();
 
@@ -7296,6 +7393,7 @@ function renderList(){
         +'<div class="snip-meta">'
           +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
           +pills
+          +reviewChipHtml(active.review_status)
           +fbadge
           +sharingBadge(active)
         +'</div>'
@@ -7325,7 +7423,7 @@ function renderList(){
     if(extractFields(s.body||'').length){
       openDetail(s,[s]);
     }else{
-      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
       logSnipUse(s,0);
     }
   }
@@ -7383,6 +7481,7 @@ function humanLbl(f){
 
 function renderDetail(snip,keepVals){
   document.getElementById('det-title').textContent=snip.title||snip.id;
+  setReviewWarn('det-revwarn',snip.review_status,'snippet');
   var lb=document.getElementById('det-lang');
   var lang=snip.lang||'EN';
   lb.textContent=lang;lb.className='lbadge l'+lang;
@@ -7701,35 +7800,37 @@ function getFmts(){
   return f;
 }
 
-function updatePrev(){
-  if(!curSnip)return;
-  var resolved=resolveBody(curSnip.body||'',Object.assign({},getVals()),
+/* The finished text on the snippet page: what the preview shows, and what
+   Copy and Share hand over. */
+function detailText(){
+  return resolveBody(curSnip.body||'',Object.assign({},getVals()),
     {lang:curSnip.lang,fmtOverride:getFmts()});
-  document.getElementById('prev-text').textContent=resolved;
 }
-
-/* ── COPY ───────────────────────────────────────── */
-document.getElementById('copy-btn').addEventListener('click',function(){
-  if(!curSnip)return;
-  var text=resolveBody(curSnip.body||'',Object.assign({},getVals()),
-    {lang:curSnip.lang,fmtOverride:getFmts()});
+function detailFilled(){
   var raw=getRawVals(),filled=0;
   for(var k in raw){if(String(raw[k]).replace(/^\s+|\s+$/g,'')!=='')filled++;}
-  logSnipUse(curSnip,filled);
+  return filled;
+}
+
+function updatePrev(){
+  if(!curSnip)return;
+  document.getElementById('prev-text').textContent=detailText();
+}
+
+/* ── COPY & SHARE ───────────────────────────────── */
+document.getElementById('copy-btn').addEventListener('click',function(){
+  if(!curSnip)return;
   var btn=this;
-  function onOk(){
-    btn.classList.add('ok');
-    document.getElementById('cico').textContent='✓';
-    document.getElementById('clbl').textContent='Copied!';
-    setTimeout(function(){
-      btn.classList.remove('ok');
-      document.getElementById('cico').textContent='📋';
-      document.getElementById('clbl').textContent='Copy to clipboard';
-    },2000);
-  }
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(onOk).catch(function(){fbCopy(text,onOk);});
-  }else{fbCopy(text,onOk);}
+  logSnipUse(curSnip,detailFilled());
+  copyText(detailText(),function(){flashFootBtn(btn,'Copied!');});
+});
+document.getElementById('share-btn').addEventListener('click',function(){
+  if(!curSnip)return;
+  var btn=this,s=curSnip,filled=detailFilled();
+  shareOut(s.title||'Snippet',detailText(),function(){
+    logSnipUse(s,filled);
+    flashFootBtn(btn,'Shared!');
+  });
 });
 
 /* onFail, when given, hears about a copy the browser refused, so the screen can
@@ -7808,6 +7909,7 @@ function syncSnipClear(){
   var wrap=document.getElementById('srch-wrap');
   var input=document.getElementById('srch');
   if(wrap&&input)wrap.classList.toggle('has-text',!!input.value);
+  syncAskRow('srch');
 }
 var st;
 document.getElementById('srch').addEventListener('input',function(){
@@ -7967,24 +8069,313 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
         closeBottomSheet();
         setTimeout(function(){openDetail(s,[s]);},320);
       }else{
-        copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+        copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
         logSnipUse(s,0);
         closeBottomSheet();
       }
     }else if(act==='copy'){
-      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
       logSnipUse(s,0);
       closeBottomSheet();
     }else if(act==='pin'){
       toggleSnippetPin(s);
       closeBottomSheet();
     }else if(act==='share'){
-      shareSnippet(s);
+      // A snippet with fields is filled in first, on its page, which has
+      // Share beside Copy. The rest leave as they are.
+      if(extractFields(s.body||'').length){
+        var fgrp=_groupIndex[groupKey(s)];
+        closeBottomSheet();
+        setTimeout(function(){openDetail(s,fgrp&&fgrp.length>1?fgrp:[s]);},320);
+      }else{
+        shareSnippet(s);
+      }
     }else if(act==='info'){
       closeBottomSheet();
       setTimeout(function(){openSnippetInfo(s);},320);
     }
   });
+
+/* ── REVIEW STATUS (AI-KNOWLEDGE P2, docs/AI_KNOWLEDGE_PLAN.md) ────────────
+   Mirrors app/src/lib/reviewStatus.ts: the same six statuses with the same
+   words. scripts/check-review-status.js keeps the lists in step. Archived
+   items are filtered out where they are fetched; deprecated ones still work,
+   with a warning when they are opened or copied. */
+var REVIEW_STATUSES=[
+  {value:'draft',label:'Draft'},
+  {value:'ai_generated',label:'AI generated'},
+  {value:'under_review',label:'Under review'},
+  {value:'approved',label:'Approved'},
+  {value:'deprecated',label:'Deprecated'},
+  {value:'archived',label:'Archived'}
+];
+function reviewLabel(status){
+  for(var i=0;i<REVIEW_STATUSES.length;i++){if(REVIEW_STATUSES[i].value===status)return REVIEW_STATUSES[i].label;}
+  return 'Approved';
+}
+function reviewChipHtml(status){
+  if(!status||status==='approved')return '';
+  return '<span class="mrev '+esc(status)+'">'+esc(reviewLabel(status))+'</span>';
+}
+function reviewDeprecatedNote(noun){
+  return 'This '+noun+' is deprecated. Check it is still right before you '+(noun==='snippet'?'send':'use')+' it.';
+}
+function setReviewWarn(id,status,noun){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var dep=status==='deprecated';
+  el.textContent=dep?reviewDeprecatedNote(noun):'';
+  el.classList.toggle('sb-hidden',!dep);
+}
+/* The copy confirmation, with the warning when the item is deprecated. */
+function reviewCopiedToast(status){
+  return status==='deprecated'?'Copied ✓ · Deprecated: check it is still right':'Copied ✓';
+}
+
+/* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1, docs/AI_KNOWLEDGE_PLAN.md) ──────────
+   Type a question in any of the three search fields and the row under it
+   asks the ask-sprintbrain function, which searches and reads as you and
+   answers only from your own snippets and Brains. Mirrors the dashboard's
+   search panel (app/src/features/search/AskAnswer.tsx): same states, words
+   and feedback. Feedback opens a review row in knowledge_feedback; it never
+   edits a snippet or a Brain. */
+/* Keep in step with ASK_VERDICTS in app/src/lib/askKnowledge.ts and the
+   knowledge_feedback verdict check: scripts/check-ask-knowledge.js. */
+var ASK_VERDICTS=[
+  {value:'useful',label:'Useful'},
+  {value:'incorrect',label:'Wrong'},
+  {value:'outdated',label:'Outdated'},
+  {value:'incomplete',label:'Incomplete'},
+  {value:'irrelevant',label:'Not relevant'},
+  {value:'conflicting',label:'Conflicts with policy'}
+];
+var ASK_MIN=3, ASK_MAX=1000;
+var ASK_ERRORS={
+  anthropic_not_configured:'Ask SprintBrain is not set up yet.',
+  anthropic_request_failed:'The answer service did not respond. Try again.',
+  anthropic_bad_output:'The answer came back unreadable. Try again.',
+  question_too_short:'Write a few more words.',
+  question_too_long:'Shorten the question to 1,000 characters or fewer.',
+  search_failed:'Could not search your SprintBrain. Try again.',
+  sources_read_failed:'Could not read the matching items. Try again.'
+};
+var ASK_FALLBACK='Could not reach Ask SprintBrain. Try again.';
+var askState=null, _askSeq=0, _askSheetTimer=null;
+
+function syncAskRow(inputId){
+  var input=document.getElementById(inputId);
+  var row=document.querySelector('.ask-row[data-ask-for="'+inputId+'"]');
+  if(!input||!row)return;
+  var q=input.value.trim();
+  row.classList.toggle('sb-hidden',q.length<ASK_MIN);
+  row.querySelector('.ask-row-q').textContent='Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains';
+}
+function askValid(b){
+  return !!b&&b.ok===true&&['answered','not_covered','no_sources'].indexOf(b.status)!==-1
+    &&typeof b.answer==='string'&&typeof b.missing==='string'&&typeof b.conflicts==='string'
+    &&Array.isArray(b.sources);
+}
+function askPlain(answer){
+  return String(answer||'').replace(/\s*\[S\d+\]/g,'').replace(/[ \t]+\n/g,'\n').trim();
+}
+function askSourceByRef(ref){
+  var src=askState&&askState.result?askState.result.sources:[];
+  for(var i=0;i<src.length;i++){if(src[i].ref===ref)return src[i];}
+  return null;
+}
+function askDate(iso){
+  if(!iso)return '';
+  var d=new Date(iso);
+  if(isNaN(d.getTime()))return '';
+  var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return 'Updated '+d.getDate()+' '+M[d.getMonth()]+' '+d.getFullYear();
+}
+/* The answer with citation markers drawn as buttons. A marker naming a source
+   that was not sent stays as plain text, as on the dashboard. */
+function askAnswerHtml(answer){
+  return esc(answer).replace(/\[(S\d+)\]/g,function(m,ref){
+    var s=askSourceByRef(ref);
+    if(!s)return m;
+    return '<button type="button" class="ask-n" data-ask-src="'+ref+'" aria-label="Source '+ref.slice(1)+': '+esc(s.title)+'">'+ref.slice(1)+'</button>';
+  });
+}
+function renderAsk(){
+  var body=document.getElementById('sb-ask-body');
+  if(!body||!askState)return;
+  var h='<div class="ask-q">'+esc(askState.question)+'</div>';
+  if(askState.loading){
+    body.innerHTML=h+'<div class="ask-wait" role="status"><div class="spinner"></div>Searching your snippets and Brains…</div>';
+    return;
+  }
+  if(askState.error){
+    body.innerHTML=h+'<div class="ask-err" role="alert">'+esc(askState.error)+'</div>'
+      +'<button type="button" class="ask-btn ghost" data-ask-act="retry">Try again</button>';
+    return;
+  }
+  var r=askState.result;
+  if(r.status==='no_sources'){
+    body.innerHTML=h+'<div class="ask-msg">Nothing in SprintBrain covers this yet.</div>'
+      +'<div class="ask-hint">Try other words, or save the answer as a snippet or a Brain item so the next person finds it.</div>';
+    return;
+  }
+  var answered=r.status==='answered';
+  if(answered){
+    h+='<span class="ask-badge">✓ From your SprintBrain</span>'
+      +'<div class="ask-answer">'+askAnswerHtml(r.answer)+'</div>';
+  }else{
+    h+='<div class="ask-msg">Your SprintBrain has related items, but none of them answers this.</div>';
+  }
+  if(r.missing)h+='<div class="ask-note warn"><b>Not in SprintBrain: </b>'+esc(r.missing)+'</div>';
+  if(r.conflicts)h+='<div class="ask-note bad"><b>Sources disagree: </b>'+esc(r.conflicts)+'</div>';
+  h+='<div class="ask-src-h">'+(answered?'Sources':'Related items')+'</div><ul class="ask-src">';
+  r.sources.forEach(function(s){
+    var meta=(s.kind==='snippet'?'Snippet':'Brain')+(s.review_status&&s.review_status!=='approved'?' \u00B7 '+reviewLabel(s.review_status):'');
+    var d=askDate(s.updated_at);
+    h+='<li data-ask-src="'+esc(s.ref)+'">'
+      +(answered?'<span class="ask-n'+(s.used?'':' off')+'">'+esc(s.ref.slice(1))+'</span>':'')
+      +'<span class="ask-src-tx"><span class="ask-src-t">'+esc(s.title)+'</span>'
+      +'<span class="ask-src-m">'+meta+(d?' · '+d:'')+'</span></span></li>';
+  });
+  h+='</ul>';
+  if(answered)h+='<button type="button" class="ask-btn" data-ask-act="copy">Copy answer</button>';
+  h+='<div class="ask-fb-h">'+(askState.sent?'Feedback sent':'Was this right?')+'</div><div class="ask-fb">';
+  ASK_VERDICTS.forEach(function(v){
+    var on=askState.sent===v.value;
+    h+='<button type="button" data-ask-verdict="'+v.value+'" aria-pressed="'+on+'"'
+      +(on?' class="on"':'')+((askState.sent||askState.sending)?' disabled':'')+'>'+esc(v.label)+'</button>';
+  });
+  body.innerHTML=h+'</div>';
+}
+function runAsk(){
+  var seq=++_askSeq, q=askState.question;
+  askState.loading=true;askState.error=null;askState.result=null;askState.sent=null;
+  renderAsk();
+  fetch(SUPA+'/functions/v1/ask-sprintbrain',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify({question:q})
+  }).then(function(r){
+    if(handle401(r))return null;
+    return r.json().catch(function(){return {};}).then(function(b){return {ok:r.ok,b:b};});
+  }).then(function(res){
+    if(!res||seq!==_askSeq||!askState)return;
+    askState.loading=false;
+    if(res.ok&&askValid(res.b))askState.result=res.b;
+    else askState.error=ASK_ERRORS[res.b&&res.b.error]||ASK_FALLBACK;
+    renderAsk();
+  }).catch(function(){
+    if(seq!==_askSeq||!askState)return;
+    askState.loading=false;
+    askState.error='Can’t reach the server. Check your connection and try again.';
+    renderAsk();
+  });
+}
+function openAsk(question){
+  var q=String(question||'').trim().slice(0,ASK_MAX);
+  if(q.length<ASK_MIN)return;
+  clearTimeout(_askSheetTimer);
+  askState={question:q,loading:true,error:null,result:null,sent:null,sending:false};
+  var sh=document.getElementById('sb-ask-sheet');
+  sh.classList.remove('sb-hidden');
+  sh.setAttribute('aria-hidden','false');
+  void sh.offsetWidth;
+  sh.classList.add('sb-open');
+  document.getElementById('sb-ask-body').scrollTop=0;
+  runAsk();
+}
+function closeAsk(now){
+  var sh=document.getElementById('sb-ask-sheet');
+  if(!sh)return;
+  _askSeq++;
+  sh.classList.remove('sb-open');
+  sh.setAttribute('aria-hidden','true');
+  clearTimeout(_askSheetTimer);
+  if(now){sh.classList.add('sb-hidden');askState=null;return;}
+  _askSheetTimer=setTimeout(function(){sh.classList.add('sb-hidden');askState=null;},300);
+}
+/* The team the dashboard last had selected, so the team's admins see this
+   feedback. Same key as app/src/lib/activeOrg.ts; same origin, so readable
+   here. A stale id is refused by the database and the row is filed personal. */
+function askOrgId(){
+  try{return localStorage.getItem('sb_active_org_'+USER_ID)||null;}catch(e){return null;}
+}
+function askSendFeedback(verdict){
+  if(!askState||!askState.result||askState.sent||askState.sending)return;
+  var st=askState, r=st.result;
+  st.sending=true;renderAsk();
+  function post(org){
+    return fetch(SUPA+'/rest/v1/knowledge_feedback',{
+      method:'POST',
+      headers:authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+      body:JSON.stringify({
+        question:st.question,
+        answer:String(r.answer||'').slice(0,8000),
+        verdict:verdict,
+        sources:r.sources.map(function(s){return {kind:s.kind,id:s.id,title:s.title,space_id:s.space_id||null,used:!!s.used};}),
+        organization_id:org
+      })
+    });
+  }
+  var org=askOrgId();
+  post(org).then(function(res){
+    if(handle401(res))return null;
+    if(!res.ok&&org)return post(null);
+    return res;
+  }).then(function(res){
+    if(!res)return;
+    st.sending=false;
+    if(!res.ok){showToast('Could not send feedback. Try again.');renderAsk();return;}
+    st.sent=verdict;
+    if(askState===st)renderAsk();
+    showToast(verdict==='useful'?'Thanks for the feedback':'Thanks. Sent for review');
+  }).catch(function(){
+    st.sending=false;
+    if(askState===st)renderAsk();
+    showToast('Could not send feedback. Try again.');
+  });
+}
+function askOpenSource(ref){
+  var s=askSourceByRef(ref);
+  if(!s)return;
+  closeAsk(true);
+  if(s.kind==='snippet'){
+    var snip=null;
+    for(var i=0;i<allSnips.length;i++){if(String(allSnips[i].id)===String(s.id)){snip=allSnips[i];break;}}
+    if(!snip){showToast('This snippet is not on this phone yet. Refresh and try again.');return;}
+    showSnippetsHome();
+    setTimeout(function(){
+      var grp=_groupIndex[groupKey(snip)];
+      openDetail(snip,grp&&grp.length>1?grp:[snip]);
+    },50);
+  }else{
+    showMemory();
+    if(s.space_id&&memBrainById(s.space_id))openBrain(s.space_id);
+  }
+}
+(function(){
+  var sheet=document.getElementById('sb-ask-sheet');
+  sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',function(){closeAsk();});
+  setupSheetDrag(sheet,function(){closeAsk();});
+  sheet.addEventListener('click',function(e){
+    var src=e.target.closest('[data-ask-src]');
+    if(src){askOpenSource(src.getAttribute('data-ask-src'));return;}
+    var v=e.target.closest('[data-ask-verdict]');
+    if(v){askSendFeedback(v.getAttribute('data-ask-verdict'));return;}
+    var act=e.target.closest('[data-ask-act]');
+    if(!act||!askState)return;
+    var a=act.getAttribute('data-ask-act');
+    if(a==='retry')runAsk();
+    else if(a==='copy'&&askState.result){
+      copyText(askPlain(askState.result.answer),function(){showToast('Answer copied ✓');},function(){showToast('Could not copy. Select the text and copy it instead.');});
+    }
+  });
+  document.querySelectorAll('.ask-row').forEach(function(row){
+    row.addEventListener('click',function(){
+      var input=document.getElementById(row.getAttribute('data-ask-for'));
+      if(input){input.blur();openAsk(input.value);}
+    });
+  });
+})();
 
 var _toastTimer=null;
 function showToast(msg){
@@ -8001,6 +8392,60 @@ function copyText(t,cb,onFail){
     navigator.clipboard.writeText(t).then(cb).catch(function(){fbCopy(t,cb,onFail);});
   }else{fbCopy(t,cb,onFail);}
 }
+
+/* Hand finished text to the phone's Share menu: WhatsApp, Mail or an AI app
+   takes it as it is, with nothing left to paste. Snippets, prompts and Brains
+   all share through here. Where the phone has no Share menu the text is copied
+   instead, and the toast says so. onDone hears once the text has left, shared
+   or copied; closing the menu without picking an app is not a use. */
+var shareOpen=false;
+function shareOut(title,text,onDone){
+  function done(){if(onDone)onDone();}
+  if(!navigator.share){
+    copyText(text,function(){showToast('Copied ✓ (sharing not supported)');done();},
+      function(){showToast('Could not copy');});
+    return;
+  }
+  // A second tap while the menu is up would only be refused.
+  if(shareOpen)return;
+  shareOpen=true;
+  var opened;
+  try{opened=navigator.share({title:title,text:text});}
+  catch(e){opened=Promise.reject(e);}
+  Promise.resolve(opened).then(function(){shareOpen=false;done();},function(e){
+    shareOpen=false;
+    if(e&&e.name==='AbortError')return;
+    console.error('Share: the phone\'s Share menu did not open:', e);
+    showToast('Share did not open. Use Copy instead');
+  });
+}
+// Back from the app the text went to, Share answers again even if the phone
+// never said how the last share ended.
+document.addEventListener('visibilitychange',function(){if(!document.hidden)shareOpen=false;});
+
+/* The footer buttons answer on themselves: green, with a tick, for two
+   seconds. Each keeps its own label in the markup to come back to. */
+var footFlash={};
+function flashFootBtn(btn,said){
+  var ico=btn.firstElementChild,lbl=btn.lastElementChild;
+  if(!btn.hasAttribute('data-lbl')){
+    btn.setAttribute('data-ico',ico.textContent);
+    btn.setAttribute('data-lbl',lbl.textContent);
+  }
+  clearTimeout(footFlash[btn.id]);
+  btn.classList.add('ok');
+  ico.textContent='✓';
+  lbl.textContent=said;
+  footFlash[btn.id]=setTimeout(function(){
+    btn.classList.remove('ok');
+    ico.textContent=btn.getAttribute('data-ico');
+    lbl.textContent=btn.getAttribute('data-lbl');
+  },2000);
+}
+/* Share shows only where the phone has a Share menu to open. */
+document.querySelectorAll('.foot-btn.is-share').forEach(function(b){
+  b.classList.toggle('sb-hidden',!navigator.share);
+});
 
 /* ANALYTICS-001 parity with the extension: fire-and-forget usage event on
    copy/share (an event = snippet text left the app). The insert policy's
@@ -8032,13 +8477,8 @@ function newId(){
    clipboard copy where the Web Share API is unavailable. */
 function shareSnippet(s){
   var text=resolveBody(s.body||'',{},{lang:s.lang});
-  logSnipUse(s,0);
   closeBottomSheet();
-  if(navigator.share){
-    navigator.share({title:s.title||'Snippet',text:text}).catch(function(){});
-  }else{
-    copyText(text,function(){showToast('Copied ✓ — sharing not supported');});
-  }
+  shareOut(s.title||'Snippet',text,function(){logSnipUse(s,0);});
 }
 
 /* Read-only snippet detail. This is where the per-snippet metadata lives, so the

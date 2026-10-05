@@ -85,6 +85,10 @@ import { promptsApi } from '@/lib/api/promptsApi';
 import type { Prompt, SnippetRow } from '@/types/database';
 
 const SNIPPET_A: SnippetRow = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: 'snip-A',
   user_id: 'user-1',
   name: 'Snippet A',
@@ -113,6 +117,10 @@ const SNIPPET_A: SnippetRow = {
 const SNIPPET_B: SnippetRow = { ...SNIPPET_A, id: 'snip-B', name: 'Snippet B', triggers: ['b'] };
 
 const PROMPT_A: Prompt = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: 'prompt-A',
   user_id: 'user-1',
   name: 'Prompt A',

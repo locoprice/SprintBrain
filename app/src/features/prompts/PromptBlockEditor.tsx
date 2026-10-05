@@ -20,6 +20,22 @@ import {
 import { PromptEfficiencyWidget } from '@/features/prompts/PromptEfficiencyWidget';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
+import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import {
+  DraftFromTextButton,
+  DraftNotice,
+  type DraftNoticeState,
+} from '@/components/shared/DraftWithAi';
+import {
+  idByName,
+  idsByName,
+  promptDraftBlocks,
+  uniqueToken,
+  type DraftResult,
+} from '@/lib/aiDraft';
+import { findSimilar, promptCandidates } from '@/lib/draftSimilar';
+import { useDraftStore } from '@/stores/draftStore';
+import { useReviewApprover } from '@/lib/useReviewApprover';
 import type {
   PromptBlock,
   PromptBlockType,
@@ -293,6 +309,7 @@ export function PromptBlockEditor() {
   const editId = useUiStore((s) => s.editPromptId);
   const closeNew = useUiStore((s) => s.closeNewPrompt);
   const closeEdit = useUiStore((s) => s.closeEditPrompt);
+  const openEdit = useUiStore((s) => s.openEditPrompt);
   const openPromptPreview = useUiStore((s) => s.openPromptPreview);
   const openPromptDraftPreview = useUiStore((s) => s.openPromptDraftPreview);
   const showToast = useUiStore((s) => s.showToast);
@@ -300,6 +317,8 @@ export function PromptBlockEditor() {
   const prompts = usePromptStore((s) => s.prompts);
   const folders = usePromptStore((s) => s.folders);
   const addPrompt = usePromptStore((s) => s.addPrompt);
+  const setReviewStatus = usePromptStore((s) => s.setReviewStatus);
+  const isApprover = useReviewApprover();
   const editPromptWithVersion = usePromptStore((s) => s.editPromptWithVersion);
   const versions = usePromptStore((s) => s.versions);
   const versionsLoading = usePromptStore((s) => s.versionsLoading);
@@ -307,6 +326,7 @@ export function PromptBlockEditor() {
   const restorePromptVersion = usePromptStore((s) => s.restorePromptVersion);
   const [historyOpen, setHistoryOpen] = useState(false);
   const setPromptLabels = useLabelStore((s) => s.setPromptLabels);
+  const labels = useLabelStore((s) => s.labels);
   const removePrompt = usePromptStore((s) => s.removePrompt);
 
   // The prompt trigger is a user setting (single source of truth: user_metadata,
@@ -353,15 +373,28 @@ export function PromptBlockEditor() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
+  // Draft with AI: what the notice says, and whether a new prompt came from a
+  // draft, in which case it is saved as AI generated rather than approved.
+  const [draftNotice, setDraftNotice] = useState<DraftNoticeState | null>(null);
+  const [aiDrafted, setAiDrafted] = useState(false);
 
-  // Sync form when prompt changes
+  // Sync form when a different prompt opens. Keyed on its id rather than the row
+  // object: a change made while the editor is open (the review status menu
+  // patches the row in the store) must not wipe text that is still unsaved.
+  const editingPromptRef = useRef(editingPrompt);
+  editingPromptRef.current = editingPrompt;
+  const editingPromptId = editingPrompt?.id ?? null;
+
   useEffect(() => {
     if (!isOpen) return;
+    const editingPrompt = editingPromptRef.current;
     setSubmitError(null);
     setNameError(null);
     setShortcutError(null);
     setConfirmDelete(false);
     setSuggestion(null);
+    setDraftNotice(null);
+    setAiDrafted(false);
 
     if (editingPrompt) {
       setName(editingPrompt.name);
@@ -386,6 +419,14 @@ export function PromptBlockEditor() {
       // Read once on open: the picker owns the draft from here, so a background
       // refresh can't stomp an in-progress edit.
       setLabelIds(useLabelStore.getState().promptLabels.get(editingPrompt.id) ?? []);
+      // An AI update drafted from a new prompt's "Update it instead": shown over
+      // the saved text, unsaved. The shortcut, folder and labels stay its own.
+      const handed = useDraftStore.getState().take('prompt', editingPrompt.id);
+      if (handed?.kind === 'prompt') {
+        setName(handed.draft.name);
+        setBlocks(promptDraftBlocks(handed.draft));
+        setDraftNotice({ mode: 'update', changes: handed.changes, text: '', similar: [] });
+      }
     } else {
       setName('');
       setShortcut('');
@@ -400,7 +441,7 @@ export function PromptBlockEditor() {
       setLabelIds([]);
       setAskUserQuestions(true);
     }
-  }, [isOpen, editingPrompt]);
+  }, [isOpen, editingPromptId]);
 
   // Auto-classify when content changes
   const triggerClassify = useCallback((blocksSnapshot: PromptBlock[]) => {
@@ -455,6 +496,41 @@ export function PromptBlockEditor() {
   function close() {
     if (mode === 'edit') closeEdit();
     else closeNew();
+  }
+
+  // A new draft replaces what the form holds: the person asked for it, and
+  // nothing has been saved yet.
+  function applyDraft(result: DraftResult, text: string) {
+    if (result.kind !== 'prompt') return;
+    const { draft } = result;
+    setName(draft.name);
+    setShortcut(
+      draft.shortcut ? uniqueToken(draft.shortcut, prompts.map((p) => p.shortcut ?? '')) : '',
+    );
+    setBlocks(promptDraftBlocks(draft));
+    setFolderId((prev) => idByName(draft.folder, folders) ?? prev);
+    setLabelIds(idsByName(draft.labels, labels));
+    setNameError(null);
+    setShortcutError(null);
+    setAiDrafted(true);
+    setDraftNotice({
+      mode: 'new',
+      changes: '',
+      text,
+      similar: findSimilar(
+        {
+          title: draft.name,
+          text: [draft.role, draft.objective, draft.context, draft.examples, draft.constraints].join(' '),
+          token: draft.shortcut,
+        },
+        promptCandidates(prompts),
+      ),
+    });
+  }
+
+  function openExisting(id: string) {
+    closeNew();
+    openEdit(id);
   }
 
   function updateBlock(type: PromptBlockType, content: string) {
@@ -591,7 +667,10 @@ export function PromptBlockEditor() {
         showToast('Changes saved');
         closeEdit();
       } else {
-        const created = await addPrompt(payload);
+        const created = await addPrompt(
+          payload,
+          aiDrafted ? { reviewStatus: 'ai_generated' } : undefined,
+        );
         // Only after the row exists — the link table has an FK to prompts.
         await setPromptLabels(created.id, labelIds);
         showToast('Prompt created');
@@ -695,6 +774,28 @@ export function PromptBlockEditor() {
               updatedAt={editingPrompt.updated_at}
             />
           )}
+          {mode === 'create' && (
+            <DraftFromTextButton
+              tone="dark"
+              kind="prompt"
+              noun="prompt"
+              folders={folders.map((f) => f.name)}
+              labels={labels.map((l) => l.name)}
+              disabled={saving}
+              onDrafted={applyDraft}
+            />
+          )}
+          {mode === 'edit' && editingPrompt && (
+            <ReviewStatusMenu
+              tone="dark"
+              noun="prompt"
+              status={editingPrompt.review_status}
+              reviewedBy={editingPrompt.reviewed_by}
+              reviewedAt={editingPrompt.reviewed_at}
+              approver={isApprover(editingPrompt.organization_id, editingPrompt.user_id)}
+              onChange={(next) => setReviewStatus(editingPrompt.id, next)}
+            />
+          )}
           <button
             type="button"
             onClick={close}
@@ -705,6 +806,16 @@ export function PromptBlockEditor() {
           </button>
         </div>
       </div>
+
+      {draftNotice && (
+        <DraftNotice
+          tone="dark"
+          notice={draftNotice}
+          kind="prompt"
+          onOpen={openExisting}
+          onDismiss={() => setDraftNotice(null)}
+        />
+      )}
 
       {/* ── Intent suggestion banner ── */}
       {suggestion && (

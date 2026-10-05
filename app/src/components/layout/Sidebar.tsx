@@ -15,6 +15,7 @@ import {
   PanelLeftOpen,
   PlayCircle,
   Settings,
+  ShieldCheck,
   Sparkles,
   Type,
   Users,
@@ -28,6 +29,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
+import { countWaiting, useReviewStore } from '@/stores/reviewStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -110,6 +112,8 @@ export function Sidebar() {
   const snippetCount = useSnippetStore((s) => s.snippets.length);
   const promptCount = usePromptStore((s) => s.prompts.length);
   const sharedFolderCount = useSnippetStore((s) => s.folderShares.size);
+  const waitingCount = useReviewStore((s) => countWaiting(s.items));
+  const loadReview = useReviewStore((s) => s.load);
   const companyLogoUrl = useSettingsStore((s) => s.profile?.company_logo_url ?? null);
   const openOnboarding = useUiStore((s) => s.openOnboarding);
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -134,8 +138,16 @@ export function Sidebar() {
     // pulling that store into the sidebar would make every page fetch it.
     { to: '/memory', label: 'Brains', icon: Brain },
     { to: '/team', label: 'Team', icon: Users, count: sharedFolderCount, dividerBefore: true },
+    // What waits for a person, across snippets, prompts and Brains.
+    { to: '/review', label: 'Review', icon: ShieldCheck, count: waitingCount },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   ];
+
+  // One small read per session, for the Review count. Status changes made in
+  // the dashboard refresh it through the shared status menu.
+  useEffect(() => {
+    void loadReview();
+  }, [loadReview]);
 
   useEffect(() => {
     if (!menuOpen) return;

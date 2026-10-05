@@ -12,6 +12,8 @@ import {
   type DocumentImportResult,
   type SaveMemoryItemInput,
 } from '@/lib/api/memoryApi';
+import { reviewApi } from '@/lib/api/reviewApi';
+import type { ReviewStatus } from '@/lib/reviewStatus';
 
 // Memory spaces and their items (MEMORY-002).
 //
@@ -82,6 +84,8 @@ interface MemoryStore {
   saveItem: (input: SaveMemoryItemInput) => Promise<void>;
   trashItem: (id: string) => Promise<void>;
   restoreItem: (id: string) => Promise<void>;
+  /** Set the review status (AI-KNOWLEDGE P2). Same contract as the snippet store's. */
+  setReviewStatus: (id: string, status: ReviewStatus) => Promise<void>;
 
   /** Saved versions of `versionsItemId`, newest first. */
   versions: MemoryVersion[];
@@ -330,6 +334,12 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     // The cross-space search index no longer reflects what is stored, so the
     // next search rebuilds it rather than offering the old text.
     set({ totals, allItemsLoaded: false });
+  },
+
+  setReviewStatus: async (id, status) => {
+    const stamp = await reviewApi.setStatus('memory', id, status);
+    patchItems((item) => item.id === id, stamp);
+    set((s) => ({ allItems: s.allItems.map((item) => (item.id === id ? { ...item, ...stamp } : item)) }));
   },
 
   trashItem: async (id) => {

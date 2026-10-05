@@ -36,6 +36,10 @@ const mockListRevisions = vi.mocked(revisionsApi.listRevisions);
 const mockSaveWithRevision = vi.mocked(revisionsApi.saveWithRevision);
 
 const MOCK_SNIPPET: SnippetRow = {
+  organization_id: null,
+  review_status: 'approved',
+  reviewed_by: null,
+  reviewed_at: null,
   id: 'snippet-1',
   user_id: 'user-1',
   name: 'Test Snippet',

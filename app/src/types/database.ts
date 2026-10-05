@@ -1,3 +1,5 @@
+import type { ReviewStatus } from '@/lib/reviewStatus';
+
 // SprintBrain Supabase schema mirrors.
 // Shapes match PROJECT_CONTEXT.md §4 and CLAUDE.md §3 so the follow-up ticket
 // (auth + live reads) only needs to swap the mock implementation.
@@ -105,7 +107,19 @@ export type SnippetLanguage = 'EN' | 'IT' | 'ES' | 'FR' | 'MULTI';
  */
 export type SnippetBodies = Partial<Record<SnippetLanguage, string>>;
 
-export interface Snippet {
+/**
+ * Where an item stands for review (AI-KNOWLEDGE P2). Rules live in the database
+ * (app.review_status_guard); wording and the client-side mirror of the rules in
+ * lib/reviewStatus.ts.
+ */
+export interface ReviewFields {
+  review_status: ReviewStatus;
+  /** Who last set approved, deprecated or archived. Null when nobody has (content that predates review). */
+  reviewed_by: Uuid | null;
+  reviewed_at: IsoDateTime | null;
+}
+
+export interface Snippet extends ReviewFields {
   id: Uuid;
   user_id: Uuid;
   name: string;
@@ -116,6 +130,8 @@ export interface Snippet {
   formula: string | null;
   variables: Record<string, unknown>;
   folder_id: Uuid | null;
+  /** The team this snippet belongs to (derived from its folder), or null when personal. Decides who approves it. */
+  organization_id: Uuid | null;
   language: SnippetLanguage;
   /**
    * Curated cross-language grouping key (nullable in DB). Variants that share
@@ -176,7 +192,7 @@ export interface PromptBlock {
   enabled: boolean;
 }
 
-export interface Prompt {
+export interface Prompt extends ReviewFields {
   id: Uuid;
   user_id: Uuid;
   name: string;
@@ -197,6 +213,8 @@ export interface Prompt {
    */
   ask_user_questions: boolean;
   folder_id: Uuid | null;
+  /** The team this prompt belongs to (derived from its folder), or null when personal. Decides who approves it. */
+  organization_id: Uuid | null;
   notion_page_id: string | null;
   /** Pin-to-top flag (prompts.pinned). Same shared-column semantics as Snippet.pinned. */
   pinned: boolean;
@@ -464,7 +482,7 @@ export interface MemorySpace {
  * none of the management fields below. The engine has zero imports by design,
  * so the two shapes cannot be merged.
  */
-export interface MemoryItem {
+export interface MemoryItem extends ReviewFields {
   id: Uuid;
   user_id: Uuid;
   space_id: Uuid;

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { LabelBadgeList } from '@/components/shared/LabelBadge';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 import { DND_SNIPPET } from '@/features/org/FolderTree';
 import { SnippetContextMenu } from '@/features/snippets/SnippetContextMenu';
 import { SnippetRowActions } from '@/features/snippets/SnippetRowActions';
@@ -430,11 +431,18 @@ export function SnippetsTable() {
                   isSelected
                     ? 'bg-primary-light hover:bg-primary-light/80'
                     : 'hover:bg-bg-alt/60',
-                  // Soft-disabled snippets dim to ~50% so users can spot which
-                  // rows are turned off at a glance without losing the data.
-                  !row.is_active && 'opacity-50',
+                  // Soft-disabled and archived snippets dim to ~50% so users
+                  // can spot which rows are turned off at a glance without
+                  // losing the data. Neither expands.
+                  (!row.is_active || row.review_status === 'archived') && 'opacity-50',
                 )}
-                title={!row.is_active ? 'Disabled — will not expand in the extension' : undefined}
+                title={
+                  !row.is_active
+                    ? 'Disabled — will not expand in the extension'
+                    : row.review_status === 'archived'
+                      ? 'Archived — will not expand, and Ask SprintBrain ignores it'
+                      : undefined
+                }
               >
                 {/* Checkbox cell — selects all language variants in the group */}
                 <td
@@ -463,6 +471,7 @@ export function SnippetsTable() {
                           />
                         )}
                         <span className="truncate">{displayName}</span>
+                        <ReviewStatusBadge status={row.review_status} />
                         {issue !== undefined ? (
                           <StatusBadge status="broken" detail={issue.message} />
                         ) : isTopByUsage(groupUsage, libraryMax) ? (

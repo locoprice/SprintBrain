@@ -64,7 +64,9 @@ var DB = {
     // lets us project/filter/order the function result like a table. This keeps
     // the popup picker, the right-click menu, and ;;-expansion on the SAME
     // source (background.js already reads this RPC).
-    var snipQs = 'select=*&order=sort_order&is_active=eq.true';
+    // review_status=neq.archived: archived snippets never expand, like
+    // disabled ones (AI-KNOWLEDGE P2).
+    var snipQs = 'select=*&order=sort_order&is_active=eq.true&review_status=neq.archived';
     return Promise.all([
       supaFetch('folders',                 'GET', null, 'select=*&order=sort_order').then(function(r){ return r.json(); }),
       supaFetch('rpc/accessible_snippets', 'GET', null, snipQs).then(function(r){ return r.json(); }),
@@ -111,6 +113,8 @@ var DB = {
             manually_edited: s.manually_edited || false,
             ai_generated: s.ai_generated || false,
             pinned: s.pinned || false,
+            // Deprecated snippets expand with a warning (content.js reviewWarning).
+            review_status: s.review_status || 'approved',
             expansions: um[s.id] || 0,
             // The fallback anchor for the unused-asset notice: a snippet with no
             // expansion on record is measured from the day it was added, which
@@ -162,7 +166,9 @@ var DB = {
     // created_at joins the projection for INACTIVE-001: it is the anchor for a
     // prompt that has never been used, the same way snippets fall back to theirs.
     return supaFetch('prompts', 'GET', null,
-      'select=id,user_id,name,content,shortcut,strategy_type,intent_category,last_used_at,created_at,pinned&order=updated_at.desc'
+      'select=id,user_id,name,content,shortcut,strategy_type,intent_category,last_used_at,created_at,pinned,review_status' +
+      // Archived prompts are kept to be restored, not offered (AI-KNOWLEDGE P2).
+      '&review_status=neq.archived&order=updated_at.desc'
     ).then(function(r) { return r.ok ? r.json() : []; })
       .catch(function() { return []; });
   }
@@ -379,7 +385,8 @@ function syncPrompts(){
         id: p.id,
         title: p.name || 'Untitled',
         body: p.content || '',
-        shortcut: p.shortcut || ''
+        shortcut: p.shortcut || '',
+        review_status: p.review_status || 'approved'
       };
     });
     chrome.storage.local.set({sb_prompts:mapped}, function(){
@@ -1902,6 +1909,7 @@ function renderDetailHtml(s){
   var isDynamic=hasFields || (resolved!==body);
 
   var h='<div class="detail" data-detail="'+esc(s.id)+'">'
+    +(s.review_status==='deprecated'?'<div class="d-warn" role="alert">'+esc(REVIEW_DEPRECATED_NOTE)+'</div>':'')
     +(order.length>1?'<div class="d-langs">'+pills+'</div>':'');
 
   if(isDynamic){
@@ -2031,6 +2039,25 @@ function snipIssue(s,variants){
   return null;
 }
 
+// Review status (AI-KNOWLEDGE P2). Same words as the dashboard and the phone;
+// scripts/check-review-status.js keeps the list in step. Approved draws nothing,
+// and archived rows never reach the popup.
+var REVIEW_STATUSES=[
+  {value:'draft',label:'Draft'},
+  {value:'ai_generated',label:'AI generated'},
+  {value:'under_review',label:'Under review'},
+  {value:'approved',label:'Approved'},
+  {value:'deprecated',label:'Deprecated'},
+  {value:'archived',label:'Archived'}
+];
+var REVIEW_DEPRECATED_NOTE='This snippet is deprecated. Check it is still right before you send it.';
+function reviewChipHtml(status){
+  if(!status||status==='approved') return '';
+  var label=status;
+  for(var i=0;i<REVIEW_STATUSES.length;i++){ if(REVIEW_STATUSES[i].value===status) label=REVIEW_STATUSES[i].label; }
+  return '<span class="sb-rev '+esc(status)+'">'+esc(label)+'</span>';
+}
+
 function statBadgeHtml(kind,title){
   return '<span class="sb-stat '+kind+'" role="img" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+STAT_SVG[kind]+'</span>';
 }
@@ -2095,7 +2122,7 @@ function renderList(q){
     var open=expandedId===s.id;
     h+='<div class="item'+(open?' open':'')+'" data-id="'+esc(s.id)+'" tabindex="-1" role="button" aria-expanded="'+(open?'true':'false')+'" aria-label="'+esc(base)+' \u2014 show details">'
       +'<div class="i-main">'
-        +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'+statHtml
+        +'<div class="i-r1"><span class="iname">'+esc(base)+'</span>'+reviewChipHtml(s.review_status)+statHtml
           +'<span class="isc"><span class="isc-pfx">'+esc(trig)+'</span>'+esc(shortWord(s.shortcut))+'</span></div>'
         // usesHtml is built from a coerced Number plus literals — safe unescaped.
         +'<div class="i-r2"><span class="lb '+esc(lb)+'">'+esc(lb)+'</span><span class="i-uses">'+usesHtml+'</span></div>'
@@ -2303,7 +2330,7 @@ function renderPrompts(q) {
       : '';
     h += '<div class="p-item" data-pid="'+esc(p.id)+'" tabindex="-1" role="button" aria-label="'+esc(p.name||'Untitled')+' — copy prompt">'
       + '<div class="p-body">'
-      + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</div>'
+      + '<div class="p-name" id="pname-'+esc(p.id)+'">'+esc(p.name||'Untitled')+reviewChipHtml(p.review_status)+'</div>'
       + '<div class="p-meta">'+stratHtml+scHtml+'</div>'
       + '</div>'
       + '<button class="p-copy" type="button" title="Copy prompt" aria-label="Copy prompt"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'
