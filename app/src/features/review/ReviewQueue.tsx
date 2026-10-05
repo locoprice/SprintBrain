@@ -114,7 +114,7 @@ export function ReviewQueue() {
       navigate('/prompts');
       openEditPrompt(item.id);
     } else {
-      navigate(item.spaceId ? `/memory/${item.spaceId}` : '/memory');
+      navigate(item.spaceId ? `/memory/${item.spaceId}?item=${item.id}` : '/memory');
     }
   }
 

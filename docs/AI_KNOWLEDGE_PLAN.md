@@ -1,6 +1,6 @@
 # AI Knowledge Layer — Gap Analysis and Phased Plan
 
-**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0; P2 (review status) built in v3.59.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
+**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0; P2 (review status) built in v3.59.0; P3 (Draft with AI) built in v3.60.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
 **Principle:** retrieve before generating. SprintBrain stays the authoritative store; AI reads it, cites it, and never invents a company rule it cannot find.
 
 ---
@@ -87,3 +87,21 @@ Owner decisions, 2026-10-04: existing content starts **approved** (no reviewer);
 
 Status is filtered on the Review page rather than in each section's toolbar: Brains has no filter bar, and the three sections keep identical toolbars. Older installed extensions keep expanding archived snippets until they update.
 
+## 7. P3 as built (v3.60.0)
+
+Owner decisions, 2026-10-04: details that change each time (names, dates, choices) become fill-in fields, numbers stay as written; Draft with AI is dashboard only.
+
+| Piece | Where |
+|---|---|
+| Draft function: pasted text → a draft snippet, prompt or Brain item; with `target_id`, the update of an existing item plus a sentence on what changed. Reads as the caller, saves nothing, files only under folders and labels the caller sent, keeps a new Brain item's text as pasted | `services/supabase/functions/draft-with-ai/index.ts` |
+| `memory_save_shard` takes `p_review_status` (draft, ai_generated, under_review only), so a drafted Brain item is never approved in between | `services/supabase/migrations/20261006120000_memory_save_review_status.sql` |
+| Reading a draft into editor values, unique triggers, shortcuts and Brain item names | `app/src/lib/aiDraft.ts` |
+| "Already in your library": word overlap, same trigger or shortcut, same name; one check for all three kinds, in the browser | `app/src/lib/draftSimilar.ts` |
+| Draft from text button and the notice, shared by the three editors; Update it instead hands the update to the existing item's editor | `app/src/components/shared/DraftWithAi.tsx`, `app/src/stores/draftStore.ts` |
+| New items from a draft created as ai_generated in the same write | `snippetsApi.createSnippet`, `promptsApi.createPrompt`, `memoryApi.saveItem` |
+| Brain item links: `/memory/<space>?item=<id>` opens the item (Review page, Update it instead) | `app/src/routes/MemorySpacePage.tsx` |
+| Gate | `scripts/check-ai-draft.js` (CI) |
+
+An update made with Update it instead follows the normal review rules rather than being marked AI generated: the person saving it has read it, and a non-admin's save of approved team content already returns it to under review. Its trigger or shortcut, folder and labels are kept, because people already type that trigger and language variants are grouped by it.
+
+Not in P3: the extension and the phone (owner decision); a per-team AI switch (P7).

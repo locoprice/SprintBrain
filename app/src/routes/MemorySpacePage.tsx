@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertCircle,
@@ -254,6 +254,9 @@ export function MemorySpacePage() {
   const showToast = useUiStore((s) => s.showToast);
 
   const [editorTarget, setEditorTarget] = useState<'new' | MemoryItem | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wantedItemId = searchParams.get('item');
   // The one search bar in the header owns the text (SEARCH-001).
   const query = useSearchStore((s) => s.query);
   const clearSearch = useSearchStore((s) => s.clear);
@@ -307,6 +310,44 @@ export function MemorySpacePage() {
   useEffect(() => {
     if (!loaded) void loadSpaces();
   }, [loaded, loadSpaces]);
+
+  // ?item=<id> opens that item's editor once this Brain's items are in. The
+  // Review page and Draft with AI's "Update it instead" open a Brain item this
+  // way. Read from the store, not the render: the load for a new Brain starts
+  // in the effect above this one, after this render's values were taken.
+  useEffect(() => {
+    if (!wantedItemId) return;
+    const state = useMemoryStore.getState();
+    if (state.loadingItems || state.activeSpaceId !== spaceId) return;
+    const found = state.items.find((item) => item.id === wantedItemId && item.deleted_at === null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true },
+    );
+    if (found) setEditorTarget(found);
+    else showToast('That item is no longer in this Brain.', 'error');
+  }, [wantedItemId, spaceId, loadingItems, items, setSearchParams, showToast]);
+
+  // Another item's editor in place of the open one: in this Brain, swap the
+  // editor's target; in another, go there and let ?item= open it.
+  function openItem(id: string) {
+    const state = useMemoryStore.getState();
+    const item = state.items.find((i) => i.id === id) ?? state.allItems.find((i) => i.id === id);
+    if (!item) {
+      showToast('That item is no longer in your Brains.', 'error');
+      return;
+    }
+    if (item.space_id === spaceId) {
+      setEditorTarget(item);
+      return;
+    }
+    setEditorTarget(null);
+    navigate(`/memory/${item.space_id}?item=${item.id}`);
+  }
 
   useEffect(() => {
     if (spaceId) {
@@ -659,6 +700,7 @@ export function MemorySpacePage() {
         spaceId={spaceId}
         onClose={() => setEditorTarget(null)}
         onSave={saveItem}
+        onOpenItem={openItem}
         onOpenHistory={(item) => {
           setHistoryItem(item);
           void loadVersions(item.id);

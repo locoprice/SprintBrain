@@ -3,7 +3,7 @@ import { toApiError } from '@/lib/api/apiError';
 import { buildChunkItems } from '@/lib/documentImport';
 import { DocumentTextError, extractDocumentText } from '@/lib/documentText';
 import { loadMemoryChunk } from '@/lib/memoryChunk';
-import { toReviewStatus } from '@/lib/reviewStatus';
+import { toReviewStatus, type WaitingStatus } from '@/lib/reviewStatus';
 import type {
   MemoryDocument,
   MemoryItem,
@@ -80,6 +80,8 @@ export interface SaveMemoryItemInput {
   pinned?: boolean;
   priority?: number;
   editNote?: string | null;
+  /** Starts a new item waiting for a person (an AI draft). Needs 20261006120000. */
+  reviewStatus?: WaitingStatus;
 }
 
 export interface MemoryApi {
@@ -465,6 +467,9 @@ export const memoryApi: MemoryApi = {
       p_priority: input.priority ?? 0,
       p_edit_note: input.editNote ?? null,
       p_surface: 'dashboard',
+      // Only sent when asked for, so an ordinary save works against a database
+      // that predates the parameter.
+      ...(input.reviewStatus ? { p_review_status: input.reviewStatus } : {}),
     });
     if (error) throw memoryWriteError(error, input.name.trim(), 'save');
     return data as string;

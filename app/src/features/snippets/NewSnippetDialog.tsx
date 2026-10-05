@@ -29,6 +29,14 @@ import { Input } from '@/components/ui/input';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import {
+  DraftFromTextButton,
+  DraftNotice,
+  type DraftNoticeState,
+} from '@/components/shared/DraftWithAi';
+import { snippetDraftFields, type DraftResult } from '@/lib/aiDraft';
+import { findSimilar, snippetCandidates } from '@/lib/draftSimilar';
+import { useDraftStore } from '@/stores/draftStore';
 import { useReviewApprover } from '@/lib/useReviewApprover';
 import { LabelPicker } from '@/features/labels/LabelPicker';
 import {
@@ -393,6 +401,7 @@ export function NewSnippetDialog() {
   const openNew  = useUiStore((s) => s.openNewSnippet);
   const closeNew = useUiStore((s) => s.closeNewSnippet);
   const closeEdit = useUiStore((s) => s.closeEditSnippet);
+  const openEdit  = useUiStore((s) => s.openEditSnippet);
 
   const folders      = useSnippetStore((s) => s.folders);
   const snippets     = useSnippetStore((s) => s.snippets);
@@ -402,6 +411,7 @@ export function NewSnippetDialog() {
   const setReviewStatus         = useSnippetStore((s) => s.setReviewStatus);
   const isApprover              = useReviewApprover();
   const setSnippetLabels        = useLabelStore((s) => s.setSnippetLabels);
+  const labels                  = useLabelStore((s) => s.labels);
 
   const openHistory = useUiStore((s) => s.openHistory);
 
@@ -446,6 +456,10 @@ export function NewSnippetDialog() {
   const [liveLanguageError, setLiveLanguageError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Draft with AI: what the notice says, and whether a new snippet came from a
+  // draft, in which case it is saved as AI generated rather than approved.
+  const [draftNotice, setDraftNotice] = useState<DraftNoticeState | null>(null);
+  const [aiDrafted, setAiDrafted] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Clear is armed by the first click and fires on the second, the same
   // two-step Delete uses. Wiping a translation is not undoable from here.
@@ -541,6 +555,8 @@ export function NewSnippetDialog() {
     setConfirmDelete(false);
     setConfirmClear(false);
     setAltQueryDraft('');
+    setDraftNotice(null);
+    setAiDrafted(false);
     // A new form starts with the trigger unclaimed, so the name may fill it.
     autoTriggerRef.current = '';
     if (editingSnippet) {
@@ -566,6 +582,22 @@ export function NewSnippetDialog() {
       // Read once on open: the picker owns the draft from here, so a
       // background refresh can't stomp an in-progress edit.
       setLabelIds(useLabelStore.getState().snippetLabels.get(editingSnippet.id) ?? []);
+      // An AI update drafted from a new snippet's "Update it instead": shown
+      // over the saved text, unsaved. The trigger, folder and labels stay the
+      // snippet's own: people already type that trigger, and its language
+      // variants are grouped by it.
+      const handed = useDraftStore.getState().take('snippet', editingSnippet.id);
+      if (handed?.kind === 'snippet') {
+        const { title, body, language } = handed.draft;
+        setForm((prev) => ({
+          ...prev,
+          name: title,
+          content: body,
+          bodies: { ...prev.bodies, [language]: body },
+          language,
+        }));
+        setDraftNotice({ mode: 'update', changes: handed.changes, text: '', similar: [] });
+      }
     } else {
       setForm(EMPTY_FORM);
       setLabelIds([]);
@@ -854,6 +886,45 @@ export function NewSnippetDialog() {
     }
   }
 
+  // A new draft replaces what the form holds: the person asked for it, and
+  // nothing has been saved yet.
+  function applyDraft(result: DraftResult, text: string) {
+    if (result.kind !== 'snippet') return;
+    const fields = snippetDraftFields(result.draft, {
+      folders,
+      labels,
+      takenTriggers: snippets.map((s) => s.triggers[0] ?? ''),
+    });
+    setForm((prev) => ({
+      ...prev,
+      name: fields.name,
+      trigger: fields.trigger,
+      content: fields.content,
+      bodies: { [fields.language]: fields.content },
+      language: fields.language,
+      folder_id: fields.folderId ?? prev.folder_id,
+    }));
+    // The trigger follows the name until the person types their own.
+    autoTriggerRef.current = fields.trigger;
+    setLabelIds(fields.labelIds);
+    setErrors({});
+    setAiDrafted(true);
+    setDraftNotice({
+      mode: 'new',
+      changes: '',
+      text,
+      similar: findSimilar(
+        { title: result.draft.title, text: result.draft.body, token: result.draft.trigger },
+        snippetCandidates(snippets),
+      ),
+    });
+  }
+
+  function openExisting(id: string) {
+    closeNew();
+    openEdit(id);
+  }
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitError(null);
@@ -898,7 +969,10 @@ export function NewSnippetDialog() {
         await setSnippetLabels(editingSnippet.id, labelIds);
         closeEdit();
       } else {
-        const created = await addSnippet(parsed.data);
+        const created = await addSnippet(
+          parsed.data,
+          aiDrafted ? { reviewStatus: 'ai_generated' } : undefined,
+        );
         // Only after the row exists — the link table has an FK to snippets.
         await setSnippetLabels(created.id, labelIds);
         closeNew();
@@ -986,6 +1060,16 @@ export function NewSnippetDialog() {
               createdBy={editingSnippet.user_id}
               updatedBy={editingSnippet.updated_by}
               updatedAt={editingSnippet.updated_at}
+            />
+          )}
+          {mode === 'create' && (
+            <DraftFromTextButton
+              kind="snippet"
+              noun="snippet"
+              folders={folders.map((f) => f.name)}
+              labels={labels.map((l) => l.name)}
+              disabled={saving}
+              onDrafted={applyDraft}
             />
           )}
           {mode === 'edit' && editingSnippet && (
@@ -1509,6 +1593,15 @@ export function NewSnippetDialog() {
 
           {/* ── CENTER PANEL: main editor ── */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-3 min-w-0">
+
+            {draftNotice && (
+              <DraftNotice
+                notice={draftNotice}
+                kind="snippet"
+                onOpen={openExisting}
+                onDismiss={() => setDraftNotice(null)}
+              />
+            )}
 
             {/* Name + Trigger + Folder — one row. None of the three needs the
                 full panel width, and pairing them keeps the editor's vertical

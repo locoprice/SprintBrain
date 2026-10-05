@@ -4,7 +4,7 @@ import { foldersApi } from '@/lib/api/foldersApi';
 import { validateTemplate } from '@/lib/statusSignals';
 import type { Folder, Snippet, SnippetBodies, SnippetRow } from '@/types/database';
 import type { SnippetFormValues, FolderFormValues } from '@/types/schemas';
-import { toReviewStatus } from '@/lib/reviewStatus';
+import { toReviewStatus, type NewItemOptions } from '@/lib/reviewStatus';
 
 const EDGE_FN_SHARE = 'notion-snippet-push';
 
@@ -20,7 +20,8 @@ const EDGE_FN_SHARE = 'notion-snippet-push';
 export interface SnippetsApi {
   listFolders(): Promise<Folder[]>;
   listSnippets(): Promise<SnippetRow[]>;
-  createSnippet(payload: SnippetFormValues): Promise<SnippetRow>;
+  /** `options.reviewStatus` starts the snippet waiting for a person (an AI draft). */
+  createSnippet(payload: SnippetFormValues, options?: NewItemOptions): Promise<SnippetRow>;
   /** Insert many snippets in a single round-trip (used by import). */
   createSnippetsBatch(items: SnippetFormValues[]): Promise<SnippetRow[]>;
   updateSnippet(id: string, patch: Partial<SnippetFormValues>): Promise<SnippetRow>;
@@ -322,9 +323,13 @@ export const snippetsApi: SnippetsApi = {
     );
   },
 
-  async createSnippet(payload) {
+  async createSnippet(payload, options) {
     const userId = await currentUserId();
-    const insert = buildSnippetInsert(payload, userId, new Date().toISOString(), Date.now());
+    const insert = {
+      ...buildSnippetInsert(payload, userId, new Date().toISOString(), Date.now()),
+      // Sent with the row, so the snippet is never approved in between.
+      ...(options?.reviewStatus ? { review_status: options.reviewStatus } : {}),
+    };
     const { data, error } = await supabase
       .from('snippets')
       .insert(insert)

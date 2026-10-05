@@ -14,7 +14,7 @@ import { subtreeIds } from '@/lib/folderTree';
 import { snippetGroupKey } from '@/lib/snippetGrouping';
 import { expandWithDescendants } from '@/lib/labelTree';
 import { reviewApi } from '@/lib/api/reviewApi';
-import type { ReviewStatus } from '@/lib/reviewStatus';
+import type { NewItemOptions, ReviewStatus } from '@/lib/reviewStatus';
 
 export type SortColumn = 'updated_at' | 'usage_count' | 'name';
 export type SortDir = 'asc' | 'desc';
@@ -64,7 +64,7 @@ interface SnippetStore {
   bulkDeleteSnippets: (ids: string[]) => Promise<void>;
 
   // Mutations — throw on failure so the calling dialog can keep the form open.
-  addSnippet: (payload: SnippetFormValues) => Promise<SnippetRow>;
+  addSnippet: (payload: SnippetFormValues, options?: NewItemOptions) => Promise<SnippetRow>;
   editSnippet: (id: string, patch: Partial<SnippetFormValues>) => Promise<SnippetRow>;
   removeSnippet: (id: string) => Promise<void>;
   /** Toggle the pinned flag on a snippet. Optimistic; rolls back on failure. */
@@ -260,9 +260,9 @@ export const useSnippetStore = create<SnippetStore>((set, get) => ({
     }
   },
 
-  addSnippet: async (payload) => {
+  addSnippet: async (payload, options) => {
     try {
-      const row = await snippetsApi.createSnippet(payload);
+      const row = await snippetsApi.createSnippet(payload, options);
       // Ensure the folder_name is populated (the join returns it on insert, but
       // fall back to our local folders list if needed).
       const folder = get().folders.find((f) => f.id === row.folder_id);

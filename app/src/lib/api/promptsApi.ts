@@ -2,11 +2,12 @@ import { supabase } from '@/lib/supabase';
 import { toApiError } from '@/lib/api/apiError';
 import type { Prompt, PromptBlock, PromptVersion, StrategyType, ThinkingMode, PreferredModel, ComplexityLevel, IntentCategory, OutputType } from '@/types/database';
 import type { PromptFormValues } from '@/types/schemas';
-import { toReviewStatus } from '@/lib/reviewStatus';
+import { toReviewStatus, type NewItemOptions } from '@/lib/reviewStatus';
 
 export interface PromptsApi {
   listPrompts(): Promise<Prompt[]>;
-  createPrompt(payload: PromptFormValues): Promise<Prompt>;
+  /** `options.reviewStatus` starts the prompt waiting for a person (an AI draft). */
+  createPrompt(payload: PromptFormValues, options?: NewItemOptions): Promise<Prompt>;
   updatePrompt(id: string, patch: Partial<PromptFormValues>) : Promise<Prompt>;
   deletePrompt(id: string): Promise<void>;
   /** Toggle the pinned flag without touching other fields. */
@@ -144,7 +145,7 @@ export const promptsApi: PromptsApi = {
     return ((data ?? []) as unknown as DbPrompt[]).map(dbPromptToPrompt);
   },
 
-  async createPrompt(payload) {
+  async createPrompt(payload, options) {
     const userId = await currentUserId();
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -164,6 +165,8 @@ export const promptsApi: PromptsApi = {
         ask_user_questions: payload.ask_user_questions,
         folder_id: payload.folder_id ?? null,
         updated_at: now,
+        // Sent with the row, so the prompt is never approved in between.
+        ...(options?.reviewStatus ? { review_status: options.reviewStatus } : {}),
       })
       .select(PROMPT_SELECT)
       .single();

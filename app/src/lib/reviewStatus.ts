@@ -30,6 +30,14 @@ const REVIEWED: readonly ReviewStatus[] = ['approved', 'deprecated', 'archived']
 /** Waiting for a person: what the Review page lists by default. */
 export const WAITING_STATUSES: readonly ReviewStatus[] = ['under_review', 'ai_generated', 'draft'];
 
+/** A status anyone may create an item with: one that waits for a person. */
+export type WaitingStatus = 'under_review' | 'ai_generated' | 'draft';
+
+/** How a new item starts. An item saved from an AI draft starts as ai_generated. */
+export interface NewItemOptions {
+  reviewStatus?: WaitingStatus;
+}
+
 export function isReviewStatus(value: unknown): value is ReviewStatus {
   return REVIEW_STATUSES.some((s) => s.value === value);
 }

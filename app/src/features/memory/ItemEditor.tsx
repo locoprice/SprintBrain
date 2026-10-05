@@ -15,6 +15,14 @@ import { sanitizeName } from '@/lib/nameText';
 import type { MemoryItem, MemoryItemKind } from '@/types/database';
 import type { SaveMemoryItemInput } from '@/lib/api/memoryApi';
 import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import {
+  DraftFromTextButton,
+  DraftNotice,
+  type DraftNoticeState,
+} from '@/components/shared/DraftWithAi';
+import { memoryDraftFields, type DraftResult } from '@/lib/aiDraft';
+import { findSimilar, memoryCandidates } from '@/lib/draftSimilar';
+import { useDraftStore } from '@/stores/draftStore';
 import { useReviewApprover } from '@/lib/useReviewApprover';
 import { useMemoryStore } from '@/stores/memoryStore';
 
@@ -51,9 +59,11 @@ interface ItemEditorProps {
   onSave: (input: SaveMemoryItemInput) => Promise<unknown>;
   /** Opens this item's saved versions. Absent where history is not offered. */
   onOpenHistory?: (item: MemoryItem) => void;
+  /** Opens another item's editor in place of this one (Draft with AI's similar items). */
+  onOpenItem: (id: string) => void;
 }
 
-export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: ItemEditorProps) {
+export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory, onOpenItem }: ItemEditorProps) {
   const editing = target !== null && target !== 'new' ? target : null;
   // The item as the store has it now: the status menu below changes the row
   // while the editor is open, and the page handed in a copy from before.
@@ -70,6 +80,10 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
   const [pinned, setPinned] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Draft with AI: what the notice says, and whether a new item came from a
+  // draft, in which case it is saved as AI generated rather than approved.
+  const [draftNotice, setDraftNotice] = useState<DraftNoticeState | null>(null);
+  const [aiDrafted, setAiDrafted] = useState(false);
 
   useEffect(() => {
     if (target === null) return;
@@ -80,7 +94,45 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
     setPinned(editing?.pinned ?? false);
     setError(null);
     setSaving(false);
+    setDraftNotice(null);
+    setAiDrafted(false);
+    // An AI update drafted from a new item's "Update it instead": shown over
+    // the saved text, unsaved.
+    const handed = editing ? useDraftStore.getState().take('memory', editing.id) : null;
+    if (handed?.kind === 'memory') {
+      setName(handed.draft.name);
+      setSummary(handed.draft.summary);
+      setBody(handed.draft.body);
+      setKind(handed.draft.kind);
+      setDraftNotice({ mode: 'update', changes: handed.changes, text: '', similar: [] });
+    }
   }, [target, editing]);
+
+  // A new draft replaces what the form holds: the person asked for it, and
+  // nothing has been saved yet. Every item is needed twice here: names are
+  // unique per person, and the similar check reads the whole library.
+  async function applyDraft(result: DraftResult, text: string) {
+    if (result.kind !== 'memory') return;
+    const store = useMemoryStore.getState();
+    await store.loadAllItems();
+    const all = useMemoryStore.getState().allItems;
+    const fields = memoryDraftFields(result.draft, all.map((item) => item.name));
+    setName(fields.name);
+    setSummary(fields.summary);
+    setBody(fields.body);
+    setKind(fields.kind);
+    setError(null);
+    setAiDrafted(true);
+    setDraftNotice({
+      mode: 'new',
+      changes: '',
+      text,
+      similar: findSimilar(
+        { title: result.draft.name, text: `${result.draft.summary} ${result.draft.body}` },
+        memoryCandidates(all),
+      ),
+    });
+  }
 
   const tokens = useMemo(() => estimateTokens(body), [body]);
   const trimmedName = name.trim();
@@ -102,6 +154,7 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
         kind,
         pinned,
         priority: editing?.priority ?? 0,
+        ...(aiDrafted && !editing ? { reviewStatus: 'ai_generated' as const } : {}),
       });
       onClose();
     } catch (err) {
@@ -122,6 +175,14 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
                 what is worth reading, so it earns its place more than the body does.
               </DialogDescription>
             </div>
+            {!editing ? (
+              <DraftFromTextButton
+                kind="memory"
+                noun="Brain item"
+                disabled={saving}
+                onDrafted={applyDraft}
+              />
+            ) : null}
             {live ? (
               <ReviewStatusMenu
                 noun="item"
@@ -147,6 +208,14 @@ export function ItemEditor({ target, spaceId, onClose, onSave, onOpenHistory }: 
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          {draftNotice ? (
+            <DraftNotice
+              notice={draftNotice}
+              kind="memory"
+              onOpen={onOpenItem}
+              onDismiss={() => setDraftNotice(null)}
+            />
+          ) : null}
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="item-name" className="text-xs font-medium text-ink-muted">

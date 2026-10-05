@@ -21,7 +21,7 @@ import { useLabelStore } from '@/stores/labelStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { labelNameLookup, normalizeQuery, scorePrompt } from '@/lib/searchIndex';
 import { reviewApi } from '@/lib/api/reviewApi';
-import type { ReviewStatus } from '@/lib/reviewStatus';
+import type { NewItemOptions, ReviewStatus } from '@/lib/reviewStatus';
 import type { PromptFormValues, FolderFormValues } from '@/types/schemas';
 
 export interface PromptFilters {
@@ -66,7 +66,7 @@ interface PromptStore {
   resetFilters: () => void;
   clearError: () => void;
   setSelectedFolder: (id: string | null) => void;
-  addPrompt: (payload: PromptFormValues) => Promise<Prompt>;
+  addPrompt: (payload: PromptFormValues, options?: NewItemOptions) => Promise<Prompt>;
   editPrompt: (id: string, patch: Partial<PromptFormValues>) => Promise<Prompt>;
   /**
    * The editor's save: writes the prompt and records what it said, in one
@@ -159,9 +159,9 @@ export const usePromptStore = create<PromptStore>((set, get) => ({
 
   setSelectedFolder: (id) => set({ selectedFolderId: id }),
 
-  addPrompt: async (payload) => {
+  addPrompt: async (payload, options) => {
     try {
-      const row = await promptsApi.createPrompt(payload);
+      const row = await promptsApi.createPrompt(payload, options);
       set((s) => ({ prompts: [row, ...s.prompts], error: null }));
       return row;
     } catch (err) {
