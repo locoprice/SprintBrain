@@ -175,6 +175,23 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * Why a call to the Anthropic API failed, for the function logs: the API's own
+ * status, error type, message and request id. Never the pasted text or the key.
+ */
+function describeFailure(err: unknown): string {
+  if (err instanceof Anthropic.APIError) {
+    const body = err.error as { error?: { type?: unknown; message?: unknown } } | undefined;
+    return JSON.stringify({
+      status: err.status ?? null,
+      type: body?.error?.type ?? null,
+      message: body?.error?.message ?? err.message,
+      request_id: err.requestID ?? null,
+    });
+  }
+  return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+}
+
 /** Names the client offered, cleaned and bounded. */
 function choices(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -418,8 +435,9 @@ Deno.serve(async (req: Request) => {
   const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
   let raw: string;
+  let stopReason = '';
   try {
-    const message = await anthropic.beta.messages.create({
+    const message = await anthropic.messages.create({
       model: 'claude-opus-5-5',
       // Thinking shares this budget with the draft. An updated Brain item can
       // run to its 20,000-character limit, so this is sized well above that.
@@ -432,23 +450,21 @@ Deno.serve(async (req: Request) => {
         effort: 'medium',
         format: { type: 'json_schema', schema: schemaFor(kind, mode) },
       },
-      // A request a safety classifier declines is re-run on the fallback model
-      // Anthropic recommends for that case, inside this same call.
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       messages: [{ role: 'user', content: buildUserMessage(mode, pasted, folders, labels, target) }],
-      // `output_config` and `fallbacks` lag the published SDK types; the wire
-      // format is the contract here, so the cast keeps Deno from rejecting a
-      // valid body.
-    } as unknown as Anthropic.Beta.MessageCreateParamsNonStreaming);
+      // `output_config` shapes lag the published SDK types; the wire format is
+      // the contract here, so the cast keeps Deno from rejecting a valid body.
+    } as unknown as Anthropic.MessageCreateParamsNonStreaming);
 
+    stopReason = message.stop_reason ?? '';
     if (message.stop_reason === 'refusal') {
+      console.error('draft-with-ai: the model declined', JSON.stringify({ kind, mode, message_id: message.id }));
       return json({ error: 'draft_refused' }, 422);
     }
 
     const block = message.content.find((b) => b.type === 'text');
     raw = block && block.type === 'text' ? block.text : '';
   } catch (err) {
+    console.error('draft-with-ai: Anthropic request failed', describeFailure(err));
     return json(
       { error: 'anthropic_request_failed', detail: err instanceof Error ? err.message : 'unknown' },
       502,
@@ -460,6 +476,8 @@ Deno.serve(async (req: Request) => {
   try {
     parsed = JSON.parse(raw) as Draft;
   } catch {
+    // A reply cut off at max_tokens is the usual cause; stop_reason says so.
+    console.error('draft-with-ai: the reply was not valid JSON', JSON.stringify({ kind, mode, stop_reason: stopReason, length: raw.length }));
     return json({ error: 'anthropic_bad_output' }, 502);
   }
 
