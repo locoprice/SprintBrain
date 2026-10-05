@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toReviewStatus } from '@/lib/reviewStatus';
 
 // Ask SprintBrain (AI-KNOWLEDGE P1, docs/AI_KNOWLEDGE_PLAN.md).
 //
@@ -39,6 +40,9 @@ const sourceSchema = z.object({
   title: z.string(),
   updated_at: z.string().nullable(),
   space_id: z.string().nullable(),
+  // Review status (AI-KNOWLEDGE P2). Optional so a reply from a function
+  // deployed before statuses existed still reads; it counts as approved.
+  review_status: z.string().optional().transform(toReviewStatus),
   used: z.boolean(),
 });
 

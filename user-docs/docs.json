@@ -61,9 +61,11 @@
             ]
           },
           {
-            "group": "Ask SprintBrain",
+            "group": "AI and review",
             "pages": [
-              "ask/overview"
+              "ask/overview",
+              "draft/overview",
+              "review/overview"
             ]
           },
           {

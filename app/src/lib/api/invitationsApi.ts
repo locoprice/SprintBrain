@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { toApiError } from '@/lib/api/apiError';
+import { readEdgeErrorCode } from '@/lib/api/edgeFunctionError';
 import type {
   InviteResult,
   OrgInvitation,
@@ -53,22 +54,6 @@ export interface InvitationsApi {
   revoke(invitationId: string): Promise<void>;
 }
 
-/**
- * Pull the error code out of a FunctionsHttpError. supabase-js puts the failed
- * Response on `context` and leaves `message` as a generic status line, so the
- * body is the only place the code lives.
- */
-async function readErrorCode(error: unknown): Promise<string> {
-  const context = (error as { context?: Response }).context;
-  if (!context || typeof context.json !== 'function') return '';
-  try {
-    const body = (await context.json()) as { error?: unknown };
-    return typeof body.error === 'string' ? body.error : '';
-  } catch {
-    return '';
-  }
-}
-
 export const invitationsApi: InvitationsApi = {
   async send(email, role, organizationId) {
     const { data, error } = await supabase.functions.invoke<InviteResult>('invite-member', {
@@ -82,7 +67,7 @@ export const invitationsApi: InvitationsApi = {
     });
 
     if (error) {
-      const code = await readErrorCode(error);
+      const code = await readEdgeErrorCode(error);
       throw new Error(SEND_ERRORS[code] ?? 'Could not send the invitation. Try again.');
     }
     if (!data) {

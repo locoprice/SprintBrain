@@ -747,6 +747,18 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .sb-info-row[data-copy]:active{background:var(--bg-alt)}
 .sb-info-mono{font-family:var(--mono);font-size:12px;color:var(--primary)}
 
+/* ── REVIEW STATUS (AI-KNOWLEDGE P2) ───────────────
+   A chip beside the name for anything not approved, and a warning line on a
+   deprecated item when it is opened. Same words as the dashboard and the
+   extension. Archived items never reach the phone. */
+.mrev{display:inline-flex;align-items:center;flex-shrink:0;padding:0 7px;
+  border-radius:999px;border:1px solid var(--border);background:var(--bg-alt);
+  color:var(--text2);font-size:11px;font-weight:700;line-height:18px;vertical-align:middle}
+.mrev.ai_generated,.mrev.under_review{background:var(--primary-lt);color:var(--primary);border-color:transparent}
+.mrev.deprecated{background:var(--warn-bg);color:var(--warn-deep);border-color:transparent}
+.mrevwarn{margin:0 0 12px;padding:10px 12px;border-radius:var(--r-in);background:var(--warn-bg);
+  color:var(--warn-deep);font-size:13px;font-weight:600}
+
 /* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1) ─────────────
    The row under each search field, and the sheet that answers from the
    reader's own snippets and Brains. Same states and words as the dashboard's
@@ -1334,6 +1346,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <span id="det-lang" class="lbadge"></span>
   </div>
   <div class="det-body" id="det-body">
+    <div id="det-revwarn" class="mrevwarn sb-hidden" role="alert"></div>
     <div id="det-lang-section" class="sb-hide">
       <div class="sec-lbl">Language</div>
       <div class="lang-picker" id="det-lang-picker"></div>
@@ -1486,6 +1499,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <span id="mi-kind"></span>
   </div>
   <div class="det-body">
+    <div id="mi-revwarn" class="mrevwarn sb-hidden" role="alert"></div>
     <div id="mi-summary-sec">
       <div class="sec-lbl">Summary</div>
       <div class="prev-card"><div class="mi-text" id="mi-summary"></div></div>
@@ -5417,7 +5431,7 @@ var PROMPT_STRATEGY_CLASS={'CoT':'pstrat-CoT','ToT':'pstrat-ToT','Few-shot':'pst
    round-trips every field (blocks, thinking_mode, etc.) without data loss. */
 var PROMPT_SELECT='id,name,content,type,strategy_type,thinking_mode,preferred_model,'
   +'complexity_level,intent_category,output_type,blocks,folder_id,'
-  +'organization_id,created_at,updated_at,last_used_at,pinned';
+  +'organization_id,created_at,updated_at,last_used_at,pinned,review_status';
 var FOLDER_SHARED_SVG='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
 /* ── LOAD ───────────────────────────────────────── */
@@ -5445,7 +5459,8 @@ function loadSnips(){
   // through accessible_snippets() (SECURITY DEFINER) — the same RPC the extension
   // popup uses — and folders rely on their own org-read RLS. No user_id filter:
   // that was hiding every team-shared asset (mobile showed personal-only).
-  var sFetch=fetch(SUPA+'/rest/v1/rpc/accessible_snippets?select=*&order=sort_order,title',{headers:authHeaders()})
+  // review_status=neq.archived: an archived snippet never expands (AI-KNOWLEDGE P2).
+  var sFetch=fetch(SUPA+'/rest/v1/rpc/accessible_snippets?select=*&review_status=neq.archived&order=sort_order,title',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();});
   var fFetch=fetch(SUPA+'/rest/v1/folders?select=*&order=sort_order,name',{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.ok?r.json():[];})
@@ -5786,8 +5801,9 @@ function sharingBadge(item){
 function loadPrompts(){
   // No user_id filter — prompts RLS returns the user's own prompts plus any in a
   // folder shared with them (Phase B org branch), matching the extension popup.
+  // Archived prompts are kept to be restored on the dashboard, not offered here.
   var url=SUPA+'/rest/v1/prompts?select='+PROMPT_SELECT
-    +'&order=updated_at.desc';
+    +'&review_status=neq.archived&order=updated_at.desc';
   fetch(url,{headers:authHeaders()})
     .then(function(r){if(handle401(r))throw new Error('401');return r.json();})
     .then(function(data){
@@ -5940,7 +5956,7 @@ function renderPromptList(){
       +'<div class="prompt-info">'
         +'<div class="prompt-name">'+esc(p.name)+'</div>'
         +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
-        +'<div class="prompt-meta">'+stratBadge+intentBadge+outBadge+share+'</div>'
+        +'<div class="prompt-meta">'+reviewChipHtml(p.review_status)+stratBadge+intentBadge+outBadge+share+'</div>'
         +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
       +'</div>'
       +(isPin?'<span class="prompt-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
@@ -5980,7 +5996,10 @@ function syncPromptClear(){
 }
 function promptCopy(p){
   var text=SBInteractiveSteps.apply(p.content||'',promptStepsOn);
-  copyText(text,function(){showToast(text!==(p.content||'')?'Prompt copied with Interactive Steps ✓':'Prompt copied ✓');});
+  copyText(text,function(){
+    var msg=text!==(p.content||'')?'Prompt copied with Interactive Steps ✓':'Prompt copied ✓';
+    showToast(p.review_status==='deprecated'?msg+' · Deprecated: check it is still right':msg);
+  });
   promptMarkUsed(p);
 }
 /* Mirrors desktop promptsApi.markUsed — fire-and-forget PATCH on the owner row. */
@@ -6099,7 +6118,7 @@ var curMemItem=null;        // the item open in the reader
 var memSearch='', curMemKind='ALL';
 var MEM_PAGE=1000;          // a full page means there may be more rows
 var MEM_SPACE_SELECT='id,name,description,ico,is_default,created_at,updated_at';
-var MEM_ITEM_SELECT='id,space_id,name,summary,body,kind,token_estimate,pinned,source_id,created_at,updated_at';
+var MEM_ITEM_SELECT='id,space_id,name,summary,body,kind,token_estimate,pinned,source_id,created_at,updated_at,review_status';
 /* memory_shards_body_length, as the dashboard editor mirrors it. The name (64)
    and summary (280) limits ride on the Add text inputs' maxlength. */
 var MEM_BODY_MAX=20000;
@@ -6235,7 +6254,9 @@ function loadMemory(){
     res[1].forEach(function(it){memTakenNames[String(it.name||'').trim().toLowerCase()]=true;});
     // Items of a Brain in the trash are in the trash with it: the dashboard
     // lists neither, and neither does the phone.
-    allMemItems=res[1].filter(function(it){return live[it.space_id];}).sort(memByItemOrder);
+    // Archived items stay out of the phone (they are kept to be restored on the
+    // dashboard), but still count above: a name stays taken while archived.
+    allMemItems=res[1].filter(function(it){return live[it.space_id]&&it.review_status!=='archived';}).sort(memByItemOrder);
     if(curBrain&&!live[curBrain])curBrain=null;
     memLoaded=true;
   }).catch(function(e){
@@ -6280,7 +6301,7 @@ function memItemCardHtml(it,withBrain){
     +'<div class="prompt-info">'
       +'<div class="prompt-name">'+esc(it.name)+'</div>'
       +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
-      +'<div class="prompt-meta">'
+      +'<div class="prompt-meta">'+reviewChipHtml(it.review_status)
         +'<span class="pintent">'+esc(MEM_KIND_LABEL[it.kind]||it.kind||'')+'</span>'
         +'<span class="prompt-out">'+esc(memTokensLabel(it.token_estimate))+'</span>'
         +(b?'<span class="fbadge"><span class="fbadge-ico">'+spaceIcon(b.ico)+'</span>'+esc(b.name)+'</span>':'')
@@ -6430,6 +6451,7 @@ function openMemItem(id){
   history.pushState({memItem:id},'');
   curMemItem=it;
   document.getElementById('mi-title').textContent=it.name||'Item';
+  setReviewWarn('mi-revwarn',it.review_status,'item');
   document.getElementById('mi-brain-ico').innerHTML=b?spaceIcon(b.ico):'';
   document.getElementById('mi-brain-name').textContent=b?b.name:'';
   document.getElementById('mi-kind').textContent=MEM_KIND_LABEL[it.kind]||it.kind||'';
@@ -6559,7 +6581,7 @@ function closeMemSheet(now){
       copyText(memItemBlock(it),function(){showToast('Copied for your AI chat ✓');},memCopyFailed);
       closeMemSheet();
     }else if(act==='copy'){
-      copyText(it.body||'',function(){showToast('Copied ✓');},memCopyFailed);
+      copyText(it.body||'',function(){showToast(reviewCopiedToast(it.review_status));},memCopyFailed);
       closeMemSheet();
     }else if(act==='share'){shareMemItem(it);}
     else if(act==='info'){closeMemSheet();setTimeout(function(){openMemItemInfo(it);},320);}
@@ -7371,6 +7393,7 @@ function renderList(){
         +'<div class="snip-meta">'
           +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
           +pills
+          +reviewChipHtml(active.review_status)
           +fbadge
           +sharingBadge(active)
         +'</div>'
@@ -7400,7 +7423,7 @@ function renderList(){
     if(extractFields(s.body||'').length){
       openDetail(s,[s]);
     }else{
-      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
       logSnipUse(s,0);
     }
   }
@@ -7458,6 +7481,7 @@ function humanLbl(f){
 
 function renderDetail(snip,keepVals){
   document.getElementById('det-title').textContent=snip.title||snip.id;
+  setReviewWarn('det-revwarn',snip.review_status,'snippet');
   var lb=document.getElementById('det-lang');
   var lang=snip.lang||'EN';
   lb.textContent=lang;lb.className='lbadge l'+lang;
@@ -8045,12 +8069,12 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
         closeBottomSheet();
         setTimeout(function(){openDetail(s,[s]);},320);
       }else{
-        copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+        copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
         logSnipUse(s,0);
         closeBottomSheet();
       }
     }else if(act==='copy'){
-      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast('Copied ✓');});
+      copyText(resolveBody(s.body||'',{},{lang:s.lang}),function(){showToast(reviewCopiedToast(s.review_status));});
       logSnipUse(s,0);
       closeBottomSheet();
     }else if(act==='pin'){
@@ -8071,6 +8095,42 @@ document.querySelector('#sb-bottom-sheet .sb-sheet-actions')
       setTimeout(function(){openSnippetInfo(s);},320);
     }
   });
+
+/* ── REVIEW STATUS (AI-KNOWLEDGE P2, docs/AI_KNOWLEDGE_PLAN.md) ────────────
+   Mirrors app/src/lib/reviewStatus.ts: the same six statuses with the same
+   words. scripts/check-review-status.js keeps the lists in step. Archived
+   items are filtered out where they are fetched; deprecated ones still work,
+   with a warning when they are opened or copied. */
+var REVIEW_STATUSES=[
+  {value:'draft',label:'Draft'},
+  {value:'ai_generated',label:'AI generated'},
+  {value:'under_review',label:'Under review'},
+  {value:'approved',label:'Approved'},
+  {value:'deprecated',label:'Deprecated'},
+  {value:'archived',label:'Archived'}
+];
+function reviewLabel(status){
+  for(var i=0;i<REVIEW_STATUSES.length;i++){if(REVIEW_STATUSES[i].value===status)return REVIEW_STATUSES[i].label;}
+  return 'Approved';
+}
+function reviewChipHtml(status){
+  if(!status||status==='approved')return '';
+  return '<span class="mrev '+esc(status)+'">'+esc(reviewLabel(status))+'</span>';
+}
+function reviewDeprecatedNote(noun){
+  return 'This '+noun+' is deprecated. Check it is still right before you '+(noun==='snippet'?'send':'use')+' it.';
+}
+function setReviewWarn(id,status,noun){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var dep=status==='deprecated';
+  el.textContent=dep?reviewDeprecatedNote(noun):'';
+  el.classList.toggle('sb-hidden',!dep);
+}
+/* The copy confirmation, with the warning when the item is deprecated. */
+function reviewCopiedToast(status){
+  return status==='deprecated'?'Copied ✓ · Deprecated: check it is still right':'Copied ✓';
+}
 
 /* ── ASK SPRINTBRAIN (AI-KNOWLEDGE P1, docs/AI_KNOWLEDGE_PLAN.md) ──────────
    Type a question in any of the three search fields and the row under it
@@ -8169,7 +8229,7 @@ function renderAsk(){
   if(r.conflicts)h+='<div class="ask-note bad"><b>Sources disagree: </b>'+esc(r.conflicts)+'</div>';
   h+='<div class="ask-src-h">'+(answered?'Sources':'Related items')+'</div><ul class="ask-src">';
   r.sources.forEach(function(s){
-    var meta=(s.kind==='snippet'?'Snippet':'Brain');
+    var meta=(s.kind==='snippet'?'Snippet':'Brain')+(s.review_status&&s.review_status!=='approved'?' \u00B7 '+reviewLabel(s.review_status):'');
     var d=askDate(s.updated_at);
     h+='<li data-ask-src="'+esc(s.ref)+'">'
       +(answered?'<span class="ask-n'+(s.used?'':' off')+'">'+esc(s.ref.slice(1))+'</span>':'')

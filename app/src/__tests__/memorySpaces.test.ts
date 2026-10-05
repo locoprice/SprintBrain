@@ -48,6 +48,9 @@ function space(id: string, name: string, overrides: Partial<MemorySpace> = {}): 
 
 function item(id: string, name: string, overrides: Partial<MemoryItem> = {}): MemoryItem {
   return {
+    review_status: 'approved',
+    reviewed_by: null,
+    reviewed_at: null,
     id,
     user_id: 'user-1',
     space_id: 'space-1',

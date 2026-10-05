@@ -176,6 +176,10 @@ html,body{
    Mirrors the dashboard's StatusBadge component (app/src/components/shared/).
    Transform/opacity only, so every frame stays on the compositor. Faults keep
    moving until fixed; the trophy pops once and then rests. */
+.sb-rev{display:inline-flex;align-items:center;flex-shrink:0;margin-left:6px;padding:0 6px;border-radius:var(--sb-r-pill);border:1px solid var(--sb-line);font-size:10px;font-weight:600;line-height:16px;color:var(--sb-ink-muted);background:var(--sb-bg-alt)}
+.sb-rev.ai_generated,.sb-rev.under_review{color:var(--sb-azure);background:var(--sb-azure-bg);border-color:transparent}
+.sb-rev.deprecated{color:var(--sb-warn);background:var(--sb-warn-bg);border-color:var(--sb-warn-bdr)}
+.d-warn{margin:0 0 8px;padding:6px 10px;border-radius:var(--sb-r-sm);background:var(--sb-warn-bg);border:1px solid var(--sb-warn-bdr);color:var(--sb-warn);font-size:12px;font-weight:600}
 .sb-stat{width:20px;height:20px;border-radius:var(--sb-r-pill);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;animation:sbStatPop 260ms var(--sb-ease-out) both}
 .sb-stat svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sb-stat.top{background:var(--sb-azure-bg);color:var(--sb-azure)}

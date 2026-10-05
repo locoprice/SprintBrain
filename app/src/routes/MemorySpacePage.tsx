@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertCircle,
@@ -32,6 +32,7 @@ import { normalizeQuery, scoreMemoryItem } from '@/lib/searchIndex';
 import { memoryApi } from '@/lib/api/memoryApi';
 import { ACCEPTED_EXTENSIONS, DocumentTextError } from '@/lib/documentText';
 import type { MemoryDocument, MemoryItem } from '@/types/database';
+import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 
 // One space and its items.
 //
@@ -154,7 +155,18 @@ function ItemCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Card className="flex flex-col gap-2 p-4">
+    <Card
+      className={cn(
+        'flex flex-col gap-2 p-4',
+        // Archived items dim, as archived snippets and prompts do.
+        item.review_status === 'archived' && 'opacity-50',
+      )}
+      title={
+        item.review_status === 'archived'
+          ? 'Archived — never added to an AI chat, and Ask SprintBrain ignores it'
+          : undefined
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-bg-alt text-ink-muted">
@@ -163,6 +175,7 @@ function ItemCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-ink">{item.name}</span>
+              <ReviewStatusBadge status={item.review_status} />
               {item.pinned ? (
                 <Pin className="h-3 w-3 shrink-0 fill-current text-primary" aria-label="Always attached" />
               ) : null}
@@ -241,6 +254,9 @@ export function MemorySpacePage() {
   const showToast = useUiStore((s) => s.showToast);
 
   const [editorTarget, setEditorTarget] = useState<'new' | MemoryItem | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wantedItemId = searchParams.get('item');
   // The one search bar in the header owns the text (SEARCH-001).
   const query = useSearchStore((s) => s.query);
   const clearSearch = useSearchStore((s) => s.clear);
@@ -294,6 +310,44 @@ export function MemorySpacePage() {
   useEffect(() => {
     if (!loaded) void loadSpaces();
   }, [loaded, loadSpaces]);
+
+  // ?item=<id> opens that item's editor once this Brain's items are in. The
+  // Review page and Draft with AI's "Update it instead" open a Brain item this
+  // way. Read from the store, not the render: the load for a new Brain starts
+  // in the effect above this one, after this render's values were taken.
+  useEffect(() => {
+    if (!wantedItemId) return;
+    const state = useMemoryStore.getState();
+    if (state.loadingItems || state.activeSpaceId !== spaceId) return;
+    const found = state.items.find((item) => item.id === wantedItemId && item.deleted_at === null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true },
+    );
+    if (found) setEditorTarget(found);
+    else showToast('That item is no longer in this Brain.', 'error');
+  }, [wantedItemId, spaceId, loadingItems, items, setSearchParams, showToast]);
+
+  // Another item's editor in place of the open one: in this Brain, swap the
+  // editor's target; in another, go there and let ?item= open it.
+  function openItem(id: string) {
+    const state = useMemoryStore.getState();
+    const item = state.items.find((i) => i.id === id) ?? state.allItems.find((i) => i.id === id);
+    if (!item) {
+      showToast('That item is no longer in your Brains.', 'error');
+      return;
+    }
+    if (item.space_id === spaceId) {
+      setEditorTarget(item);
+      return;
+    }
+    setEditorTarget(null);
+    navigate(`/memory/${item.space_id}?item=${item.id}`);
+  }
 
   useEffect(() => {
     if (spaceId) {
@@ -646,6 +700,7 @@ export function MemorySpacePage() {
         spaceId={spaceId}
         onClose={() => setEditorTarget(null)}
         onSave={saveItem}
+        onOpenItem={openItem}
         onOpenHistory={(item) => {
           setHistoryItem(item);
           void loadVersions(item.id);

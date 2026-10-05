@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { toApiError } from '@/lib/api/apiError';
+import { readEdgeErrorCode } from '@/lib/api/edgeFunctionError';
 import {
   feedbackSources,
   parseAskResponse,
@@ -29,18 +30,6 @@ const ASK_ERRORS: Record<string, string> = {
 };
 
 const ASK_FALLBACK = 'Could not reach Ask SprintBrain. Try again.';
-
-/** supabase-js leaves `message` generic and puts the failed Response on `context`. */
-async function readErrorCode(error: unknown): Promise<string> {
-  const context = (error as { context?: Response }).context;
-  if (!context || typeof context.json !== 'function') return '';
-  try {
-    const body = (await context.json()) as { error?: unknown };
-    return typeof body.error === 'string' ? body.error : '';
-  } catch {
-    return '';
-  }
-}
 
 export interface FeedbackInput {
   question: string;
@@ -81,7 +70,7 @@ export const askApi: AskApi = {
       body: { question },
     });
     if (error) {
-      const code = await readErrorCode(error);
+      const code = await readEdgeErrorCode(error);
       throw new Error(ASK_ERRORS[code] ?? ASK_FALLBACK);
     }
     const result = parseAskResponse(data);

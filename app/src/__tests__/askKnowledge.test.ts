@@ -10,8 +10,8 @@ import {
 } from '@/lib/askKnowledge';
 
 const SOURCES: AskSource[] = [
-  { ref: 'S1', kind: 'snippet', id: 'snip-1', title: 'Refund policy', updated_at: '2026-09-01T10:00:00Z', space_id: null, used: true },
-  { ref: 'S2', kind: 'memory', id: 'mem-1', title: 'Escalation steps', updated_at: null, space_id: 'space-1', used: false },
+  { ref: 'S1', kind: 'snippet', id: 'snip-1', title: 'Refund policy', updated_at: '2026-09-01T10:00:00Z', space_id: null, review_status: 'approved', used: true },
+  { ref: 'S2', kind: 'memory', id: 'mem-1', title: 'Escalation steps', updated_at: null, space_id: 'space-1', review_status: 'deprecated', used: false },
 ];
 
 describe('parseAskResponse', () => {
@@ -32,6 +32,21 @@ describe('parseAskResponse', () => {
   it('accepts the no-sources reply, which never carries an answer', () => {
     const result = parseAskResponse({ ok: true, status: 'no_sources', answer: '', missing: '', conflicts: '', sources: [] });
     expect(result?.status).toBe('no_sources');
+  });
+
+  it('reads a source without a status as approved, and keeps a status it is given', () => {
+    const result = parseAskResponse({
+      ok: true,
+      status: 'answered',
+      answer: 'x [S1]',
+      missing: '',
+      conflicts: '',
+      sources: [
+        { ref: 'S1', kind: 'snippet', id: 'a', title: 'A', updated_at: null, space_id: null, used: true },
+        { ref: 'S2', kind: 'memory', id: 'b', title: 'B', updated_at: null, space_id: 's', review_status: 'deprecated', used: false },
+      ],
+    });
+    expect(result?.sources.map((s) => s.review_status)).toEqual(['approved', 'deprecated']);
   });
 
   it('rejects anything else rather than rendering half an answer', () => {

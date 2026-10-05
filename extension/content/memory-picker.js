@@ -228,6 +228,10 @@
     'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.kind{display:inline-block;padding:0 5px;border-radius:999px;background:#F2F2F7;',
     'font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6B6B70;margin-right:5px}',
+    // A deprecated fact still inserts; the row says it is out of date first
+    // (AI-KNOWLEDGE P2). The extension's warning amber, --sb-warn / --sb-warn-bg.
+    '.dep{display:inline-block;padding:0 5px;border-radius:999px;background:#FFFBEB;',
+    'font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#D97706;margin-right:5px}',
     // The language a fact will be inserted in. Same shape as .kind so the row
     // reads as one line of labels, blue because it is the one that does
     // something when clicked.
@@ -484,6 +488,7 @@
     // on real bodies.
 
     var results = [];      // ContextCandidates from the last search, ranked
+    var deprecated = {};   // id -> true for rows the search reports as deprecated
     var checked = {};      // id -> true, the user's choices
     var budget = 0;        // token ceiling for this host
     var searching = false;
@@ -555,7 +560,8 @@
           }
           html += '<label class="item"><input type="checkbox" data-id="' + esc(c.id) + '"' + on + '>' +
                   '<span class="txt"><span class="nm">' + esc(c.name) + '</span>' +
-                  '<span class="sub"><span class="kind">' + esc(c.kind) + '</span>' + langHtml +
+                  '<span class="sub">' + (deprecated[c.id] ? '<span class="dep">Deprecated</span>' : '') +
+                  '<span class="kind">' + esc(c.kind) + '</span>' + langHtml +
                   c.tokens + 't · ' + esc(c.summary || 'No summary') + '</span></span></label>';
         }
       }
@@ -723,7 +729,13 @@
       deps.search(draftQuery(readComposer(composer)), function (err, rows) {
         searching = false;
         results = [];
+        deprecated = {};
         if (!err && rows) {
+          // knowledge_search leaves archived items out and reports the rest
+          // with their review status.
+          for (var r = 0; r < rows.length; r++) {
+            if (rows[r] && rows[r].review_status === 'deprecated') deprecated[rows[r].source_id] = true;
+          }
           // Facts, not rows. Grouping runs before anything is shown because the
           // panel is where the user decides, and a translated snippet listed
           // four times is four decisions about one thing.

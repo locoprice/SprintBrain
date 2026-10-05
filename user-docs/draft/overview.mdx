@@ -1,0 +1,53 @@
+---
+title: "Draft with AI"
+sidebarTitle: "Draft with AI"
+description: "Paste an email, a chat or a document and get a draft snippet, prompt or Brain item to check and save, with a warning when a similar one already exists."
+---
+
+Turn text you already have into a snippet, a prompt or a Brain item without retyping it. Paste it, and SprintBrain writes a draft into the editor. Nothing is saved until you save it.
+
+## Draft from text
+
+<Steps>
+  <Step title="Start a new item">
+    Click **New snippet** on the Snippets page, **New prompt** on the Prompts page, or **Add text** inside a Brain.
+  </Step>
+  <Step title="Click Draft from text">
+    It sits at the top of the editor, next to its title.
+  </Step>
+  <Step title="Paste and click Write draft">
+    Paste an email, a chat or a document, up to 20,000 characters, and click **Write draft**.
+  </Step>
+  <Step title="Check the draft and save">
+    The draft fills the editor. Read every line, change what you like, then save as usual.
+  </Step>
+</Steps>
+
+## What the draft contains
+
+- **Snippet**: a name, a trigger, the text and its language, plus a folder and labels when one of yours fits. Details that change each time, such as a name, a date or a choice between a few options, become [fill-in fields](/text-snippets/dynamic-fields). Amounts and other numbers stay as written.
+- **Prompt**: a name, a shortcut when one fits, and the Role, Objective, Context, Examples and Constraints blocks. Details that change each time are written as placeholders in square brackets, such as `[topic]`.
+- **Brain item**: a name, a one-line summary and a kind. Your text is kept exactly as you pasted it.
+
+The draft uses only what your text says. It never adds a price, a date, a rule or a promise that isn't in it. If your text is a conversation, a snippet is drafted from what your side wrote.
+
+A trigger or shortcut that's already in use gets a number added, like `payment_terms_2`, and so does a Brain item name that's already taken, like `Opening hours (2)`.
+
+## When a similar one already exists
+
+Above the draft, **Already in your library** lists up to three items that look like it: the same trigger or shortcut, the same name, or much the same text.
+
+- Click a name to open that item. The draft closes without being saved.
+- Click **Update it instead** to have the AI update that item with your text. Its editor opens with the new version and a line saying what changed. Its trigger or shortcut, folder and labels stay as they were. Nothing is saved until you click **Save changes**, and the item's version history keeps the old text.
+
+## Review status
+
+A new snippet, prompt or Brain item saved from a draft is marked **AI generated** until someone approves it. See [Review and approval](/review/overview).
+
+An item you update with **Update it instead** follows the usual rules: when a teammate who is not an admin saves approved team content, it goes back to **Under review**.
+
+## What is sent
+
+To write the draft, SprintBrain sends your pasted text to Claude, the AI model made by Anthropic, along with the names of your folders and labels for a new snippet or prompt. **Update it instead** also sends the item being updated. Nothing else from your library is sent.
+
+Draft with AI is in the dashboard. The phone page and the extension don't offer it.
