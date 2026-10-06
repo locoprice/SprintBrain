@@ -44,9 +44,7 @@ CI runs all three on every push to `develop`.
 | Prompt score | `app/src/lib/usePromptEvaluator.ts`, `PromptEfficiencyWidget.tsx` | `prompts/quality-score` |
 | Prompt list, filters, cards, the `"""` menu | `app/src/routes/PromptsPage.tsx`, `PromptFilters.tsx`, `PromptCard.tsx`, `content.js` prompt picker | `prompts/overview`, `prompts/filters-and-shortcuts` |
 | Brains: items, uploads, trash, history, Context button, save selection, save chat, phone (Save to Brain) | `app/src/routes/Memory*.tsx`, `app/src/features/memory/`, `extension/content/{memory-picker,save-selection,chat-capture}.js`, `extension/shared/memory-chunk.js`, `app/public/mobile/index.html` | `brains/overview` |
-| Ask SprintBrain: answers from your snippets and Brains, sources, feedback (Review > Answer feedback) | `app/src/features/search/{GlobalSearch,AskAnswer}.tsx`, `app/src/features/review/AnswerFeedbackPanel.tsx`, `app/src/lib/askKnowledge.ts`, `services/supabase/functions/ask-sprintbrain/`, `app/public/mobile/index.html` | `ask/overview`, `apps/mobile` |
 | Review status, who approves, the Review page, what Deprecated and Archived do on each surface | `app/src/lib/reviewStatus.ts`, `app/src/components/shared/ReviewStatus{Badge,Menu}.tsx`, `app/src/features/review/ReviewQueue.tsx`, `app/src/routes/ReviewPage.tsx`, `services/supabase/migrations/20261005120000_review_status.sql`, `extension/content/content.js` (reviewWarning), `extension/popup/popup.js`, `app/public/mobile/index.html` | `review/overview`, `text-snippets/insert`, `brains/overview`, `apps/mobile` |
-| Draft with AI: draft a snippet, prompt or Brain item from pasted text, similar-item warning, Update it instead | `app/src/components/shared/DraftWithAi.tsx`, `app/src/lib/aiDraft.ts`, `app/src/lib/draftSimilar.ts`, `app/src/lib/api/draftApi.ts`, `services/supabase/functions/draft-with-ai/`, the three editors (`NewSnippetDialog.tsx`, `PromptBlockEditor.tsx`, `features/memory/ItemEditor.tsx`) | `draft/overview`, `text-snippets/create-and-organize`, `prompts/create-prompts`, `brains/overview`, `review/overview` |
 | Folder sharing | `app/src/features/org/FolderShareModal.tsx` | `team/sharing-and-permissions` |
 | Team page, invitations, roles | `app/src/routes/{TeamPage,InvitePage}.tsx`, `app/src/features/org/` | `team/workspace` |
 | Phone page, including its Brains page, Paste & save, Share beside Copy, and the Share menu entry (`manifest.webmanifest`) | `app/public/mobile/` | `apps/mobile` |
@@ -64,11 +62,12 @@ A new page gets a row here and an entry in the `docs.json` menu in the same chan
 
 These exist in the product but don't work for users, so the manual stays silent about them until they're fixed. When one is fixed, document it in the same task.
 
-- **Translate from EN** (snippet editor): the `translate-body` edge function is not deployed.
+- **Translate from EN** (snippet editor): the `translate-body` edge function is not deployed. Shown locked for Pro since v3.61.0.
+- **Ask SprintBrain** (dashboard search panel, phone) and **Draft with AI** (snippet, prompt and Brain item editors): locked for Pro since v3.61.0 ("Available to Pro users soon"). Their pages are kept, unpublished, in `docs/pro-features/`, with the lines to restore when they turn on.
 - **Notion button on prompt cards**: the `notion-prompt-push` edge function is not deployed.
 - **Push to Notion** (snippets): writes to one database set on the server, not to the account's own Notion.
 - **Triggers card**: the Shortcut prefix buttons and the Snippet key / Prompt key choices are saved but never read by the extension.
-- **Label suggestions**: switched off (`LABEL_SUGGESTIONS_ENABLED = false`).
+- **Label suggestions**: shown locked for Pro since v3.61.0 (switch `labels` in `app/src/lib/proFeatures.ts`); the `suggest-labels` function is not deployed.
 - **Analytics cards**: "across 4 folders" and the "12%" change are fixed text, and "last 30 days" doesn't match the 14-day data window.
 
 Documented as limits instead: the phone page ignores `{elseif:}` and `{else}`; Notion sync has no French column.

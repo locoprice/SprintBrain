@@ -17,6 +17,8 @@ import {
   type DraftResult,
 } from '@/lib/aiDraft';
 import type { SimilarMatch, SimilarReason } from '@/lib/draftSimilar';
+import { isProFeatureAvailable } from '@/lib/proFeatures';
+import { ProSoon, ProSoonLock, PRO_SOON_CONTROL } from '@/components/shared/ProSoon';
 import { useDraftStore } from '@/stores/draftStore';
 import { cn } from '@/lib/utils';
 
@@ -25,7 +27,9 @@ import { cn } from '@/lib/utils';
 // The same two pieces in all three editors (snippet, prompt, Brain item):
 //
 //   DraftFromTextButton  beside the editor's title, on a new item: paste text,
-//                        get a draft in the editor, unsaved.
+//                        get a draft in the editor, unsaved. Switched off, with
+//                        a lock and "Available to Pro users soon", until the
+//                        Pro plan exists (lib/proFeatures.ts).
 //   DraftNotice          at the top of the editor once a draft is in it: what
 //                        happened, what to check, and the items already in the
 //                        library that look like it, each with Update it instead.
@@ -35,6 +39,13 @@ import { cn } from '@/lib/utils';
 const BUTTON_TONE = {
   light: 'border-line bg-card text-ink-muted hover:border-primary/30 hover:text-primary',
   dark: 'border-[#2E2E35] bg-transparent text-[#CACAD4] hover:bg-[#222227] hover:text-[#F5F5FA]',
+} as const;
+
+// The same two tones without the hover colours: a locked control must not light
+// up as if it could be pressed.
+const LOCKED_BUTTON_TONE = {
+  light: 'border-line bg-card text-ink-muted',
+  dark: 'border-[#2E2E35] bg-transparent text-[#CACAD4]',
 } as const;
 
 const NOTICE_TONE = {
@@ -74,7 +85,34 @@ interface DraftFromTextButtonProps {
   onDrafted: (result: DraftResult, text: string) => Promise<void> | void;
 }
 
-export function DraftFromTextButton({
+export function DraftFromTextButton(props: DraftFromTextButtonProps) {
+  if (!isProFeatureAvailable('draft')) return <LockedDraftButton tone={props.tone} />;
+  return <DraftFromTextDialog {...props} />;
+}
+
+/** The button where it will live, dimmed and inert, with the lock and its tooltip. */
+function LockedDraftButton({ tone = 'light' }: { tone?: Tone }) {
+  return (
+    <ProSoon className="self-center">
+      <button
+        type="button"
+        aria-disabled="true"
+        onClick={(event) => event.preventDefault()}
+        className={cn(
+          'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] border px-2.5 text-xs font-medium',
+          LOCKED_BUTTON_TONE[tone],
+          PRO_SOON_CONTROL,
+        )}
+      >
+        <WandSparkles className="h-3.5 w-3.5" aria-hidden />
+        Draft from text
+        <ProSoonLock />
+      </button>
+    </ProSoon>
+  );
+}
+
+function DraftFromTextDialog({
   kind,
   noun,
   folders,

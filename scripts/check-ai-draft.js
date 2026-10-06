@@ -30,7 +30,6 @@ const ITEM_EDITOR = read('app/src/features/memory/ItemEditor.tsx');
 const SNIPPETS_API = read('app/src/lib/api/snippetsApi.ts');
 const PROMPTS_API = read('app/src/lib/api/promptsApi.ts');
 const MEMORY_API = read('app/src/lib/api/memoryApi.ts');
-const DOCS_JSON = read('user-docs/docs.json');
 
 let failed = 0;
 function check(name, ok, detail) {
@@ -105,8 +104,7 @@ check('it is granted to signed-in users only',
   /revoke all on function public\.memory_save_shard\([^)]*\) from public, anon;/.test(MIGRATION) &&
   /grant execute on function public\.memory_save_shard\([^)]*\) to authenticated;/.test(MIGRATION));
 
-// ── Docs ───────────────────────────────────────────────────────────────────
-check('the manual page is in the menu', DOCS_JSON.includes('"draft/overview"') && fs.existsSync(path.join(ROOT, 'user-docs/draft/overview.mdx')));
+// The manual page follows the switch, not this gate: scripts/check-pro-gate.js.
 
 if (failed > 0) {
   console.error('\n' + failed + ' Draft with AI check(s) failed.');
