@@ -4,6 +4,8 @@ import { labelSuggestApi, type SnippetDraft } from '@/lib/api/labelSuggestApi';
 import { suggestionKey, type LabelSuggestion } from '@/lib/labelSuggest';
 import { DEFAULT_LABEL_COLOR, labelSwatch } from '@/lib/labelColors';
 import { useLabelStore } from '@/stores/labelStore';
+import { isProFeatureAvailable } from '@/lib/proFeatures';
+import { ProSoon, ProSoonLock, PRO_SOON_CONTROL } from '@/components/shared/ProSoon';
 import { cn } from '@/lib/utils';
 
 /**
@@ -27,23 +29,47 @@ interface LabelSuggestionsProps {
   disabled?: boolean;
 }
 
-/**
- * Master switch, off until a provider is chosen.
- *
- * While false the control is never mounted, and this is the only caller of
- * labelSuggestApi — so no request can be made, no snippet content leaves the
- * browser, and no usage is billed. Turning the feature on is this flag plus a
- * deployed `suggest-labels` function; nothing else here is provider-specific.
- *
- * Typed `boolean` rather than left to infer `false`, so the mount site reads as
- * a live condition instead of dead code.
+/*
+ * While Pro is not available (lib/proFeatures.ts) the control shows where it
+ * will live, locked, and the live control below it, the only caller of
+ * labelSuggestApi, is never mounted: no request is made, no snippet content
+ * leaves the browser, and no usage is billed. Turning it on needs a deployed
+ * `suggest-labels` function as well as the switch; nothing else here is
+ * provider-specific.
  */
-export const LABEL_SUGGESTIONS_ENABLED: boolean = false;
 
 /** Below this there is nothing for the model to judge. Mirrors the edge fn. */
 const MIN_CONTENT_CHARS = 12;
 
-export function LabelSuggestions({
+export function LabelSuggestions(props: LabelSuggestionsProps) {
+  if (!isProFeatureAvailable('labels')) return <LockedSuggestButton />;
+  return <LiveLabelSuggestions {...props} />;
+}
+
+/** The button where it will live, dimmed and inert, with the lock and its tooltip. */
+function LockedSuggestButton() {
+  return (
+    <div className="mt-2">
+      <ProSoon>
+        <button
+          type="button"
+          aria-disabled="true"
+          onClick={(event) => event.preventDefault()}
+          className={cn(
+            'inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-line bg-card px-3 text-xs font-medium text-ink-muted',
+            PRO_SOON_CONTROL,
+          )}
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          Suggest labels
+          <ProSoonLock />
+        </button>
+      </ProSoon>
+    </div>
+  );
+}
+
+function LiveLabelSuggestions({
   draft,
   value,
   onChange,

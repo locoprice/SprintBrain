@@ -771,6 +771,9 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .ask-row:active{background:rgba(255,255,255,.26)}
 .ask-row svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ask-row .ask-lock{display:none;width:16px;height:16px}
+.ask-row.locked{opacity:.7;cursor:not-allowed}
+.ask-row.locked .ask-lock{display:block}
 .ask-row-t{min-width:0;flex:1}
 .ask-row-l{display:block;font-size:14px;font-weight:700}
 .ask-row-q{display:block;font-size:12.5px;font-weight:500;opacity:.85;
@@ -1273,6 +1276,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -1391,6 +1395,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="prompt-srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -1452,6 +1457,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="mem-srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -8150,6 +8156,12 @@ var ASK_VERDICTS=[
   {value:'conflicting',label:'Conflicts with policy'}
 ];
 var ASK_MIN=3, ASK_MAX=1000;
+/* Ask SprintBrain needs Pro, and the Pro plan does not exist yet. Until it does
+   the row stays where it will live, locked, and nothing here can send a
+   request. Keep in step with PRO_SOON_LABEL and the 'ask' switch in
+   app/src/lib/proFeatures.ts: scripts/check-pro-gate.js. */
+var PRO_SOON_LABEL='Available to Pro users soon';
+var ASK_AVAILABLE=false;
 var ASK_ERRORS={
   anthropic_not_configured:'Ask SprintBrain is not set up yet.',
   anthropic_request_failed:'The answer service did not respond. Try again.',
@@ -8168,7 +8180,14 @@ function syncAskRow(inputId){
   if(!input||!row)return;
   var q=input.value.trim();
   row.classList.toggle('sb-hidden',q.length<ASK_MIN);
-  row.querySelector('.ask-row-q').textContent='Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains';
+  row.classList.toggle('locked',!ASK_AVAILABLE);
+  row.setAttribute('aria-disabled',ASK_AVAILABLE?'false':'true');
+  if(ASK_AVAILABLE)row.removeAttribute('title');
+  else row.setAttribute('title',PRO_SOON_LABEL);
+  /* A phone has no hover, so a locked row says why in plain sight. */
+  row.querySelector('.ask-row-q').textContent=ASK_AVAILABLE
+    ?'Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains'
+    :PRO_SOON_LABEL;
 }
 function askValid(b){
   return !!b&&b.ok===true&&['answered','not_covered','no_sources'].indexOf(b.status)!==-1
@@ -8271,6 +8290,7 @@ function runAsk(){
   });
 }
 function openAsk(question){
+  if(!ASK_AVAILABLE)return;
   var q=String(question||'').trim().slice(0,ASK_MAX);
   if(q.length<ASK_MIN)return;
   clearTimeout(_askSheetTimer);
@@ -8371,6 +8391,7 @@ function askOpenSource(ref){
   });
   document.querySelectorAll('.ask-row').forEach(function(row){
     row.addEventListener('click',function(){
+      if(!ASK_AVAILABLE){showToast(PRO_SOON_LABEL);return;}
       var input=document.getElementById(row.getAttribute('data-ask-for'));
       if(input){input.blur();openAsk(input.value);}
     });

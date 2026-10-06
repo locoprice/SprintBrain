@@ -29,6 +29,8 @@ import { Input } from '@/components/ui/input';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import { ProSoon, ProSoonLock, PRO_SOON_CONTROL } from '@/components/shared/ProSoon';
+import { isProFeatureAvailable } from '@/lib/proFeatures';
 import {
   DraftFromTextButton,
   DraftNotice,
@@ -39,10 +41,7 @@ import { findSimilar, snippetCandidates } from '@/lib/draftSimilar';
 import { useDraftStore } from '@/stores/draftStore';
 import { useReviewApprover } from '@/lib/useReviewApprover';
 import { LabelPicker } from '@/features/labels/LabelPicker';
-import {
-  LABEL_SUGGESTIONS_ENABLED,
-  LabelSuggestions,
-} from '@/features/labels/LabelSuggestions';
+import { LabelSuggestions } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
 import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
@@ -639,6 +638,12 @@ export function NewSnippetDialog() {
   // language's body, so it follows the language pill on a translated snippet.
   const bodyWordCount = countWords(form.content);
 
+  // Translate fills a slot from the English body: offered on IT/ES/FR only. EN
+  // is the source, and MULTI is a deliberate mix with no single target.
+  const translateSlot =
+    form.language === 'IT' || form.language === 'ES' || form.language === 'FR';
+  const translateAvailable = isProFeatureAvailable('translate');
+
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Insert `value` at the textarea cursor (or append if focus is elsewhere),
@@ -859,6 +864,7 @@ export function NewSnippetDialog() {
    * reads, edits and then saves, exactly as if they had typed it.
    */
   async function translateFromEnglish() {
+    if (!translateAvailable) return;
     const target = form.language;
     if (target === 'EN' || target === 'MULTI') return;
 
@@ -1695,19 +1701,17 @@ export function NewSnippetDialog() {
                     onChange={setLabelIds}
                     disabled={saving}
                   />
-                  {LABEL_SUGGESTIONS_ENABLED && (
-                    <LabelSuggestions
-                      draft={{
-                        name: form.name,
-                        body: form.content,
-                        folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
-                        language: form.language,
-                      }}
-                      value={labelIds}
-                      onChange={setLabelIds}
-                      disabled={saving}
-                    />
-                  )}
+                  <LabelSuggestions
+                    draft={{
+                      name: form.name,
+                      body: form.content,
+                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                      language: form.language,
+                    }}
+                    value={labelIds}
+                    onChange={setLabelIds}
+                    disabled={saving}
+                  />
                 </div>
               </div>
 
@@ -1930,9 +1934,24 @@ export function NewSnippetDialog() {
                       mix with no single target language. Disabled when there is
                       no English to translate — the title says so, since a
                       button that does nothing reads as broken. */}
-                  {(form.language === 'IT' ||
-                    form.language === 'ES' ||
-                    form.language === 'FR') && (
+                  {translateSlot && !translateAvailable && (
+                    <ProSoon>
+                      <button
+                        type="button"
+                        aria-disabled="true"
+                        onClick={(event) => event.preventDefault()}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-[6px] border border-line bg-card px-2 py-0.5 text-[11px] font-medium text-ink-subtle',
+                          PRO_SOON_CONTROL,
+                        )}
+                      >
+                        <Languages className="h-3 w-3" aria-hidden />
+                        Translate from EN
+                        <ProSoonLock className="h-2.5 w-2.5" />
+                      </button>
+                    </ProSoon>
+                  )}
+                  {translateSlot && translateAvailable && (
                     <button
                       type="button"
                       onClick={() => void translateFromEnglish()}
