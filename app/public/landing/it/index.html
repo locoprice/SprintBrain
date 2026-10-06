@@ -1032,6 +1032,124 @@ body.cm-locked{overflow:hidden}
 }
 /* SHARED:mobile-nav-css:END */
 
+
+/* Expansion Engine: approved homepage demonstration. */
+#sb-expansion{--sb-ink:#202432;--sb-muted:#68728a;--sb-blue:var(--primary);--sb-violet:#8970cc;--sb-flow-time:3.2s;isolation:isolate;position:relative;overflow:hidden;background:var(--bg);color:var(--sb-ink);font-family:var(--sb-font);padding:46px 28px 48px;scroll-margin-top:80px;box-sizing:border-box}
+#sb-expansion *,#sb-expansion *::before,#sb-expansion *::after{box-sizing:border-box}
+#sb-expansion button,#sb-expansion a{-webkit-tap-highlight-color:transparent}
+#sb-expansion button{font:inherit;cursor:pointer}
+#sb-expansion :focus-visible{outline:3px solid #194ecc;outline-offset:5px}
+#sb-expansion .sb-grain{position:absolute;inset:180px 0 80px;z-index:-1;pointer-events:none;background-image:radial-gradient(#859cd5 1px,transparent 1px);background-size:21px 21px;opacity:.17;mask-image:radial-gradient(ellipse 43% 50% at 50% 58%,#000,transparent)}
+#sb-expansion .sb-heading{text-align:center;position:relative;z-index:2}
+#sb-expansion .sb-eyebrow{font-size:10px;font-weight:600;letter-spacing:2px;color:#536788;margin:0 0 19px;display:flex;align-items:center;justify-content:center;gap:10px}
+#sb-expansion .sb-star{font-size:21px;line-height:1;color:#5078e5}
+#sb-expansion #sb-title{font-size:clamp(38px,4.5vw,64px);font-weight:650;letter-spacing:-3.2px;line-height:1.065;margin:0}
+#sb-expansion #sb-title>span{background:linear-gradient(105deg,#2454d9 10%,#5476da 53%,#8975c4 100%);background-clip:text;-webkit-background-clip:text;color:transparent}
+
+#sb-expansion .sb-engine{position:relative;max-width:1160px;margin:10px auto 0;min-height:390px;display:grid;grid-template-columns:1fr 1.45fr 1fr;align-items:center;gap:0}
+#sb-expansion .sb-connections{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
+#sb-expansion .sb-track{fill:none;stroke:url(#sb-path-gradient);stroke-width:1}
+#sb-expansion .sb-packet{fill:none;stroke:#6383e7;stroke-width:2;stroke-linecap:round;stroke-dasharray:9 110;stroke-dashoffset:10;animation:sb-flow var(--sb-flow-time) linear infinite;opacity:.7}
+#sb-expansion .sb-packet-b{animation-delay:-1.2s;stroke-width:2.5}
+#sb-expansion .sb-packet-c{animation-delay:-2.3s;stroke:#9a80d4}
+#sb-expansion .sb-packet-out{animation-delay:-.4s;stroke-dasharray:14 110;stroke-width:3}
+#sb-expansion .sb-input-side,#sb-expansion .sb-output-side{position:relative;z-index:2}
+#sb-expansion .sb-input-side{padding:15px 30px 0 15px}
+
+
+#sb-expansion .sb-shortcuts{display:flex;flex-direction:column;gap:12px}
+#sb-expansion .sb-ghost-key,#sb-expansion .sb-active-key{display:flex;align-items:center;height:47px;border:1px solid #e5e9f3;border-radius:10px;background:#fbfcff;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:15px;letter-spacing:-.35px;padding:0 16px;box-shadow:0 4px 12px #294e9b03}
+#sb-expansion .sb-ghost-key{color:#8c97ad;height:40px;font-size:13px;margin-right:22px}
+#sb-expansion .sb-ghost-top{margin-left:18px;opacity:.7}
+#sb-expansion .sb-ghost-bottom{margin-left:32px;margin-right:5px;opacity:.62}
+#sb-expansion .sb-shortcut-sign{margin-right:2px;color:#7c91c8}
+#sb-expansion .sb-active-key{position:relative;color:#2d51ba;background:linear-gradient(110deg,#fff,#f7f9ff);border-color:#b9c9ef;box-shadow:0 6px 22px #436bd515,0 0 0 4px #eff3fc90;font-size:18px}
+#sb-expansion .sb-active-key::after{content:"";position:absolute;right:-4px;top:calc(50% - 3px);width:6px;height:6px;border-radius:50%;background:#6488ed;box-shadow:0 0 10px #7293ff}
+#sb-expansion .sb-key-kind{font-family:inherit;font-size:7px;letter-spacing:1px;margin-left:auto;padding-left:8px}
+#sb-expansion .sb-enter-symbol{margin-left:auto;font-size:18px;color:#92a5ce}
+#sb-expansion .sb-caret{height:18px;width:1.5px;margin-left:3px;background:#476ad4;animation:sb-caret 1.2s steps(1) infinite}
+#sb-expansion .sb-side-note{font-size:11px;color:#65738d;margin:22px 0 0;line-height:1.5}
+#sb-expansion .sb-core{position:relative;height:390px;display:grid;place-items:center;z-index:1}
+#sb-expansion .sb-orbit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(100% + 42px);max-width:490px;overflow:visible;pointer-events:none}
+#sb-expansion .sb-orbit-outer{fill:none;stroke:#dce4f5;stroke-width:.65;opacity:.75}
+#sb-expansion .sb-orbit-inner{fill:none;stroke:#dce4f5;stroke-width:.7;stroke-dasharray:1 8;opacity:.7}
+#sb-expansion .sb-orbit-sweep{fill:none;stroke:url(#sb-orbit-color);stroke-width:1.5;stroke-dasharray:12 88;animation:sb-orbit 18s linear infinite;opacity:.75}
+#sb-expansion .sb-orbit-dot{fill:#7796ec;filter:drop-shadow(0 0 4px #8eacff);transform-origin:230px 207px;animation:sb-dot-glow 3s ease-in-out infinite}
+#sb-expansion .sb-tick{stroke:#9aacd0;stroke-width:1.5;opacity:.25;transition:stroke .7s,opacity .7s}
+#sb-expansion .sb-tick.sb-lit{stroke:#6c8fef;opacity:.65}
+#sb-expansion .sb-metric-content{position:relative;text-align:center;display:flex;align-items:center;flex-direction:column;padding-top:16px;width:100%}
+#sb-expansion .sb-data-badge{display:inline-flex;align-items:center;gap:6px;background:#f0f3fb;color:#66789d;border:1px solid #e2e8f6;padding:5px 8px;border-radius:20px;font-size:9px;letter-spacing:1.1px;line-height:1;margin-bottom:12px}
+#sb-expansion .sb-data-badge>span{width:4px;height:4px;flex-shrink:0;border-radius:50%;background:#809bde;box-shadow:0 0 0 3px #dfe7fb}
+#sb-expansion .sb-number-line{display:flex;justify-content:center;align-items:baseline;white-space:nowrap;color:#243e82;line-height:1;position:relative}
+#sb-expansion .sb-odometer{display:inline-flex;font-size:clamp(88px,10.8vw,138px);font-weight:500;letter-spacing:-6px;line-height:1;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";mask-image:linear-gradient(transparent,#000 10%,#000 87%,transparent)}
+#sb-expansion .sb-digit{display:block;position:relative;height:1.08em;width:.61em;overflow:hidden}
+#sb-expansion .sb-digit-reel{display:flex;flex-direction:column;transition:transform 850ms cubic-bezier(.2,.8,.2,1);will-change:transform}
+#sb-expansion .sb-digit-value{height:1.08em;line-height:1.08;flex-shrink:0;text-align:center}
+#sb-expansion .sb-rate-unit{font-size:20px;font-weight:400;color:#7d8bae;margin-left:8px;letter-spacing:-1px}
+#sb-expansion .sb-metric-label{font-size:12px;color:#52607d;line-height:1.5;margin:4px 0 22px;letter-spacing:.1px}
+#sb-expansion .sb-breakdown{display:flex;align-items:center;justify-content:center;gap:12px}
+#sb-expansion .sb-breakdown>div{display:flex;align-items:center;gap:5px;font-size:11px;color:#5e6c85;white-space:nowrap}
+#sb-expansion .sb-breakdown strong{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#3e4b66}
+#sb-expansion .sb-category-dot{width:4px;height:4px;border-radius:50%;margin-right:1px}
+#sb-expansion .sb-snippet-dot{background:#527ce4}#sb-expansion .sb-prompt-dot{background:#9980cf}
+#sb-expansion .sb-stat-divider{height:12px;width:1px;background:#dfe5f1}
+#sb-expansion .sb-wave{height:22px;display:flex;align-items:center;justify-content:center;gap:3px;margin-top:22px;opacity:.65}
+#sb-expansion .sb-wave span{width:2px;height:var(--bar-height);border-radius:2px;background:linear-gradient(#7794ed,#c0cdee);transform-origin:center;animation:sb-wave var(--bar-time) ease-in-out infinite alternate;animation-delay:var(--bar-delay)}
+#sb-expansion .sb-output-side{padding:15px 0 0 24px}
+
+#sb-expansion .sb-output-card{position:relative;min-height:180px;border-radius:12px;border:1px solid #dde5f4;background:linear-gradient(135deg,#fff 65%,#f7f9ff);padding:16px 17px 13px;box-shadow:0 12px 32px #36529c08,0 2px 5px #36529c04;transform:perspective(1000px) rotateY(-5deg) rotateZ(-1deg);transition:box-shadow .4s,border-color .4s,transform .4s}
+#sb-expansion .sb-card-header{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:1px;color:#596985;margin-bottom:14px}
+#sb-expansion .sb-doc-icon{display:grid;place-items:center;width:20px;height:20px;border-radius:5px;color:#7589bb;background:#f0f4fc;font-size:16px;line-height:1}
+#sb-expansion .sb-output-ready{margin-left:auto;font-size:9px;letter-spacing:0;color:#467562;white-space:nowrap}
+#sb-expansion .sb-output-ready>span{padding-right:3px}
+#sb-expansion .sb-output-card h3{font-size:15px;line-height:1.4;letter-spacing:-.25px;font-weight:600;margin:0 0 8px;color:#3c4864}
+#sb-expansion .sb-output-card p{font-size:12px;line-height:1.7;margin:0;color:#63718b;min-height:57px}
+#sb-expansion .sb-card-footer{border-top:1px solid #edf0f6;margin-top:13px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#687895}
+#sb-expansion .sb-card-spark{font-size:14px;color:#8ba0d6}
+#sb-expansion .sb-output-side .sb-side-note{margin-top:19px}
+#sb-expansion .sb-output-card.sb-reveal{animation:sb-card-in 800ms cubic-bezier(.2,.8,.2,1)}
+#sb-expansion .sb-output-card.sb-reveal h3,#sb-expansion .sb-output-card.sb-reveal p{animation:sb-text-in 850ms cubic-bezier(.2,.8,.2,1)}
+#sb-expansion[data-burst="true"] .sb-active-key{border-color:#718feb;box-shadow:0 0 0 5px #e8effe,0 8px 26px #4b70d626}
+#sb-expansion[data-burst="true"] .sb-output-card{border-color:#a8b9ec;box-shadow:0 14px 38px #3e61c519,0 0 0 4px #edf2ff;transform:perspective(1000px) rotateY(0deg) rotateZ(0deg)}
+#sb-expansion .sb-actions{position:relative;z-index:2;margin:8px auto 0;display:flex;align-items:center;justify-content:center;gap:27px}
+#sb-expansion .sb-try{min-height:48px;background:#2557d8;color:#fff;border:1px solid #2557d8;border-radius:12px;display:flex;align-items:center;gap:12px;padding:0 20px;font-size:13px;font-weight:500;box-shadow:0 3px 4px #174bcc16,0 7px 19px #174bcc15,inset 0 1px 0 #fff3;transition:background .2s,box-shadow .2s,transform .2s}
+#sb-expansion .sb-try:hover{background:#194bc8;box-shadow:0 5px 18px #174bcc30;transform:translateY(-1px)}
+#sb-expansion .sb-try:active{transform:translateY(0)}
+#sb-expansion .sb-try:disabled{cursor:wait;opacity:.8;transform:none}
+#sb-expansion .sb-button-spark{font-size:21px;font-weight:400;line-height:1}
+#sb-expansion .sb-button-arrow{font-size:16px;padding-left:5px;opacity:.7}
+#sb-expansion .sb-cta{font-size:12px;text-decoration:none;color:#506384;padding:14px 0;min-height:44px;display:flex;align-items:center;gap:14px}
+#sb-expansion .sb-cta:hover{color:#2557d8}
+#sb-expansion .sb-footer{display:flex;align-items:center;justify-content:center;gap:16px;max-width:1160px;margin:25px auto 0;color:#69778f;font-size:11px;min-height:35px}
+#sb-expansion .sb-footer p{margin:0;line-height:1.5}
+#sb-expansion .sb-pause{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 9px;min-height:36px;border:0;border-radius:6px;background:transparent;color:#596d8d;font-size:11px}
+#sb-expansion .sb-pause:hover{background:#edf1fa}
+#sb-expansion .sb-pause-icon{font-size:11px}
+#sb-expansion .sb-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#sb-expansion[data-paused="true"] *,#sb-expansion[data-paused="true"] *::before,#sb-expansion[data-paused="true"] *::after{animation-play-state:paused!important}
+#sb-expansion[data-paused="true"] .sb-digit-reel{transition:none}
+@keyframes sb-flow{from{stroke-dashoffset:12;opacity:0}15%{opacity:.8}80%{opacity:.8}to{stroke-dashoffset:-110;opacity:0}}
+@keyframes sb-orbit{to{stroke-dashoffset:-100}}
+@keyframes sb-dot-glow{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes sb-caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes sb-wave{from{transform:scaleY(.5);opacity:.5}to{transform:scaleY(1);opacity:1}}
+@keyframes sb-card-in{0%{opacity:.35;transform:perspective(1000px) rotateY(-5deg) rotateZ(-1deg) translateX(-10px) scale(.97)}100%{opacity:1;transform:perspective(1000px) rotateY(-5deg) rotateZ(-1deg) translateX(0) scale(1)}}
+@keyframes sb-text-in{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@media(min-width:1440px){#sb-expansion{padding-top:63px;padding-bottom:29px}#sb-expansion .sb-engine{margin-top:18px}}
+@media(max-width:1050px) and (min-width:821px){#sb-expansion .sb-input-side{padding-left:0;padding-right:18px}#sb-expansion .sb-output-side{padding-left:15px}#sb-expansion .sb-key-kind{display:none}#sb-expansion .sb-output-card{padding:13px}#sb-expansion .sb-output-ready{font-size:9px}#sb-expansion .sb-side-note{font-size:11px}#sb-expansion .sb-odometer{font-size:104px}#sb-expansion .sb-breakdown{gap:8px}#sb-expansion .sb-rate-unit{font-size:17px}}
+@media(max-width:820px){#sb-expansion{padding:36px 24px 18px}#sb-expansion #sb-title{font-size:51px;letter-spacing:-2.6px}#sb-expansion .sb-engine{grid-template-columns:1fr 1fr;max-width:620px;gap:22px 45px;margin-top:18px}#sb-expansion .sb-core{grid-row:1;grid-column:1/-1;height:360px;width:410px;max-width:100%;margin:auto}#sb-expansion .sb-orbit{width:430px;max-width:112%}#sb-expansion .sb-odometer{font-size:130px}#sb-expansion .sb-input-side{grid-row:2;grid-column:1;padding:0}#sb-expansion .sb-output-side{grid-row:2;grid-column:2;padding:0}#sb-expansion .sb-side-note{font-size:10px}#sb-expansion .sb-connections{display:none}#sb-expansion .sb-engine::after{content:"→";color:#849ad4;position:absolute;top:calc(360px + 120px);left:calc(50% - 8px);font-size:22px;font-weight:300}#sb-expansion .sb-output-card{transform:none}#sb-expansion .sb-actions{margin-top:36px}#sb-expansion .sb-footer{margin-top:18px}#sb-expansion .sb-key-kind{font-size:6px}#sb-expansion .sb-output-card p{min-height:57px}}
+@media(max-width:540px){#sb-expansion{padding:31px 20px 14px}#sb-expansion .sb-eyebrow{font-size:8px;letter-spacing:1.3px;gap:7px;margin-bottom:18px}#sb-expansion .sb-star{font-size:17px}#sb-expansion #sb-title{font-size:clamp(31px,8vw,42px);letter-spacing:-1.65px;line-height:1.12}#sb-expansion .sb-engine{display:flex;flex-direction:column;gap:0}#sb-expansion .sb-core{order:0;width:340px;height:320px;flex:none}#sb-expansion .sb-orbit{width:380px;max-width:118%}#sb-expansion .sb-metric-content{padding-top:15px}#sb-expansion .sb-odometer{font-size:116px}#sb-expansion .sb-rate-unit{font-size:20px}#sb-expansion .sb-data-badge{font-size:9px;margin-bottom:7px}#sb-expansion .sb-metric-label{font-size:11px;margin-bottom:17px}#sb-expansion .sb-wave{margin-top:16px;height:19px}#sb-expansion .sb-breakdown{gap:10px}#sb-expansion .sb-breakdown>div{font-size:10px}#sb-expansion .sb-input-side{order:1;padding:0;width:100%;max-width:310px;display:flex;align-items:center;gap:18px;margin-top:6px}#sb-expansion .sb-shortcuts{flex:1;min-width:0}#sb-expansion .sb-ghost-key{display:none}#sb-expansion .sb-active-key{font-size:16px;padding:0 13px;height:46px}#sb-expansion .sb-input-side .sb-side-note{display:none}#sb-expansion .sb-output-side{order:2;padding:30px 0 0;width:100%;max-width:310px}#sb-expansion .sb-output-side::before{content:"↓";position:absolute;right:calc(50% - 5px);top:5px;font-size:17px;color:#9aaddb}#sb-expansion .sb-output-card{min-height:166px;padding:15px 17px}#sb-expansion .sb-output-card h3{font-size:14px}#sb-expansion .sb-output-card p{font-size:12px;min-height:0}#sb-expansion .sb-card-footer{margin-top:12px}#sb-expansion .sb-output-side .sb-side-note{text-align:center;margin-top:12px;font-size:10px}#sb-expansion .sb-engine::after{display:none}#sb-expansion .sb-actions{margin-top:25px;flex-direction:column;gap:4px}#sb-expansion .sb-try{width:100%;max-width:310px;justify-content:center;height:48px}#sb-expansion .sb-cta{font-size:12px;min-height:44px}#sb-expansion .sb-footer{margin-top:8px;font-size:10px;gap:5px}#sb-expansion .sb-pause{min-height:44px;padding:8px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){#sb-expansion *,#sb-expansion *::before,#sb-expansion *::after{animation:none!important;transition:none!important}#sb-expansion .sb-packet{display:none}#sb-expansion .sb-output-card{transform:none!important}#sb-expansion .sb-caret{opacity:0}}
+
+#sb-expansion[data-zero="true"] .sb-packet{display:none}
+#sb-expansion[data-zero="true"] .sb-wave span{animation:none;transform:scaleY(.15);opacity:.3}
+
+#sb-expansion[data-zero="true"] .sb-orbit-sweep,#sb-expansion[data-zero="true"] .sb-orbit-dot{animation:none;opacity:.15}
+
+#sb-expansion .sb-pause{white-space:nowrap;flex-shrink:0}
+
+#sb-expansion .sb-pause{min-height:44px}
+
 </style>
 </head>
 <body>
@@ -1289,6 +1407,95 @@ Team LeibTour</div>
     </div>
   </div>
 </section>
+
+<!-- Expansion Engine: simulated activity, not usage telemetry. -->
+<section id="sb-expansion" aria-labelledby="sb-title" data-demo="true" data-paused="false">
+    <div class="sb-grain" aria-hidden="true"></div>
+    <div class="sb-heading">
+      <p class="sb-eyebrow"><span class="sb-star" aria-hidden="true">✳</span> IL TUO SAPERE, IN MOVIMENTO</p>
+      <h2 id="sb-title">Piccole scorciatoie.<br><span>Una spinta straordinaria.</span></h2>
+
+    </div>
+
+    <div class="sb-engine" aria-label="Dimostrazione delle espansioni">
+      <svg class="sb-connections" viewBox="0 0 1160 390" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="sb-path-gradient"><stop stop-color="#6284ef" stop-opacity=".05"/><stop offset=".48" stop-color="#537df5" stop-opacity=".55"/><stop offset="1" stop-color="#8a6ded" stop-opacity=".12"/></linearGradient>
+          <linearGradient id="sb-packet-gradient"><stop stop-color="#507cf0" stop-opacity="0"/><stop offset="1" stop-color="#507cf0"/></linearGradient>
+        </defs>
+        <path class="sb-track" d="M 160 143 C 330 143 335 199 488 199"/>
+        <path class="sb-track" d="M 160 201 C 330 201 335 199 488 199"/>
+        <path class="sb-track" d="M 160 259 C 330 259 335 199 488 199"/>
+        <path class="sb-track" d="M 673 199 C 787 199 796 199 947 199"/>
+        <path class="sb-packet sb-packet-a" pathLength="100" d="M 160 143 C 330 143 335 199 488 199"/>
+        <path class="sb-packet sb-packet-b" pathLength="100" d="M 160 201 C 330 201 335 199 488 199"/>
+        <path class="sb-packet sb-packet-c" pathLength="100" d="M 160 259 C 330 259 335 199 488 199"/>
+        <path class="sb-packet sb-packet-out" pathLength="100" d="M 673 199 C 787 199 796 199 947 199"/>
+      </svg>
+
+      <div class="sb-input-side">
+
+        <span class="sb-sr-only" id="sb-shortcut-readable">Scorciatoia ::brief</span>
+        <div class="sb-shortcuts" aria-hidden="true">
+          <div class="sb-ghost-key sb-ghost-top"><span class="sb-shortcut-sign">::</span>intro<span class="sb-key-kind">SNIPPET</span></div>
+          <div class="sb-active-key"><span class="sb-shortcut-sign">::</span><span id="sb-trigger">brief</span><span class="sb-caret"></span><span class="sb-enter-symbol">↵</span></div>
+          <div class="sb-ghost-key sb-ghost-bottom"><span class="sb-shortcut-sign">::</span>followup<span class="sb-key-kind">SNIPPET</span></div>
+        </div>
+        <p class="sb-side-note">Parti da ciò che sai già.</p>
+      </div>
+
+      <div class="sb-core">
+        <svg class="sb-orbit" viewBox="0 0 460 410" aria-hidden="true">
+          <defs>
+            <radialGradient id="sb-core-glow"><stop stop-color="#edf1ff" stop-opacity=".9"/><stop offset=".58" stop-color="#eaf0ff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            <linearGradient id="sb-orbit-color" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#bfd0ff"/><stop offset=".5" stop-color="#4368e0"/><stop offset="1" stop-color="#b7a6f4"/></linearGradient>
+          </defs>
+          <ellipse cx="230" cy="205" rx="219" ry="194" fill="url(#sb-core-glow)"/>
+          <ellipse class="sb-orbit-outer" cx="230" cy="207" rx="215" ry="181"/>
+          <ellipse class="sb-orbit-inner" cx="230" cy="207" rx="192" ry="161"/>
+          <g id="sb-ticks"></g>
+          <ellipse class="sb-orbit-sweep" cx="230" cy="207" rx="215" ry="181" pathLength="100"/>
+          <circle class="sb-orbit-dot" cx="230" cy="26" r="3.5"/>
+        </svg>
+        <div class="sb-metric-content">
+          <div class="sb-data-badge" id="sb-data-badge"><span aria-hidden="true"></span> DATI DEMO</div>
+          <div class="sb-number-line" aria-live="off">
+            <span class="sb-sr-only" id="sb-rate-readable">128 espansioni di snippet e prompt al secondo, dati simulati.</span>
+            <span class="sb-odometer" id="sb-odometer" aria-hidden="true">128</span>
+            <span class="sb-rate-unit" aria-hidden="true">/sec</span>
+          </div>
+          <p class="sb-metric-label">snippet e prompt espansi</p>
+          <div class="sb-breakdown" aria-live="off">
+            <div><span class="sb-category-dot sb-snippet-dot" aria-hidden="true"></span><strong id="sb-snippet-rate">86</strong><span>snippet/s</span></div>
+            <span class="sb-stat-divider" aria-hidden="true"></span>
+            <div><span class="sb-category-dot sb-prompt-dot" aria-hidden="true"></span><strong id="sb-prompt-rate">42</strong><span>prompt/s</span></div>
+          </div>
+          <div class="sb-wave" id="sb-wave" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="sb-output-side">
+
+        <div class="sb-output-card" id="sb-output-card">
+          <div class="sb-card-header"><span class="sb-doc-icon" aria-hidden="true">≡</span><span id="sb-output-kind">PROMPT</span><span class="sb-output-ready"><span aria-hidden="true">✓</span> Espanso</span></div>
+          <h3 id="sb-output-title">Un brief di progetto più chiaro.</h3>
+          <p id="sb-output-copy">Agisci come mio consulente strategico. Trasforma questi appunti in un brief chiaro: obiettivo, pubblico, risultati attesi e prossimi passi.</p>
+          <div class="sb-card-footer"><span class="sb-output-tag" id="sb-output-tag">Pronto per la tua prossima AI</span><span class="sb-card-spark" aria-hidden="true">✳</span></div>
+        </div>
+        <p class="sb-side-note">Il contesto giusto. Senza ripetizioni.</p>
+      </div>
+    </div>
+
+    <div class="sb-actions">
+      <button class="sb-try" id="sb-try" type="button"><span class="sb-button-spark" aria-hidden="true">✳</span><span>Prova un’espansione</span><span class="sb-button-arrow" aria-hidden="true">↗</span></button>
+      <a class="sb-cta" href="https://app.sprintbrain.com/signup">Prova SprintBrain gratis <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="sb-footer">
+      <p id="sb-data-note">Attività simulata. Possibilità reali.</p>
+      <button class="sb-pause" id="sb-pause" type="button" aria-pressed="false"><span class="sb-pause-icon" aria-hidden="true">Ⅱ</span><span>Pausa animazione</span></button>
+    </div>
+    <p class="sb-sr-only" id="sb-expansion-announcement" role="status" aria-live="polite"></p>
+  </section>
 
 <section id="features" class="fs-bg">
   <div class="fs-section">
@@ -2558,5 +2765,158 @@ Team LeibTour</div>
 }());
 </script>
 <!-- SB_TOOLTIP:END -->
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('sb-expansion');
+  if (!root) return;
+  const el = id => root.querySelector('#' + id);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const copy = {"shortcut": "Scorciatoia", "rate": "espansioni di snippet e prompt al secondo, dati simulati.", "expanded": "espanso.", "tryLabel": "Prova un’espansione", "expanding": "Espansione…", "resume": "Riprendi animazione", "pause": "Pausa animazione"};
+  const examples = [
+  {
+    "trigger": "brief",
+    "kind": "PROMPT",
+    "title": "Un brief di progetto più chiaro.",
+    "copy": "Agisci come mio consulente strategico. Trasforma questi appunti in un brief chiaro: obiettivo, pubblico, risultati attesi e prossimi passi.",
+    "tag": "Pronto per la tua prossima AI"
+  },
+  {
+    "trigger": "followup",
+    "kind": "SNIPPET",
+    "title": "Il seguito, già scritto.",
+    "copy": "Ciao Alex, grazie per la chiacchierata. Ecco un riepilogo di quanto abbiamo discusso e dei prossimi passi. Sono a disposizione per qualsiasi domanda.",
+    "tag": "Pronto per la prossima conversazione"
+  },
+  {
+    "trigger": "review",
+    "kind": "PROMPT",
+    "title": "Un secondo sguardo esperto.",
+    "copy": "Rivedi questa bozza per chiarezza e accuratezza. Evidenzia ciò che conta, segnala le ipotesi e suggerisci tre miglioramenti concreti.",
+    "tag": "I tuoi standard. In ogni AI."
+  },
+  {
+    "trigger": "intro",
+    "kind": "SNIPPET",
+    "title": "Un caloroso benvenuto. Sempre.",
+    "copy": "Ciao, piacere di conoscerti! Ecco cosa facciamo, come possiamo aiutarti e il modo più semplice per iniziare.",
+    "tag": "La tua voce. Senza riscrivere."
+  }
+];
+  const demoRates = [[86,42],[91,43],[84,40],[95,47],[92,44],[98,50],[88,42],[94,45],[101,51],[93,43],[90,41],[96,48]];
+  let exampleIndex=0, rateIndex=0, userPaused=reducedMotion.matches, inView=true;
+  let busy=false, ticker=null, lastExample=performance.now(), lastRate=performance.now();
+  let reelDigits=[], burstTimers=[];
+  const ns='http://www.w3.org/2000/svg';
+  const tickGroup=el('sb-ticks');
+  for(let i=0;i<65;i++) {
+    const angle=(205+i*(130/64))*Math.PI/180;
+    const long=i%4===0, outer=177, inner=long?166:170;
+    const tick=document.createElementNS(ns,'line');
+    tick.setAttribute('x1',String(230+outer*Math.cos(angle)));
+    tick.setAttribute('y1',String(207+outer*.84*Math.sin(angle)));
+    tick.setAttribute('x2',String(230+inner*Math.cos(angle)));
+    tick.setAttribute('y2',String(207+inner*.84*Math.sin(angle)));
+    tick.setAttribute('class','sb-tick'+(i%7<3?' sb-lit':''));
+    tickGroup.appendChild(tick);
+  }
+  const ticks=[...tickGroup.children];
+  for(let i=0;i<35;i++) {
+    const bar=document.createElement('span');
+    const height=4+(Math.sin(i*.8)*.5+.5)*13+Math.sin(i*.31)*3;
+    bar.style.setProperty('--bar-height',height+'px');
+    bar.style.setProperty('--bar-time',(900+(i*137)%850)+'ms');
+    bar.style.setProperty('--bar-delay',(-i*123)+'ms');
+    el('sb-wave').appendChild(bar);
+  }
+  function renderNumber(value) {
+    const chars=String(Math.round(value));
+    const holder=el('sb-odometer');
+    if(reelDigits.length!==chars.length) {
+      holder.replaceChildren();
+      reelDigits=[...chars].map(char=>{
+        const digit=document.createElement('span'); digit.className='sb-digit';
+        const reel=document.createElement('span'); reel.className='sb-digit-reel';
+        for(let n=0;n<10;n++) {const row=document.createElement('span');row.className='sb-digit-value';row.textContent=String(n);reel.appendChild(row);}
+        reel.style.transform=`translateY(-${Number(char)*1.08}em)`;
+        digit.appendChild(reel);holder.appendChild(digit);return reel;
+      });
+    } else {
+      [...chars].forEach((char,i)=>reelDigits[i].style.transform=`translateY(-${Number(char)*1.08}em)`);
+    }
+    // Preserve the composition for larger real values without clipping the rate.
+    holder.style.fontSize=chars.length>3?`clamp(46px,${Math.max(4,10.8*3/chars.length)}vw,${138*3/chars.length}px)`:'';
+  }
+  function updateMetrics(snippets,prompts) {
+    const total=snippets+prompts;
+    renderNumber(total);
+    el('sb-snippet-rate').textContent=String(snippets);
+    el('sb-prompt-rate').textContent=String(prompts);
+    el('sb-rate-readable').textContent=`${total} ${copy.rate}`;
+    root.style.setProperty('--sb-flow-time',Math.max(1.8,Math.min(6,420/Math.max(1,total)))+'s');
+    root.dataset.zero=String(total===0);
+    ticks.forEach((tick,i)=>tick.classList.toggle('sb-lit',total>0&&(i+rateIndex*2)%11<Math.min(8,Math.max(2,total/24))));
+  }
+  function showExample(index,announce=false) {
+    exampleIndex=index%examples.length;
+    const item=examples[exampleIndex];
+    el('sb-trigger').textContent=item.trigger;
+    el('sb-shortcut-readable').textContent=copy.shortcut+' ::'+item.trigger;
+    el('sb-output-kind').textContent=item.kind;
+    el('sb-output-title').textContent=item.title;
+    el('sb-output-copy').textContent=item.copy;
+    el('sb-output-tag').textContent=item.tag;
+    const card=el('sb-output-card');
+    card.classList.remove('sb-reveal');
+    if(!userPaused&&!reducedMotion.matches) {void card.offsetWidth;card.classList.add('sb-reveal');}
+    if(announce) el('sb-expansion-announcement').textContent=`${item.kind.toLowerCase()} ::${item.trigger} ${copy.expanded} ${item.title} ${item.copy}`;
+  }
+  function clearBurst() {
+    burstTimers.forEach(clearTimeout);burstTimers=[];
+    root.dataset.burst='false';busy=false;el('sb-try').disabled=false;
+    el('sb-trigger').textContent=examples[exampleIndex].trigger;
+    el('sb-output-card').classList.remove('sb-reveal');
+    el('sb-try').querySelector('span:nth-child(2)').textContent=copy.tryLabel;
+  }
+  function expand() {
+    if(busy) return;
+    if(userPaused||reducedMotion.matches) {showExample(exampleIndex+1,true);return;}
+    busy=true;el('sb-try').disabled=true;root.dataset.burst='true';
+    el('sb-try').querySelector('span:nth-child(2)').textContent=copy.expanding;
+    const next=(exampleIndex+1)%examples.length;
+    el('sb-trigger').textContent=examples[next].trigger;
+    burstTimers.push(setTimeout(()=>{showExample(next,true);lastExample=performance.now();},420));
+    burstTimers.push(setTimeout(clearBurst,1200));
+  }
+  function syncMotion() {
+    const stop=userPaused||!inView||document.hidden;
+    root.dataset.paused=String(stop);
+    const pause=el('sb-pause');
+    pause.setAttribute('aria-pressed',String(userPaused));
+    pause.querySelector('span:last-child').textContent=userPaused?copy.resume:copy.pause;
+    pause.querySelector('span:first-child').textContent=userPaused?'▷':'Ⅱ';
+    if(stop&&ticker) {clearInterval(ticker);ticker=null;}
+    if(stop) clearBurst();
+    if(!stop&&!ticker) {
+      lastExample=performance.now();lastRate=performance.now();
+      ticker=setInterval(()=>{
+        const now=performance.now();
+        if(now-lastRate>=2300) {rateIndex=(rateIndex+1)%demoRates.length;updateMetrics(...demoRates[rateIndex]);lastRate=now;}
+        if(!busy&&now-lastExample>=6400) {showExample(exampleIndex+1);lastExample=now;}
+      },250);
+    }
+  }
+  el('sb-try').addEventListener('click',expand);
+  el('sb-pause').addEventListener('click',()=>{userPaused=!userPaused;syncMotion();});
+  document.addEventListener('visibilitychange',syncMotion);
+  reducedMotion.addEventListener('change',event=>{userPaused=event.matches;syncMotion();});
+  if('IntersectionObserver' in window) {
+    const observer=new IntersectionObserver(entries=>{inView=entries[0].isIntersecting;syncMotion();},{threshold:.05});
+    observer.observe(root);
+  }
+  updateMetrics(86,42);syncMotion();
+
+})();
+</script>
 </body>
 </html>

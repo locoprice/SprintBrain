@@ -290,3 +290,10 @@ The four local, content-hashed image assets live in `app/public/landing/assets/p
 - **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
 - **Danger token alignment:** move the extension's `--sb-danger` from `#DC2626` to the canonical `#D70015` so the two surfaces match. Touches every danger element in the popup, so it wants its own change and a visual pass — not a side effect of the ticket that surfaced it.
 - **Status badges on `/mobile/`:** not rendered there yet.
+
+
+### Landing Expansion Engine (October 2026)
+
+The user-approved motion composition sits directly after the trusted-operator logos and before the feature list. It uses the existing page background and font, with a self-contained pale azure/lilac illustration palette, orbital paths, stable odometer digits and example text cards scoped to `#sb-expansion`. These decorative gradients, borders, radii and shadows preserve the approved prototype; they are not new product status tokens. The main heading and signup link remain stationary. The removed subtitle and numbered step labels must not be restored.
+
+All displayed rates are explicitly marked as simulated, in English, Italian and Spanish. The demo reads no account analytics or private snippet content. A native pause control stops automatic metrics, examples and motion; manual expansion still works without motion. Reduced-motion preferences start the section paused, and offscreen/hidden pages suspend its timer. Locale source and generated pages remain in parity. This changes only the marketing demonstration, not the product expansion behavior or user manual.
