@@ -52,16 +52,6 @@
       "count": 1
     },
     {
-      "find": "<div class=\"demo-label\">You type</div>",
-      "replace": "<div class=\"demo-label\">Tu scrivi</div>",
-      "count": 1
-    },
-    {
-      "find": "<div class=\"demo-label\">SprintBrain writes</div>",
-      "replace": "<div class=\"demo-label\">SprintBrain scrive</div>",
-      "count": 1
-    },
-    {
       "find": "<span class=\"trusted-label\" id=\"trusted-heading\">Trusted by operators at</span>",
       "replace": "<span class=\"trusted-label\" id=\"trusted-heading\">Scelto dagli operatori di</span>",
       "count": 1
@@ -652,28 +642,8 @@
       "count": 1
     },
     {
-      "find": "Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team",
-      "replace": "Gentile ospite,\n\nIl totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.\n\nCordiali saluti,\nTeam LeibTour",
-      "count": 1
-    },
-    {
       "find": "            Dear guest,<br>\n            Thank you for your interest. The total for 3 nights is\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/night × 3)</span>,\n            including a <b><span class=\"fs-num\">10%</span></b> early-bird discount.",
       "replace": "            Gentile ospite,<br>\n            Grazie per il tuo interesse. Il totale per 3 notti è\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/notte × 3)</span>,\n            incluso lo sconto prenota prima del <b><span class=\"fs-num\">10%</span></b>.",
-      "count": 1
-    },
-    {
-      "find": "'Dear guest,\\n\\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\\n\\nBest regards,\\nLeibTour Team'",
-      "replace": "'Gentile ospite,\\n\\nIl totale per 3 notti è di €450 (€150/notte × 3), con lo sconto prenota prima del 10% già applicato.\\n\\nCordiali saluti,\\nTeam LeibTour'",
-      "count": 1
-    },
-    {
-      "find": "'Hi Marco, check-in opens at 16:00.\\n\\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\\n\\nSee you tomorrow!'",
-      "replace": "'Ciao Marco, il check-in apre alle 16:00.\\n\\nLe chiavi sono nella serratura smart accanto al cancello: codice 4417. Il parcheggio e i dati del wifi sono nella guida.\\n\\nA domani!'",
-      "count": 1
-    },
-    {
-      "find": "'Following up on Tuesday’s quote.\\n\\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\\n\\nWant me to reserve it?'",
-      "replace": "'Riprendo il preventivo di martedì.\\n\\nLa villa è ancora libera per le tue date e posso tenerla bloccata fino a venerdì alle 18:00.\\n\\nVuoi che la prenoti?'",
       "count": 1
     },
     {
@@ -712,48 +682,8 @@
       "count": 1
     },
     {
-      "find": ">One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.<",
-      "replace": ">Un unico spazio per i tuoi Snippet, Prompt e Brains. Pensato per dare a ogni AI il contesto di cui ha bisogno per lavorare meglio.<",
-      "count": 1
-    },
-    {
-      "find": ">SprintBrain brings your reusable knowledge, instructions and workflows together in one intelligent workspace, so you can move between AI tools without starting from zero.<",
-      "replace": ">SprintBrain riunisce le tue conoscenze riutilizzabili, le istruzioni e i flussi di lavoro in un unico spazio intelligente, così puoi passare da uno strumento AI all’altro senza ripartire da zero.<",
-      "count": 1
-    },
-    {
       "find": ">Try SprintBrain Free →<",
       "replace": ">Prova SprintBrain gratis →<",
-      "count": 2
-    },
-    {
-      "find": ">No lock-in. No unnecessary complexity. Just your context, ready to use.<",
-      "replace": ">Nessun vincolo a una piattaforma. Nessuna complessità inutile. Solo il tuo contesto, pronto all’uso.<",
-      "count": 1
-    },
-    {
-      "find": ">Stop starting from zero.<",
-      "replace": ">Smetti di ripartire da zero.<",
-      "count": 1
-    },
-    {
-      "find": ">Every time you open a new AI tool, you bring the same instructions, information and context with you.<",
-      "replace": ">Ogni volta che apri un nuovo strumento AI, porti con te le stesse istruzioni, informazioni e lo stesso contesto.<",
-      "count": 1
-    },
-    {
-      "find": ">SprintBrain changes that.<",
-      "replace": ">SprintBrain cambia le cose.<",
-      "count": 1
-    },
-    {
-      "find": ">Store what matters once. Organize it. Reuse it. Inject the right context when you need it.<",
-      "replace": ">Salva una volta ciò che conta. Organizzalo. Riutilizzalo. Inserisci il contesto giusto quando ti serve.<",
-      "count": 1
-    },
-    {
-      "find": ">Less repetition. More execution.<",
-      "replace": ">Meno ripetizioni. Più azione.<",
       "count": 1
     },
     {
@@ -1109,6 +1039,96 @@
     {
       "find": "<a href=\"pricing/\">Pricing</a>",
       "replace": "<a href=\"pricing/\">Prezzo</a>",
+      "count": 1
+    },
+    {
+      "find": "</span> Stop starting from zero.</p>",
+      "replace": "</span> Smetti di ripartire da zero.</p>",
+      "count": 1
+    },
+    {
+      "find": "One home for your<br><strong>Snippets, Prompts and Brains.</strong>",
+      "replace": "Un unico spazio per i tuoi<br><strong>Snippets, Prompts e Brains.</strong>",
+      "count": 1
+    },
+    {
+      "find": "Save your knowledge, instructions and workflows once. Organize them in SprintBrain. Bring the right context to every AI, without starting over.",
+      "replace": "Salva conoscenze, istruzioni e flussi di lavoro una volta sola. Organizzali in SprintBrain. Porta il contesto giusto in ogni AI, senza ricominciare.",
+      "count": 1
+    },
+    {
+      "find": "Try SprintBrain Free <span aria-hidden=\"true\">↗</span>",
+      "replace": "Prova SprintBrain gratis <span aria-hidden=\"true\">↗</span>",
+      "count": 1
+    },
+    {
+      "find": "See it in motion <span aria-hidden=\"true\">↓</span>",
+      "replace": "Guardalo in azione <span aria-hidden=\"true\">↓</span>",
+      "count": 1
+    },
+    {
+      "find": "No lock-in. Just your context, ready to use.",
+      "replace": "Nessun vincolo. Solo il tuo contesto, pronto all’uso.",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Interactive context portability demo\"",
+      "replace": "aria-label=\"Demo interattiva del contesto portatile\"",
+      "count": 1
+    },
+    {
+      "find": ">Your context, connected.<",
+      "replace": ">Il tuo contesto, connesso.<",
+      "count": 1
+    },
+    {
+      "find": ">Interactive demo<",
+      "replace": ">Demo interattiva<",
+      "count": 1
+    },
+    {
+      "find": ">Your content<",
+      "replace": ">I tuoi contenuti<",
+      "count": 1
+    },
+    {
+      "find": ">Your instructions<",
+      "replace": ">Le tue istruzioni<",
+      "count": 1
+    },
+    {
+      "find": ">Your knowledge<",
+      "replace": ">Le tue conoscenze<",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Choose an AI to preview\"",
+      "replace": "aria-label=\"Scegli un’AI per l’anteprima\"",
+      "count": 1
+    },
+    {
+      "find": "<strong>Same context. <span id=\"hc-destination\">",
+      "replace": "<strong>Stesso contesto. <span id=\"hc-destination\">",
+      "count": 1
+    },
+    {
+      "find": "Your voice. Your project. Your best instructions.<br>Ready for the next conversation.",
+      "replace": "La tua voce. Il tuo progetto. Le tue migliori istruzioni.<br>Pronti per la prossima conversazione.",
+      "count": 1
+    },
+    {
+      "find": ">Save once. Reuse anywhere.<",
+      "replace": ">Salva una volta. Riutilizza ovunque.<",
+      "count": 1
+    },
+    {
+      "find": "Choose an AI. Your context stays with you.",
+      "replace": "Scegli un’AI. Il tuo contesto resta con te.",
+      "count": 1
+    },
+    {
+      "find": "</span> Less repetition. <strong>More execution.</strong>",
+      "replace": "</span> Meno ripetizioni. <strong>Più azione.</strong>",
       "count": 1
     }
   ],

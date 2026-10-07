@@ -166,71 +166,6 @@ img,svg{display:block;max-width:100%}
 @keyframes heroSheen{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 /* SHARED:hero-css:END */
 
-.hero p{font-size:clamp(17px,2vw,20px);color:var(--text2);
-  max-width:620px;margin:0 auto 12px;line-height:1.55}
-.hero p.hero-slogan{
-  display:inline-flex;align-items:center;gap:10px;
-  font-size:clamp(14px,1.3vw,16px);font-style:italic;font-weight:500;
-  color:var(--text3);text-align:center;margin:4px auto 28px;
-  padding-left:12px;border-left:2px solid var(--primary);
-  letter-spacing:.01em;opacity:1}
-.hero-proof{
-  display:flex;align-items:center;justify-content:center;
-  gap:16px;margin-bottom:22px;flex-wrap:wrap}
-.hero-proof-item{
-  display:inline-flex;align-items:center;gap:5px;
-  font-size:12.5px;font-weight:500;color:var(--text2)}
-.hero-proof-item svg{color:var(--primary);flex-shrink:0}
-.hero-proof-sep{width:3px;height:3px;border-radius:50%;background:var(--border)}
-.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
-
-/* DEMO */
-.demo{max-width:800px;margin:0 auto;background:var(--card);
-  border-radius:18px;
-  box-shadow:0 24px 60px rgba(27,79,216,.16),0 3px 12px rgba(0,0,0,.06);
-  overflow:hidden;border:1px solid var(--border)}
-.demo-bar{background:linear-gradient(180deg,var(--card),var(--bg-alt));
-  padding:11px 16px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:8px}
-.demo-dot{width:11px;height:11px;border-radius:50%}
-.demo-dot.r{background:#FF5F57}.demo-dot.y{background:#FEBC2E}.demo-dot.g{background:#28C840}
-.demo-url{margin-left:12px;font-size:12px;color:var(--text3);font-family:ui-monospace,monospace;
-  transition:opacity .25s ease}
-.demo-url.swap{opacity:0}
-.demo-steps{margin-left:auto;display:flex;align-items:center;gap:5px}
-.demo-step{width:5px;height:5px;border-radius:50%;background:var(--border);
-  transition:background .3s ease,transform .3s ease}
-.demo-step.on{background:var(--primary);transform:scale(1.3)}
-.demo-body{padding:20px 26px 24px;text-align:left;font-size:15px}
-.demo-label{font-size:12px;color:var(--text3);text-transform:uppercase;
-  letter-spacing:.5px;font-weight:600;margin-bottom:7px}
-.demo-typeline{display:flex;align-items:center;min-height:30px}
-.demo-type{font-family:ui-monospace,"SF Mono",Menlo,monospace;
-  background:var(--primary-lt);color:var(--primary);
-  padding:3px 8px;border-radius:5px;font-weight:600;font-size:14px;
-  min-width:10px;min-height:22px;display:inline-flex;align-items:center}
-.demo-caret{width:2px;height:19px;margin-left:3px;background:var(--primary);
-  border-radius:1px;animation:caretBlink 1.05s steps(1) infinite}
-@keyframes caretBlink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-.demo-arrow{color:var(--text3);margin:9px 0;font-size:17px;text-align:center;
-  transition:opacity .3s ease,transform .3s ease}
-.demo-arrow.idle{opacity:.25;transform:translateY(-3px)}
-.demo-output{background:var(--bg-alt);border-radius:10px;padding:16px;
-  color:var(--text);line-height:1.6;font-size:14.5px;min-height:136px;
-  white-space:pre-wrap}
-.demo-line{opacity:0;transform:translateY(7px);
-  animation:demoLineIn .42s cubic-bezier(.22,1,.36,1) forwards}
-.demo-line.blank{height:.72em}
-@keyframes demoLineIn{to{opacity:1;transform:none}}
-.demo-hi{color:var(--primary);font-weight:600}
-
-@media (prefers-reduced-motion:reduce){
-  .hero h1 span{animation:none}
-  .hero-eyebrow::before,.demo-caret{animation:none}
-  .demo-line{opacity:1;transform:none;animation:none}
-  .demo-url,.demo-arrow,.demo-step{transition:none}
-}
-
 /* SECTIONS */
 .section{padding:88px 24px}
 .section-inner{max-width:var(--max);margin:0 auto}
@@ -242,12 +177,6 @@ img,svg{display:block;max-width:100%}
 .section-head p{font-size:18px;color:var(--text2);max-width:580px;margin:0 auto}
 
 /* AI context narrative */
-.hero .hero-ctas{margin-top:24px}
-.hero p.context-note{font-size:14px}
-.context-section .context-copy{margin-bottom:0}
-.context-copy p + p{margin-top:16px}
-.context-copy strong{color:var(--text)}
-.context-copy p{font-size:18px;color:var(--text2);max-width:620px;margin-left:auto;margin-right:auto}
 .foot-statement.context-finale h2{font-size:clamp(32px,4.5vw,48px)}
 .foot-statement.context-finale .context-finale-title{font-size:clamp(20px,3vw,32px);font-weight:600}
 .context-finale h3{color:var(--card);font-size:clamp(20px,3vw,32px);font-weight:600;margin-top:24px}
@@ -467,22 +396,7 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
   .hero h1{letter-spacing:-.028em}
 /* SHARED:mobile-hero-css:END */
 
-  .hero p.hero-slogan{text-align:left;margin-left:0;margin-right:0;max-width:none}
-  .hero-ctas{flex-direction:column;align-items:center;gap:16px}
-  .hero-ctas .btn-primary{width:100%;justify-content:center;height:52px;font-size:16px}
-  .hero-ctas .btn-ghost{
-    border:none;background:transparent;padding:0;
-    font-size:14px;font-weight:500;color:var(--text2);box-shadow:none;
-    text-decoration:underline;text-decoration-color:var(--border);
-    text-underline-offset:3px}
-  .hero-ctas .btn-ghost:hover{background:transparent;transform:none;color:var(--text)}
-  .hero-proof{gap:12px}
   .section{padding:64px 20px}
-
-  .demo-body{padding:22px 18px 24px}
-  .demo{margin-top:0;box-shadow:0 12px 34px rgba(27,79,216,.13),0 2px 8px rgba(0,0,0,.06)}
-  .demo-output{min-height:150px;font-size:14px}
-  .demo-url{margin-left:8px;font-size:11px}
 /* SHARED:mobile-footer-css:BEGIN */
   footer{padding:28px 20px}
   .foot-support{margin-bottom:22px;padding-bottom:22px;gap:16px}
@@ -661,7 +575,8 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);background:#
 }
 @media(max-width:640px){
   .fs-section{padding:72px 24px 80px}
-  .fs-grid{grid-template-columns:1fr}
+  .fs-grid{grid-template-columns:minmax(0,1fr)}
+  .fs-card{min-width:0;overflow-wrap:anywhere}
   .fs-card.fs-wide{grid-column:span 1}
   .fs-title{font-size:38px}
   .fs-card-title{font-size:26px}
@@ -1150,6 +1065,107 @@ body.cm-locked{overflow:hidden}
 
 #sb-expansion .sb-pause{min-height:44px}
 
+/* Unified context hero. Kept outside the shared pricing shell. */
+.hero.hero-context{padding:24px 24px 32px;scroll-margin-top:80px;background:var(--bg)}
+.hero-context::before{background-size:64px 64px;mask:linear-gradient(#000,transparent);opacity:.55}
+.hero-context .hc-shell{text-align:left;border:1px solid var(--border);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-sm);overflow:hidden}
+.hero-context .hc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+.hero-context .hc-copy,.hero-context .hc-visual{padding:var(--space-8);min-width:0}
+.hero-context .hc-copy{display:flex;flex-direction:column;justify-content:center}
+.hero-context p{margin:0;max-width:none;font-family:var(--sb-font)}
+.hero-context .hc-kicker{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);margin-bottom:24px}
+.hc-kicker>span{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px var(--primary-lt);flex-shrink:0}
+.hero-context h1{font-size:clamp(36px,3.7vw,48px);line-height:1.07;letter-spacing:-.045em;margin:0 0 24px;font-weight:750;text-wrap:balance}
+.hero-context h1 span{animation:none;background:linear-gradient(110deg,var(--primary),var(--primary-dk));background-clip:text;-webkit-background-clip:text}
+.hero-context .hc-lead{font-size:20px;line-height:1.4;color:var(--text);margin-bottom:16px;letter-spacing:-.025em}
+.hc-lead strong{font-weight:650}
+.hero-context .hc-description{font-size:16px;line-height:1.65;color:var(--text2);max-width:440px}
+.hero-context .hc-actions{display:flex;align-items:center;gap:24px;margin-top:24px;flex-wrap:wrap}
+.hc-actions .btn{min-height:48px;gap:24px}
+.hc-tour{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:550;min-height:44px;color:var(--text2)}
+.hc-tour:hover{color:var(--primary)}
+.hero-context .hc-reassurance{font-size:12px;line-height:1.5;color:var(--text2);margin-top:16px}
+.hero-context .hc-visual{position:relative;border-left:1px solid var(--border);background:radial-gradient(ellipse at 50% 30%,var(--primary-lt),transparent 72%),var(--bg);isolation:isolate}
+.hc-visual::before{content:"";position:absolute;inset:0;z-index:-1;background-image:radial-gradient(var(--border) .75px,transparent .75px);background-size:16px 16px;mask:radial-gradient(ellipse,#000,transparent 75%)}
+.hc-visual-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:12px;font-weight:600;color:var(--text2)}
+.hc-demo-label{font-size:10px;letter-spacing:.06em;font-weight:500;border:1px solid var(--border);background:var(--card);padding:4px 8px;border-radius:var(--r-pill)}
+.hc-library{position:relative;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-md);padding:16px}
+.hc-library::before{content:"";position:absolute;inset:-6px 12px 6px;border:1px solid var(--border);border-radius:var(--r);z-index:-1;background:var(--card)}
+.hc-library-brand{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:15px;letter-spacing:-.025em}
+.hc-library-brand img{width:24px;height:24px;object-fit:contain}
+.hc-library-mark{margin-left:auto;color:var(--primary);font-size:24px;line-height:1}
+.hc-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hc-library-item{display:flex;align-items:center;flex-direction:column;padding:8px 4px;border:1px solid var(--border);border-radius:var(--r-btn);background:var(--bg)}
+.hc-library-item svg{width:22px;height:22px;color:var(--primary);margin-bottom:8px}
+.hc-library-item strong{font-size:12px;font-weight:600;line-height:1.4}
+.hc-library-item span{font-size:10px;color:var(--text2);line-height:1.5;margin-top:4px;text-align:center}
+.hc-routing{height:40px;position:relative}
+.hc-routing svg{width:100%;height:100%;overflow:visible}
+.hc-routing path{fill:none;stroke:var(--border);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.hc-routing .hc-route-active{stroke:var(--primary);stroke-width:1.75}
+.hc-routing-node{position:absolute;top:-4px;left:calc(50% - 4px);width:8px;height:8px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px var(--primary-lt)}
+.hc-models{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hc-models button{display:flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:8px;font:600 12px var(--sb-font);color:var(--text2);background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);cursor:pointer;transition:background .18s,color .18s,border-color .18s,box-shadow .18s}
+.hc-models button span{font-size:14px;opacity:.4}
+.hc-models button:hover{border-color:var(--primary);color:var(--primary)}
+.hc-models button[aria-pressed="true"]{background:var(--primary-lt);color:var(--primary);border-color:var(--primary);box-shadow:var(--shadow-sm)}
+.hc-models button[aria-pressed="true"] span{opacity:1}
+.hero-context :is(a,button):focus-visible{outline:2px solid var(--primary);outline-offset:4px}
+.hc-preview{padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-top:16px;box-shadow:var(--shadow-sm)}
+.hc-preview-heading{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);letter-spacing:-.015em}
+.hc-preview-heading strong{font-weight:600}
+.hc-check{display:grid;place-items:center;width:20px;height:20px;background:var(--primary-lt);color:var(--primary);border-radius:50%;font-size:12px;flex-shrink:0}
+.hero-context .hc-preview p{color:var(--text2);font-size:12px;line-height:1.6;margin-top:8px}
+.hc-preview-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:11px;color:var(--primary);font-weight:500}
+.hero-context .hc-visual-hint{text-align:center;font-size:11px;line-height:1.5;color:var(--text2);margin-top:12px}
+.hc-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;border-top:1px solid var(--border);background:var(--bg)}
+.hero-context .hc-footer p{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--text2);flex-wrap:wrap}
+.hc-footer p>span{color:var(--primary);margin-right:8px}
+.hc-footer p strong{color:var(--text);font-weight:600}
+.hero-context .hero-eyebrow{margin:0;padding:4px 8px;font-size:11px;font-weight:500;border:0;background:transparent;backdrop-filter:none}
+.hero-context .hero-eyebrow::before{animation:none;width:5px;height:5px}
+@media(min-width:861px) and (max-width:1080px){
+  .hero-context .hc-copy,.hero-context .hc-visual{padding:24px}
+  .hero-context h1{font-size:38px}
+  .hero-context .hc-actions{gap:12px}
+  .hc-actions .btn{gap:12px;padding-inline:16px}
+}
+@media(max-width:860px){
+  .hero-context .hc-grid{grid-template-columns:1fr}
+  .hero-context .hc-copy{padding:32px}
+  .hero-context h1{font-size:clamp(36px,6vw,48px);max-width:640px}
+  .hero-context .hc-description{max-width:580px}
+  .hero-context .hc-visual{border-left:0;border-top:1px solid var(--border);padding:32px max(32px,calc((100% - 500px)/2))}
+}
+@media(max-width:540px){
+  .hero.hero-context{padding:16px 16px 32px}
+  .hero-context .hc-copy,.hero-context .hc-visual{padding:24px}
+  .hero-context h1{font-size:clamp(30px,8.5vw,40px);line-height:1.08;margin-bottom:20px}
+  .hero-context .hc-kicker{font-size:10px;letter-spacing:.08em;margin-bottom:20px}
+  .hero-context .hc-lead{font-size:18px;margin-bottom:12px}
+  .hero-context .hc-description{font-size:14px;line-height:1.6}
+  .hero-context .hc-actions{gap:8px;margin-top:20px}
+  .hc-actions .btn{width:100%;justify-content:space-between;font-size:14px}
+  .hc-tour{min-height:40px;font-size:12px}
+  .hero-context .hc-reassurance{font-size:11px;margin-top:8px}
+  .hc-visual-head{font-size:11px;gap:8px;margin-bottom:20px}
+  .hc-demo-label{font-size:9px;padding:4px 6px}
+  .hc-library{padding:12px}
+  .hc-library-brand{margin-bottom:12px}
+  .hc-library-grid,.hc-models{gap:6px}
+  .hc-library-item{padding:12px 2px}
+  .hc-library-item span{font-size:9px}
+  .hc-models button{font-size:11px;gap:6px;padding:6px}
+  .hc-preview{padding:16px}
+  .hc-preview-heading{font-size:13px}
+  .hc-footer{padding:16px 24px;flex-direction:column;align-items:flex-start;gap:8px}
+  .hero-context .hc-footer p{font-size:12px}
+  .hero-context .hero-eyebrow{padding:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-context *{animation:none!important;transition:none!important;scroll-behavior:auto}
+}
+
 </style>
 </head>
 <body>
@@ -1229,50 +1245,49 @@ body.cm-locked{overflow:hidden}
 </div>
 <!-- SHARED:header:END -->
 
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-eyebrow">Extensión de Chrome · {{EXT_VERSION}}</div>
-    <h1>Tu IA puede cambiar.<br><span>Tu contexto no debería.</span></h1>
-    <p><strong>Un solo lugar para tus Snippets, Prompts y Brains. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.</strong></p>
-    <p>SprintBrain reúne tus conocimientos reutilizables, instrucciones y flujos de trabajo en un espacio inteligente, para que puedas pasar de una herramienta de IA a otra sin empezar de cero.</p>
-    <div class="hero-ctas"><a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Prueba SprintBrain gratis →</a></div>
-    <p class="context-note">Sin ataduras a una plataforma. Sin complejidad innecesaria. Solo tu contexto, listo para usar.</p>
-
-    <div class="demo" id="demo">
-      <div class="demo-bar">
-        <span class="demo-dot r"></span><span class="demo-dot y"></span><span class="demo-dot g"></span>
-        <span class="demo-url" id="demo-url">mail.google.com</span>
-        <span class="demo-steps" id="demo-steps" aria-hidden="true">
-          <span class="demo-step on"></span><span class="demo-step"></span><span class="demo-step"></span>
-        </span>
-      </div>
-      <div class="demo-body">
-        <div class="demo-label">Tú escribes</div>
-        <div class="demo-typeline">
-          <span class="demo-type" id="demo-type">::quote</span><span class="demo-caret" id="demo-caret" aria-hidden="true"></span>
+<section class="hero hero-context" id="context" aria-labelledby="hc-title">
+  <div class="hero-inner hc-shell">
+    <div class="hc-grid">
+      <div class="hc-copy">
+        <p class="hc-kicker"><span aria-hidden="true"></span> Deja de empezar de cero.</p>
+        <h1 id="hc-title">Tu IA puede cambiar.<br><span>Tu contexto no debería.</span></h1>
+        <p class="hc-lead">Un solo lugar para tus<br><strong>Snippets, Prompts y Brains.</strong></p>
+        <p class="hc-description">Guarda tus conocimientos, instrucciones y flujos de trabajo una sola vez. Organízalos en SprintBrain. Lleva el contexto adecuado a cada IA, sin empezar de nuevo.</p>
+        <div class="hc-actions">
+          <a href="https://app.sprintbrain.com/signup" class="btn btn-primary">Prueba SprintBrain gratis <span aria-hidden="true">↗</span></a>
+          <a href="#sb-expansion" class="hc-tour">Míralo en acción <span aria-hidden="true">↓</span></a>
         </div>
-        <div class="demo-arrow" id="demo-arrow">↓</div>
-        <div class="demo-label">SprintBrain escribe</div>
-        <div class="demo-output" id="demo-out" aria-live="polite">Estimado huésped,
+        <p class="hc-reassurance">Sin ataduras. Solo tu contexto, listo para usar.</p>
+      </div>
 
-El total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.
-
-Un cordial saludo,
-Equipo LeibTour</div>
+      <div class="hc-visual" aria-label="Demo interactiva del contexto portátil">
+        <div class="hc-visual-head"><span>Tu contexto, conectado.</span><span class="hc-demo-label">Demo interactiva</span></div>
+        <div class="hc-library">
+          <div class="hc-library-brand"><img src="../leib-tour-icon.png" alt="" width="28" height="28"><strong>SprintBrain</strong><span class="hc-library-mark" aria-hidden="true">✳</span></div>
+          <div class="hc-library-grid">
+            <div class="hc-library-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/></svg><strong>Snippets</strong><span>Tu contenido</span></div>
+            <div class="hc-library-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3m6 0h4"/></svg><strong>Prompts</strong><span>Tus instrucciones</span></div>
+            <div class="hc-library-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg><strong>Brains</strong><span>Tus conocimientos</span></div>
+          </div>
+        </div>
+        <div class="hc-routing" aria-hidden="true">
+          <svg viewBox="0 0 420 64" preserveAspectRatio="none"><path d="M210 0V16Q210 30 196 30H84Q70 30 70 44V64M210 0V64M210 0V16Q210 30 224 30H336Q350 30 350 44V64"/><path class="hc-route-active" d="M210 0V16Q210 30 196 30H84Q70 30 70 44V64"/></svg>
+          <span class="hc-routing-node"></span>
+        </div>
+        <div class="hc-models" role="group" aria-label="Elige una IA para la vista previa">
+          <button type="button" data-hc-model="ChatGPT" aria-pressed="true">ChatGPT<span aria-hidden="true">↗</span></button>
+          <button type="button" data-hc-model="Claude" aria-pressed="false">Claude<span aria-hidden="true">↗</span></button>
+          <button type="button" data-hc-model="Gemini" aria-pressed="false">Gemini<span aria-hidden="true">↗</span></button>
+        </div>
+        <div class="hc-preview" aria-live="polite" aria-atomic="true">
+          <div class="hc-preview-heading"><span class="hc-check" aria-hidden="true">✓</span><strong>Mismo contexto. <span id="hc-destination">ChatGPT</span>.</strong></div>
+          <p>Tu voz. Tu proyecto. Tus mejores instrucciones.<br>Listos para la próxima conversación.</p>
+          <div class="hc-preview-foot"><span>Guarda una vez. Reutiliza donde quieras.</span><span aria-hidden="true">↗</span></div>
+        </div>
+        <p class="hc-visual-hint">Elige una IA. Tu contexto sigue contigo.</p>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="section context-section" id="context">
-  <div class="section-inner">
-    <div class="section-head context-copy">
-      <h2>Deja de empezar de cero.</h2>
-      <p>Cada vez que abres una nueva herramienta de IA, llevas contigo las mismas instrucciones, información y contexto.</p>
-      <p>SprintBrain cambia eso.</p>
-      <p>Guarda lo importante una sola vez. Organízalo. Reutilízalo. Incorpora el contexto adecuado cuando lo necesites.</p>
-      <p><strong>Menos repetición. Más acción.</strong></p>
-    </div>
+    <div class="hc-footer"><p><span aria-hidden="true">↗</span> Menos repetición. <strong>Más acción.</strong></p><div class="hero-eyebrow">Extensión de Chrome · {{EXT_VERSION}}</div></div>
   </div>
 </section>
 
@@ -2380,140 +2395,37 @@ Equipo LeibTour</div>
 })();
 
 
-/* Hero demo: types a trigger, expands it, moves to the next app. The product
-   selling itself above the fold. Static markup is the no-JS fallback. */
+/* Local illustration only: choosing an AI never sends or syncs data. */
 (function(){
-  var typeEl=document.getElementById('demo-type');
-  var outEl=document.getElementById('demo-out');
-  var urlEl=document.getElementById('demo-url');
-  var arrowEl=document.getElementById('demo-arrow');
-  var stepsEl=document.getElementById('demo-steps');
-  var demoEl=document.getElementById('demo');
-  if(!typeEl||!outEl||!urlEl||!arrowEl||!stepsEl||!demoEl)return;
-
-  var SCENES=[
-    {app:'mail.google.com',trigger:'::quote',out:
-      'Estimado huésped,\n\nEl total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.\n\nUn cordial saludo,\nEquipo LeibTour'},
-    {app:'web.whatsapp.com',trigger:'::checkin',out:
-      'Hola Marco, el check-in abre a las 16:00.\n\nLas llaves están en la cerradura inteligente junto a la verja: código 4417. El aparcamiento y los datos del wifi están en la guía.\n\n¡Hasta mañana!'},
-    {app:'notion.so',trigger:'::followup',out:
-      'Retomo el presupuesto del martes.\n\nLa villa sigue libre para tus fechas y puedo mantenerla bloqueada hasta el viernes a las 18:00.\n\n¿Quieres que la reserve?'}
+  var root=document.querySelector('.hero-context');
+  if(!root)return;
+  var buttons=Array.from(root.querySelectorAll('[data-hc-model]'));
+  var destination=root.querySelector('#hc-destination');
+  var route=root.querySelector('.hc-route-active');
+  var preview=root.querySelector('.hc-preview');
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  var paths=[
+    'M210 0V16Q210 30 196 30H84Q70 30 70 44V64',
+    'M210 0V64',
+    'M210 0V16Q210 30 224 30H336Q350 30 350 44V64'
   ];
-
-  var TYPE_MS=58, HOLD_AFTER_TYPE=520, LINE_STAGGER=70, HOLD_SCENE=3200, FADE_MS=340;
-  var timers=[], i=0, running=false;
-
-  function clearTimers(){timers.forEach(clearTimeout);timers=[];}
-  function at(ms,fn){timers.push(setTimeout(fn,ms));}
-  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-  // Highlight the values a formula would have produced: money and percentages.
-  function highlight(line){
-    return esc(line).replace(/(€[\d.,]+|\d+%)/g,'<span class="demo-hi">$1</span>');
-  }
-
-  function buildHtml(text,animate){
-    var lines=text.split('\n'), html='', shown=0;
-    for(var n=0;n<lines.length;n++){
-      var blank=lines[n]==='';
-      var delay=animate?(shown*LINE_STAGGER):0;
-      html+='<div class="demo-line'+(blank?' blank':'')+'"'
-          +(animate?' style="animation-delay:'+delay+'ms"':' style="animation:none;opacity:1"')
-          +'>'+(blank?'':highlight(lines[n]))+'</div>';
-      if(!blank)shown++;
-    }
-    return {html:html,revealMs:shown*LINE_STAGGER+420};
-  }
-
-  function renderOut(text,animate){
-    var b=buildHtml(text,animate);
-    outEl.innerHTML=b.html;
-    return b.revealMs;
-  }
-
-  // Reserve the tallest scene's height so the card never resizes mid-loop.
-  // Text wraps differently at every width, so this is measured, not hard-coded.
-  var probe=null;
-  function sizeOutput(){
-    if(!probe){
-      probe=outEl.cloneNode(false);
-      probe.removeAttribute('id');
-      probe.setAttribute('aria-hidden','true');
-      probe.style.position='absolute';
-      probe.style.visibility='hidden';
-      probe.style.pointerEvents='none';
-      probe.style.minHeight='0';
-      probe.style.boxSizing=getComputedStyle(outEl).boxSizing;
-      outEl.parentNode.appendChild(probe);
-    }
-    outEl.style.minHeight='0';
-    probe.style.width=outEl.getBoundingClientRect().width+'px';
-    var max=0;
-    for(var n=0;n<SCENES.length;n++){
-      probe.innerHTML=buildHtml(SCENES[n].out,false).html;
-      max=Math.max(max,probe.getBoundingClientRect().height);
-    }
-    outEl.style.minHeight=Math.ceil(max)+'px';
-  }
-
-  function setSteps(idx){
-    var dots=stepsEl.children;
-    for(var n=0;n<dots.length;n++)dots[n].className='demo-step'+(n===idx?' on':'');
-  }
-
-  function playScene(){
-    var s=SCENES[i];
-    setSteps(i);
-    urlEl.classList.add('swap');
-    at(FADE_MS/2,function(){urlEl.textContent=s.app;urlEl.classList.remove('swap');});
-
-    typeEl.textContent='';
-    outEl.innerHTML='';
-    arrowEl.classList.add('idle');
-
-    // type the trigger, one character at a time
-    for(var c=1;c<=s.trigger.length;c++){
-      (function(n){at(n*TYPE_MS,function(){typeEl.textContent=s.trigger.slice(0,n);});})(c);
-    }
-
-    var typedAt=s.trigger.length*TYPE_MS+HOLD_AFTER_TYPE;
-    at(typedAt,function(){arrowEl.classList.remove('idle');});
-    at(typedAt+140,function(){
-      var revealMs=renderOut(s.out,true);
-      at(revealMs+HOLD_SCENE,function(){
-        i=(i+1)%SCENES.length;
-        if(running)playScene();
-      });
+  var animations=[];
+  function stopMotion(){animations.forEach(function(animation){animation.cancel();});animations=[];}
+  buttons.forEach(function(button,index){
+    button.addEventListener('click',function(){
+      if(button.getAttribute('aria-pressed')==='true')return;
+      stopMotion();
+      buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item===button));});
+      destination.textContent=button.dataset.hcModel;
+      route.setAttribute('d',paths[index]);
+      if(!reduced.matches&&typeof preview.animate==='function'){
+        animations.push(preview.animate([{opacity:.45,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'ease-out'}));
+        animations.push(route.animate([{strokeDasharray:'8 10',strokeDashoffset:60},{strokeDasharray:'8 10',strokeDashoffset:0}],{duration:500,easing:'ease-out'}));
+      }
     });
-  }
-
-  function start(){if(running)return;running=true;i=0;playScene();}
-  function stop(){running=false;clearTimers();}
-
-  var resizeTimer;
-  window.addEventListener('resize',function(){
-    clearTimeout(resizeTimer);
-    resizeTimer=setTimeout(sizeOutput,150);
   });
-
-  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    sizeOutput();
-    renderOut(SCENES[0].out,false);
-    return; // static: no typing, no loop
-  }
-
-  sizeOutput();
-  start();
-
-  // Stop the loop once the demo is scrolled past; resume when it returns.
-  if('IntersectionObserver' in window){
-    new IntersectionObserver(function(entries){
-      entries.forEach(function(e){
-        if(e.isIntersecting)start();
-        else stop();
-      });
-    },{threshold:.15}).observe(demoEl);
-  }
+  reduced.addEventListener('change',stopMotion);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)stopMotion();});
 })();
 
 // SHARED:footer-js:BEGIN
