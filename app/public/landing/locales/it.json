@@ -52,8 +52,8 @@
       "count": 1
     },
     {
-      "find": "<span class=\"trusted-label\" id=\"trusted-heading\">Trusted by operators at</span>",
-      "replace": "<span class=\"trusted-label\" id=\"trusted-heading\">Scelto dagli operatori di</span>",
+      "find": "aria-label=\"Company and program logos\"",
+      "replace": "aria-label=\"Loghi di aziende e programmi\"",
       "count": 1
     },
     {

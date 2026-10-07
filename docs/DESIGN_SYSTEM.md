@@ -160,8 +160,18 @@ and every paragraph stays visible without tabs or accordions.
 The portable-context panel uses a neutral split layout and a static node diagram,
 inspired by Attio's restrained grids: canonical `card` / `bg` / `line` colors,
 6 px small radius, monospaced labels, and a subtle dotted ground. The adjacent
-partner strip is a stationary 3 × 3 grid with hairline separators. It retains
-SprintBrain's existing nine brands; Attio's customer marks are not imported.
+logo grid is stationary, with hairline separators and no visible heading. It
+retains the nine existing brands and adds the AWS Startups, NVIDIA Inception
+and Google for Startups program marks already present in the footer. Program
+names remain complete; these marks must not be relabeled as customer endorsements.
+Attio informs the equal-cell structure and GitHub the balanced monochrome marks;
+neither site's customer roster is imported. The grid uses four columns on desktop,
+three below 960 px and two below 640 px. Cells use the existing spacing tokens,
+with optically sized artwork. Airbnb, Marriott, Booking.com, Expedia, Hilton and
+Tripadvisor vector marks come from the corresponding icons in the Simple Icons
+repository (https://github.com/simple-icons/simple-icons/tree/develop/icons).
+Program artwork reuses the local footer assets. The grid adds no JavaScript,
+automatic motion, interactive affordances or keyboard stops.
 
 ### Shadows
 
