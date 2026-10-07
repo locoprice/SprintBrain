@@ -8,7 +8,7 @@
 //
 // One switch per feature, so each turns on when its server function is
 // deployed and its plan check exists, independently of the others. The phone
-// carries its own copy of the label and of the Ask switch
+// carries its own copy of the label and of the Ask and Picture switches
 // (app/public/mobile/index.html); scripts/check-pro-gate.js fails CI if they
 // drift.
 
@@ -23,7 +23,10 @@ export type ProFeature =
   /** Translate from EN, in the snippet editor. */
   | 'translate'
   /** Suggest labels, in the snippet editor. */
-  | 'labels';
+  | 'labels'
+  /** Read a picture, in the phone's Save to Brain. On the phone only, which
+      carries this switch as PICTURE_AVAILABLE. */
+  | 'picture';
 
 // Typed `boolean`, not left to infer `false`, so every call site reads as a
 // live condition instead of dead code.
@@ -32,6 +35,7 @@ const AVAILABLE: Record<ProFeature, boolean> = {
   draft: false,
   translate: false,
   labels: false,
+  picture: false,
 };
 
 /** Whether this feature may run. False for every feature until the Pro plan exists. */

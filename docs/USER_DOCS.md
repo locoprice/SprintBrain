@@ -68,6 +68,7 @@ These exist in the product but don't work for users, so the manual stays silent 
 - **Push to Notion** (snippets): writes to one database set on the server, not to the account's own Notion.
 - **Triggers card**: the Shortcut prefix buttons and the Snippet key / Prompt key choices are saved but never read by the extension.
 - **Label suggestions**: shown locked for Pro since v3.61.0 (switch `labels` in `app/src/lib/proFeatures.ts`); the `suggest-labels` function is not deployed.
+- **Read a picture** (phone, Save to Brain): built locked for Pro in v3.63.0 (switch `picture`, and `PICTURE_AVAILABLE` on the phone); the `read-picture` function is not deployed. Its section is kept, unpublished, in `docs/pro-features/read-picture.mdx`. The phone page documents the free way instead: copy the text with Live Text or Google Lens, then Paste & save.
 - **Analytics cards**: "across 4 folders" and the "12%" change are fixed text, and "last 30 days" doesn't match the 14-day data window.
 
 Documented as limits instead: the phone page ignores `{elseif:}` and `{else}`; Notion sync has no French column.

@@ -1,14 +1,14 @@
 // Pro lock gate (docs/pro-features/README.md).
 //
-// Four features call the AI service and cost real money per use: Ask
-// SprintBrain, Draft with AI, Translate from EN and Suggest labels. Until the
-// Pro plan exists each is shown locked ("Available to Pro users soon") and
-// cannot start a request. Their switches live in app/src/lib/proFeatures.ts;
-// the phone carries its own copy of the label and of the Ask switch. This pins
-// what must agree:
+// Five features call the AI service and cost real money per use: Ask
+// SprintBrain, Draft with AI, Translate from EN, Suggest labels and Read a
+// picture. Until the Pro plan exists each is shown locked ("Available to Pro
+// users soon") and cannot start a request. Their switches live in
+// app/src/lib/proFeatures.ts; the phone carries its own copy of the label and
+// of the Ask and Picture switches. This pins what must agree:
 //
 //   1. One label, on the dashboard and on the phone.
-//   2. The phone's Ask switch follows the dashboard's.
+//   2. The phone's Ask and Picture switches follow the dashboard's.
 //   3. Every entry point reads its switch, and shows the lock.
 //   4. A request can leave only from the one place that sits behind a switch:
 //      a new caller of an AI function fails this gate until it is gated.
@@ -39,10 +39,10 @@ const MOBILE = read('app/public/mobile/index.html');
 const DOCS_JSON = read('user-docs/docs.json');
 
 // ── The switches ───────────────────────────────────────────────────────────
-const FEATURES = ['ask', 'draft', 'translate', 'labels'];
+const FEATURES = ['ask', 'draft', 'translate', 'labels', 'picture'];
 const on = {};
-for (const m of LIB.matchAll(/^\s*(ask|draft|translate|labels):\s*(true|false),/gm)) on[m[1]] = m[2] === 'true';
-check('proFeatures.ts declares a switch for each of the four features', FEATURES.every((f) => f in on), JSON.stringify(on));
+for (const m of LIB.matchAll(/^\s*(ask|draft|translate|labels|picture):\s*(true|false),/gm)) on[m[1]] = m[2] === 'true';
+check('proFeatures.ts declares a switch for each of the five features', FEATURES.every((f) => f in on), JSON.stringify(on));
 
 // ── 1. One label ───────────────────────────────────────────────────────────
 const label = (LIB.match(/export const PRO_SOON_LABEL = '([^']+)'/) || [])[1];
@@ -54,6 +54,10 @@ const phone = MOBILE.match(/var ASK_AVAILABLE=(true|false);/);
 check('the phone has an Ask switch', phone !== null);
 check('the phone Ask switch matches the dashboard\'s', phone !== null && (phone[1] === 'true') === on.ask,
   'phone ' + (phone && phone[1]) + ' vs dashboard ' + on.ask);
+const phonePicture = MOBILE.match(/var PICTURE_AVAILABLE=(true|false);/);
+check('the phone has a Picture switch', phonePicture !== null);
+check('the phone Picture switch matches the dashboard\'s', phonePicture !== null && (phonePicture[1] === 'true') === on.picture,
+  'phone ' + (phonePicture && phonePicture[1]) + ' vs dashboard ' + on.picture);
 
 // ── 3. Every entry point reads its switch and shows the lock ───────────────
 const ENTRY_POINTS = [
@@ -71,6 +75,11 @@ check('the phone guards the question before any request', /function openAsk\(que
 check('a tap on a locked phone row says the label', MOBILE.includes('if(!ASK_AVAILABLE){showToast(PRO_SOON_LABEL);return;}'));
 check('the phone shows the lock on all three Ask rows', (MOBILE.match(/class="ask-lock"/g) || []).length === 3);
 check('the phone row shows the label in plain sight, since a phone has no hover', MOBILE.includes(':PRO_SOON_LABEL;'));
+check('the phone reads no picture while its switch is off', /function readPicture\(file\)\{\s*if\(!PICTURE_AVAILABLE\|\|/.test(MOBILE));
+check('a tap on the locked Read a picture row says the label', MOBILE.includes("if(!PICTURE_AVAILABLE){showToast(PRO_SOON_LABEL);return;}"));
+check('the locked Read a picture row shows the lock and the label in plain sight',
+  MOBILE.includes('class="cap-pic-lock"') && MOBILE.includes("textContent=!PICTURE_AVAILABLE?PRO_SOON_LABEL"));
+check('while locked, Save to Brain says how to copy a picture\'s text without it', MOBILE.includes("textContent=PICTURE_AVAILABLE?'':PICTURE_TIP;"));
 
 // ── 4. A request leaves from one place only ────────────────────────────────
 function walk(dir, out = []) {
@@ -96,7 +105,11 @@ for (const [call, allowed] of CALLERS) {
   const found = SOURCES.filter((file) => read(file).includes(call)).sort();
   check(call + ' is called only from ' + allowed.join(', '), JSON.stringify(found) === JSON.stringify(allowed.slice().sort()), found.join(', '));
 }
-check('the phone sends one kind of AI request, from runAsk', (MOBILE.match(/\/functions\/v1\/ask-sprintbrain/g) || []).length === 1);
+check('the phone sends Ask from one place, runAsk', (MOBILE.match(/\/functions\/v1\/ask-sprintbrain/g) || []).length === 1);
+check('the phone sends Read a picture from one place, readPicture', (MOBILE.match(/\/functions\/v1\/read-picture/g) || []).length === 1
+  && /function readPicture\(file\)\{[\s\S]*?\/functions\/v1\/read-picture[\s\S]*?\n\}/.test(MOBILE));
+check('the phone calls no other AI function', (MOBILE.match(/\/functions\/v1\/[a-z-]+/g) || []).every((u) => /ask-sprintbrain|read-picture/.test(u)),
+  (MOBILE.match(/\/functions\/v1\/[a-z-]+/g) || []).join(', '));
 check('the search panel only opens an answer when the Ask switch is on', read(ENTRY_POINTS[0][1]).includes('const canAsk = askAvailable && showAskRow;'));
 check('Translate does nothing while locked', read(ENTRY_POINTS[2][1]).includes('if (!translateAvailable) return;'));
 
@@ -114,6 +127,17 @@ for (const [feature, folder, kept] of PAGES) {
     check(feature + ' is locked, so its manual page stays out of the published manual', !published && keptHere,
       'published=' + published + ', kept in docs/pro-features=' + keptHere);
   }
+}
+
+// Read a picture lives on the phone, so its manual is a section of the phone's
+// page rather than a page of its own: kept in docs/pro-features while locked.
+const MOBILE_PAGE = read('user-docs/apps/mobile.mdx');
+const pictureDocumented = MOBILE_PAGE.includes('**Read a picture**');
+if (on.picture) {
+  check('picture is on, so the phone page documents Read a picture', pictureDocumented);
+} else {
+  check('picture is locked, so the phone page leaves Read a picture out', !pictureDocumented);
+  check('picture is locked, so its manual section is kept in docs/pro-features', exists('docs/pro-features/read-picture.mdx'));
 }
 
 if (failed > 0) {
