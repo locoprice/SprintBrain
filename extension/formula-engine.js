@@ -37,6 +37,7 @@
 //   datetimediff(A, B, "calendar")  — whole days apart on a calendar, DST-safe
 //   datetimediff(A, B, "day"|"hour"|"minute"|"second")  — elapsed time, may be fractional
 // Comparisons in conditions: VAR = "value" / VAR != "value" (string);
+//   VAR != "" (the field is filled); VAR contains "value" (string);
 //   >, <, >=, <=, ==, != (numeric, operands evaluated as formulas)
 // No eval() or Function() — CSP-safe recursive descent parser throughout.
 // ─────────────────────────────────────────────────────────────────
@@ -983,8 +984,19 @@
   // ── CONDITION EVALUATOR ─────────────────────────────────────────
   // Extends evalFormula with string comparison:
   //   VAR = "value"   VAR == "value"   VAR != "value"   VAR <> "value"
+  //   VAR contains "value"
+  // Both ignore case. Mirrored by sbEvalCondition in app/public/mobile/index.html;
+  // scripts/check-snippets.js holds the two to the same answers.
   function evalCondition(expr, vals) {
     var e = String(expr).replace(/^\s+|\s+$/g, '');
+    // Checked first: the quoted value may itself hold a < or a >, which the
+    // numeric form below would otherwise split on. A multiple choice holds its
+    // picks as one line, so this is also how a rule asks "was this one ticked".
+    var cs = /^([A-Za-z_][A-Za-z0-9_]*)\s+contains\s+["']([^"']*)["']$/i.exec(e);
+    if (cs) {
+      var hay = String(vals[cs[1]] !== undefined && vals[cs[1]] !== null ? vals[cs[1]] : '');
+      return hay.toLowerCase().indexOf(cs[2].toLowerCase()) !== -1 ? 1 : 0;
+    }
     var sm = /^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|<>|=)\s*["']([^"']*)["']$/.exec(e);
     if (sm) {
       var lhs = String(vals[sm[1]] !== undefined && vals[sm[1]] !== null ? vals[sm[1]] : '');

@@ -56,6 +56,20 @@ describe('formula engine — conditional comparisons', () => {
     expect(engine.evalCondition('LANG = "EN"', { LANG: 'es' })).toBe(0);
   });
 
+  // What the Show or hide builder writes for Contains and Is filled.
+  it('evaluates contains, ignoring case, before any numeric split', () => {
+    expect(engine.evalCondition('NOTE contains "urgent"', { NOTE: 'Very URGENT' })).toBe(1);
+    expect(engine.evalCondition('NOTE CONTAINS "urgent"', { NOTE: 'later' })).toBe(0);
+    expect(engine.evalCondition('NOTE contains "a > b"', { NOTE: 'if a > b then' })).toBe(1);
+    expect(engine.evalCondition('NOTE contains "x"', {})).toBe(0);
+  });
+
+  it('treats != "" as "is filled"', () => {
+    expect(engine.evalCondition('NOTE != ""', { NOTE: 'Hi' })).toBe(1);
+    expect(engine.evalCondition('NOTE != ""', { NOTE: '' })).toBe(0);
+    expect(engine.evalCondition('NOTE != ""', {})).toBe(0);
+  });
+
   it('preserves truthy and arithmetic-only conditions', () => {
     expect(engine.evalCondition('COUNT', { COUNT: 3 })).toBe(3);
     expect(engine.evalCondition('COUNT', { COUNT: 0 })).toBe(0);

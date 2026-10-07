@@ -36,7 +36,7 @@ CI runs all three on every push to `develop`.
 | Typing triggers, the menu, fill form, right-click, selection suggestions, Undo, capitalization | `extension/content/content.js`, `extension/background/background.js`, `extension/shared/fill-form.js` | `text-snippets/insert` |
 | Snippet editor, folders, labels, list, bulk actions, unused notice | `app/src/features/snippets/`, `app/src/features/org/`, `app/src/features/labels/` | `text-snippets/create-and-organize` |
 | Field builders: Text, Number, Date/Time, Automatic, Range, Choice, Button | `app/src/features/snippets/Form*Dialog.tsx`, `app/src/lib/form*Token.ts`, `extension/formula-engine.js` | `text-snippets/dynamic-fields` |
-| Math (Price line, Calculator, Interest), Condition, Greeting, `{time:}`, `{case:}`, functions | `FormPriceLineDialog.tsx`, `FormCalculatorDialog.tsx`, `FormInterestDialog.tsx`, `app/src/lib/formulaToken.ts`, `extension/formula-engine.js` | `text-snippets/formulas` |
+| Math (Price line, Calculator, Interest, Show or hide), Condition, Greeting, `{time:}`, `{case:}`, functions | `FormPriceLineDialog.tsx`, `FormCalculatorDialog.tsx`, `FormInterestDialog.tsx`, `FormConditionDialog.tsx`, `app/src/lib/formulaToken.ts`, `app/src/lib/conditionRule.ts`, `extension/formula-engine.js` | `text-snippets/formulas` |
 | Languages, language check, language picker, greeting and gendered words | `NewSnippetDialog.tsx`, `content.js` (language modal), `formula-engine.js` | `text-snippets/multilanguage` |
 | Version history | `VersionHistoryPanel.tsx` | `text-snippets/version-history` |
 | Import and export | `app/src/lib/snippetIo.ts`, `ImportExportButtons.tsx` | `text-snippets/import-export` |

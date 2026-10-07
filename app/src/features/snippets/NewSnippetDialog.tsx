@@ -44,6 +44,7 @@ import { LabelPicker } from '@/features/labels/LabelPicker';
 import { LabelSuggestions } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
+import { FormConditionDialog, RuleSummary } from '@/features/snippets/FormConditionDialog';
 import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
 import { FormInterestDialog } from '@/features/snippets/FormInterestDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
@@ -61,6 +62,12 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
+import {
+  findRuleAt,
+  rulesInBody,
+  summarizeEntry,
+  type RuleInBody,
+} from '@/lib/conditionRule';
 import { nextNumberName } from '@/lib/formNumberToken';
 import {
   buildFormDateToken,
@@ -200,7 +207,7 @@ const FIELDS_HINT =
 const ACTIONS_HINT =
   'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
 const MATH_HINT =
-  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open one below to see what it does.';
+  'Calculated for you. A discounted price, a total, a line shown only when an answer calls for it: math resolves as the snippet expands, from what is filled in. Open one below to see what it does.';
 const LOGIC_HINT =
   'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
 
@@ -323,6 +330,20 @@ const MATH_FORMULAS: readonly {
       FORMULA_REMOVE,
     ],
   },
+];
+
+// The parts of a show or hide rule, named as FormConditionDialog names them,
+// so the rail explains the window before it opens. The checks are the
+// builder's own (RULE_OPERATORS in @/lib/conditionRule).
+const RULE_FIELDS: { label: string; hint: string }[] = [
+  { label: 'If',
+    hint: 'A field, a check and a value: Equals, Does not equal, Is greater than, Is less than, Contains or Is filled.' },
+  { label: 'Then',
+    hint: 'Show or hide the text you type. It can hold fields and formulas too.' },
+  { label: 'Else',
+    hint: 'The opposite happens. A shown text can print something else in its place.' },
+  { label: 'Rules',
+    hint: 'Every rule in the snippet is listed in plain words, below and in the window, with Edit and Remove.' },
 ];
 
 // A > 0 is the safest opening condition to hand someone: it is true of any
@@ -501,6 +522,10 @@ export function NewSnippetDialog() {
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
   // Which formula window is open: a line of a quote from a price, or a calculator.
   const [formulaWindow, setFormulaWindow] = useState<FormulaWindow | null>(null);
+  // Show or hide builder — writes an {if:} block at the cursor, or rewrites the
+  // one the cursor sits in. Held in state for the same reason as menuEdit.
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [ruleEdit, setRuleEdit] = useState<RuleInBody | null>(null);
 
   // Read from the field itself: which saved percentages a window offers, and
   // whether it sits inside a condition, depend on exactly where the answer lands.
@@ -717,6 +742,22 @@ export function NewSnippetDialog() {
       }),
     [form.content, dateFormat],
   );
+
+  // The rule the caret sits in, when the builder can edit it. A condition typed
+  // by hand in another shape is left to the body.
+  const ruleAtCaret = useMemo(() => {
+    const entry = findRuleAt(form.content, caret);
+    return entry && entry.rule ? entry : null;
+  }, [form.content, caret]);
+
+  // Every condition in the body, listed in plain words under the toggle.
+  const bodyRules = useMemo(() => rulesInBody(form.content), [form.content]);
+
+  function openRuleBuilder(entry: RuleInBody | null) {
+    if (contentRef.current) setCaret(contentRef.current.selectionStart);
+    setRuleEdit(entry);
+    setRuleOpen(true);
+  }
 
   function openMenuBuilder() {
     const cfg = menuAtCaret ? parseFormMenuToken(menuAtCaret.raw) : null;
@@ -1513,6 +1554,70 @@ export function NewSnippetDialog() {
                   </dl>
                 </Toggle>
               ))}
+
+              {/* Like Choice, the button edits the rule the cursor sits in.
+                  The rules already in the body are listed under the parts, in
+                  the same plain words the window uses, so the logic of a
+                  snippet reads without opening anything. */}
+              <Toggle
+                label="Show or hide"
+                className="mb-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => openRuleBuilder(ruleAtCaret)}
+                  >
+                    {ruleAtCaret ? (
+                      <Pencil className="mr-1 h-3 w-3" />
+                    ) : (
+                      <Plus className="mr-1 h-3 w-3" />
+                    )}
+                    {ruleAtCaret ? 'Edit this rule' : 'Build a rule'}
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Text that prints only when an answer calls for it, the way a form
+                  shows a question only when it applies. If a field equals, contains
+                  or passes a value, then the text shows or hides, else the opposite.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {RULE_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {bodyRules.length > 0 && (
+                  <div className="mt-2.5 border-t border-line pt-2">
+                    <p className="font-mono text-[10px] text-ink">In this snippet</p>
+                    <ul className="mt-1 flex flex-col gap-1">
+                      {bodyRules.map((entry) =>
+                        entry.rule ? (
+                          <li key={entry.start}>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => openRuleBuilder(entry)}
+                              className="w-full rounded-[6px] px-1 py-0.5 text-left transition-colors hover:bg-bg-alt focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                            >
+                              <RuleSummary parts={summarizeEntry(entry)} className="text-[11px]" />
+                            </button>
+                          </li>
+                        ) : (
+                          <li key={entry.start} className="px-1 py-0.5">
+                            <RuleSummary parts={summarizeEntry(entry)} className="text-[11px]" />
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </Toggle>
             </div>
 
             {/* Logic */}
@@ -2060,6 +2165,16 @@ export function NewSnippetDialog() {
                 onReplace={replaceRange}
               />
             ))}
+
+            <FormConditionDialog
+              open={ruleOpen}
+              onOpenChange={setRuleOpen}
+              body={form.content}
+              caret={caret}
+              initial={ruleEdit}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
+            />
 
             <FormDateRangeDialog
               open={dateRangeOpen}

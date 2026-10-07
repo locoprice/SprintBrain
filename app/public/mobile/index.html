@@ -5139,6 +5139,74 @@ function sbEvalFormula(expr,vals){
   }catch(e){return null;}
 }
 
+/* Whether an {if:} condition holds: 1 or 0, or the formula's own answer for a
+   bare expression. Mirrors evalCondition in extension/formula-engine.js, and
+   scripts/check-snippets.js holds the two to the same answers: text compares
+   ignoring case (VAR = "x", VAR != "x", VAR != "" for "is filled",
+   VAR contains "x"), numbers through sbEvalFormula, so 1.200,50 reads as the
+   desktop reads it. */
+function sbEvalCondition(expr,vals){
+  var e=String(expr).replace(/^\s+|\s+$/g,'');
+  var cs=/^([A-Za-z_][A-Za-z0-9_]*)\s+contains\s+["']([^"']*)["']$/i.exec(e);
+  if(cs){
+    var hay=String(vals[cs[1]]!==undefined&&vals[cs[1]]!==null?vals[cs[1]]:'');
+    return hay.toLowerCase().indexOf(cs[2].toLowerCase())!==-1?1:0;
+  }
+  var sm=/^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|<>|=)\s*["']([^"']*)["']$/.exec(e);
+  if(sm){
+    var lhs=String(vals[sm[1]]!==undefined&&vals[sm[1]]!==null?vals[sm[1]]:'');
+    var eq=lhs.toLowerCase()===sm[3].toLowerCase();
+    return (sm[2]==='='||sm[2]==='==')?(eq?1:0):(eq?0:1);
+  }
+  sm=/^["']([^'"]*)['"]\s*(==|!=|<>|=)\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(e);
+  if(sm){
+    var lhs2=String(vals[sm[3]]!==undefined&&vals[sm[3]]!==null?vals[sm[3]]:'');
+    var eq2=lhs2.toLowerCase()===sm[1].toLowerCase();
+    return (sm[2]==='='||sm[2]==='==')?(eq2?1:0):(eq2?0:1);
+  }
+  var cm=/^(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/.exec(e);
+  if(cm){
+    var lv=sbEvalFormula(cm[1],vals),rv=sbEvalFormula(cm[3],vals);
+    if(lv===null||rv===null)return 0;
+    switch(cm[2]){
+      case '>=':return lv>=rv?1:0;
+      case '<=':return lv<=rv?1:0;
+      case '>':return lv>rv?1:0;
+      case '<':return lv<rv?1:0;
+      case '==':return lv===rv?1:0;
+      case '!=':return lv!==rv?1:0;
+    }
+  }
+  return sbEvalFormula(e,vals);
+}
+
+/* An {if:}'s inside cut at each {elseif: …} and {else}: one branch per case,
+   cond null for {else}. Mirrors _splitIfBranches in the engine. */
+function sbSplitIfBranches(firstCond,inner){
+  var branches=[],cur=firstCond,last=0,re=/\{(else(?:if:[^}]*)?)\}/g,m;
+  while((m=re.exec(inner))!==null){
+    branches.push({cond:cur,body:inner.slice(last,m.index)});
+    var tag=m[1].replace(/^\s+|\s+$/g,'');
+    cur=tag==='else'?null:tag.slice(7).replace(/^\s+|\s+$/g,'');
+    last=m.index+m[0].length;
+  }
+  branches.push({cond:cur,body:inner.slice(last)});
+  return branches;
+}
+
+/* The branch of an {if:} block that prints: the first whose condition holds,
+   else the {else}, else none (''). */
+function sbIfBranch(firstCond,inner,vals){
+  var br=sbSplitIfBranches(firstCond,inner);
+  for(var i=0;i<br.length;i++){
+    if(br[i].cond===null)return br[i].body;
+    var r=null;
+    try{r=sbEvalCondition(br[i].cond,vals);}catch(e){r=null;}
+    if(r!==null&&r!==0)return br[i].body;
+  }
+  return '';
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
@@ -5149,23 +5217,6 @@ function extractFields(body) {
     if(!dup)vars.push(key);
   }
   return vars;
-}
-
-function evalCond(cond,vals){
-  try{
-    var c=cond.replace(/"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_]*)/g,
-      function(match,id){
-        if(!id)return match;
-        if(FUNS[id])return SB_MATH_FNS[id]||id;
-        var v=vals[id];
-        if(v===undefined||v==='')return '0';
-        var n=parseFloat(v);
-        if(!isNaN(n)&&String(n)===String(v).trim())return String(n);
-        return JSON.stringify(String(v));
-      });
-    c=c.replace(/([^!<>=])=([^=])/g,'$1==$2');
-    return !!Function('"use strict";return('+c+')')();
-  }catch(e){return false;}
 }
 
 function resolveBody(body,vals,opts){
@@ -5217,17 +5268,17 @@ function resolveBody(body,vals,opts){
         i=cl+1;continue;
       }
 
-      /* {if: cond}...{endif} */
+      /* {if: cond}...{elseif: cond}...{else}...{endif} */
       if(tok.slice(0,3)==='if:'){
         var cnd=tok.slice(3).replace(/^\s+|\s+$/g,'');
         var ei='{endif}',eidx=body.indexOf(ei,cl+1);
         var inner=eidx!==-1?body.slice(cl+1,eidx):'';
-        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),subOpts);
+        out+=resolveBody(sbIfBranch(cnd,inner,vals),Object.assign({},vals),subOpts);
         i=eidx!==-1?eidx+ei.length:cl+1;continue;
       }
 
-      /* {endif} */
-      if(tok==='endif'){i=cl+1;continue;}
+      /* {endif}, and a branch tag with no {if:} before it */
+      if(tok==='endif'||tok==='else'||tok.slice(0,7).toLowerCase()==='elseif:'){i=cl+1;continue;}
 
       /* {gender: FIELD; m=Querido; f=Querida} */
       if(tok.slice(0,7).toLowerCase()==='gender:'){
