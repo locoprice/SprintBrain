@@ -2,6 +2,16 @@
   "lang": "es",
   "entries": [
     {
+      "find": "<section id=\"sb-expansion\" aria-labelledby=\"sb-title\" data-demo=\"true\" data-paused=\"false\">\n    <div class=\"sb-grain\" aria-hidden=\"true\"></div>\n    <div class=\"sb-heading\">\n      <p class=\"sb-eyebrow\"><span class=\"sb-star\" aria-hidden=\"true\">✳</span> YOUR KNOWLEDGE, SET IN MOTION</p>\n      <h2 id=\"sb-title\">Small shortcuts.<br><span>Extraordinary momentum.</span></h2>\n\n    </div>\n\n    <div class=\"sb-engine\" aria-label=\"Expansion engine demonstration\">\n      <svg class=\"sb-connections\" viewBox=\"0 0 1160 390\" preserveAspectRatio=\"none\" aria-hidden=\"true\">\n        <defs>\n          <linearGradient id=\"sb-path-gradient\"><stop stop-color=\"#6284ef\" stop-opacity=\".05\"/><stop offset=\".48\" stop-color=\"#537df5\" stop-opacity=\".55\"/><stop offset=\"1\" stop-color=\"#8a6ded\" stop-opacity=\".12\"/></linearGradient>\n          <linearGradient id=\"sb-packet-gradient\"><stop stop-color=\"#507cf0\" stop-opacity=\"0\"/><stop offset=\"1\" stop-color=\"#507cf0\"/></linearGradient>\n        </defs>\n        <path class=\"sb-track\" d=\"M 160 143 C 330 143 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 160 201 C 330 201 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 160 259 C 330 259 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 673 199 C 787 199 796 199 947 199\"/>\n        <path class=\"sb-packet sb-packet-a\" pathLength=\"100\" d=\"M 160 143 C 330 143 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-b\" pathLength=\"100\" d=\"M 160 201 C 330 201 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-c\" pathLength=\"100\" d=\"M 160 259 C 330 259 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-out\" pathLength=\"100\" d=\"M 673 199 C 787 199 796 199 947 199\"/>\n      </svg>\n\n      <div class=\"sb-input-side\">\n\n        <span class=\"sb-sr-only\" id=\"sb-shortcut-readable\">Shortcut ::brief</span>\n        <div class=\"sb-shortcuts\" aria-hidden=\"true\">\n          <div class=\"sb-ghost-key sb-ghost-top\"><span class=\"sb-shortcut-sign\">::</span>intro<span class=\"sb-key-kind\">SNIPPET</span></div>\n          <div class=\"sb-active-key\"><span class=\"sb-shortcut-sign\">::</span><span id=\"sb-trigger\">brief</span><span class=\"sb-caret\"></span><span class=\"sb-enter-symbol\">↵</span></div>\n          <div class=\"sb-ghost-key sb-ghost-bottom\"><span class=\"sb-shortcut-sign\">::</span>followup<span class=\"sb-key-kind\">SNIPPET</span></div>\n        </div>\n        <p class=\"sb-side-note\">Start with what you already know.</p>\n      </div>\n\n      <div class=\"sb-core\">\n        <svg class=\"sb-orbit\" viewBox=\"0 0 460 410\" aria-hidden=\"true\">\n          <defs>\n            <radialGradient id=\"sb-core-glow\"><stop stop-color=\"#edf1ff\" stop-opacity=\".9\"/><stop offset=\".58\" stop-color=\"#eaf0ff\" stop-opacity=\".3\"/><stop offset=\"1\" stop-color=\"#fff\" stop-opacity=\"0\"/></radialGradient>\n            <linearGradient id=\"sb-orbit-color\" x1=\"0\" x2=\"1\" y1=\"0\" y2=\"1\"><stop stop-color=\"#bfd0ff\"/><stop offset=\".5\" stop-color=\"#4368e0\"/><stop offset=\"1\" stop-color=\"#b7a6f4\"/></linearGradient>\n          </defs>\n          <ellipse cx=\"230\" cy=\"205\" rx=\"219\" ry=\"194\" fill=\"url(#sb-core-glow)\"/>\n          <ellipse class=\"sb-orbit-outer\" cx=\"230\" cy=\"207\" rx=\"215\" ry=\"181\"/>\n          <ellipse class=\"sb-orbit-inner\" cx=\"230\" cy=\"207\" rx=\"192\" ry=\"161\"/>\n          <g id=\"sb-ticks\"></g>\n          <ellipse class=\"sb-orbit-sweep\" cx=\"230\" cy=\"207\" rx=\"215\" ry=\"181\" pathLength=\"100\"/>\n          <circle class=\"sb-orbit-dot\" cx=\"230\" cy=\"26\" r=\"3.5\"/>\n        </svg>\n        <div class=\"sb-metric-content\">\n          <div class=\"sb-data-badge\" id=\"sb-data-badge\"><span aria-hidden=\"true\"></span> DEMO DATA</div>\n          <div class=\"sb-number-line\" aria-live=\"off\">\n            <span class=\"sb-sr-only\" id=\"sb-rate-readable\">128 snippet and prompt expansions per second, simulated.</span>\n            <span class=\"sb-odometer\" id=\"sb-odometer\" aria-hidden=\"true\">128</span>\n            <span class=\"sb-rate-unit\" aria-hidden=\"true\">/sec</span>\n          </div>\n          <p class=\"sb-metric-label\">snippets &amp; prompts expanded</p>\n          <div class=\"sb-breakdown\" aria-live=\"off\">\n            <div><span class=\"sb-category-dot sb-snippet-dot\" aria-hidden=\"true\"></span><strong id=\"sb-snippet-rate\">86</strong><span>snippets/s</span></div>\n            <span class=\"sb-stat-divider\" aria-hidden=\"true\"></span>\n            <div><span class=\"sb-category-dot sb-prompt-dot\" aria-hidden=\"true\"></span><strong id=\"sb-prompt-rate\">42</strong><span>prompts/s</span></div>\n          </div>\n          <div class=\"sb-wave\" id=\"sb-wave\" aria-hidden=\"true\"></div>\n        </div>\n      </div>\n\n      <div class=\"sb-output-side\">\n\n        <div class=\"sb-output-card\" id=\"sb-output-card\">\n          <div class=\"sb-card-header\"><span class=\"sb-doc-icon\" aria-hidden=\"true\">≡</span><span id=\"sb-output-kind\">PROMPT</span><span class=\"sb-output-ready\"><span aria-hidden=\"true\">✓</span> Expanded</span></div>\n          <h3 id=\"sb-output-title\">A sharper project brief.</h3>\n          <p id=\"sb-output-copy\">Act as my strategy partner. Turn these notes into a clear brief: objective, audience, deliverables, and next steps.</p>\n          <div class=\"sb-card-footer\"><span class=\"sb-output-tag\" id=\"sb-output-tag\">Ready for your next AI</span><span class=\"sb-card-spark\" aria-hidden=\"true\">✳</span></div>\n        </div>\n        <p class=\"sb-side-note\">The right context. Without the repetition.</p>\n      </div>\n    </div>\n\n    <div class=\"sb-actions\">\n      <button class=\"sb-try\" id=\"sb-try\" type=\"button\"><span class=\"sb-button-spark\" aria-hidden=\"true\">✳</span><span>Try an expansion</span><span class=\"sb-button-arrow\" aria-hidden=\"true\">↗</span></button>\n      <a class=\"sb-cta\" href=\"https://app.sprintbrain.com/signup\">Try SprintBrain free <span aria-hidden=\"true\">→</span></a>\n    </div>\n    <div class=\"sb-footer\">\n      <p id=\"sb-data-note\">Simulated activity. Real possibilities.</p>\n      <button class=\"sb-pause\" id=\"sb-pause\" type=\"button\" aria-pressed=\"false\"><span class=\"sb-pause-icon\" aria-hidden=\"true\">Ⅱ</span><span>Pause motion</span></button>\n    </div>\n    <p class=\"sb-sr-only\" id=\"sb-expansion-announcement\" role=\"status\" aria-live=\"polite\"></p>\n  </section>",
+      "replace": "<section id=\"sb-expansion\" aria-labelledby=\"sb-title\" data-demo=\"true\" data-paused=\"false\">\n    <div class=\"sb-grain\" aria-hidden=\"true\"></div>\n    <div class=\"sb-heading\">\n      <p class=\"sb-eyebrow\"><span class=\"sb-star\" aria-hidden=\"true\">✳</span> TU CONOCIMIENTO, EN MOVIMIENTO</p>\n      <h2 id=\"sb-title\">Pequeños atajos.<br><span>Un impulso extraordinario.</span></h2>\n\n    </div>\n\n    <div class=\"sb-engine\" aria-label=\"Demostración de las expansiones\">\n      <svg class=\"sb-connections\" viewBox=\"0 0 1160 390\" preserveAspectRatio=\"none\" aria-hidden=\"true\">\n        <defs>\n          <linearGradient id=\"sb-path-gradient\"><stop stop-color=\"#6284ef\" stop-opacity=\".05\"/><stop offset=\".48\" stop-color=\"#537df5\" stop-opacity=\".55\"/><stop offset=\"1\" stop-color=\"#8a6ded\" stop-opacity=\".12\"/></linearGradient>\n          <linearGradient id=\"sb-packet-gradient\"><stop stop-color=\"#507cf0\" stop-opacity=\"0\"/><stop offset=\"1\" stop-color=\"#507cf0\"/></linearGradient>\n        </defs>\n        <path class=\"sb-track\" d=\"M 160 143 C 330 143 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 160 201 C 330 201 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 160 259 C 330 259 335 199 488 199\"/>\n        <path class=\"sb-track\" d=\"M 673 199 C 787 199 796 199 947 199\"/>\n        <path class=\"sb-packet sb-packet-a\" pathLength=\"100\" d=\"M 160 143 C 330 143 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-b\" pathLength=\"100\" d=\"M 160 201 C 330 201 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-c\" pathLength=\"100\" d=\"M 160 259 C 330 259 335 199 488 199\"/>\n        <path class=\"sb-packet sb-packet-out\" pathLength=\"100\" d=\"M 673 199 C 787 199 796 199 947 199\"/>\n      </svg>\n\n      <div class=\"sb-input-side\">\n\n        <span class=\"sb-sr-only\" id=\"sb-shortcut-readable\">Atajo ::brief</span>\n        <div class=\"sb-shortcuts\" aria-hidden=\"true\">\n          <div class=\"sb-ghost-key sb-ghost-top\"><span class=\"sb-shortcut-sign\">::</span>intro<span class=\"sb-key-kind\">SNIPPET</span></div>\n          <div class=\"sb-active-key\"><span class=\"sb-shortcut-sign\">::</span><span id=\"sb-trigger\">brief</span><span class=\"sb-caret\"></span><span class=\"sb-enter-symbol\">↵</span></div>\n          <div class=\"sb-ghost-key sb-ghost-bottom\"><span class=\"sb-shortcut-sign\">::</span>followup<span class=\"sb-key-kind\">SNIPPET</span></div>\n        </div>\n        <p class=\"sb-side-note\">Empieza con lo que ya sabes.</p>\n      </div>\n\n      <div class=\"sb-core\">\n        <svg class=\"sb-orbit\" viewBox=\"0 0 460 410\" aria-hidden=\"true\">\n          <defs>\n            <radialGradient id=\"sb-core-glow\"><stop stop-color=\"#edf1ff\" stop-opacity=\".9\"/><stop offset=\".58\" stop-color=\"#eaf0ff\" stop-opacity=\".3\"/><stop offset=\"1\" stop-color=\"#fff\" stop-opacity=\"0\"/></radialGradient>\n            <linearGradient id=\"sb-orbit-color\" x1=\"0\" x2=\"1\" y1=\"0\" y2=\"1\"><stop stop-color=\"#bfd0ff\"/><stop offset=\".5\" stop-color=\"#4368e0\"/><stop offset=\"1\" stop-color=\"#b7a6f4\"/></linearGradient>\n          </defs>\n          <ellipse cx=\"230\" cy=\"205\" rx=\"219\" ry=\"194\" fill=\"url(#sb-core-glow)\"/>\n          <ellipse class=\"sb-orbit-outer\" cx=\"230\" cy=\"207\" rx=\"215\" ry=\"181\"/>\n          <ellipse class=\"sb-orbit-inner\" cx=\"230\" cy=\"207\" rx=\"192\" ry=\"161\"/>\n          <g id=\"sb-ticks\"></g>\n          <ellipse class=\"sb-orbit-sweep\" cx=\"230\" cy=\"207\" rx=\"215\" ry=\"181\" pathLength=\"100\"/>\n          <circle class=\"sb-orbit-dot\" cx=\"230\" cy=\"26\" r=\"3.5\"/>\n        </svg>\n        <div class=\"sb-metric-content\">\n          <div class=\"sb-data-badge\" id=\"sb-data-badge\"><span aria-hidden=\"true\"></span> DATOS DEMO</div>\n          <div class=\"sb-number-line\" aria-live=\"off\">\n            <span class=\"sb-sr-only\" id=\"sb-rate-readable\">128 expansiones de snippets y prompts por segundo, datos simulados.</span>\n            <span class=\"sb-odometer\" id=\"sb-odometer\" aria-hidden=\"true\">128</span>\n            <span class=\"sb-rate-unit\" aria-hidden=\"true\">/sec</span>\n          </div>\n          <p class=\"sb-metric-label\">snippets y prompts expandidos</p>\n          <div class=\"sb-breakdown\" aria-live=\"off\">\n            <div><span class=\"sb-category-dot sb-snippet-dot\" aria-hidden=\"true\"></span><strong id=\"sb-snippet-rate\">86</strong><span>snippets/s</span></div>\n            <span class=\"sb-stat-divider\" aria-hidden=\"true\"></span>\n            <div><span class=\"sb-category-dot sb-prompt-dot\" aria-hidden=\"true\"></span><strong id=\"sb-prompt-rate\">42</strong><span>prompts/s</span></div>\n          </div>\n          <div class=\"sb-wave\" id=\"sb-wave\" aria-hidden=\"true\"></div>\n        </div>\n      </div>\n\n      <div class=\"sb-output-side\">\n\n        <div class=\"sb-output-card\" id=\"sb-output-card\">\n          <div class=\"sb-card-header\"><span class=\"sb-doc-icon\" aria-hidden=\"true\">≡</span><span id=\"sb-output-kind\">PROMPT</span><span class=\"sb-output-ready\"><span aria-hidden=\"true\">✓</span> Expandido</span></div>\n          <h3 id=\"sb-output-title\">Un brief de proyecto más claro.</h3>\n          <p id=\"sb-output-copy\">Actúa como mi asesor estratégico. Convierte estas notas en un brief claro: objetivo, público, entregables y próximos pasos.</p>\n          <div class=\"sb-card-footer\"><span class=\"sb-output-tag\" id=\"sb-output-tag\">Listo para tu próxima IA</span><span class=\"sb-card-spark\" aria-hidden=\"true\">✳</span></div>\n        </div>\n        <p class=\"sb-side-note\">El contexto adecuado. Sin repeticiones.</p>\n      </div>\n    </div>\n\n    <div class=\"sb-actions\">\n      <button class=\"sb-try\" id=\"sb-try\" type=\"button\"><span class=\"sb-button-spark\" aria-hidden=\"true\">✳</span><span>Prueba una expansión</span><span class=\"sb-button-arrow\" aria-hidden=\"true\">↗</span></button>\n      <a class=\"sb-cta\" href=\"https://app.sprintbrain.com/signup\">Prueba SprintBrain gratis <span aria-hidden=\"true\">→</span></a>\n    </div>\n    <div class=\"sb-footer\">\n      <p id=\"sb-data-note\">Actividad simulada. Posibilidades reales.</p>\n      <button class=\"sb-pause\" id=\"sb-pause\" type=\"button\" aria-pressed=\"false\"><span class=\"sb-pause-icon\" aria-hidden=\"true\">Ⅱ</span><span>Pausar animación</span></button>\n    </div>\n    <p class=\"sb-sr-only\" id=\"sb-expansion-announcement\" role=\"status\" aria-live=\"polite\"></p>\n  </section>",
+      "count": 1
+    },
+    {
+      "find": "  const copy = {\"shortcut\": \"Shortcut\", \"rate\": \"snippet and prompt expansions per second, simulated.\", \"expanded\": \"expanded.\", \"tryLabel\": \"Try an expansion\", \"expanding\": \"Expanding…\", \"resume\": \"Resume motion\", \"pause\": \"Pause motion\"};\n  const examples = [\n  {\n    \"trigger\": \"brief\",\n    \"kind\": \"PROMPT\",\n    \"title\": \"A sharper project brief.\",\n    \"copy\": \"Act as my strategy partner. Turn these notes into a clear brief: objective, audience, deliverables, and next steps.\",\n    \"tag\": \"Ready for your next AI\"\n  },\n  {\n    \"trigger\": \"followup\",\n    \"kind\": \"SNIPPET\",\n    \"title\": \"The follow-up, already written.\",\n    \"copy\": \"Hi Alex, thanks for the conversation. Here’s a recap of what we discussed and the next steps. Happy to answer any questions.\",\n    \"tag\": \"Ready for your next conversation\"\n  },\n  {\n    \"trigger\": \"review\",\n    \"kind\": \"PROMPT\",\n    \"title\": \"A second pair of expert eyes.\",\n    \"copy\": \"Review this draft for clarity and accuracy. Highlight what matters, flag assumptions, and suggest three specific improvements.\",\n    \"tag\": \"Your standards. Every AI.\"\n  },\n  {\n    \"trigger\": \"intro\",\n    \"kind\": \"SNIPPET\",\n    \"title\": \"A warm welcome. Every time.\",\n    \"copy\": \"Hi there, great to meet you! Here’s a little about what we do, how we can help, and the easiest way to get started.\",\n    \"tag\": \"Your voice. Without retyping.\"\n  }\n];",
+      "replace": "  const copy = {\"shortcut\": \"Atajo\", \"rate\": \"expansiones de snippets y prompts por segundo, datos simulados.\", \"expanded\": \"expandido.\", \"tryLabel\": \"Prueba una expansión\", \"expanding\": \"Expandiendo…\", \"resume\": \"Reanudar animación\", \"pause\": \"Pausar animación\"};\n  const examples = [\n  {\n    \"trigger\": \"brief\",\n    \"kind\": \"PROMPT\",\n    \"title\": \"Un brief de proyecto más claro.\",\n    \"copy\": \"Actúa como mi asesor estratégico. Convierte estas notas en un brief claro: objetivo, público, entregables y próximos pasos.\",\n    \"tag\": \"Listo para tu próxima IA\"\n  },\n  {\n    \"trigger\": \"followup\",\n    \"kind\": \"SNIPPET\",\n    \"title\": \"El seguimiento, ya escrito.\",\n    \"copy\": \"Hola Alex, gracias por la conversación. Aquí tienes un resumen de lo que hablamos y de los próximos pasos. Quedo a tu disposición para cualquier duda.\",\n    \"tag\": \"Listo para tu próxima conversación\"\n  },\n  {\n    \"trigger\": \"review\",\n    \"kind\": \"PROMPT\",\n    \"title\": \"Una segunda mirada experta.\",\n    \"copy\": \"Revisa la claridad y precisión de este borrador. Destaca lo importante, señala las suposiciones y sugiere tres mejoras concretas.\",\n    \"tag\": \"Tus estándares. En cada IA.\"\n  },\n  {\n    \"trigger\": \"intro\",\n    \"kind\": \"SNIPPET\",\n    \"title\": \"Una cálida bienvenida. Siempre.\",\n    \"copy\": \"¡Hola, un placer conocerte! Aquí tienes un resumen de lo que hacemos, cómo podemos ayudarte y la forma más sencilla de empezar.\",\n    \"tag\": \"Tu voz. Sin volver a escribir.\"\n  }\n];",
+      "count": 1
+    },
+    {
       "find": "    <span class=\"foot-lang-current\" aria-current=\"true\">English</span>\n    <a href=\"/it/\" hreflang=\"it\">Italiano</a>\n    <a href=\"/es/\" hreflang=\"es\">Español</a>",
       "replace": "    <a href=\"/\" hreflang=\"en\">English</a>\n    <a href=\"/it/\" hreflang=\"it\">Italiano</a>\n    <span class=\"foot-lang-current\" aria-current=\"true\">Español</span>",
       "count": 1
@@ -42,18 +52,8 @@
       "count": 1
     },
     {
-      "find": "<div class=\"demo-label\">You type</div>",
-      "replace": "<div class=\"demo-label\">Tú escribes</div>",
-      "count": 1
-    },
-    {
-      "find": "<div class=\"demo-label\">SprintBrain writes</div>",
-      "replace": "<div class=\"demo-label\">SprintBrain escribe</div>",
-      "count": 1
-    },
-    {
-      "find": "<span class=\"trusted-label\" id=\"trusted-heading\">Trusted by operators at</span>",
-      "replace": "<span class=\"trusted-label\" id=\"trusted-heading\">Elegido por operadores de</span>",
+      "find": "aria-label=\"Company and program logos\"",
+      "replace": "aria-label=\"Logotipos de empresas y programas\"",
       "count": 1
     },
     {
@@ -622,28 +622,8 @@
       "count": 1
     },
     {
-      "find": "Dear guest,\n\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\n\nBest regards,\nLeibTour Team",
-      "replace": "Estimado huésped,\n\nEl total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.\n\nUn cordial saludo,\nEquipo LeibTour",
-      "count": 1
-    },
-    {
       "find": "            Dear guest,<br>\n            Thank you for your interest. The total for 3 nights is\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/night × 3)</span>,\n            including a <b><span class=\"fs-num\">10%</span></b> early-bird discount.",
       "replace": "            Estimado huésped,<br>\n            Gracias por tu interés. El total por 3 noches es\n            <b><span class=\"fs-num\">€450</span></b> <span style=\"color:var(--fs-ink-subtle)\">(€150/noche × 3)</span>,\n            incluido el <b><span class=\"fs-num\">10%</span></b> de descuento por reserva anticipada.",
-      "count": 1
-    },
-    {
-      "find": "'Dear guest,\\n\\nThe total for 3 nights is €450 (€150/night × 3), with the 10% early-bird discount already applied.\\n\\nBest regards,\\nLeibTour Team'",
-      "replace": "'Estimado huésped,\\n\\nEl total por 3 noches es de €450 (€150/noche × 3), con el 10% de descuento por reserva anticipada ya aplicado.\\n\\nUn cordial saludo,\\nEquipo LeibTour'",
-      "count": 1
-    },
-    {
-      "find": "'Hi Marco, check-in opens at 16:00.\\n\\nThe keys are in the smart lock by the gate: code 4417. Parking and the wifi details are in the guide.\\n\\nSee you tomorrow!'",
-      "replace": "'Hola Marco, el check-in abre a las 16:00.\\n\\nLas llaves están en la cerradura inteligente junto a la verja: código 4417. El aparcamiento y los datos del wifi están en la guía.\\n\\n¡Hasta mañana!'",
-      "count": 1
-    },
-    {
-      "find": "'Following up on Tuesday’s quote.\\n\\nThe villa is still free for your dates and I can hold it until Friday at 18:00.\\n\\nWant me to reserve it?'",
-      "replace": "'Retomo el presupuesto del martes.\\n\\nLa villa sigue libre para tus fechas y puedo mantenerla bloqueada hasta el viernes a las 18:00.\\n\\n¿Quieres que la reserve?'",
       "count": 1
     },
     {
@@ -687,48 +667,8 @@
       "count": 1
     },
     {
-      "find": ">One place for your Snippets, Prompts and Brains. Built to give every AI the context it needs to work better.<",
-      "replace": ">Un solo lugar para tus Snippets, Prompts y Brains. Diseñado para dar a cada IA el contexto que necesita para trabajar mejor.<",
-      "count": 1
-    },
-    {
-      "find": ">SprintBrain brings your reusable knowledge, instructions and workflows together in one intelligent workspace, so you can move between AI tools without starting from zero.<",
-      "replace": ">SprintBrain reúne tus conocimientos reutilizables, instrucciones y flujos de trabajo en un espacio inteligente, para que puedas pasar de una herramienta de IA a otra sin empezar de cero.<",
-      "count": 1
-    },
-    {
       "find": ">Try SprintBrain Free →<",
       "replace": ">Prueba SprintBrain gratis →<",
-      "count": 2
-    },
-    {
-      "find": ">No lock-in. No unnecessary complexity. Just your context, ready to use.<",
-      "replace": ">Sin ataduras a una plataforma. Sin complejidad innecesaria. Solo tu contexto, listo para usar.<",
-      "count": 1
-    },
-    {
-      "find": ">Stop starting from zero.<",
-      "replace": ">Deja de empezar de cero.<",
-      "count": 1
-    },
-    {
-      "find": ">Every time you open a new AI tool, you bring the same instructions, information and context with you.<",
-      "replace": ">Cada vez que abres una nueva herramienta de IA, llevas contigo las mismas instrucciones, información y contexto.<",
-      "count": 1
-    },
-    {
-      "find": ">SprintBrain changes that.<",
-      "replace": ">SprintBrain cambia eso.<",
-      "count": 1
-    },
-    {
-      "find": ">Store what matters once. Organize it. Reuse it. Inject the right context when you need it.<",
-      "replace": ">Guarda lo importante una sola vez. Organízalo. Reutilízalo. Incorpora el contexto adecuado cuando lo necesites.<",
-      "count": 1
-    },
-    {
-      "find": ">Less repetition. More execution.<",
-      "replace": ">Menos repetición. Más acción.<",
       "count": 1
     },
     {
@@ -1084,6 +1024,96 @@
     {
       "find": "<a href=\"pricing/\">Pricing</a>",
       "replace": "<a href=\"pricing/\">Precio</a>",
+      "count": 1
+    },
+    {
+      "find": "</span> Stop starting from zero.</p>",
+      "replace": "</span> Deja de empezar de cero.</p>",
+      "count": 1
+    },
+    {
+      "find": "One home for your<br><strong>Snippets, Prompts and Brains.</strong>",
+      "replace": "Un solo lugar para tus<br><strong>Snippets, Prompts y Brains.</strong>",
+      "count": 1
+    },
+    {
+      "find": "Save your knowledge, instructions and workflows once. Organize them in SprintBrain. Bring the right context to every AI, without starting over.",
+      "replace": "Guarda tus conocimientos, instrucciones y flujos de trabajo una sola vez. Organízalos en SprintBrain. Lleva el contexto adecuado a cada IA, sin empezar de nuevo.",
+      "count": 1
+    },
+    {
+      "find": "Try SprintBrain Free <span aria-hidden=\"true\">↗</span>",
+      "replace": "Prueba SprintBrain gratis <span aria-hidden=\"true\">↗</span>",
+      "count": 1
+    },
+    {
+      "find": "See it in motion <span aria-hidden=\"true\">↓</span>",
+      "replace": "Míralo en acción <span aria-hidden=\"true\">↓</span>",
+      "count": 1
+    },
+    {
+      "find": "No lock-in. Just your context, ready to use.",
+      "replace": "Sin ataduras. Solo tu contexto, listo para usar.",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Interactive context portability demo\"",
+      "replace": "aria-label=\"Demo interactiva del contexto portátil\"",
+      "count": 1
+    },
+    {
+      "find": ">Your context, connected.<",
+      "replace": ">Tu contexto, conectado.<",
+      "count": 1
+    },
+    {
+      "find": ">Interactive demo<",
+      "replace": ">Demo interactiva<",
+      "count": 1
+    },
+    {
+      "find": ">Your content<",
+      "replace": ">Tu contenido<",
+      "count": 1
+    },
+    {
+      "find": ">Your instructions<",
+      "replace": ">Tus instrucciones<",
+      "count": 1
+    },
+    {
+      "find": ">Your knowledge<",
+      "replace": ">Tus conocimientos<",
+      "count": 1
+    },
+    {
+      "find": "aria-label=\"Choose an AI to preview\"",
+      "replace": "aria-label=\"Elige una IA para la vista previa\"",
+      "count": 1
+    },
+    {
+      "find": "<strong>Same context. <span id=\"hc-destination\">",
+      "replace": "<strong>Mismo contexto. <span id=\"hc-destination\">",
+      "count": 1
+    },
+    {
+      "find": "Your voice. Your project. Your best instructions.<br>Ready for the next conversation.",
+      "replace": "Tu voz. Tu proyecto. Tus mejores instrucciones.<br>Listos para la próxima conversación.",
+      "count": 1
+    },
+    {
+      "find": ">Save once. Reuse anywhere.<",
+      "replace": ">Guarda una vez. Reutiliza donde quieras.<",
+      "count": 1
+    },
+    {
+      "find": "Choose an AI. Your context stays with you.",
+      "replace": "Elige una IA. Tu contexto sigue contigo.",
+      "count": 1
+    },
+    {
+      "find": "</span> Less repetition. <strong>More execution.</strong>",
+      "replace": "</span> Menos repetición. <strong>Más acción.</strong>",
       "count": 1
     }
   ],

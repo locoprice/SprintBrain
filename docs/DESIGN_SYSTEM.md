@@ -160,8 +160,18 @@ and every paragraph stays visible without tabs or accordions.
 The portable-context panel uses a neutral split layout and a static node diagram,
 inspired by Attio's restrained grids: canonical `card` / `bg` / `line` colors,
 6 px small radius, monospaced labels, and a subtle dotted ground. The adjacent
-partner strip is a stationary 3 × 3 grid with hairline separators. It retains
-SprintBrain's existing nine brands; Attio's customer marks are not imported.
+logo grid is stationary, with hairline separators and no visible heading. It
+retains the nine existing brands and adds the AWS Startups, NVIDIA Inception
+and Google for Startups program marks already present in the footer. Program
+names remain complete; these marks must not be relabeled as customer endorsements.
+Attio informs the equal-cell structure and GitHub the balanced monochrome marks;
+neither site's customer roster is imported. The grid uses four columns on desktop,
+three below 960 px and two below 640 px. Cells use the existing spacing tokens,
+with optically sized artwork. Airbnb, Marriott, Booking.com, Expedia, Hilton and
+Tripadvisor vector marks come from the corresponding icons in the Simple Icons
+repository (https://github.com/simple-icons/simple-icons/tree/develop/icons).
+Program artwork reuses the local footer assets. The grid adds no JavaScript,
+automatic motion, interactive affordances or keyboard stops.
 
 ### Shadows
 
@@ -290,3 +300,16 @@ The four local, content-hashed image assets live in `app/public/landing/assets/p
 - **FR contrast darken:** move FR from `#0D9488` to `#0F766E` (≈5.3:1 text) across tokens, `/mobile/`, dashboard, and popup in one change.
 - **Danger token alignment:** move the extension's `--sb-danger` from `#DC2626` to the canonical `#D70015` so the two surfaces match. Touches every danger element in the popup, so it wants its own change and a visual pass — not a side effect of the ticket that surfaced it.
 - **Status badges on `/mobile/`:** not rendered there yet.
+
+
+### Landing Expansion Engine (October 2026)
+
+The user-approved motion composition sits directly after the trusted-operator logos and before the feature list. It uses the existing page background and font, with a self-contained pale azure/lilac illustration palette, orbital paths, stable odometer digits and example text cards scoped to `#sb-expansion`. These decorative gradients, borders, radii and shadows preserve the approved prototype; they are not new product status tokens. The main heading and signup link remain stationary. The removed subtitle and numbered step labels must not be restored.
+
+All displayed rates are explicitly marked as simulated, in English, Italian and Spanish. The demo reads no account analytics or private snippet content. A native pause control stops automatic metrics, examples and motion; manual expansion still works without motion. Reduced-motion preferences start the section paused, and offscreen/hidden pages suspend its timer. Locale source and generated pages remain in parity. This changes only the marketing demonstration, not the product expansion behavior or user manual.
+
+### Unified context hero (October 2026)
+
+The homepage combines the original hero and “Stop starting from zero” introduction in one balanced two-column container. The left column carries one h1, concise supporting copy and the existing signup CTA; the right illustrates a reusable context library and lets visitors choose an AI destination in an explicitly labeled local demo. Both columns use the same system font, canonical Azure/neutral palette, 32 px inset and equal grid tracks. The shared footer of the container carries the outcome and extension version. On narrow screens the message and CTA precede the illustration.
+
+The illustration reuses `card`, `bg`, `bg-alt`, `primary`, `primary-lt`, `border`, `r`, `r-btn`, `shadow-sm` and `shadow-md`. Its decorative glow uses the existing primary color with transparency, without introducing product status colors. Interaction triggers one short transition, honors reduced motion and makes no network request. New styles are scoped to `.hero-context`, outside shared pricing-page fragments. The lower Expansion Engine remains unchanged. This is marketing presentation only; application behavior and user documentation are unaffected.
