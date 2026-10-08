@@ -2340,6 +2340,25 @@ function _celEsc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function _celebrationBurst(card) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var burst = document.createElement('span');
+  burst.className = 'sb-cel-confetti';
+  burst.setAttribute('aria-hidden', 'true');
+  // One small burst around the status icon; no page-wide canvas or extra timer.
+  for (var i = 0; i < 12; i++) {
+    var piece = document.createElement('i');
+    var angle = (i / 12) * Math.PI * 2;
+    var distance = i % 2 ? 24 : 30;
+    piece.style.setProperty('--cel-x', Math.round(Math.cos(angle) * distance) + 'px');
+    piece.style.setProperty('--cel-y', Math.round(Math.sin(angle) * distance) + 'px');
+    piece.style.setProperty('--cel-turn', (i % 2 ? 150 : -150) + 'deg');
+    burst.appendChild(piece);
+  }
+  burst.addEventListener('animationend', function() { burst.remove(); }, { once: true });
+  card.querySelector('.sb-cel-symbol').appendChild(burst);
+}
+
 function showCelebration(text, onConfirm, onUndo, options) {
   // Settle the previous card before capturing focus or installing a new timer.
   if (activeCelebrationClose) activeCelebrationClose();
@@ -2414,6 +2433,7 @@ function showCelebration(text, onConfirm, onUndo, options) {
   var countdownIv;
   var barEl = card.querySelector('#sb-cel-bar');
   var cdEl = card.querySelector('#sb-cel-cd');
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function restoreFocus() {
     if (!returnFocus || !returnFocus.isConnected || typeof returnFocus.focus !== 'function') return;
@@ -2451,7 +2471,8 @@ function showCelebration(text, onConfirm, onUndo, options) {
     clearTimeout(autoCloseTimer);
     clearInterval(countdownIv);
     cdEl.textContent = inserted ? 'Auto-close paused' : 'Auto-insert paused';
-    barEl.parentNode.hidden = true;
+    // Freeze the remaining time in place so the progress bar never disappears
+    // just because the pointer is already over the newly opened card.
   }
 
   function containFocus(event) {
@@ -2492,10 +2513,13 @@ function showCelebration(text, onConfirm, onUndo, options) {
   var started = Date.now();
   countdownIv = setInterval(function() {
     var remaining = Math.max(0, 5000 - (Date.now() - started));
-    barEl.style.transform = 'scaleX(' + remaining / 5000 + ')';
+    // Reduced motion keeps a visible bar, updated in discrete one-second steps.
+    var progress = reducedMotion ? Math.ceil(remaining / 1000) / 5 : remaining / 5000;
+    barEl.style.transform = 'scaleX(' + progress + ')';
     cdEl.textContent = (inserted ? 'Closes' : 'Inserts') + ' in ' + Math.ceil(remaining / 1000) + 's';
   }, 100);
   autoCloseTimer = setTimeout(confirm, 5000);
+  if (!warning && summary.characters > 0) _celebrationBurst(card);
 }
 
 // ── INLINE TRIGGER PICKER ──────────────────────────────────────────
@@ -3527,7 +3551,11 @@ document.addEventListener('input', function(e) {
     '#sb-celebrate svg{display:block;flex:none;}' +
     '#sb-celebrate .sb-cel-body{padding:var(--sb-s-8);}' +
     '#sb-celebrate .sb-cel-heading{display:flex;align-items:center;gap:var(--sb-s-3);}' +
-    '#sb-celebrate .sb-cel-symbol{width:var(--sb-s-8);height:var(--sb-s-8);display:flex;align-items:center;justify-content:center;flex:none;color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-md);}' +
+    '#sb-celebrate .sb-cel-symbol{position:relative;width:var(--sb-s-8);height:var(--sb-s-8);display:flex;align-items:center;justify-content:center;flex:none;color:var(--sb-azure);background:var(--sb-azure-bg);border-radius:var(--sb-r-md);}' +
+    '#sb-celebrate .sb-cel-confetti{position:absolute;inset:0;pointer-events:none;}' +
+    '#sb-celebrate .sb-cel-confetti i{position:absolute;top:50%;left:50%;width:var(--sb-s-1);height:calc(var(--sb-s-1) * 1.5);background:var(--sb-azure);border-radius:0;opacity:0;animation:sbConfettiBurst calc(var(--sb-dur-base) * 5) ease-out both;}' +
+    '#sb-celebrate .sb-cel-confetti i:nth-child(3n){background:var(--sb-lang-multi);}' +
+    '#sb-celebrate .sb-cel-confetti i:nth-child(3n + 1){background:var(--sb-warn);}' +
     '#sb-celebrate #sb-cel-title{font-size:var(--sb-fs-24);font-weight:600;letter-spacing:-.03em;line-height:1.25;}' +
     '#sb-celebrate #sb-cel-description{margin-top:var(--sb-s-2);color:var(--sb-ink-muted);font-size:var(--sb-fs-13);}' +
     '#sb-celebrate #sb-cel-description.sb-cel-warn{color:var(--sb-warn);font-weight:600;}' +
@@ -3546,12 +3574,12 @@ document.addEventListener('input', function(e) {
     '#sb-celebrate .sb-cel-primary{min-width:calc(var(--sb-s-12) * 2);background:var(--sb-azure);color:var(--sb-bg);}' +
     '#sb-celebrate .sb-cel-primary:hover{background:var(--sb-azure-dark);}' +
     '#sb-celebrate .sb-cel-timer{display:flex;justify-content:space-between;gap:var(--sb-s-2);margin-top:var(--sb-s-3);font-size:var(--sb-fs-11);color:var(--sb-ink-muted);}' +
-    '#sb-celebrate .sb-cel-track{height:2px;margin-top:var(--sb-s-2);background:var(--sb-line);border-radius:var(--sb-r-pill);overflow:hidden;}' +
+    '#sb-celebrate .sb-cel-track{height:var(--sb-s-1);margin-top:var(--sb-s-2);background:var(--sb-line);border-radius:var(--sb-r-pill);overflow:hidden;}' +
     '#sb-celebrate #sb-cel-bar{height:100%;background:var(--sb-azure);transform-origin:left;}' +
-    '#sb-celebrate .sb-cel-track[hidden]{visibility:hidden;display:block;}' +
     '@media(max-width:480px){#sb-celebrate .sb-cel-header{padding:var(--sb-s-3) var(--sb-s-6);}#sb-celebrate .sb-cel-body{padding:var(--sb-s-6);}#sb-celebrate .sb-cel-time{padding:var(--sb-s-4) var(--sb-s-5);}#sb-celebrate .sb-cel-footer{padding:var(--sb-s-4) var(--sb-s-6);}}' +
     '@keyframes sbSummaryIn{from{opacity:0;transform:translate(-50%,-48%)}to{opacity:1;transform:translate(-50%,-50%)}}' +
-    '@media(prefers-reduced-motion:reduce){#sb-celebrate{animation:none;}#sb-celebrate .sb-cel-track{visibility:hidden;}}' +
+    '@keyframes sbConfettiBurst{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}15%{opacity:1}65%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--cel-x)),calc(-50% + var(--cel-y))) rotate(var(--cel-turn)) scale(.7)}}' +
+    '@media(prefers-reduced-motion:reduce){#sb-celebrate{animation:none;}#sb-celebrate .sb-cel-confetti{display:none;}}' +
     '#sb-overlay{background:#fff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;font-size:13px;color:#18181B;}' +
     // Flex column: header, preview and footer keep their size; the
     // fields area is the only part that scrolls, and only when a snippet has
