@@ -719,7 +719,10 @@ export function NewSnippetDialog() {
     setCaret(start + value.length);
     if (el) {
       requestAnimationFrame(() => {
-        el.focus();
+        // preventScroll: a plain focus() while a formula window is still open
+        // (Remove, Undo) snaps the body back to its first line, and the author
+        // loses their place in a long snippet.
+        el.focus({ preventScroll: true });
         const pos = start + value.length;
         el.setSelectionRange(pos, pos);
       });
