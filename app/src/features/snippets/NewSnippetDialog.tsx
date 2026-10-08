@@ -207,9 +207,9 @@ const FIELDS_HINT =
 const ACTIONS_HINT =
   'Clicked while filling. Never printed. An action changes the values in the form as you work, so a figure you would otherwise reach for a calculator to get lands in one click. Open one below to see what it does.';
 const MATH_HINT =
-  'Calculated for you. A discounted price, a total, a line shown only when an answer calls for it: math resolves as the snippet expands, from what is filled in. Open one below to see what it does.';
+  'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open one below to see what it does.';
 const LOGIC_HINT =
-  'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
+  'Worked out on its own. A line that shows or hides depending on an answer, the greeting the hour calls for: logic resolves as the snippet expands. Open one below to see what it does.';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
@@ -1557,14 +1557,27 @@ export function NewSnippetDialog() {
                   </dl>
                 </Toggle>
               ))}
+            </div>
 
+            {/* Logic */}
+            <div className="flex-1 p-4">
+              <div className="flex items-center gap-1.5">
+                <p className={SIDEBAR_LABEL}>Logic</p>
+                <Tooltip
+                  label={LOGIC_HINT}
+                  placement="right"
+                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
+                >
+                  <Info className="h-3 w-3" aria-hidden />
+                </Tooltip>
+              </div>
               {/* Like Choice, the button edits the rule the cursor sits in.
                   The rules already in the body are listed under the parts, in
                   the same plain words the window uses, so the logic of a
                   snippet reads without opening anything. */}
               <Toggle
                 label="Show or hide"
-                className="mb-2.5"
+                className="mb-2.5 mt-2.5"
                 footer={
                   <Button
                     type="button"
@@ -1621,23 +1634,10 @@ export function NewSnippetDialog() {
                   </div>
                 )}
               </Toggle>
-            </div>
 
-            {/* Logic */}
-            <div className="flex-1 p-4">
-              <div className="flex items-center gap-1.5">
-                <p className={SIDEBAR_LABEL}>Logic</p>
-                <Tooltip
-                  label={LOGIC_HINT}
-                  placement="right"
-                  className="flex items-center text-ink-subtle hover:text-ink transition-colors"
-                >
-                  <Info className="h-3 w-3" aria-hidden />
-                </Tooltip>
-              </div>
               <Toggle
                 label="Condition"
-                className="mb-2.5 mt-2.5"
+                className="mb-2.5"
                 footer={
                   <Button
                     type="button"
