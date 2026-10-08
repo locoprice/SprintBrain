@@ -95,6 +95,7 @@
     'DD/MM/YYYY': 'Day / Month / Year',
     'MM/DD/YYYY': 'Month / Day / Year',
     'DD/MM/dddd': 'Day / Month / Weekday',
+    'long': 'Written out',
     'HH:mm': '24-hour',
     'hh:mm A': '12-hour (AM/PM)'
   };
@@ -211,9 +212,10 @@
    * Each format carries a live sample of THIS field's own value rather than a
    * fixed specimen date. The two numeric orders are indistinguishable until you
    * see a day past the twelfth, and the value in hand is the one the operator
-   * is deciding about.
+   * is deciding about. The sample is printed in the snippet's language, so
+   * "Written out" shows "viernes 9 de octubre de 2026" on a Spanish snippet.
    */
-  function adjustFor(E, type, value, now) {
+  function adjustFor(E, type, value, now, lang) {
     if (type !== 'date' && type !== 'time' && type !== 'datetime') return null;
     var fmt = E.sbFormatDate || null;
     var sampleSrc = trim(value) || nowDefault(type, now, fmt);
@@ -223,13 +225,13 @@
       formats.push({
         value: '',
         label: RAW_FORMAT_LABEL,
-        sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, '') : sampleSrc
+        sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, '', lang) : sampleSrc
       });
       for (var i = 0; i < list.length; i++) {
         formats.push({
           value: list[i],
           label: FORMAT_LABELS[list[i]] || list[i],
-          sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, list[i]) : sampleSrc
+          sample: E.sbFormatDateValue ? E.sbFormatDateValue(sampleSrc, list[i], lang) : sampleSrc
         });
       }
     }
@@ -351,11 +353,14 @@
   //         theirs in a different column and must be able to use this later
   //         without the module knowing what a snippet is.
   // values  what the operator has entered so far, keyed by field name.
-  // opts    { fieldCfg, fieldFmt, lang, now } — fieldCfg is a stored override
-  //         that wins over whatever the text declares. fieldFmt is the format
-  //         the operator picked in the Adjust panel, keyed the same way; it
-  //         lives beside `values` because it is the same kind of thing, an
-  //         answer given while the form is open and never saved.
+  // opts    { fieldCfg, fieldFmt, lang, now, linked } — fieldCfg is a stored
+  //         override that wins over whatever the text declares. fieldFmt is
+  //         the format the operator picked in the Adjust panel, keyed the same
+  //         way; it lives beside `values` because it is the same kind of
+  //         thing, an answer given while the form is open and never saved.
+  //         linked marks the fields whose value came from a page (Fill from
+  //         link), keyed the same way again: { KEY: true }. A renderer drops a
+  //         key the moment the operator edits that field by hand.
   function fillForm(text, values, opts) {
     var E = engine();
     var src = (text === null || text === undefined) ? '' : String(text);
@@ -376,6 +381,7 @@
     var declared = E.buildFormFieldCfg(src) || {};
     var stored = o.fieldCfg || {};
     var picked = o.fieldFmt || {};
+    var linked = o.linked || {};
     var keys = fieldKeys(E, src);
     var ctxs = E.fieldContext ? (E.fieldContext(src) || {}) : {};
 
@@ -469,7 +475,16 @@
         // What the Adjust panel offers this field — formats, named days, units,
         // clock. null for everything that is not a date, so a renderer asks one
         // question rather than three.
-        adjust: adjustFor(E, type, val, now),
+        adjust: adjustFor(E, type, val, now, o.lang || ''),
+        // Where on a pasted page this field's value is (Fill from link), as
+        // { mode: 'after'|'before', words: [...] }, or null for a field the
+        // author never pointed at a page. Parsed by the engine, so the rule
+        // means the same thing on every surface and in every builder.
+        link: (raw.link && E.sbParseLinkRule) ? E.sbParseLinkRule(raw.link) : null,
+        // Whether the value the field holds right now came from a page and
+        // nobody has touched it since. Renderers mark it so the operator knows
+        // which answers to check before inserting.
+        fromLink: Object.prototype.hasOwnProperty.call(linked, key) && linked[key] === true,
         // Always visible today. Conditional visibility will compute this from
         // the same {if:} the text already uses; nothing else in the shape moves.
         visible: true
@@ -515,6 +530,12 @@
     for (var j = 0; j < fields.length; j++) if (fields[j].visible) shown.push(fields[j]);
     var layout = chooseLayout(shown.length);
 
+    // A form offers the Link box when at least one of its fields says where
+    // its value is on a page. A snippet that never mentions `link=` looks
+    // exactly as it always has.
+    var linkable = false;
+    for (var lf = 0; lf < fields.length; lf++) if (fields[lf].link) { linkable = true; break; }
+
     // The preview resolves against the EFFECTIVE values, which is each field's
     // entry falling back to its default — not the raw `values` argument. A
     // single-choice menu the operator never touched already reads as its first
@@ -538,6 +559,7 @@
       // too, or what it inserts prints in a different format from the preview
       // the operator just approved.
       fmtOverride: fmtOverride,
+      linkable: linkable,
       layout: layout,
       steps: buildSteps(shown, layout)
     };
@@ -563,9 +585,393 @@
     return v.slice(0, 10);
   }
 
+  // ── FILL FROM LINK ──────────────────────────────────────────────
+  // The person pastes a link to a web page (an order, a ticket, a confirmation)
+  // and the form fills itself from what the page says. The page is fetched by
+  // SprintBrain's server (services/supabase/functions/read-link), because a
+  // phone browser may not read another site's page; what comes back is the
+  // page's visible text as an ordered list of pieces, one per run of text
+  // between two tags. Everything after that is decided here, once, so the four
+  // surfaces cannot read the same page four ways:
+  //
+  //   after:LABEL    the piece right after the piece reading LABEL, or what
+  //                  follows "LABEL:" inside one piece
+  //   before:WORD    every number written right before WORD, added up
+  //
+  // Nothing is guessed. A date that could be read two ways, a weekday that
+  // disagrees with its date, a number that is not one, a choice the menu does
+  // not offer: each comes back `unclear` and the field keeps what it held, so
+  // the operator fills it in rather than sending a wrong answer they never saw.
+
+  // What a pasted link may be before it is sent anywhere. The server checks it
+  // again, properly; this only catches the obvious early, with a message that
+  // says what to do.
+  var LINK_MAX_LENGTH = 2048;
+
+  /**
+   * The link to read, or the reason it cannot be read.
+   * @param {*} raw  what the operator pasted
+   * @returns {{ url: string, problem: string }} problem is '' or a LINK_TEXT key
+   */
+  function linkUrl(raw) {
+    var s = trim(raw);
+    if (s === '') return { url: '', problem: 'link-empty' };
+    // A link copied from an address bar sometimes arrives without its scheme.
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s;
+    if (s.length > LINK_MAX_LENGTH || /\s/.test(s)) return { url: '', problem: 'link-invalid' };
+    if (!/^https:\/\//i.test(s)) {
+      return { url: '', problem: /^http:\/\//i.test(s) ? 'link-not-secure' : 'link-invalid' };
+    }
+    if (!/^https:\/\/[^\/?#@\s]+\.[^\/?#@\s]+/i.test(s)) return { url: '', problem: 'link-invalid' };
+    return { url: s, problem: '' };
+  }
+
+  // Every sentence the feature says, in one place. The four surfaces draw their
+  // own markup and show these words, so a message changes once for all of them.
+  var LINK_TEXT = {
+    'box-label': 'Fill from link',
+    'box-placeholder': 'Paste a link to fill this form',
+    'box-button': 'Fill',
+    'reading': 'Reading the page…',
+    'from-link': 'From link',
+    'not-on-page': 'Not on the page',
+    'unclear': 'Unclear on the page: check it',
+    'none-on-page': 'None on the page',
+    'link-empty': 'Paste a link first.',
+    'link-invalid': 'That doesn’t look like a web link.',
+    'link-not-secure': 'Only secure links (https://) can be read.',
+    'invalid_link': 'That link can’t be read. Only public https:// pages work.',
+    'link_not_allowed': 'That link can’t be read. Only public https:// pages work.',
+    'rate_limited': 'Too many pages read in a short time. Wait a minute and try again.',
+    'link_unreachable': 'Couldn’t reach that page. Check the link and try again.',
+    'link_timeout': 'The page took too long to answer. Try again.',
+    'link_status': 'The page answered with an error. It may have moved or expired.',
+    'link_not_page': 'That link isn’t a web page.',
+    'link_too_large': 'That page is too large to read.',
+    'unauthorized': 'Your session has ended. Sign in again, then retry.',
+    'offline': 'Can’t reach SprintBrain. Check your connection and try again.',
+    'failed': 'Couldn’t read that page. Try again.'
+  };
+
+  /** The words for one LINK_TEXT key, falling back to the generic failure. */
+  function linkText(key) {
+    return Object.prototype.hasOwnProperty.call(LINK_TEXT, key) ? LINK_TEXT[key] : LINK_TEXT.failed;
+  }
+
+  // Comparison form of a piece of page text or of the author's word: case,
+  // accents and spacing do not matter, and neither does a trailing colon.
+  function normText(s) {
+    var v = trim(s).replace(/\s+/g, ' ').toLowerCase();
+    if (v.normalize) v = v.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return v.replace(/\s*:\s*$/, '');
+  }
+
+  // A piece that carries no words: a lone colon, dash or bullet between a label
+  // and its value.
+  var FILLER_RE = /^[\s:;,.\-–—|·•*]*$/;
+
+  // The text after LABEL, or null when the page never shows the label.
+  // The first place the label appears wins: a page repeats a label in a
+  // printable copy or a footer far more often than it means something else by it.
+  function textAfter(pieces, words) {
+    for (var i = 0; i < pieces.length; i++) {
+      var p = normText(pieces[i]);
+      for (var w = 0; w < words.length; w++) {
+        var lbl = normText(words[w]);
+        if (lbl === '') continue;
+        if (p === lbl) {
+          for (var j = i + 1; j < pieces.length; j++) {
+            if (!FILLER_RE.test(pieces[j])) return trim(pieces[j]).replace(/\s+/g, ' ');
+          }
+          return null;
+        }
+        // "Label: value" written as one run of text.
+        var raw = trim(pieces[i]).replace(/\s+/g, ' ');
+        var c = raw.indexOf(':');
+        if (c > 0 && normText(raw.slice(0, c)) === lbl) {
+          var rest = trim(raw.slice(c + 1));
+          if (rest !== '') return rest;
+        }
+      }
+    }
+    return null;
+  }
+
+  function escapeRe(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Letters in the languages the product writes, so "Box" does not match the
+  // start of "Boxes" and a number glued to a longer word is not counted.
+  var LETTER = 'A-Za-zÀ-ɏ';
+
+  // Every number written right before one of WORDS, added up. null when none
+  // appears. Longer words are tried first, so "Boxes" is never also counted as
+  // "Box"; a word must end where a word ends.
+  function numbersBefore(pieces, words, E) {
+    var text = pieces.join(' ').replace(/\s+/g, ' ');
+    var alts = words.slice().sort(function(a, b) { return b.length - a.length; })
+      .map(function(w) { return escapeRe(trim(w)).replace(/\s+/g, '\\s+'); })
+      .filter(function(w) { return w !== ''; });
+    if (!alts.length) return null;
+    var re = new RegExp('(^|[^0-9' + LETTER + '])(\\d+(?:[.,]\\d+)?)\\s*(?:' + alts.join('|') +
+      ')(?![' + LETTER + '])', 'gi');
+    var total = 0, seen = false, m;
+    while ((m = re.exec(text)) !== null) {
+      var n = E.sbToNumber ? E.sbToNumber(m[2]) : parseFloat(m[2]);
+      if (n === null || !isFinite(n)) continue;
+      total += n;
+      seen = true;
+    }
+    return seen ? total : null;
+  }
+
+  // ── Reading a date off a page ──
+  // Months and weekdays in the engine's four languages, in full or cut short
+  // ("Oct", "sept.", "ene", "gio"). A short form must point at one month or
+  // one weekday only; "ju" could be June or July and is not read at all.
+  function nameIndex(words, token) {
+    var t = normText(token).replace(/\.$/, '');
+    if (t.length < 3) return -1;
+    var found = -1;
+    for (var lang in words) {
+      if (!Object.prototype.hasOwnProperty.call(words, lang)) continue;
+      var list = words[lang];
+      for (var i = 0; i < list.length; i++) {
+        var name = normText(list[i]);
+        if (name === t || (t.length >= 3 && name.indexOf(t) === 0)) {
+          if (found !== -1 && found !== i) return -1;
+          found = i;
+        }
+      }
+    }
+    return found;
+  }
+
+  function dateWordLists(E, part) {
+    var src = E.DATE_WORDS || {}, out = {};
+    for (var l in src) if (Object.prototype.hasOwnProperty.call(src, l)) out[l] = src[l][part] || [];
+    return out;
+  }
+
+  function realDate(y, m, d) {
+    if (y < 100) y += 2000;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    var dt = new Date(y, m - 1, d);
+    return (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) ? dt : null;
+  }
+
+  function isoDay(dt) {
+    return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate());
+  }
+
+  var WORD_RE = new RegExp('[' + LETTER + ']+\\.?', 'g');
+
+  /**
+   * The date written in a piece of page text, as 'YYYY-MM-DD', or why not.
+   *
+   * Understood: 2026-10-09; 09-10-2026, 09/10/26, 09.10.2026; "9 October 2026",
+   * "9 de octubre de 2026", "October 9, 2026" in any of the four languages.
+   *
+   * 09-10-2026 is 9 October in most of the world and 10 September in the
+   * United States, and a page rarely says which. A weekday written beside it
+   * settles it ("Friday, 09-10-2026" can only be 9 October 2026). Without one,
+   * a day and month that could swap are refused rather than guessed. A weekday
+   * that disagrees with the date is refused too: one of the two is wrong, and
+   * this cannot know which.
+   *
+   * @returns {{ day: string, rest: string } | { unclear: true } | null}
+   *   null when the text holds no date at all; `rest` is the text with the date
+   *   taken out, where a clock time is looked for next.
+   */
+  function pageDate(E, text) {
+    var s = String(text);
+    var cands = [], at = -1, len = 0, m;
+
+    if ((m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) {
+      var iso = realDate(+m[1], +m[2], +m[3]);
+      if (iso) cands.push(iso);
+      at = m.index; len = m[0].length;
+    } else if ((m = /(^|[^\d])(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})(?!\d)/.exec(s))) {
+      var a = +m[2], b = +m[3], y = +m[4];
+      var dmy = realDate(y, b, a), mdy = realDate(y, a, b);
+      if (dmy) cands.push(dmy);
+      if (mdy && (!dmy || mdy.getTime() !== dmy.getTime())) cands.push(mdy);
+      at = m.index + m[1].length; len = m[0].length - m[1].length;
+    } else {
+      var months = dateWordLists(E, 'months');
+      var dm = new RegExp('(\\d{1,2})(?:st|nd|rd|th|er|º|°)?\\.?\\s+(?:de\\s+|of\\s+)?([' + LETTER +
+        ']+)\\.?,?\\s+(?:de\\s+)?(\\d{4})').exec(s);
+      var md = new RegExp('([' + LETTER + ']+)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})').exec(s);
+      var hit = null;
+      if (dm && nameIndex(months, dm[2]) !== -1) {
+        hit = { d: +dm[1], mo: nameIndex(months, dm[2]) + 1, y: +dm[3], m: dm };
+      } else if (md && nameIndex(months, md[1]) !== -1) {
+        hit = { d: +md[2], mo: nameIndex(months, md[1]) + 1, y: +md[3], m: md };
+      }
+      if (hit) {
+        var named = realDate(hit.y, hit.mo, hit.d);
+        if (named) cands.push(named);
+        at = hit.m.index; len = hit.m[0].length;
+      }
+    }
+    if (at === -1) return null;
+    if (!cands.length) return { unclear: true };
+
+    var rest = s.slice(0, at) + ' ' + s.slice(at + len);
+    var days = dateWordLists(E, 'days');
+    var weekday = -1, words = rest.match(WORD_RE) || [];
+    for (var i = 0; i < words.length; i++) {
+      var wd = nameIndex(days, words[i]);
+      if (wd !== -1) { weekday = wd; break; }
+    }
+    var picked = [];
+    for (var c = 0; c < cands.length; c++) {
+      if (weekday === -1 || cands[c].getDay() === weekday) picked.push(cands[c]);
+    }
+    if (picked.length !== 1) return { unclear: true };
+    return { day: isoDay(picked[0]), rest: rest };
+  }
+
+  // A clock time in page text: 14:00, 9:30 pm, 14h30. '' when there is none,
+  // null when there is one that cannot be a time.
+  function pageClock(text) {
+    var m = /(^|[^\d])(\d{1,2})(?::|h)(\d{2})(?!\d)\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(text));
+    if (!m) return '';
+    var h = +m[2], min = +m[3], ap = m[4] ? m[4].toLowerCase().replace(/[^ap]/g, '') : '';
+    if (ap) {
+      if (h < 1 || h > 12) return null;
+      if (ap === 'p' && h < 12) h += 12;
+      if (ap === 'a' && h === 12) h = 0;
+    }
+    if (h > 23 || min > 59) return null;
+    return pad2(h) + ':' + pad2(min);
+  }
+
+  // One field's value out of the text found for it. { value } or { unclear }.
+  function valueFor(E, field, text) {
+    var t = field.type;
+    if (t === 'date' || t === 'datetime') {
+      var d = pageDate(E, text);
+      if (!d || d.unclear) return { unclear: true };
+      if (t === 'date') return { value: d.day };
+      var dc = pageClock(d.rest);
+      return dc ? { value: d.day + 'T' + dc } : { unclear: true };
+    }
+    if (t === 'time') {
+      var tc = pageClock(text);
+      return tc ? { value: tc } : { unclear: true };
+    }
+    if (t === 'number') {
+      var nm = /-?\d[\d.,]*/.exec(String(text));
+      var n = nm && E.sbToNumber ? E.sbToNumber(nm[0]) : null;
+      return (n === null || !isFinite(n)) ? { unclear: true } : { value: String(n) };
+    }
+    if (t === 'dd') {
+      var opts = field.options || [];
+      var asked = field.multiple ? String(text).split(/\s*[,;\n]\s*/) : [String(text)];
+      var picks = [];
+      for (var a = 0; a < asked.length; a++) {
+        var want = normText(asked[a]);
+        if (want === '') continue;
+        var hit = '';
+        for (var o = 0; o < opts.length; o++) if (normText(opts[o]) === want) { hit = opts[o]; break; }
+        if (!hit) return { unclear: true };
+        if (picks.indexOf(hit) === -1) picks.push(hit);
+      }
+      return picks.length ? { value: picks.join(', ') } : { unclear: true };
+    }
+    var plain = trim(text).replace(/\s+/g, ' ');
+    // A label pointing at a paragraph is an authoring slip; a whole paragraph
+    // pasted into one sentence of a message is never what was meant.
+    return (plain === '' || plain.length > 500) ? { unclear: true } : { value: plain };
+  }
+
+  /**
+   * Fill a form from a page.
+   *
+   * @param {Array} fields  fillForm(...).fields
+   * @param {Array} pieces  the page's text, as read-link returns it
+   * @returns {{ values: Object, results: Array, filled: number, total: number }}
+   *   values   KEY -> value to put in the field, ready for its picker
+   *            (dates as YYYY-MM-DD, numbers as plain digits)
+   *   results  one per field that has a `link`: { key, status, none }
+   *            status 'filled' | 'missing' (not on the page) | 'unclear'
+   *            none   true when the field took its default because the page
+   *                   counts none of it ("0 Boxes" is never written out)
+   */
+  function readFromPage(fields, pieces) {
+    var E = engine();
+    var list = [];
+    var src = pieces || [];
+    for (var p = 0; p < src.length; p++) {
+      if (typeof src[p] === 'string' && trim(src[p]) !== '') list.push(src[p]);
+    }
+    var values = {}, results = [], filled = 0;
+    var fs = fields || [];
+    for (var i = 0; i < fs.length; i++) {
+      var f = fs[i];
+      if (!f || !f.link || !E) continue;
+      var r = { key: f.key, status: 'missing', none: false };
+      if (f.link.mode === 'before') {
+        var sum = numbersBefore(list, f.link.words, E);
+        var isDate = f.type === 'date' || f.type === 'datetime' || f.type === 'time';
+        if (isDate || f.type === 'dd') {
+          r.status = 'unclear';
+        } else if (sum !== null) {
+          values[f.key] = String(sum);
+          r.status = 'filled';
+        } else if (trim(f['default']) !== '') {
+          // "2 Boxes" and no "Bags" at all: the page counts none, and the
+          // author's default (usually 0) is the honest answer.
+          values[f.key] = String(f['default']);
+          r.status = 'filled';
+          r.none = true;
+        }
+      } else {
+        var text = textAfter(list, f.link.words);
+        if (text !== null) {
+          var v = valueFor(E, f, text);
+          if (v.unclear) r.status = 'unclear';
+          else { values[f.key] = v.value; r.status = 'filled'; }
+        }
+      }
+      if (r.status === 'filled') filled++;
+      results.push(r);
+    }
+    return { values: values, results: results, filled: filled, total: results.length };
+  }
+
+  /**
+   * The one line a surface shows once a page has been read.
+   * @param {{ filled: number, total: number }} read  readFromPage's answer
+   */
+  function linkSummary(read) {
+    var filled = read ? read.filled : 0, total = read ? read.total : 0;
+    if (!total || !filled) return 'Nothing on that page matched this form. Check the link, or fill it in by hand.';
+    if (filled === total) {
+      return 'Filled ' + filled + (filled === 1 ? ' field' : ' fields') + ' from the page. Check them, then insert.';
+    }
+    return 'Filled ' + filled + ' of ' + total + ' fields from the page. Fill in the marked ones by hand.';
+  }
+
+  /** The note beside one field after a read, or '' for a field filled cleanly. */
+  function linkNote(result) {
+    if (!result) return '';
+    if (result.status === 'missing') return LINK_TEXT['not-on-page'];
+    if (result.status === 'unclear') return LINK_TEXT.unclear;
+    return result.none ? LINK_TEXT['none-on-page'] : '';
+  }
+
   var API = {
     fillForm: fillForm,
     orderedMin: orderedMin,
+    linkUrl: linkUrl,
+    readFromPage: readFromPage,
+    linkText: linkText,
+    linkSummary: linkSummary,
+    linkNote: linkNote,
+    LINK_TEXT: LINK_TEXT,
     inferType: inferType,
     chooseLayout: chooseLayout,
     dayValue: dayValue,

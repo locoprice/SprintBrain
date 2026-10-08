@@ -405,7 +405,7 @@ try {
 } catch (e) {
   fail('mobile field-config helpers failed to evaluate: ' + e.message);
 }
-for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName',
+for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName', 'sbParseLinkRule',
                   'sbFieldContext', 'sbTokenFieldKey', 'sbFormatDateValue', 'sbDateCfg']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
@@ -558,6 +558,16 @@ const fieldCfgCases = [
   '{formmenu: A,B; name=M; multiple=yes}',
   // Unnamed menus key off the token itself — the hash must agree exactly.
   '{formmenu: A,B}',
+  // Fill from link: the reading rule rides on every field kind, and on a menu
+  // it must stay a setting rather than become one more option to pick.
+  '{formmenu: A,B; name=M; link=after:Plan}',
+  '{formmenu: A; B; link=Plan; name=M}',
+  '{formtext: name=T; link=after:Customer}',
+  '{formtext: name=N; type=number; default=0; link=before:Boxes|Box}',
+  '{formtext: name=N; type=number; link=BEFORE: Boxes | Box | Boxes}',
+  '{formdate: name=D; format=long; link=after:Pick-up}',
+  '{formdate: name=D; type=datetime; format=long HH:mm; link=Pick-up date}',
+  '{formtext: name=T; link=   }',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
   // BOX CAPTION: label= names a box in the fill form. Free text, so it can hold
@@ -726,14 +736,40 @@ for (const fmt of [...engine.TIME_FORMATS, '']) {
 
 let dok = 0;
 for (const [raw, fmt] of DATE_FMT_CASES) {
-  const want = engine.sbFormatDateValue(raw, fmt);
-  const got = mobile.sbFormatDateValue(raw, fmt);
-  if (got !== want) {
-    fail('date formatting drift for ' + JSON.stringify([raw, fmt]) +
-      '\n  engine: ' + JSON.stringify(want) +
-      '\n  mobile: ' + JSON.stringify(got));
+  // `long` follows the snippet's language, so every case runs in each of them
+  // and in none (a Multi body reads as English).
+  for (const lang of ['', 'EN', 'IT', 'ES', 'FR', 'es-ES', 'DE']) {
+    const want = engine.sbFormatDateValue(raw, fmt, lang);
+    const got = mobile.sbFormatDateValue(raw, fmt, lang);
+    if (got !== want) {
+      fail('date formatting drift for ' + JSON.stringify([raw, fmt, lang]) +
+        '\n  engine: ' + JSON.stringify(want) +
+        '\n  mobile: ' + JSON.stringify(got));
+    }
+    dok++;
   }
-  dok++;
+}
+for (const fmt of ['long HH:mm', 'long hh:mm A']) {
+  for (const lang of ['', 'IT', 'ES', 'FR']) {
+    const want = engine.sbFormatDateValue('2026-10-01T14:30', fmt, lang);
+    if (mobile.sbFormatDateValue('2026-10-01T14:30', fmt, lang) !== want) {
+      fail('datetime formatting drift for ' + JSON.stringify([fmt, lang]));
+    }
+    dok++;
+  }
+}
+// The day and month names behind `long` and behind reading a date off a page
+// (Fill from link). A name changed on one side reads or prints a different day.
+if (JSON.stringify(mobile.SB_DATE_WORDS) !== JSON.stringify(engine.DATE_WORDS)) {
+  fail('the phone\'s day and month names (SB_DATE_WORDS) no longer match the engine\'s DATE_WORDS');
+}
+// And the reading rule parses the same way on both.
+for (const raw of ['after:Customer', 'before:Boxes|Box', 'BEFORE : a|b|a', 'Ref: A', 'x;y}z', '', '   ', 'after:']) {
+  if (JSON.stringify(mobile.sbParseLinkRule(raw)) !== JSON.stringify(engine.sbParseLinkRule(raw))) {
+    fail('link rule parsing drift for ' + JSON.stringify(raw) +
+      '\n  engine: ' + JSON.stringify(engine.sbParseLinkRule(raw)) +
+      '\n  mobile: ' + JSON.stringify(mobile.sbParseLinkRule(raw)));
+  }
 }
 
 // The five formats the two builders offer, pinned to what they actually print.
@@ -743,6 +779,7 @@ const DATE_OUTPUT = [
   ['2026-09-04', 'DD/MM/YYYY', '04/09/2026'],
   ['2026-09-04', 'MM/DD/YYYY', '09/04/2026'],
   ['2026-09-04', 'DD/MM/dddd', '04/09/Friday'],
+  ['2026-09-04', 'long', 'Friday 4 September 2026'],
   ['14:30', 'HH:mm', '14:30'],
   ['14:30', 'hh:mm A', '02:30 PM'],
   ['09:05', 'hh:mm A', '09:05 AM'],
@@ -755,6 +792,34 @@ for (const [raw, fmt, want] of DATE_OUTPUT) {
     fail('date format ' + JSON.stringify(fmt) + ' on ' + JSON.stringify(raw) +
       ' -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
   }
+}
+// `long` writes the date out the way each language writes it in running text,
+// and only `long` does: every other format stays exactly as it printed before
+// the snippet's language reached it.
+const LONG_OUTPUT = [
+  ['2026-10-09', 'EN', 'Friday 9 October 2026'],
+  ['2026-10-09', 'IT', 'venerdì 9 ottobre 2026'],
+  ['2026-10-09', 'ES', 'viernes 9 de octubre de 2026'],
+  ['2026-10-09', 'FR', 'vendredi 9 octobre 2026'],
+  ['2026-10-01', 'FR', 'jeudi 1er octobre 2026'],
+  ['2026-10-09', '', 'Friday 9 October 2026'],
+  ['2026-10-09', 'DE', 'Friday 9 October 2026'],
+];
+for (const [raw, lang, want] of LONG_OUTPUT) {
+  const got = engine.sbFormatDateValue(raw, 'long', lang);
+  if (got !== want) {
+    fail('long date in ' + JSON.stringify(lang) + ' -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+  }
+}
+if (engine.sbFormatDateValue('2026-09-04', 'DD/MM/dddd', 'ES') !== '04/09/Friday') {
+  fail('a weekday format changed language on its own; only `long` follows the snippet language');
+}
+if (engine.resolveBody('{formdate: name=D; format=long}', { D: '2026-10-09' }, { lang: 'ES' }) !==
+    'viernes 9 de octubre de 2026') {
+  fail('a long-format field does not print in the snippet language');
+}
+if (engine.resolveBody('{time: long; from=D}', { D: '2026-10-09' }, { lang: 'IT' }) !== 'venerdì 9 ottobre 2026') {
+  fail('{time: long} does not print in the snippet language');
 }
 
 // An unanswered date prints nothing rather than today, and an unreadable one

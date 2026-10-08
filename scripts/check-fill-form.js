@@ -17,7 +17,8 @@ function fail(msg) {
   process.exit(1);
 }
 
-for (const fn of ['fillForm', 'inferType', 'chooseLayout', 'dayValue', 'clockValue', 'fixedShift']) {
+for (const fn of ['fillForm', 'inferType', 'chooseLayout', 'dayValue', 'clockValue', 'fixedShift',
+                  'linkUrl', 'readFromPage', 'linkText', 'linkSummary', 'linkNote']) {
   if (typeof ff[fn] !== 'function') fail('fill-form.js no longer exports ' + fn);
 }
 
@@ -45,9 +46,10 @@ for (const [key, want] of TYPE_CASES) {
 console.log('OK Field kind inferred from the name (' + TYPE_CASES.length + ' cases)');
 
 // ── THE VIEW MODEL EVERY SURFACE READS ──────────────────────────────
-const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps', 'fmtOverride'];
+const SHAPE = ['fields', 'buttons', 'preview', 'layout', 'steps', 'fmtOverride', 'linkable'];
 const FIELD_SHAPE = ['key', 'label', 'type', 'format', 'currency', 'options', 'picks', 'multiple',
-                     'cols', 'default', 'value', 'before', 'after', 'block', 'visible', 'adjust'];
+                     'cols', 'default', 'value', 'before', 'after', 'block', 'visible', 'adjust',
+                     'link', 'fromLink'];
 
 const vm1 = ff.fillForm(
   'Hola {NOMBRE}, tu {formmenu: A,B,C; name=PLAN; default=B} para el {CHECKIN_DATE}.',
@@ -167,7 +169,7 @@ if (adjText.adjust !== null) {
 // back to "print what the picker holds", which is what an unformatted
 // {formdate:} has always done.
 const dateFmts = adjDate.adjust.formats.map((f) => f.value).join('|');
-if (dateFmts !== '|DD/MM/YYYY|MM/DD/YYYY|DD/MM/dddd') {
+if (dateFmts !== '|DD/MM/YYYY|MM/DD/YYYY|DD/MM/dddd|long') {
   fail('date formats on offer are ' + dateFmts + ', expected the raw value then DATE_FORMATS');
 }
 const timeFmts = adjTime.adjust.formats.map((f) => f.value).join('|');
@@ -305,5 +307,125 @@ for (const body of PREVIEW_BODIES) {
   }
 }
 console.log('OK The preview is text for every body (' + PREVIEW_BODIES.length + ' shapes)');
+
+// ── FILL FROM LINK ──────────────────────────────────────────────────
+// A pasted page fills the form. The reader lives in fill-form.js so the four
+// surfaces cannot read one page four ways. Every case below is a way a wrong
+// value could reach a message unseen; each must come back filled correctly or
+// refused, never guessed. The pages here are made up and name no trade.
+const LINK_BODY =
+  'Order for {formtext: name=WHO; link=after:Customer} ' +
+  '{formtext: name=BOXES; type=number; default=0; link=before:Boxes|Box} boxes and ' +
+  '{formtext: name=BAGS; type=number; default=0; link=before:Bags|Bag} bags, ' +
+  'from {formdate: name=START; format=long; link=after:Pick-up} ' +
+  'to {formdate: name=END; format=long; after=START; link=after:Return}, ' +
+  '{= datespan(START, END, "between") } days. Plan: {formmenu: Basic,Plus; name=PLAN; link=after:Plan} ' +
+  'Not linked: {formtext: name=NOTE}';
+const LINK_PAGE = [
+  'Your order', 'Customer', 'Ada Lovelace',
+  'Pick-up', ':', 'Friday, 09-10-2026 14:00',
+  'Return', 'Sunday, 11-10-2026 11:00',
+  'Shelf 1', '2 Boxes', 'Shelf 2', '1 Box',
+  'Plan: Plus'
+];
+const vmL = ff.fillForm(LINK_BODY, {}, opt({ lang: 'ES' }));
+if (vmL.linkable !== true) fail('a form whose fields carry link= is not offered the Link box');
+if (ff.fillForm('Hola {NOMBRE}', {}, opt()).linkable !== false) {
+  fail('a form with no link= offers the Link box; every snippet written before it must look the same');
+}
+const noteField = vmL.fields.find((f) => f.key === 'NOTE');
+if (noteField.link !== null) fail('a field with no link= carries a reading rule: ' + JSON.stringify(noteField.link));
+const boxField = vmL.fields.find((f) => f.key === 'BOXES');
+if (!boxField.link || boxField.link.mode !== 'before' || boxField.link.words.join('|') !== 'Boxes|Box') {
+  fail('link=before:Boxes|Box parsed as ' + JSON.stringify(boxField.link));
+}
+const readL = ff.readFromPage(vmL.fields, LINK_PAGE);
+const wantL = { WHO: 'Ada Lovelace', BOXES: '3', BAGS: '0', START: '2026-10-09', END: '2026-10-11', PLAN: 'Plus' };
+for (const k of Object.keys(wantL)) {
+  if (readL.values[k] !== wantL[k]) {
+    fail('Fill from link read ' + k + ' as ' + JSON.stringify(readL.values[k]) + ', expected ' + JSON.stringify(wantL[k]));
+  }
+}
+if (Object.prototype.hasOwnProperty.call(readL.values, 'NOTE')) fail('a field with no link= was filled from the page');
+if (readL.filled !== 6 || readL.total !== 6) fail('read counted ' + readL.filled + '/' + readL.total + ', expected 6/6');
+const bagsR = readL.results.find((r) => r.key === 'BAGS');
+if (!bagsR || !bagsR.none) fail('a count the page never mentions must be marked as its default, not as read');
+const vmL2 = ff.fillForm(LINK_BODY, readL.values, opt({ lang: 'ES', linked: { START: true } }));
+const wantPreview = 'viernes 9 de octubre de 2026 to domingo 11 de octubre de 2026, 2 days';
+if (vmL2.preview.indexOf(wantPreview) === -1) {
+  fail('a page-filled form previews ' + JSON.stringify(vmL2.preview) + '\n  expected it to contain ' + JSON.stringify(wantPreview));
+}
+if (!vmL2.fields.find((f) => f.key === 'START').fromLink || vmL2.fields.find((f) => f.key === 'END').fromLink) {
+  fail('fromLink must follow opts.linked exactly');
+}
+console.log('OK Fill from link reads a page into the form (' + Object.keys(wantL).length + ' fields)');
+
+// Dates: read when the page settles them, refused when it does not.
+const dateCase = (type, text) => {
+  const r = ff.readFromPage([{ key: 'K', type, link: { mode: 'after', words: ['When'] }, options: [], 'default': '' }],
+    ['When', text]);
+  return r.values.K !== undefined ? r.values.K : r.results[0].status;
+};
+const DATE_READS = [
+  ['date', 'Friday, 09-10-2026 14:00', '2026-10-09'],
+  ['date', 'Thursday, 09-10-2026', '2026-09-10'],  // the weekday settles the order
+  ['date', '09-10-2026', 'unclear'],               // two readings, nothing to choose
+  ['date', 'Saturday, 09-10-2026', 'unclear'],     // the weekday fits neither
+  ['date', '13/10/2026', '2026-10-13'],
+  ['date', '10/13/2026', '2026-10-13'],
+  ['date', '2026-10-09', '2026-10-09'],
+  ['date', '31/02/2026', 'unclear'],
+  ['date', 'no date at all', 'unclear'],
+  ['date', '9 de octubre de 2026', '2026-10-09'],
+  ['date', 'venerdì 9 ottobre 2026', '2026-10-09'],
+  ['date', '1er octobre 2026', '2026-10-01'],
+  ['date', 'Oct 9, 2026', '2026-10-09'],
+  ['date', 'Sun 10 Oct 2026', 'unclear'],          // 10 October 2026 is a Saturday
+  ['datetime', 'Friday, 09-10-2026 14:00', '2026-10-09T14:00'],
+  ['datetime', 'Friday, 09-10-2026', 'unclear'],   // no clock, none invented
+  ['time', 'at 9:30 pm', '21:30'],
+  ['time', '14h30', '14:30'],
+  ['number', '€ 1.200,50', '1200.5'],
+  ['number', 'none', 'unclear'],
+];
+for (const [type, text, want] of DATE_READS) {
+  const got = dateCase(type, text);
+  if (got !== want) fail('reading a ' + type + ' from ' + JSON.stringify(text) + ' gave ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+}
+console.log('OK Fill from link reads or refuses every date and number (' + DATE_READS.length + ' cases)');
+
+// A choice the menu does not offer is refused, not forced onto the first option.
+const menuRead = ff.readFromPage([{ key: 'M', type: 'dd', options: ['Basic', 'Plus'], multiple: false,
+  link: { mode: 'after', words: ['Plan'] }, 'default': '' }], ['Plan', 'Gold']);
+if (menuRead.results[0].status !== 'unclear' || menuRead.values.M !== undefined) {
+  fail('a page naming an option the menu does not have must leave the menu alone');
+}
+// A label that is not on the page leaves the field as it was.
+const missRead = ff.readFromPage([{ key: 'T', type: 'text', link: { mode: 'after', words: ['Reference'] }, 'default': '' }],
+  ['Something else']);
+if (missRead.results[0].status !== 'missing' || missRead.filled !== 0) fail('a label missing from the page was not reported as missing');
+console.log('OK Fill from link refuses what the page does not settle');
+
+// The link itself: secure web addresses only, a missing scheme added.
+const LINK_URLS = [
+  ['', '', 'link-empty'],
+  ['www.example.com/order?id=7', 'https://www.example.com/order?id=7', ''],
+  ['https://example.com/a', 'https://example.com/a', ''],
+  ['http://example.com/a', '', 'link-not-secure'],
+  ['https://localhost/a', '', 'link-invalid'],
+  ['ftp://example.com/a', '', 'link-invalid'],
+  ['https://exa mple.com', '', 'link-invalid'],
+];
+for (const [raw, url, problem] of LINK_URLS) {
+  const got = ff.linkUrl(raw);
+  if (got.url !== url || got.problem !== problem) {
+    fail('linkUrl(' + JSON.stringify(raw) + ') -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify({ url, problem }));
+  }
+}
+for (const key of ['reading', 'from-link', 'link_unreachable', 'rate_limited', 'offline', 'failed']) {
+  if (typeof ff.linkText(key) !== 'string' || ff.linkText(key) === '') fail('no words for ' + key);
+}
+if (ff.linkText('no-such-code') !== ff.linkText('failed')) fail('an unknown error code must read as the generic failure');
+console.log('OK Fill from link checks the link and has words for every outcome');
 
 console.log('OK Fill form view model passed all gates');
