@@ -130,7 +130,7 @@ SprintBrain ships to every industry, not to hospitality. A law firm, a clinic, a
 * Quantities (price, total, count, duration) are numeric fields — never text.
 * Never rewrite user data to satisfy this. Existing snippets keep working as written.
 
-**Open gap:** no body token declares a numeric field. `buildFormFieldCfg` recognises `{formtext:}`, `{formdate:}`, `{formmenu:}` only; the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and mobile, and not by the popup. Mobile compensates with a name-based heuristic that is itself carrying vertical vocabulary. That is a stopgap, not the fix. Closing the gap needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the missing popup renderer. Until then, say so rather than shipping a quantity as text and calling it done.
+**Numbers:** a quantity is `{formtext: name=X; type=number}` (optional `format=plain|currency|percent`, `currency=`, `default=`, `label=`), built by the dashboard's Number builder and drawn as a number box on all four fill surfaces. The old "no numeric token" gap closed in v3.9.0–v3.11.0, and mobile's name-based number heuristic was removed with it. Remaining limit: the popup and the preview ignore a stored `field_cfg`, so declare the number in the body (every builder does).
 
 ---
 
@@ -180,7 +180,9 @@ Requirements:
 
 Mobile is the documented exception in one respect only: it keeps its own parser, which it hands to the module as `window.SBFillFormEngine` under the names the module expects, with honest stubs where it has never rendered `{button}` controls or substituted `{{placeholder}}` tokens. It stops keeping its own answer to what a form *is*.
 
-Mobile's numeric heuristic — a field whose name mentions a price or a count gets a number pad — stays surface-local in `mobileFieldType`. Promoting it would turn text boxes into number inputs on the other three surfaces, where someone may be typing `1.200,50`. It also carries industry vocabulary the product is not supposed to ship. A real numeric field token is the proper fix; see the open gap under Industry-Neutral.
+Mobile draws a number box only for a field declared `type=number`, like every other surface. Its old name-based heuristic (`mobileFieldType`) was removed in v3.11.0.
+
+**Fill from link (v3.64.0).** `link=after:LABEL` / `link=before:WORD|WORDS` on a field says where its value sits on a pasted web page. The engine parses the rule (`sbParseLinkRule`); `shared/fill-form.js` decides everything else once (`readFromPage`, `linkUrl`, `LINK_TEXT`); the `read-link` edge function only fetches the page and returns its text pieces. All four fill surfaces draw the Link box only when the view model is `linkable`. The `long` date format writes a date out in the snippet's language from `DATE_WORDS` (EN/IT/ES/FR); `dddd`/`MMMM` stay English.
 
 ---
 

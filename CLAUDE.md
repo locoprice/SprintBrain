@@ -162,7 +162,7 @@ Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRL
 - **Quantities are numeric fields.** Price, total, count, duration, quantity — declared as a numeric field, never as a text field, and never as a text field a formula happens to add up.
 - **Never rewrite user data to satisfy this.** Snippets already written keep working exactly as written. The rule governs what SprintBrain ships, not what people typed into it.
 
-> **Open gap: the numeric rule cannot be satisfied yet.** No body token declares a numeric field: `buildFormFieldCfg` recognises `{formtext:}` / `{formdate:}` / `{formmenu:}` only, and the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and the mobile app, and not by the popup. Closing this needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the missing popup renderer. Until it lands, say so rather than shipping a quantity as text and calling it done.
+> **How a quantity is declared:** `{formtext: name=X; type=number}` (with optional `format=plain|currency|percent`, `currency=`, `default=`, `label=`), built by the dashboard's Number builder and drawn as a number box on all four fill surfaces (overlay, popup, preview, mobile). It is an attribute rather than a `{formnumber:}` token on purpose (see the NUMBER FIELD note in `extension/formula-engine.js`). The gap this note used to describe closed in v3.9.0–v3.11.0. One limit remains: the popup and the preview ignore a *stored* `field_cfg`, so a number must be declared in the body, which is what every builder writes.
 
 ---
 

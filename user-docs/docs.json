@@ -39,6 +39,7 @@
               "text-snippets/insert",
               "text-snippets/create-and-organize",
               "text-snippets/dynamic-fields",
+              "text-snippets/fill-from-link",
               "text-snippets/formulas",
               "text-snippets/multilanguage",
               "text-snippets/version-history",

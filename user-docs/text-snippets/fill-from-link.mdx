@@ -1,0 +1,72 @@
+---
+title: "Fill a form from a link"
+sidebarTitle: "Fill from link"
+description: "Paste a link to a web page, such as an order or a confirmation, and SprintBrain fills the snippet's fields from what the page says. You check them, then insert."
+---
+
+Many messages repeat what a web page already says: a name, a reference, a date, how many items. Instead of copying each value across by hand, paste the page's link into the snippet's form. SprintBrain reads the page and fills the fields for you. You check them, then insert.
+
+Nothing is ever inserted by itself.
+
+## Use it
+
+1. Open the snippet the way you always do: type its trigger, pick it from the menu, right-click, or open it in the extension popup, the editor preview or on your phone.
+2. At the top of the form, paste the link into **Fill from link**, then press **Fill** or <kbd>Enter</kbd>.
+3. The fields fill in. Each one that came from the page says **From link**.
+4. Check the values, change any you need, then insert. In the popup and on your phone, tap **Copy** or **Share**.
+
+The **Fill from link** box only appears on snippets whose fields say where their value is on a page. That is set up once, in the editor.
+
+## Set up a snippet
+
+The **Text**, **Number**, **Date/Time** and **Choice** windows in the editor have a **Fill from a pasted link** option. Tick it, then say where the value is on the page:
+
+- **Text after a label**: the value printed right after a label. Type the label exactly as the page shows it, like `Order number` or `Pick-up`. Capitals and accents don't matter.
+- **Number before a word, added up**: for counts written like `2 Boxes`. Type the word that follows the number. When a page writes it differently for one, type both spellings separated by `|`, like `Box|Boxes`. If the word appears in several places, the numbers are added up. If the page doesn't mention it at all, the field keeps its default, so give the field a default of 0.
+
+**Number before a word** is offered on Text and Number fields. Date/Time and Choice fields use **Text after a label**.
+
+## Which pages work
+
+- **Public pages.** Anyone with the link can open the page without signing in. Pages behind a login can't be read.
+- **Secure links only.** The link has to start with `https://`. If you paste one without it, SprintBrain adds it.
+- **Text that is in the page itself.** Some pages only fill in their text after they open in a browser. SprintBrain can't read those.
+
+SprintBrain opens the page from its own server, so it works the same on the computer and on your phone. It doesn't keep the page or the link. Each person can read up to 20 pages a minute and 300 a day.
+
+## Dates
+
+Dates are read the way the page writes them: `2026-10-09`, `09/10/2026`, `9 October 2026`, `Oct 9, 2026`, `9 de octubre de 2026`, `venerdì 9 ottobre 2026` or `vendredi 9 octobre 2026`.
+
+`09/10/2026` could be 9 October or 10 September. SprintBrain only reads it when the page settles which one it is:
+
+- a weekday printed next to it, like `Friday, 09/10/2026`, or
+- a day above 12, like `13/10/2026`.
+
+Otherwise the field is left for you to fill in, marked **Unclear on the page: check it**. A weekday that doesn't match its date is never trusted either. A **Date and time** field also needs a time on the page.
+
+To print a date written out in the snippet's language, like *viernes 9 de octubre de 2026*, choose the **Written out** format. See [Fields](/text-snippets/dynamic-fields#date-and-time).
+
+## What the marks mean
+
+| Mark | What it means |
+|---|---|
+| **From link** | The value came from the page. Change it and the mark goes away. |
+| **None on the page** | The page doesn't mention it, so the field kept its default, usually 0. |
+| **Not on the page** | The label or the word wasn't found. Fill the field in yourself. |
+| **Unclear on the page: check it** | Found, but it couldn't be read safely: a date that could be read two ways, an option the list doesn't have, or a word where a number should be. The field keeps what it had. |
+
+## Writing it by hand
+
+Add `link=` to any field. `after:` takes the text after a label, `before:` adds up the numbers before a word:
+
+```text
+Hello {formtext: name=CLIENT; link=after:Customer},
+your {formtext: name=BOXES; type=number; default=0; link=before:Box|Boxes} boxes
+go out on {formdate: name=START; format=long; link=after:Pick-up}
+and come back on {formdate: name=END; format=long; after=START; link=after:Return},
+{= datespan(START, END, "between") } days later.
+Delivery: {formmenu: Standard,Express; name=DELIVERY; link=after:Delivery}
+```
+
+A label can't contain `;` or braces. Everything else in it is matched as written.
