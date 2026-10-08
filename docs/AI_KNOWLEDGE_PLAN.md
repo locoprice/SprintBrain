@@ -1,6 +1,6 @@
 # AI Knowledge Layer — Gap Analysis and Phased Plan
 
-**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0; P2 (review status) built in v3.59.0; P3 (Draft with AI) built in v3.60.0.** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
+**Status:** owner decisions taken 2026-10-04 (P1 first; Anthropic is acceptable; team admins approve). **P1 built in v3.58.0; P2 (review status) built in v3.59.0; P3 (Draft with AI) built in v3.60.0.** **Since v3.61.0 every feature that calls the AI service is locked for Pro (section 8).** Backend live since 2026-10-04: `knowledge_feedback` applied, `ask-sprintbrain` deployed, `ANTHROPIC_API_KEY` set. The dashboard and phone screens reach users with the next release of `main`.
 **Principle:** retrieve before generating. SprintBrain stays the authoritative store; AI reads it, cites it, and never invents a company rule it cannot find.
 
 ---
@@ -105,3 +105,18 @@ Owner decisions, 2026-10-04: details that change each time (names, dates, choice
 An update made with Update it instead follows the normal review rules rather than being marked AI generated: the person saving it has read it, and a non-admin's save of approved team content already returns it to under review. Its trigger or shortcut, folder and labels are kept, because people already type that trigger and language variants are grouped by it.
 
 Not in P3: the extension and the phone (owner decision); a per-team AI switch (P7).
+
+## 8. Pro lock (v3.61.0)
+
+Owner decision, 2026-10-06: until the Pro plan exists, every feature that calls the AI service shows an icon with the tooltip "Available to Pro users soon" and cannot run. The first real drafts had just failed because the Anthropic account had no credit, and signups are open, so anyone could spend the credit.
+
+| Piece | Where |
+|---|---|
+| One switch per feature (`ask`, `draft`, `translate`, `labels`), all off; the label | `app/src/lib/proFeatures.ts` |
+| The lock, the tooltip wrapper and the dimmed look, shared by every locked control | `app/src/components/shared/ProSoon.tsx` |
+| Entry points: Draft from text in the three editors (one shared component), the Ask row and its shortcut in the search panel, Translate from EN and Suggest labels in the snippet editor | `components/shared/DraftWithAi.tsx`, `features/search/GlobalSearch.tsx`, `features/snippets/NewSnippetDialog.tsx`, `features/labels/LabelSuggestions.tsx` |
+| Phone: the Ask row on the Snippets, Prompts and Brains pages (the label shows in plain sight, a tap says it) | `app/public/mobile/index.html` (`ASK_AVAILABLE`) |
+| Gate: one label everywhere, the phone follows the dashboard, every entry point reads its switch, requests leave from one place only, the manual follows the switches | `scripts/check-pro-gate.js` (CI) |
+| How to switch a feature on, and the manual lines to restore | `docs/pro-features/README.md` |
+
+The server functions are unchanged and still callable by anyone signed in. The lock is in the interface; the plan check that makes it a real limit belongs with the Pro plan.

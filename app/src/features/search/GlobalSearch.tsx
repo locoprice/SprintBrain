@@ -17,6 +17,8 @@ import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
 import { ASK_QUESTION_MIN, type AskSource } from '@/lib/askKnowledge';
 import { AskAnswer } from '@/features/search/AskAnswer';
+import { ProSoon, ProSoonLock, PRO_SOON_CONTROL } from '@/components/shared/ProSoon';
+import { isProFeatureAvailable } from '@/lib/proFeatures';
 
 // The aggregated half of the one search bar (SEARCH-001).
 //
@@ -186,7 +188,11 @@ export function GlobalSearch() {
   }
 
   const askText = input.trim();
-  const canAsk = askText.length >= ASK_QUESTION_MIN;
+  // The row shows once there is a question to ask. While Ask SprintBrain is
+  // Pro-only it shows locked, and neither the row nor the shortcut can ask.
+  const showAskRow = askText.length >= ASK_QUESTION_MIN;
+  const askAvailable = isProFeatureAvailable('ask');
+  const canAsk = askAvailable && showAskRow;
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -290,6 +296,27 @@ export function GlobalSearch() {
                   ⌘↵
                 </kbd>
               </button>
+            ) : showAskRow ? (
+              <ProSoon className="block w-full">
+                <button
+                  type="button"
+                  aria-disabled="true"
+                  onClick={(event) => event.preventDefault()}
+                  className={cn(
+                    'flex w-full items-center gap-3 border-b border-line px-4 py-2.5 text-left',
+                    PRO_SOON_CONTROL,
+                  )}
+                >
+                  <MessageCircleQuestion className="h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-ink">Ask SprintBrain</p>
+                    <p className="truncate text-xs text-ink-subtle">
+                      Answer &ldquo;{askText}&rdquo; from your snippets and Brains
+                    </p>
+                  </div>
+                  <ProSoonLock className="h-3.5 w-3.5 text-ink-subtle" />
+                </button>
+              </ProSoon>
             ) : null}
 
             <div className="max-h-[360px] overflow-y-auto py-2">

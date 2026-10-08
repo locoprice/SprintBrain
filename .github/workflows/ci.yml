@@ -80,6 +80,9 @@ jobs:
       - name: Draft with AI parity check
         run: node scripts/check-ai-draft.js
 
+      - name: Pro lock check
+        run: node scripts/check-pro-gate.js
+
       - name: Landing translation parity check
         run: node scripts/build-landing-i18n.js --check
 

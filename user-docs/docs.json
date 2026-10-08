@@ -61,10 +61,8 @@
             ]
           },
           {
-            "group": "AI and review",
+            "group": "Review",
             "pages": [
-              "ask/overview",
-              "draft/overview",
               "review/overview"
             ]
           },

@@ -1,0 +1,25 @@
+{/*
+  NOT PUBLISHED. Read a picture is locked for Pro ("Available to Pro users soon") since it was built in
+  v3.63.0, and the manual documents only what works. It lives on the phone, so it has no page of its
+  own: the section below goes back into user-docs/apps/mobile.mdx the day the feature turns on.
+  1. deploy services/supabase/functions/read-picture (with verify_jwt), and make sure the Anthropic
+     account behind ANTHROPIC_API_KEY has credit,
+  2. switch 'picture' on in app/src/lib/proFeatures.ts and PICTURE_AVAILABLE in
+     app/public/mobile/index.html,
+  3. check the section against the shipped feature, then paste it into user-docs/apps/mobile.mdx,
+     under "Save from other apps", after "Paste & save, on any phone",
+  4. replace the Live Text / Google Lens tip in that page, which describes the locked state.
+  scripts/check-pro-gate.js fails until the switch and the page agree.
+*/}
+
+### Read a picture
+
+Turn a screenshot or a photo into text for a Brain: a chat, a web page, a note on a whiteboard, a receipt.
+
+1. Open SprintBrain, tap **Brains**, then **Paste & save**.
+2. Tap **Read a picture** and pick a picture, or take one.
+3. SprintBrain writes out the text it reads in the picture. Check it, change anything it got wrong, and tap **Save**.
+
+A long screenshot, like a whole chat, is read top to bottom in one go. A picture with little or no text gets a short description of what it shows instead.
+
+What a picture becomes is marked **AI generated** until someone approves it. See [Review](/review/overview).

@@ -1,5 +1,5 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,8 +15,9 @@ import { isValidFieldName } from '@/lib/formNumberToken';
 import { formulasInBody, hasDuplicateNames, type FormulaDecimals } from '@/lib/formulaToken';
 
 // The pieces the formula windows (Price line, Calculator, the two interest
-// windows) share, so they look and behave as one: same frame, same list of
-// formulas already in the snippet, same choice cards, same name fields.
+// windows, Show or hide) share, so they look and behave as one: same frame,
+// same list of what the snippet already holds, same choice cards, same name
+// fields.
 
 export const HINT = 'text-[11px] text-ink-subtle mt-1.5';
 export const ERROR = 'mt-1.5 text-[11px] text-danger';
@@ -271,37 +272,61 @@ export function MoreOptions({ children }: { children: ReactNode }) {
   );
 }
 
+/** One row of `BodyListSection`: something the snippet already holds. */
+export interface BodyListItem {
+  key: string | number;
+  /** The text Remove takes out of the body. */
+  removeStart: number;
+  removeEnd: number;
+  /** The item in one line, for screen readers and the Undo note. */
+  description: string;
+  /** What the row shows. */
+  content: ReactNode;
+  /** Present when the item can be loaded back into the window. */
+  onEdit?: () => void;
+}
+
+const ROW_ACTION =
+  'flex shrink-0 items-center gap-1 rounded-[6px] border border-line bg-card px-2 py-1 text-[11px] font-medium text-ink-subtle transition-colors';
+
 /**
- * The formulas already in the snippet, one line by default (how many there are)
- * and the list behind Manage. Each can be removed, and the last removal undone.
+ * What the snippet already holds, one line by default (how many there are) and
+ * the list behind Manage. Each can be removed, and the last removal undone; an
+ * item the window can load back also carries Edit.
  *
- * It sits above the scrolling form in both windows, never inside it: in there it
- * scrolled out of sight and could not be found.
+ * It sits above the scrolling form in every window, never inside it: in there
+ * it scrolled out of sight and could not be found.
  */
-export function FormulaListSection({
+export function BodyListSection({
   body,
   onReplace,
+  items,
+  noun,
+  defaultExpanded = false,
 }: {
   body: string;
   onReplace: (start: number, end: number, text: string) => void;
+  items: readonly BodyListItem[];
+  /** Singular and plural, as the count line reads them. */
+  noun: { one: string; many: string };
+  defaultExpanded?: boolean;
 }) {
-  const formulas = useMemo(() => formulasInBody(body), [body]);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   // What the last Remove took out, and where, so Undo can put it back.
   const [lastRemoved, setLastRemoved] = useState<{
     start: number;
     text: string;
     description: string;
   } | null>(null);
-  const count = formulas.length;
+  const count = items.length;
 
   return (
     <div className="rounded-[10px] border border-line bg-bg-alt">
       <div className="flex items-center justify-between gap-2 px-3 py-2">
         <p className="text-xs text-ink-muted">
           {count === 0
-            ? 'No formulas in this snippet yet.'
-            : `${count} ${count === 1 ? 'formula' : 'formulas'} in this snippet.`}
+            ? `No ${noun.many} in this snippet yet.`
+            : `${count} ${count === 1 ? noun.one : noun.many} in this snippet.`}
         </p>
         {count > 0 && (
           <button
@@ -317,28 +342,32 @@ export function FormulaListSection({
 
       {expanded && count > 0 && (
         <ul className="max-h-[140px] divide-y divide-line overflow-y-auto border-t border-line bg-card">
-          {formulas.map((f) => (
-            <li key={f.at} className="flex items-center gap-2 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                {f.context !== '' && (
-                  <p className="truncate text-[11px] text-ink-subtle">{f.context}</p>
-                )}
-                <p className="truncate font-mono text-xs text-ink" title={f.description}>
-                  {f.description}
-                </p>
-              </div>
+          {items.map((item) => (
+            <li key={item.key} className="flex items-center gap-2 px-3 py-2">
+              <div className="min-w-0 flex-1">{item.content}</div>
+              {item.onEdit && (
+                <button
+                  type="button"
+                  onClick={item.onEdit}
+                  aria-label={`Edit ${item.description}`}
+                  className={cn(ROW_ACTION, 'hover:border-primary/30 hover:bg-primary-light hover:text-primary')}
+                >
+                  <Pencil className="h-3 w-3" aria-hidden />
+                  Edit
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   setLastRemoved({
-                    start: f.removeStart,
-                    text: body.slice(f.removeStart, f.removeEnd),
-                    description: f.description,
+                    start: item.removeStart,
+                    text: body.slice(item.removeStart, item.removeEnd),
+                    description: item.description,
                   });
-                  onReplace(f.removeStart, f.removeEnd, '');
+                  onReplace(item.removeStart, item.removeEnd, '');
                 }}
-                aria-label={`Remove ${f.description}`}
-                className="flex shrink-0 items-center gap-1 rounded-[6px] border border-line bg-card px-2 py-1 text-[11px] font-medium text-ink-subtle transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
+                aria-label={`Remove ${item.description}`}
+                className={cn(ROW_ACTION, 'hover:border-danger/30 hover:bg-danger/5 hover:text-danger')}
               >
                 <Trash2 className="h-3 w-3" aria-hidden />
                 Remove
@@ -367,10 +396,42 @@ export function FormulaListSection({
   );
 }
 
+const FORMULA_NOUN = { one: 'formula', many: 'formulas' };
+
+/** The formulas already in the snippet, as every formula window lists them. */
+export function FormulaListSection({
+  body,
+  onReplace,
+}: {
+  body: string;
+  onReplace: (start: number, end: number, text: string) => void;
+}) {
+  const items = useMemo<BodyListItem[]>(
+    () =>
+      formulasInBody(body).map((f) => ({
+        key: f.at,
+        removeStart: f.removeStart,
+        removeEnd: f.removeEnd,
+        description: f.description,
+        content: (
+          <>
+            {f.context !== '' && <p className="truncate text-[11px] text-ink-subtle">{f.context}</p>}
+            <p className="truncate font-mono text-xs text-ink" title={f.description}>
+              {f.description}
+            </p>
+          </>
+        ),
+      })),
+    [body],
+  );
+  return <BodyListSection body={body} onReplace={onReplace} items={items} noun={FORMULA_NOUN} />;
+}
+
 /**
- * The window both builders sit in: a title, the list of formulas already in the
- * snippet, the form, and the Cancel and Insert buttons. Never taller than the
- * screen; the title, the list and the buttons stay put and only the form scrolls.
+ * The window every builder sits in: a title, the list of what the snippet
+ * already holds (its formulas, unless `list` says otherwise), the form, and the
+ * Cancel and Insert buttons. Never taller than the screen; the title, the list
+ * and the buttons stay put and only the form scrolls.
  */
 export function FormulaDialogFrame({
   open,
@@ -379,9 +440,11 @@ export function FormulaDialogFrame({
   description,
   body,
   onReplace,
+  list,
   note,
   canInsert,
   onInsert,
+  insertLabel = 'Insert',
   children,
 }: {
   open: boolean;
@@ -390,10 +453,14 @@ export function FormulaDialogFrame({
   description: string;
   body: string;
   onReplace: (start: number, end: number, text: string) => void;
+  /** Replaces the formula list, for a window that lists something else. */
+  list?: ReactNode;
   /** Why Insert is not available yet, in the footer beside the buttons. */
   note: string;
   canInsert: boolean;
   onInsert: () => void;
+  /** The confirm button's wording, for a window that also edits. */
+  insertLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -408,7 +475,7 @@ export function FormulaDialogFrame({
         </DialogHeader>
 
         <div className="px-6 pb-3">
-          <FormulaListSection body={body} onReplace={onReplace} />
+          {list ?? <FormulaListSection body={body} onReplace={onReplace} />}
         </div>
 
         {/* shrink-0 on every section: in a scrolling column, a section that
@@ -424,7 +491,7 @@ export function FormulaDialogFrame({
             Cancel
           </Button>
           <Button type="button" variant="primary" onClick={onInsert} disabled={!canInsert}>
-            Insert
+            {insertLabel}
           </Button>
         </div>
       </DialogContent>

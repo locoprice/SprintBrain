@@ -27,6 +27,13 @@ const cases = [
   { name: 'cmp > false',        body: '{if: OTA > 0}save{endif}',           vals: { OTA: 0 },             expect: '' },
   { name: 'cmp >= else',        body: '{if: N >= 5}big{else}small{endif}',  vals: { N: 4 },               expect: 'small' },
   { name: 'string equality',    body: '{if: LANG = "EN"}Hello{endif}',      vals: { LANG: 'en' },         expect: 'Hello' },
+  // What the Show or hide builder writes: contains, is filled, and a hide rule.
+  { name: 'contains true',      body: '{if: NOTE contains "urgent"}!{endif}', vals: { NOTE: 'Very URGENT' }, expect: '!' },
+  { name: 'contains false',     body: '{if: NOTE contains "urgent"}!{endif}', vals: { NOTE: 'later' },     expect: '' },
+  { name: 'is filled',          body: '{if: NOTE != ""}Note: {NOTE}{endif}', vals: { NOTE: 'Hi' },          expect: 'Note: Hi' },
+  { name: 'is not filled',      body: '{if: NOTE != ""}Note: {NOTE}{endif}', vals: { NOTE: '' },            expect: '' },
+  { name: 'hide rule',          body: 'A{if: N > 10}{else}B{endif}C',       vals: { N: 12 },              expect: 'AC' },
+  { name: 'hide rule shown',    body: 'A{if: N > 10}{else}B{endif}C',       vals: { N: 3 },               expect: 'ABC' },
   { name: 'graceful undefined', body: 'A{= BROKEN + 2}B',                   vals: {},                     expect: 'A2B' },
 ];
 
@@ -460,6 +467,71 @@ for (const [expr, vals, want] of formulaCases) {
   fxOk++;
 }
 console.log('OK Formula parity (engine = mobile) passed all ' + fxOk + ' cases');
+
+// ── CONDITION PARITY ────────────────────────────────────────────────
+// The phone decides an {if:} with its own sbEvalCondition and picks the branch
+// with sbIfBranch. Each case is a condition the Show or hide builder writes, or
+// one already in use; the phone must print the same branch the desktop prints.
+// Before v3.62.0 the phone printed both halves of an {if:}…{else}…{endif} and
+// compared text with case, so "annual" missed "Annual".
+for (const fn of ['sbEvalCondition', 'sbIfBranch']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+const conditionCases = [
+  ['PLAN = "annual"', { PLAN: 'Annual' }, 1],
+  ['PLAN = "annual"', { PLAN: 'monthly' }, 0],
+  ['PLAN != "annual"', { PLAN: 'monthly' }, 1],
+  ['PLAN != ""', { PLAN: 'monthly' }, 1],
+  ['PLAN != ""', { PLAN: '' }, 0],
+  ['PLAN != ""', {}, 0],
+  ['PLAN != ""', { PLAN: '0' }, 1],
+  ['NOTE contains "red"', { NOTE: 'Red, Green' }, 1],
+  ['NOTE contains "blue"', { NOTE: 'Red, Green' }, 0],
+  ['NOTE contains "x > y"', { NOTE: 'if x > y then' }, 1],
+  ['SCORE > 10', { SCORE: '12' }, 1],
+  ['SCORE > 10', { SCORE: '1.200,50' }, 1],
+  ['SCORE < 10', { SCORE: '12' }, 0],
+  ['SCORE < 10', { SCORE: 'abc' }, 0],
+  ['SCORE == 2.5', { SCORE: '2,5' }, 1],
+  ['SCORE != 2.5', { SCORE: '3' }, 1],
+  ['SCORE >= 5', { SCORE: '5' }, 1],
+  ['SCORE', { SCORE: '3' }, 3],
+];
+let condOk = 0;
+for (const [expr, vals, want] of conditionCases) {
+  const gotE = engine.evalCondition(expr, Object.assign({}, vals));
+  const gotM = mobile.sbEvalCondition(expr, Object.assign({}, vals));
+  if (gotE !== want) {
+    fail('condition ' + expr + ' ' + JSON.stringify(vals) + ' -> engine ' + gotE + ', expected ' + want);
+  }
+  if (gotM !== gotE) {
+    fail('condition drift for ' + expr + ' ' + JSON.stringify(vals) +
+      '\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+  }
+  condOk++;
+}
+const branchCases = [
+  ['N > 10', 'big{else}small', { N: 12 }, 'big'],
+  ['N > 10', 'big{else}small', { N: 3 }, 'small'],
+  ['N > 10', '{else}shown', { N: 12 }, ''],
+  ['N > 10', '{else}shown', { N: 3 }, 'shown'],
+  ['N > 10', 'big{elseif: N > 5}mid{else}small', { N: 7 }, 'mid'],
+  ['N > 10', 'big', { N: 3 }, ''],
+];
+for (const [cond, inner, vals, want] of branchCases) {
+  const gotE = engine.resolveBody('{if: ' + cond + '}' + inner + '{endif}', Object.assign({}, vals));
+  const gotM = mobile.sbIfBranch(cond, inner, Object.assign({}, vals));
+  if (gotE !== want) {
+    fail('branch {if: ' + cond + '}' + inner + ' ' + JSON.stringify(vals) + ' -> engine ' +
+      JSON.stringify(gotE) + ', expected ' + JSON.stringify(want));
+  }
+  if (gotM !== gotE) {
+    fail('branch drift for {if: ' + cond + '}' + inner + ' ' + JSON.stringify(vals) +
+      '\n  engine: ' + JSON.stringify(gotE) + '\n  mobile: ' + JSON.stringify(gotM));
+  }
+  condOk++;
+}
+console.log('OK Condition parity (engine = mobile) passed all ' + condOk + ' cases');
 
 // Key order is walk order on both sides, but canonicalise anyway so a parity
 // failure always means a real difference in what the two surfaces would render.

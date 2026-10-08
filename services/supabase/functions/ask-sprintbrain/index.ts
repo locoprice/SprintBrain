@@ -136,6 +136,23 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * Why a call to the Anthropic API failed, for the function logs: the API's own
+ * status, error type, message and request id. Never the question or the key.
+ */
+function describeFailure(err: unknown): string {
+  if (err instanceof Anthropic.APIError) {
+    const body = err.error as { error?: { type?: unknown; message?: unknown } } | undefined;
+    return JSON.stringify({
+      status: err.status ?? null,
+      type: body?.error?.type ?? null,
+      message: body?.error?.message ?? err.message,
+      request_id: err.requestID ?? null,
+    });
+  }
+  return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+}
+
 /** What the client receives about a source: everything except the body. */
 function publicSource(source: Source, used: boolean) {
   return {
@@ -276,6 +293,7 @@ Deno.serve(async (req: Request) => {
   const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
   let raw: string;
+  let stopReason = '';
   try {
     const message = await anthropic.messages.create({
       model: 'claude-opus-5-5',
@@ -294,7 +312,9 @@ Deno.serve(async (req: Request) => {
       // the contract here, so the cast keeps Deno from rejecting a valid body.
     } as unknown as Anthropic.MessageCreateParamsNonStreaming);
 
+    stopReason = message.stop_reason ?? '';
     if (message.stop_reason === 'refusal') {
+      console.error('ask-sprintbrain: the model declined', JSON.stringify({ message_id: message.id }));
       return json({
         ok: true,
         status: 'not_covered' satisfies Status,
@@ -308,6 +328,7 @@ Deno.serve(async (req: Request) => {
     const block = message.content.find((b) => b.type === 'text');
     raw = block && block.type === 'text' ? block.text : '';
   } catch (err) {
+    console.error('ask-sprintbrain: Anthropic request failed', describeFailure(err));
     return json(
       { error: 'anthropic_request_failed', detail: err instanceof Error ? err.message : 'unknown' },
       502,
@@ -321,6 +342,8 @@ Deno.serve(async (req: Request) => {
   try {
     parsed = JSON.parse(raw);
   } catch {
+    // A reply cut off at max_tokens is the usual cause; stop_reason says so.
+    console.error('ask-sprintbrain: the reply was not valid JSON', JSON.stringify({ stop_reason: stopReason, length: raw.length }));
     return json({ error: 'anthropic_bad_output' }, 502);
   }
 

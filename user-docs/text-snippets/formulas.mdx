@@ -4,7 +4,7 @@ sidebarTitle: "Formulas"
 description: "Work out prices, totals and percentages while a snippet expands, and show text only when it applies."
 ---
 
-Formulas work out numbers from the fields you fill in, so nobody reaches for a calculator. Conditions show a piece of text only when it applies. Both live in the panel on the left of the snippet editor: formulas under **Math**, conditions and greetings under **Logic**.
+Formulas work out numbers from the fields you fill in, so nobody reaches for a calculator. Conditions show a piece of text only when it applies. Both live in the panel on the left of the snippet editor: formulas and **Show or hide** rules under **Math**, conditions typed by hand and greetings under **Logic**.
 
 ## Price line
 
@@ -60,22 +60,55 @@ A **Calculator** works out a number from figures you fill in, and prints the wor
 
 The formula windows show how many formulas the snippet has. **Manage** lists them, each with **Remove** and **Undo**.
 
+## Show or hide
+
+A **Show or hide** rule prints a piece of text only when an answer calls for it, the way a form shows a question only when it applies. Click **Build a rule** under **Math** and fill in the three steps:
+
+| Step | What you choose |
+|---|---|
+| **IF** | A field, a check and a value. |
+| **THEN** | **Show** or **Hide**, and the text. The text can hold fields and formulas too. |
+| **ELSE** | The opposite happens. A shown text can print something else in its place: type it in **Print instead**. |
+
+The checks:
+
+| Check | True when | Fields |
+|---|---|---|
+| Equals | the answer is the value | Text, Number, Choice |
+| Does not equal | the answer is anything else | Text, Number, Choice |
+| Is greater than | the answer is a bigger number | Text, Number |
+| Is less than | the answer is a smaller number | Text, Number |
+| Contains | the value appears anywhere in the answer | Text, Choice |
+| Is filled | anything is typed or picked | Text, Number, Choice |
+
+- Capitals don't matter: `annual` matches `Annual`.
+- A Number field compares as a number, so `1.200,50` is greater than 1000. An empty Number counts as 0.
+- On a Choice field you pick the value from its options. On a multiple choice, **Contains** checks whether that option was ticked.
+- Date and time fields can't be checked.
+- **In plain words** shows the rule as one sentence before you insert it, like `IF SCORE is greater than 10 THEN hide "Section B" ELSE show it`.
+
+Every rule in the snippet is listed in plain words at the top of the window, each with **Edit** and **Remove**, and under the **Show or hide** toggle in the panel. Click a rule there, or put the cursor inside one and click **Edit this rule**, to change it.
+
+<Note>
+  A rule can't sit inside another condition. Put the cursor outside any `{if: ...}` before you insert one.
+</Note>
+
+<Warning>
+  **Contains** needs extension version 3.62.0 or later. An older extension treats it as false. The other checks work on every version.
+</Warning>
+
 ## Conditions
 
 **Condition** inserts `{if:A > 0}text{endif}`. Replace `A > 0` with what has to be true and `text` with what prints when it is.
 
 - Numbers compare with `>`, `<`, `>=`, `<=`, `==` and `!=`.
-- Text compares with `=` or `!=` against a value in quotes: `PLAN = "annual"`.
+- Text compares with `=` or `!=` against a value in quotes: `PLAN = "annual"`. `!= ""` means the field is filled, and `contains` finds a value anywhere in the answer: `NOTE contains "urgent"`.
 - `{elseif: ...}` adds another case and `{else}` covers the rest. The first true branch prints, and the others don't.
 - The first `{endif}` closes the block, so a condition can't sit inside another one.
 
 ```text
 {if: TOTAL > 500}Delivery is free.{else}Delivery costs 15.{endif}
 ```
-
-<Warning>
-  The phone page doesn't support `{elseif: ...}` or `{else}` yet. For snippets you insert from your phone, use separate `{if: ...}` blocks.
-</Warning>
 
 ## Greeting
 

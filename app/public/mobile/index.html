@@ -771,6 +771,9 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 .ask-row:active{background:rgba(255,255,255,.26)}
 .ask-row svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ask-row .ask-lock{display:none;width:16px;height:16px}
+.ask-row.locked{opacity:.7;cursor:not-allowed}
+.ask-row.locked .ask-lock{display:block}
 .ask-row-t{min-width:0;flex:1}
 .ask-row-l{display:block;font-size:14px;font-weight:700}
 .ask-row-q{display:block;font-size:12.5px;font-weight:500;opacity:.85;
@@ -908,6 +911,25 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
 /* Save to Brain: why this Brain is offered, and what saving will make. */
 .sb-cap-note{font-size:13px;color:var(--text2);line-height:1.45;padding:0 2px}
 .sb-cap-note:empty{display:none}
+/* Read a picture: a screenshot or a photo becomes text in the box. Pro, and
+   locked like Ask until the plan exists; a locked row says why in plain sight,
+   and the tip under it says how to get the text out without it. */
+.cap-pic{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;
+  padding:10px 14px;border:1px solid var(--border);border-radius:var(--r-btn);
+  background:var(--card);color:var(--primary);font:inherit;text-align:left;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:var(--shadow-sm);
+  transition:transform .1s}
+.cap-pic:active{transform:scale(.98)}
+.cap-pic svg{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cap-pic-t{min-width:0;flex:1}
+.cap-pic-l{display:block;font-size:15px;font-weight:700}
+.cap-pic-d{display:block;font-size:12.5px;font-weight:500;color:var(--text2)}
+.cap-pic .cap-pic-lock{display:none;width:16px;height:16px;color:var(--text2)}
+.cap-pic.locked{opacity:.7;cursor:not-allowed}
+.cap-pic.locked:active,.cap-pic[aria-busy=true]:active{transform:none}
+.cap-pic.locked .cap-pic-lock{display:block}
+.cap-pic[aria-busy=true]{cursor:progress}
 
 /* Folder row inside Edit modal */
 .sb-field-row{
@@ -1273,6 +1295,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -1391,6 +1414,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="prompt-srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -1452,6 +1476,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
         <button type="button" class="ask-row sb-hidden" data-ask-for="mem-srch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           <span class="ask-row-t"><span class="ask-row-l">Ask SprintBrain</span><span class="ask-row-q"></span></span>
+          <svg class="ask-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
     </div>
   </div>
@@ -1806,6 +1831,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
       </div>
       <textarea id="sb-cap-text" placeholder="Paste or type what to save"></textarea>
     </div>
+    <button type="button" class="cap-pic" id="sb-cap-pic">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+      <span class="cap-pic-t">
+        <span class="cap-pic-l">Read a picture</span>
+        <span class="cap-pic-d" id="sb-cap-pic-d" aria-live="polite"></span>
+      </span>
+      <svg class="cap-pic-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
+    <input type="file" id="sb-cap-file" accept="image/*" hidden>
+    <div class="sb-cap-note" id="sb-cap-tip"></div>
     <div class="sb-cap-note" id="sb-cap-note" aria-live="polite"></div>
   </div>
 </div>
@@ -5133,6 +5168,74 @@ function sbEvalFormula(expr,vals){
   }catch(e){return null;}
 }
 
+/* Whether an {if:} condition holds: 1 or 0, or the formula's own answer for a
+   bare expression. Mirrors evalCondition in extension/formula-engine.js, and
+   scripts/check-snippets.js holds the two to the same answers: text compares
+   ignoring case (VAR = "x", VAR != "x", VAR != "" for "is filled",
+   VAR contains "x"), numbers through sbEvalFormula, so 1.200,50 reads as the
+   desktop reads it. */
+function sbEvalCondition(expr,vals){
+  var e=String(expr).replace(/^\s+|\s+$/g,'');
+  var cs=/^([A-Za-z_][A-Za-z0-9_]*)\s+contains\s+["']([^"']*)["']$/i.exec(e);
+  if(cs){
+    var hay=String(vals[cs[1]]!==undefined&&vals[cs[1]]!==null?vals[cs[1]]:'');
+    return hay.toLowerCase().indexOf(cs[2].toLowerCase())!==-1?1:0;
+  }
+  var sm=/^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|<>|=)\s*["']([^"']*)["']$/.exec(e);
+  if(sm){
+    var lhs=String(vals[sm[1]]!==undefined&&vals[sm[1]]!==null?vals[sm[1]]:'');
+    var eq=lhs.toLowerCase()===sm[3].toLowerCase();
+    return (sm[2]==='='||sm[2]==='==')?(eq?1:0):(eq?0:1);
+  }
+  sm=/^["']([^'"]*)['"]\s*(==|!=|<>|=)\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(e);
+  if(sm){
+    var lhs2=String(vals[sm[3]]!==undefined&&vals[sm[3]]!==null?vals[sm[3]]:'');
+    var eq2=lhs2.toLowerCase()===sm[1].toLowerCase();
+    return (sm[2]==='='||sm[2]==='==')?(eq2?1:0):(eq2?0:1);
+  }
+  var cm=/^(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/.exec(e);
+  if(cm){
+    var lv=sbEvalFormula(cm[1],vals),rv=sbEvalFormula(cm[3],vals);
+    if(lv===null||rv===null)return 0;
+    switch(cm[2]){
+      case '>=':return lv>=rv?1:0;
+      case '<=':return lv<=rv?1:0;
+      case '>':return lv>rv?1:0;
+      case '<':return lv<rv?1:0;
+      case '==':return lv===rv?1:0;
+      case '!=':return lv!==rv?1:0;
+    }
+  }
+  return sbEvalFormula(e,vals);
+}
+
+/* An {if:}'s inside cut at each {elseif: …} and {else}: one branch per case,
+   cond null for {else}. Mirrors _splitIfBranches in the engine. */
+function sbSplitIfBranches(firstCond,inner){
+  var branches=[],cur=firstCond,last=0,re=/\{(else(?:if:[^}]*)?)\}/g,m;
+  while((m=re.exec(inner))!==null){
+    branches.push({cond:cur,body:inner.slice(last,m.index)});
+    var tag=m[1].replace(/^\s+|\s+$/g,'');
+    cur=tag==='else'?null:tag.slice(7).replace(/^\s+|\s+$/g,'');
+    last=m.index+m[0].length;
+  }
+  branches.push({cond:cur,body:inner.slice(last)});
+  return branches;
+}
+
+/* The branch of an {if:} block that prints: the first whose condition holds,
+   else the {else}, else none (''). */
+function sbIfBranch(firstCond,inner,vals){
+  var br=sbSplitIfBranches(firstCond,inner);
+  for(var i=0;i<br.length;i++){
+    if(br[i].cond===null)return br[i].body;
+    var r=null;
+    try{r=sbEvalCondition(br[i].cond,vals);}catch(e){r=null;}
+    if(r!==null&&r!==0)return br[i].body;
+  }
+  return '';
+}
+
 function extractFields(body) {
   var vars=[],re=/\{([^}]+)\}/g,m;
   while((m=re.exec(body))!==null){
@@ -5143,23 +5246,6 @@ function extractFields(body) {
     if(!dup)vars.push(key);
   }
   return vars;
-}
-
-function evalCond(cond,vals){
-  try{
-    var c=cond.replace(/"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_]*)/g,
-      function(match,id){
-        if(!id)return match;
-        if(FUNS[id])return SB_MATH_FNS[id]||id;
-        var v=vals[id];
-        if(v===undefined||v==='')return '0';
-        var n=parseFloat(v);
-        if(!isNaN(n)&&String(n)===String(v).trim())return String(n);
-        return JSON.stringify(String(v));
-      });
-    c=c.replace(/([^!<>=])=([^=])/g,'$1==$2');
-    return !!Function('"use strict";return('+c+')')();
-  }catch(e){return false;}
 }
 
 function resolveBody(body,vals,opts){
@@ -5211,17 +5297,17 @@ function resolveBody(body,vals,opts){
         i=cl+1;continue;
       }
 
-      /* {if: cond}...{endif} */
+      /* {if: cond}...{elseif: cond}...{else}...{endif} */
       if(tok.slice(0,3)==='if:'){
         var cnd=tok.slice(3).replace(/^\s+|\s+$/g,'');
         var ei='{endif}',eidx=body.indexOf(ei,cl+1);
         var inner=eidx!==-1?body.slice(cl+1,eidx):'';
-        if(evalCond(cnd,vals))out+=resolveBody(inner,Object.assign({},vals),subOpts);
+        out+=resolveBody(sbIfBranch(cnd,inner,vals),Object.assign({},vals),subOpts);
         i=eidx!==-1?eidx+ei.length:cl+1;continue;
       }
 
-      /* {endif} */
-      if(tok==='endif'){i=cl+1;continue;}
+      /* {endif}, and a branch tag with no {if:} before it */
+      if(tok==='endif'||tok==='else'||tok.slice(0,7).toLowerCase()==='elseif:'){i=cl+1;continue;}
 
       /* {gender: FIELD; m=Querido; f=Querida} */
       if(tok.slice(0,7).toLowerCase()==='gender:'){
@@ -6858,7 +6944,7 @@ function capSourceFor(text){
   var src=capSource||{};
   if(src.url)return src;
   var url=capFirstUrl(text);
-  return {title:src.title||'',url:url,host:url?capHost(url):''};
+  return {title:src.title||'',url:url,host:url?capHost(url):'',picture:!!src.picture};
 }
 /* What a capture is named after: the page's title, else the site when the
    text is only its link, else the text's own first words. */
@@ -6877,7 +6963,7 @@ function capturePayloads(text,brainId,src){
   return parts.map(function(body,i){
     var meta={part:i+1,parts:parts.length};
     if(src.url){meta.source_url=src.url.slice(0,2048);meta.host=src.host;}
-    return {
+    var item={
       p_shard_id:null,
       p_name:SBMemoryChunk.captureName(title,when,i+1,parts.length),
       p_summary:SBMemoryChunk.captureSummary(body),
@@ -6888,6 +6974,10 @@ function capturePayloads(text,brainId,src){
       p_metadata:meta,
       p_pinned:false, p_priority:0, p_edit_note:null, p_surface:'mobile'
     };
+    // Text the AI read from a picture waits for a person to approve it, as a
+    // Draft with AI item does. Text a person pasted saves exactly as before.
+    if(src.picture){meta.from='picture';item.p_review_status='ai_generated';}
+    return item;
   });
 }
 
@@ -6973,6 +7063,7 @@ function openCapture(src,bid,placeholder){
   capSource=src;capInitial=src.text||'';capWantBrain=bid||null;
   capBatch=null;capSaving=false;capLeaving=false;capBrainsMissing=false;capBrainTouched=false;
   clearTimeout(capSuggestTimer);
+  _picSeq++;picReading=false;syncPictureRow();
   document.getElementById('sb-cap-why').textContent='';
   var ta=document.getElementById('sb-cap-text');
   ta.value=capInitial;
@@ -7001,6 +7092,128 @@ function pasteCapture(bid){
     openCapture(capFromShare('','',''),bid,manual);
   });
 }
+/* ── Save to Brain: Read a picture ── */
+/* A screenshot or a photo becomes text in the box, read by the read-picture
+   server function; the person checks it and saves. Pro, and the Pro plan does
+   not exist yet: until it does the row stays where it will live, locked, and
+   the tip under it says how to get the text out of a picture without it.
+   Keep in step with PRO_SOON_LABEL and the 'picture' switch in
+   app/src/lib/proFeatures.ts: scripts/check-pro-gate.js. */
+var PICTURE_AVAILABLE=false;
+var PICTURE_TIP='Text in a screenshot? Copy it with Live Text on iPhone or Google Lens on Android, then paste it here.';
+var PICTURE_ERRORS={
+  invalid_picture:'That file is not a picture SprintBrain can read.',
+  picture_too_large:'That picture is too large to read. Try a smaller one.',
+  picture_refused:'This picture can’t be read. Copy its text by hand instead.',
+  picture_empty:'No text found in the picture.',
+  anthropic_not_configured:'Reading pictures is not set up yet.',
+  anthropic_request_failed:'The picture service did not respond. Try again.',
+  anthropic_bad_output:'The reading came back unreadable. Try again.'
+};
+var PICTURE_FALLBACK='Could not read the picture. Try again.';
+/* A screenshot keeps its text sharp at PICTURE_WIDTH across. A taller one goes
+   up in pieces of at most PICTURE_PIECE_H, top to bottom, each overlapping the
+   last so no line is cut in two: squeezed into one picture, a long chat would
+   be too small to read. The server takes at most PICTURE_MAX_PIECES. */
+var PICTURE_WIDTH=1092, PICTURE_PIECE_H=1568, PICTURE_OVERLAP=48, PICTURE_MAX_PIECES=8;
+var picReading=false, _picSeq=0;
+
+function syncPictureRow(){
+  var row=document.getElementById('sb-cap-pic');
+  row.classList.toggle('locked',!PICTURE_AVAILABLE);
+  row.setAttribute('aria-disabled',PICTURE_AVAILABLE&&!picReading?'false':'true');
+  row.setAttribute('aria-busy',picReading?'true':'false');
+  /* A phone has no hover, so a locked row says why in plain sight. */
+  document.getElementById('sb-cap-pic-d').textContent=!PICTURE_AVAILABLE?PRO_SOON_LABEL
+    :picReading?'Reading the picture…':'A screenshot or a photo becomes text to check';
+  document.getElementById('sb-cap-tip').textContent=PICTURE_AVAILABLE?'':PICTURE_TIP;
+  // Saving in the middle of a reading would leave its text behind.
+  if(!capSaving)document.getElementById('sb-cap-save').disabled=picReading;
+}
+/* The picture cut into the pieces the server reads, each as JPEG. */
+function picturePieces(img){
+  var w=img.naturalWidth,h=img.naturalHeight;
+  var step=PICTURE_PIECE_H-PICTURE_OVERLAP;
+  var maxH=PICTURE_PIECE_H+step*(PICTURE_MAX_PIECES-1);
+  var scale=Math.min(1,PICTURE_WIDTH/w);
+  // Taller than the pieces can hold, the whole picture shrinks to fit them.
+  if(h*scale>maxH)scale=maxH/h;
+  var W=Math.max(1,Math.round(w*scale)),H=Math.max(1,Math.round(h*scale));
+  var out=[];
+  for(var top=0;;top+=step){
+    var ph=Math.min(PICTURE_PIECE_H,H-top);
+    var c=document.createElement('canvas');
+    c.width=W;c.height=ph;
+    var ctx=c.getContext('2d');
+    // A transparent screenshot reads as text on white, not on black.
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,ph);
+    ctx.drawImage(img,0,top/scale,w,ph/scale,0,0,W,ph);
+    var url=c.toDataURL('image/jpeg',0.82);
+    out.push(url.slice(url.indexOf(',')+1));
+    if(top+ph>=H)break;
+  }
+  return out;
+}
+function pictureLoad(file){
+  return new Promise(function(resolve,reject){
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){URL.revokeObjectURL(url);resolve(img);};
+    img.onerror=function(){
+      URL.revokeObjectURL(url);
+      var err=new Error(PICTURE_ERRORS.invalid_picture);
+      err.picture=true;
+      reject(err);
+    };
+    img.src=url;
+  });
+}
+/* What the picture said goes into the box, below anything already there, so
+   a reading never wipes what the person typed or pasted. The item is named
+   after the picture, and its text waits for a person to approve it. */
+function capAddPicture(b){
+  var ta=document.getElementById('sb-cap-text');
+  var had=ta.value.replace(/\s+$/,'');
+  ta.value=had?had+'\n\n'+b.text.trim():b.text.trim();
+  var src=capSource||{};
+  capSource={title:src.title||String(b.title||'').trim(),url:src.url||'',host:src.host||'',picture:true};
+  capBatch=null;
+  capCount();
+  clearTimeout(capSuggestTimer);
+  capPickBrain();
+  showToast(b.kind==='description'
+    ?'No text in the picture: a description was added'
+    :'Picture read ✓ Check the text, then Save');
+}
+function readPicture(file){
+  if(!PICTURE_AVAILABLE||picReading||capSaving)return;
+  var seq=++_picSeq;
+  picReading=true;
+  capError('');
+  syncPictureRow();
+  function done(){picReading=false;syncPictureRow();}
+  pictureLoad(file).then(function(img){
+    return fetch(SUPA+'/functions/v1/read-picture',{
+      method:'POST',
+      headers:authHeaders({'Content-Type':'application/json'}),
+      body:JSON.stringify({media_type:'image/jpeg',images:picturePieces(img)})
+    });
+  }).then(function(r){
+    if(handle401(r))return null;
+    return r.json().catch(function(){return {};}).then(function(b){return {ok:r.ok,b:b};});
+  }).then(function(res){
+    if(!res||seq!==_picSeq||!capOpen())return;
+    done();
+    var b=res.b||{};
+    if(res.ok&&b.ok===true&&typeof b.text==='string'&&b.text.trim())capAddPicture(b);
+    else capError(PICTURE_ERRORS[b.error]||PICTURE_FALLBACK);
+  }).catch(function(err){
+    if(seq!==_picSeq||!capOpen())return;
+    done();
+    capError(err&&err.picture?err.message:'Can’t reach the server. Check your connection and try again.');
+  });
+}
+
 function capForget(){
   try{localStorage.removeItem(CAPTURE_KEY);}catch(e){}
 }
@@ -7011,6 +7224,7 @@ function capSignOut(){
 }
 function closeCaptureNow(){
   clearTimeout(capSuggestTimer);
+  _picSeq++;picReading=false;
   document.getElementById('sb-cap-modal').classList.add('sb-hidden');
   capSaving=false;capSource=null;capInitial='';capBatch=null;
   // Saved or set aside, the share is finished: it does not come back.
@@ -7024,7 +7238,7 @@ function leaveCapture(){
   else{capLeaving=false;closeCaptureNow();}
 }
 function saveCapture(){
-  if(capSaving)return;
+  if(capSaving||picReading)return;
   var text=document.getElementById('sb-cap-text').value;
   var brain=memBrainById(document.getElementById('sb-cap-brain').value);
   if(!brain){capError('Pick a Brain.');return;}
@@ -7073,6 +7287,18 @@ function saveCapture(){
     // choice, a moment after typing stops.
     clearTimeout(capSuggestTimer);
     capSuggestTimer=setTimeout(capPickBrain,250);
+  });
+  /* Read a picture: locked, a tap only says why. */
+  document.getElementById('sb-cap-pic').addEventListener('click',function(){
+    if(!PICTURE_AVAILABLE){showToast(PRO_SOON_LABEL);return;}
+    if(picReading||capSaving)return;
+    document.getElementById('sb-cap-file').click();
+  });
+  document.getElementById('sb-cap-file').addEventListener('change',function(){
+    var file=this.files&&this.files[0];
+    // Cleared at once, so picking the same picture again still counts.
+    this.value='';
+    if(file)readPicture(file);
   });
   document.getElementById('sb-cap-brain').addEventListener('change',function(){
     capBrainTouched=true;
@@ -8150,6 +8376,12 @@ var ASK_VERDICTS=[
   {value:'conflicting',label:'Conflicts with policy'}
 ];
 var ASK_MIN=3, ASK_MAX=1000;
+/* Ask SprintBrain needs Pro, and the Pro plan does not exist yet. Until it does
+   the row stays where it will live, locked, and nothing here can send a
+   request. Keep in step with PRO_SOON_LABEL and the 'ask' switch in
+   app/src/lib/proFeatures.ts: scripts/check-pro-gate.js. */
+var PRO_SOON_LABEL='Available to Pro users soon';
+var ASK_AVAILABLE=false;
 var ASK_ERRORS={
   anthropic_not_configured:'Ask SprintBrain is not set up yet.',
   anthropic_request_failed:'The answer service did not respond. Try again.',
@@ -8168,7 +8400,14 @@ function syncAskRow(inputId){
   if(!input||!row)return;
   var q=input.value.trim();
   row.classList.toggle('sb-hidden',q.length<ASK_MIN);
-  row.querySelector('.ask-row-q').textContent='Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains';
+  row.classList.toggle('locked',!ASK_AVAILABLE);
+  row.setAttribute('aria-disabled',ASK_AVAILABLE?'false':'true');
+  if(ASK_AVAILABLE)row.removeAttribute('title');
+  else row.setAttribute('title',PRO_SOON_LABEL);
+  /* A phone has no hover, so a locked row says why in plain sight. */
+  row.querySelector('.ask-row-q').textContent=ASK_AVAILABLE
+    ?'Answer “'+q.slice(0,ASK_MAX)+'” from your snippets and Brains'
+    :PRO_SOON_LABEL;
 }
 function askValid(b){
   return !!b&&b.ok===true&&['answered','not_covered','no_sources'].indexOf(b.status)!==-1
@@ -8271,6 +8510,7 @@ function runAsk(){
   });
 }
 function openAsk(question){
+  if(!ASK_AVAILABLE)return;
   var q=String(question||'').trim().slice(0,ASK_MAX);
   if(q.length<ASK_MIN)return;
   clearTimeout(_askSheetTimer);
@@ -8371,6 +8611,7 @@ function askOpenSource(ref){
   });
   document.querySelectorAll('.ask-row').forEach(function(row){
     row.addEventListener('click',function(){
+      if(!ASK_AVAILABLE){showToast(PRO_SOON_LABEL);return;}
       var input=document.getElementById(row.getAttribute('data-ask-for'));
       if(input){input.blur();openAsk(input.value);}
     });
