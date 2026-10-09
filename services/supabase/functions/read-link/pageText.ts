@@ -57,7 +57,8 @@ export function decodeEntities(s: string): string {
       const n = ent[1] === 'x' || ent[1] === 'X' ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
       return Number.isFinite(n) ? codePoint(n) : whole;
     }
-    return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, ent) ? NAMED_ENTITIES[ent] : whole;
+    // Own names only: "&constructor;" must not reach Object.prototype.
+    return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, ent) ? (NAMED_ENTITIES[ent] ?? whole) : whole;
   });
 }
 
@@ -88,7 +89,7 @@ export function pageText(html: string): string[] {
  */
 export function declaredCharset(contentType: string, head: string): string {
   const fromHeader = /charset\s*=\s*"?([A-Za-z0-9._:-]+)/i.exec(contentType || '');
-  if (fromHeader) return fromHeader[1].toLowerCase();
+  if (fromHeader?.[1]) return fromHeader[1].toLowerCase();
   const fromMeta = /<meta[^>]+charset\s*=\s*["']?([A-Za-z0-9._:-]+)/i.exec(head || '');
-  return fromMeta ? fromMeta[1].toLowerCase() : '';
+  return fromMeta?.[1] ? fromMeta[1].toLowerCase() : '';
 }

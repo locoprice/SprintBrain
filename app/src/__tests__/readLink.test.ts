@@ -100,6 +100,7 @@ describe('pageText: the visible text, in order', () => {
 
   it('decodes entities and leaves unknown ones as written', () => {
     expect(decodeEntities('&lt;b&gt; &quot;a&quot; &unknown; &#0; &#xD800;')).toBe('<b> "a" &unknown;  ');
+    expect(decodeEntities('&constructor; &toString;')).toBe('&constructor; &toString;');
   });
 
   it('reads the declared character set from the header, then the page', () => {

@@ -49,14 +49,16 @@ export function linkProblem(raw: string): '' | 'invalid_link' | 'link_not_allowe
   return '';
 }
 
-function v4Parts(ip: string): number[] | null {
+type V4 = [number, number, number, number];
+
+function v4Parts(ip: string): V4 | null {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
   if (!m) return null;
-  const parts = m.slice(1).map(Number);
+  const parts: V4 = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
   return parts.every((n) => n >= 0 && n <= 255) ? parts : null;
 }
 
-function privateV4([a, b]: number[]): boolean {
+function privateV4([a, b]: V4): boolean {
   return (
     a === 0 || a === 10 || a === 127 ||
     (a === 100 && b >= 64 && b <= 127) || // shared carrier space
@@ -82,7 +84,7 @@ export function isPrivateAddress(ip: string): boolean {
   if (s === '::' || s === '::1') return true;
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s);
   if (mapped) {
-    const inner = v4Parts(mapped[1]);
+    const inner = v4Parts(mapped[1] ?? '');
     return inner ? privateV4(inner) : true;
   }
   const first = parseInt(s.split(':')[0] || '0', 16);
