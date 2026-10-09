@@ -1480,6 +1480,28 @@ for (const [rel, label, markers] of ORDER_RENDERERS) {
 }
 console.log('OK The closing date is limited on all ' + ORDER_RENDERERS.length + ' fill-form surfaces');
 
+// The date being typed is never emptied, and its `min` is written only when it
+// changes. A date picker reports a whole date after every keystroke (the year
+// 2027 passes through 0002), and Chrome resets a box's typing when its min is
+// set again, even to the same value: before v3.64.0 a closing date typed from
+// the keyboard came out blank on the overlay, the popup and the phone.
+const TYPING_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay', ['_sbReorder(el, inp)', 'dst !== edited', "dst.getAttribute('min') !== min"]],
+  ['extension/popup/popup.js', 'popup detail', ['reorderDetailDates(el, inp)', 'dst!==edited', "dst.getAttribute('min')!==min"]],
+  ['app/public/mobile/index.html', 'mobile companion', ['sbReorderDates(form,this)', 'dst!==edited', "dst.getAttribute('min')!==min"]],
+  ['app/src/lib/fillFormEngine.ts', 'dashboard editor preview', ['written.includes(field.key)']],
+];
+for (const [rel, label, markers] of TYPING_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  for (const marker of markers) {
+    if (!src.includes(marker)) {
+      fail(rel + ' (' + label + ') can empty a closing date while it is being typed.\n' +
+        '  Expected to find: ' + marker);
+    }
+  }
+}
+console.log('OK A date being typed is left alone on all ' + TYPING_RENDERERS.length + ' fill-form surfaces');
+
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,
 // so a snippet expanded without touching it dropped the choice and shipped the

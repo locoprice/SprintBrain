@@ -8370,9 +8370,9 @@ function renderDetail(snip,keepVals){
         : '<div class="field-inline">'+pre+inp+post+'</div>')+mark+mobAdjustHtml(fld)+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
-      inp.addEventListener('input',function(){linkTouched(this);sbReorderDates(form);updatePrev();});
+      inp.addEventListener('input',function(){linkTouched(this);sbReorderDates(form,this);updatePrev();});
       /* Selects and checkboxes report a pick through 'change', not 'input'. */
-      inp.addEventListener('change',function(){linkTouched(this);sbReorderDates(form);updatePrev();});
+      inp.addEventListener('change',function(){linkTouched(this);sbReorderDates(form,this);updatePrev();});
     });
     sbReorderDates(form);
     bindAdjust(form);
@@ -8391,17 +8391,26 @@ function sbOrderAttrs(fld){
   return out;
 }
 
-function sbReorderDates(form){
+/* `edited` is the box the operator is typing in, if any, and is never emptied:
+   a date picker reports a whole date after every keystroke (the year 2027
+   passes through 0002). A closing date typed before its opening one stays,
+   flagged by `min`; moving the opening date past it still clears it. */
+function sbReorderDates(form,edited){
   if(!form||!SBFillForm||!SBFillForm.orderedMin)return;
   form.querySelectorAll('[data-after]').forEach(function(dst){
     var src=form.querySelector('[data-f="'+dst.getAttribute('data-after')+'"]');
     if(!src)return;
     var min=SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
-    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
+    /* Written only when it changes: a browser may reset a date box's typing
+       when its min is set again, even to the same value. */
+    if(min){if(dst.getAttribute('min')!==min)dst.setAttribute('min',min);}
+    else if(dst.hasAttribute('min'))dst.removeAttribute('min');
     /* A closing date the new opening one has just invalidated is no longer an
-       answer. Clearing beats leaving an impossible pair sitting in the form,
-       and an emptied field no longer holds anything from a page. */
-    if(min&&dst.value&&dst.value<min){dst.value='';linkTouched(dst);}
+       answer. Clearing beats leaving an impossible pair sitting in the form.
+       An emptied field no longer holds anything from a page, so its badge
+       goes; a note the page left on it ("Not on the page") stays, because it
+       is the cue to fill the date in. */
+    if(min&&dst!==edited&&dst.value&&dst.value<min){dst.value='';linkEmptied(dst);}
   });
 }
 
@@ -8642,6 +8651,16 @@ function linkTouched(ctrl){
   var row=ctrl.closest('.field-row');
   var slot=row&&row.querySelector('.field-link');
   if(slot)slot.innerHTML='';
+}
+/* A field the ordering rule empties: the value is gone, so is its badge; its
+   note stays. Same as the overlay, the popup and the editor preview. */
+function linkEmptied(ctrl){
+  var key=ctrl.getAttribute('data-f');
+  if(!linkMarks[key])return;
+  delete linkMarks[key];
+  var row=ctrl.closest('.field-row');
+  var slot=row&&row.querySelector('.field-link');
+  if(slot)slot.innerHTML=linkMarkHtml(key,false);
 }
 function linkSay(msg,isErr){
   var st=document.getElementById('det-link-status');
