@@ -2340,8 +2340,23 @@ function _celEsc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Whether the reader asked for less motion. A page can replace or remove
+// matchMedia, and a missing one must not stop the card opening: it then
+// reads as "no preference", the browser default.
+function _prefersReducedMotion() {
+  try {
+    return typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function _celebrationBurst(card) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (_prefersReducedMotion()) return;
+  // Decoration only: with no icon to sit on, the card simply has no burst.
+  var symbol = card.querySelector('.sb-cel-symbol');
+  if (!symbol) return;
   var burst = document.createElement('span');
   burst.className = 'sb-cel-confetti';
   burst.setAttribute('aria-hidden', 'true');
@@ -2356,7 +2371,7 @@ function _celebrationBurst(card) {
     burst.appendChild(piece);
   }
   burst.addEventListener('animationend', function() { burst.remove(); }, { once: true });
-  card.querySelector('.sb-cel-symbol').appendChild(burst);
+  symbol.appendChild(burst);
 }
 
 function showCelebration(text, onConfirm, onUndo, options) {
@@ -2433,7 +2448,7 @@ function showCelebration(text, onConfirm, onUndo, options) {
   var countdownIv;
   var barEl = card.querySelector('#sb-cel-bar');
   var cdEl = card.querySelector('#sb-cel-cd');
-  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reducedMotion = _prefersReducedMotion();
 
   function restoreFocus() {
     if (!returnFocus || !returnFocus.isConnected || typeof returnFocus.focus !== 'function') return;
