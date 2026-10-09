@@ -58,7 +58,7 @@ These scripts are **not safe to apply until specific auth events happen**.
 
 | File | Status | Notes |
 |---|---|---|
-| `20261008120000_link_reads.sql` | ⏳ not applied | Per-person limit for the `read-link` edge function: `app.link_reads` (who and when, nothing about the page; rows older than a day are deleted by the owner's next call) and `public.link_read_allow()` (SECURITY DEFINER, keyed on `auth.uid()`, no user id parameter, granted to `authenticated` only): false after 20 reads in a minute or 300 in a day. Additive. `read-link` is already deployed (v1, 2026-10-09, `verify_jwt` on, no secrets) and answers 503 to every read until this lands, so **apply it before Fill from link ships** (v3.64.0). |
+| `20261008120000_link_reads.sql` | ✅ applied 2026-10-09 | Per-person limit for the `read-link` edge function: `app.link_reads` (who and when, nothing about the page; rows older than a day are deleted by the owner's next call) and `public.link_read_allow()` (SECURITY DEFINER, keyed on `auth.uid()`, no user id parameter, granted to `authenticated` only): false after 20 reads in a minute or 300 in a day. Additive. Run by the owner in the SQL editor (the MCP apply timed out waiting for a confirmation), so it has no row in the migration history. Verified live: RLS on, no table grants to `anon` / `authenticated`, `search_path` empty, `anon` cannot call it; as a signed-in user in a rolled-back transaction, reads 1–20 return true, the 21st false, and a call with no user false. `read-link` is deployed (v1, `verify_jwt` on, no secrets). |
 
 ## How to run a deferred script
 
