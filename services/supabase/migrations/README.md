@@ -58,7 +58,7 @@ These scripts are **not safe to apply until specific auth events happen**.
 
 | File | Status | Notes |
 |---|---|---|
-| `20261008120000_link_reads.sql` | ⏳ not applied | Per-person limit for the `read-link` edge function: `app.link_reads` (who and when, nothing about the page; rows older than a day are deleted by the owner's next call) and `public.link_read_allow()` (SECURITY DEFINER, keyed on `auth.uid()`, no user id parameter, granted to `authenticated` only): false after 20 reads in a minute or 300 in a day. Additive. **Apply before deploying `read-link`**: the function answers 503 to every read while it cannot check the limit. Then deploy `read-link` with `verify_jwt` on; it needs no secrets. |
+| `20261008120000_link_reads.sql` | ⏳ not applied | Per-person limit for the `read-link` edge function: `app.link_reads` (who and when, nothing about the page; rows older than a day are deleted by the owner's next call) and `public.link_read_allow()` (SECURITY DEFINER, keyed on `auth.uid()`, no user id parameter, granted to `authenticated` only): false after 20 reads in a minute or 300 in a day. Additive. `read-link` is already deployed (v1, 2026-10-09, `verify_jwt` on, no secrets) and answers 503 to every read until this lands, so **apply it before Fill from link ships** (v3.64.0). |
 
 ## How to run a deferred script
 
