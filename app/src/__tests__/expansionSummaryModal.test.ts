@@ -117,7 +117,12 @@ function harness() {
       showCelebration: ShowModal;
       _expansionSummary: (text: string) => { words: number; characters: number; seconds: number; timeLabel: string };
     };
-  const api = create(document, { getSelection: () => null });
+  // The card reads the reduced-motion preference (v3.63.1). Reduced motion keeps
+  // these lifecycle tests on the card itself: no confetti nodes to step over.
+  const api = create(document, {
+    getSelection: () => null,
+    matchMedia: () => ({ matches: true }),
+  });
   function control(id: string) {
     const found = document.getElementById(id);
     if (!found) throw new Error(`Missing modal control: ${id}`);
