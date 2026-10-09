@@ -9,11 +9,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { LinkRuleFields } from '@/features/snippets/LinkRuleFields';
 import { cn } from '@/lib/utils';
 import { buildFormTextToken, isPersonNameKey, isValidFieldName } from '@/lib/formTextToken';
+import { emptyLinkDraft, LABEL_LINK_MODES, linkFromDraft, type LinkRuleDraft } from '@/lib/linkRule';
 
 const HINT = 'text-[11px] text-ink-subtle mt-1.5';
 const SECTION_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
+
+// Text on a page usually sits after its label ("Order number: 4471").
+const TEXT_LINK_START = emptyLinkDraft('after');
 
 interface FormTextDialogProps {
   open: boolean;
@@ -44,6 +49,7 @@ export function FormTextDialog({
   // way the engine does, so naming a field nome_ospite turns it on by itself.
   const [personChoice, setPersonChoice] = useState<boolean | null>(null);
   const personName = personChoice ?? isPersonNameKey(name);
+  const [link, setLink] = useState<LinkRuleDraft>(TEXT_LINK_START);
 
   const nameRef = useRef<HTMLInputElement | null>(null);
 
@@ -54,13 +60,14 @@ export function FormTextDialog({
     setName(suggestedName);
     setDefaultValue('');
     setPersonChoice(null);
+    setLink(TEXT_LINK_START);
   }, [open, suggestedName]);
 
   const nameValid = isValidFieldName(name);
 
   const token = useMemo(
-    () => buildFormTextToken({ name, default: defaultValue, personName }),
-    [name, defaultValue, personName],
+    () => buildFormTextToken({ name, default: defaultValue, personName, link: linkFromDraft(link) }),
+    [name, defaultValue, personName, link],
   );
 
   function handleSubmit() {
@@ -88,7 +95,9 @@ export function FormTextDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-2 flex flex-col gap-4">
+        {/* Scrolls like the Choice builder's: with Fill from link open, the
+            window outgrows a laptop screen. */}
+        <div className="max-h-[60vh] overflow-y-auto px-6 pb-2 flex flex-col gap-4">
           {/* ── Field name ── */}
           <div>
             <label htmlFor="form-text-name" className={SECTION_LABEL}>
@@ -165,6 +174,15 @@ export function FormTextDialog({
               itself when the field&apos;s name includes name, nome, nombre or nom.
             </p>
           </div>
+
+          {/* ── From a link ── */}
+          <LinkRuleFields
+            id="form-text-link"
+            value={link}
+            onChange={setLink}
+            modes={LABEL_LINK_MODES}
+            onEnter={handleSubmit}
+          />
 
           {/* ── What lands in the body ── */}
           {/* Only while the name holds. The writer repairs an unusable name so

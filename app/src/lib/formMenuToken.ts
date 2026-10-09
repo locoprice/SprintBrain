@@ -12,6 +12,8 @@
  * `src/__tests__/formMenuField.test.ts` pins the round-trip across the two.
  */
 
+import { linkValue, readLinkAttr } from '@/lib/linkRule';
+
 export interface FormMenuConfig {
   /** Menu options, in the order they are offered. */
   options: string[];
@@ -23,6 +25,12 @@ export interface FormMenuConfig {
   multiple: boolean;
   /** Field width in characters, or null to leave it to the surface. */
   cols: number | null;
+  /**
+   * Where on a pasted web page the choice is named (Fill from link), as
+   * `after:Plan`. Left out for a menu nobody points at a page, so a menu read
+   * back without one compares equal to the config it was written from.
+   */
+  link?: string;
 }
 
 /**
@@ -76,11 +84,17 @@ export function buildFormMenuToken(cfg: FormMenuConfig): string {
   if (picks.length) out += `; default=${picks.join(',')}`;
   if (cfg.multiple) out += '; multiple=yes';
   if (cfg.cols !== null && cfg.cols > 0) out += `; cols=${Math.floor(cfg.cols)}`;
+  const link = linkValue(cfg.link);
+  if (link !== '') out += `; link=${link}`;
   return `${out}}`;
 }
 
-/** Named settings a menu token carries; every other segment is an option. */
-const MENU_KEYS = /^\s*(name|default|multiple|cols)\s*=/i;
+/**
+ * Named settings a menu token carries; every other segment is an option.
+ * `link` is one since Fill from link: without it here, a menu's reading rule
+ * would come back as one more option to pick, and saving the menu would ship it.
+ */
+const MENU_KEYS = /^\s*(name|default|multiple|cols|link)\s*=/i;
 const MENU_HEAD = /^\{\s*formmenu\s*:/i;
 
 /**
@@ -132,6 +146,9 @@ export function parseFormMenuToken(raw: string): FormMenuConfig | null {
     ? formMenuPicks(defaultMatch[1] ?? '').filter((option) => options.includes(option))
     : [];
   const cols = colsMatch ? Number.parseInt(colsMatch[1] ?? '', 10) : 0;
+  // Carried through an edit the way `cols` is: the dialog shows it, and a menu
+  // saved again must not lose the rule it was written with.
+  const link = readLinkAttr(attrs);
 
   return {
     options,
@@ -139,6 +156,7 @@ export function parseFormMenuToken(raw: string): FormMenuConfig | null {
     name: nameMatch?.[1] ?? '',
     multiple,
     cols: cols > 0 ? cols : null,
+    ...(link !== '' ? { link } : {}),
   };
 }
 

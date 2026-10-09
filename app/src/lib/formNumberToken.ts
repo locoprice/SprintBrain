@@ -30,6 +30,7 @@
  */
 
 import { isValidMenuName } from '@/lib/formMenuToken';
+import { linkValue } from '@/lib/linkRule';
 
 /** How the value prints once it leaves the form. */
 export type NumberFormat = 'plain' | 'currency' | 'percent';
@@ -78,6 +79,12 @@ export interface FormNumberConfig {
    * around it, or its name.
    */
   label?: string;
+  /**
+   * Where on a pasted web page the value is (Fill from link), as
+   * `before:Boxes|Box` or `after:Total`; '' or left out for a field nobody
+   * points at a page. See `@/lib/linkRule`.
+   */
+  link?: string;
 }
 
 /**
@@ -139,6 +146,10 @@ export function buildFormNumberToken(cfg: FormNumberConfig): string {
   // braces and line breaks would end the token or split it, so they go.
   const label = (cfg.label ?? '').replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
   if (label !== '') out += `; label=${label}`;
+  // The reading rule after it, in the engine's one spelling, so a field read
+  // back and written again comes out identical.
+  const link = linkValue(cfg.link);
+  if (link !== '') out += `; link=${link}`;
   return `${out}}`;
 }
 
