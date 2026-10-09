@@ -536,7 +536,7 @@ body{
   display:flex;flex-direction:column;gap:18px;
   padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 
-.sec-lbl{font-size:11px;font-weight:700;color:var(--text2);
+.sec-lbl{display:block;font-size:11px;font-weight:700;color:var(--text2);
   text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
 
 /* Language picker — large touch tiles, styled to match the fields view.
@@ -563,6 +563,30 @@ body{
 .lang-tile.on.lIT{background:#F0FDF4;color:#15803D;border-color:#15803D}
 .lang-tile.on.lFR{background:#F0FDFA;color:#0D9488;border-color:#0D9488}
 .lang-tile.on.lMULTI{background:#F5F3FF;color:#7C3AED;border-color:#7C3AED}
+
+/* Fill from link — a pasted page fills the fields below. Shown only for a
+   snippet whose fields say where they are on a page (link=), so every other
+   snippet looks exactly as it did. The box is the page's typed-box style at
+   16px (smaller makes iOS zoom on focus), the button its primary action. The
+   status line keeps its place in the page even when empty, so a screen reader
+   still hears what it says next. */
+.link-row{display:flex;gap:8px}
+.link-in{flex:1;min-width:0;height:48px;padding:0 14px;font-size:16px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-in);
+  color:var(--text);font-family:inherit;outline:none;
+  -webkit-appearance:none;appearance:none;transition:border-color .15s}
+.link-in::placeholder{color:#C7C7CC}
+.link-in:focus{border-color:var(--primary)}
+.link-btn{flex:none;min-width:72px;height:48px;padding:0 18px;border:none;
+  border-radius:var(--r-in);background:var(--primary);color:#fff;
+  font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:transform .1s,opacity .15s}
+.link-btn:active{transform:scale(.97)}
+.link-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.link-btn:disabled{opacity:.55;cursor:progress;transform:none}
+.link-status{margin-top:8px;padding:0 2px;font-size:13px;line-height:1.45;color:var(--text2)}
+.link-status:empty{margin-top:0}
+.link-status.err{color:var(--danger)}
 
 /* White field card with row-divider lines */
 .fields-card{background:var(--card);border-radius:var(--r);
@@ -640,6 +664,16 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
    here rather than swapped for a class, because `hidden` is what the panel
    toggles on all four surfaces. */
 .field-adjbox[hidden],.field-dayfixed[hidden]{display:none}
+
+/* After a Fill from link: which answers came from the page, and which ones
+   the page did not settle. Written in words, never a colour alone. A note that
+   only says the page counts none is information, so it is muted. */
+.field-link{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
+.field-link:empty{display:none}
+.field-from{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;
+  background:var(--primary-lt);color:var(--primary);font-size:11px;font-weight:700}
+.field-note{font-size:12.5px;font-weight:600;color:var(--warn-deep)}
+.field-note.none{font-weight:500;color:var(--text2)}
 
 .no-fields{background:var(--card);border-radius:var(--r);padding:20px 16px;
   text-align:center;color:var(--text2);font-size:14px;box-shadow:var(--shadow-sm)}
@@ -1373,6 +1407,15 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div id="det-lang-section" class="sb-hide">
       <div class="sec-lbl">Language</div>
       <div class="lang-picker" id="det-lang-picker"></div>
+    </div>
+    <div id="det-link" class="sb-hidden" aria-busy="false">
+      <label class="sec-lbl" id="det-link-lbl" for="det-link-in"></label>
+      <div class="link-row">
+        <input id="det-link-in" class="link-in" type="url" inputmode="url" enterkeyhint="go"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button id="det-link-btn" class="link-btn" type="button"></button>
+      </div>
+      <div id="det-link-status" class="link-status" role="status" aria-live="polite"></div>
     </div>
     <div>
       <div class="sec-lbl">Fields</div>
@@ -3055,9 +3098,33 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
           else { values[f.key] = v.value; r.status = 'filled'; }
         }
       }
-      if (r.status === 'filled') filled++;
       results.push(r);
     }
+
+    // A closing date the page puts before its opening one. The form would
+    // empty it on its own (the ordering rule every surface applies), leaving a
+    // blank the operator was never told about; one of the two dates on the page
+    // is wrong, and this cannot know which. So the closing date is refused here,
+    // like any other value the page does not settle, and the field keeps what
+    // it held.
+    var byKey = {};
+    for (var b = 0; b < fs.length; b++) if (fs[b]) byKey[fs[b].key] = fs[b];
+    for (var o = 0; o < results.length; o++) {
+      var res = results[o], fld = byKey[res.key];
+      if (res.status !== 'filled' || !fld || !fld.notBefore) continue;
+      var startVal = Object.prototype.hasOwnProperty.call(values, fld.notBefore)
+        ? values[fld.notBefore] : trim(byKey[fld.notBefore] ? byKey[fld.notBefore].value : '');
+      var endVal = String(values[res.key]);
+      // The same comparison the pickers make with `min` (orderedMin): a date
+      // against the day of a datetime, a datetime against midnight of a date.
+      var earliest = orderedMin(fld.type, startVal);
+      var endCmp = fld.type === 'datetime' ? endVal : endVal.slice(0, 10);
+      if (earliest && endCmp < earliest) {
+        delete values[res.key];
+        res.status = 'unclear';
+      }
+    }
+    for (var c = 0; c < results.length; c++) if (results[c].status === 'filled') filled++;
     return { values: values, results: results, filled: filled, total: results.length };
   }
 
@@ -3069,7 +3136,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     var filled = read ? read.filled : 0, total = read ? read.total : 0;
     if (!total || !filled) return 'Nothing on that page matched this form. Check the link, or fill it in by hand.';
     if (filled === total) {
-      return 'Filled ' + filled + (filled === 1 ? ' field' : ' fields') + ' from the page. Check them, then insert.';
+      return 'Filled ' + filled + (filled === 1 ? ' field' : ' fields') + ' from the page. Check them before you use the text.';
     }
     return 'Filled ' + filled + ' of ' + total + ' fields from the page. Fill in the marked ones by hand.';
   }
@@ -8225,13 +8292,20 @@ function renderDetail(snip,keepVals){
     langSec.classList.add('sb-hide');
   }
 
+  /* A fresh form holds nothing from a page. A language switch keeps what was
+     filled, but a reading still on its way was for the other language's
+     fields, so it is dropped. */
+  if(keepVals)linkCancel(); else linkReset();
+
   /* Which fields, of what kind, the prose around each and its starting value
      are decided by the shared view model, not here — the same answer the
      overlay, the popup and the composer draw from. Entered values are handed
      in so a re-render keeps them. */
-  var _vm=window.SBFillForm.fillForm(snip.body||'', keepVals||{},
-    { fieldCfg: snip.field_cfg||{}, lang: snip.lang||'' });
+  var _vm=detailForm(snip,keepVals);
   var form=document.getElementById('fform');
+  /* Fill from link sits above the fields only when one of them says where it
+     is on a page. */
+  document.getElementById('det-link').classList.toggle('sb-hidden',!_vm.linkable);
 
   if(!_vm.fields.length){
     form.innerHTML='<div class="no-fields">No input fields — ready to copy ✓</div>';
@@ -8286,15 +8360,19 @@ function renderDetail(snip,keepVals){
       var pre=fld.before?'<span class="field-ctx">'+esc(fld.before)+'</span>':'';
       var post=fld.after?'<span class="field-ctx">'+esc(fld.after)+'</span>':'';
       var head=fld.label?'<div class="field-lbl">'+esc(fld.label)+'</div>':((pre||post)?'':'<div class="field-lbl">'+esc(lbl)+'</div>');
+      /* Where a reading from a page marks this field. Only a form that can be
+         filled from a link carries the slot. */
+      var mark=_vm.linkable
+        ?'<div class="field-link" data-link="'+esc(f)+'">'+linkMarkHtml(f,fld.fromLink)+'</div>':'';
       return '<div class="field-row">'+head+(blockControl
         ? (pre?'<div class="field-ctxline">'+pre+'</div>':'')+inp+
           (post?'<div class="field-ctxline">'+post+'</div>':'')
-        : '<div class="field-inline">'+pre+inp+post+'</div>')+mobAdjustHtml(fld)+'</div>';
+        : '<div class="field-inline">'+pre+inp+post+'</div>')+mark+mobAdjustHtml(fld)+'</div>';
     }).join('');
     form.querySelectorAll('.field-in').forEach(function(inp){
-      inp.addEventListener('input',function(){sbReorderDates(form);updatePrev();});
+      inp.addEventListener('input',function(){linkTouched(this);sbReorderDates(form);updatePrev();});
       /* Selects and checkboxes report a pick through 'change', not 'input'. */
-      inp.addEventListener('change',function(){sbReorderDates(form);updatePrev();});
+      inp.addEventListener('change',function(){linkTouched(this);sbReorderDates(form);updatePrev();});
     });
     sbReorderDates(form);
     bindAdjust(form);
@@ -8321,8 +8399,9 @@ function sbReorderDates(form){
     var min=SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
     if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
     /* A closing date the new opening one has just invalidated is no longer an
-       answer. Clearing beats leaving an impossible pair sitting in the form. */
-    if(min&&dst.value&&dst.value<min)dst.value='';
+       answer. Clearing beats leaving an impossible pair sitting in the form,
+       and an emptied field no longer holds anything from a page. */
+    if(min&&dst.value&&dst.value<min){dst.value='';linkTouched(dst);}
   });
 }
 
@@ -8376,9 +8455,10 @@ function mobAdjustHtml(fld){
 }
 
 /* A day or a clock choice writes a value into the picker that the operator
-   could have set by hand, so it goes back through the normal .field-in path and
-   readFields never learns the panel exists. Only the format is held apart: it
-   changes how the value prints, not what the value is. */
+   could have set by hand, so it goes back through the normal .field-in path,
+   counts as a hand edit for Fill from link, and readFields never learns the
+   panel exists. Only the format is held apart: it changes how the value
+   prints, not what the value is. */
 function bindAdjust(form){
   var M=window.SBFillForm;
   form.querySelectorAll('.field-adj').forEach(function(btn){
@@ -8402,6 +8482,7 @@ function bindAdjust(form){
          control doing nothing. */
       if(!inp||!val)return;
       inp.value=val;
+      linkTouched(inp);
       updatePrev();
     }
     function applyDay(){
@@ -8520,6 +8601,148 @@ function updatePrev(){
   if(!curSnip)return;
   document.getElementById('prev-text').textContent=detailText();
 }
+
+/* ── FILL FROM LINK ─────────────────────────────── */
+/* The operator pastes a link to a page (an order, a ticket, a confirmation)
+   and the fields fill themselves from what it says. The read-link server
+   function fetches the page, because a phone browser may not read another
+   site's; which piece of it fills which field, and every word said here, come
+   from the shared fill-form module, so the four fill surfaces read one page
+   the same way. It calls no AI service, so it is free and has no Pro switch
+   (scripts/check-pro-gate.js names it). Nothing is copied by itself: what the
+   page said becomes ordinary answers, checked and then copied like any other. */
+var linkSeq=0, linkReading=false;
+/* KEY -> true for each field whose value came from the page and has not been
+   touched since, and KEY -> the reading's result for the note beside it. Both
+   belong to the snippet on screen and are emptied when another one opens. */
+var linkMarks=Object.create(null), linkResults=Object.create(null);
+
+/* The view model of the snippet page's form. One call, so the form drawn and
+   the fields a page is read against are always the same answer. */
+function detailForm(snip,vals){
+  return window.SBFillForm.fillForm(snip.body||'', vals||{},
+    { fieldCfg: snip.field_cfg||{}, lang: snip.lang||'', linked: linkMarks });
+}
+function detailOpen(){
+  return document.getElementById('view-detail').classList.contains('active');
+}
+/* The badge and the note one field carries after a reading. */
+function linkMarkHtml(key,fromLink){
+  var M=window.SBFillForm,res=linkResults[key];
+  var note=M.linkNote(res);
+  return (fromLink?'<span class="field-from">'+esc(M.linkText('from-link'))+'</span>':'')
+    +(note?'<span class="field-note'+(res.none?' none':'')+'">'+esc(note)+'</span>':'');
+}
+/* A field the operator changes by hand is theirs again: its badge and its
+   note go at once. */
+function linkTouched(ctrl){
+  var key=ctrl.getAttribute('data-f');
+  if(!linkMarks[key]&&!linkResults[key])return;
+  delete linkMarks[key];delete linkResults[key];
+  var row=ctrl.closest('.field-row');
+  var slot=row&&row.querySelector('.field-link');
+  if(slot)slot.innerHTML='';
+}
+function linkSay(msg,isErr){
+  var st=document.getElementById('det-link-status');
+  st.textContent=msg||'';
+  st.classList.toggle('err',!!isErr);
+}
+function syncLinkBox(){
+  document.getElementById('det-link-btn').disabled=linkReading;
+  document.getElementById('det-link').setAttribute('aria-busy',linkReading?'true':'false');
+}
+/* Drops a reading still on its way: its answer would land on a form that has
+   changed under it. */
+function linkCancel(){
+  linkSeq++;
+  if(linkReading){linkReading=false;linkSay('');}
+  syncLinkBox();
+}
+function linkReset(){
+  linkCancel();
+  linkMarks=Object.create(null);linkResults=Object.create(null);
+  document.getElementById('det-link-in').value='';
+  linkSay('');
+}
+/* What the page said goes into each field's control exactly as the operator
+   could have put it there, so readFields and the preview never learn where it
+   came from. A field the page did not settle keeps what it held. A new
+   reading replaces every mark and note the last one left. */
+function linkApply(pieces){
+  var M=window.SBFillForm,form=document.getElementById('fform');
+  var read=M.readFromPage(detailForm(curSnip,getRawVals()).fields,pieces);
+  var ctrls=form.querySelectorAll('.field-in');
+  linkMarks=Object.create(null);linkResults=Object.create(null);
+  read.results.forEach(function(r){linkResults[r.key]=r;});
+  Object.keys(read.values).forEach(function(key){
+    var val=read.values[key],picks=val.split(', ');
+    ctrls.forEach(function(c){
+      if(c.getAttribute('data-f')!==key)return;
+      if(c.type==='checkbox')c.checked=picks.indexOf(c.value)>=0;
+      else if(c.type==='radio')c.checked=c.value===val;
+      else c.value=val;
+    });
+    linkMarks[key]=true;
+  });
+  form.querySelectorAll('.field-link').forEach(function(slot){
+    var key=slot.getAttribute('data-link');
+    slot.innerHTML=linkMarkHtml(key,linkMarks[key]===true);
+  });
+  sbReorderDates(form);
+  updatePrev();
+  linkSay(M.linkSummary(read));
+}
+function fillFromLink(){
+  if(!curSnip||linkReading)return;
+  var M=window.SBFillForm,inp=document.getElementById('det-link-in');
+  var link=M.linkUrl(inp.value);
+  if(link.problem){linkSay(M.linkText(link.problem),true);return;}
+  // The keyboard goes, so the fields filling in below are in sight.
+  inp.blur();
+  var seq=++linkSeq;
+  linkReading=true;
+  linkSay(M.linkText('reading'));
+  syncLinkBox();
+  function stale(){return seq!==linkSeq||!curSnip||!detailOpen();}
+  fetch(SUPA+'/functions/v1/read-link',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify({url:link.url,lang:navigator.language||''})
+  }).then(function(r){
+    if(r.status===401&&!stale())linkSay(M.linkText('unauthorized'),true);
+    if(handle401(r))return null;
+    return r.json().catch(function(){return {};}).then(function(b){return {ok:r.ok,status:r.status,b:b};});
+  },function(err){
+    return {offline:err};
+  }).then(function(res){
+    if(!res||stale())return;
+    linkReading=false;
+    syncLinkBox();
+    if(res.offline){
+      console.error('[SprintBrain] Fill from link: the request could not be sent:',res.offline);
+      linkSay(M.linkText('offline'),true);
+      return;
+    }
+    var b=res.b||{};
+    if(res.ok&&b.ok===true&&Array.isArray(b.pieces)){linkApply(b.pieces);return;}
+    // The status and the code only: never the link, which can carry an order number.
+    console.error('[SprintBrain] Fill from link: the page was not read:',res.status,b.error||'no error code');
+    linkSay(M.linkText(b.error),true);
+  });
+}
+(function(){
+  var M=window.SBFillForm;
+  var inp=document.getElementById('det-link-in'),btn=document.getElementById('det-link-btn');
+  document.getElementById('det-link-lbl').textContent=M.linkText('box-label');
+  inp.placeholder=M.linkText('box-placeholder');
+  btn.textContent=M.linkText('box-button');
+  btn.addEventListener('click',fillFromLink);
+  // Enter in the link box means Fill, never Copy.
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();fillFromLink();}
+  });
+})();
 
 /* ── COPY & SHARE ───────────────────────────────── */
 document.getElementById('copy-btn').addEventListener('click',function(){

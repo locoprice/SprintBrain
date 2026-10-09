@@ -936,9 +936,33 @@
           else { values[f.key] = v.value; r.status = 'filled'; }
         }
       }
-      if (r.status === 'filled') filled++;
       results.push(r);
     }
+
+    // A closing date the page puts before its opening one. The form would
+    // empty it on its own (the ordering rule every surface applies), leaving a
+    // blank the operator was never told about; one of the two dates on the page
+    // is wrong, and this cannot know which. So the closing date is refused here,
+    // like any other value the page does not settle, and the field keeps what
+    // it held.
+    var byKey = {};
+    for (var b = 0; b < fs.length; b++) if (fs[b]) byKey[fs[b].key] = fs[b];
+    for (var o = 0; o < results.length; o++) {
+      var res = results[o], fld = byKey[res.key];
+      if (res.status !== 'filled' || !fld || !fld.notBefore) continue;
+      var startVal = Object.prototype.hasOwnProperty.call(values, fld.notBefore)
+        ? values[fld.notBefore] : trim(byKey[fld.notBefore] ? byKey[fld.notBefore].value : '');
+      var endVal = String(values[res.key]);
+      // The same comparison the pickers make with `min` (orderedMin): a date
+      // against the day of a datetime, a datetime against midnight of a date.
+      var earliest = orderedMin(fld.type, startVal);
+      var endCmp = fld.type === 'datetime' ? endVal : endVal.slice(0, 10);
+      if (earliest && endCmp < earliest) {
+        delete values[res.key];
+        res.status = 'unclear';
+      }
+    }
+    for (var c = 0; c < results.length; c++) if (results[c].status === 'filled') filled++;
     return { values: values, results: results, filled: filled, total: results.length };
   }
 
@@ -950,7 +974,7 @@
     var filled = read ? read.filled : 0, total = read ? read.total : 0;
     if (!total || !filled) return 'Nothing on that page matched this form. Check the link, or fill it in by hand.';
     if (filled === total) {
-      return 'Filled ' + filled + (filled === 1 ? ' field' : ' fields') + ' from the page. Check them, then insert.';
+      return 'Filled ' + filled + (filled === 1 ? ' field' : ' fields') + ' from the page. Check them before you use the text.';
     }
     return 'Filled ' + filled + ' of ' + total + ' fields from the page. Fill in the marked ones by hand.';
   }

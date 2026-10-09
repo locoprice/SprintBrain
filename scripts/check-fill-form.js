@@ -400,6 +400,15 @@ const menuRead = ff.readFromPage([{ key: 'M', type: 'dd', options: ['Basic', 'Pl
 if (menuRead.results[0].status !== 'unclear' || menuRead.values.M !== undefined) {
   fail('a page naming an option the menu does not have must leave the menu alone');
 }
+// A closing date the page puts before its opening one: one of the two is wrong,
+// and the form's ordering rule would empty the closing date without a word. It
+// is refused instead, like any other value the page does not settle.
+const orderBody = '{formdate: name=S; link=after:From} {formdate: name=E; after=S; link=after:To}';
+const orderRead = ff.readFromPage(ff.fillForm(orderBody, {}, opt()).fields,
+  ['From', 'Sunday, 11-10-2026', 'To', 'Friday, 09-10-2026']);
+if (orderRead.values.E !== undefined || orderRead.results[1].status !== 'unclear' || orderRead.filled !== 1) {
+  fail('a closing date before its opening one was filled: ' + JSON.stringify(orderRead));
+}
 // A label that is not on the page leaves the field as it was.
 const missRead = ff.readFromPage([{ key: 'T', type: 'text', link: { mode: 'after', words: ['Reference'] }, 'default': '' }],
   ['Something else']);
