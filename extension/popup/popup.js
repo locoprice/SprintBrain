@@ -217,6 +217,9 @@ var expandedId      = null;   // snippet id whose inline detail is open
 var detailLang      = null;   // active language inside the open detail
 var detailFieldVals = {};     // user-entered field values for the open detail's fill form
 var detailFieldFmts = {};     // formats picked in the Adjust panel, keyed the same way
+var detailLinked    = {};     // fields holding a pasted page's answer, untouched since (Fill from link), keyed the same way
+var detailLink      = newDetailLink(); // the open detail's Link box: what it holds and says, what the last read found
+var detailLinkSeq   = 0;      // bumped by every read and every reset, so a late reply is dropped
 var selIdx          = -1;     // keyboard selection index in the snippet list
 var pSelIdx         = -1;     // keyboard selection index in the prompt list
 var loaded          = false;  // true once the authoritative Supabase load resolves
@@ -1726,7 +1729,7 @@ function detailBody(s, lang, vars){
 function detailForm(body, lang){
   var M=window.SBFillForm;
   if(!M||!body) return { fields:[], buttons:[], preview:body||'', layout:'flat', steps:[] };
-  try{ return M.fillForm(body, detailFieldVals, { lang: lang||'', fieldFmt: detailFieldFmts }); }
+  try{ return M.fillForm(body, detailFieldVals, { lang: lang||'', fieldFmt: detailFieldFmts, linked: detailLinked }); }
   catch(e){ return { fields:[], buttons:[], preview:body, layout:'flat', steps:[] }; }
 }
 // Effective values for a body: what the operator entered, else each field's
@@ -1947,10 +1950,13 @@ function renderDetailHtml(s){
         // A caption the author gave the box wins; otherwise only a box with no
         // prose around it falls back to its key.
         var lbl=f.label?'<label>'+esc(f.label)+'</label>':((pre||post)?'':'<label>'+esc(label)+'</label>');
+        // What the last link read found for this field; absent from every
+        // field the author never pointed at a page.
+        var mark=f.link?detailLinkMarkHtml(k, f.fromLink):'';
         form+='<div class="d-frow">'+lbl+(f.block
           ? (pre?'<div class="d-ctxline">'+pre+'</div>':'')+inp+
             (post?'<div class="d-ctxline">'+post+'</div>':'')
-          : '<div class="d-row">'+pre+inp+post+'</div>')+detailAdjustHtml(f)+'</div>';
+          : '<div class="d-row">'+pre+inp+post+'</div>')+mark+detailAdjustHtml(f)+'</div>';
       });
       // {button} controls — they set field values, they never print.
       var dBtns=vm.buttons;
@@ -1960,7 +1966,9 @@ function renderDetailHtml(s){
         }).join('')+'</div><div class="d-btnerr" hidden></div>';
       }
       form+='</div>';
-      h+=form;
+      // The Link box sits above the fields it fills, outside their scroll, so
+      // it stays in view however long the form is.
+      h+=(vm.linkable?detailLinkHtml(s.id):'')+form;
     }
     var pvCls='d-body'+(resolved.trim()?'':' plain');
     var note=hasFields
@@ -2143,14 +2151,23 @@ function renderList(q){
 /* A closing date may not open before its opening one. Re-run after any value
    changes: the limit follows what the operator just picked, and a closing date
    the new opening one invalidated is cleared rather than left impossible. */
-function reorderDetailDates(el){
+// `edited` is the control the operator is typing in, if any, and is never
+// emptied: a date picker reports a whole date after every keystroke (the year
+// 2027 passes through 0002). A closing date typed before its opening one
+// stays, flagged by `min`; moving the opening date past it still clears it.
+function reorderDetailDates(el, edited){
   if(!el||!window.SBFillForm||!window.SBFillForm.orderedMin)return;
   el.querySelectorAll('[data-after]').forEach(function(dst){
     var src=el.querySelector('[data-fkey="'+dst.getAttribute('data-after')+'"]');
     if(!src)return;
     var min=window.SBFillForm.orderedMin(dst.type==='datetime-local'?'datetime':'date',src.value);
-    if(min)dst.setAttribute('min',min); else dst.removeAttribute('min');
-    if(min&&dst.value&&dst.value<min)dst.value='';
+    // Written only when it changes: Chrome resets a date box's typing when its
+    // min is set again, even to the same value.
+    if(min){ if(dst.getAttribute('min')!==min)dst.setAttribute('min',min); }
+    else if(dst.hasAttribute('min'))dst.removeAttribute('min');
+    // The stored value goes with the control, or the preview and Copy filled
+    // would go on printing a date the form shows empty.
+    if(min&&dst!==edited&&dst.value&&dst.value<min){ dst.value=''; detailFieldVals[dst.getAttribute('data-fkey')]=''; }
   });
 }
 
@@ -2177,16 +2194,8 @@ function wireListRows(el){
   el.querySelectorAll('.d-fields [data-fkey]').forEach(function(inp){
     var box=inp.closest('.d-fields'); var did=box?box.getAttribute('data-fid'):null;
     var handler=function(){
-      var key=inp.getAttribute('data-fkey');
-      if(inp.type==='checkbox'&&box){
-        // Checkbox group (multiple=yes menu): the value is every checked box.
-        var picked=[];
-        box.querySelectorAll('input[type=checkbox][data-fkey="'+key+'"]').forEach(function(cb){ if(cb.checked) picked.push(cb.value); });
-        detailFieldVals[key]=picked.join(', ');
-      } else {
-        detailFieldVals[key]=inp.value;
-      }
-      reorderDetailDates(el);
+      detailFieldVals[inp.getAttribute('data-fkey')]=detailControlValue(box, inp);
+      reorderDetailDates(el, inp);
       if(did) updateDetailPreview(did);
     };
     inp.addEventListener('input',handler); inp.addEventListener('change',handler);
@@ -2198,6 +2207,214 @@ function wireListRows(el){
     btn.addEventListener('click',function(e){ e.stopPropagation(); runDetailButton(btn); });
   });
   bindDetailAdjust(el);
+  bindDetailLink(el);
+}
+
+// What one field holds right now, read off its control. A menu is every
+// ticked option in the order the menu lists them (a single-choice menu ticks
+// one at most); anything else is the control's own value.
+function detailControlValue(box, inp){
+  if(box && (inp.type==='checkbox'||inp.type==='radio')){
+    var picked=[];
+    box.querySelectorAll('input[data-fkey="'+inp.getAttribute('data-fkey')+'"]').forEach(function(o){ if(o.checked) picked.push(o.value); });
+    return picked.join(', ');
+  }
+  return inp.value;
+}
+
+// ── FILL FROM LINK ──────────────────────────────────────────────────
+// The operator pastes a link to a page (an order, a confirmation) and the form
+// fills itself from what the page says. Which piece of the page answers which
+// field, and every word the box shows, is decided in
+// extension/shared/fill-form.js; the page is read by SprintBrain's server,
+// asked through the background worker, the same path the in-page overlay
+// takes. Only the markup and the writing into the inputs are local.
+//
+// The Link box is not a field. It carries no data-fkey and sits outside
+// .d-fields, so nothing that reads the form's values can pick it up, and Copy
+// filled copies exactly what it copied before.
+function newDetailLink(){
+  // marks: per field the last read looked for, { result, value }, where value
+  // is what the field held right after the read. A field holding anything else
+  // since is no longer the page's answer, so its mark goes.
+  return { url:'', msg:'', error:false, busy:false, marks:{} };
+}
+
+function detailLinkHtml(id){
+  var t=window.SBFillForm.linkText, L=detailLink;
+  return '<div class="d-link" data-lid="'+esc(id)+'" aria-busy="'+(L.busy?'true':'false')+'">'
+    +'<label class="d-linklbl" for="d-linkinp">'+esc(t('box-label'))+'</label>'
+    +'<div class="d-linkrow">'
+      +'<input id="d-linkinp" class="d-linkinp" type="url" inputmode="url" autocomplete="off" spellcheck="false"'
+        +' placeholder="'+esc(t('box-placeholder'))+'" value="'+esc(L.url)+'">'
+      +'<button class="d-linkbtn" type="button"'+(L.busy?' disabled':'')+'>'+esc(t('box-button'))+'</button>'
+    +'</div>'
+    +'<div class="d-linkmsg'+(L.error?' err':'')+'" role="status" aria-live="polite">'+esc(L.msg)+'</div>'
+  +'</div>';
+}
+
+// One field's mark: "From link" while it holds the page's answer, and the note
+// the read left beside it. A note on a field the page filled is only ever
+// "None on the page", which is an answer; the other two ask for the operator,
+// so they carry the warning tone.
+function detailLinkMarkHtml(key, fromLink){
+  var M=window.SBFillForm, m=detailLink.marks[key];
+  var note=m?M.linkNote(m.result):'';
+  var html=(fromLink?'<span class="d-linkbadge">'+esc(M.linkText('from-link'))+'</span>':'')
+    +(note?'<span class="d-linknote'+(m.result.status==='filled'?'':' warn')+'">'+esc(note)+'</span>':'');
+  return '<div class="d-linkmark" data-linkmark="'+esc(key)+'"'+(html?'':' hidden')+'>'+html+'</div>';
+}
+
+function detailWrap(id){ return document.querySelector('.detail[data-detail="'+id+'"]'); }
+
+// Every field's effective value in the open detail, the way the preview reads it.
+function detailEffectiveVals(id){
+  var s=findSnip(id);
+  return s?detailVals(detailForm(detailActiveBody(s), detailActiveLang(s))):{};
+}
+
+function paintDetailLinkMarks(id){
+  var wrap=detailWrap(id); if(!wrap) return;
+  wrap.querySelectorAll('.d-linkmark[data-linkmark]').forEach(function(slot){
+    var key=slot.getAttribute('data-linkmark');
+    slot.outerHTML=detailLinkMarkHtml(key, detailLinked[key]===true);
+  });
+}
+
+// The Link box's status line and busy state, kept in detailLink so a redraw of
+// the list (a search keystroke, a language switch) draws the same box.
+function setDetailLinkMsg(id, text, isError){
+  detailLink.msg=text; detailLink.error=!!isError;
+  var wrap=detailWrap(id), msg=wrap?wrap.querySelector('.d-linkmsg'):null;
+  if(msg){ msg.textContent=text; msg.classList.toggle('err', !!isError); }
+}
+function setDetailLinkBusy(id, on){
+  detailLink.busy=on;
+  var wrap=detailWrap(id), box=wrap?wrap.querySelector('.d-link'):null;
+  if(!box) return;
+  box.setAttribute('aria-busy', on?'true':'false');
+  box.querySelector('.d-linkbtn').disabled=on;
+}
+
+function sweepDetailLink(id){
+  var keys=Object.keys(detailLink.marks);
+  if(!keys.length) return;
+  var now=detailEffectiveVals(id), changed=false;
+  keys.forEach(function(k){
+    if(now[k]===detailLink.marks[k].value) return;
+    delete detailLink.marks[k]; delete detailLinked[k]; changed=true;
+  });
+  if(changed) paintDetailLinkMarks(id);
+}
+
+function fillDetailFromLink(id){
+  var M=window.SBFillForm; if(!M) return;
+  var link=M.linkUrl(detailLink.url);
+  if(link.problem){ setDetailLinkMsg(id, M.linkText(link.problem), true); return; }
+  var mine=++detailLinkSeq;
+  var wrap=detailWrap(id);
+  // Disabling the focused button would drop the focus to the page, where Enter
+  // copies the open snippet.
+  if(wrap && document.activeElement===wrap.querySelector('.d-linkbtn')) wrap.querySelector('.d-linkinp').focus();
+  setDetailLinkBusy(id, true);
+  setDetailLinkMsg(id, M.linkText('reading'), false);
+  function fail(code){
+    setDetailLinkBusy(id, false);
+    setDetailLinkMsg(id, M.linkText(code), true);
+  }
+  try{
+    chrome.runtime.sendMessage({ type:'read_link', url:link.url, lang:navigator.language||'' }, function(res){
+      var lost=chrome.runtime.lastError;
+      // Too late: the detail closed or opened on another snippet, or a newer
+      // read started. Its answer belongs to a form that is no longer there.
+      if(mine!==detailLinkSeq || expandedId!==id) return;
+      if(lost||!res){
+        console.error('[SprintBrain] Fill from link got no answer from the background worker', lost?lost.message:'');
+        fail('failed');
+        return;
+      }
+      if(!res.ok){
+        fail(res.error);
+        // A session that could not be refreshed and is gone drops to the
+        // sign-in gate, the way one revoked from the dashboard does.
+        if(res.error==='unauthorized') sbGetSession(function(sess){ if(!(sess&&sess.access_token)&&window.sbSignOut) window.sbSignOut(); });
+        return;
+      }
+      setDetailLinkBusy(id, false);
+      applyDetailLink(id, res.pieces);
+    });
+  }catch(e){
+    console.error('[SprintBrain] Fill from link could not reach the background worker', e);
+    fail('failed');
+  }
+}
+
+// Writes each value the page gave the way the operator could have, into the
+// control and into detailFieldVals: the picker gets its ISO value, a menu gets
+// its options ticked (never .value on a radio, which would rewrite a choice).
+function applyDetailLink(id, pieces){
+  var M=window.SBFillForm, s=findSnip(id), wrap=detailWrap(id);
+  var box=wrap?wrap.querySelector('.d-fields'):null;
+  if(!s||!box) return;
+  // Read against the form on screen now, whichever language it is showing.
+  var read=M.readFromPage(detailForm(detailActiveBody(s), detailActiveLang(s)).fields, pieces);
+  var written=[];
+  Object.keys(read.values).forEach(function(key){
+    var ctrls=box.querySelectorAll('[data-fkey="'+key+'"]');
+    if(!ctrls.length) return;
+    var first=ctrls[0], value=String(read.values[key]);
+    if(first.type==='radio'||first.type==='checkbox'){
+      var want=first.type==='checkbox'?value.split(', '):[value];
+      ctrls.forEach(function(c){ c.checked=want.indexOf(c.value)>=0; });
+    } else {
+      first.value=value;
+    }
+    written.push(first);
+  });
+  // The same two steps a hand edit runs: the date ordering, then the preview.
+  // The reader refuses a closing date before the opening one the form holds,
+  // so the ordering clears only a closing date the page did not write, once
+  // the page's opening date has moved past it; it empties the stored value
+  // with the control.
+  reorderDetailDates(wrap);
+  written.forEach(function(inp){ detailFieldVals[inp.getAttribute('data-fkey')]=detailControlValue(box, inp); });
+  updateDetailPreview(id);
+  var held=detailEffectiveVals(id);
+  detailLinked={};
+  detailLink.marks={};
+  read.results.forEach(function(r){
+    detailLink.marks[r.key]={ result:r, value:held[r.key] };
+    if(Object.prototype.hasOwnProperty.call(read.values, r.key) && held[r.key]!=='') detailLinked[r.key]=true;
+  });
+  paintDetailLinkMarks(id);
+  setDetailLinkMsg(id, M.linkSummary(read), false);
+}
+
+// Binds the open detail's Link box, and the sweep that takes a mark away once
+// its field holds something else.
+function bindDetailLink(el){
+  var box=el.querySelector('.d-link'); if(!box) return;
+  var id=box.getAttribute('data-lid'), wrap=box.closest('.detail');
+  var inp=box.querySelector('.d-linkinp');
+  inp.addEventListener('input',function(){ detailLink.url=inp.value; });
+  inp.addEventListener('keydown',function(e){
+    if(e.key!=='Enter') return;
+    // Reads the page; never copies a form the operator has not seen filled.
+    // A held key repeats: only the press itself reads, so one Enter is one
+    // read against the server's allowance.
+    e.preventDefault(); e.stopPropagation();
+    if(!e.repeat) fillDetailFromLink(id);
+  });
+  box.querySelector('.d-linkbtn').addEventListener('click',function(e){ e.stopPropagation(); fillDetailFromLink(id); });
+  if(!wrap) return;
+  // Bubbling, so each field's own listener has already stored the value read
+  // here. Clicks are caught on the way down and swept once the click is over,
+  // because the action buttons stop theirs from bubbling and write their
+  // values while it runs.
+  var sweep=function(){ sweepDetailLink(id); };
+  wrap.addEventListener('input',sweep);
+  wrap.addEventListener('change',sweep);
+  wrap.addEventListener('click',function(){ setTimeout(sweep,0); },true);
 }
 
 // Runs one {button}'s code block against the live fill-form values, writes the
@@ -2239,6 +2456,9 @@ function runDetailButton(btn){
 function toggleDetail(id){
   // Opening a (different) snippet starts with a fresh fill form; language
   // switches keep the entered values (handled in the data-dlang wiring).
+  // The Link box starts empty too, and a read still in flight for the form
+  // being left is dropped when it answers.
+  detailLinked={}; detailLink=newDetailLink(); detailLinkSeq++;
   if(expandedId===id){ expandedId=null; detailFieldVals={}; detailFieldFmts={}; }
   else { expandedId=id; detailLang=null; detailFieldVals={}; detailFieldFmts={}; }
   renderList(gi('sq')?gi('sq').value:'');
@@ -2486,9 +2706,10 @@ document.addEventListener('keydown', function(e){
   var cl=gi('cl-bg'); if(cl && cl.classList.contains('on')){ if(e.key==='Escape') closeChangelog(); return; }
   var sq=gi('sq'); var k=e.key;
 
-  // Editing a fill-form field → leave every key to the input (no list nav).
+  // Editing a fill-form field or the Link box above it → leave every key to the
+  // input (no list nav): a "/" in a pasted link must not jump to search.
   var ae=document.activeElement;
-  if(ae && ae.closest && ae.closest('.d-fields')) return;
+  if(ae && ae.closest && (ae.closest('.d-fields') || ae.closest('.d-link'))) return;
 
   if(k==='/' && document.activeElement!==sq){ if(sq){ e.preventDefault(); sq.focus(); } return; }
 

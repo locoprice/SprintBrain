@@ -1580,18 +1580,208 @@ function _sbOrderAttrs(cfg) {
 
 // Re-applies every ordering limit after any value changes. Cheap enough to run
 // on each keystroke: a fill form is a handful of inputs, not a table.
-function _sbReorder(root) {
+// `edited` is the box the operator is typing in, if any. It is never emptied:
+// a date picker reports a whole date after every keystroke, so typing the
+// year 2027 passes through 0002, and clearing it there wiped the box under
+// the operator's fingers. A closing date typed earlier than its opening one
+// stays as typed, flagged by `min`; moving the opening date past it still
+// clears it.
+function _sbReorder(root, edited) {
   var deps = root.querySelectorAll('.sb-inp[data-after]');
   for (var i = 0; i < deps.length; i++) {
     var dst = deps[i];
     var src = root.querySelector('.sb-inp[data-key="' + dst.getAttribute('data-after') + '"]');
     if (!src) continue;
     var min = window.SBFillForm.orderedMin(dst.type === 'datetime-local' ? 'datetime' : 'date', src.value);
-    if (min) dst.setAttribute('min', min); else dst.removeAttribute('min');
+    // Written only when it changes. Chrome resets a date box's typing when its
+    // min is set again, even to the same value, so the year 2027 typed digit
+    // by digit came out blank.
+    if (min) { if (dst.getAttribute('min') !== min) dst.setAttribute('min', min); }
+    else if (dst.hasAttribute('min')) dst.removeAttribute('min');
     // A closing date the new opening one has just invalidated is no longer an
     // answer. Clearing beats leaving an impossible pair sitting in the form.
-    if (min && dst.value && dst.value < min) dst.value = '';
+    if (min && dst !== edited && dst.value && dst.value < min) dst.value = '';
   }
+}
+
+// ── FILL FROM LINK ─────────────────────────────────────────────────
+// The operator pastes a link to a page (an order, a confirmation) and the form
+// fills itself from what the page says. Which piece of the page answers which
+// field, and every word the box shows, is decided in shared/fill-form.js. The
+// page itself is read by SprintBrain's server, asked through the background
+// worker: a content script runs in the page's world and never holds the
+// session. Only the markup and the writing into the inputs are local.
+//
+// The Link box is not a field. It carries no .sb-inp and no data-key, so
+// getVals, the focus flow and the insert can never read it as an answer.
+function _sbLinkHtml() {
+  var t = _SBFF.linkText;
+  return '<div class="sb-link" aria-busy="false">' +
+      '<label class="sb-linklbl" for="sb-linkinp">' + xesc(t('box-label')) + '</label>' +
+      '<div class="sb-linkrow">' +
+        '<input id="sb-linkinp" class="sb-linkinp" type="url" inputmode="url" autocomplete="off"' +
+          ' spellcheck="false" placeholder="' + xesc(t('box-placeholder')) + '">' +
+        '<button type="button" class="sb-linkbtn">' + xesc(t('box-button')) + '</button>' +
+      '</div>' +
+      '<div class="sb-linkmsg" role="status" aria-live="polite"></div>' +
+    '</div>';
+}
+
+// Wires one overlay's Link box. Returns { input, fill } for the overlay's own
+// Enter handler, or null when the form has no Link box.
+function _sbBindLink(el, snip) {
+  var box = el.querySelector('.sb-link');
+  if (!box || !_SBFF) return null;
+  var inp = box.querySelector('.sb-linkinp');
+  var btn = box.querySelector('.sb-linkbtn');
+  var msg = box.querySelector('.sb-linkmsg');
+  // Bumped by every read, so only the newest one may write into the form.
+  var seq = 0;
+  // What the last read found for each field it looked for, and what that field
+  // held right after it. A field that holds anything else since is no longer
+  // the page's answer, whoever changed it — a keystroke, the Adjust panel, an
+  // action button — so its mark goes.
+  var marks = {};
+
+  function say(text, isError) {
+    msg.textContent = text;
+    msg.classList.toggle('sb-linkerr', !!isError);
+  }
+
+  function setBusy(on) {
+    btn.disabled = on;
+    box.setAttribute('aria-busy', on ? 'true' : 'false');
+  }
+
+  function paint(key) {
+    var slot = el.querySelector('.sb-linkmark[data-linkmark="' + key + '"]');
+    if (!slot) return;
+    var m = marks[key];
+    var note = m ? _SBFF.linkNote(m.result) : '';
+    // A note on a field the page filled is only ever "None on the page", which
+    // is an answer; the other two ask for the operator, so they carry the
+    // warning tone.
+    var html = (m && m.linked ? '<span class="sb-linkbadge">' + xesc(_SBFF.linkText('from-link')) + '</span>' : '') +
+      (note ? '<span class="sb-linknote' + (m.result.status === 'filled' ? '' : ' sb-linkwarn') + '">' +
+        xesc(note) + '</span>' : '');
+    slot.innerHTML = html;
+    slot.hidden = html === '';
+  }
+
+  function sweep() {
+    var keys = Object.keys(marks);
+    if (!keys.length || overlayEl !== el) return;
+    var now = getVals();
+    for (var i = 0; i < keys.length; i++) {
+      if (now[keys[i]] !== marks[keys[i]].value) {
+        delete marks[keys[i]];
+        paint(keys[i]);
+      }
+    }
+  }
+  // Bubbling, so each field's own listener has already run and the value read
+  // here is the one the operator just left. Clicks are caught on the way down
+  // and swept once the click is over, because the action buttons stop theirs
+  // from bubbling and write their values while it runs.
+  el.addEventListener('input', sweep);
+  el.addEventListener('change', sweep);
+  el.addEventListener('click', function() { setTimeout(sweep, 0); }, true);
+
+  // Writes a value the way the operator could have: the picker gets its ISO
+  // value, a menu gets its options ticked. Never .value on a radio, which would
+  // rewrite one of the choices on offer (see the {button} code in showOverlay).
+  function write(key, value) {
+    var ctrls = el.querySelectorAll('.sb-inp[data-key="' + key + '"]');
+    if (!ctrls.length) return;
+    var kind = ctrls[0].type;
+    if (kind === 'radio' || kind === 'checkbox') {
+      var want = kind === 'checkbox' ? String(value).split(', ') : [String(value)];
+      for (var i = 0; i < ctrls.length; i++) ctrls[i].checked = want.indexOf(ctrls[i].value) !== -1;
+    } else {
+      ctrls[0].value = String(value);
+    }
+  }
+
+  function apply(read) {
+    for (var key in read.values) {
+      if (Object.prototype.hasOwnProperty.call(read.values, key)) write(key, read.values[key]);
+    }
+    // The same two steps a hand edit runs: the date ordering, then the preview.
+    _sbReorder(el);
+    updatePrev(snip);
+    var held = getVals();
+    marks = {};
+    for (var r = 0; r < read.results.length; r++) {
+      var res = read.results[r];
+      marks[res.key] = {
+        result: res,
+        value: held[res.key],
+        // An empty box is never the page's answer, whatever emptied it. The
+        // reader refuses a closing date before the opening one the form holds,
+        // so the ordering above no longer clears a date the page wrote.
+        linked: Object.prototype.hasOwnProperty.call(read.values, res.key) && held[res.key] !== ''
+      };
+    }
+    var slots = el.querySelectorAll('.sb-linkmark[data-linkmark]');
+    for (var s = 0; s < slots.length; s++) paint(slots[s].getAttribute('data-linkmark'));
+    say(_SBFF.linkSummary(read), false);
+  }
+
+  // Where the caret goes once a read is over. Left alone when the operator has
+  // already moved on to a field; otherwise the first field still waiting for an
+  // answer after a fill, so Enter goes back to inserting, and the Link box
+  // after a failure, so the link can be corrected.
+  function settle(filled) {
+    var ae = document.activeElement;
+    if (ae && ae !== document.body && ae !== inp && ae !== btn) return;
+    _sbFocus(filled ? _sbFirstEmpty(el) : inp);
+  }
+
+  function fail(code) {
+    say(_SBFF.linkText(code), true);
+    settle(false);
+  }
+
+  function fill() {
+    var link = _SBFF.linkUrl(inp.value);
+    if (link.problem) { say(_SBFF.linkText(link.problem), true); return; }
+    var mine = ++seq;
+    // Disabling the focused button would drop the focus out of the overlay,
+    // and Esc with it.
+    if (document.activeElement === btn) inp.focus();
+    setBusy(true);
+    say(_SBFF.linkText('reading'), false);
+    try {
+      chrome.runtime.sendMessage({ type: 'read_link', url: link.url, lang: navigator.language || '' }, function(res) {
+        var lost = chrome.runtime.lastError;
+        // Too late: the overlay closed or opened on another snippet, or a newer
+        // read started. Its answer belongs to a form that is no longer there.
+        if (overlayEl !== el || mine !== seq) return;
+        setBusy(false);
+        if (lost || !res) {
+          console.error('[Sprintbrain] Fill from link got no answer from the extension', lost ? lost.message : '');
+          fail('failed');
+          return;
+        }
+        if (!res.ok) { fail(res.error); return; }
+        // Read against the form as it is now, not as it opened: a closing date
+        // is checked against the opening date the form holds now, which the
+        // operator may have changed since.
+        var now = _SBFF.fillForm(snip.body, getVals(), { fieldCfg: snip.fieldCfg || {}, lang: snip.lang });
+        apply(_SBFF.readFromPage(now.fields, res.pieces));
+        settle(true);
+      });
+    } catch (e) {
+      // The extension was reloaded under this page, so this script can no
+      // longer reach it.
+      console.error('[Sprintbrain] Fill from link could not reach the extension', e);
+      setBusy(false);
+      fail('failed');
+    }
+  }
+
+  btn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); fill(); });
+  return { input: inp, fill: fill };
 }
 
 function showOverlay(targetEl, snip, scLen, done) {
@@ -1669,10 +1859,14 @@ function showOverlay(targetEl, snip, scLen, done) {
     // around it falls back to its key.
     var lbl  = cfg.label ? '<label class="sb-lbl">'+xesc(cfg.label)+'</label>'
       : ((pre || post) ? '' : '<label class="sb-lbl">{'+xesc(key)+'}</label>');
+    // Where a field that reads its value off a page says what the last read
+    // found ("From link", "Not on the page"). Empty and hidden until a read,
+    // and absent from every field the author never pointed at a page.
+    var mark = cfg.link ? '<div class="sb-linkmark" data-linkmark="'+xesc(key)+'" hidden></div>' : '';
     fhtml += '<div class="sb-field">' + lbl + (blockControl
       ? (pre ? '<div class="sb-ctxline">'+pre+'</div>' : '') + inp +
         (post ? '<div class="sb-ctxline">'+post+'</div>' : '')
-      : '<div class="sb-row">'+pre+inp+post+'</div>') + _sbAdjustHtml(cfg) + '</div>';
+      : '<div class="sb-row">'+pre+inp+post+'</div>') + mark + _sbAdjustHtml(cfg) + '</div>';
   }
 
   // {button} controls: they set field values, they never print. Rendered after
@@ -1693,6 +1887,7 @@ function showOverlay(targetEl, snip, scLen, done) {
       '<button class="sb-close">&#x2715;</button>' +
     '</div>' +
     (reviewWarning(snip) ? '<div class="sb-revwarn" role="alert">' + xesc(reviewWarning(snip)) + '</div>' : '') +
+    (vm.linkable ? _sbLinkHtml() : '') +
     '<div class="sb-fields">'+fhtml+'</div>' +
     '<div class="sb-prev" id="sb-prev"></div>' +
     '<div class="sb-foot">' +
@@ -1717,16 +1912,18 @@ function showOverlay(targetEl, snip, scLen, done) {
   overlayEl = el;
 
   setTimeout(function() {
-    _sbFocus(_sbFirstEmpty(el));
+    // A form that can fill from a link opens on the Link box: the next thing
+    // the operator does there is paste.
+    _sbFocus(el.querySelector('.sb-linkinp') || _sbFirstEmpty(el));
     updatePrev(snip);
   }, 50);
 
   var inps = el.querySelectorAll('.sb-inp');
   for (var j = 0; j < inps.length; j++) {
     (function(inp) {
-      inp.addEventListener('input',  function(){ _sbReorder(el); updatePrev(snip); });
+      inp.addEventListener('input',  function(){ _sbReorder(el, inp); updatePrev(snip); });
       inp.addEventListener('change', function(){
-        _sbReorder(el);
+        _sbReorder(el, inp);
         updatePrev(snip);
         // A radio is a finished answer the moment it is ticked, so the caret
         // moves to whatever is still empty. Checkboxes are excluded: a multiple
@@ -1868,6 +2065,8 @@ function showOverlay(targetEl, snip, scLen, done) {
     })(actBtns[b]);
   }
 
+  var link = _sbBindLink(el, snip);
+
   var closeBtn   = el.querySelector('.sb-close');
   var insertBtn  = el.querySelector('.sb-insert');
 
@@ -1896,6 +2095,15 @@ function showOverlay(targetEl, snip, scLen, done) {
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeOverlay(); }
     if (e.key === 'Enter' && !e.shiftKey) {
+      // The Link box is not a field: Enter there reads the page, and never
+      // inserts a message the operator has not seen filled yet.
+      // A held key repeats: only the press itself reads, so one Enter is one
+      // read against the server's allowance.
+      if (link && document.activeElement === link.input) {
+        e.preventDefault(); e.stopPropagation();
+        if (!e.repeat) link.fill();
+        return;
+      }
       // BUTTON excluded: the browser already activates a focused button on
       // Enter, so inserting here too would fire an action button and insert
       // the message in one keypress.
@@ -3645,6 +3853,36 @@ document.addEventListener('input', function(e) {
     '#sb-overlay .sb-actbtn:hover{background:#E0EAFF;}' +
     '#sb-overlay .sb-actbtn:active{transform:scale(.97);}' +
     '#sb-overlay .sb-btnerr{color:#DC2626;font-size:11px;line-height:1.5;padding-top:2px;}' +
+    // Fill from link. A band of its own between the header and the fields, so
+    // it stays in view however long the form scrolls, in the light blue the
+    // Adjust panel already uses for "a tool that fills fields in". The input
+    // takes the field look but not the field class: it is never an answer.
+    '#sb-overlay .sb-link{display:flex;flex-direction:column;gap:5px;padding:10px 14px;background:#F8FAFF;border-bottom:1px solid #E4E9F7;}' +
+    '#sb-overlay .sb-linklbl{font-size:11px;font-weight:600;color:#52525B;}' +
+    '#sb-overlay .sb-linkrow{display:flex;align-items:stretch;gap:6px;}' +
+    '#sb-overlay .sb-linkinp{flex:1 1 auto;min-width:0;box-sizing:border-box;margin:0;background:#fff;border:1px solid #E4E4E7;border-radius:8px;padding:7px 10px;font-size:14px;color:#18181B;font-family:inherit;outline:none;touch-action:manipulation;transition:border-color .15s,box-shadow .15s;}' +
+    '#sb-overlay .sb-linkinp:focus{border-color:#1B4FD8;box-shadow:0 0 0 3px rgba(27,79,216,.14);}' +
+    '#sb-overlay .sb-linkinp::placeholder{color:#A1A1AA;}' +
+    '#sb-overlay .sb-linkbtn{flex:none;margin:0;background:#EEF2FF;border:1px solid #BED0FF;border-radius:8px;padding:0 16px;font-size:13px;font-weight:600;color:#1B4FD8;font-family:inherit;cursor:pointer;min-height:34px;touch-action:manipulation;transition:background .15s;}' +
+    '#sb-overlay .sb-linkbtn:hover{background:#E0EAFF;}' +
+    '#sb-overlay .sb-linkbtn:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}' +
+    '#sb-overlay .sb-linkbtn:disabled{opacity:.55;cursor:default;background:#EEF2FF;}' +
+    '#sb-overlay .sb-linkmsg{font-size:11px;line-height:1.5;color:#52525B;}' +
+    '#sb-overlay .sb-linkmsg:empty{display:none;}' +
+    '#sb-overlay .sb-linkmsg.sb-linkerr{color:#DC2626;}' +
+    // Text, never colour alone: "From link" reads the same to someone who
+    // cannot tell the blue from the grey.
+    '#sb-overlay .sb-linkmark{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;line-height:1.4;}' +
+    '#sb-overlay .sb-linkmark[hidden]{display:none;}' +
+    // A mark belongs to the field above it, so it hugs that field and keeps
+    // clear of the next one. Under a menu it is pulled up past the empty half
+    // of the last option row, which is otherwise as far from it as the next
+    // field's label is.
+    '#sb-overlay .sb-multi + .sb-linkmark{margin-top:-6px;}' +
+    '#sb-overlay .sb-field:has(> .sb-linkmark:not([hidden])){margin-bottom:6px;}' +
+    '#sb-overlay .sb-linkbadge{display:inline-block;padding:1px 7px;border-radius:999px;background:#EEF2FF;border:1px solid #BED0FF;color:#1B4FD8;font-size:10px;font-weight:700;}' +
+    '#sb-overlay .sb-linknote{color:#71717A;}' +
+    '#sb-overlay .sb-linknote.sb-linkwarn{color:var(--sb-warn);font-weight:600;}' +
     // One option per line, each a plain row: the circle says "pick one of
     // these" the way a paper form does. Wrapped pills read as tags or filters,
     // not as a question waiting for an answer, and a long option had to be
