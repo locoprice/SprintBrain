@@ -5,14 +5,18 @@ import {
   buildFormDateToken,
   DATE_FORMAT_OPTIONS,
   DATE_FORMATS,
+  dateFormatOptions,
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIME_FORMAT,
+  longDateSample,
   nextDateName,
   normalizeDateFormat,
   sanitizeDateName,
   TIME_FORMAT_OPTIONS,
   TIME_FORMATS,
 } from '@/lib/formDateToken';
+import { buildDateRangeToken } from '@/lib/dateRangeToken';
+import { buildFormTimeToken, formatShowsTime, previewTime } from '@/lib/formTimeToken';
 
 // Same shape as formNumberField.test.ts: the dashboard writes the token with its
 // own writer because it cannot import extension source, and the shipping engine
@@ -37,8 +41,13 @@ interface FormulaEngine {
   buildFormFieldCfg: (body: string) => Record<string, FieldCfg>;
   buildFormDateToken: (cfg: Record<string, unknown>) => string;
   nextFieldName: (body: string, prefix: string) => string;
-  sbFormatDateValue: (raw: unknown, format: string) => string;
-  resolveBody: (body: string, vals: Record<string, unknown>) => string;
+  sbFormatDateValue: (raw: unknown, format: string, lang?: string) => string;
+  sbFormatDate: (d: Date, fmt: string, lang?: string) => string;
+  resolveBody: (
+    body: string,
+    vals: Record<string, unknown>,
+    opts?: { lang?: string },
+  ) => string;
   DATE_FORMATS: string[];
   TIME_FORMATS: string[];
 }
@@ -180,5 +189,105 @@ describe('formDateToken — the choices the builders offer', () => {
   it('opens on a format that is in its own list', () => {
     expect(normalizeDateFormat('date', DEFAULT_DATE_FORMAT)).toBe(DEFAULT_DATE_FORMAT);
     expect(normalizeDateFormat('time', DEFAULT_TIME_FORMAT)).toBe(DEFAULT_TIME_FORMAT);
+  });
+});
+
+describe('Written out — the date in the snippet\'s own words', () => {
+  it('is labelled the way the fill form Adjust panel labels it', () => {
+    expect(DATE_FORMAT_OPTIONS.find((o) => o.value === 'long')?.label).toBe('Written out');
+  });
+
+  // The builders' format lists show the sample in the snippet's language, so
+  // switching the snippet to Spanish shows the words it will print.
+  it.each(['EN', 'IT', 'ES', 'FR', 'es-ES', 'it', '', 'MULTI', 'DE'])(
+    'samples Written out for %j exactly as the engine prints it',
+    (lang) => {
+      const printed = engine.sbFormatDateValue('2026-09-04', 'long', lang === 'MULTI' ? '' : lang);
+      expect(longDateSample(lang)).toBe(printed);
+      const options = dateFormatOptions(lang);
+      expect(options.find((o) => o.value === 'long')?.sample).toBe(printed);
+      // Every other format prints the same in every language.
+      for (const o of options) {
+        if (o.value !== 'long') {
+          expect(o).toEqual(DATE_FORMAT_OPTIONS.find((d) => d.value === o.value));
+        }
+      }
+    },
+  );
+
+  it('offers the same choices, in the same order, whatever the language', () => {
+    for (const lang of ['EN', 'ES', '']) {
+      expect(dateFormatOptions(lang).map((o) => [o.value, o.label])).toEqual(
+        DATE_FORMAT_OPTIONS.map((o) => [o.value, o.label]),
+      );
+    }
+    expect(dateFormatOptions('ES').find((o) => o.value === 'long')?.sample).toBe(
+      'viernes 4 de septiembre de 2026',
+    );
+  });
+
+  it('prints in each language the engine speaks, and in English for the rest', () => {
+    expect(engine.sbFormatDateValue('2026-09-04', 'long', 'EN')).toBe('Friday 4 September 2026');
+    expect(engine.sbFormatDateValue('2026-09-04', 'long', 'IT')).toBe('venerdì 4 settembre 2026');
+    expect(engine.sbFormatDateValue('2026-09-04', 'long', 'ES')).toBe(
+      'viernes 4 de septiembre de 2026',
+    );
+    expect(engine.sbFormatDateValue('2026-09-04', 'long', 'FR')).toBe('vendredi 4 septembre 2026');
+    // A Multi body has no single language.
+    expect(engine.sbFormatDateValue('2026-09-04', 'long', '')).toBe('Friday 4 September 2026');
+  });
+
+  it('is written as format=long and expands in the snippet language', () => {
+    const body = buildFormDateToken({ name: 'DATE_1', kind: 'date', format: 'long' });
+    expect(body).toBe('{formdate: name=DATE_1; format=long}');
+    expect(body).toBe(engine.buildFormDateToken({ name: 'DATE_1', type: 'date', format: 'long' }));
+    expect(engine.buildFormFieldCfg(body).DATE_1).toMatchObject({ type: 'date', format: 'long' });
+    expect(engine.resolveBody(body, { DATE_1: '2026-10-09' }, { lang: 'ES' })).toBe(
+      'viernes 9 de octubre de 2026',
+    );
+  });
+
+  it('is never offered to a time field', () => {
+    expect(normalizeDateFormat('time', 'long')).toBe('');
+    expect(buildFormDateToken({ name: 'T', kind: 'time', format: 'long' })).toBe(
+      '{formdate: name=T; type=time}',
+    );
+  });
+
+  // The rail select, the automatic date and the range all draw from the same
+  // option list, so each has to cope with the new entry.
+  it('an automatic date written out shows no clock unless a time is chosen', () => {
+    expect(formatShowsTime('long')).toBe(false);
+    expect(formatShowsTime('long HH:mm')).toBe(true);
+    expect(buildFormTimeToken({ format: 'long', at: '09:00' })).toBe('{time: long}');
+    expect(buildFormTimeToken({ format: 'long hh:mm A', at: '09:00' })).toBe(
+      '{time: long hh:mm A; at=09:00}',
+    );
+  });
+
+  it('the automatic date previews in the snippet language, as it expands', () => {
+    const at = new Date(2026, 9, 9, 8, 0);
+    const preview = previewTime({ format: 'long HH:mm', at: '09:30' }, at, (d, fmt) =>
+      engine.sbFormatDate(d, fmt, 'IT'),
+    );
+    expect(preview).toBe('venerdì 9 ottobre 2026 09:30');
+    expect(engine.resolveBody('{time: long}', {}, { lang: 'IT' })).toMatch(
+      /^(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica) \d{1,2} [a-z]+ \d{4}$/,
+    );
+  });
+
+  it('a range with a time keeps both halves of its format', () => {
+    const token = buildDateRangeToken({
+      withFields: true,
+      withTime: true,
+      format: 'long HH:mm',
+      mode: 'between',
+    });
+    const cfg = engine.buildFormFieldCfg(token);
+    expect(cfg.START_1).toMatchObject({ type: 'datetime', format: 'long HH:mm' });
+    expect(cfg.END_1).toMatchObject({ type: 'datetime', format: 'long HH:mm' });
+    expect(
+      engine.resolveBody('{formdate: name=S; type=datetime; format=long HH:mm}', { S: '2026-10-09T14:30' }, { lang: 'ES' }),
+    ).toBe('viernes 9 de octubre de 2026 14:30');
   });
 });

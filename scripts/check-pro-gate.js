@@ -11,7 +11,11 @@
 //   2. The phone's Ask and Picture switches follow the dashboard's.
 //   3. Every entry point reads its switch, and shows the lock.
 //   4. A request can leave only from the one place that sits behind a switch:
-//      a new caller of an AI function fails this gate until it is gated.
+//      a new caller of an AI function fails this gate until it is gated. The
+//      phone may call one server function that is not AI, read-link (Fill
+//      from link): it fetches a public web page and calls no AI service, so
+//      it is free and has no switch. It is named, not matched by a pattern,
+//      so every other new call still fails here.
 //   5. The manual follows the switches: a feature's page is published while it
 //      is on and kept unpublished while it is off ("document only what works").
 //
@@ -106,10 +110,26 @@ for (const [call, allowed] of CALLERS) {
   check(call + ' is called only from ' + allowed.join(', '), JSON.stringify(found) === JSON.stringify(allowed.slice().sort()), found.join(', '));
 }
 check('the phone sends Ask from one place, runAsk', (MOBILE.match(/\/functions\/v1\/ask-sprintbrain/g) || []).length === 1);
+// A function's own text: from its declaration to the first line holding only
+// its closing brace. A lazy match straight to the call would run on past the
+// end of the function and pass with the call moved anywhere further down.
+const fnBody = (head) => {
+  const at = MOBILE.indexOf(head);
+  if (at === -1) return '';
+  const end = MOBILE.indexOf('\n}', at);
+  return end === -1 ? '' : MOBILE.slice(at, end + 2);
+};
 check('the phone sends Read a picture from one place, readPicture', (MOBILE.match(/\/functions\/v1\/read-picture/g) || []).length === 1
-  && /function readPicture\(file\)\{[\s\S]*?\/functions\/v1\/read-picture[\s\S]*?\n\}/.test(MOBILE));
-check('the phone calls no other AI function', (MOBILE.match(/\/functions\/v1\/[a-z-]+/g) || []).every((u) => /ask-sprintbrain|read-picture/.test(u)),
-  (MOBILE.match(/\/functions\/v1\/[a-z-]+/g) || []).join(', '));
+  && fnBody('function readPicture(file){').includes('/functions/v1/read-picture'));
+// Free server functions the phone may call without a switch. Not AI: adding a
+// name here is a statement that the function never calls the AI service.
+const PHONE_FREE_FUNCTIONS = ['read-link'];
+const PHONE_AI_FUNCTIONS = ['ask-sprintbrain', 'read-picture'];
+const phoneCalls = (MOBILE.match(/\/functions\/v1\/[a-z-]+/g) || []).map((u) => u.slice('/functions/v1/'.length));
+check('the phone sends Fill from link from one place, fillFromLink', (MOBILE.match(/\/functions\/v1\/read-link/g) || []).length === 1
+  && fnBody('function fillFromLink(){').includes('/functions/v1/read-link'));
+check('the phone calls no other AI function', phoneCalls.every((fn) => PHONE_AI_FUNCTIONS.includes(fn) || PHONE_FREE_FUNCTIONS.includes(fn)),
+  phoneCalls.join(', '));
 check('the search panel only opens an answer when the Ask switch is on', read(ENTRY_POINTS[0][1]).includes('const canAsk = askAvailable && showAskRow;'));
 check('Translate does nothing while locked', read(ENTRY_POINTS[2][1]).includes('if (!translateAvailable) return;'));
 

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
+import { LinkRuleFields } from '@/features/snippets/LinkRuleFields';
 import { cn } from '@/lib/utils';
 import {
   buildFormNumberToken,
@@ -20,6 +21,7 @@ import {
   type CurrencyCode,
   type NumberFormat,
 } from '@/lib/formNumberToken';
+import { emptyLinkDraft, linkFromDraft, LINK_MODES, type LinkRuleDraft } from '@/lib/linkRule';
 
 const HINT = 'text-[11px] text-ink-subtle mt-1.5';
 const SECTION_LABEL = 'block text-xs font-medium text-ink-muted mb-1.5';
@@ -46,6 +48,10 @@ const FORMAT_HINT: Record<NumberFormat, string> = {
 // cheaper than an author discovering it in a message already sent.
 const NOT_A_NUMBER_WARNING =
   'Phone numbers, order references and postcodes are not numbers. They lose a leading zero and cannot hold + or spaces. Use a Text field for those.';
+
+// A quantity on a page is far more often a count ("2 Boxes") than a figure
+// after a label, so a number field opens on counting.
+const NUMBER_LINK_START = emptyLinkDraft('before');
 
 interface FormNumberDialogProps {
   open: boolean;
@@ -78,6 +84,7 @@ export function FormNumberDialog({
   const [format, setFormat] = useState<NumberFormat>('plain');
   const [currency, setCurrency] = useState<CurrencyCode>(DEFAULT_CURRENCY);
   const [defaultValue, setDefaultValue] = useState('');
+  const [link, setLink] = useState<LinkRuleDraft>(NUMBER_LINK_START);
 
   const nameRef = useRef<HTMLInputElement | null>(null);
 
@@ -89,6 +96,7 @@ export function FormNumberDialog({
     setFormat('plain');
     setCurrency(DEFAULT_CURRENCY);
     setDefaultValue('');
+    setLink(NUMBER_LINK_START);
   }, [open, suggestedName]);
 
   const nameValid = isValidFieldName(name);
@@ -96,8 +104,15 @@ export function FormNumberDialog({
   const canInsert = nameValid && defaultValid;
 
   const token = useMemo(
-    () => buildFormNumberToken({ name, format, currency, default: defaultValue.trim() }),
-    [name, format, currency, defaultValue],
+    () =>
+      buildFormNumberToken({
+        name,
+        format,
+        currency,
+        default: defaultValue.trim(),
+        link: linkFromDraft(link),
+      }),
+    [name, format, currency, defaultValue, link],
   );
 
   function handleSubmit() {
@@ -125,7 +140,9 @@ export function FormNumberDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-2 flex flex-col gap-4">
+        {/* Scrolls like the Choice builder's: with Fill from link open, the
+            window outgrows a laptop screen. */}
+        <div className="max-h-[60vh] overflow-y-auto px-6 pb-2 flex flex-col gap-4">
           {/* ── Field name ── */}
           <div>
             <label htmlFor="form-number-name" className={SECTION_LABEL}>
@@ -245,6 +262,15 @@ export function FormNumberDialog({
               </p>
             )}
           </div>
+
+          {/* ── From a link ── */}
+          <LinkRuleFields
+            id="form-number-link"
+            value={link}
+            onChange={setLink}
+            modes={LINK_MODES}
+            onEnter={handleSubmit}
+          />
 
           {/* ── What lands in the body ── */}
           {/* Only while both halves hold. The writer repairs an unusable name so

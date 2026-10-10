@@ -14,8 +14,17 @@
  * resolves on both.
  */
 
+import type { LinkRule } from '@/lib/linkRule';
+
 /** A field's kind, as decided by `fill-form.js` (token declaration, then name). */
 export type SbFieldType = 'text' | 'date' | 'time' | 'datetime' | 'number' | 'dd';
+
+/**
+ * Where on a pasted web page a field's value sits (Fill from link), as the
+ * engine's `sbParseLinkRule` reads a token's `link=`: the same shape the
+ * builders' mirror in linkRule.ts reads and writes.
+ */
+export type SbLinkRule = LinkRule;
 
 /** One choice in the Adjust panel's Format list, sampled against the value. */
 export interface SbFormatChoice {
@@ -92,6 +101,13 @@ export interface SbFillField {
   block: boolean;
   /** What the Adjust panel offers this field; null for anything but a date. */
   adjust: SbFieldAdjust | null;
+  /** Where on a pasted page the value is; null for a field never pointed at one. */
+  link: SbLinkRule | null;
+  /**
+   * The value held now came from a page and nobody has touched it since: the
+   * key was passed in `linked`. The renderer marks it "From link".
+   */
+  fromLink: boolean;
   visible: boolean;
 }
 
@@ -116,6 +132,11 @@ export interface SbFillFormViewModel {
    * or what it produces prints differently from the preview it just showed.
    */
   fmtOverride: Record<string, string>;
+  /**
+   * At least one field says where its value is on a page, so the form offers
+   * the Link box. False for every snippet that never mentions `link=`.
+   */
+  linkable: boolean;
   layout: 'flat' | 'steps';
   steps: string[][];
 }
@@ -132,6 +153,42 @@ export interface SbFillFormOptions {
   /** Snippet language — genders ambiguous names and picks the greeting. */
   lang?: string;
   now?: Date;
+  /**
+   * The fields whose value came from a page (Fill from link), `{ KEY: true }`.
+   * The renderer drops a key the moment that field is edited by hand.
+   */
+  linked?: Record<string, boolean>;
+}
+
+/** Why a pasted link was refused before anything was sent. */
+export type SbLinkProblem = 'link-empty' | 'link-invalid' | 'link-not-secure';
+
+/** `linkUrl`'s answer: the link to read, or why it cannot be read. */
+export interface SbLinkUrl {
+  url: string;
+  problem: SbLinkProblem | '';
+}
+
+/**
+ * How one field fared against a page. `missing`: the label or word is not on
+ * it. `unclear`: it is, but the value could be read more than one way, so the
+ * field kept what it held. `none`: filled with the field's default because the
+ * page counts none of it.
+ */
+export interface SbLinkResult {
+  key: string;
+  status: 'filled' | 'missing' | 'unclear';
+  none: boolean;
+}
+
+/** `readFromPage`'s answer. */
+export interface SbLinkRead {
+  /** KEY to the value for its control: ISO dates, plain digits, option text. */
+  values: Record<string, string>;
+  /** One per field that has a `link`. */
+  results: SbLinkResult[];
+  filled: number;
+  total: number;
 }
 
 /** Which of the three ways the Adjust panel's Day row chooses a date. */
@@ -165,6 +222,16 @@ interface SbFillFormApi {
     current: string,
     now?: Date,
   ): string;
+  /**
+   * The earliest value a field ordered after another may hold, given what that
+   * other field holds now; '' for no limit.
+   */
+  orderedMin(dstType: SbFieldType, srcValue: string): string;
+  linkUrl(raw: string): SbLinkUrl;
+  readFromPage(fields: readonly SbFillField[], pieces: readonly string[]): SbLinkRead;
+  linkText(key: string): string;
+  linkSummary(read: SbLinkRead): string;
+  linkNote(result: SbLinkResult | null | undefined): string;
 }
 
 interface SbFormulaEngineApi {
@@ -178,8 +245,10 @@ interface SbFormulaEngineApi {
    * builder can preview a {time:} token against the real one rather than
    * carrying a third copy of the token table — the dialog would be the only
    * place in the product where a date could be formatted a different way.
+   * `lang` is read by the `long` format only, which writes the date out in the
+   * snippet's language.
    */
-  sbFormatDate(d: Date, fmt: string): string;
+  sbFormatDate(d: Date, fmt: string, lang?: string): string;
   /**
    * Resolves a body with the values given, whether or not the body declares
    * those fields itself. The formula builder previews a lone `{= }` with it,
@@ -322,6 +391,48 @@ export function clockValue(
 }
 
 /**
+ * The closing dates a write has left before their opening ones, in field order.
+ *
+ * The ordering rule every fill surface runs after a value changes (the
+ * overlay's `_sbReorder`, the phone's `sbReorderDates`): a closing date the new
+ * opening one has just invalidated is emptied rather than left sitting in the
+ * form as an impossible pair. The limit itself is `orderedMin`, decided in
+ * shared/fill-form.js. A date emptied here frees the field ordered after it,
+ * as it does on the other surfaces.
+ *
+ * What the write itself sets is never emptied. A date typed from the keyboard
+ * passes through earlier days on its way (the picker reports `0002-10-14` after
+ * the first digit of a year), and emptying it there would wipe the box under
+ * the operator's fingers. A closing date typed before its opening one stays,
+ * flagged by the picker's `min`, and still limits the date ordered after it.
+ *
+ * @param fields  the form's fields, for which one follows which
+ * @param held    every field's value once the write lands, defaults included
+ * @param written the keys the write sets, which are kept as written
+ * @returns the keys to empty; none until the engine has loaded
+ */
+export function backwardDates(
+  fields: readonly SbFillField[],
+  held: Readonly<Record<string, string>>,
+  written: readonly string[] = [],
+): string[] {
+  const api = window.SBFillForm;
+  if (!api) return [];
+  const now: Record<string, string> = { ...held };
+  const emptied: string[] = [];
+  for (const field of fields) {
+    if (!field.notBefore || written.includes(field.key)) continue;
+    const min = api.orderedMin(field.type, now[field.notBefore] ?? '');
+    const value = now[field.key] ?? '';
+    if (min !== '' && value !== '' && value < min) {
+      now[field.key] = '';
+      emptied.push(field.key);
+    }
+  }
+  return emptied;
+}
+
+/**
  * Applies one `{button}`'s statements to the current values. Returns the fields
  * it wrote plus anything it could not work out, exactly as the overlay, the
  * popup detail and the composer already do.
@@ -343,4 +454,48 @@ export function runFormButton(
     written[name] = String(value);
   }
   return { values: written, errors: [...spec.errors, ...result.errors] };
+}
+
+// ── Fill from link ──
+// What a pasted page means for the form is decided once, in
+// shared/fill-form.js, for all four fill surfaces; these only hand it through.
+// Each answers nothing until the engine has loaded, and the Link box that
+// calls them only exists once it has.
+
+/** The link to read, or why it cannot be read (a `linkText` key). */
+export function linkUrl(raw: string): SbLinkUrl {
+  return window.SBFillForm?.linkUrl(raw) ?? { url: '', problem: 'link-invalid' };
+}
+
+/**
+ * What a page's text puts in each field that says where its value is. Fields
+ * the page does not settle get no value, so they keep whatever they held.
+ */
+export function readFromPage(
+  fields: readonly SbFillField[],
+  pieces: readonly string[],
+): SbLinkRead {
+  return (
+    window.SBFillForm?.readFromPage(fields, pieces) ?? {
+      values: {},
+      results: [],
+      filled: 0,
+      total: 0,
+    }
+  );
+}
+
+/** Every sentence Fill from link says, by key. An unknown key reads as the generic failure. */
+export function linkText(key: string): string {
+  return window.SBFillForm?.linkText(key) ?? '';
+}
+
+/** The one status line after a read. */
+export function linkSummary(read: SbLinkRead): string {
+  return window.SBFillForm?.linkSummary(read) ?? '';
+}
+
+/** The note beside one field after a read, or '' for a field filled cleanly. */
+export function linkNote(result: SbLinkResult | null | undefined): string {
+  return window.SBFillForm?.linkNote(result) ?? '';
 }

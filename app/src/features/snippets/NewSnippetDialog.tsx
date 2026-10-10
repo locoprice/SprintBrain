@@ -52,6 +52,7 @@ import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
 import { FormTimeDialog } from '@/features/snippets/FormTimeDialog';
+import { LinkRuleFields } from '@/features/snippets/LinkRuleFields';
 import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
 import {
@@ -71,7 +72,7 @@ import {
 import { nextNumberName } from '@/lib/formNumberToken';
 import {
   buildFormDateToken,
-  DATE_FORMAT_OPTIONS,
+  dateFormatOptions,
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIME_FORMAT,
   nextDateName,
@@ -79,6 +80,12 @@ import {
   type DateFormat,
   type TimeFormat,
 } from '@/lib/formDateToken';
+import {
+  emptyLinkDraft,
+  LABEL_LINK_MODES,
+  linkFromDraft,
+  type LinkRuleDraft,
+} from '@/lib/linkRule';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
 import {
@@ -223,6 +230,8 @@ const NUMBER_FIELDS: { label: string; hint: string }[] = [
     hint: 'Plain, Currency or Percent. It changes how the value prints, never the number a formula reads.' },
   { label: 'Default',
     hint: 'Optional. Left blank the field opens empty, which is not the same as starting at 0.' },
+  { label: 'From a link',
+    hint: 'Optional. The number before a word on a pasted web page, added up wherever it appears, or the number after a label.' },
 ];
 
 // The three inputs FormButtonDialog offers, named as it names them, so opening
@@ -245,6 +254,8 @@ const MENU_FIELDS: { label: string; hint: string }[] = [
     hint: 'Single Choice fills as radio buttons, Multiple Choice as checkboxes.' },
   { label: 'Name',
     hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
+  { label: 'From a link',
+    hint: 'Optional. Picks the option a pasted web page names after a label. A page naming something else leaves the choice to you.' },
 ];
 
 // One date and one time, each with the format it prints in. The group used to
@@ -269,6 +280,8 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Not a field — a date worked out at expansion, with the time pinned. Count forward from today, or land on a named day like next Monday.' },
   { label: 'Range',
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
+  { label: 'From a link',
+    hint: 'Optional. The next Date or Time takes the value after a label on a web page pasted in the fill form. A date the page leaves open to two readings is left for you to pick.' },
 ];
 
 // Every formula window reads its snippet's formulas the same way, so each
@@ -513,6 +526,10 @@ export function NewSnippetDialog() {
   // seeing the choice next to the button is the whole point of it.
   const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(DEFAULT_TIME_FORMAT);
+  // Where on a pasted page the next Date or Time reads its value. Cleared once
+  // a field takes it: a label belongs to one field, and two fields reading the
+  // same label would always fill with the same answer.
+  const [dateLink, setDateLink] = useState<LinkRuleDraft>(emptyLinkDraft('after'));
   // Text-field builder — writes a {formtext:} token at the cursor.
   const [textFieldOpen, setTextFieldOpen] = useState(false);
   // Number-field builder — writes a number token at the cursor. Its own type in
@@ -742,9 +759,24 @@ export function NewSnippetDialog() {
         name: nextDateName(form.content, 'date'),
         kind: 'date',
         format: dateFormat,
+        link: linkFromDraft(dateLink),
       }),
-    [form.content, dateFormat],
+    [form.content, dateFormat, dateLink],
   );
+
+  // The Date and Time buttons: the field, with the link rule when one is set.
+  function insertDateField(kind: 'date' | 'time') {
+    const link = linkFromDraft(dateLink);
+    insertAtCursor(
+      buildFormDateToken({
+        name: nextDateName(form.content, kind),
+        kind,
+        format: kind === 'time' ? timeFormat : dateFormat,
+        link,
+      }),
+    );
+    if (link !== '') setDateLink(emptyLinkDraft('after'));
+  }
 
   // The rule the caret sits in, when the builder can edit it. A condition typed
   // by hand in another shape is left to the body.
@@ -1213,7 +1245,9 @@ export function NewSnippetDialog() {
                           onChange={(e) => setDateFormat(e.target.value as DateFormat)}
                           className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
                         >
-                          {DATE_FORMAT_OPTIONS.map((o) => (
+                          {/* Written out is sampled in the snippet's language:
+                              the one format whose words follow it. */}
+                          {dateFormatOptions(form.language).map((o) => (
                             <option key={o.value} value={o.value}>
                               {o.label} · {o.sample}
                             </option>
@@ -1225,15 +1259,7 @@ export function NewSnippetDialog() {
                         size="sm"
                         variant="primary"
                         disabled={saving}
-                        onClick={() =>
-                          insertAtCursor(
-                            buildFormDateToken({
-                              name: nextDateName(form.content, 'date'),
-                              kind: 'date',
-                              format: dateFormat,
-                            }),
-                          )
-                        }
+                        onClick={() => insertDateField('date')}
                       >
                         <Plus className="mr-1 h-3 w-3" />
                         Date
@@ -1264,15 +1290,7 @@ export function NewSnippetDialog() {
                         size="sm"
                         variant="primary"
                         disabled={saving}
-                        onClick={() =>
-                          insertAtCursor(
-                            buildFormDateToken({
-                              name: nextDateName(form.content, 'time'),
-                              kind: 'time',
-                              format: timeFormat,
-                            }),
-                          )
-                        }
+                        onClick={() => insertDateField('time')}
                       >
                         <Plus className="mr-1 h-3 w-3" />
                         Time
@@ -1298,6 +1316,19 @@ export function NewSnippetDialog() {
                         Range
                       </Button>
                     </div>
+
+                    {/* Fill from link, for the next Date or Time. In the rail
+                        rather than behind a dialog, for the same reason as the
+                        formats above: one decision, seen before the token lands. */}
+                    <LinkRuleFields
+                      id="sb-date-link"
+                      size="rail"
+                      value={dateLink}
+                      onChange={setDateLink}
+                      modes={LABEL_LINK_MODES}
+                      disabled={saving}
+                      offHint="The next Date or Time you insert fills itself from a web page pasted in the fill form. You check it before inserting."
+                    />
 
                     {/* What the next Date button will write. The author sees the
                         token before it is in the body, the same promise the
@@ -1370,6 +1401,13 @@ export function NewSnippetDialog() {
                     <dd className="text-[11px] text-ink-subtle leading-tight">
                       Optional. A name typed in lowercase gets its capitals when the snippet
                       expands, following the snippet&apos;s language.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">From a link</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. Takes the text after a label on a web page pasted in the fill
+                      form. To add up a count from the page, use a Number field.
                     </dd>
                   </div>
                 </dl>
@@ -2183,12 +2221,14 @@ export function NewSnippetDialog() {
               open={dateRangeOpen}
               onOpenChange={setDateRangeOpen}
               body={form.content}
+              lang={form.language === 'MULTI' ? '' : form.language}
               onInsert={insertAtCursor}
             />
 
             <FormTimeDialog
               open={autoDateOpen}
               onOpenChange={setAutoDateOpen}
+              lang={form.language === 'MULTI' ? '' : form.language}
               onInsert={insertAtCursor}
             />
 

@@ -91,6 +91,7 @@ describe('Adjust panel — what each field is offered', () => {
       'DD/MM/YYYY',
       'MM/DD/YYYY',
       'DD/MM/dddd',
+      'long',
     ]);
     expect(adjustOf(1).formats.map((f) => f.value)).toEqual(['', 'HH:mm', 'hh:mm A']);
   });
@@ -103,8 +104,17 @@ describe('Adjust panel — what each field is offered', () => {
       '30/08/2026',
       '08/30/2026',
       '30/08/Sunday',
+      'Sunday 30 August 2026',
     ]);
     expect(samples.every((f) => f.label !== '')).toBe(true);
+  });
+
+  it('samples Written out in the snippet language', () => {
+    // The only format whose words follow the language, so the panel has to
+    // show the operator the words the message will carry.
+    const spanish = ff.fillForm(BODY, { DATE_1: '2026-08-30' }, { now: NOW, lang: 'ES' });
+    const long = spanish.fields[0]?.adjust?.formats.find((f) => f.value === 'long');
+    expect(long).toEqual({ value: 'long', label: 'Written out', sample: 'domingo 30 de agosto de 2026' });
   });
 
   it('gives a clock no day to jump to, and a calendar no clock to set', () => {

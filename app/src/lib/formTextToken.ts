@@ -20,6 +20,7 @@
  */
 
 import { isValidMenuName } from '@/lib/formMenuToken';
+import { linkValue } from '@/lib/linkRule';
 
 export interface FormTextConfig {
   /** Field name — how the rest of the body refers to the value. */
@@ -37,6 +38,12 @@ export interface FormTextConfig {
    * the engine adding the capitals by itself. Left out, the engine decides.
    */
   personName?: boolean;
+  /**
+   * Where on a pasted web page the value is (Fill from link), as
+   * `after:Order number` or `before:Box|Boxes`; '' or left out for a field
+   * nobody points at a page. See `@/lib/linkRule`.
+   */
+  link?: string;
 }
 
 // What a field's own name says about it. MIRRORED from sbIsPersonNameKey in
@@ -141,7 +148,12 @@ export function buildFormTextToken(cfg: FormTextConfig): string {
   let out = head;
   if (cfg.personName === true) out = `${head}; format=name`;
   else if (cfg.personName === false && isPersonNameKey(name)) out = `${head}; format=plain`;
-  return `${value === '' ? out : `${out}; default=${value}`}}`;
+  if (value !== '') out += `; default=${value}`;
+  // Last, in the engine's one spelling (`_linkValue`), the way the number,
+  // date and menu writers put it.
+  const link = linkValue(cfg.link);
+  if (link !== '') out += `; link=${link}`;
+  return `${out}}`;
 }
 
 /**

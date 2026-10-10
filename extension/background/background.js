@@ -321,6 +321,85 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 });
 
+// ── FILL FROM LINK: read a pasted page for a fill form ────────────
+// The page is fetched by the read-link server function, never from here: one
+// reader for every surface, the phone included, so the same link can never
+// read two ways (see extension/shared/fill-form.js). This only carries the
+// call. The overlay asks here because a content script runs in the page's
+// world and must never hold the session; the popup asks here too, so both go
+// through one path.
+//
+// Answers { ok: true, pieces } or { ok: false, error } with a code that
+// SBFillForm.linkText words: the server's own, 'offline' when SprintBrain could
+// not be reached, 'failed' when its reply could not be read, 'unauthorized'
+// when there is no session or it cannot be refreshed.
+//
+// The link is never logged: it can work like a password to the page it opens.
+function readLink(url, lang) {
+  return new Promise(function(resolve) {
+    sbAuthHeaders(function(err, headers) {
+      if (err || !headers) { resolve({ ok: false, error: _readLinkAuthError(err) }); return; }
+      _readLinkWithHeaders(url, lang, headers, false, resolve);
+    });
+  });
+}
+
+// A refresh that failed for want of a network is not a signed-out session, and
+// telling someone offline to sign in again sends them the wrong way.
+function _readLinkAuthError(reason) {
+  return reason === 'refresh_transient' ? 'offline' : 'unauthorized';
+}
+
+function _readLinkWithHeaders(url, lang, headers, retried, resolve) {
+  fetch(SUPA_URL + '/functions/v1/read-link', {
+    method: 'POST',
+    headers: {
+      'apikey': headers.apikey,
+      'Authorization': headers.Authorization,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ url: url, lang: lang })
+  }).then(function(r) {
+    if (r.status === 401 && !retried) {
+      sbRefreshToken(function(rerr, fresh) {
+        if (rerr || !fresh) { resolve({ ok: false, error: _readLinkAuthError(rerr) }); return; }
+        _readLinkWithHeaders(url, lang,
+          { apikey: SB_SUPA_ANON_KEY, Authorization: 'Bearer ' + fresh.access_token },
+          true, resolve);
+      });
+      return;
+    }
+    return r.json().then(null, function() { return null; }).then(function(data) {
+      if (r.ok && data && data.ok === true && Array.isArray(data.pieces)) {
+        resolve({ ok: true, pieces: data.pieces });
+        return;
+      }
+      if (data && typeof data.error === 'string' && data.error) {
+        resolve({ ok: false, error: data.error });
+        return;
+      }
+      // Turned away again with a token refreshed a moment ago.
+      if (r.status === 401) { resolve({ ok: false, error: 'unauthorized' }); return; }
+      // No code of ours: the platform answered instead of the function, for
+      // instance a 404 while it is not deployed.
+      console.error('[SprintBrain] read-link answered HTTP ' + r.status +
+        (data ? ' without an error code' : ' with a body that is not JSON'));
+      resolve({ ok: false, error: 'failed' });
+    });
+  }).catch(function() {
+    resolve({ ok: false, error: 'offline' });
+  });
+}
+
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+  if (!msg || msg.type !== 'read_link') return;
+  readLink(typeof msg.url === 'string' ? msg.url : '',
+    typeof msg.lang === 'string' ? msg.lang : '').then(function(res) {
+    try { sendResponse(res); } catch(e) {}
+  });
+  return true;
+});
+
 // ── AUTH-EXT-002/003: accept session handoff from the dashboard ───
 // externally_connectable in manifest already restricts senders to the dashboard
 // origin; we double-check the URL prefix as defense in depth.

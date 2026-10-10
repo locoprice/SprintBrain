@@ -51,10 +51,79 @@
   // ── DATE/TIME HELPERS ───────────────────────────────────────────
   function _pad(n) { return (n < 10 ? '0' : '') + n; }
 
-  function sbFormatDate(d, fmt) {
+  // ── DAY AND MONTH NAMES ─────────────────────────────────────────
+  // The four languages {greeting} already speaks, for two jobs: printing a date
+  // written out in words (the `long` format below), and reading one off a web
+  // page (shared/fill-form.js, Fill from link). One table for both, so a month
+  // the reader understands is a month the printer can write.
+  //
+  // Italian, Spanish and French write day and month names in lower case in the
+  // middle of a sentence, so they are stored that way. Only `long` prints them:
+  // `dddd` and `MMMM` stay English, because every snippet written before these
+  // tables existed relied on that, and a date that changes language without
+  // anyone asking is a regression, not a feature.
+  //
+  // MIRRORED in app/public/mobile/index.html (SB_DATE_WORDS), pinned by
+  // scripts/check-snippets.js.
+  var DATE_WORDS = {
+    EN: {
+      months: ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+               'August', 'September', 'October', 'November', 'December'],
+      days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    },
+    IT: {
+      months: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio',
+               'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+      days: ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato']
+    },
+    ES: {
+      months: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+               'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+      days: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+    },
+    FR: {
+      months: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+               'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+      days: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+    }
+  };
+
+  // A snippet's language arrives as 'ES', 'es', 'es-ES' or '' (a Multi body).
+  // Anything without a table reads as English, the same fallback {greeting}
+  // uses, so a date never prints as nothing.
+  function sbDateLang(lang) {
+    var l = String(lang === null || lang === undefined ? '' : lang).slice(0, 2).toUpperCase();
+    return Object.prototype.hasOwnProperty.call(DATE_WORDS, l) ? l : 'EN';
+  }
+
+  // A date written out the way each language writes it in running text:
+  //   EN  Friday 9 October 2026
+  //   IT  venerdì 9 ottobre 2026
+  //   ES  viernes 9 de octubre de 2026
+  //   FR  vendredi 9 octobre 2026   (and "1er" on the first of the month)
+  function sbLongDate(d, lang) {
     if (!d || isNaN(d.getTime())) return '';
-    var M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    var W = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var l = sbDateLang(lang), w = DATE_WORDS[l];
+    var day = w.days[d.getDay()], month = w.months[d.getMonth()];
+    var n = String(d.getDate()), y = String(d.getFullYear());
+    if (l === 'ES') return day + ' ' + n + ' de ' + month + ' de ' + y;
+    if (l === 'FR') return day + ' ' + (n === '1' ? '1er' : n) + ' ' + month + ' ' + y;
+    return day + ' ' + n + ' ' + month + ' ' + y;
+  }
+
+  // The format name that prints sbLongDate. A word rather than a pattern of
+  // letters, because no pattern fits all four languages: Spanish needs "de"
+  // twice and French needs "1er". None of its four letters is a format letter,
+  // so it passes through the substitution below untouched and is swapped for
+  // the written-out date at the very end, after which no letter of "viernes"
+  // or "sabato" can be mistaken for a second or an AM/PM marker.
+  var LONG_FORMAT = 'long';
+
+  function sbFormatDate(d, fmt, lang) {
+    if (!d || isNaN(d.getTime())) return '';
+    // MMMM and dddd stay English whatever the language: see DATE_WORDS.
+    var M = DATE_WORDS.EN.months;
+    var W = DATE_WORDS.EN.days;
     var hr12 = d.getHours() % 12; if (hr12 === 0) hr12 = 12;
     var tok = {
       YYYY: String(d.getFullYear()),
@@ -85,6 +154,7 @@
       out = out.split(order[i]).join(p);
     }
     for (var k in placeholders) out = out.split(k).join(placeholders[k]);
+    if (out.indexOf(LONG_FORMAT) !== -1) out = out.split(LONG_FORMAT).join(sbLongDate(d, lang));
     return out;
   }
 
@@ -227,7 +297,9 @@
     return isNaN(dd.getTime()) ? null : dd;
   }
 
-  function sbParseTimeToken(rest, vals) {
+  // `lang` is the body's language, which only the `long` format reads: an
+  // {time: long} in a Spanish snippet prints "viernes 9 de octubre de 2026".
+  function sbParseTimeToken(rest, vals, lang) {
     var parts = String(rest).split(';');
     var fmt = (parts[0] || '').replace(/^\s+|\s+$/g, '');
     var opts = {};
@@ -249,7 +321,7 @@
     // then add a day's worth of whatever hour it happened to be.
     if (opts.shift) base = sbApplyShift(base, opts.shift);
     if (opts.at) base = sbApplyAt(base, opts.at);
-    return sbFormatDate(base, fmt || 'YYYY-MM-DD HH:mm');
+    return sbFormatDate(base, fmt || 'YYYY-MM-DD HH:mm', lang);
   }
 
   function sbDatetimeDiffUnitMs(unit) {
@@ -817,7 +889,9 @@
   // The lists are closed on purpose. An arbitrary format string would let a
   // typo reach a customer as a half-substituted date, and the two builders only
   // ever offer these five.
-  var DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd'];
+  // `long` is the date written out in the snippet's own language (see
+  // sbLongDate): the only format whose words follow the language.
+  var DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd', LONG_FORMAT];
   var TIME_FORMATS = ['HH:mm', 'hh:mm A'];
 
   // Only a date or a time field carries a format. A datetime holds both halves
@@ -844,17 +918,18 @@
    *
    * @param {*} raw    what the picker put in the field ("2026-09-04", "14:30")
    * @param {string} format  one of DATE_FORMATS / TIME_FORMATS, or '' for raw
+   * @param {string} [lang]  the body's language, read by the `long` format only
    *
    * Mirrors sbFormatNumber's two refusals, for the same reasons: an unanswered
    * field prints nothing rather than today's date, and a value the parser
    * cannot read prints back verbatim rather than becoming an invented one.
    */
-  function sbFormatDateValue(raw, format) {
+  function sbFormatDateValue(raw, format, lang) {
     var s = (raw === null || raw === undefined) ? '' : String(raw);
     s = s.replace(/^\s+|\s+$/g, '');
     if (s === '' || !format) return s;
     var d = sbParseUserDate(s);
-    return d ? sbFormatDate(d, format) : s;
+    return d ? sbFormatDate(d, format, lang) : s;
   }
 
   // The three kinds a {formdate:} can declare. `date` is what the token has
@@ -878,6 +953,8 @@
     // picker's minimum follows whatever that field currently holds.
     var aftM = /(?:^|;)\s*after\s*=\s*([A-Za-z_][A-Za-z0-9_]*)/i.exec(attrSrc);
     if (aftM && (type === 'date' || type === 'datetime')) out.after = aftM[1];
+    var link = _linkAttr(attrSrc);
+    if (link) out.link = link;
     return out;
   }
 
@@ -921,7 +998,7 @@
         }
         if (!dfmt) continue;
         if (!out) out = {};
-        out[k] = { kind: 'date', format: dfmt };
+        out[k] = { kind: 'date', format: dfmt, lang: lang || '' };
       } else if (f.type === 'text' &&
                  (f.format === 'name' || (!f.format && sbIsPersonNameKey(k)))) {
         if (!out) out = {};
@@ -951,7 +1028,7 @@
       return String(value) === f.dflt ? value : sbFormatPersonName(value, f.lang);
     }
     return f.kind === 'date'
-      ? sbFormatDateValue(value, f.format)
+      ? sbFormatDateValue(value, f.format, f.lang)
       : sbFormatNumber(value, f.format, f.currency);
   }
 
@@ -1110,7 +1187,7 @@
           i = cl+1; continue;
         }
         if (tok.slice(0,5).toLowerCase() === 'time:') {
-          out += sbParseTimeToken(tok.slice(5), vals);
+          out += sbParseTimeToken(tok.slice(5), vals, _o.lang);
           i = cl+1; continue;
         }
         var tokLow = tok.toLowerCase();
@@ -1210,12 +1287,14 @@
   //
   // SprintBrain's own writer emits them comma-separated in one segment
   // ({formmenu: a,b,c; name=X}). Both are accepted: a ';' segment is a named
-  // setting only when it opens with one of the four keys below, otherwise it is
+  // setting only when it opens with one of the keys below, otherwise it is
   // positional and its commas split further. That keeps every snippet already
   // authored here working while importing Text Blaze bodies without dropping
   // options — before this, everything after the first ';' was read as settings
   // and silently discarded.
-  var MENU_KEYS = /^\s*(name|default|multiple|cols)\s*=/i;
+  // `link` joined in v3.65.0 (Fill from link). Without it here, a menu's
+  // reading rule became one more option to pick.
+  var MENU_KEYS = /^\s*(name|default|multiple|cols|link)\s*=/i;
 
   function _parseMenuSettings(rest) {
     var segs = String(rest === null || rest === undefined ? '' : rest).split(';');
@@ -1986,6 +2065,8 @@
           var cols = parseInt(colsM[1], 10);
           if (cols > 0) menu.cols = cols;
         }
+        var menuLink = _linkAttr(attrs);
+        if (menuLink) menu.link = menuLink;
         cfg[key] = menu;
       } else {
         cfg[key] = _numberOrTextCfg(_formAttrSrc(tokLow, rest), defVal);
@@ -2044,6 +2125,62 @@
     return m ? m[1].replace(/^\s+|\s+$/g, '') : '';
   }
 
+  // ── FILL FROM LINK: WHERE A FIELD'S VALUE IS ON A PAGE ──────────
+  // `link=` tells the fill form where to find this field's value on a web page
+  // the person pastes in. Two ways to point at it, both described by words the
+  // AUTHOR writes, so the product itself names no trade:
+  //
+  //   link=after:Start date        the text right after the label "Start date"
+  //   link=before:Boxes|Box        the number written before "Boxes" or "Box",
+  //                                added up over every place it appears
+  //
+  // `|` separates alternatives (a page writes "1 Box" but "2 Boxes"). A rule
+  // with no recognised `after:` / `before:` is a bare label and reads as after:,
+  // which is what a label usually means. Reading the page is the fill form's
+  // job (shared/fill-form.js, readFromPage); the engine only parses the rule,
+  // once, so every surface and every builder agrees on what it says.
+  //
+  // `;` and `}` end the attribute and the token, so a label cannot hold them.
+  // Writers strip them (see _linkValue).
+  //
+  // MIRRORED in app/public/mobile/index.html (sbParseLinkRule) and
+  // app/src/lib/linkRule.ts.
+  var LINK_MODES = ['after', 'before'];
+
+  /**
+   * A `link=` value as { mode, words }, or null when it says nothing usable.
+   * @param {*} raw  'after:Start date', 'before:Boxes|Box', or a bare label
+   */
+  function sbParseLinkRule(raw) {
+    var v = String(raw === null || raw === undefined ? '' : raw)
+      .replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+    if (v === '') return null;
+    var mode = 'after', rest = v, c = v.indexOf(':');
+    if (c > -1) {
+      var head = v.slice(0, c).replace(/^\s+|\s+$/g, '').toLowerCase();
+      if (LINK_MODES.indexOf(head) !== -1) { mode = head; rest = v.slice(c + 1); }
+    }
+    var parts = rest.split('|'), words = [];
+    for (var i = 0; i < parts.length; i++) {
+      var w = parts[i].replace(/^\s+|\s+$/g, '');
+      if (w !== '' && words.indexOf(w) === -1) words.push(w);
+    }
+    return words.length ? { mode: mode, words: words } : null;
+  }
+
+  // The rule in its one written spelling, or '' when there is none. What the
+  // parsed config carries and what every writer emits, so a token read and
+  // written back comes out identical.
+  function _linkValue(raw) {
+    var r = sbParseLinkRule(raw);
+    return r ? r.mode + ':' + r.words.join('|') : '';
+  }
+
+  function _linkAttr(attrSrc) {
+    var m = /(?:^|;)\s*link\s*=\s*([^;]+)/i.exec(attrSrc);
+    return m ? _linkValue(m[1]) : '';
+  }
+
   function _textCfg(attrSrc, defVal) {
     var out = { type: 'text', 'default': defVal };
     var fmtM = /(?:^|;)\s*format\s*=\s*([A-Za-z]+)/i.exec(attrSrc);
@@ -2051,6 +2188,8 @@
     if (fmt === 'name' || fmt === 'plain') out.format = fmt;
     var label = _labelAttr(attrSrc);
     if (label) out.label = label;
+    var link = _linkAttr(attrSrc);
+    if (link) out.link = link;
     return out;
   }
 
@@ -2076,6 +2215,8 @@
     }
     var label = _labelAttr(attrSrc);
     if (label) out.label = label;
+    var link = _linkAttr(attrSrc);
+    if (link) out.link = link;
     return out;
   }
 
@@ -2112,6 +2253,8 @@
     var label = String(c.label === undefined ? '' : c.label)
       .replace(/[;{}\r\n]/g, ' ').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
     if (label !== '') out += '; label=' + label;
+    var link = _linkValue(c.link);
+    if (link !== '') out += '; link=' + link;
     return out + '}';
   }
 
@@ -2158,6 +2301,8 @@
     var fmt = _dateFormatOk(type,
       String(c.format === undefined ? '' : c.format).replace(/^\s+|\s+$/g, ''));
     if (fmt) out += '; format=' + fmt;
+    var link = _linkValue(c.link);
+    if (link !== '') out += '; link=' + link;
     return out + '}';
   }
 
@@ -2314,6 +2459,8 @@
     if (c.multiple) out += '; multiple=yes';
     var cols = parseInt(c.cols, 10);
     if (cols > 0) out += '; cols=' + cols;
+    var link = _linkValue(c.link);
+    if (link !== '') out += '; link=' + link;
     return out + '}';
   }
 
@@ -2477,6 +2624,12 @@
     evalCondition:     evalCondition,
     sbNameGender:      sbNameGender,
     sbFormatDate:      sbFormatDate,
+    sbLongDate:        sbLongDate,
+    sbDateLang:        sbDateLang,
+    DATE_WORDS:        DATE_WORDS,
+    LONG_FORMAT:       LONG_FORMAT,
+    sbParseLinkRule:   sbParseLinkRule,
+    LINK_MODES:        LINK_MODES,
     sbGreetingSlot:    sbGreetingSlot,
     sbGreetingText:    sbGreetingText,
     sbParseTimeToken:  sbParseTimeToken,
