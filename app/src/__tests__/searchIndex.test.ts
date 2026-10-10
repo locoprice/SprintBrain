@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeQuery,
+  metadataMatch,
   sectionForPath,
   spaceForPath,
   scoreMemoryItem,
@@ -352,5 +353,21 @@ describe('spaceForPath', () => {
   it('is null on the index and off the memory route', () => {
     expect(spaceForPath('/memory')).toBeNull();
     expect(spaceForPath('/prompts')).toBeNull();
+  });
+});
+
+
+describe('hidden metadata search explanation', () => {
+  it('explains a synonym result without repeating a visible title or trigger match', () => {
+    expect(metadataMatch(' REMINDER ', ['Follow up', 'foll'], ['Communication'], ['reminder']))
+      .toEqual({ kind: 'Keyword', value: 'reminder' });
+    expect(metadataMatch('follow', ['Follow up', 'foll'], [], ['follow up'])).toBeNull();
+    expect(metadataMatch('foll', ['A message', 'foll'], ['Follow ups'])).toBeNull();
+  });
+  it('explains assigned label matches and ignores empty or unrelated searches', () => {
+    expect(metadataMatch('legal', ['Disclaimer'], ['Legal']))
+      .toEqual({ kind: 'Label', value: 'Legal' });
+    expect(metadataMatch('   ', ['Disclaimer'], ['Legal'])).toBeNull();
+    expect(metadataMatch('billing', ['Disclaimer'], ['Legal'])).toBeNull();
   });
 });

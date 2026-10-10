@@ -4,7 +4,9 @@ import { Brain, Loader2, Pin, PinOff, Send, Trash2, Zap } from 'lucide-react';
 import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from '@/components/ui/action-menu';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { LabelBadgeList } from '@/components/shared/LabelBadge';
+import { SearchDetails } from '@/components/shared/SearchDetails';
+import { labelPath } from '@/lib/labelTree';
+import { useSearchStore } from '@/stores/searchStore';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 import { cn } from '@/lib/utils';
@@ -72,7 +74,7 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
   const resolveUserName = useUserNameResolver();
   const labelCatalog = useLabelStore((s) => s.labels);
   const labelAssignments = useLabelStore((s) => s.promptLabels);
-  const setPromptLabels = useLabelStore((s) => s.setPromptLabels);
+  const query = useSearchStore((s) => s.query);
   const labels = useMemo(
     () => resolveLabels(prompt.id, labelAssignments, labelCatalog),
     [prompt.id, labelAssignments, labelCatalog],
@@ -144,15 +146,6 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
     }
   }
 
-  async function handleRemoveLabel(labelId: string) {
-    const current = labelAssignments.get(prompt.id) ?? [];
-    try {
-      await setPromptLabels(prompt.id, current.filter((id) => id !== labelId));
-    } catch {
-      // Error surfaces via store.error → page-level banner.
-    }
-  }
-
   return (
     <Card
       onClick={() => openEditPrompt(prompt.id)}
@@ -219,10 +212,11 @@ export const PromptCard = memo(function PromptCard({ prompt }: PromptCardProps) 
 
       {/* Meta pills */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <LabelBadgeList
-          labels={labels}
-          catalog={labelCatalog}
-          onRemove={(labelId) => void handleRemoveLabel(labelId)}
+        <SearchDetails
+          name={prompt.name}
+          labels={labels.map((label) => labelPath(labelCatalog, label.id))}
+          query={query}
+          visibleText={[prompt.name, prompt.shortcut ?? '', prompt.intent_category ?? '']}
         />
         {prompt.intent_category && (
           <Badge variant="neutral" className="text-[11px]">
