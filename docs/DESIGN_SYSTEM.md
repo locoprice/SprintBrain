@@ -314,3 +314,21 @@ All displayed rates are explicitly marked as simulated, in English, Italian and 
 The homepage combines the original hero and “Stop starting from zero” introduction in one balanced two-column container. The left column carries one h1, concise supporting copy and the existing signup CTA; the right illustrates a reusable context library and lets visitors choose an AI destination in an explicitly labeled local demo. Both columns use the same system font, canonical Azure/neutral palette, 32 px inset and equal grid tracks. The shared footer of the container carries the outcome and extension version. On narrow screens the message and CTA precede the illustration.
 
 The illustration reuses `card`, `bg`, `bg-alt`, `primary`, `primary-lt`, `border`, `r`, `r-btn`, `shadow-sm` and `shadow-md`. Its decorative glow uses the existing primary color with transparency, without introducing product status colors. Interaction triggers one short transition, honors reduced motion and makes no network request. New styles are scoped to `.hero-context`, outside shared pricing-page fragments. The lower Expansion Engine remains unchanged. This is marketing presentation only; application behavior and user documentation are unaffected.
+
+
+### Search metadata disclosure (v3.64.0)
+
+The approved minimal snippet list omits the decorative document icon. Keep the
+name, shortcut, language and useful status indicators visible; move the complete
+label and keyword lists behind one **Details** button. `SearchDetails` is shared
+with prompt cards for labels (Brains have no labels or alternative queries).
+Labels and **Search keywords** have separate headings and wrap without truncation.
+Hover or keyboard focus previews the panel; click/tap keeps it open. Escape,
+Close details and outside click dismiss it. Only one panel is open at a time.
+A matching hidden keyword or label is named in the result row. Search semantics
+and stored metadata remain intact. Use the existing surface, text and focus tokens.
+
+On phones, Details opens the existing information sheet, with full metadata,
+a 44px close target and keyboard dismissal. This adapts the approved progressive
+disclosure pattern to touch, following Apple popover guidance and WCAG hover/focus
+requirements. The private Notion benchmark library was unavailable during review.

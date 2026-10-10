@@ -399,12 +399,21 @@ body{
 .snip-card:active{transform:scale(.98);opacity:.85}
 /* Extra right gutter only when the pinned flag occupies it. */
 .snip-card.is-pinned{padding-right:80px}
-.snip-icon{
-  width:46px;height:46px;border-radius:13px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;font-size:22px;
-  background:var(--primary-lt);color:var(--primary)
-}
 .snip-info{flex:1;min-width:0}
+.snip-heading{display:flex;align-items:center;gap:8px;min-height:44px}
+.snip-heading .snip-title{flex:1;min-width:0}
+.search-details{min-height:44px;min-width:60px;padding:6px;border:0;border-radius:6px;
+  background:transparent;color:var(--text2);font:inherit;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
+.search-details:active{background:var(--bg-alt)}
+.search-details:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.search-match{font-size:12px;color:var(--text2);overflow-wrap:anywhere;margin-top:4px}
+.sb-info-row.is-list{display:block}
+.sb-info-row.is-list .sb-info-v{display:block;white-space:pre-wrap;text-align:left;
+  overflow-wrap:anywhere;margin-top:8px;line-height:1.6;font-weight:500}
+.sb-info-close{position:absolute;right:12px;top:18px;min-height:44px;min-width:44px;
+  border:0;border-radius:8px;background:var(--bg-alt);color:var(--text);font-size:20px;cursor:pointer}
+#sb-info-sheet .sb-sheet-title{padding-right:62px}
+#sb-info-sheet .sb-sheet-panel{overflow-y:auto;overscroll-behavior:contain}
 .snip-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* One row, always. Wrapping here was the second source of uneven card height:
@@ -1669,6 +1678,7 @@ select.field-in{appearance:none;-webkit-appearance:none;cursor:pointer;
     <div class="sb-sheet-handle-area">
       <div class="sb-sheet-handle"></div>
     </div>
+    <button type="button" class="sb-info-close" aria-label="Close details">×</button>
     <div class="sb-sheet-title" id="sb-info-title">Snippet info</div>
     <div class="sb-info-body" id="sb-info-body"></div>
   </div>
@@ -5954,6 +5964,7 @@ function filterPromptsPreLabel(q){
     if((p.name||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.content||'').toLowerCase().indexOf(q)>-1)return true;
     if((p.intent_category||'').toLowerCase().indexOf(q)>-1)return true;
+    if(assetLabelNames(p.id,promptLabelMap,false).some(function(name){return name.toLowerCase().includes(q);}))return true;
     return false;
   });
 }
@@ -5972,7 +5983,7 @@ function promptCategories(){
 }
 function renderPromptList(){
   var el=document.getElementById('prompt-list');
-  var q=promptSearch.toLowerCase();
+  var q=promptSearch.trim().toLowerCase();
   var total=allPrompts.length;
   var filtered=filterPrompts(q);
   // Pinned prompts float to the top; each half keeps its updated_at order.
@@ -6037,13 +6048,17 @@ function renderPromptList(){
     if(cleaned.length>120)preview+='…';
     var when=p.last_used_at?('Used '+timeAgo(p.last_used_at)):'Never used';
     var isPin=!!p.pinned;
+    var labels=assetLabelNames(p.id,promptLabelMap,false);
+    var details=labels.length?'<button type="button" class="search-details" data-detail-pid="'+esc(p.id)+'" aria-label="Details for '+esc(p.name)+'">Details</button>':'';
+    var reason=hiddenSearchMatch(q,[p.name,p.intent_category],labels,[]);
     return '<div class="prompt-card'+(isPin?' is-pinned':'')+'" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
       +'<div class="prompt-icon">'+folderIcon(getFolderById(p.folder_id))+'</div>'
       +'<div class="prompt-info">'
         +'<div class="prompt-name">'+esc(p.name)+'</div>'
         +(preview?'<div class="prompt-preview">'+esc(preview)+'</div>':'')
         +'<div class="prompt-meta">'+reviewChipHtml(p.review_status)+stratBadge+intentBadge+outBadge+share+'</div>'
-        +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span></div>'
+        +'<div class="prompt-foot"><span class="prompt-when">'+esc(when)+'</span>'+details+'</div>'
+        +(reason?'<div class="search-match">'+esc(reason)+'</div>':'')
       +'</div>'
       +(isPin?'<span class="prompt-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="prompt-menu" data-menu-pid="'+esc(p.id)+'" aria-label="More actions">⋮</button>'
@@ -6052,16 +6067,24 @@ function renderPromptList(){
 
   el.querySelectorAll('.prompt-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.prompt-menu'))return;
+      if(e.target.closest('.prompt-menu,.search-details'))return;
       var p=findPrompt(this.getAttribute('data-pid'));
       if(p)promptCopy(p);
     });
     card.addEventListener('keydown',function(e){
+      if(e.target!==card)return;
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
         var p=findPrompt(this.getAttribute('data-pid'));
         if(p)promptCopy(p);
       }
+    });
+  });
+  el.querySelectorAll('[data-detail-pid]').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var prompt=findPrompt(this.getAttribute('data-detail-pid'));
+      if(prompt)openPromptInfo(prompt);
     });
   });
   el.querySelectorAll('.prompt-menu').forEach(function(btn){
@@ -6138,7 +6161,8 @@ function sharePrompt(p){
 /* Read-only prompt detail, the prompt half of the shared info sheet. */
 function openPromptInfo(p){
   var f=getFolderById(p.folder_id);
-  showInfoSheet(p.name||'Prompt',[
+  var labels=assetLabelNames(p.id,promptLabelMap,true);
+  showInfoSheet(p.name||'Prompt',(labels.length?[['Labels',labels.join('\n')]]:[]).concat([
     ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
     ['Strategy', p.strategy_type||'None'],
     ['Model', p.preferred_model||'—'],
@@ -6146,7 +6170,7 @@ function openPromptInfo(p){
     ['Updated', p.updated_at?timeAgo(p.updated_at):'—'],
     ['Last used', p.last_used_at?timeAgo(p.last_used_at):'Never'],
     ['ID', p.id]
-  ]);
+  ]));
 }
 // Reflect the current page on the quick-action bar(s): the matching tile gets
 // the pushed/active state, every other tile resets. name=null clears them all.
@@ -7474,6 +7498,28 @@ function groupForRow(s){
   for(var i=0;i<groups.length;i++){ if(groups[i].key===k) return groups[i]; }
   return {key:k,variants:[s]};
 }
+/* Search metadata stays available even while the list hides its full contents. */
+function assetLabelNames(id,map,paths){
+  return (map[id]||[]).map(function(labelId){
+    var label=allLabels.find(function(l){return l.id===labelId;});
+    if(!label)return '';
+    var parent=paths&&allLabels.find(function(l){return l.id===label.parent_id;});
+    return parent?parent.name+' / '+label.name:label.name;
+  }).filter(Boolean);
+}
+function snippetSearchMatches(s,q){
+  if(!q)return true;
+  return [s.title||'',s.shortcut||'',s.body||'']
+    .concat(s.alternative_queries||[],assetLabelNames(s.id,snipLabelMap,false))
+    .some(function(value){return value.toLowerCase().includes(q);});
+}
+function hiddenSearchMatch(q,visible,labels,keywords){
+  if(!q||visible.some(function(v){return (v||'').toLowerCase().includes(q);}))return '';
+  var word=(keywords||[]).find(function(v){return v.toLowerCase().includes(q);});
+  if(word)return 'Keyword: '+word;
+  var label=labels.find(function(v){return v.toLowerCase().includes(q);});
+  return label?'Label: '+label:'';
+}
 function groupMatches(g,q,folder,lang){
   // group matches if ANY variant satisfies every active filter
   for(var i=0;i<g.variants.length;i++){
@@ -7481,8 +7527,7 @@ function groupMatches(g,q,folder,lang){
     var ml=lang==='ALL'||s.lang===lang;
     /* A parent folder lists its whole subtree, matching its pill count. */
     var mf=inFolderSubtree(s.folder_id,folder);
-    var ms=!q||(s.title||'').toLowerCase().includes(q)||
-            (s.shortcut||'').toLowerCase().includes(q);
+    var ms=snippetSearchMatches(s,q);
     if(ml&&mf&&ms) return true;
   }
   return false;
@@ -7549,7 +7594,7 @@ function lastUseForSnippet(s){
 var LIST_PAGE=25, listLimit=LIST_PAGE, _listSig=null;
 function renderList(){
   var el=document.getElementById('snip-list');
-  var q=curSearch.toLowerCase();
+  var q=curSearch.trim().toLowerCase();
   _varIndex={};
   _groupIndex={};
   var groups=buildGroups(allSnips).filter(function(g){
@@ -7585,6 +7630,15 @@ function renderList(){
   var remaining=matched-groups.length;
   el.innerHTML=groups.map(function(g){
     var active=pickActiveVariant(g,curLang,curFolder);
+    // When only another translation matches, show that matching variant.
+    if(q&&!snippetSearchMatches(active,q)){
+      active=g.variants.find(function(v){return (curLang==='ALL'||v.lang===curLang)&&inFolderSubtree(v.folder_id,curFolder)&&snippetSearchMatches(v,q);})||active;
+    }
+    var labelNames=assetLabelNames(active.id,snipLabelMap,false);
+    var keywords=active.alternative_queries||[];
+    var detailButton=(labelNames.length||keywords.length)
+      ?'<button type="button" class="search-details" data-detail-id="'+esc(vkey(active))+'" aria-label="Details for '+esc(active.title||'Snippet')+'">Details</button>':'';
+    var reason=hiddenSearchMatch(q,[active.title,active.shortcut],labelNames,keywords);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
     _groupIndex[g.key]=g.variants;
     var fbadge='';
@@ -7613,9 +7667,8 @@ function renderList(){
     }
     var isPin=!!_pk[g.key];
     return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
-      +'<div class="snip-icon">'+folderIcon(getFolderById(active.folder_id))+'</div>'
       +'<div class="snip-info">'
-        +'<div class="snip-title">'+esc(active.title||active.id)+'</div>'
+        +'<div class="snip-heading"><div class="snip-title">'+esc(active.title||active.id)+'</div>'+detailButton+'</div>'
         +'<div class="snip-meta">'
           +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
           +pills
@@ -7623,6 +7676,7 @@ function renderList(){
           +fbadge
           +sharingBadge(active)
         +'</div>'
+        +(reason?'<div class="search-match">'+esc(reason)+'</div>':'')
       +'</div>'
       +(isPin?'<span class="snip-pin-flag" role="img" aria-label="Pinned" title="Pinned">'+PIN_SVG+'</span>':'')
       +'<button type="button" class="snip-menu" data-menu-id="'+esc(vkey(active))+'" aria-label="More actions">⋮</button>'
@@ -7662,14 +7716,22 @@ function renderList(){
   }
   el.querySelectorAll('.snip-card').forEach(function(card){
     card.addEventListener('click',function(e){
-      if(e.target.closest('.snip-menu'))return;
+      if(e.target.closest('.snip-menu,.search-details'))return;
       activateCard(this);
     });
     card.addEventListener('keydown',function(e){
+      if(e.target!==card)return;
       if(e.key==='Enter'||e.key===' '){
         e.preventDefault();
         activateCard(this);
       }
+    });
+  });
+  el.querySelectorAll('[data-detail-id]').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var snippet=_varIndex[this.getAttribute('data-detail-id')];
+      if(snippet)openSnippetInfo(snippet);
     });
   });
   el.querySelectorAll('.snip-menu').forEach(function(btn){
@@ -8749,6 +8811,9 @@ function openSnippetInfo(s){
     ['Characters', String((s.body||'').length)],
     ['Updated', s.updated_at?timeAgo(s.updated_at):'—']
   ];
+  var labels=assetLabelNames(s.id,snipLabelMap,true);
+  if(s.alternative_queries&&s.alternative_queries.length)rows.unshift(['Search keywords',s.alternative_queries.join('\n')]);
+  if(labels.length)rows.unshift(['Labels',labels.join('\n')]);
   var lu=lastUseForSnippet(s);
   if(lu){
     var p=lastUseParts(lu);
@@ -8765,11 +8830,14 @@ function openSnippetInfo(s){
 }
 /* Snippets and prompts share one info panel: same key/value rows, same open
    animation, only the title and the rows differ. */
+var _infoReturnFocus=null,_infoCloseTimer;
 function showInfoSheet(title,rows){
+  clearTimeout(_infoCloseTimer);
+  _infoReturnFocus=document.activeElement;
   document.getElementById('sb-info-title').textContent=title;
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
     var isId=r[0]==='ID';
-    return '<div class="sb-info-row"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
+    return '<div class="sb-info-row'+(r[0]==='Labels'||r[0]==='Search keywords'?' is-list':'')+'"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
       +'<span class="sb-info-k">'+esc(r[0])+'</span>'
       +'<span class="sb-info-v'+(isId?' sb-info-mono':'')+'">'+esc(r[1])+'</span></div>';
   }).join('');
@@ -8778,12 +8846,14 @@ function showInfoSheet(title,rows){
   sh.setAttribute('aria-hidden','false');
   void sh.offsetWidth;
   sh.classList.add('sb-open');
+  sh.querySelector('.sb-info-close').focus();
 }
 function closeSnippetInfo(){
   var sh=document.getElementById('sb-info-sheet');
   sh.classList.remove('sb-open');
   sh.setAttribute('aria-hidden','true');
-  setTimeout(function(){sh.classList.add('sb-hidden');},300);
+  if(_infoReturnFocus&&_infoReturnFocus.isConnected)_infoReturnFocus.focus();
+  _infoCloseTimer=setTimeout(function(){sh.classList.add('sb-hidden');},300);
 }
 
 /* ── EDIT MODAL ─────────────────────────────────── */
@@ -9201,6 +9271,12 @@ function setupSheetDrag(sheetEl,closeFn){
   var sheet=document.getElementById('sb-info-sheet');
   if(!sheet)return;
   sheet.querySelector('.sb-sheet-backdrop').addEventListener('click',closeSnippetInfo);
+  sheet.querySelector('.sb-info-close').addEventListener('click',closeSnippetInfo);
+  sheet.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){e.preventDefault();closeSnippetInfo();}
+    // The read-only sheet has one focusable control; keep focus inside it.
+    if(e.key==='Tab'){e.preventDefault();sheet.querySelector('.sb-info-close').focus();}
+  });
   setupSheetDrag(sheet,closeSnippetInfo);
   document.getElementById('sb-info-body').addEventListener('click',function(e){
     var row=e.target.closest('[data-copy]');

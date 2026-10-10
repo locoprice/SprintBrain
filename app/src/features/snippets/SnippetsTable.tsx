@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Send } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Pin, Search, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
-import { LabelBadgeList } from '@/components/shared/LabelBadge';
+import { SearchDetails } from '@/components/shared/SearchDetails';
+import { labelPath } from '@/lib/labelTree';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 import { DND_SNIPPET } from '@/features/org/FolderTree';
@@ -211,7 +212,6 @@ export function SnippetsTable() {
   // grouped row's language switches which variant's labels it shows.
   const labelCatalog = useLabelStore((s) => s.labels);
   const labelAssignments = useLabelStore((s) => s.snippetLabels);
-  const setSnippetLabels = useLabelStore((s) => s.setSnippetLabels);
   const resolveUserName = useUserNameResolver();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -302,15 +302,6 @@ export function SnippetsTable() {
     e.stopPropagation();
     try {
       await pushSnippetToNotion(id);
-    } catch {
-      // Error surfaces via store.error → page-level banner.
-    }
-  }
-
-  async function handleRemoveLabel(snippetId: string, labelId: string) {
-    const current = labelAssignments.get(snippetId) ?? [];
-    try {
-      await setSnippetLabels(snippetId, current.filter((id) => id !== labelId));
     } catch {
       // Error surfaces via store.error → page-level banner.
     }
@@ -459,9 +450,6 @@ export function SnippetsTable() {
                 </td>
                 <td className="px-3 py-3 2xl:px-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary-light text-primary">
-                      <FileText className="h-4 w-4" />
-                    </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 truncate font-medium text-ink">
                         {groupPinned && (
@@ -482,31 +470,14 @@ export function SnippetsTable() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                        <LabelBadgeList
-                          labels={resolveLabels(row.id, labelAssignments, labelCatalog)}
-                          catalog={labelCatalog}
-                          onRemove={(labelId) => void handleRemoveLabel(row.id, labelId)}
+                        {row.is_formula ? <Badge variant="primary">formula</Badge> : null}
+                        <SearchDetails
+                          name={displayName}
+                          labels={resolveLabels(row.id, labelAssignments, labelCatalog).map((label) => labelPath(labelCatalog, label.id))}
+                          keywords={row.alternative_queries}
+                          query={filterQuery}
+                          visibleText={[displayName, ...row.triggers]}
                         />
-                        {row.is_formula ? (
-                          <Badge variant="primary">formula</Badge>
-                        ) : null}
-                        {row.alternative_queries.slice(0, 3).map((q) => (
-                          <span
-                            key={q}
-                            title={`Alternative query: ${q}`}
-                            className="inline-block rounded-[4px] border border-primary-bdr bg-primary-bg px-1.5 py-px text-[9px] font-semibold text-primary/80"
-                          >
-                            {q}
-                          </span>
-                        ))}
-                        {row.alternative_queries.length > 3 && (
-                          <span
-                            title={row.alternative_queries.slice(3).join(', ')}
-                            className="inline-block rounded-[4px] bg-bg-alt px-1.5 py-px text-[9px] font-medium text-ink-subtle"
-                          >
-                            +{row.alternative_queries.length - 3}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
