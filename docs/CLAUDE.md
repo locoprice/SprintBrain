@@ -21,6 +21,12 @@
 
 ---
 
+## 🧭 SIMPLICITY IS THE CORE RULE
+
+**Our users are normal people, not tech experts. The extension must be very easy, very friendly and very accessible.** Plain everyday words in the overlay, popup and context menu; one obvious next step; sensible defaults; keyboard reachable with visible focus; readable contrast and text size; friendly messages that say what to do next. When two options compete, the simpler one for the user wins. Full rule: root `../CLAUDE.md` (🧭 Simplicity Is the Core Rule).
+
+---
+
 ## 1. Project Identity
 
 **SprintBrain** is a **Chrome Extension (Manifest V3)** for productivity and text snippet management.

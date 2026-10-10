@@ -39,8 +39,11 @@ Pick a format, then click **Date** or **Time**.
 | Day / Month / Year | 04/09/2026 |
 | Month / Day / Year | 09/04/2026 |
 | Day / Month / Weekday | 04/09/Friday |
+| Written out | Friday 4 September 2026 |
 | 24-hour | 14:30 |
 | 12-hour (AM/PM) | 02:30 PM |
+
+**Written out** follows the snippet's language: *venerdì 4 settembre 2026* in Italian, *viernes 4 de septiembre de 2026* in Spanish, *vendredi 4 septembre 2026* in French. The other formats print day names in English.
 
 Date boxes open on today. While filling, you can change the format, jump to a day or set a time, for that insert only.
 
@@ -83,6 +86,10 @@ A **Button** changes numbers while you fill the form, like a "10% off" button. I
 - **What it does**: each line sets one field, for example `PRICE` = `PRICE * 0.9`. Later lines use the results of earlier ones.
 - **Spacing**: whether the button removes the space around it, so it leaves no blank line behind.
 
+## Fill from a pasted link
+
+The Text, Number, Date/Time and Choice windows have a **Fill from a pasted link** option. Tick it and say where the value is on a web page, and the form gets a box where you paste the page's link to fill the fields. See [Fill a form from a link](/text-snippets/fill-from-link).
+
 ## Writing fields by hand
 
 You can also type fields straight into the body:
@@ -96,6 +103,8 @@ You can also type fields straight into the body:
 | Number | `{formtext: name=QTY; type=number}` |
 | Price in dollars | `{formtext: name=PRICE; type=number; format=currency; currency=USD}` |
 | Date | `{formdate: name=DATE_1; format=DD/MM/YYYY}` |
+| Date written out | `{formdate: name=DATE_1; format=long}` |
+| Filled from a link | `{formtext: name=REF; link=after:Order number}` |
 | Time | `{formdate: name=TIME_1; type=time; format=hh:mm A}` |
 | Choice | `{formmenu: Basic,Plus,Pro; name=PLAN; default=Plus}` |
 | Choice, several answers | `{formmenu: Email,Phone,Chat; name=CHANNEL; multiple=yes}` |

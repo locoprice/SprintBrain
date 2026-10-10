@@ -126,6 +126,21 @@ function scoreList(texts: readonly string[], query: string, weight: number): num
   return best;
 }
 
+/** Explain a result matched through metadata hidden behind Details. */
+export function metadataMatch(
+  rawQuery: string,
+  visibleText: readonly string[],
+  labels: readonly string[],
+  keywords: readonly string[] = [],
+): { kind: 'Keyword' | 'Label'; value: string } | null {
+  const query = normalizeQuery(rawQuery);
+  if (!query || scoreList(visibleText, query, 1)) return null;
+  const keyword = keywords.find((value) => scoreField(value, query, 1) > 0);
+  if (keyword) return { kind: 'Keyword', value: keyword };
+  const label = labels.find((value) => scoreField(value, query, 1) > 0);
+  return label ? { kind: 'Label', value: label } : null;
+}
+
 /**
  * Snippets match on name, trigger, keyword synonyms, labels and body text.
  * Body text was added with the one search bar: a prompt already searched its

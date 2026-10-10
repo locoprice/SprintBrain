@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { fillFormApi, loadFillFormEngine } from '@/lib/fillFormEngine';
 import {
-  DATE_FORMAT_OPTIONS,
+  dateFormatOptions,
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIME_FORMAT,
   TIME_FORMAT_OPTIONS,
@@ -51,6 +51,11 @@ interface FormDateRangeDialogProps {
   onOpenChange: (open: boolean) => void;
   /** The body being edited, read for existing date fields and free names. */
   body: string;
+  /**
+   * The snippet's language, or '' for a Multi body. Written out prints the
+   * dates in it, so its sample in the format list does too.
+   */
+  lang?: string;
   onInsert: (token: string) => void;
 }
 
@@ -70,6 +75,7 @@ export function FormDateRangeDialog({
   open,
   onOpenChange,
   body,
+  lang = '',
   onInsert,
 }: FormDateRangeDialogProps) {
   const [mode, setMode] = useState<RangeMode>(DEFAULT_RANGE_MODE);
@@ -292,7 +298,7 @@ export function FormDateRangeDialog({
                   onChange={(e) => setDateFormat(e.target.value as DateFormat)}
                   className={SELECT_CLASS}
                 >
-                  {DATE_FORMAT_OPTIONS.map((o) => (
+                  {dateFormatOptions(lang).map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label} · {o.sample}
                     </option>

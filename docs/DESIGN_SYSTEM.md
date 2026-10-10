@@ -291,6 +291,7 @@ The four local, content-hashed image assets live in `app/public/landing/assets/p
 - Mobile "Recently used" carousel: omitted from `app/public/mobile/index.html` until we track snippet `last_used_at`. Slot is reserved in the section layout.
 - Mobile bottom sheet: Use now / Copy text / Pin to top / Share… / info on snippets and prompts, the same pattern on Brains and their items. Share… goes through one `shareOut()` helper: the phone's Share menu, or a copy with a toast where there is none. On a snippet with fields it opens the snippet page first, so the text is filled in before it leaves.
 - Fill form typed values (v3.57.0): on all four fill surfaces (in-page overlay, including the `{{placeholder}}` box; popup detail; editor live preview; `/mobile/`) what the person types into a text or number box is **bold** (700) in the surface's full ink (`#18181B` overlay, `--sb-ink` popup, `text-ink` dashboard, `--text` mobile). The prose around the box stays muted and regular, and the placeholder stays regular, so an empty box never looks filled. Picked values keep their own look: dates (orange on mobile, azure in the overlay) and menu options (azure semibold when checked). On-screen only: inserted, copied and shared text is plain.
+- Mobile Read a picture (v3.63.0): one full-width secondary row (`.cap-pic`) under the Text box in Save to Brain, the `.mbrain-act` secondary look (card background, `primary` text, `border`, `r-btn`) on two lines like the Ask row: camera icon, **Read a picture**, and a second line in `text2`. Locked for Pro it follows the Ask row: `opacity:.7`, the lock icon on the right, and the label in plain sight on the second line; under it, a `.sb-cap-note` tip (Live Text / Google Lens). While reading, the second line says **Reading the picture…** and Save waits.
 - Mobile copy footer (v3.56.0): the mockup's single full-width **Copy to clipboard** became two equal buttons, **📋 Copy** (primary) and **📤 Share** (secondary: card background, `primary` text, `border`), one `.foot-btn` style on the snippet page and the Brain item page. Both turn `success` green with a tick for two seconds after they act (Copied! / Shared!). Share shows only where the browser has a Share menu (`navigator.share`); without it, Copy takes the whole row. Labels stay one line down to 320 px.
 - Mobile quick-action tiles (v2.91.0; Sync tile removed v2.106.0; Brains live v3.53.0): full-width 3-tile grid (**Prompts · Snippets · Brains**) with **3D extruded icon wells** and a pushed/active state (`.mqa-tile.on` → inset azure icon + azure label). The three act as a segmented current-page nav: the tile of the page in view stays pushed. The bar is written once (`mountQuickActions()`) and mounted on all three pages, so it cannot drift between them. The Brains tile uses the dashboard's Brain glyph, the same Lucide icon as the sidebar's Brains entry, and the same name: the interface never says "Memory". The old Folders tile was replaced by Snippets; the cosmetic **Sync** shell (never wired to a handler) was removed.
 - Mobile Brains page (v3.53.0): the prompts page shell (hero, search, tiles, section heading, `.prompt-card` list, ⋮ sheet, info sheet), with an open Brain's header in the selected-folder header's slot (`.fhead`). Its long-Brain notice uses `warning-bg` / `warning-deep`, mirrored into the mobile `:root` as `--warn-bg` / `--warn-deep`. Paste & save (v3.54.0) is one full-width secondary `.mbrain-act` (`.is-wide`): alone in that slot on All Brains, on its own row under Copy whole Brain and Add text inside a Brain. Save to Brain is the edit modal's frame (header ✕ / title / Save, Brain select with the suggestion's one-line reason under it, Text box with "host · N words" in the count slot).
@@ -313,3 +314,30 @@ All displayed rates are explicitly marked as simulated, in English, Italian and 
 The homepage combines the original hero and “Stop starting from zero” introduction in one balanced two-column container. The left column carries one h1, concise supporting copy and the existing signup CTA; the right illustrates a reusable context library and lets visitors choose an AI destination in an explicitly labeled local demo. Both columns use the same system font, canonical Azure/neutral palette, 32 px inset and equal grid tracks. The shared footer of the container carries the outcome and extension version. On narrow screens the message and CTA precede the illustration.
 
 The illustration reuses `card`, `bg`, `bg-alt`, `primary`, `primary-lt`, `border`, `r`, `r-btn`, `shadow-sm` and `shadow-md`. Its decorative glow uses the existing primary color with transparency, without introducing product status colors. Interaction triggers one short transition, honors reduced motion and makes no network request. New styles are scoped to `.hero-context`, outside shared pricing-page fragments. The lower Expansion Engine remains unchanged. This is marketing presentation only; application behavior and user documentation are unaffected.
+
+
+### Search metadata disclosure (v3.64.1)
+
+The approved minimal snippet list omits the decorative document icon. Keep the
+name, shortcut and useful status indicators visible; move the complete
+label, keyword and language lists behind one **Details** button. `SearchDetails` is shared
+with prompt cards for labels (Brains have no labels or alternative queries).
+Labels, **Search keywords** and **Languages** have separate headings and wrap without truncation.
+Languages use their full names and existing palette. Grouped desktop rows keep
+their language selector inside this panel, with 44px targets and a selected ring.
+Keep the visible Updated date tied to its language with compact copy such as
+“22 days ago · English”. Dates shared by translations in one saved snippet
+are labelled “All languages”; a partially shared update names the affected
+languages. Mobile uses the same wording in its information sheet.
+Single-language snippets also expose Details, even without labels or keywords.
+On mobile, the information sheet lists languages; the snippet detail page keeps
+the existing language selection for copying and sharing.
+Hover or keyboard focus previews the panel; click/tap keeps it open. Escape,
+Close details and outside click dismiss it. Only one panel is open at a time.
+A matching hidden keyword or label is named in the result row. Search semantics
+and stored metadata remain intact. Use the existing surface, text and focus tokens.
+
+On phones, Details opens the existing information sheet, with full metadata,
+a 44px close target and keyboard dismissal. This adapts the approved progressive
+disclosure pattern to touch, following Apple popover guidance and WCAG hover/focus
+requirements. The private Notion benchmark library was unavailable during review.

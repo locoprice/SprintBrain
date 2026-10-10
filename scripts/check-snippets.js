@@ -27,6 +27,13 @@ const cases = [
   { name: 'cmp > false',        body: '{if: OTA > 0}save{endif}',           vals: { OTA: 0 },             expect: '' },
   { name: 'cmp >= else',        body: '{if: N >= 5}big{else}small{endif}',  vals: { N: 4 },               expect: 'small' },
   { name: 'string equality',    body: '{if: LANG = "EN"}Hello{endif}',      vals: { LANG: 'en' },         expect: 'Hello' },
+  // What the Show or hide builder writes: contains, is filled, and a hide rule.
+  { name: 'contains true',      body: '{if: NOTE contains "urgent"}!{endif}', vals: { NOTE: 'Very URGENT' }, expect: '!' },
+  { name: 'contains false',     body: '{if: NOTE contains "urgent"}!{endif}', vals: { NOTE: 'later' },     expect: '' },
+  { name: 'is filled',          body: '{if: NOTE != ""}Note: {NOTE}{endif}', vals: { NOTE: 'Hi' },          expect: 'Note: Hi' },
+  { name: 'is not filled',      body: '{if: NOTE != ""}Note: {NOTE}{endif}', vals: { NOTE: '' },            expect: '' },
+  { name: 'hide rule',          body: 'A{if: N > 10}{else}B{endif}C',       vals: { N: 12 },              expect: 'AC' },
+  { name: 'hide rule shown',    body: 'A{if: N > 10}{else}B{endif}C',       vals: { N: 3 },               expect: 'ABC' },
   { name: 'graceful undefined', body: 'A{= BROKEN + 2}B',                   vals: {},                     expect: 'A2B' },
 ];
 
@@ -398,7 +405,7 @@ try {
 } catch (e) {
   fail('mobile field-config helpers failed to evaluate: ' + e.message);
 }
-for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName',
+for (const fn of ['sbBodyFieldCfg', 'sbMenuSpec', 'sbFormMenuPicks', 'sbFormTokenName', 'sbParseLinkRule',
                   'sbFieldContext', 'sbTokenFieldKey', 'sbFormatDateValue', 'sbDateCfg']) {
   if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
 }
@@ -461,6 +468,71 @@ for (const [expr, vals, want] of formulaCases) {
 }
 console.log('OK Formula parity (engine = mobile) passed all ' + fxOk + ' cases');
 
+// ── CONDITION PARITY ────────────────────────────────────────────────
+// The phone decides an {if:} with its own sbEvalCondition and picks the branch
+// with sbIfBranch. Each case is a condition the Show or hide builder writes, or
+// one already in use; the phone must print the same branch the desktop prints.
+// Before v3.62.0 the phone printed both halves of an {if:}…{else}…{endif} and
+// compared text with case, so "annual" missed "Annual".
+for (const fn of ['sbEvalCondition', 'sbIfBranch']) {
+  if (typeof mobile[fn] !== 'function') fail('mobile/index.html no longer defines ' + fn);
+}
+const conditionCases = [
+  ['PLAN = "annual"', { PLAN: 'Annual' }, 1],
+  ['PLAN = "annual"', { PLAN: 'monthly' }, 0],
+  ['PLAN != "annual"', { PLAN: 'monthly' }, 1],
+  ['PLAN != ""', { PLAN: 'monthly' }, 1],
+  ['PLAN != ""', { PLAN: '' }, 0],
+  ['PLAN != ""', {}, 0],
+  ['PLAN != ""', { PLAN: '0' }, 1],
+  ['NOTE contains "red"', { NOTE: 'Red, Green' }, 1],
+  ['NOTE contains "blue"', { NOTE: 'Red, Green' }, 0],
+  ['NOTE contains "x > y"', { NOTE: 'if x > y then' }, 1],
+  ['SCORE > 10', { SCORE: '12' }, 1],
+  ['SCORE > 10', { SCORE: '1.200,50' }, 1],
+  ['SCORE < 10', { SCORE: '12' }, 0],
+  ['SCORE < 10', { SCORE: 'abc' }, 0],
+  ['SCORE == 2.5', { SCORE: '2,5' }, 1],
+  ['SCORE != 2.5', { SCORE: '3' }, 1],
+  ['SCORE >= 5', { SCORE: '5' }, 1],
+  ['SCORE', { SCORE: '3' }, 3],
+];
+let condOk = 0;
+for (const [expr, vals, want] of conditionCases) {
+  const gotE = engine.evalCondition(expr, Object.assign({}, vals));
+  const gotM = mobile.sbEvalCondition(expr, Object.assign({}, vals));
+  if (gotE !== want) {
+    fail('condition ' + expr + ' ' + JSON.stringify(vals) + ' -> engine ' + gotE + ', expected ' + want);
+  }
+  if (gotM !== gotE) {
+    fail('condition drift for ' + expr + ' ' + JSON.stringify(vals) +
+      '\n  engine: ' + gotE + '\n  mobile: ' + gotM);
+  }
+  condOk++;
+}
+const branchCases = [
+  ['N > 10', 'big{else}small', { N: 12 }, 'big'],
+  ['N > 10', 'big{else}small', { N: 3 }, 'small'],
+  ['N > 10', '{else}shown', { N: 12 }, ''],
+  ['N > 10', '{else}shown', { N: 3 }, 'shown'],
+  ['N > 10', 'big{elseif: N > 5}mid{else}small', { N: 7 }, 'mid'],
+  ['N > 10', 'big', { N: 3 }, ''],
+];
+for (const [cond, inner, vals, want] of branchCases) {
+  const gotE = engine.resolveBody('{if: ' + cond + '}' + inner + '{endif}', Object.assign({}, vals));
+  const gotM = mobile.sbIfBranch(cond, inner, Object.assign({}, vals));
+  if (gotE !== want) {
+    fail('branch {if: ' + cond + '}' + inner + ' ' + JSON.stringify(vals) + ' -> engine ' +
+      JSON.stringify(gotE) + ', expected ' + JSON.stringify(want));
+  }
+  if (gotM !== gotE) {
+    fail('branch drift for {if: ' + cond + '}' + inner + ' ' + JSON.stringify(vals) +
+      '\n  engine: ' + JSON.stringify(gotE) + '\n  mobile: ' + JSON.stringify(gotM));
+  }
+  condOk++;
+}
+console.log('OK Condition parity (engine = mobile) passed all ' + condOk + ' cases');
+
 // Key order is walk order on both sides, but canonicalise anyway so a parity
 // failure always means a real difference in what the two surfaces would render.
 function canon(cfg) {
@@ -486,6 +558,16 @@ const fieldCfgCases = [
   '{formmenu: A,B; name=M; multiple=yes}',
   // Unnamed menus key off the token itself — the hash must agree exactly.
   '{formmenu: A,B}',
+  // Fill from link: the reading rule rides on every field kind, and on a menu
+  // it must stay a setting rather than become one more option to pick.
+  '{formmenu: A,B; name=M; link=after:Plan}',
+  '{formmenu: A; B; link=Plan; name=M}',
+  '{formtext: name=T; link=after:Customer}',
+  '{formtext: name=N; type=number; default=0; link=before:Boxes|Box}',
+  '{formtext: name=N; type=number; link=BEFORE: Boxes | Box | Boxes}',
+  '{formdate: name=D; format=long; link=after:Pick-up}',
+  '{formdate: name=D; type=datetime; format=long HH:mm; link=Pick-up date}',
+  '{formtext: name=T; link=   }',
   '{formmenu: name=M}',
   '{formtext: name=GUEST; default=Ada}',
   // BOX CAPTION: label= names a box in the fill form. Free text, so it can hold
@@ -654,14 +736,40 @@ for (const fmt of [...engine.TIME_FORMATS, '']) {
 
 let dok = 0;
 for (const [raw, fmt] of DATE_FMT_CASES) {
-  const want = engine.sbFormatDateValue(raw, fmt);
-  const got = mobile.sbFormatDateValue(raw, fmt);
-  if (got !== want) {
-    fail('date formatting drift for ' + JSON.stringify([raw, fmt]) +
-      '\n  engine: ' + JSON.stringify(want) +
-      '\n  mobile: ' + JSON.stringify(got));
+  // `long` follows the snippet's language, so every case runs in each of them
+  // and in none (a Multi body reads as English).
+  for (const lang of ['', 'EN', 'IT', 'ES', 'FR', 'es-ES', 'DE']) {
+    const want = engine.sbFormatDateValue(raw, fmt, lang);
+    const got = mobile.sbFormatDateValue(raw, fmt, lang);
+    if (got !== want) {
+      fail('date formatting drift for ' + JSON.stringify([raw, fmt, lang]) +
+        '\n  engine: ' + JSON.stringify(want) +
+        '\n  mobile: ' + JSON.stringify(got));
+    }
+    dok++;
   }
-  dok++;
+}
+for (const fmt of ['long HH:mm', 'long hh:mm A']) {
+  for (const lang of ['', 'IT', 'ES', 'FR']) {
+    const want = engine.sbFormatDateValue('2026-10-01T14:30', fmt, lang);
+    if (mobile.sbFormatDateValue('2026-10-01T14:30', fmt, lang) !== want) {
+      fail('datetime formatting drift for ' + JSON.stringify([fmt, lang]));
+    }
+    dok++;
+  }
+}
+// The day and month names behind `long` and behind reading a date off a page
+// (Fill from link). A name changed on one side reads or prints a different day.
+if (JSON.stringify(mobile.SB_DATE_WORDS) !== JSON.stringify(engine.DATE_WORDS)) {
+  fail('the phone\'s day and month names (SB_DATE_WORDS) no longer match the engine\'s DATE_WORDS');
+}
+// And the reading rule parses the same way on both.
+for (const raw of ['after:Customer', 'before:Boxes|Box', 'BEFORE : a|b|a', 'Ref: A', 'x;y}z', '', '   ', 'after:']) {
+  if (JSON.stringify(mobile.sbParseLinkRule(raw)) !== JSON.stringify(engine.sbParseLinkRule(raw))) {
+    fail('link rule parsing drift for ' + JSON.stringify(raw) +
+      '\n  engine: ' + JSON.stringify(engine.sbParseLinkRule(raw)) +
+      '\n  mobile: ' + JSON.stringify(mobile.sbParseLinkRule(raw)));
+  }
 }
 
 // The five formats the two builders offer, pinned to what they actually print.
@@ -671,6 +779,7 @@ const DATE_OUTPUT = [
   ['2026-09-04', 'DD/MM/YYYY', '04/09/2026'],
   ['2026-09-04', 'MM/DD/YYYY', '09/04/2026'],
   ['2026-09-04', 'DD/MM/dddd', '04/09/Friday'],
+  ['2026-09-04', 'long', 'Friday 4 September 2026'],
   ['14:30', 'HH:mm', '14:30'],
   ['14:30', 'hh:mm A', '02:30 PM'],
   ['09:05', 'hh:mm A', '09:05 AM'],
@@ -683,6 +792,34 @@ for (const [raw, fmt, want] of DATE_OUTPUT) {
     fail('date format ' + JSON.stringify(fmt) + ' on ' + JSON.stringify(raw) +
       ' -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
   }
+}
+// `long` writes the date out the way each language writes it in running text,
+// and only `long` does: every other format stays exactly as it printed before
+// the snippet's language reached it.
+const LONG_OUTPUT = [
+  ['2026-10-09', 'EN', 'Friday 9 October 2026'],
+  ['2026-10-09', 'IT', 'venerdì 9 ottobre 2026'],
+  ['2026-10-09', 'ES', 'viernes 9 de octubre de 2026'],
+  ['2026-10-09', 'FR', 'vendredi 9 octobre 2026'],
+  ['2026-10-01', 'FR', 'jeudi 1er octobre 2026'],
+  ['2026-10-09', '', 'Friday 9 October 2026'],
+  ['2026-10-09', 'DE', 'Friday 9 October 2026'],
+];
+for (const [raw, lang, want] of LONG_OUTPUT) {
+  const got = engine.sbFormatDateValue(raw, 'long', lang);
+  if (got !== want) {
+    fail('long date in ' + JSON.stringify(lang) + ' -> ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want));
+  }
+}
+if (engine.sbFormatDateValue('2026-09-04', 'DD/MM/dddd', 'ES') !== '04/09/Friday') {
+  fail('a weekday format changed language on its own; only `long` follows the snippet language');
+}
+if (engine.resolveBody('{formdate: name=D; format=long}', { D: '2026-10-09' }, { lang: 'ES' }) !==
+    'viernes 9 de octubre de 2026') {
+  fail('a long-format field does not print in the snippet language');
+}
+if (engine.resolveBody('{time: long; from=D}', { D: '2026-10-09' }, { lang: 'IT' }) !== 'venerdì 9 ottobre 2026') {
+  fail('{time: long} does not print in the snippet language');
 }
 
 // An unanswered date prints nothing rather than today, and an unreadable one
@@ -1342,6 +1479,28 @@ for (const [rel, label, markers] of ORDER_RENDERERS) {
   }
 }
 console.log('OK The closing date is limited on all ' + ORDER_RENDERERS.length + ' fill-form surfaces');
+
+// The date being typed is never emptied, and its `min` is written only when it
+// changes. A date picker reports a whole date after every keystroke (the year
+// 2027 passes through 0002), and Chrome resets a box's typing when its min is
+// set again, even to the same value: before v3.65.0 a closing date typed from
+// the keyboard came out blank on the overlay, the popup and the phone.
+const TYPING_RENDERERS = [
+  ['extension/content/content.js', 'in-page overlay', ['_sbReorder(el, inp)', 'dst !== edited', "dst.getAttribute('min') !== min"]],
+  ['extension/popup/popup.js', 'popup detail', ['reorderDetailDates(el, inp)', 'dst!==edited', "dst.getAttribute('min')!==min"]],
+  ['app/public/mobile/index.html', 'mobile companion', ['sbReorderDates(form,this)', 'dst!==edited', "dst.getAttribute('min')!==min"]],
+  ['app/src/lib/fillFormEngine.ts', 'dashboard editor preview', ['written.includes(field.key)']],
+];
+for (const [rel, label, markers] of TYPING_RENDERERS) {
+  const src = fs.readFileSync(path.join(__dirname, '..', ...rel.split('/')), 'utf8');
+  for (const marker of markers) {
+    if (!src.includes(marker)) {
+      fail(rel + ' (' + label + ') can empty a closing date while it is being typed.\n' +
+        '  Expected to find: ' + marker);
+    }
+  }
+}
+console.log('OK A date being typed is left alone on all ' + TYPING_RENDERERS.length + ' fill-form surfaces');
 
 // ── UNANSWERED MENU FALLBACK ────────────────────────────────────────
 // A single-choice menu with no usable default used to configure an empty value,

@@ -28,6 +28,7 @@
  */
 
 import { isValidMenuName } from '@/lib/formMenuToken';
+import { linkValue } from '@/lib/linkRule';
 
 /** The two kinds the Date/Time builder writes. */
 export type DateFieldKind = 'date' | 'time';
@@ -37,8 +38,13 @@ export type DateFieldKind = 'date' | 'time';
  * `DATE_FORMATS` in `extension/formula-engine.js`, which is what actually
  * prints the value; this copy exists so the dialog can label the choices
  * without importing extension source.
+ *
+ * `long` is the date written out in the snippet's own language ("Friday 4
+ * September 2026", "venerdì 4 settembre 2026", "viernes 4 de septiembre de
+ * 2026"): a word rather than a pattern, because no pattern fits all four
+ * languages. It is the only format whose words follow the language.
  */
-export const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd'] as const;
+export const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'DD/MM/dddd', 'long'] as const;
 
 /** Mirrors `TIME_FORMATS` in the engine. */
 export const TIME_FORMATS = ['HH:mm', 'hh:mm A'] as const;
@@ -51,17 +57,68 @@ export const DEFAULT_DATE_FORMAT: DateFormat = 'DD/MM/YYYY';
 /** And the clock most of the world reads. */
 export const DEFAULT_TIME_FORMAT: TimeFormat = 'HH:mm';
 
+/** One choice in a date format dropdown. */
+export interface DateFormatOption {
+  value: DateFormat;
+  label: string;
+  /** What the choice prints on the sample day, Friday 4 September 2026. */
+  sample: string;
+}
+
+/**
+ * Written out on the sample day, in each language the engine writes a date out
+ * in. MIRRORED from `sbLongDate` in `extension/formula-engine.js`, which is what
+ * prints it; `src/__tests__/formDateField.test.ts` pins every line against it.
+ */
+const LONG_SAMPLES = {
+  EN: 'Friday 4 September 2026',
+  IT: 'venerdì 4 settembre 2026',
+  ES: 'viernes 4 de septiembre de 2026',
+  FR: 'vendredi 4 septembre 2026',
+} as const;
+
+function isLongSampleLang(lang: string): lang is keyof typeof LONG_SAMPLES {
+  return Object.prototype.hasOwnProperty.call(LONG_SAMPLES, lang);
+}
+
+/**
+ * The sample day written out in a snippet's language. A language the engine
+ * has no words for, and a Multi body ('' or 'MULTI'), print English, exactly
+ * as the engine falls back.
+ */
+export function longDateSample(lang: string): string {
+  const key = lang.slice(0, 2).toUpperCase();
+  return isLongSampleLang(key) ? LONG_SAMPLES[key] : LONG_SAMPLES.EN;
+}
+
 /**
  * How each choice reads in the dropdown, and what it prints. The sample is the
  * point: "DD/MM/YYYY" tells an author nothing they can check at a glance, and
  * the two numeric orders are indistinguishable until you see a day past the
  * twelfth in the first slot.
+ *
+ * Sampled in English. A builder shows `dateFormatOptions(lang)`, where Written
+ * out speaks the snippet's language. The labels are the ones the fill form's
+ * Adjust panel uses (FORMAT_LABELS in shared/fill-form.js).
  */
-export const DATE_FORMAT_OPTIONS: readonly { value: DateFormat; label: string; sample: string }[] = [
+export const DATE_FORMAT_OPTIONS: readonly DateFormatOption[] = [
   { value: 'DD/MM/YYYY', label: 'Day / Month / Year', sample: '04/09/2026' },
   { value: 'MM/DD/YYYY', label: 'Month / Day / Year', sample: '09/04/2026' },
   { value: 'DD/MM/dddd', label: 'Day / Month / Weekday', sample: '04/09/Friday' },
+  { value: 'long', label: 'Written out', sample: LONG_SAMPLES.EN },
 ];
+
+/**
+ * The date format choices for a snippet in `lang` ('' for a Multi body). Written
+ * out is the only format whose words follow the language, so its sample is
+ * shown in that language: switch the snippet to Spanish and it reads "viernes
+ * 4 de septiembre de 2026", which is what the snippet will print.
+ */
+export function dateFormatOptions(lang: string): readonly DateFormatOption[] {
+  return DATE_FORMAT_OPTIONS.map((option) =>
+    option.value === 'long' ? { ...option, sample: longDateSample(lang) } : option,
+  );
+}
 
 export const TIME_FORMAT_OPTIONS: readonly { value: TimeFormat; label: string; sample: string }[] = [
   { value: 'HH:mm', label: '24-hour', sample: '14:30' },
@@ -75,6 +132,12 @@ export interface FormDateConfig {
   kind: DateFieldKind;
   /** How the value prints. '' writes no `format=` and prints the raw value. */
   format: string;
+  /**
+   * Where on a pasted web page the value is (Fill from link), as
+   * `after:Start date`; '' or left out for a field nobody points at a page.
+   * See `@/lib/linkRule`.
+   */
+  link?: string;
 }
 
 /**
@@ -120,6 +183,9 @@ export function buildFormDateToken(cfg: FormDateConfig): string {
   if (cfg.kind === 'time') out += '; type=time';
   const format = normalizeDateFormat(cfg.kind, cfg.format);
   if (format !== '') out += `; format=${format}`;
+  // Last, as the engine writes it: the only free text the token carries.
+  const link = linkValue(cfg.link);
+  if (link !== '') out += `; link=${link}`;
   return `${out}}`;
 }
 

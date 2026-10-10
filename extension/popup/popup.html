@@ -242,6 +242,34 @@ html,body{
 .d-actbtn:hover{background:var(--sb-azure-bg);border-color:var(--sb-azure)}
 .d-actbtn:active{transform:scale(.97)}
 .d-btnerr{color:var(--sb-danger);font-size:var(--sb-fs-11);line-height:1.5;padding-top:2px}
+/* Fill from link. A box of its own above the fields, outside their scroll, so
+   it stays in view however long the form is. The input takes the field look
+   but sits outside .d-frow and carries no data-fkey: it is never an answer. */
+.d-link{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:var(--sb-bg);border:1px solid var(--sb-line);border-radius:var(--sb-r-sm)}
+.d-linklbl{font-size:var(--sb-fs-10);font-weight:600;color:var(--sb-ink-subtle);text-transform:uppercase;letter-spacing:.04em}
+.d-linkrow{display:flex;gap:6px}
+.d-linkinp{flex:1 1 auto;min-width:0;height:34px;border:1px solid var(--sb-line);border-radius:var(--sb-r-sm);padding:0 10px;font-size:var(--sb-fs-13);color:var(--sb-ink);background:var(--sb-bg-alt);font-family:inherit;outline:none;transition:border-color var(--sb-dur-fast),box-shadow var(--sb-dur-fast)}
+.d-linkinp:focus{border-color:var(--sb-azure);box-shadow:var(--sb-shadow-glow);background:var(--sb-bg)}
+.d-linkinp::placeholder{color:var(--sb-ink-subtle)}
+.d-linkbtn{flex:none;height:34px;padding:0 14px;border:1px solid var(--sb-azure-bdr);border-radius:var(--sb-r-sm);background:var(--sb-azure-bg);color:var(--sb-azure);font-family:inherit;font-size:var(--sb-fs-12);font-weight:600;cursor:pointer;transition:border-color var(--sb-dur-fast)}
+.d-linkbtn:hover{border-color:var(--sb-azure)}
+.d-linkbtn:focus-visible{outline:2px solid var(--sb-azure);outline-offset:2px}
+.d-linkbtn:disabled{opacity:.55;cursor:default;border-color:var(--sb-azure-bdr)}
+.d-linkmsg{font-size:var(--sb-fs-11);color:var(--sb-ink-muted);line-height:1.5}
+.d-linkmsg:empty{display:none}
+.d-linkmsg.err{color:var(--sb-danger)}
+/* Text, never colour alone: "From link" reads the same to someone who cannot
+   tell the blue from the grey. */
+.d-linkmark{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:var(--sb-fs-11);line-height:1.4}
+.d-linkmark[hidden]{display:none}
+/* A mark belongs to the field above it, so it hugs that field and keeps clear
+   of the next one. Under a menu it is pulled up past the empty half of the
+   last option row, which is otherwise as far from it as the next field is. */
+.d-multi + .d-linkmark{margin-top:-6px}
+.d-frow:has(> .d-linkmark:not([hidden])){margin-bottom:6px}
+.d-linkbadge{padding:0 7px;border-radius:var(--sb-r-pill);background:var(--sb-azure-bg);color:var(--sb-azure);font-size:var(--sb-fs-10);font-weight:700;line-height:16px}
+.d-linknote{color:var(--sb-ink-subtle)}
+.d-linknote.warn{color:var(--sb-warn);font-weight:600}
 /* Date/Time Adjust panel. A quiet link under the picker rather than a button:
    it is a detour most fills never take, and it must not compete with Copy
    filled. Open, it indents under the field it belongs to so the rows read as

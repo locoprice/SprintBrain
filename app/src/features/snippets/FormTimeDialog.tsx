@@ -12,7 +12,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { cn } from '@/lib/utils';
 import { loadFillFormEngine, formulaEngine } from '@/lib/fillFormEngine';
 import {
-  DATE_FORMAT_OPTIONS,
+  dateFormatOptions,
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIME_FORMAT,
   TIME_FORMAT_OPTIONS,
@@ -63,6 +63,11 @@ const MINUTES = Array.from({ length: 60 / MINUTE_STEP }, (_, i) =>
 interface FormTimeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * The snippet's language, or '' for a Multi body. Written out prints the
+   * date in it, so the preview has to as well.
+   */
+  lang?: string;
   onInsert: (token: string) => void;
 }
 
@@ -78,7 +83,7 @@ interface FormTimeDialogProps {
  * The preview resolves through the engine's own `sbFormatDate`, not a copy, so
  * what the dialog shows is what the snippet prints.
  */
-export function FormTimeDialog({ open, onOpenChange, onInsert }: FormTimeDialogProps) {
+export function FormTimeDialog({ open, onOpenChange, lang = '', onInsert }: FormTimeDialogProps) {
   const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
   const [mode, setMode] = useState<ShiftMode>('none');
   const [amount, setAmount] = useState('1');
@@ -147,10 +152,12 @@ export function FormTimeDialog({ open, onOpenChange, onInsert }: FormTimeDialogP
   const preview = useMemo(() => {
     const engine = formulaEngine();
     if (!engine) return '';
-    return previewTime({ format, shift, at }, new Date(), engine.sbFormatDate);
+    return previewTime({ format, shift, at }, new Date(), (d, fmt) =>
+      engine.sbFormatDate(d, fmt, lang),
+    );
     // engineReady is a redraw trigger, not a value this reads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [format, shift, at, engineReady]);
+  }, [format, shift, at, lang, engineReady]);
 
   const canInsert = mode !== 'fixed' || amountValid;
 
@@ -193,7 +200,7 @@ export function FormTimeDialog({ open, onOpenChange, onInsert }: FormTimeDialogP
               onChange={(e) => setDateFormat(e.target.value as DateFormat)}
               className={SELECT_CLASS}
             >
-              {DATE_FORMAT_OPTIONS.map((o) => (
+              {dateFormatOptions(lang).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label} · {o.sample}
                 </option>

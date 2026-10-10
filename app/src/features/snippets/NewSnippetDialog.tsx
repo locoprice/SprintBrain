@@ -29,6 +29,8 @@ import { Input } from '@/components/ui/input';
 import { Toggle, ToggleGroup } from '@/components/ui/toggle';
 import { AssetAboutButton } from '@/components/shared/AssetAboutButton';
 import { ReviewStatusMenu } from '@/components/shared/ReviewStatusMenu';
+import { ProSoon, ProSoonLock, PRO_SOON_CONTROL } from '@/components/shared/ProSoon';
+import { isProFeatureAvailable } from '@/lib/proFeatures';
 import {
   DraftFromTextButton,
   DraftNotice,
@@ -39,12 +41,10 @@ import { findSimilar, snippetCandidates } from '@/lib/draftSimilar';
 import { useDraftStore } from '@/stores/draftStore';
 import { useReviewApprover } from '@/lib/useReviewApprover';
 import { LabelPicker } from '@/features/labels/LabelPicker';
-import {
-  LABEL_SUGGESTIONS_ENABLED,
-  LabelSuggestions,
-} from '@/features/labels/LabelSuggestions';
+import { LabelSuggestions } from '@/features/labels/LabelSuggestions';
 import { FormButtonDialog } from '@/features/snippets/FormButtonDialog';
 import { FormCalculatorDialog } from '@/features/snippets/FormCalculatorDialog';
+import { FormConditionDialog, RuleSummary } from '@/features/snippets/FormConditionDialog';
 import { FormPriceLineDialog } from '@/features/snippets/FormPriceLineDialog';
 import { FormInterestDialog } from '@/features/snippets/FormInterestDialog';
 import { FormDateRangeDialog } from '@/features/snippets/FormDateRangeDialog';
@@ -52,6 +52,7 @@ import { FormMenuDialog } from '@/features/snippets/FormMenuDialog';
 import { FormNumberDialog } from '@/features/snippets/FormNumberDialog';
 import { FormTextDialog } from '@/features/snippets/FormTextDialog';
 import { FormTimeDialog } from '@/features/snippets/FormTimeDialog';
+import { LinkRuleFields } from '@/features/snippets/LinkRuleFields';
 import { SnippetPreview } from '@/features/snippets/SnippetPreview';
 import { cn, countWords } from '@/lib/utils';
 import {
@@ -62,10 +63,16 @@ import {
   type MenuTokenRange,
 } from '@/lib/formMenuToken';
 import { nextTextName } from '@/lib/formTextToken';
+import {
+  findRuleAt,
+  rulesInBody,
+  summarizeEntry,
+  type RuleInBody,
+} from '@/lib/conditionRule';
 import { nextNumberName } from '@/lib/formNumberToken';
 import {
   buildFormDateToken,
-  DATE_FORMAT_OPTIONS,
+  dateFormatOptions,
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIME_FORMAT,
   nextDateName,
@@ -73,6 +80,12 @@ import {
   type DateFormat,
   type TimeFormat,
 } from '@/lib/formDateToken';
+import {
+  emptyLinkDraft,
+  LABEL_LINK_MODES,
+  linkFromDraft,
+  type LinkRuleDraft,
+} from '@/lib/linkRule';
 import { clearBodySlot, setBodySlot } from '@/lib/snippetBodies';
 import { translateApi, type TranslateTarget } from '@/lib/api/translateApi';
 import {
@@ -203,7 +216,7 @@ const ACTIONS_HINT =
 const MATH_HINT =
   'Calculated for you. A discounted price, a total, an average: math resolves as the snippet expands, from the numbers filled in. Open one below to see what it does.';
 const LOGIC_HINT =
-  'Worked out on its own. A line that only shows sometimes, the greeting the hour calls for: logic resolves as the snippet expands, with nothing for anyone to fill in. Open one below to see what it does.';
+  'Worked out on its own. A line that shows or hides depending on an answer, the greeting the hour calls for: logic resolves as the snippet expands. Open one below to see what it does.';
 
 // The four inputs the menu builder actually offers, so the rail explains the
 // dialog before it opens rather than after.
@@ -217,6 +230,8 @@ const NUMBER_FIELDS: { label: string; hint: string }[] = [
     hint: 'Plain, Currency or Percent. It changes how the value prints, never the number a formula reads.' },
   { label: 'Default',
     hint: 'Optional. Left blank the field opens empty, which is not the same as starting at 0.' },
+  { label: 'From a link',
+    hint: 'Optional. The number before a word on a pasted web page, added up wherever it appears, or the number after a label.' },
 ];
 
 // The three inputs FormButtonDialog offers, named as it names them, so opening
@@ -239,6 +254,8 @@ const MENU_FIELDS: { label: string; hint: string }[] = [
     hint: 'Single Choice fills as radio buttons, Multiple Choice as checkboxes.' },
   { label: 'Name',
     hint: 'Optional. Only needed if the body reads the choice back; leave it blank and the menu still works.' },
+  { label: 'From a link',
+    hint: 'Optional. Picks the option a pasted web page names after a label. A page naming something else leaves the choice to you.' },
 ];
 
 // One date and one time, each with the format it prints in. The group used to
@@ -263,6 +280,8 @@ const DATE_TIME_FIELDS: { label: string; hint: string }[] = [
     hint: 'Not a field — a date worked out at expansion, with the time pinned. Count forward from today, or land on a named day like next Monday.' },
   { label: 'Range',
     hint: 'Two dates and the span between them. 1 to 3 September is 2 apart and 3 counting both ends; you pick which, and type the word after it.' },
+  { label: 'From a link',
+    hint: 'Optional. The next Date or Time takes the value after a label on a web page pasted in the fill form. A date the page leaves open to two readings is left for you to pick.' },
 ];
 
 // Every formula window reads its snippet's formulas the same way, so each
@@ -324,6 +343,20 @@ const MATH_FORMULAS: readonly {
       FORMULA_REMOVE,
     ],
   },
+];
+
+// The parts of a show or hide rule, named as FormConditionDialog names them,
+// so the rail explains the window before it opens. The checks are the
+// builder's own (RULE_OPERATORS in @/lib/conditionRule).
+const RULE_FIELDS: { label: string; hint: string }[] = [
+  { label: 'If',
+    hint: 'A field, a check and a value: Equals, Does not equal, Is greater than, Is less than, Contains or Is filled.' },
+  { label: 'Then',
+    hint: 'Show or hide the text you type. It can hold fields and formulas too.' },
+  { label: 'Else',
+    hint: 'The opposite happens. A shown text can print something else in its place.' },
+  { label: 'Rules',
+    hint: 'Every rule in the snippet is listed in plain words, below and in the window, with Edit and Remove.' },
 ];
 
 // A > 0 is the safest opening condition to hand someone: it is true of any
@@ -493,6 +526,10 @@ export function NewSnippetDialog() {
   // seeing the choice next to the button is the whole point of it.
   const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(DEFAULT_TIME_FORMAT);
+  // Where on a pasted page the next Date or Time reads its value. Cleared once
+  // a field takes it: a label belongs to one field, and two fields reading the
+  // same label would always fill with the same answer.
+  const [dateLink, setDateLink] = useState<LinkRuleDraft>(emptyLinkDraft('after'));
   // Text-field builder — writes a {formtext:} token at the cursor.
   const [textFieldOpen, setTextFieldOpen] = useState(false);
   // Number-field builder — writes a number token at the cursor. Its own type in
@@ -502,6 +539,10 @@ export function NewSnippetDialog() {
   const [actionButtonOpen, setActionButtonOpen] = useState(false);
   // Which formula window is open: a line of a quote from a price, or a calculator.
   const [formulaWindow, setFormulaWindow] = useState<FormulaWindow | null>(null);
+  // Show or hide builder — writes an {if:} block at the cursor, or rewrites the
+  // one the cursor sits in. Held in state for the same reason as menuEdit.
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [ruleEdit, setRuleEdit] = useState<RuleInBody | null>(null);
 
   // Read from the field itself: which saved percentages a window offers, and
   // whether it sits inside a condition, depend on exactly where the answer lands.
@@ -639,6 +680,12 @@ export function NewSnippetDialog() {
   // language's body, so it follows the language pill on a translated snippet.
   const bodyWordCount = countWords(form.content);
 
+  // Translate fills a slot from the English body: offered on IT/ES/FR only. EN
+  // is the source, and MULTI is a deliberate mix with no single target.
+  const translateSlot =
+    form.language === 'IT' || form.language === 'ES' || form.language === 'FR';
+  const translateAvailable = isProFeatureAvailable('translate');
+
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Insert `value` at the textarea cursor (or append if focus is elsewhere),
@@ -689,7 +736,10 @@ export function NewSnippetDialog() {
     setCaret(start + value.length);
     if (el) {
       requestAnimationFrame(() => {
-        el.focus();
+        // preventScroll: a plain focus() while a formula window is still open
+        // (Remove, Undo) snaps the body back to its first line, and the author
+        // loses their place in a long snippet.
+        el.focus({ preventScroll: true });
         const pos = start + value.length;
         el.setSelectionRange(pos, pos);
       });
@@ -709,9 +759,40 @@ export function NewSnippetDialog() {
         name: nextDateName(form.content, 'date'),
         kind: 'date',
         format: dateFormat,
+        link: linkFromDraft(dateLink),
       }),
-    [form.content, dateFormat],
+    [form.content, dateFormat, dateLink],
   );
+
+  // The Date and Time buttons: the field, with the link rule when one is set.
+  function insertDateField(kind: 'date' | 'time') {
+    const link = linkFromDraft(dateLink);
+    insertAtCursor(
+      buildFormDateToken({
+        name: nextDateName(form.content, kind),
+        kind,
+        format: kind === 'time' ? timeFormat : dateFormat,
+        link,
+      }),
+    );
+    if (link !== '') setDateLink(emptyLinkDraft('after'));
+  }
+
+  // The rule the caret sits in, when the builder can edit it. A condition typed
+  // by hand in another shape is left to the body.
+  const ruleAtCaret = useMemo(() => {
+    const entry = findRuleAt(form.content, caret);
+    return entry && entry.rule ? entry : null;
+  }, [form.content, caret]);
+
+  // Every condition in the body, listed in plain words under the toggle.
+  const bodyRules = useMemo(() => rulesInBody(form.content), [form.content]);
+
+  function openRuleBuilder(entry: RuleInBody | null) {
+    if (contentRef.current) setCaret(contentRef.current.selectionStart);
+    setRuleEdit(entry);
+    setRuleOpen(true);
+  }
 
   function openMenuBuilder() {
     const cfg = menuAtCaret ? parseFormMenuToken(menuAtCaret.raw) : null;
@@ -859,6 +940,7 @@ export function NewSnippetDialog() {
    * reads, edits and then saves, exactly as if they had typed it.
    */
   async function translateFromEnglish() {
+    if (!translateAvailable) return;
     const target = form.language;
     if (target === 'EN' || target === 'MULTI') return;
 
@@ -1163,7 +1245,9 @@ export function NewSnippetDialog() {
                           onChange={(e) => setDateFormat(e.target.value as DateFormat)}
                           className={cn(SELECT_CLASS, 'h-8 px-1.5 text-[11px]')}
                         >
-                          {DATE_FORMAT_OPTIONS.map((o) => (
+                          {/* Written out is sampled in the snippet's language:
+                              the one format whose words follow it. */}
+                          {dateFormatOptions(form.language).map((o) => (
                             <option key={o.value} value={o.value}>
                               {o.label} · {o.sample}
                             </option>
@@ -1175,15 +1259,7 @@ export function NewSnippetDialog() {
                         size="sm"
                         variant="primary"
                         disabled={saving}
-                        onClick={() =>
-                          insertAtCursor(
-                            buildFormDateToken({
-                              name: nextDateName(form.content, 'date'),
-                              kind: 'date',
-                              format: dateFormat,
-                            }),
-                          )
-                        }
+                        onClick={() => insertDateField('date')}
                       >
                         <Plus className="mr-1 h-3 w-3" />
                         Date
@@ -1214,15 +1290,7 @@ export function NewSnippetDialog() {
                         size="sm"
                         variant="primary"
                         disabled={saving}
-                        onClick={() =>
-                          insertAtCursor(
-                            buildFormDateToken({
-                              name: nextDateName(form.content, 'time'),
-                              kind: 'time',
-                              format: timeFormat,
-                            }),
-                          )
-                        }
+                        onClick={() => insertDateField('time')}
                       >
                         <Plus className="mr-1 h-3 w-3" />
                         Time
@@ -1248,6 +1316,19 @@ export function NewSnippetDialog() {
                         Range
                       </Button>
                     </div>
+
+                    {/* Fill from link, for the next Date or Time. In the rail
+                        rather than behind a dialog, for the same reason as the
+                        formats above: one decision, seen before the token lands. */}
+                    <LinkRuleFields
+                      id="sb-date-link"
+                      size="rail"
+                      value={dateLink}
+                      onChange={setDateLink}
+                      modes={LABEL_LINK_MODES}
+                      disabled={saving}
+                      offHint="The next Date or Time you insert fills itself from a web page pasted in the fill form. You check it before inserting."
+                    />
 
                     {/* What the next Date button will write. The author sees the
                         token before it is in the body, the same promise the
@@ -1320,6 +1401,13 @@ export function NewSnippetDialog() {
                     <dd className="text-[11px] text-ink-subtle leading-tight">
                       Optional. A name typed in lowercase gets its capitals when the snippet
                       expands, following the snippet&apos;s language.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-mono text-[10px] text-ink">From a link</dt>
+                    <dd className="text-[11px] text-ink-subtle leading-tight">
+                      Optional. Takes the text after a label on a web page pasted in the fill
+                      form. To add up a count from the page, use a Number field.
                     </dd>
                   </div>
                 </dl>
@@ -1521,9 +1609,73 @@ export function NewSnippetDialog() {
                   <Info className="h-3 w-3" aria-hidden />
                 </Tooltip>
               </div>
+              {/* Like Choice, the button edits the rule the cursor sits in.
+                  The rules already in the body are listed under the parts, in
+                  the same plain words the window uses, so the logic of a
+                  snippet reads without opening anything. */}
+              <Toggle
+                label="Show or hide"
+                className="mb-2.5 mt-2.5"
+                footer={
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={saving}
+                    onClick={() => openRuleBuilder(ruleAtCaret)}
+                  >
+                    {ruleAtCaret ? (
+                      <Pencil className="mr-1 h-3 w-3" />
+                    ) : (
+                      <Plus className="mr-1 h-3 w-3" />
+                    )}
+                    {ruleAtCaret ? 'Edit this rule' : 'Build a rule'}
+                  </Button>
+                }
+              >
+                <p className="text-[11px] text-ink-subtle leading-tight">
+                  Text that prints only when an answer calls for it, the way a form
+                  shows a question only when it applies. If a field equals, contains
+                  or passes a value, then the text shows or hides, else the opposite.
+                </p>
+                <dl className="mt-2 flex flex-col gap-1.5">
+                  {RULE_FIELDS.map((f) => (
+                    <div key={f.label}>
+                      <dt className="font-mono text-[10px] text-ink">{f.label}</dt>
+                      <dd className="text-[11px] text-ink-subtle leading-tight">{f.hint}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {bodyRules.length > 0 && (
+                  <div className="mt-2.5 border-t border-line pt-2">
+                    <p className="font-mono text-[10px] text-ink">In this snippet</p>
+                    <ul className="mt-1 flex flex-col gap-1">
+                      {bodyRules.map((entry) =>
+                        entry.rule ? (
+                          <li key={entry.start}>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => openRuleBuilder(entry)}
+                              className="w-full rounded-[6px] px-1 py-0.5 text-left transition-colors hover:bg-bg-alt focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                            >
+                              <RuleSummary parts={summarizeEntry(entry)} className="text-[11px]" />
+                            </button>
+                          </li>
+                        ) : (
+                          <li key={entry.start} className="px-1 py-0.5">
+                            <RuleSummary parts={summarizeEntry(entry)} className="text-[11px]" />
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </Toggle>
+
               <Toggle
                 label="Condition"
-                className="mb-2.5 mt-2.5"
+                className="mb-2.5"
                 footer={
                   <Button
                     type="button"
@@ -1695,19 +1847,17 @@ export function NewSnippetDialog() {
                     onChange={setLabelIds}
                     disabled={saving}
                   />
-                  {LABEL_SUGGESTIONS_ENABLED && (
-                    <LabelSuggestions
-                      draft={{
-                        name: form.name,
-                        body: form.content,
-                        folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
-                        language: form.language,
-                      }}
-                      value={labelIds}
-                      onChange={setLabelIds}
-                      disabled={saving}
-                    />
-                  )}
+                  <LabelSuggestions
+                    draft={{
+                      name: form.name,
+                      body: form.content,
+                      folderName: folders.find((f) => f.id === form.folder_id)?.name ?? null,
+                      language: form.language,
+                    }}
+                    value={labelIds}
+                    onChange={setLabelIds}
+                    disabled={saving}
+                  />
                 </div>
               </div>
 
@@ -1930,9 +2080,24 @@ export function NewSnippetDialog() {
                       mix with no single target language. Disabled when there is
                       no English to translate — the title says so, since a
                       button that does nothing reads as broken. */}
-                  {(form.language === 'IT' ||
-                    form.language === 'ES' ||
-                    form.language === 'FR') && (
+                  {translateSlot && !translateAvailable && (
+                    <ProSoon>
+                      <button
+                        type="button"
+                        aria-disabled="true"
+                        onClick={(event) => event.preventDefault()}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-[6px] border border-line bg-card px-2 py-0.5 text-[11px] font-medium text-ink-subtle',
+                          PRO_SOON_CONTROL,
+                        )}
+                      >
+                        <Languages className="h-3 w-3" aria-hidden />
+                        Translate from EN
+                        <ProSoonLock className="h-2.5 w-2.5" />
+                      </button>
+                    </ProSoon>
+                  )}
+                  {translateSlot && translateAvailable && (
                     <button
                       type="button"
                       onClick={() => void translateFromEnglish()}
@@ -2042,16 +2207,28 @@ export function NewSnippetDialog() {
               />
             ))}
 
+            <FormConditionDialog
+              open={ruleOpen}
+              onOpenChange={setRuleOpen}
+              body={form.content}
+              caret={caret}
+              initial={ruleEdit}
+              onInsert={insertAtCursor}
+              onReplace={replaceRange}
+            />
+
             <FormDateRangeDialog
               open={dateRangeOpen}
               onOpenChange={setDateRangeOpen}
               body={form.content}
+              lang={form.language === 'MULTI' ? '' : form.language}
               onInsert={insertAtCursor}
             />
 
             <FormTimeDialog
               open={autoDateOpen}
               onOpenChange={setAutoDateOpen}
+              lang={form.language === 'MULTI' ? '' : form.language}
               onInsert={insertAtCursor}
             />
 

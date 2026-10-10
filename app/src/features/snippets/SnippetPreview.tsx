@@ -1,15 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { AlertCircle, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LinkReadError, linkReadApi } from '@/lib/api/linkReadApi';
 import {
+  backwardDates,
   clockValue,
   dayValue,
   fillForm,
+  fillFormApi,
+  formulaEngine,
+  linkNote,
+  linkSummary,
+  linkText,
+  linkUrl,
   loadFillFormEngine,
+  readFromPage,
   runFormButton,
   type SbDayMode,
   type SbFillField,
   type SbFillFormViewModel,
+  type SbLinkResult,
 } from '@/lib/fillFormEngine';
 
 /**
@@ -62,6 +72,28 @@ function isEchoOfLabel(prose: string, label: string): boolean {
   return strip(prose) === strip(label);
 }
 
+/** The Link box's one line: what it is doing, or what came of it. */
+interface LinkStatus {
+  tone: 'idle' | 'busy' | 'done' | 'error';
+  text: string;
+}
+
+const LINK_IDLE: LinkStatus = { tone: 'idle', text: '' };
+
+/** The note under a field after a read, and whether it asks the operator to act. */
+interface FieldNote {
+  text: string;
+  warn: boolean;
+}
+
+/** `record` without `keys`, or `record` itself when it holds none of them. */
+function withoutKeys<T>(record: Record<string, T>, keys: readonly string[]): Record<string, T> {
+  if (!keys.some((key) => key in record)) return record;
+  const next = { ...record };
+  for (const key of keys) delete next[key];
+  return next;
+}
+
 interface SnippetPreviewProps {
   /** The body being edited, in the active language slot. */
   body: string;
@@ -70,7 +102,11 @@ interface SnippetPreviewProps {
 }
 
 export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
-  const [engineReady, setEngineReady] = useState(false);
+  // Ready at once when an earlier preview already loaded the engine, so a
+  // reopened editor draws its form without a "Starting" flash.
+  const [engineReady, setEngineReady] = useState(
+    () => fillFormApi() !== null && formulaEngine() !== null,
+  );
   const [engineError, setEngineError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   // Formats picked in a field's Adjust panel. Beside `values` rather than in
@@ -81,8 +117,22 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
   // The body lags the textarea by one debounce, so typing does not re-parse on
   // every keystroke. Everything below reads this, never the raw prop.
   const [debouncedBody, setDebouncedBody] = useState(body);
+  // Fill from link. `linked` marks the fields whose value came from a page and
+  // nobody has touched since; `linkResults` keeps how each field fared on the
+  // last read, for the note beside it. Both lose a field the moment it is
+  // edited by hand.
+  const [linked, setLinked] = useState<Record<string, boolean>>({});
+  const [linkResults, setLinkResults] = useState<Record<string, SbLinkResult>>({});
+  const [linkInput, setLinkInput] = useState('');
+  const [linkStatus, setLinkStatus] = useState<LinkStatus>(LINK_IDLE);
 
   const copyTimer = useRef<number | null>(null);
+  // Which read is the latest. A reply to an older one, or one landing after
+  // the editor closed, is dropped: its page belongs to a Fill nobody is
+  // waiting for any more.
+  const linkSeq = useRef(0);
+  const linkInputRef = useRef<HTMLInputElement | null>(null);
+  const linkButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +164,14 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
     [],
   );
 
+  // The editor closing drops a page still on its way: nobody is waiting for it.
+  useEffect(
+    () => () => {
+      linkSeq.current += 1;
+    },
+    [],
+  );
+
   // A body edit can retire a field; its stale entry must not keep resolving.
   useEffect(() => {
     setButtonErrors([]);
@@ -121,12 +179,48 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
 
   const view: SbFillFormViewModel | null = useMemo(() => {
     if (!engineReady) return null;
-    return fillForm(debouncedBody, values, { lang, fieldFmt: fmts });
-  }, [engineReady, debouncedBody, values, fmts, lang]);
+    return fillForm(debouncedBody, values, { lang, fieldFmt: fmts, linked });
+  }, [engineReady, debouncedBody, values, fmts, lang, linked]);
 
-  const setValue = useCallback((key: string, value: string) => {
-    setValues((prev) => ({ ...prev, [key]: value }));
+  // A page arrives after the Fill that asked for it, and is read against the
+  // form on screen THEN: the body may have changed while it loaded.
+  const viewRef = useRef<SbFillFormViewModel | null>(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  // A field edited by hand no longer holds the page's answer, so its badge and
+  // its note go at once.
+  const unlink = useCallback((keys: readonly string[]) => {
+    setLinked((prev) => withoutKeys(prev, keys));
+    setLinkResults((prev) => withoutKeys(prev, keys));
   }, []);
+
+  // Puts a write into the form, then empties every other closing date it left
+  // before its opening one: the two steps a hand edit runs on every fill
+  // surface. The write's own keys are kept as written, so a date typed digit
+  // by digit is never wiped mid-way. Returns the keys it emptied, which no
+  // longer hold anything the write or a page put there.
+  const commitValues = useCallback(
+    (fields: readonly SbFillField[], write: Readonly<Record<string, string>>): string[] => {
+      const held: Record<string, string> = {};
+      for (const field of fields) held[field.key] = field.value;
+      const emptied = backwardDates(fields, { ...held, ...write }, Object.keys(write));
+      const next: Record<string, string> = { ...write };
+      for (const key of emptied) next[key] = '';
+      setValues((prev) => ({ ...prev, ...next }));
+      return emptied;
+    },
+    [],
+  );
+
+  const setValue = useCallback(
+    (key: string, value: string) => {
+      const emptied = commitValues(view?.fields ?? [], { [key]: value });
+      unlink([key, ...emptied]);
+    },
+    [view, commitValues, unlink],
+  );
 
   const setFormat = useCallback((key: string, format: string) => {
     setFmts((prev) => ({ ...prev, [key]: format }));
@@ -179,11 +273,64 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
         applied[name] = value;
       }
 
-      setValues((prev) => ({ ...prev, ...applied }));
+      const emptied = commitValues(view.fields, applied);
+      unlink([...Object.keys(applied), ...emptied]);
       setButtonErrors([...errors, ...unknown]);
     },
-    [view, debouncedBody],
+    [view, debouncedBody, commitValues, unlink],
   );
+
+  // Fill from link: read the page, then put each value the page settles into
+  // its field the way the operator could have typed or picked it. Nothing is
+  // inserted or copied: the operator reviews the form, as after any edit.
+  async function handleFillFromLink() {
+    // Every Fill supersedes the one before it, even one refused right here: a
+    // page still loading for the previous link is no longer the one wanted.
+    linkSeq.current += 1;
+    const seq = linkSeq.current;
+    const { url, problem } = linkUrl(linkInput);
+    if (problem) {
+      setLinkStatus({ tone: 'error', text: linkText(problem) });
+      return;
+    }
+    // Disabling the focused button would drop the focus out of the panel.
+    if (document.activeElement === linkButtonRef.current) linkInputRef.current?.focus();
+    setLinkStatus({ tone: 'busy', text: linkText('reading') });
+
+    let pieces: string[];
+    try {
+      pieces = (await linkReadApi.readLink(url, navigator.language || '')).pieces;
+    } catch (err) {
+      if (seq !== linkSeq.current) return;
+      if (!(err instanceof LinkReadError)) {
+        console.error('Fill from link: the read did not finish', err);
+      }
+      setLinkStatus({
+        tone: 'error',
+        text: err instanceof LinkReadError ? err.message : linkText('failed'),
+      });
+      return;
+    }
+    if (seq !== linkSeq.current) return;
+
+    const fields = viewRef.current?.fields ?? [];
+    const read = readFromPage(fields, pieces);
+    // Written the way a hand edit is, ordering included: a closing date the
+    // page's opening one now falls after is emptied, as on every surface.
+    const emptied = commitValues(fields, read.values);
+    // Each read starts the marks over: a field this page did not settle keeps
+    // its value, but nothing on it says this page put it there. An emptied
+    // date holds nothing from the page either; its note stays.
+    const marks: Record<string, boolean> = {};
+    for (const key of Object.keys(read.values)) {
+      if (!emptied.includes(key)) marks[key] = true;
+    }
+    const results: Record<string, SbLinkResult> = {};
+    for (const result of read.results) results[result.key] = result;
+    setLinked(marks);
+    setLinkResults(results);
+    setLinkStatus({ tone: 'done', text: linkSummary(read) });
+  }
 
   async function handleCopy() {
     if (!view?.preview) return;
@@ -218,11 +365,26 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
             Values
           </p>
           {fields.length > 0 && (
-            <span className="rounded-full border border-primary/25 bg-primary-light px-2 py-px text-[10px] font-semibold text-primary">
+            <span className={PILL}>
               {fields.length} {fields.length === 1 ? 'field' : 'fields'}
             </span>
           )}
         </div>
+
+        {/* Only for a snippet whose fields say where their values are on a
+            page. Every other snippet's preview is exactly what it was. Above
+            the fields and outside their scroll, so the line saying what the
+            read did stays in view while the filled fields are checked. */}
+        {view?.linkable && (
+          <PreviewLinkBox
+            value={linkInput}
+            onChange={setLinkInput}
+            onFill={handleFillFromLink}
+            status={linkStatus}
+            inputRef={linkInputRef}
+            buttonRef={linkButtonRef}
+          />
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           {engineError ? (
@@ -246,6 +408,7 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
                 <PreviewField
                   key={field.key}
                   field={field}
+                  note={fieldNote(linkResults[field.key])}
                   onChange={(value) => setValue(field.key, value)}
                   onFormat={(format) => setFormat(field.key, format)}
                   onToggleOption={(option, checked) =>
@@ -319,11 +482,138 @@ export function SnippetPreview({ body, lang }: SnippetPreviewProps) {
   );
 }
 
+/** The count pill beside Values, and the "From link" badge: one look for both. */
+const PILL =
+  'rounded-full border border-primary/25 bg-primary-light px-2 py-px text-[10px] font-semibold text-primary';
+
+/**
+ * A field's note after a read. "None on the page" is an answer, so it stays
+ * quiet; "Not on the page" and "Unclear" ask the operator to fill it in, so
+ * they carry the warning tone.
+ */
+function fieldNote(result: SbLinkResult | undefined): FieldNote | null {
+  const text = linkNote(result);
+  if (!text || !result) return null;
+  return { text, warn: result.status !== 'filled' };
+}
+
+interface PreviewLinkBoxProps {
+  value: string;
+  onChange: (value: string) => void;
+  onFill: () => void;
+  status: LinkStatus;
+  inputRef: RefObject<HTMLInputElement>;
+  buttonRef: RefObject<HTMLButtonElement>;
+}
+
+/**
+ * The Link box: paste a link to a page and the fields that say where their
+ * values are fill themselves from it. Same parts, same words and same order on
+ * all four fill surfaces; the words come from `linkText`.
+ *
+ * Not a field. Its value never reaches the form, the preview or the count
+ * beside Values, and it carries none of a field's styling.
+ */
+function PreviewLinkBox({ value, onChange, onFill, status, inputRef, buttonRef }: PreviewLinkBoxProps) {
+  const busy = status.tone === 'busy';
+  return (
+    <div
+      aria-busy={busy}
+      className="mx-4 mb-3 flex shrink-0 flex-col rounded-[10px] border border-line bg-bg-alt px-2.5 py-2"
+    >
+      <label
+        htmlFor="sb-preview-link"
+        className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle"
+      >
+        {linkText('box-label')}
+      </label>
+      <div className="flex items-center gap-1.5">
+        <input
+          id="sb-preview-link"
+          ref={inputRef}
+          type="url"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          value={value}
+          placeholder={linkText('box-placeholder')}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            // The panel sits inside the snippet form: Enter here reads the
+            // page and never saves the snippet.
+            e.preventDefault();
+            onFill();
+          }}
+          className={cn(
+            'h-8 min-w-0 flex-1 rounded-lg border border-line bg-card px-2.5 text-[11px] text-ink transition-colors',
+            'placeholder:text-ink-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+          )}
+        />
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={onFill}
+          disabled={busy}
+          className={cn(
+            'h-8 shrink-0 rounded-lg border border-primary/30 bg-primary-light px-3 text-xs font-semibold text-primary transition-colors',
+            'hover:border-primary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+            'disabled:cursor-default disabled:opacity-50 disabled:hover:border-primary/30',
+          )}
+        >
+          {linkText('box-button')}
+        </button>
+      </div>
+      {/* Always in the page, so a screen reader is listening before the first
+          message arrives. Empty, it takes no room. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={cn(
+          'text-[11px] leading-snug',
+          status.text !== '' && 'mt-1.5',
+          status.tone === 'error' ? 'text-danger' : 'text-ink-muted',
+        )}
+      >
+        {status.text}
+      </p>
+    </div>
+  );
+}
+
 interface PreviewFieldProps {
   field: SbFillField;
+  /** What the last page read said about this field, or null. */
+  note: FieldNote | null;
   onChange: (value: string) => void;
   onFormat: (format: string) => void;
   onToggleOption: (option: string, checked: boolean) => void;
+}
+
+/** A field's title, with "From link" beside it while it holds the page's answer. */
+function FieldTitle({ label, fromLink }: { label: string; fromLink: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
+        {label}
+      </span>
+      {fromLink && <span className={PILL}>{linkText('from-link')}</span>}
+    </div>
+  );
+}
+
+function FieldNoteLine({ note }: { note: FieldNote | null }) {
+  if (!note) return null;
+  return (
+    <p
+      className={cn(
+        'text-[11px] leading-snug',
+        note.warn ? 'font-semibold text-warning-deep' : 'text-ink-subtle',
+      )}
+    >
+      {note.text}
+    </p>
+  );
 }
 
 /**
@@ -331,7 +621,7 @@ interface PreviewFieldProps {
  * field, so a row reads the way the body does; a choice list is block level and
  * takes its context above and below instead of beside it.
  */
-function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFieldProps) {
+function PreviewField({ field, note, onChange, onFormat, onToggleOption }: PreviewFieldProps) {
   // A stored display name wins; otherwise the key, humanised.
   const label = field.label || fieldLabel(field.key);
   const showBefore = field.before !== '' && !isEchoOfLabel(field.before, label);
@@ -346,9 +636,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
     const type = optionInputType(field);
     return (
       <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
-          {label}
-        </span>
+        <FieldTitle label={label} fromLink={field.fromLink} />
         {before}
         {/* Every option on screen, for both kinds of menu: a <select> hides the
             choices behind a control most people do not read as a menu at all.
@@ -378,6 +666,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
           })}
         </div>
         {after}
+        <FieldNoteLine note={note} />
       </div>
     );
   }
@@ -385,9 +674,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
   const type = inputType(field);
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
-        {label}
-      </span>
+      <FieldTitle label={label} fromLink={field.fromLink} />
       <div className="flex flex-wrap items-center gap-1.5">
         {before}
         <input
@@ -414,6 +701,7 @@ function PreviewField({ field, onChange, onFormat, onToggleOption }: PreviewFiel
         />
         {after}
       </div>
+      <FieldNoteLine note={note} />
       <PreviewAdjust field={field} onValue={onChange} onFormat={onFormat} />
     </div>
   );

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText, Loader2, Pin, Search, Send } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Pin, Search, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/EmptyState';
-import { LabelBadgeList } from '@/components/shared/LabelBadge';
+import { SearchDetails } from '@/components/shared/SearchDetails';
+import { labelPath } from '@/lib/labelTree';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ReviewStatusBadge } from '@/components/shared/ReviewStatusBadge';
 import { DND_SNIPPET } from '@/features/org/FolderTree';
@@ -57,14 +58,14 @@ const LANG_STYLE: Record<Snippet['language'], string> = {
   MULTI: 'bg-[#F5F3FF] text-[#7C3AED]',
 };
 const LANG_LABEL: Record<Snippet['language'], string> = {
-  EN: 'EN', ES: 'ES', IT: 'IT', FR: 'FR', MULTI: 'Multi',
+  EN: 'English', ES: 'Español', IT: 'Italiano', FR: 'Français', MULTI: 'Multi',
 };
 
 function LangPill({ lang }: { lang: Snippet['language'] }) {
   return (
     <span
       className={
-        'inline-block rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ' +
+        'inline-block rounded-md px-3 py-2 text-xs font-medium ' +
         LANG_STYLE[lang]
       }
     >
@@ -89,7 +90,7 @@ function LangSwitcher({
   onSelect: (lang: SnippetLanguage) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
       {group.languages.map((lang) => {
         const variant = group.byLang.get(lang);
         if (variant === undefined) return null;
@@ -102,11 +103,11 @@ function LangSwitcher({
             aria-pressed={isActive}
             title={`Show ${LANG_LABEL[lang]} version`}
             className={cn(
-              'rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-all',
+              'min-h-11 rounded-md px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card',
               LANG_STYLE[lang],
               isActive
                 ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-card'
-                : 'opacity-50 hover:opacity-100',
+                : 'hover:ring-1 hover:ring-primary/30',
             )}
           >
             {LANG_LABEL[lang]}
@@ -211,7 +212,6 @@ export function SnippetsTable() {
   // grouped row's language switches which variant's labels it shows.
   const labelCatalog = useLabelStore((s) => s.labels);
   const labelAssignments = useLabelStore((s) => s.snippetLabels);
-  const setSnippetLabels = useLabelStore((s) => s.setSnippetLabels);
   const resolveUserName = useUserNameResolver();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -307,21 +307,12 @@ export function SnippetsTable() {
     }
   }
 
-  async function handleRemoveLabel(snippetId: string, labelId: string) {
-    const current = labelAssignments.get(snippetId) ?? [];
-    try {
-      await setSnippetLabels(snippetId, current.filter((id) => id !== labelId));
-    } catch {
-      // Error surfaces via store.error → page-level banner.
-    }
-  }
-
   function handleMasterChange() {
     setSnippetsSelected(pageVariantIds, !allSelected);
   }
 
   // The table is wider than its column on anything short of an ultrawide
-  // screen — nine columns need ~1071px and get 411px at 1024px — so the card
+  // screen, especially with the folder rail open, so the card
   // is a scroll box, not a clip box. `overflow-clip` used to cut the last four
   // columns off with no way to reach them.
   //
@@ -358,9 +349,6 @@ export function SnippetsTable() {
               Shortcut
             </th>
             <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-              Lang
-            </th>
-            <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
               Folder
             </th>
             <th className="sticky top-0 z-10 border-b border-line bg-bg-alt px-3 py-3 2xl:px-5">
@@ -384,7 +372,7 @@ export function SnippetsTable() {
         <tbody>
           {pageGroups.map((group, i) => {
             // The active variant supplies every per-language column (shortcut,
-            // lang, folder, updated, usage) and is the edit / push / action
+            // folder, updated, usage) and is the edit / push / action
             // target. The displayed name comes from the master and stays put
             // when the user switches language.
             const activeLang = resolveActiveLanguage(group, activeByKey[group.key]);
@@ -393,6 +381,12 @@ export function SnippetsTable() {
             const isLast = i === pageGroups.length - 1;
             const multiLang = group.languages.length > 1;
             const displayName = multiLang ? baseSnippetName(group.master.name) : group.master.name;
+            // Translations in one bodies map share a saved timestamp. Name
+            // its actual scope instead of implying a per-translation edit.
+            const updatedLanguages = group.languages.filter((lang) => group.byLang.get(lang)?.id === row.id);
+            const updateScope = multiLang && updatedLanguages.length === group.languages.length
+              ? 'All languages'
+              : updatedLanguages.map((lang) => LANG_LABEL[lang]).join(' · ');
             const variantIds = group.variants.map((v) => v.id);
             const isSelected = variantIds.every((id) => selectedIds.has(id));
             // Any language variant failing breaks the snippet — including one
@@ -459,9 +453,6 @@ export function SnippetsTable() {
                 </td>
                 <td className="px-3 py-3 2xl:px-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-primary-light text-primary">
-                      <FileText className="h-4 w-4" />
-                    </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 truncate font-medium text-ink">
                         {groupPinned && (
@@ -482,31 +473,21 @@ export function SnippetsTable() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                        <LabelBadgeList
-                          labels={resolveLabels(row.id, labelAssignments, labelCatalog)}
-                          catalog={labelCatalog}
-                          onRemove={(labelId) => void handleRemoveLabel(row.id, labelId)}
+                        {row.is_formula ? <Badge variant="primary">formula</Badge> : null}
+                        <SearchDetails
+                          name={displayName}
+                          labels={resolveLabels(row.id, labelAssignments, labelCatalog).map((label) => labelPath(labelCatalog, label.id))}
+                          keywords={row.alternative_queries}
+                          query={filterQuery}
+                          visibleText={[displayName, ...row.triggers]}
+                          languages={multiLang ? (
+                            <LangSwitcher
+                              group={group}
+                              activeLang={activeLang}
+                              onSelect={(lang) => setActiveByKey((prev) => ({ ...prev, [group.key]: lang }))}
+                            />
+                          ) : <LangPill lang={activeLang} />}
                         />
-                        {row.is_formula ? (
-                          <Badge variant="primary">formula</Badge>
-                        ) : null}
-                        {row.alternative_queries.slice(0, 3).map((q) => (
-                          <span
-                            key={q}
-                            title={`Alternative query: ${q}`}
-                            className="inline-block rounded-[4px] border border-primary-bdr bg-primary-bg px-1.5 py-px text-[9px] font-semibold text-primary/80"
-                          >
-                            {q}
-                          </span>
-                        ))}
-                        {row.alternative_queries.length > 3 && (
-                          <span
-                            title={row.alternative_queries.slice(3).join(', ')}
-                            className="inline-block rounded-[4px] bg-bg-alt px-1.5 py-px text-[9px] font-medium text-ink-subtle"
-                          >
-                            +{row.alternative_queries.length - 3}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -514,25 +495,13 @@ export function SnippetsTable() {
                 <td className="px-3 py-3 2xl:px-5">
                   <ShortcutTag trigger={trigger} />
                 </td>
-                <td className="px-3 py-3 2xl:px-5">
-                  {multiLang ? (
-                    <LangSwitcher
-                      group={group}
-                      activeLang={activeLang}
-                      onSelect={(lang) =>
-                        setActiveByKey((prev) => ({ ...prev, [group.key]: lang }))
-                      }
-                    />
-                  ) : (
-                    <LangPill lang={activeLang} />
-                  )}
-                </td>
                 <td className="px-3 py-3 2xl:px-5 text-ink-muted">{row.folder_name ?? '—'}</td>
                 <td
                   className="px-3 py-3 2xl:px-5 text-ink-muted"
-                  title={attributionTitle(resolveUserName, row.user_id, row.updated_by, row.updated_at)}
+                  title={`${updateScope}\n${attributionTitle(resolveUserName, row.user_id, row.updated_by, row.updated_at)}`}
                 >
-                  {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
+                  <span className="whitespace-nowrap">{formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}</span>
+                  <span className="block text-xs">{updateScope}</span>
                 </td>
                 <td
                   className="px-3 py-3 2xl:px-5 text-right font-mono text-xs tabular-nums text-ink-muted"

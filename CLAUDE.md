@@ -21,6 +21,21 @@
 
 ---
 
+## 🧭 Simplicity Is the Core Rule — Non-Negotiable
+**Simplicity is the core rule of every SprintBrain project.** Our customers are normal people, not tech experts. The product must be very easy, very friendly and very accessible, on every surface (dashboard, extension, mobile, landing, user docs).
+
+- **Write for a first-time, non-technical user.** If someone needs to be "good with computers" to use it, redesign it.
+- **Plain words.** Everyday language in every label, message and error; no jargon, codes or internal names. Say what happened and what to do next.
+- **Few choices, clear next step.** One obvious action per screen. Sensible defaults over settings; hide advanced options until asked for.
+- **Accessible to everyone.** Keyboard reachable, visible focus, readable contrast and text size, labels on every control, meaning never carried by colour alone, touch targets sized for a thumb.
+- **Friendly.** Calm, helpful tone; never blame the user; empty and error states guide instead of dead-ending.
+- **Simple, but premium and sophisticated.** The overall design must be simple and, at the same time, refined and high-end. A user should feel inspired to pay a small monthly fee, with the same trust they give larger companies like Amazon, Google or Netflix. Simple never means plain or cheap-looking; premium never means busy.
+- **The tie-breaker.** When two options compete, the simpler one for the user wins, even if it costs more engineering.
+
+This rule sits with 🎯 Core Feature below and ranks above any feature, technical elegance or convenience. Every task is checked against it before it is declared done.
+
+---
+
 ## 🎯 Core Feature — Non-Negotiable
 **UX/UI excellence and extreme ease of navigation is the primary goal of this project.** Evaluate every task first against its impact on simplicity and ease of use.
 
@@ -140,6 +155,8 @@ The Brains page lists Brains, opens one, reads its items, copies or shares an it
 
 Since v3.54.0 the phone also **saves into a Brain** what comes from elsewhere: text or a link shared from another app (Android's Share menu once the page is installed, through `app/public/mobile/manifest.webmanifest`; an iPhone Shortcut opening `/mobile/?text=…`), or pasted with **Paste & save**. It is the extension's Save to Brain in the phone's frame, and the two stay one feature: where text is cut, what each piece is called and what its summary says come from `extension/shared/memory-chunk.js` (`chunkText`, `captureName`, `captureSummary`), which the extension's Save to Brain and chat capture use too. Since v3.55.0 so does which Brain is offered first: `suggestBrain` reads the words of the capture against each Brain's name, description and item names and summaries, on the device and nowhere else, and `pickBrain` with `loadLastBrain` / `saveLastBrain` falls back to the last Brain used, then the default. A change to how a capture is cut, named, summarised or routed is made there, once, and reaches every capture path in the same task.
 
+Since v3.63.0 Save to Brain also carries **Read a picture** (`readPicture`, server function `read-picture`): a screenshot or a photo becomes text in the box, a tall screenshot going up in overlapping pieces, and what is saved from it starts `ai_generated`. It calls the AI service, so it is Pro and ships locked (`PICTURE_AVAILABLE`, `docs/pro-features/README.md`); while locked, the row says so in plain sight and a tip under it points to Live Text and Google Lens.
+
 ### Still deliberately absent (unchanged, and not a gap)
 Mobile is a **quick-access companion, not a management surface**. It has no folder rename or delete, no full CRUD management UI, and no Brain management: creating, renaming and trashing Brains, editing or deleting items, uploading files, history and trash stay on the dashboard. Those are standing decisions, not backlog. Do not build them, and do not propose "closing the parity gap" on them. If one is genuinely needed, ask Valentina first. (The Brains section itself was opened on 2026-10-02, approved for reading, copying and adding text.)
 
@@ -160,7 +177,7 @@ Watch the file itself: it has no `.gitattributes`, so an edit can flip it to CRL
 - **Quantities are numeric fields.** Price, total, count, duration, quantity — declared as a numeric field, never as a text field, and never as a text field a formula happens to add up.
 - **Never rewrite user data to satisfy this.** Snippets already written keep working exactly as written. The rule governs what SprintBrain ships, not what people typed into it.
 
-> **Open gap: the numeric rule cannot be satisfied yet.** No body token declares a numeric field: `buildFormFieldCfg` recognises `{formtext:}` / `{formdate:}` / `{formmenu:}` only, and the dashboard writes `field_cfg: {}` on create and never edits it. `type: 'number'` is honoured by the extension overlay and the mobile app, and not by the popup. Closing this needs a numeric token in `extension/formula-engine.js`, a builder in the dashboard, and the missing popup renderer. Until it lands, say so rather than shipping a quantity as text and calling it done.
+> **How a quantity is declared:** `{formtext: name=X; type=number}` (with optional `format=plain|currency|percent`, `currency=`, `default=`, `label=`), built by the dashboard's Number builder and drawn as a number box on all four fill surfaces (overlay, popup, preview, mobile). It is an attribute rather than a `{formnumber:}` token on purpose (see the NUMBER FIELD note in `extension/formula-engine.js`). The gap this note used to describe closed in v3.9.0–v3.11.0. One limit remains: the popup and the preview ignore a *stored* `field_cfg`, so a number must be declared in the body, which is what every builder writes.
 
 ---
 
