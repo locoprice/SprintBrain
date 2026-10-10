@@ -182,7 +182,7 @@ Mobile is the documented exception in one respect only: it keeps its own parser,
 
 Mobile draws a number box only for a field declared `type=number`, like every other surface. Its old name-based heuristic (`mobileFieldType`) was removed in v3.11.0.
 
-**Fill from link (v3.64.0).** `link=after:LABEL` / `link=before:WORD|WORDS` on a field says where its value sits on a pasted web page. The engine parses the rule (`sbParseLinkRule`); `shared/fill-form.js` decides everything else once (`readFromPage`, `linkUrl`, `LINK_TEXT`); the `read-link` edge function only fetches the page and returns its text pieces. All four fill surfaces draw the Link box only when the view model is `linkable`. The `long` date format writes a date out in the snippet's language from `DATE_WORDS` (EN/IT/ES/FR); `dddd`/`MMMM` stay English.
+**Fill from link (v3.65.0).** `link=after:LABEL` / `link=before:WORD|WORDS` on a field says where its value sits on a pasted web page. The engine parses the rule (`sbParseLinkRule`); `shared/fill-form.js` decides everything else once (`readFromPage`, `linkUrl`, `LINK_TEXT`); the `read-link` edge function only fetches the page and returns its text pieces. All four fill surfaces draw the Link box only when the view model is `linkable`. The `long` date format writes a date out in the snippet's language from `DATE_WORDS` (EN/IT/ES/FR); `dddd`/`MMMM` stay English.
 
 ---
 

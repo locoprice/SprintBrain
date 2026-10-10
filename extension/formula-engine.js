@@ -1292,7 +1292,7 @@
   // authored here working while importing Text Blaze bodies without dropping
   // options — before this, everything after the first ';' was read as settings
   // and silently discarded.
-  // `link` joined in v3.64.0 (Fill from link). Without it here, a menu's
+  // `link` joined in v3.65.0 (Fill from link). Without it here, a menu's
   // reading rule became one more option to pick.
   var MENU_KEYS = /^\s*(name|default|multiple|cols|link)\s*=/i;
 

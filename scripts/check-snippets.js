@@ -1483,7 +1483,7 @@ console.log('OK The closing date is limited on all ' + ORDER_RENDERERS.length + 
 // The date being typed is never emptied, and its `min` is written only when it
 // changes. A date picker reports a whole date after every keystroke (the year
 // 2027 passes through 0002), and Chrome resets a box's typing when its min is
-// set again, even to the same value: before v3.64.0 a closing date typed from
+// set again, even to the same value: before v3.65.0 a closing date typed from
 // the keyboard came out blank on the overlay, the popup and the phone.
 const TYPING_RENDERERS = [
   ['extension/content/content.js', 'in-page overlay', ['_sbReorder(el, inp)', 'dst !== edited', "dst.getAttribute('min') !== min"]],
