@@ -23,6 +23,12 @@
 
 ---
 
+## 🧭 SIMPLICITY IS THE CORE RULE
+
+**Our users are normal people, not tech experts. The dashboard must be very easy, very friendly and very accessible.** Plain everyday words, one obvious next step per screen, sensible defaults, advanced options hidden until asked for, keyboard and screen-reader friendly, readable contrast, and calm error messages that say what to do next. When two options compete, the simpler one for the user wins. Full rule: root `../CLAUDE.md` (🧭 Simplicity Is the Core Rule).
+
+---
+
 ## 1. What this is
 
 The SprintBrain dashboard is a **desktop-only single-page application** served at the site root (`/`) on Netlify. It is the SaaS surface complementary to the Chrome extension and the mobile companion at `/mobile/`.

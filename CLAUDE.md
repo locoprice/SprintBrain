@@ -21,6 +21,20 @@
 
 ---
 
+## 🧭 Simplicity Is the Core Rule — Non-Negotiable
+**Simplicity is the core rule of every SprintBrain project.** Our customers are normal people, not tech experts. The product must be very easy, very friendly and very accessible, on every surface (dashboard, extension, mobile, landing, user docs).
+
+- **Write for a first-time, non-technical user.** If someone needs to be "good with computers" to use it, redesign it.
+- **Plain words.** Everyday language in every label, message and error; no jargon, codes or internal names. Say what happened and what to do next.
+- **Few choices, clear next step.** One obvious action per screen. Sensible defaults over settings; hide advanced options until asked for.
+- **Accessible to everyone.** Keyboard reachable, visible focus, readable contrast and text size, labels on every control, meaning never carried by colour alone, touch targets sized for a thumb.
+- **Friendly.** Calm, helpful tone; never blame the user; empty and error states guide instead of dead-ending.
+- **The tie-breaker.** When two options compete, the simpler one for the user wins, even if it costs more engineering.
+
+This rule sits with 🎯 Core Feature below and ranks above any feature, technical elegance or convenience. Every task is checked against it before it is declared done.
+
+---
+
 ## 🎯 Core Feature — Non-Negotiable
 **UX/UI excellence and extreme ease of navigation is the primary goal of this project.** Evaluate every task first against its impact on simplicity and ease of use.
 
