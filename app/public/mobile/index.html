@@ -416,18 +416,12 @@ body{
 #sb-info-sheet .sb-sheet-panel{overflow-y:auto;overscroll-behavior:contain}
 .snip-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* One row, always. Wrapping here was the second source of uneven card height:
-   a snippet with five language pills overflowed 219px and spilled onto a second
-   row, so it stood ~22px taller than a single-language one. Pills are capped in
-   the renderer and the folder badge ellipsizes, so the row absorbs overflow
-   horizontally instead of growing. Full detail is in the info sheet. */
+/* Keep the card compact; all languages live in Details. Folder names may
+   truncate here, with their complete path available in the information sheet. */
 .snip-meta{display:flex;align-items:center;gap:7px;margin-top:4px;
   flex-wrap:nowrap;overflow:hidden;min-width:0}
-.snip-meta>.lbadge,.snip-meta>.snip-sc,.snip-meta>.share-badge,.snip-meta>.lbadge-more{flex-shrink:0}
+.snip-meta>.snip-sc,.snip-meta>.share-badge{flex-shrink:0}
 .snip-meta>.fbadge{min-width:0;flex-shrink:1}
-/* "+2" chip standing in for language pills the row has no space for. */
-.lbadge-more{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;
-  background:var(--bg-alt);color:var(--text3);letter-spacing:.3px}
 .snip-sc{font-family:var(--mono);font-size:12px;color:var(--primary);font-weight:600}
 /* Language badges + interactive pills (shared with mockup) */
 .lbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
@@ -437,6 +431,9 @@ body{
 .lIT{background:#F0FDF4;color:#15803D}
 .lFR{background:#F0FDFA;color:#0D9488}
 .lMULTI{background:#F5F3FF;color:#7C3AED}
+.sb-info-row.is-list .sb-info-v.sb-info-languages{display:flex;flex-wrap:wrap;gap:8px}
+.sb-info-languages .lbadge{font-size:12px;font-weight:500;padding:8px 12px;
+  border-radius:6px;text-transform:none;letter-spacing:normal}
 
 /* Folder chip on card */
 .fbadge{
@@ -7636,8 +7633,7 @@ function renderList(){
     }
     var labelNames=assetLabelNames(active.id,snipLabelMap,false);
     var keywords=active.alternative_queries||[];
-    var detailButton=(labelNames.length||keywords.length)
-      ?'<button type="button" class="search-details" data-detail-id="'+esc(vkey(active))+'" aria-label="Details for '+esc(active.title||'Snippet')+'">Details</button>':'';
+    var detailButton='<button type="button" class="search-details" data-detail-id="'+esc(vkey(active))+'" aria-label="Details for '+esc(active.title||'Snippet')+'">Details</button>';
     var reason=hiddenSearchMatch(q,[active.title,active.shortcut],labelNames,keywords);
     g.variants.forEach(function(v){ _varIndex[vkey(v)]=v; });
     _groupIndex[g.key]=g.variants;
@@ -7651,27 +7647,12 @@ function renderList(){
         +'</span>';
       }
     }
-    // Language indicators: static badges (one per variant). The card is a single
-    // tap target now — the language is chosen on the detail page, not here.
-    // Cap the pills so the meta row never wraps — a 5-language snippet used to
-    // push the card ~22px taller than a 1-language one. The overflow becomes a
-    // "+N" chip; the full list is the "Languages" row in the info sheet.
-    var MAX_PILLS=2;
-    var shown=g.variants.slice(0,MAX_PILLS);
-    var pills=shown.map(function(v){
-      return '<span class="lbadge l'+esc(v.lang||'EN')+'">'+esc(v.lang||'EN')+'</span>';
-    }).join('');
-    if(g.variants.length>MAX_PILLS){
-      pills+='<span class="lbadge-more" title="'+esc(g.variants.map(function(v){return v.lang||'EN';}).join(' · '))+'">+'
-        +(g.variants.length-MAX_PILLS)+'</span>';
-    }
     var isPin=!!_pk[g.key];
     return '<div class="snip-card'+(isPin?' is-pinned':'')+'" data-id="'+esc(vkey(active))+'" data-gkey="'+esc(g.key)+'" role="button" tabindex="0">'
       +'<div class="snip-info">'
         +'<div class="snip-heading"><div class="snip-title">'+esc(active.title||active.id)+'</div>'+detailButton+'</div>'
         +'<div class="snip-meta">'
           +'<span class="snip-sc">'+esc(active.shortcut||'')+'</span>'
-          +pills
           +reviewChipHtml(active.review_status)
           +fbadge
           +sharingBadge(active)
@@ -8789,7 +8770,11 @@ function shareSnippet(s){
    snippet belongs here, not on the card. */
 function openSnippetInfo(s){
   var f=getFolderById(s.folder_id);
-  var variants=(typeof _groupIndex!=='undefined')?_groupIndex[groupKey(s)]:null;
+  var variants=_groupIndex[groupKey(s)]||groupForRow(s).variants;
+  // One saved snippet can carry several translations with a shared timestamp.
+  var updatedLanguages=variants.filter(function(v){return v.id===s.id;}).map(function(v){return v.lang||'EN';});
+  var updateScope=variants.length>1&&updatedLanguages.length===variants.length
+    ?'All languages':updatedLanguages.map(function(lang){return LANG_NAMES[lang]||lang;}).join(' · ');
   // Owner is user_id, which Phase B's tenancy trigger makes immutable — there
   // is no separate "creator" here, ownership never transfers, sharing is
   // folder-ACL only. One row covers both. Falls back to the raw id if the
@@ -8801,16 +8786,11 @@ function openSnippetInfo(s){
     // hold a "Preventivi".
     ['Folder', f?(folderPathLabel(f.id)||f.name||'Folder'):'None'],
     ['Owner', ownerLabel],
-    // One language row, not two: a multilingual snippet lists its variants,
-    // a single-language one names its language. "Language: MULTI" next to
-    // "Languages: EN · IT · ES" said the same thing twice.
-    (variants&&variants.length>1)
-      ? ['Languages', variants.map(function(v){return v.lang||'EN';}).join(' · ')]
-      : ['Language', s.lang||'EN'],
     ['Shortcut', s.shortcut||'—'],
     ['Characters', String((s.body||'').length)],
-    ['Updated', s.updated_at?timeAgo(s.updated_at):'—']
+    ['Updated', (s.updated_at?timeAgo(s.updated_at):'—')+' · '+updateScope]
   ];
+  rows.unshift(['Languages',Array.from(new Set((variants&&variants.length?variants:[s]).map(function(v){return v.lang||'EN';}))).join('\n')]);
   var labels=assetLabelNames(s.id,snipLabelMap,true);
   if(s.alternative_queries&&s.alternative_queries.length)rows.unshift(['Search keywords',s.alternative_queries.join('\n')]);
   if(labels.length)rows.unshift(['Labels',labels.join('\n')]);
@@ -8836,10 +8816,13 @@ function showInfoSheet(title,rows){
   _infoReturnFocus=document.activeElement;
   document.getElementById('sb-info-title').textContent=title;
   document.getElementById('sb-info-body').innerHTML=rows.map(function(r){
-    var isId=r[0]==='ID';
-    return '<div class="sb-info-row'+(r[0]==='Labels'||r[0]==='Search keywords'?' is-list':'')+'"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
+    var isId=r[0]==='ID',isLanguages=r[0]==='Languages';
+    var value=isLanguages?r[1].split('\n').map(function(lang){
+      return '<span class="lbadge l'+esc(lang)+'">'+esc(LANG_NAMES[lang]||lang)+'</span>';
+    }).join(''):esc(r[1]);
+    return '<div class="sb-info-row'+(r[0]==='Labels'||r[0]==='Search keywords'||isLanguages?' is-list':'')+'"'+(isId?' data-copy="'+esc(r[1])+'"':'')+'>'
       +'<span class="sb-info-k">'+esc(r[0])+'</span>'
-      +'<span class="sb-info-v'+(isId?' sb-info-mono':'')+'">'+esc(r[1])+'</span></div>';
+      +'<span class="sb-info-v'+(isId?' sb-info-mono':isLanguages?' sb-info-languages':'')+'">'+value+'</span></div>';
   }).join('');
   var sh=document.getElementById('sb-info-sheet');
   sh.classList.remove('sb-hidden');

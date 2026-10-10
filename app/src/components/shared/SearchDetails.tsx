@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { metadataMatch } from '@/lib/searchIndex';
@@ -7,14 +7,15 @@ interface SearchDetailsProps {
   name: string;
   labels: string[];
   keywords?: string[];
+  languages?: ReactNode;
   query: string;
   visibleText: string[];
 }
 
 const OPEN_EVENT = 'sprintbrain:search-details';
 
-/** Read-only metadata: hover/focus to preview, click or tap to keep it open. */
-export function SearchDetails({ name, labels, keywords = [], query, visibleText }: SearchDetailsProps) {
+/** Contextual metadata: hover/focus to preview, click or tap to keep it open. */
+export function SearchDetails({ name, labels, keywords = [], languages, query, visibleText }: SearchDetailsProps) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -108,7 +109,7 @@ export function SearchDetails({ name, labels, keywords = [], query, visibleText 
     if (mode === 'pinned') panel.current?.focus();
   }, [mode]);
 
-  if (!labels.length && !keywords.length) return null;
+  if (!labels.length && !keywords.length && !languages) return null;
 
   return (
     <span className="inline-flex min-w-0 flex-col items-start">
@@ -159,7 +160,9 @@ export function SearchDetails({ name, labels, keywords = [], query, visibleText 
           onPointerDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             event.stopPropagation();
-            if (event.key === 'Tab' && event.shiftKey) {
+            if (event.key === 'Tab' && event.shiftKey && (
+              event.target === panel.current || event.target === panel.current?.querySelector('button')
+            )) {
               event.preventDefault();
               close(true);
             }
@@ -179,6 +182,12 @@ export function SearchDetails({ name, labels, keywords = [], query, visibleText 
               </ul>
             </section>
           ))}
+          {languages && (
+            <section className="mt-3" aria-label="Languages">
+              <h3 className="mb-1.5 text-xs font-medium text-ink-muted">Languages</h3>
+              {languages}
+            </section>
+          )}
         </div>, document.body,
       )}
     </span>

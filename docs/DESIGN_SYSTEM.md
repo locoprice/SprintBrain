@@ -316,13 +316,22 @@ The homepage combines the original hero and “Stop starting from zero” introd
 The illustration reuses `card`, `bg`, `bg-alt`, `primary`, `primary-lt`, `border`, `r`, `r-btn`, `shadow-sm` and `shadow-md`. Its decorative glow uses the existing primary color with transparency, without introducing product status colors. Interaction triggers one short transition, honors reduced motion and makes no network request. New styles are scoped to `.hero-context`, outside shared pricing-page fragments. The lower Expansion Engine remains unchanged. This is marketing presentation only; application behavior and user documentation are unaffected.
 
 
-### Search metadata disclosure (v3.64.0)
+### Search metadata disclosure (v3.64.1)
 
 The approved minimal snippet list omits the decorative document icon. Keep the
-name, shortcut, language and useful status indicators visible; move the complete
-label and keyword lists behind one **Details** button. `SearchDetails` is shared
+name, shortcut and useful status indicators visible; move the complete
+label, keyword and language lists behind one **Details** button. `SearchDetails` is shared
 with prompt cards for labels (Brains have no labels or alternative queries).
-Labels and **Search keywords** have separate headings and wrap without truncation.
+Labels, **Search keywords** and **Languages** have separate headings and wrap without truncation.
+Languages use their full names and existing palette. Grouped desktop rows keep
+their language selector inside this panel, with 44px targets and a selected ring.
+Keep the visible Updated date tied to its language with compact copy such as
+“22 days ago · English”. Dates shared by translations in one saved snippet
+are labelled “All languages”; a partially shared update names the affected
+languages. Mobile uses the same wording in its information sheet.
+Single-language snippets also expose Details, even without labels or keywords.
+On mobile, the information sheet lists languages; the snippet detail page keeps
+the existing language selection for copying and sharing.
 Hover or keyboard focus previews the panel; click/tap keeps it open. Escape,
 Close details and outside click dismiss it. Only one panel is open at a time.
 A matching hidden keyword or label is named in the result row. Search semantics
