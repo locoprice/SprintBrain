@@ -29,6 +29,7 @@
 - **Few choices, clear next step.** One obvious action per screen. Sensible defaults over settings; hide advanced options until asked for.
 - **Accessible to everyone.** Keyboard reachable, visible focus, readable contrast and text size, labels on every control, meaning never carried by colour alone, touch targets sized for a thumb.
 - **Friendly.** Calm, helpful tone; never blame the user; empty and error states guide instead of dead-ending.
+- **Simple, but premium and sophisticated.** The overall design must be simple and, at the same time, refined and high-end. A user should feel inspired to pay a small monthly fee, with the same trust they give larger companies like Amazon, Google or Netflix. Simple never means plain or cheap-looking; premium never means busy.
 - **The tie-breaker.** When two options compete, the simpler one for the user wins, even if it costs more engineering.
 
 This rule sits with 🎯 Core Feature below and ranks above any feature, technical elegance or convenience. Every task is checked against it before it is declared done.
